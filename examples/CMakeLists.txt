@@ -1,0 +1,1 @@
+add_executable(simple_server simple_server.cpp)
