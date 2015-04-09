@@ -11,6 +11,7 @@ const char characteristic_name[] = "Temperature in 10th degree celsius";
 
 typedef bluetoe::server<
     bluetoe::service_name< serivce_name >,
+    bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
     bluetoe::characteristic<
         bluetoe::characteristic_name< characteristic_name >,
         bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
