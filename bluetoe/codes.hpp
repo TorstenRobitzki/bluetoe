@@ -6,7 +6,8 @@
 namespace bluetoe
 {
     enum class att_opcodes : std::uint8_t {
-        error_response = 1
+        error_response = 0x01,
+        find_information_request = 0x04,
     };
 
     inline std::uint8_t bits( att_opcodes c )
