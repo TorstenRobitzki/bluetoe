@@ -17,4 +17,4 @@ function(add_test TARGETNAME)
     add_dependencies(all_tests.run ${TARGETNAME}.run)
 endfunction()
 
-add_test(find_information_att_tests)
+add_test(att_find_tests)

@@ -8,6 +8,7 @@ namespace bluetoe
     enum class att_opcodes : std::uint8_t {
         error_response = 0x01,
         find_information_request = 0x04,
+        find_information_response = 0x05,
     };
 
     inline std::uint8_t bits( att_opcodes c )
@@ -36,6 +37,16 @@ namespace bluetoe
     };
 
     inline std::uint8_t bits( att_error_codes c )
+    {
+        return static_cast< std::uint8_t >( c );
+    }
+
+    enum class att_uuid_format : std::uint8_t {
+        short_16bit = 0x01,
+        long_128bit = 0x02
+    };
+
+    inline std::uint8_t bits( att_uuid_format c )
     {
         return static_cast< std::uint8_t >( c );
     }

@@ -33,6 +33,7 @@ namespace bluetoe {
     void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         assert( in_size != 0 );
+        assert( out_size >= 23 );
 
         const att_opcodes opcode = static_cast< att_opcodes >( input[ 0 ] );
 
@@ -82,6 +83,10 @@ namespace bluetoe {
 
         if ( starting_handle == 0 || starting_handle > ending_handle )
             return error_response( opcode, att_error_codes::invalid_handle, starting_handle, output, out_size );
+
+        out_size = 20;
+        output[ 0 ] = bits( att_opcodes::find_information_response );
+        output[ 1 ] = bits( att_uuid_format::long_128bit );
     }
 
     template < typename ... Options >
