@@ -2,8 +2,10 @@
 #define BLUETOE_ATTRIBUTE_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 namespace bluetoe {
+namespace details {
 
     /*
      * Attribute and accessing an attribute
@@ -18,11 +20,29 @@ namespace bluetoe {
         write
     };
 
-    struct attribute_access_arguments {
-        attribute_access_result type;
+    struct attribute_access_arguments
+    {
+        attribute_access_type   type;
+        const std::uint8_t*     input;
+        const std::size_t       input_size;
+        std::uint8_t*           output;
+        std::size_t             output_size;
+
+        template < std::size_t N >
+        static attribute_access_arguments read( std::uint8_t(&buffer)[N] )
+        {
+            return attribute_access_arguments{
+                attribute_access_type::read,
+                nullptr,
+                0,
+                &buffer[ 0 ],
+                N
+            };
+        }
+
     };
 
-    typedef attribute_access_result ( *attribute_access )( const attribute_access_arguments& );
+    typedef attribute_access_result ( *attribute_access )( attribute_access_arguments& );
 
     /*
      * An attribute is an uuid combined with a mean of how to access the attributes
@@ -38,6 +58,7 @@ namespace bluetoe {
         std::uint16_t       uuid;
         attribute_access    access;
     };
+}
 }
 
 #endif

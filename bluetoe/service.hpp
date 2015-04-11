@@ -3,6 +3,7 @@
 
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
+#include <bluetoe/options.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -21,8 +22,29 @@ namespace bluetoe {
         };
 
         struct service_uuid_meta_type {};
+        struct service_meta_type {};
+
+        inline std::uint8_t* write_big( std::uint16_t v, std::uint8_t* p )
+        {
+            p[ 0 ] = v >> 8;
+            p[ 1 ] = v & 0xff;
+
+            return p + 2;
+        }
+
+        inline std::uint8_t* write_big( std::uint32_t v, std::uint8_t* p )
+        {
+            return write_big( static_cast< std::uint16_t >( v & 0xffff ), write_big( static_cast< std::uint16_t >( v >> 16 ), p ) );
+        }
+
     }
 
+    /**
+     * @brief a 128-Bit UUID used to identify a service.
+     *
+     * The class takes 5 parameters to store the UUID in the usual form like this:
+     * bluetoe::service_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >
+     */
     template <
         std::uint32_t A,
         std::uint16_t B,
@@ -30,10 +52,17 @@ namespace bluetoe {
         std::uint16_t D,
         std::uint64_t E,
         typename = typename details::check_service_uuid_parameters< A, B, C, D, E >::type >
-    class service_uuid {
-        attribute_access_result attribute_access( const attribute_access_arguments& );
+    class service_uuid
+    {
+    public:
+        static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
+
+        typedef details::service_uuid_meta_type meta_type;
     };
 
+    /**
+     * @brief a service with zero or more characteristics
+     */
     template < typename ... Options >
     class service
     {
@@ -41,14 +70,43 @@ namespace bluetoe {
         // a service is a list of attributes
         static constexpr std::size_t number_of_attributes = 1;
 
-        static attribute attribute_at( std::size_t );
+        static details::attribute attribute_at( std::size_t );
+
+        typedef details::service_meta_type meta_type;
     };
 
+    template <
+        std::uint32_t A,
+        std::uint16_t B,
+        std::uint16_t C,
+        std::uint16_t D,
+        std::uint64_t E,
+        typename F >
+    // service_uuid implementation
+    details::attribute_access_result service_uuid< A, B, C, D, E, F >::attribute_access( details::attribute_access_arguments& args )
+    {
+        if ( args.output_size >= 16 )
+        {
+            std::uint8_t* ptr = args.output;
+            ptr = details::write_big( A, ptr );
+            ptr = details::write_big( B, ptr );
+            ptr = details::write_big( C, ptr );
+            ptr = details::write_big( D, ptr );
+            ptr = details::write_big( static_cast< std::uint32_t >( E >> 16 ), ptr );
+            ptr = details::write_big( static_cast< std::uint16_t >( E & 0xffff ), ptr );
+
+            args.output_size = 16;
+        }
+
+        return details::attribute_access_result::success;
+    }
+
+    // service implementation
     template < typename ... Options >
-    attribute service< Options... >::attribute_at( std::size_t index )
+    details::attribute service< Options... >::attribute_at( std::size_t index )
     {
         assert( index == 0 );
-        return attribute{ bits( gatt_uuids::primary_service ), nullptr };
+        return details::attribute{ bits( gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
     }
 }
 
