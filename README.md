@@ -1,2 +1,2 @@
 # bluetoe
-alternative GATT implementation
+alternative GATT/BLE implementation
