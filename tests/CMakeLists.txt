@@ -18,3 +18,6 @@ function(add_test TARGETNAME)
 endfunction()
 
 add_test(att_find_tests)
+add_test(att_read_tests)
+add_test(service_tests)
+add_test(options_tests)

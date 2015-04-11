@@ -50,6 +50,15 @@ namespace bluetoe
     {
         return static_cast< std::uint8_t >( c );
     }
+
+    enum class gatt_uuids : std::uint16_t {
+        primary_service = 0x2800
+    };
+
+    inline std::uint16_t bits( gatt_uuids c )
+    {
+        return static_cast< std::uint16_t >( c );
+    }
 }
 
 #endif
