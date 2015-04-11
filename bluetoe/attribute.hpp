@@ -13,6 +13,9 @@ namespace details {
 
     enum class attribute_access_result {
         success,
+        // read just as much as was possible to write into the output buffer
+        read_truncated,
+        write_not_permitted
     };
 
     enum class attribute_access_type {
@@ -23,19 +26,25 @@ namespace details {
     struct attribute_access_arguments
     {
         attribute_access_type   type;
-        const std::uint8_t*     input;
-        const std::size_t       input_size;
-        std::uint8_t*           output;
-        std::size_t             output_size;
+        std::uint8_t*           buffer;
+        std::size_t             buffer_size;
 
         template < std::size_t N >
         static attribute_access_arguments read( std::uint8_t(&buffer)[N] )
         {
             return attribute_access_arguments{
                 attribute_access_type::read,
-                nullptr,
-                0,
                 &buffer[ 0 ],
+                N
+            };
+        }
+
+        template < std::size_t N >
+        static attribute_access_arguments write( const std::uint8_t(&buffer)[N] )
+        {
+            return attribute_access_arguments{
+                attribute_access_type::write,
+                const_cast< std::uint8_t* >( &buffer[ 0 ] ),
                 N
             };
         }
