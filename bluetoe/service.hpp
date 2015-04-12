@@ -30,7 +30,9 @@ namespace bluetoe {
      * @brief a 128-Bit UUID used to identify a service.
      *
      * The class takes 5 parameters to store the UUID in the usual form like this:
+     * @code{.cpp}
      * bluetoe::service_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >
+     * @endcode
      */
     template <
         std::uint32_t A,
