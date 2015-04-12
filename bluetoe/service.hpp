@@ -24,29 +24,6 @@ namespace bluetoe {
 
         struct service_uuid_meta_type {};
         struct service_meta_type {};
-
-        inline std::uint8_t* write_big( std::uint16_t v, std::uint8_t* p, std::uint8_t* end )
-        {
-            if ( p != end )
-            {
-                *p = v >> 8;
-                ++p;
-            }
-
-            if ( p != end )
-            {
-                *p = v & 0xff;
-                ++p;
-            }
-
-            return p;
-        }
-
-        inline std::uint8_t* write_big( std::uint32_t v, std::uint8_t* p, std::uint8_t* end )
-        {
-            return write_big( static_cast< std::uint16_t >( v & 0xffff ), write_big( static_cast< std::uint16_t >( v >> 16 ), p, end ), end );
-        }
-
     }
 
     /**
@@ -95,18 +72,30 @@ namespace bluetoe {
     // service_uuid implementation
     details::attribute_access_result service_uuid< A, B, C, D, E, F >::attribute_access( details::attribute_access_arguments& args )
     {
+        static constexpr uint8_t uuid[ 16 ] = {
+            ( A >> 24 ) & 0xff,
+            ( A >> 16 ) & 0xff,
+            ( A >> 8  ) & 0xff,
+            ( A >> 0  ) & 0xff,
+            ( B >> 8  ) & 0xff,
+            ( B >> 0  ) & 0xff,
+            ( C >> 8  ) & 0xff,
+            ( C >> 0  ) & 0xff,
+            ( D >> 8  ) & 0xff,
+            ( D >> 0  ) & 0xff,
+            ( E >> 40 ) & 0xff,
+            ( E >> 32 ) & 0xff,
+            ( E >> 24 ) & 0xff,
+            ( E >> 16 ) & 0xff,
+            ( E >> 8  ) & 0xff,
+            ( E >> 0  ) & 0xff
+        };
+
         if ( args.type == details::attribute_access_type::read )
         {
-            std::uint8_t* const end = args.buffer + args.buffer_size;
-            std::uint8_t*       ptr = args.buffer;
-            ptr = details::write_big( A, ptr, end );
-            ptr = details::write_big( B, ptr, end );
-            ptr = details::write_big( C, ptr, end );
-            ptr = details::write_big( D, ptr, end );
-            ptr = details::write_big( static_cast< std::uint32_t >( E >> 16 ), ptr, end );
-            ptr = details::write_big( static_cast< std::uint16_t >( E & 0xffff ), ptr, end );
-
             args.buffer_size = std::min< std::size_t >( 16, args.buffer_size );
+
+            std::copy( std::begin( uuid ), std::begin( uuid ) + args.buffer_size, args.buffer );
 
             return args.buffer_size == 16
                 ? details::attribute_access_result::success
