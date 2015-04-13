@@ -91,7 +91,7 @@ namespace bluetoe {
         assert( index < number_of_attributes );
 
         if ( index == 0 )
-            return details::attribute{ bits( gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
+            return details::attribute{ bits( details::gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
     }
 }
 

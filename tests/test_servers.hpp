@@ -17,7 +17,7 @@ namespace {
         bluetoe::characteristic<
             bluetoe::characteristic_name< temp_characteristic_name >,
             bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >,
-            bluetoe::read_only
+            bluetoe::no_write_access
         >
     > small_temperature_service;
 

@@ -91,3 +91,12 @@ BOOST_FIXTURE_TEST_CASE( start_handle_larger_than_ending, small_temperature_serv
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( find_information_valid_requests )
+
+BOOST_FIXTURE_TEST_CASE( find_information_valid, small_temperature_service )
+{
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
