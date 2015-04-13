@@ -15,6 +15,7 @@ namespace details {
         success,
         // read just as much as was possible to write into the output buffer
         read_truncated,
+        write_truncated,
         write_not_permitted
     };
 
@@ -63,7 +64,7 @@ namespace details {
      * access functions.
      */
     struct attribute {
-        // all uuids used by GATT are 16 bit UUIDs
+        // all uuids used by GATT are 16 bit UUIDs (except for Characteristic Value Declaration for which the value internal_16bit_uuid or internal_128bit_uuid are used)
         std::uint16_t       uuid;
         attribute_access    access;
     };
