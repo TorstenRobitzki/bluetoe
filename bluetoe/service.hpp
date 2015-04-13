@@ -4,7 +4,7 @@
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/options.hpp>
-
+#include <bluetoe/uuid.hpp>
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
@@ -15,13 +15,6 @@ namespace bluetoe {
     class service_name {};
 
     namespace details {
-        template < std::uint32_t A, std::uint16_t B, std::uint16_t C, std::uint16_t D, std::uint64_t E >
-        struct check_service_uuid_parameters
-        {
-            static_assert( E < 0x1000000000000l, "service_uuid: last group of bytes can not be larger than 6 bytes." );
-            typedef void type;
-        };
-
         struct service_uuid_meta_type {};
         struct service_meta_type {};
     }
@@ -39,9 +32,8 @@ namespace bluetoe {
         std::uint16_t B,
         std::uint16_t C,
         std::uint16_t D,
-        std::uint64_t E,
-        typename = typename details::check_service_uuid_parameters< A, B, C, D, E >::type >
-    class service_uuid
+        std::uint64_t E >
+    class service_uuid : details::uuid< A, B, C, D, E >
     {
     public:
         static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
@@ -74,35 +66,15 @@ namespace bluetoe {
         std::uint16_t B,
         std::uint16_t C,
         std::uint16_t D,
-        std::uint64_t E,
-        typename F >
+        std::uint64_t E >
     // service_uuid implementation
-    details::attribute_access_result service_uuid< A, B, C, D, E, F >::attribute_access( details::attribute_access_arguments& args )
+    details::attribute_access_result service_uuid< A, B, C, D, E >::attribute_access( details::attribute_access_arguments& args )
     {
-        static constexpr uint8_t uuid[ 16 ] = {
-            ( A >> 24 ) & 0xff,
-            ( A >> 16 ) & 0xff,
-            ( A >> 8  ) & 0xff,
-            ( A >> 0  ) & 0xff,
-            ( B >> 8  ) & 0xff,
-            ( B >> 0  ) & 0xff,
-            ( C >> 8  ) & 0xff,
-            ( C >> 0  ) & 0xff,
-            ( D >> 8  ) & 0xff,
-            ( D >> 0  ) & 0xff,
-            ( E >> 40 ) & 0xff,
-            ( E >> 32 ) & 0xff,
-            ( E >> 24 ) & 0xff,
-            ( E >> 16 ) & 0xff,
-            ( E >> 8  ) & 0xff,
-            ( E >> 0  ) & 0xff
-        };
-
         if ( args.type == details::attribute_access_type::read )
         {
-            args.buffer_size = std::min< std::size_t >( 16, args.buffer_size );
+            args.buffer_size = std::min< std::size_t >( sizeof( details::uuid< A, B, C, D, E >::bytes ), args.buffer_size );
 
-            std::copy( std::begin( uuid ), std::begin( uuid ) + args.buffer_size, args.buffer );
+            std::copy( std::begin( details::uuid< A, B, C, D, E >::bytes ), std::begin( details::uuid< A, B, C, D, E >::bytes ) + args.buffer_size, args.buffer );
 
             return args.buffer_size == 16
                 ? details::attribute_access_result::success

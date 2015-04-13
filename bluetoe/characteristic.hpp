@@ -3,6 +3,9 @@
 
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
+#include <bluetoe/uuid.hpp>
+#include <bluetoe/options.hpp>
+
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
@@ -11,7 +14,37 @@ namespace bluetoe {
 
     namespace details {
         struct characteristic_meta_type;
+        struct characteristic_uuid_meta_type;
     }
+
+    /**
+     * @brief a 128-Bit UUID used to identify a characteristic.
+     *
+     * The class takes 5 parameters to store the UUID in the usual form like this:
+     * @code{.cpp}
+     * bluetoe::characteristic_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >
+     * @endcode
+     */
+    template <
+        std::uint64_t A,
+        std::uint64_t B,
+        std::uint64_t C,
+        std::uint64_t D,
+        std::uint64_t E >
+    struct characteristic_uuid : details::uuid< A, B, C, D, E >
+    {
+        typedef details::characteristic_uuid_meta_type meta_type;
+    };
+
+    /**
+     * @brief a 16-Bit UUID used to identify a characteristic.
+     */
+    template <
+        std::uint64_t UUID >
+    struct characteristic_uuid16 : details::uuid16< UUID >
+    {
+        typedef details::characteristic_uuid_meta_type meta_type;
+    };
 
     /**
      * @brief a characteristic is a data point that is accessable by client.
@@ -84,11 +117,20 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute_access_result characteristic< Options... >::char_declaration_access( details::attribute_access_arguments& args )
     {
+        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
+        static const auto uuid_offset = 3;
+
         if ( args.type == details::attribute_access_type::read )
         {
-            args.buffer_size = std::min< std::size_t >( args.buffer_size, 19u );
+            static constexpr auto uuid_size = sizeof( uuid::bytes );
 
-            return args.buffer_size == 19u
+            args.buffer_size          = std::min< std::size_t >( args.buffer_size, uuid_offset + uuid_size );
+            const auto max_uuid_bytes = std::min< std::size_t >( std::max< int >( 0, args.buffer_size -uuid_offset ), uuid_size );
+
+            if ( max_uuid_bytes )
+                std::copy( std::begin( uuid::bytes ), std::begin( uuid::bytes ) + max_uuid_bytes, args.buffer + uuid_offset );
+
+            return args.buffer_size == uuid_offset + uuid_size
                 ? details::attribute_access_result::success
                 : details::attribute_access_result::read_truncated;
         }
