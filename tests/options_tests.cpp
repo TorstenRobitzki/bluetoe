@@ -121,4 +121,18 @@ BOOST_AUTO_TEST_CASE( count_by_meta_type )
     BOOST_CHECK_EQUAL( ( bluetoe::details::count_by_meta_type< meta1, type4, type3, type2 >::count ), 0 );
 }
 
+BOOST_AUTO_TEST_CASE( option_is_not_set_in_an_empty_list )
+{
+    BOOST_CHECK( !bluetoe::details::has_option< int >::value );
+}
 
+BOOST_AUTO_TEST_CASE( option_is_set )
+{
+    BOOST_CHECK( !( bluetoe::details::has_option< int, char >::value ) );
+    BOOST_CHECK( !( bluetoe::details::has_option< int, char, float >::value ) );
+    BOOST_CHECK( !( bluetoe::details::has_option< int, char, float, bool >::value ) );
+
+    BOOST_CHECK( ( bluetoe::details::has_option< int, char, int >::value ) );
+    BOOST_CHECK( ( bluetoe::details::has_option< int, int, char >::value ) );
+    BOOST_CHECK( ( bluetoe::details::has_option< int, char, int, char >::value ) );
+}

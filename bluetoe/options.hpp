@@ -132,6 +132,29 @@ namespace details {
             : 0 + count_by_meta_type< MetaType, Types... >::count
         };
     };
+
+    /**
+     * @brief returns true, if Option is given in Options
+     */
+    template <
+        typename Option,
+        typename ... Options >
+    struct has_option;
+
+    template <
+        typename Option >
+    struct has_option< Option > {
+        static bool constexpr value = false;
+    };
+
+    template <
+        typename Option,
+        typename FirstOption,
+        typename ... Options >
+    struct has_option< Option, FirstOption, Options... > {
+        static bool constexpr value =
+            std::is_same< Option, FirstOption >::value || has_option< Option, Options... >::value;
+    };
 }
 }
 
