@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-namespace bluetoe
-{
+namespace bluetoe {
+namespace details {
     enum class att_opcodes : std::uint8_t {
         error_response = 0x01,
         find_information_request = 0x04,
@@ -63,6 +63,16 @@ namespace bluetoe
     {
         return static_cast< std::uint16_t >( c );
     }
-}
 
+    enum class gatt_characteristic_properties : std::uint8_t {
+        read  = 0x02,
+        write = 0x08
+    };
+
+    inline std::uint8_t bits( gatt_characteristic_properties c )
+    {
+        return static_cast< std::uint8_t >( c );
+    }
+}
+}
 #endif

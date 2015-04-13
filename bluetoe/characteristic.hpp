@@ -75,6 +75,9 @@ namespace bluetoe {
         typedef details::characteristic_meta_type meta_type;
 
     private:
+        typedef typename details::find_by_meta_type< details::characteristic_value_metat_type, Options... >::type base_value_type;
+        typedef typename base_value_type::template value_impl< Options... >                                       value_type;
+
         static details::attribute_access_result char_declaration_access( details::attribute_access_arguments& );
 
     };
@@ -157,12 +160,10 @@ namespace bluetoe {
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
-        typedef typename details::find_by_meta_type< details::characteristic_value_metat_type, Options... >::type base_value;
-        typedef typename base_value::template value_impl< Options... >                                            value;
 
         static const details::attribute attributes[ number_of_attributes ] = {
-            { bits( gatt_uuids::characteristic ), &char_declaration_access },
-            { bits( gatt_uuids::characteristic ), &value::characteristic_value_access }
+            { bits( details::gatt_uuids::characteristic ), &char_declaration_access },
+            { bits( details::gatt_uuids::characteristic ), &value_type::characteristic_value_access }
         };
 
         return attributes[ index ];
@@ -181,7 +182,14 @@ namespace bluetoe {
             args.buffer_size          = std::min< std::size_t >( args.buffer_size, uuid_offset + uuid_size );
             const auto max_uuid_bytes = std::min< std::size_t >( std::max< int >( 0, args.buffer_size -uuid_offset ), uuid_size );
 
-            /// @TODO fill "Characteristic Properties" and "Characteristic Value Attribute Handle"
+            if ( args.buffer_size > 0 )
+            {
+                args.buffer[ 0 ] =
+                    ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
+                    ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 );
+            }
+
+            /// @TODO fill "Characteristic Value Attribute Handle"
             if ( max_uuid_bytes )
                 std::copy( std::begin( uuid::bytes ), std::begin( uuid::bytes ) + max_uuid_bytes, args.buffer + uuid_offset );
 
