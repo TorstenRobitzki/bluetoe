@@ -163,4 +163,38 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
         BOOST_REQUIRE( bluetoe::details::attribute_access_result::write_not_permitted == value_attribute.access( write ) );
     }
 
+    BOOST_AUTO_TEST_CASE( simple_value_without_read_access_can_not_be_read )
+    {
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+            bluetoe::no_read_access
+        > simple_char_without_write_access;
+
+        const bluetoe::details::attribute value_attribute = simple_char_without_write_access.attribute_at( 1 );
+
+        std::uint8_t old_value[ 4 ];
+
+        auto read = bluetoe::details::attribute_access_arguments::read( old_value );
+
+        BOOST_REQUIRE( bluetoe::details::attribute_access_result::read_not_permitted == value_attribute.access( read ) );
+    }
+
+    BOOST_AUTO_TEST_CASE( simple_value_without_write_access_can_not_be_written )
+    {
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+            bluetoe::no_write_access
+        > simple_char_without_read_access;
+
+        const bluetoe::details::attribute value_attribute = simple_char_without_read_access.attribute_at( 1 );
+
+        std::uint8_t new_value[] = { 0x01, 0x02, 0x03, 0x04 };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( new_value );
+
+        BOOST_REQUIRE( bluetoe::details::attribute_access_result::write_not_permitted == value_attribute.access( write ) );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

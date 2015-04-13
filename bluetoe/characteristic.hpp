@@ -80,22 +80,66 @@ namespace bluetoe {
     };
 
     /**
+     * @brief if added as option to a characteristic, read access is removed from the characteristic
+     *
+     * Even if read access was the only remaining access type, the characterist will not be readable.
+     *
+     * Example:
+     * @code
+        std::uint32_t simple_value = 0xaabbccdd;
+
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+            bluetoe::no_read_access > >
+     * @endcode
+     * @sa characteristic
+     */
+    class no_read_access {};
+
+    /**
+     * @brief if added as option to a characteristic, write access is removed from the characteristic
+     *
+     * Even if write access was the only remaining access type, the characterist will not be writeable.
+     *
+     * Example:
+     * @code
+        std::uint32_t simple_value = 0xaabbccdd;
+
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+            bluetoe::no_write_access > >
+     * @endcode
+     * @sa characteristic
+     */
+    class no_write_access {};
+
+    /**
      * @brief a very simple device to bind a characteristic to a global variable to provide access to the characteristic value
      */
     template < typename T, T* Ptr >
     class bind_characteristic_value
     {
     public:
-        static constexpr bool has_read_access  = true;
-        static constexpr bool has_write_access = !std::is_const< T >::value;
+        // use a new type to mixin the options given to characteristic
+        template < typename ... Options >
+        class value_impl
+        {
+        public:
+            static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
+            static constexpr bool has_write_access = !std::is_const< T >::value && !details::has_option< no_write_access, Options... >::value;
 
-        static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& );
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& );
+        private:
+            static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::true_type& );
+            static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& );
+            static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments&, const std::true_type& );
+            static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& );
+        };
+
 
         typedef details::characteristic_value_metat_type meta_type;
-
-    private:
-        static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments& );
-        static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments& );
     };
 
     /**
@@ -108,19 +152,13 @@ namespace bluetoe {
     {
     };
 
-    /**
-     * @brief if added as option to a characteristic, defines the characteristic to be read-only
-     */
-    class read_only {
-
-    };
-
     // implementation
     template < typename ... Options >
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
-        typedef typename details::find_by_meta_type< details::characteristic_value_metat_type, Options... >::type value;
+        typedef typename details::find_by_meta_type< details::characteristic_value_metat_type, Options... >::type base_value;
+        typedef typename base_value::template value_impl< Options... >                                            value;
 
         static const details::attribute attributes[ number_of_attributes ] = {
             { bits( gatt_uuids::characteristic ), &char_declaration_access },
@@ -156,26 +194,24 @@ namespace bluetoe {
     }
 
     template < typename T, T* Ptr >
-    details::attribute_access_result bind_characteristic_value< T, Ptr >::characteristic_value_access( details::attribute_access_arguments& args )
+    template < typename ... Options >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_access( details::attribute_access_arguments& args )
     {
         if ( args.type == details::attribute_access_type::read )
         {
-            return has_read_access
-                ? characteristic_value_read_access( args )
-                : details::attribute_access_result::read_not_permitted;
+            return characteristic_value_read_access( args, std::integral_constant< bool, has_read_access >() );
         }
         else if ( args.type == details::attribute_access_type::write )
         {
-            return has_write_access
-                ? characteristic_value_write_access( args )
-                : details::attribute_access_result::write_not_permitted;
+            return characteristic_value_write_access( args, std::integral_constant< bool, has_write_access >() );
         }
 
         return details::attribute_access_result::write_not_permitted;
     }
 
     template < typename T, T* Ptr >
-    details::attribute_access_result bind_characteristic_value< T, Ptr >::characteristic_value_read_access( details::attribute_access_arguments& args )
+    template < typename ... Options >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_read_access( details::attribute_access_arguments& args, const std::true_type& )
     {
         args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
         static const std::uint8_t* ptr = static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) );
@@ -187,15 +223,30 @@ namespace bluetoe {
     }
 
     template < typename T, T* Ptr >
-    details::attribute_access_result bind_characteristic_value< T, Ptr >::characteristic_value_write_access( details::attribute_access_arguments& args )
+    template < typename ... Options >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& )
+    {
+        return details::attribute_access_result::read_not_permitted;
+    }
+
+    template < typename T, T* Ptr >
+    template < typename ... Options >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_write_access( details::attribute_access_arguments& args, const std::true_type& )
     {
         args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
-        static std::uint8_t* ptr = static_cast< std::uint8_t* >( const_cast< void* >( static_cast< const void* >( Ptr ) ) );
+        static std::uint8_t* ptr = static_cast< std::uint8_t* >( static_cast< void* >( Ptr ) );
         std::copy( args.buffer, args.buffer + args.buffer_size, ptr );
 
         return args.buffer_size == sizeof( T )
             ? details::attribute_access_result::success
             : details::attribute_access_result::write_truncated;
+    }
+
+    template < typename T, T* Ptr >
+    template < typename ... Options >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& )
+    {
+        return details::attribute_access_result::write_not_permitted;
     }
 }
 
