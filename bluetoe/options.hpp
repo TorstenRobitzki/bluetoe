@@ -106,6 +106,32 @@ namespace details {
     };
 
 
+    /*
+     * counts the number of Types with a given MetaType
+     */
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct count_by_meta_type;
+
+    template <
+        typename MetaType >
+    struct count_by_meta_type< MetaType > {
+        enum { count = 0 };
+    };
+
+    template <
+        typename MetaType,
+        typename Type,
+        typename ... Types >
+    struct count_by_meta_type< MetaType, Type, Types... > {
+        typedef extract_meta_type< Type > meta_type;
+
+        enum { count = std::is_same< typename meta_type::type, MetaType >::value
+            ? 1 + count_by_meta_type< MetaType, Types... >::count
+            : 0 + count_by_meta_type< MetaType, Types... >::count
+        };
+    };
 }
 }
 
