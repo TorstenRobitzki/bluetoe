@@ -52,7 +52,8 @@ namespace bluetoe
     }
 
     enum class gatt_uuids : std::uint16_t {
-        primary_service = 0x2800
+        primary_service = 0x2800,
+        characteristic  = 0x2803
     };
 
     inline std::uint16_t bits( gatt_uuids c )

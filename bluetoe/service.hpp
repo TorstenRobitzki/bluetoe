@@ -56,10 +56,15 @@ namespace bluetoe {
     class service
     {
     public:
-        // a service is a list of attributes
+        /**
+         * a service is a list of attributes
+         */
         static constexpr std::size_t number_of_attributes = 1;
 
-        static details::attribute attribute_at( std::size_t );
+        /**
+         *
+         */
+        static details::attribute attribute_at( std::size_t index );
 
         typedef details::service_meta_type meta_type;
     };
@@ -111,8 +116,10 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute service< Options... >::attribute_at( std::size_t index )
     {
-        assert( index == 0 );
-        return details::attribute{ bits( gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
+        assert( index < number_of_attributes );
+
+        if ( index == 0 )
+            return details::attribute{ bits( gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
     }
 }
 
