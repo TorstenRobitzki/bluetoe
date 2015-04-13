@@ -15,7 +15,7 @@ typedef bluetoe::server<
     bluetoe::characteristic<
         bluetoe::characteristic_name< characteristic_name >,
         bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
-        bluetoe::read_only
+        bluetoe::no_read_access
     >
 > temperature_service;
 
