@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
+#include <type_traits>
 
 namespace bluetoe {
 
@@ -85,8 +86,16 @@ namespace bluetoe {
     class bind_characteristic_value
     {
     public:
+        static constexpr bool has_read_access  = true;
+        static constexpr bool has_write_access = !std::is_const< T >::value;
+
         static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& );
+
         typedef details::characteristic_value_metat_type meta_type;
+
+    private:
+        static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments& );
+        static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments& );
     };
 
     /**
@@ -151,28 +160,43 @@ namespace bluetoe {
     {
         if ( args.type == details::attribute_access_type::read )
         {
-            args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
-            static const std::uint8_t* ptr = static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) );
-            std::copy( ptr, ptr + args.buffer_size, args.buffer );
-
-            return args.buffer_size == sizeof( T )
-                ? details::attribute_access_result::success
-                : details::attribute_access_result::read_truncated;
+            return has_read_access
+                ? characteristic_value_read_access( args )
+                : details::attribute_access_result::read_not_permitted;
         }
-        else
+        else if ( args.type == details::attribute_access_type::write )
         {
-            args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
-            static std::uint8_t* ptr = static_cast< std::uint8_t* >( static_cast< void* >( Ptr ) );
-            std::copy( args.buffer, args.buffer + args.buffer_size, ptr );
-
-            return args.buffer_size == sizeof( T )
-                ? details::attribute_access_result::success
-                : details::attribute_access_result::write_truncated;
+            return has_write_access
+                ? characteristic_value_write_access( args )
+                : details::attribute_access_result::write_not_permitted;
         }
 
         return details::attribute_access_result::write_not_permitted;
     }
 
+    template < typename T, T* Ptr >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::characteristic_value_read_access( details::attribute_access_arguments& args )
+    {
+        args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
+        static const std::uint8_t* ptr = static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) );
+        std::copy( ptr, ptr + args.buffer_size, args.buffer );
+
+        return args.buffer_size == sizeof( T )
+            ? details::attribute_access_result::success
+            : details::attribute_access_result::read_truncated;
+    }
+
+    template < typename T, T* Ptr >
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::characteristic_value_write_access( details::attribute_access_arguments& args )
+    {
+        args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
+        static std::uint8_t* ptr = static_cast< std::uint8_t* >( const_cast< void* >( static_cast< const void* >( Ptr ) ) );
+        std::copy( args.buffer, args.buffer + args.buffer_size, ptr );
+
+        return args.buffer_size == sizeof( T )
+            ? details::attribute_access_result::success
+            : details::attribute_access_result::write_truncated;
+    }
 }
 
 #endif

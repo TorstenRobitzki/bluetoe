@@ -4,7 +4,8 @@
 #include <boost/test/included/unit_test.hpp>
 
 namespace {
-    std::uint32_t simple_value = 0xaabbccdd;
+    std::uint32_t       simple_value       = 0xaabbccdd;
+    const std::uint32_t simple_const_value = 0xaabbccdd;
 
     typedef bluetoe::characteristic<
         bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
@@ -15,6 +16,11 @@ namespace {
         bluetoe::characteristic_uuid16< 0xD0B1 >,
         bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >
     > short_uuid_char;
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+        bluetoe::bind_characteristic_value< const std::uint32_t, &simple_const_value >
+    > simple_const_char;
 
 }
 
@@ -133,6 +139,28 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
 
         static const std::uint8_t expected_value[] = { 0x01, 0x02, 0x03, 0x04 };
         BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_value ), std::end( expected_value ), read.buffer, read.buffer + read.buffer_size );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( simple_const_value_can_be_read, simple_const_char )
+    {
+        const bluetoe::details::attribute value_attribute = attribute_at( 1 );
+        std::uint8_t buffer[ 100 ];
+        auto read = bluetoe::details::attribute_access_arguments::read( buffer );
+
+        BOOST_REQUIRE( bluetoe::details::attribute_access_result::success == value_attribute.access( read ) );
+
+        static const std::uint8_t expected_value[] = { 0xdd, 0xcc, 0xbb, 0xaa };
+        BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_value ), std::end( expected_value ), read.buffer, read.buffer + read.buffer_size );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( simple_const_value_can_not_be_writte, simple_const_char )
+    {
+        const bluetoe::details::attribute value_attribute = attribute_at( 1 );
+        std::uint8_t new_value[] = { 0x01, 0x02, 0x03, 0x04 };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( new_value );
+
+        BOOST_REQUIRE( bluetoe::details::attribute_access_result::write_not_permitted == value_attribute.access( write ) );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

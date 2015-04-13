@@ -15,8 +15,11 @@ namespace details {
         success,
         // read just as much as was possible to write into the output buffer
         read_truncated,
+        // write just as much as was possible to the internal value
         write_truncated,
-        write_not_permitted
+
+        write_not_permitted,
+        read_not_permitted
     };
 
     enum class attribute_access_type {
