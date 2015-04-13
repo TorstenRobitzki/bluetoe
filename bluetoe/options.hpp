@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <type_traits>
+#include <tuple>
 
 namespace bluetoe {
 namespace details {
@@ -31,6 +32,33 @@ namespace details {
     template < typename Null, typename B >
     struct or_type< Null, Null, B > {
         typedef B type;
+    };
+
+    /*
+     *  add A to B
+     */
+    template < class A, class B >
+    struct add_type
+    {
+        typedef std::tuple< A, B > type;
+    };
+
+    template < class T, class ... Ts >
+    struct add_type< T, std::tuple< Ts... > >
+    {
+        typedef std::tuple< T, Ts... > type;
+    };
+
+    template < class ...Ts, class T >
+    struct add_type< std::tuple< Ts... >, T >
+    {
+        typedef std::tuple< Ts..., T > type;
+    };
+
+    template < class ...As, class ...Bs >
+    struct add_type< std::tuple< As... >, std::tuple< Bs...> >
+    {
+        typedef std::tuple< As..., Bs... > type;
     };
 
     /*
@@ -105,6 +133,33 @@ namespace details {
             typename find_by_meta_type< MetaType, Types... >::type >::type type;
     };
 
+    /*
+     * finds all types that has the embedded meta_type
+     */
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct find_all_by_meta_type;
+
+    template <
+        typename MetaType >
+    struct find_all_by_meta_type< MetaType >
+    {
+        typedef std::tuple<> type;
+    };
+
+    template <
+        typename MetaType,
+        typename Type,
+        typename ... Types >
+    struct find_all_by_meta_type< MetaType, Type, Types... >
+    {
+        typedef extract_meta_type< Type > meta_type;
+        typedef typename select_type<
+            std::is_same< typename meta_type::type, MetaType >::value,
+            typename add_type< Type, typename find_all_by_meta_type< MetaType, Types... >::type >::type,
+            typename find_all_by_meta_type< MetaType, Types... >::type >::type type;
+    };
 
     /*
      * counts the number of Types with a given MetaType

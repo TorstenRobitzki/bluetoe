@@ -136,3 +136,47 @@ BOOST_AUTO_TEST_CASE( option_is_set )
     BOOST_CHECK( ( bluetoe::details::has_option< int, int, char >::value ) );
     BOOST_CHECK( ( bluetoe::details::has_option< int, char, int, char >::value ) );
 }
+
+BOOST_AUTO_TEST_CASE( find_all_by_meta_type_empty_list )
+{
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< int >::type, std::tuple<> >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( find_all_by_meta_type )
+{
+    // no resulting element
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type2, type3 >::type,
+        std::tuple<> >::value ) );
+
+    // one resulting element
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type2, type3, type1 >::type,
+        std::tuple< type1 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type2, type1, type3 >::type,
+        std::tuple< type1 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type1, type3, type2 >::type,
+        std::tuple< type1 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type1 >::type,
+        std::tuple< type1 > >::value ) );
+
+    // more than one result elements
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type11, type2, type3, type1 >::type,
+        std::tuple< type11, type1 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type2, type1, type11, type3 >::type,
+        std::tuple< type1, type11 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type1, type3, type11, type2 >::type,
+        std::tuple< type1, type11 > >::value ) );
+}
