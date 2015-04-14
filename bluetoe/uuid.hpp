@@ -40,6 +40,11 @@ namespace details {
     struct uuid
     {
         static const std::uint8_t bytes[ 16 ];
+        static constexpr bool is_128bit = true;
+
+        static std::uint16_t as_16bit() {
+            return A & 0xffff;
+        };
     };
 
     template <
@@ -75,6 +80,11 @@ namespace details {
     struct uuid16
     {
         static const std::uint8_t bytes[ 2 ];
+        static constexpr bool is_128bit = false;
+
+        static std::uint16_t as_16bit() {
+            return UUID & 0xffff;
+        };
     };
 
     template < std::uint64_t UUID, typename A >

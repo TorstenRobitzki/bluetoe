@@ -71,3 +71,17 @@ BOOST_AUTO_TEST_CASE( write_to_primary_service )
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::write_not_permitted );
 }
+
+BOOST_FIXTURE_TEST_CASE( accessing_all_attributes, service_with_3_characteristics )
+{
+    static constexpr std::size_t expected_number_of_attributes = 7u;
+    BOOST_REQUIRE_EQUAL( unsigned( number_of_attributes ), expected_number_of_attributes );
+
+    BOOST_CHECK_EQUAL( 0x2800, attribute_at( 0 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at( 1 ).uuid );
+    BOOST_CHECK_EQUAL( 0x0001, attribute_at( 2 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at( 3 ).uuid );
+    BOOST_CHECK_EQUAL( 0x0001, attribute_at( 4 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at( 5 ).uuid );
+    BOOST_CHECK_EQUAL( 0x0815, attribute_at( 6 ).uuid );
+}

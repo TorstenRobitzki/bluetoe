@@ -5,6 +5,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/uuid.hpp>
+#include <bluetoe/characteristic.hpp>
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
@@ -17,6 +18,12 @@ namespace bluetoe {
     namespace details {
         struct service_uuid_meta_type {};
         struct service_meta_type {};
+
+        template < typename T >
+        struct sum_up_attributes;
+
+        template < typename T >
+        struct attribute_at_impl;
     }
 
     /**
@@ -48,10 +55,13 @@ namespace bluetoe {
     class service
     {
     public:
+        typedef typename details::find_all_by_meta_type< details::characteristic_meta_type, Options... >::type characteristics;
+
         /**
          * a service is a list of attributes
          */
-        static constexpr std::size_t number_of_attributes = 1;
+        static constexpr std::size_t number_of_attributes = 1
+            + details::sum_up_attributes< characteristics >::value;
 
         /**
          *
@@ -92,7 +102,51 @@ namespace bluetoe {
 
         if ( index == 0 )
             return details::attribute{ bits( details::gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
+
+        return details::attribute_at_impl< characteristics >::attribute_at( index -1 );
     }
+
+    namespace details {
+        template <>
+        struct sum_up_attributes< std::tuple<> >
+        {
+            static constexpr std::size_t value = 0;
+        };
+
+        template <
+            typename T,
+            typename ...Ts >
+        struct sum_up_attributes< std::tuple< T, Ts... > >
+        {
+            static constexpr std::size_t value =
+                T::number_of_attributes
+              + sum_up_attributes< std::tuple< Ts... > >::value;
+        };
+
+        template <>
+        struct attribute_at_impl< std::tuple<> >
+        {
+            static details::attribute attribute_at( std::size_t index )
+            {
+                assert( !"index out of bound" );
+            }
+        };
+
+        template <
+            typename T,
+            typename ...Ts >
+        struct attribute_at_impl< std::tuple< T, Ts... > >
+        {
+            static details::attribute attribute_at( std::size_t index )
+            {
+                return index < T::number_of_attributes
+                    ? T::attribute_at( index )
+                    : attribute_at_impl< std::tuple< Ts... > >::attribute_at( index - T::number_of_attributes );
+            }
+        };
+    }
+
+
 }
 
 #endif

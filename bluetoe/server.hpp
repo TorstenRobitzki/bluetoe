@@ -2,6 +2,7 @@
 #define BLUETOE_SERVER_HPP
 
 #include <bluetoe/codes.hpp>
+#include <bluetoe/service.hpp>
 
 #include <cstdint>
 #include <cstddef>
@@ -12,9 +13,25 @@
 namespace bluetoe {
 
     /**
-     * @brief implementation of an GATT server
+     * @brief Root of the declaration of a GATT server.
      *
-     * The server serves one or more services configured by the given Options.
+     * The server serves one or more services configured by the given Options. To configure the server, pass one or more bluetoe::service types as parameters.
+     *
+     * example:
+     * @code
+    unsigned temperature_value = 0;
+
+    typedef bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >,
+                bluetoe::no_write_access
+            >
+        >
+    > small_temperature_service;
+     * @endcode
+     * @sa service
      */
     template < typename ... Options >
     class server {
@@ -22,13 +39,20 @@ namespace bluetoe {
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
     private:
+        static details::attribute attribute_at( std::size_t index );
+
+        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
+
+        static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
         void handle_find_information_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         static std::uint16_t read_handle( const std::uint8_t* );
     };
 
-
+    /*
+     * Implementation
+     */
     template < typename ... Options >
     void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {

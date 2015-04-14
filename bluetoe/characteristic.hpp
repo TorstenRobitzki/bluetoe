@@ -46,6 +46,7 @@ namespace bluetoe {
     struct characteristic_uuid16 : details::uuid16< UUID >
     {
         typedef details::characteristic_uuid_meta_type meta_type;
+        static constexpr bool is_128bit = false;
     };
 
     /**
@@ -72,6 +73,7 @@ namespace bluetoe {
          */
         static details::attribute attribute_at( std::size_t index );
 
+        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
         typedef details::characteristic_meta_type meta_type;
 
     private:
@@ -163,7 +165,12 @@ namespace bluetoe {
 
         static const details::attribute attributes[ number_of_attributes ] = {
             { bits( details::gatt_uuids::characteristic ), &char_declaration_access },
-            { bits( details::gatt_uuids::characteristic ), &value_type::characteristic_value_access }
+            {
+                uuid::is_128bit
+                    ? bits( details::gatt_uuids::internal_128bit_uuid )
+                    : uuid::as_16bit(),
+                &value_type::characteristic_value_access
+            }
         };
 
         return attributes[ index ];

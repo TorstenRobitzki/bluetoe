@@ -55,8 +55,7 @@ namespace details {
         primary_service = 0x2800,
         characteristic  = 0x2803,
 
-        internal_16bit_uuid     = 1,
-        internal_128bit_uuid    = 2
+        internal_128bit_uuid    = 1
     };
 
     inline std::uint16_t bits( gatt_uuids c )
