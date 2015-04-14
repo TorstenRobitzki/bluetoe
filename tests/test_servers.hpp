@@ -6,17 +6,13 @@
 #include <bluetoe/characteristic.hpp>
 
 namespace {
-    const char single_char_serivce_name[] = "Temperature / Bathroom";
-    const char temp_characteristic_name[] = "Temperature in 10th degree celsius";
-
     unsigned temperature_value = 0;
 
     typedef bluetoe::server<
         bluetoe::service<
-            bluetoe::service_name< single_char_serivce_name >,
             bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
             bluetoe::characteristic<
-                bluetoe::characteristic_name< temp_characteristic_name >,
+                bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
                 bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >,
                 bluetoe::no_write_access
             >

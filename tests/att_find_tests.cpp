@@ -92,10 +92,20 @@ BOOST_FIXTURE_TEST_CASE( start_handle_larger_than_ending, small_temperature_serv
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( find_information_valid_requests )
+BOOST_AUTO_TEST_SUITE( find_small_temperature_service_valid_requests )
 
-BOOST_FIXTURE_TEST_CASE( find_information_valid, small_temperature_service )
+BOOST_FIXTURE_TEST_CASE( request_out_of_range, small_temperature_service )
 {
+    static const std::uint8_t request[] = { 0x04, 0x04, 0x00, 0xff, 0xff };
+    BOOST_CHECK( check_error_response( *this, request,  0x04, 0x0004, 0x0A ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_opcode, request_with_reponse< small_temperature_service > )
+{
+    l2cap_input( request_all_attributes );
+
+    BOOST_REQUIRE_GT( response_size, 0 );
+    BOOST_CHECK_EQUAL( response[ 0 ], 0x05 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

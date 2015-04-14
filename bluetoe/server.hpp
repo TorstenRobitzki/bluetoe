@@ -39,14 +39,20 @@ namespace bluetoe {
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
     private:
-        static details::attribute attribute_at( std::size_t index );
-
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
 
+        static constexpr std::size_t number_of_attributes =
+            details::sum_up_attributes< services >::value;
+
         static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
+
+        static details::attribute attribute_at( std::size_t index );
+        static details::attribute_access_result primary_service_declaration_access( details::attribute_access_arguments& );
+
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
         void handle_find_information_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
         static std::uint16_t read_handle( const std::uint8_t* );
     };
 
@@ -70,6 +76,21 @@ namespace bluetoe {
             error_response( opcode, details::att_error_codes::invalid_pdu, output, out_size );
             break;
         }
+    }
+
+    template < typename ... Options >
+    details::attribute server< Options... >::attribute_at( std::size_t index )
+    {
+        return index == 0
+            ? details::attribute{ bits( details::gatt_uuids::primary_service ), &primary_service_declaration_access }
+            : details::attribute_at_list< services >::attribute_at( index - 1 );
+    }
+
+    template < typename ... Options >
+    details::attribute_access_result server< Options... >::primary_service_declaration_access( details::attribute_access_arguments& args )
+    {
+        args.buffer[ 0 ] = bits( details::att_opcodes::find_information_response );
+        return details::attribute_access_result::success;
     }
 
     template < typename ... Options >
@@ -108,9 +129,37 @@ namespace bluetoe {
         if ( starting_handle == 0 || starting_handle > ending_handle )
             return error_response( opcode, details::att_error_codes::invalid_handle, starting_handle, output, out_size );
 
-        out_size = 20;
-        output[ 0 ] = bits( details::att_opcodes::find_information_response );
-        output[ 1 ] = bits( details::att_uuid_format::long_128bit );
+        if ( starting_handle > number_of_attributes )
+            return error_response( opcode, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
+
+        const bool only_16_bit_uuids = attribute_at( starting_handle -1 ).uuid != bits( details::gatt_uuids::internal_128bit_uuid );
+
+        std::uint8_t*        write_ptr = &output[ 0 ];
+        std::uint8_t* const  write_end = write_ptr + out_size;
+
+        *write_ptr = bits( details::att_opcodes::find_information_response );
+        ++write_ptr;
+
+        if ( write_ptr != write_end )
+        {
+            *write_ptr = bits(
+                only_16_bit_uuids
+                    ? details::att_uuid_format::short_16bit
+                    : details::att_uuid_format::long_128bit );
+
+            ++write_ptr;
+
+        }
+
+        write_ptr = collect_handle_uuid_tuples( starting_handle, ending_handle, only_16_bit_uuids, write_ptr, write_end );
+
+        out_size = write_ptr - &output[ 0 ];
+    }
+
+    template < typename ... Options >
+    std::uint8_t* server< Options... >::collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* out, std::uint8_t* out_end )
+    {
+        return out;
     }
 
     template < typename ... Options >

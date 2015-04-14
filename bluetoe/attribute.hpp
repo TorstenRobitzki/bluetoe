@@ -1,8 +1,10 @@
 #ifndef BLUETOE_ATTRIBUTE_HPP
 #define BLUETOE_ATTRIBUTE_HPP
 
+#include <bluetoe/options.hpp>
 #include <cstdint>
 #include <cstddef>
+#include <cassert>
 
 namespace bluetoe {
 namespace details {
@@ -71,6 +73,59 @@ namespace details {
         std::uint16_t       uuid;
         attribute_access    access;
     };
+
+    /*
+     * Given that T is a tuple with elements that implement attribute_at() and number_of_attributes, the type implements
+     * attribute_at() for a list of attribute lists.
+     */
+    template < typename T >
+    struct attribute_at_list;
+
+    template <>
+    struct attribute_at_list< std::tuple<> >
+    {
+        static details::attribute attribute_at( std::size_t index )
+        {
+            assert( !"index out of bound" );
+        }
+    };
+
+    template <
+        typename T,
+        typename ...Ts >
+    struct attribute_at_list< std::tuple< T, Ts... > >
+    {
+        static details::attribute attribute_at( std::size_t index )
+        {
+            return index < T::number_of_attributes
+                ? T::attribute_at( index )
+                : details::attribute_at_list< std::tuple< Ts... > >::attribute_at( index - T::number_of_attributes );
+        }
+    };
+
+    /*
+     * Given that T is a tuple with Types that have a number_of_attributes, the result will be a value that
+     * contains the sum of all Types in T
+     */
+    template < typename T >
+    struct sum_up_attributes;
+
+    template <>
+    struct sum_up_attributes< std::tuple<> >
+    {
+        static constexpr std::size_t value = 0;
+    };
+
+    template <
+        typename T,
+        typename ...Ts >
+    struct sum_up_attributes< std::tuple< T, Ts... > >
+    {
+        static constexpr std::size_t value =
+            T::number_of_attributes
+          + sum_up_attributes< std::tuple< Ts... > >::value;
+    };
+
 }
 }
 
