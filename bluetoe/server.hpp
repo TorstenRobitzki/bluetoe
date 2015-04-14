@@ -47,13 +47,14 @@ namespace bluetoe {
         static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
 
         static details::attribute attribute_at( std::size_t index );
-        static details::attribute_access_result primary_service_declaration_access( details::attribute_access_arguments& );
 
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
         void handle_find_information_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
         static std::uint16_t read_handle( const std::uint8_t* );
+        static void write_handle( std::uint8_t* out, std::uint16_t handle );
+        static void write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid );
     };
 
     /*
@@ -81,16 +82,7 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute server< Options... >::attribute_at( std::size_t index )
     {
-        return index == 0
-            ? details::attribute{ bits( details::gatt_uuids::primary_service ), &primary_service_declaration_access }
-            : details::attribute_at_list< services >::attribute_at( index - 1 );
-    }
-
-    template < typename ... Options >
-    details::attribute_access_result server< Options... >::primary_service_declaration_access( details::attribute_access_arguments& args )
-    {
-        args.buffer[ 0 ] = bits( details::att_opcodes::find_information_response );
-        return details::attribute_access_result::success;
+        return details::attribute_at_list< services >::attribute_at( index );
     }
 
     template < typename ... Options >
@@ -159,6 +151,28 @@ namespace bluetoe {
     template < typename ... Options >
     std::uint8_t* server< Options... >::collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* out, std::uint8_t* out_end )
     {
+        const std::size_t size_per_tuple = only_16_bit
+            ? 2 + 2
+            : 2 + 16;
+
+        for ( ; start != end && start <= number_of_attributes && out_end - out >= size_per_tuple; ++start )
+        {
+            const details::attribute attr = attribute_at( start -1 );
+            const bool is_16_bit_uuids    = attr.uuid != bits( details::gatt_uuids::internal_128bit_uuid );
+
+            if ( only_16_bit == is_16_bit_uuids )
+            {
+                write_handle( out, start );
+
+                if ( is_16_bit_uuids )
+                {
+                    write_16bit_uuid( out + 2, attr.uuid );
+                }
+
+                out += size_per_tuple;
+            }
+        }
+
         return out;
     }
 
@@ -166,6 +180,19 @@ namespace bluetoe {
     std::uint16_t server< Options... >::read_handle( const std::uint8_t* h )
     {
         return *h + ( *( h + 1 ) << 8 );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::write_handle( std::uint8_t* out, std::uint16_t handle )
+    {
+        out[ 0 ] = handle & 0xff;
+        out[ 1 ] = handle >> 8;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid )
+    {
+        write_handle( out, uuid );
     }
 
 }

@@ -108,5 +108,18 @@ BOOST_FIXTURE_TEST_CASE( correct_opcode, request_with_reponse< small_temperature
     BOOST_CHECK_EQUAL( response[ 0 ], 0x05 );
 }
 
+BOOST_FIXTURE_TEST_CASE( correct_list_of_16bit_uuids, request_with_reponse< small_temperature_service > )
+{
+    l2cap_input( request_all_attributes );
+
+    static const std::uint8_t expected_response[] = {
+        0x05, 0x01,             // response opcode and format
+        0x01, 0x00, 0x00, 0x28, // service definition
+        0x02, 0x00, 0x03, 0x28  // Characteristic Declaration
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
