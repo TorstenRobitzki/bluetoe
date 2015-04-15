@@ -203,10 +203,10 @@ namespace bluetoe {
     template < typename ... Options >
     void server< Options... >::write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration )
     {
-        // this is a little bit tricky. To save memory, details::attribute contains only 16 bit uuids as all
+        // this is a little bit tricky: To save memory, details::attribute contains only 16 bit uuids as all
         // but the "Characteristic Value Declaration" contain 16 bit uuids. However, as the "Characteristic Value Declaration"
-        // "It is the first Attribute after the characteristic declaration.", the attribute just in front of the
-        // "Characteristic Value Declaration" contains the the 128 bit uuid
+        // "is the first Attribute after the characteristic declaration", the attribute just in front of the
+        // "Characteristic Value Declaration" contains the the 128 bit uuid.
         assert( char_declaration.uuid == bits( details::gatt_uuids::characteristic ) );
 
         std::uint8_t buffer[ 3 + 16 ];

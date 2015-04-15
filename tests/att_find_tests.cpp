@@ -140,3 +140,88 @@ BOOST_FIXTURE_TEST_CASE( correct_list_of_128bit_uuids, request_with_reponse< sma
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( more_than_one_characteristics )
+
+BOOST_FIXTURE_TEST_CASE( as_long_as_mtu_size_is_large_enough_all_16bit_uuids_will_be_served, request_with_reponse< three_apes_service > )
+{
+    l2cap_input( request_all_attributes );
+
+    static const std::uint8_t expected_response[] = {
+        0x05, 0x01,             // response opcode and format
+        0x01, 0x00, 0x00, 0x28, // service definition
+        0x02, 0x00, 0x03, 0x28, // Characteristic Declaration
+        0x04, 0x00, 0x03, 0x28,
+        0x06, 0x00, 0x03, 0x28
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( response_includes_the_starting_and_ending_handle, request_with_reponse< three_apes_service > )
+{
+    const std::uint8_t request[] = { 0x04, 0x02, 0x00, 0x04, 0x00 };
+    l2cap_input( request );
+
+    static const std::uint8_t expected_response[] = {
+        0x05, 0x01,
+        0x02, 0x00, 0x03, 0x28,
+        0x04, 0x00, 0x03, 0x28
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+}
+
+typedef request_with_reponse< three_apes_service, 56 > request_with_reponse_three_apes_service_56;
+
+BOOST_FIXTURE_TEST_CASE( response_will_contain_only_128bit_uuids_if_the_first_one_is_a_128_bituuid, request_with_reponse_three_apes_service_56 )
+{
+    const std::uint8_t request[] = { 0x04, 0x03, 0x00, 0xff, 0xff };
+    l2cap_input( request );
+
+    static const std::uint8_t expected_response[] = {
+        0x05, 0x02,
+        0x03, 0x00,
+        0x8C, 0x8B, 0x40, 0x94,
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xAA,
+        0x05, 0x00,
+        0x8C, 0x8B, 0x40, 0x94,
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xAB,
+        0x07, 0x00,
+        0x8C, 0x8B, 0x40, 0x94,
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xAC
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+}
+
+typedef request_with_reponse< three_apes_service, 55 > request_with_reponse_three_apes_service_55;
+BOOST_FIXTURE_TEST_CASE( response_will_contain_one_whole_tuples, request_with_reponse_three_apes_service_55 )
+{
+    const std::uint8_t request[] = { 0x04, 0x03, 0x00, 0xff, 0xff };
+    l2cap_input( request );
+
+    static const std::uint8_t expected_response[] = {
+        0x05, 0x02,
+        0x03, 0x00,
+        0x8C, 0x8B, 0x40, 0x94,
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xAA,
+        0x05, 0x00,
+        0x8C, 0x8B, 0x40, 0x94,
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xAB
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
