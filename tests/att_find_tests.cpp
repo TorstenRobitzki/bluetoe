@@ -121,5 +121,22 @@ BOOST_FIXTURE_TEST_CASE( correct_list_of_16bit_uuids, request_with_reponse< smal
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( correct_list_of_128bit_uuids, request_with_reponse< small_temperature_service > )
+{
+    static const std::uint8_t request_value_attribute[] = { 0x04, 0x03, 0x00, 0x03, 0x00 };
+    l2cap_input( request_value_attribute );
+
+    static const std::uint8_t expected_response[] = {
+        0x05, 0x02,             // response opcode and format
+        0x03, 0x00,             // handle
+        0x8C, 0x8B, 0x40, 0x94,
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xAA
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 

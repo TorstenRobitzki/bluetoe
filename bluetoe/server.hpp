@@ -55,6 +55,7 @@ namespace bluetoe {
         static std::uint16_t read_handle( const std::uint8_t* );
         static void write_handle( std::uint8_t* out, std::uint16_t handle );
         static void write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid );
+        static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
     };
 
     /*
@@ -155,7 +156,7 @@ namespace bluetoe {
             ? 2 + 2
             : 2 + 16;
 
-        for ( ; start != end && start <= number_of_attributes && out_end - out >= size_per_tuple; ++start )
+        for ( ; start <= end && start <= number_of_attributes && out_end - out >= size_per_tuple; ++start )
         {
             const details::attribute attr = attribute_at( start -1 );
             const bool is_16_bit_uuids    = attr.uuid != bits( details::gatt_uuids::internal_128bit_uuid );
@@ -167,6 +168,10 @@ namespace bluetoe {
                 if ( is_16_bit_uuids )
                 {
                     write_16bit_uuid( out + 2, attr.uuid );
+                }
+                else
+                {
+                    write_128bit_uuid( out + 2, attribute_at( start -2 ) );
                 }
 
                 out += size_per_tuple;
@@ -193,6 +198,24 @@ namespace bluetoe {
     void server< Options... >::write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid )
     {
         write_handle( out, uuid );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration )
+    {
+        // this is a little bit tricky. To save memory, details::attribute contains only 16 bit uuids as all
+        // but the "Characteristic Value Declaration" contain 16 bit uuids. However, as the "Characteristic Value Declaration"
+        // "It is the first Attribute after the characteristic declaration.", the attribute just in front of the
+        // "Characteristic Value Declaration" contains the the 128 bit uuid
+        assert( char_declaration.uuid == bits( details::gatt_uuids::characteristic ) );
+
+        std::uint8_t buffer[ 3 + 16 ];
+        auto read = details::attribute_access_arguments::read( buffer );
+        char_declaration.access( read );
+
+        assert( read.buffer_size == sizeof( buffer ) );
+
+        std::copy( &read.buffer[ 3 ], &read.buffer[ 3 + 16 ], out );
     }
 
 }
