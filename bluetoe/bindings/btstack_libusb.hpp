@@ -17,7 +17,7 @@ namespace bluetoe {
 
     private:
         static void init();
-        static void btstack_packet_handler( std::uint8_t packet_type, std::uint16_t channel, std::uint8_t *packet, std::uint16_t size);
+        static void btstack_packet_handler( std::uint8_t packet_type, std::uint8_t *packet, std::uint16_t size );
 
         static std::function< std::size_t( std::uint8_t* buffer, std::size_t buffer_size ) > advertising_data_;
     };

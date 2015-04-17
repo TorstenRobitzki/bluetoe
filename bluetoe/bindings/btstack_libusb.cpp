@@ -21,9 +21,10 @@ namespace bluetoe {
         exit(0);
     }
 
-    void btstack_libusb_device::btstack_packet_handler( std::uint8_t packet_type, std::uint16_t channel, std::uint8_t *packet, std::uint16_t size)
+    void btstack_libusb_device::btstack_packet_handler( std::uint8_t packet_type, std::uint8_t *packet, std::uint16_t size)
     {
-        log_info( "btstack_packet_handler: %i size: %lu\n", channel, size );
+        log_info( "btstack_packet_handler: %i size: %lu\n", packet_type, size );
+        hexdump( packet, size );
 
         static int init_phase = 0;
 
@@ -60,12 +61,11 @@ namespace bluetoe {
         signal(SIGINT, sigint_handler);
 
         // setup app
-        l2cap_init();
+        hci_register_packet_handler( &btstack_libusb_device::btstack_packet_handler );
+        hci_connectable_control(0); // no services yet
 
         // turn on!
         hci_power_control(HCI_POWER_ON);
-
-        l2cap_register_fixed_channel( btstack_libusb_device::btstack_packet_handler, 0x0004 );
 
         // go
         run_loop_execute();
