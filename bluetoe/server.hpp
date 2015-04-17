@@ -63,7 +63,7 @@ namespace bluetoe {
     };
 
     /**
-     * @brief adds addition options to a given server definition
+     * @brief adds additional options to a given server definition
      *
      * example:
      * @code
