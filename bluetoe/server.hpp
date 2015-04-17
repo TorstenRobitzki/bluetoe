@@ -12,6 +12,10 @@
 
 namespace bluetoe {
 
+    namespace details {
+        struct server_name_meta_type;
+    }
+
     /**
      * @brief Root of the declaration of a GATT server.
      *
@@ -37,7 +41,7 @@ namespace bluetoe {
     class server {
     public:
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
-
+        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
     private:
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
 
@@ -56,6 +60,43 @@ namespace bluetoe {
         static void write_handle( std::uint8_t* out, std::uint16_t handle );
         static void write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid );
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
+    };
+
+    /**
+     * @brief adds addition options to a given server definition
+     *
+     * example:
+     * @code
+    unsigned temperature_value = 0;
+
+    typedef bluetoe::server<
+    ...
+    > small_temperature_service;
+
+    typedef bluetoe::extend_server<
+        small_temperature_service,
+        bluetoe::server_name< name >
+    > small_named_temperature_service;
+
+     * @endcode
+     * @sa server
+     */
+    template < typename Server, typename ... Options >
+    struct extend_server;
+
+    template < typename ... ServerOptions, typename ... Options >
+    struct extend_server< server< ServerOptions... >, Options... > : server< ServerOptions..., Options... >
+    {
+    };
+
+    /**
+     * @brief adds a discoverable device name
+     */
+    template < const char* const Name >
+    struct server_name {
+        typedef details::server_name_meta_type meta_type;
+
+        static constexpr char const* name = Name;
     };
 
     /*
@@ -78,6 +119,43 @@ namespace bluetoe {
             error_response( opcode, details::att_error_codes::invalid_pdu, output, out_size );
             break;
         }
+    }
+
+    template < typename ... Options >
+    std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size )
+    {
+        std::uint8_t* const end = begin + buffer_size;
+
+        if ( buffer_size >= 3 )
+        {
+            begin[ 0 ] = 2;
+            begin[ 1 ] = bits( details::gap_types::flags );
+            // LE General Discoverable Mode | BR/EDR Not Supported
+            begin[ 2 ] = 6;
+
+            begin += 3;
+        }
+
+        typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
+
+        if ( name::name && ( end - begin ) > 2 )
+        {
+            const std::size_t name_length  = name::name ? std::strlen( name::name ) : 0u;
+            const std::size_t max_name_len = std::min< std::size_t >( name_length, end - begin - 2 );
+
+            if ( name_length > 0 )
+            {
+                begin[ 0 ] = max_name_len + 1;
+                begin[ 1 ] = max_name_len == name_length
+                    ? bits( details::gap_types::complete_local_name )
+                    : bits( details::gap_types::shortened_local_name );
+
+                std::copy( name::name + 0, name::name + max_name_len, &begin[ 2 ] );
+                begin += max_name_len + 2;
+            }
+        }
+
+        return buffer_size - ( end - begin );
     }
 
     template < typename ... Options >

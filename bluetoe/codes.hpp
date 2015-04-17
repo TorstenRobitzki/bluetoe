@@ -72,6 +72,18 @@ namespace details {
     {
         return static_cast< std::uint8_t >( c );
     }
+
+    enum class gap_types : std::uint8_t {
+        flags                   = 0x01,
+        complete_local_name     = 0x09,
+        shortened_local_name    = 0x08,
+    };
+
+    inline std::uint8_t bits( gap_types c )
+    {
+        return static_cast< std::uint8_t >( c );
+    }
+
 }
 }
 #endif
