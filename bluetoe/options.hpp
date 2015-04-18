@@ -210,6 +210,65 @@ namespace details {
         static bool constexpr value =
             std::is_same< Option, FirstOption >::value || has_option< Option, Options... >::value;
     };
+
+    /**
+     * @brief executes f.each< O >() for every O in Options.
+     *
+     * For
+     * Example:
+     * @code
+    struct value_printer
+    {
+        template< typename O >
+        void each()
+        {
+            std::cout << x << 'n';
+        }
+    };
+
+    int main()
+    {
+        for_< Options... >::each( value_printer() );
+    }
+     * @endcode
+     */
+    template <
+        typename ... Options >
+    struct for_;
+
+    template <>
+    struct for_<>
+    {
+        template < typename Function >
+        static void each( Function )
+        {}
+    };
+
+    template <
+        typename Option >
+    struct for_< Option >
+    {
+        template < typename Function >
+        static void each( Function f )
+        {
+            f.template each< Option >();
+        }
+    };
+
+    template <
+        typename Option,
+        typename ... Options >
+    struct for_< Option, Options... >
+    {
+        template < typename Function >
+        static void each( Function f )
+        {
+            f.template each< Option >();
+            for_< Options... >::each( f );
+        }
+    };
+
+
 }
 }
 

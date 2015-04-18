@@ -32,18 +32,34 @@ namespace {
 
     struct type1 {
         typedef meta1 meta_type;
+
+        static std::string name() {
+            return "type1";
+        }
     };
 
     struct type11 {
         typedef meta1 meta_type;
+
+        static std::string name() {
+            return "type11";
+        }
     };
 
     struct type2 {
         typedef meta2 meta_type;
+
+        static std::string name() {
+            return "type2";
+        }
     };
 
     struct type3 {
         typedef meta3 meta_type;
+
+        static std::string name() {
+            return "type3";
+        }
     };
 
     struct type4 {};
@@ -179,4 +195,56 @@ BOOST_AUTO_TEST_CASE( find_all_by_meta_type )
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::find_all_by_meta_type< meta1, type1, type3, type11, type2 >::type,
         std::tuple< type1, type11 > >::value ) );
+}
+
+namespace {
+    typedef std::vector< std::string > string_list;
+
+    struct register_calls
+    {
+        explicit register_calls( string_list& l ) : list( l )
+        {
+        }
+
+        template< typename O >
+        void each()
+        {
+            list.push_back( O::name() );
+        }
+
+        string_list& list;
+    };
+}
+
+BOOST_AUTO_TEST_CASE( for_each_empty )
+{
+    string_list list;
+
+    bluetoe::details::for_<>::each( register_calls( list ) );
+
+    BOOST_CHECK( list.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( for_each_one_element )
+{
+    string_list list;
+
+    bluetoe::details::for_< type1 >::each( register_calls( list ) );
+
+    const string_list expected_result = { "type1" };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
+
+}
+
+BOOST_AUTO_TEST_CASE( for_each_many_elements )
+{
+    string_list list;
+
+    bluetoe::details::for_< type1, type1, type2, type3 >::each( register_calls( list ) );
+
+    const string_list expected_result = { "type1", "type1", "type2", "type3" };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
+
 }
