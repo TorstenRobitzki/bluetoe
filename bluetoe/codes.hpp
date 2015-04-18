@@ -5,10 +5,16 @@
 
 namespace bluetoe {
 namespace details {
+
+    static constexpr std::uint16_t default_att_mtu_size = 21;
+
     enum class att_opcodes : std::uint8_t {
-        error_response = 0x01,
-        find_information_request = 0x04,
-        find_information_response = 0x05,
+        error_response              = 0x01,
+        exchange_mtu_request        = 0x02,
+        exchange_mtu_response       = 0x03,
+        find_information_request    = 0x04,
+        find_information_response   = 0x05,
+
     };
 
     inline std::uint8_t bits( att_opcodes c )

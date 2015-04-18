@@ -1,14 +1,18 @@
 #include "btstack_libusb.hpp"
+
 #include "btstack-config.h"
 
 #include <btstack/run_loop.h>
+#include <btstack/hci_cmds.h>
 
 #include "debug.h"
 #include "btstack_memory.h"
 #include "hci.h"
 #include "hci_dump.h"
-#include <btstack/hci_cmds.h>
+
+#include <bluetoe/codes.hpp>
 #include <cstdint>
+#include <algorithm>
 
 namespace bluetoe {
 
@@ -24,6 +28,14 @@ namespace bluetoe {
     static std::uint16_t read_u16( std::uint8_t const * data )
     {
         return data[ 0 ] | ( data[ 1 ] << 8 );
+    }
+
+    static std::uint8_t* write_u16( std::uint8_t* data, std::uint16_t value )
+    {
+        data[ 0 ] = value & 0xff;
+        data[ 1 ] = value >> 8;
+
+        return data + 2;
     }
 
     void btstack_libusb_device::btstack_packet_handler( std::uint8_t packet_type, std::uint8_t *packet, std::uint16_t size)
@@ -61,24 +73,35 @@ namespace bluetoe {
                 if ( size > 8 )
                 {
                     hexdump( packet, size );
+                    const std::uint16_t hci_length       = read_u16( packet + 2 );
                     const std::uint16_t l2cap_length     = read_u16( packet + 4 );
                     const std::uint16_t l2cap_channel_id = read_u16( packet + 6 );
 
-                    if ( l2cap_channel_id == 0x0004 && l2cap_length == size - 8 )
+                    static constexpr auto hci_header_size = 8;
+
+                    if ( l2cap_channel_id == 0x0004 && l2cap_length == size - 8 && hci_length == size - 4 )
                     {
-                        size    -= 8;
-                        packet  += 8;
-                        log_info( "ATT-Command: %i", size );
+                        size    -= hci_header_size;
+                        packet  += hci_header_size;
+                        log_info( "*ATT-Command: %i", size );
                         hexdump( packet, size ), no_log = true;
 
-                        std::uint8_t out_buffer[ 23 ];
-                        std::size_t  out_buffer_size = 23;
+                        hci_reserve_packet_buffer();
+                        uint8_t     *acl_buffer      = hci_get_outgoing_packet_buffer();
+                        std::size_t out_buffer_size  = mtu_size_;
 
-                        l2cap_input_( packet, size, out_buffer, out_buffer_size );
+                        if ( *packet == bits( details::att_opcodes::exchange_mtu_request ) && size == 3 )
+                        {
+                            exchange_mtu_request( packet, size, acl_buffer + hci_header_size, out_buffer_size );
+                        }
+                        else
+                        {
+                            l2cap_input_( packet, size, acl_buffer + hci_header_size, out_buffer_size );
+                        }
+
+                        send_acl_package( acl_buffer, out_buffer_size + hci_header_size );
                     }
                 }
-                // 0x40, 0x20, 0x07, 0x00, 0x03, 0x00, 0x04, 0x00, 0x02, 0x9E, 0x00,
-                // l2cap_acl_handler(packet, size);
                 break;
             default:
                 break;
@@ -107,6 +130,36 @@ namespace bluetoe {
         }
     }
 
+    void btstack_libusb_device::send_acl_package( std::uint8_t* acl_buffer, std::size_t size )
+    {
+        const int pb = hci_non_flushable_packet_boundary_flag_supported() ? 0x00 : 0x02;
+
+        // 0 - Connection handle : PB=pb : BC=00
+        write_u16(acl_buffer + 0, connection_handle_ | (pb << 12) | (0 << 14));
+        write_u16(acl_buffer + 2, size - 4);
+        write_u16(acl_buffer + 4, size - 8);
+        // 6 - L2CAP channel = 1
+        write_u16(acl_buffer + 6, 0x0004);
+
+        log_info("*send_acl_package: %i", size );
+        hexdump( acl_buffer, size );
+
+        hci_send_acl_packet_buffer( size );
+    }
+
+    void btstack_libusb_device::exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    {
+        const std::uint16_t requested_mtu = read_u16( input + 1 );
+
+        mtu_size_ = std::min< std::uint16_t >( std::max< std::uint16_t >( requested_mtu, details::default_att_mtu_size ), mtu_size_ );
+
+        output[ 0 ] = bits( details::att_opcodes::exchange_mtu_response );
+        output[ 1 ] = mtu_size_ & 0xff;
+        output[ 2 ] = mtu_size_ >> 8;
+
+        out_size = 3;
+    }
+
     enum class hic_event_code {
         le_meta_event = 0x3e,
         le_connection_complete  = 0x3e01
@@ -128,10 +181,15 @@ namespace bluetoe {
             case hic_event_code::le_connection_complete:
                 if ( param_size == 18 )
                 {
-                    // const std::uint8_t  status = params[ 0 ];
-                    // const std::uint16_t handle = params[ 1 ] | ( params[ 2 ] >> 8 );
+                    const int  status = params[ 0 ];
 
-                    log_info( "le_connection_complete" );
+                    if ( status == 0 )
+                    {
+                        connection_handle_ = read_u16( &params[ 1 ] );
+                        log_info( "connection_handle_: %i", connection_handle_ );
+                    }
+
+                    log_info( "le_connection_complete: %i", status );
                 }
                 break;
             default:
@@ -166,4 +224,6 @@ namespace bluetoe {
 
     std::function< std::size_t( std::uint8_t* buffer, std::size_t buffer_size ) >                                           btstack_libusb_device::advertising_data_;
     std::function< void( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size ) >    btstack_libusb_device::l2cap_input_;
+    std::uint16_t                                                                                                           btstack_libusb_device::connection_handle_ = 0;
+    std::uint16_t                                                                                                           btstack_libusb_device::mtu_size_ = HCI_PACKET_BUFFER_SIZE - 8;
 }
