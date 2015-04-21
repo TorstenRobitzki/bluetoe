@@ -3,6 +3,7 @@
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/service.hpp>
+#include <bluetoe/bits.hpp>
 
 #include <cstdint>
 #include <cstddef>
@@ -58,9 +59,6 @@ namespace bluetoe {
         void handle_read_by_group_type_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
-        static std::uint16_t read_handle( const std::uint8_t* );
-        static void write_handle( std::uint8_t* out, std::uint16_t handle );
-        static void write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid );
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
     };
 
@@ -199,8 +197,8 @@ namespace bluetoe {
         if ( in_size != 5 )
             return error_response( opcode, details::att_error_codes::invalid_pdu, output, out_size );
 
-        const std::uint16_t starting_handle = read_handle( &input[ 1 ] );
-        const std::uint16_t ending_handle   = read_handle( &input[ 3 ] );
+        const std::uint16_t starting_handle = details::read_handle( &input[ 1 ] );
+        const std::uint16_t ending_handle   = details::read_handle( &input[ 3 ] );
 
         if ( starting_handle == 0 || starting_handle > ending_handle )
             return error_response( opcode, details::att_error_codes::invalid_handle, starting_handle, output, out_size );
@@ -232,14 +230,35 @@ namespace bluetoe {
         out_size = write_ptr - &output[ 0 ];
     }
 
+    namespace details {
+        struct collect_primary_services
+        {
+            collect_primary_services( std::uint8_t* output, std::size_t& out_size, std::uint16_t starting_index )
+                : output_( output )
+                , out_size_( out_size )
+                , index_( starting_index )
+            {
+            }
+
+            template< typename Service >
+            void each()
+            {
+            }
+
+            std::uint8_t*   output_;
+            std::size_t&    out_size_;
+            std::uint16_t   index_;
+        };
+    }
+
     template < typename ... Options >
     void server< Options... >::handle_read_by_group_type_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         if ( in_size != 5 + 2 && in_size != 5 + 16  )
             return error_response( opcode, details::att_error_codes::invalid_pdu, output, out_size );
 
-        const std::uint16_t starting_handle = read_handle( &input[ 1 ] );
-        const std::uint16_t ending_handle   = read_handle( &input[ 3 ] );
+        const std::uint16_t starting_handle = details::read_handle( &input[ 1 ] );
+        const std::uint16_t ending_handle   = details::read_handle( &input[ 3 ] );
 
         if ( starting_handle == 0 || starting_handle > ending_handle )
             return error_response( opcode, details::att_error_codes::invalid_handle, starting_handle, output, out_size );
@@ -248,6 +267,8 @@ namespace bluetoe {
             return error_response( opcode, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
 
         return error_response( opcode, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
+
+        details::for_< services >::each( details::collect_primary_services( output, out_size, 1 ) );
     }
 
     template < typename ... Options >
@@ -264,11 +285,11 @@ namespace bluetoe {
 
             if ( only_16_bit == is_16_bit_uuids )
             {
-                write_handle( out, start );
+                details::write_handle( out, start );
 
                 if ( is_16_bit_uuids )
                 {
-                    write_16bit_uuid( out + 2, attr.uuid );
+                    details::write_16bit_uuid( out + 2, attr.uuid );
                 }
                 else
                 {
@@ -280,25 +301,6 @@ namespace bluetoe {
         }
 
         return out;
-    }
-
-    template < typename ... Options >
-    std::uint16_t server< Options... >::read_handle( const std::uint8_t* h )
-    {
-        return *h + ( *( h + 1 ) << 8 );
-    }
-
-    template < typename ... Options >
-    void server< Options... >::write_handle( std::uint8_t* out, std::uint16_t handle )
-    {
-        out[ 0 ] = handle & 0xff;
-        out[ 1 ] = handle >> 8;
-    }
-
-    template < typename ... Options >
-    void server< Options... >::write_16bit_uuid( std::uint8_t* out, std::uint16_t uuid )
-    {
-        write_handle( out, uuid );
     }
 
     template < typename ... Options >
