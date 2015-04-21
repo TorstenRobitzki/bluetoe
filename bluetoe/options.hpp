@@ -268,6 +268,17 @@ namespace details {
         }
     };
 
+    template <
+        typename ... Options >
+    struct for_< std::tuple< Options... > >
+    {
+        template < typename Function >
+        static void each( Function f )
+        {
+            for_< Options... >::each( f );
+        }
+    };
+
 
 }
 }

@@ -234,7 +234,6 @@ BOOST_AUTO_TEST_CASE( for_each_one_element )
     const string_list expected_result = { "type1" };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
-
 }
 
 BOOST_AUTO_TEST_CASE( for_each_many_elements )
@@ -246,5 +245,15 @@ BOOST_AUTO_TEST_CASE( for_each_many_elements )
     const string_list expected_result = { "type1", "type1", "type2", "type3" };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
+}
 
+BOOST_AUTO_TEST_CASE( for_each_feed_by_an_tuple )
+{
+    string_list list;
+
+    bluetoe::details::for_< std::tuple< type1, type1, type2, type3 > >::each( register_calls( list ) );
+
+    const string_list expected_result = { "type1", "type1", "type2", "type3" };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
 }
