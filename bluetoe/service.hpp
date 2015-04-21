@@ -44,6 +44,22 @@ namespace bluetoe {
     };
 
     /**
+     * @brief a 16-Bit UUID used to identify a service
+     *
+     * @code{.cpp}
+     * bluetoe::service_uuid16< 0x1816 >
+     * @endcode
+     */
+    template < std::uint64_t UUID >
+    class service_uuid16 : details::uuid16< UUID >
+    {
+    public:
+        static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
+
+        typedef details::service_uuid_meta_type meta_type;
+    };
+
+    /**
      * @brief a service with zero or more characteristics
      */
     template < typename ... Options >
@@ -75,13 +91,13 @@ namespace bluetoe {
         typedef details::service_meta_type meta_type;
     };
 
+    // service_uuid implementation
     template <
         std::uint32_t A,
         std::uint16_t B,
         std::uint16_t C,
         std::uint16_t D,
         std::uint64_t E >
-    // service_uuid implementation
     details::attribute_access_result service_uuid< A, B, C, D, E >::attribute_access( details::attribute_access_arguments& args )
     {
         if ( args.type == details::attribute_access_type::read )
@@ -91,6 +107,24 @@ namespace bluetoe {
             std::copy( std::begin( details::uuid< A, B, C, D, E >::bytes ), std::begin( details::uuid< A, B, C, D, E >::bytes ) + args.buffer_size, args.buffer );
 
             return args.buffer_size == 16
+                ? details::attribute_access_result::success
+                : details::attribute_access_result::read_truncated;
+        }
+
+        return details::attribute_access_result::write_not_permitted;
+    }
+
+    // service_uuid implementation
+    template < std::uint64_t UUID >
+    details::attribute_access_result service_uuid16< UUID >::attribute_access( details::attribute_access_arguments& args )
+    {
+        if ( args.type == details::attribute_access_type::read )
+        {
+            args.buffer_size = std::min< std::size_t >( sizeof( details::uuid16< UUID >::bytes ), args.buffer_size );
+
+            std::copy( std::begin( details::uuid16< UUID >::bytes ), std::begin( details::uuid16< UUID >::bytes ) + args.buffer_size, args.buffer );
+
+            return args.buffer_size == 2
                 ? details::attribute_access_result::success
                 : details::attribute_access_result::read_truncated;
         }

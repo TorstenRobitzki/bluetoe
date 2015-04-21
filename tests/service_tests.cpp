@@ -109,3 +109,32 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, service_with_3_characteris
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), end, std::begin( expected_result ), std::end( expected_result ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_buffer_to_small, service_with_3_characteristics )
+{
+    std::uint8_t    buffer[ 19 ];
+    std::uint16_t   index = 1;
+
+    std::uint8_t* const end = read_primary_service_response( std::begin( buffer ), std::end( buffer ), index );
+
+    BOOST_CHECK( end == std::begin( buffer ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_speed_and_cadence_service )
+{
+    std::uint8_t    buffer[ 100 ];
+    std::uint16_t   index = 1;
+
+    std::uint8_t* const end = read_primary_service_response( std::begin( buffer ), std::end( buffer ), index );
+
+    BOOST_CHECK_EQUAL( end - std::begin( buffer ), 6u );
+    BOOST_CHECK_EQUAL( index, 1 + 5 );
+
+    static const std::uint8_t expected_result[] =
+    {
+        0x01, 0x00,   // Starting Handle
+        0x05, 0x00,   // Ending Handle
+        0x16, 0x18    // Attribute Value == 16 bit UUID
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), end, std::begin( expected_result ), std::end( expected_result ) );
+}
