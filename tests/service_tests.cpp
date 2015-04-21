@@ -85,3 +85,27 @@ BOOST_FIXTURE_TEST_CASE( accessing_all_attributes, service_with_3_characteristic
     BOOST_CHECK_EQUAL( 0x2803, attribute_at( 5 ).uuid );
     BOOST_CHECK_EQUAL( 0x0815, attribute_at( 6 ).uuid );
 }
+
+BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, service_with_3_characteristics )
+{
+    std::uint8_t    buffer[ 100 ];
+    std::uint16_t   index = 12;
+
+    std::uint8_t* const end = read_primary_service_response( std::begin( buffer ), std::end( buffer ), index );
+
+    BOOST_CHECK_EQUAL( end - std::begin( buffer ), 20u );
+    BOOST_CHECK_EQUAL( index, 12 + 7 );
+
+    static const std::uint8_t expected_result[] =
+    {
+        0x0c, 0x00,              // Starting Handle
+        0x12, 0x00,              // Ending Handle
+        0x8C, 0x8B, 0x40, 0x94,  // Attribute Value == 128 bit UUID
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xA9
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), end, std::begin( expected_result ), std::end( expected_result ) );
+}
+

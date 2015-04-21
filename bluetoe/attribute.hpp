@@ -45,6 +45,17 @@ namespace details {
             };
         }
 
+        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end )
+        {
+            assert( end >= begin );
+
+            return attribute_access_arguments{
+                attribute_access_type::read,
+                begin,
+                static_cast< std::size_t >( end - begin )
+            };
+        }
+
         template < std::size_t N >
         static attribute_access_arguments write( const std::uint8_t(&buffer)[N] )
         {
