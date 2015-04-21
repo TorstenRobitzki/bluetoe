@@ -60,12 +60,14 @@ namespace {
         void l2cap_input( const std::uint8_t(&input)[PDU_Size] )
         {
             Server::l2cap_input( input, PDU_Size, response, response_size );
+            BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
         }
 
         void l2cap_input( const std::initializer_list< std::uint8_t >& input )
         {
             const std::vector< std::uint8_t > values( input );
             Server::l2cap_input( &values[ 0 ], values.size(), response, response_size );
+            BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
         }
 
         template < std::size_t PDU_Size >

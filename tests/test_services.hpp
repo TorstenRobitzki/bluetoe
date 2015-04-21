@@ -36,6 +36,21 @@ namespace {
             bluetoe::bind_characteristic_value< decltype( characteristic_value_3 ), &characteristic_value_3 >
         >
     > service_with_3_characteristics;
+
+    std::uint32_t               csc_measurement = 0;
+    static const std::uint16_t  csc_feature     = 0;
+
+    typedef bluetoe::service<
+        bluetoe::service_uuid16< 0x1816 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x2A5B >,
+            bluetoe::bind_characteristic_value< decltype( csc_measurement ), &csc_measurement >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x2A5C >,
+            bluetoe::bind_characteristic_value< decltype( csc_feature ), &csc_feature >
+        >
+    > cycling_speed_and_cadence_service;
 }
 
 #endif

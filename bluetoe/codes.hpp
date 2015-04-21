@@ -15,6 +15,7 @@ namespace details {
         find_information_request    = 0x04,
         find_information_response   = 0x05,
         read_by_group_type_request  = 0x10,
+        read_by_group_type_response = 0x11
 
     };
 

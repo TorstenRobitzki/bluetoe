@@ -45,3 +45,23 @@ BOOST_FIXTURE_TEST_CASE( unsupprorted_group_type_128bit, small_temperature_servi
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( discover_primary_services )
+
+BOOST_FIXTURE_TEST_CASE( single_service, small_temperature_service_with_response<> )
+{
+    l2cap_input( { 0x10, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28 } );
+
+    static const std::uint8_t expected_result[] = {
+        0x11, 0x14,                 // response code, size
+        0x01, 0x00, 0x03, 0x00,     // 0x0001 - 0x0003
+        0x8C, 0x8B, 0x40, 0x94,     // 128 bit UUID
+        0x0D, 0xE2, 0x49, 0x9F,
+        0xA2, 0x8A, 0x4E, 0xED,
+        0x5B, 0xC7, 0x3C, 0xA9
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

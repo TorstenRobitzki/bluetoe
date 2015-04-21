@@ -2,6 +2,7 @@
 #define BLUETOE_BITS_HPP
 
 #include <cstdint>
+#include <bluetoe/codes.hpp>
 
 namespace bluetoe {
 namespace details {
@@ -24,6 +25,17 @@ namespace details {
         return write_handle( out, uuid );
     }
 
+    inline std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )
+    {
+        *out = bits( opcode );
+        return out + 1;
+    }
+
+    inline std::uint8_t* write_byte( std::uint8_t* out, std::uint8_t byte )
+    {
+        *out = byte;
+        return out + 1;
+    }
 
 }
 }

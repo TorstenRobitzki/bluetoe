@@ -233,21 +233,29 @@ namespace bluetoe {
     namespace details {
         struct collect_primary_services
         {
-            collect_primary_services( std::uint8_t* output, std::size_t& out_size, std::uint16_t starting_index )
+            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle )
                 : output_( output )
-                , out_size_( out_size )
+                , end_( end )
                 , index_( starting_index )
+                , starting_handle_( starting_handle )
+                , ending_handle_( ending_handle )
             {
             }
 
             template< typename Service >
             void each()
             {
+                output_ = Service::read_primary_service_response( output_, end_, index_ );
+
+                index_ += Service::number_of_attributes;
             }
 
-            std::uint8_t*   output_;
-            std::size_t&    out_size_;
-            std::uint16_t   index_;
+                  std::uint8_t*&  output_;
+                  std::uint8_t*   end_;
+                  std::uint16_t   index_;
+            const std::uint16_t   starting_handle_;
+            const std::uint16_t   ending_handle_;
+
         };
     }
 
@@ -266,9 +274,18 @@ namespace bluetoe {
         if ( starting_handle > number_of_attributes )
             return error_response( opcode, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
 
-        return error_response( opcode, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
+        if ( in_size == 5 + 16 || details::read_handle( &input[ 5 ] ) != bits( details::gatt_uuids::primary_service ) )
+            return error_response( opcode, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
 
-        details::for_< services >::each( details::collect_primary_services( output, out_size, 1 ) );
+        std::uint8_t*       begin = output;
+        std::uint8_t* const end   = output + out_size;
+
+        begin = details::write_opcode( begin, details::att_opcodes::read_by_group_type_response );
+        begin = details::write_byte( begin, 2 + 2 + 16 );
+
+        details::for_< services >::each( details::collect_primary_services( begin, end, 1, starting_handle, ending_handle ) );
+
+        out_size = begin - output;
     }
 
     template < typename ... Options >
