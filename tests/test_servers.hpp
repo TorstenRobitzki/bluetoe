@@ -9,6 +9,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include "hexdump.hpp"
 
 namespace {
     unsigned temperature_value = 0;
@@ -80,6 +81,11 @@ namespace {
         {
             const std::vector< std::uint8_t > values( input );
             return check_error_response_impl( &values[ 0 ], values.size(), expected_request_opcode, expected_attribute_handle, expected_error_code );
+        }
+
+        void dump()
+        {
+            hex_dump( std::cout, &response[ 0 ], &response[ response_size ] );
         }
 
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
