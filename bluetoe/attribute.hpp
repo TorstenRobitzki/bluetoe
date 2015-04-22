@@ -93,7 +93,7 @@ namespace details {
      * access functions.
      */
     struct attribute {
-        // all uuids used by GATT are 16 bit UUIDs (except for Characteristic Value Declaration for which the value internal_16bit_uuid or internal_128bit_uuid are used)
+        // all uuids used by GATT are 16 bit UUIDs (except for Characteristic Value Declaration for which the value internal_128bit_uuid is used, if the UUID is 128bit long)
         std::uint16_t       uuid;
         attribute_access    access;
     };

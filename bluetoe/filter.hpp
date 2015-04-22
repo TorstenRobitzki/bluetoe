@@ -58,6 +58,17 @@ namespace details {
         bool                is_128bit_;
     };
 
+    /**
+     * @brief returns every attribute
+     */
+    struct all_uuid_filter
+    {
+        bool operator()( std::uint16_t, const details::attribute& ) const
+        {
+            return true;
+        }
+    };
+
 }
 }
 

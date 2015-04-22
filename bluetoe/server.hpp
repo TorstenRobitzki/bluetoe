@@ -4,6 +4,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/service.hpp>
 #include <bluetoe/bits.hpp>
+#include <bluetoe/filter.hpp>
 
 #include <cstdint>
 #include <cstddef>
@@ -68,7 +69,12 @@ namespace bluetoe {
         void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
+        template < class Iterator, class Filter = details::all_uuid_filter >
+        void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
+
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
+        std::uint8_t* collect_handle_data_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
+
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
     };
 
@@ -258,6 +264,65 @@ namespace bluetoe {
         out_size = write_ptr - &output[ 0 ];
     }
 
+    namespace details {
+        struct collect_attributes
+        {
+            void operator()( std::uint16_t handle, const details::attribute& attr )
+            {
+                if ( end_ - current_  >= 2 )
+                {
+                    const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, 255u ) - 2;
+
+                    auto read = attribute_access_arguments::read( current_ + 2, current_ + 2 + max_data_size );
+                    auto rc   = attr.access( read );
+
+                    if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+                    {
+                        assert( read.buffer_size <= 253u );
+                        current_ = details::write_handle( current_, handle );
+                        current_ += static_cast< std::uint8_t >( read.buffer_size );
+
+                        if ( first_ )
+                        {
+                            size_   = read.buffer_size + 2;
+                            first_  = false;
+                        }
+                    }
+                }
+            }
+
+            collect_attributes( std::uint8_t* begin, std::uint8_t* end )
+                : begin_( begin )
+                , current_( begin )
+                , end_( end )
+                , size_( 0 )
+                , first_( true )
+            {
+            }
+
+            std::uint8_t size() const
+            {
+                return current_ - begin_;
+            }
+
+            std::uint8_t data_size() const
+            {
+                return size_;
+            }
+
+            bool empty() const
+            {
+                return current_ == begin_;
+            }
+
+            std::uint8_t*   begin_;
+            std::uint8_t*   current_;
+            std::uint8_t*   end_;
+            std::uint8_t    size_;
+            bool            first_;
+        };
+    }
+
     template < typename ... Options >
     void server< Options... >::handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
@@ -266,6 +331,20 @@ namespace bluetoe {
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
             return;
 
+        details::collect_attributes iterator( output + 2, output + out_size );
+
+        all_attributes( starting_handle, ending_handle, iterator, details::uuid_filter( input + 5, in_size == 5 + 16 ) );
+
+        if ( !iterator.empty() )
+        {
+            output[ 0 ] = bits( details::att_opcodes::find_by_type_response );
+            output[ 1 ] = iterator.data_size();
+            out_size = 2 + iterator.size();
+        }
+        else
+        {
+            error_response( *input, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
+        }
     }
 
     namespace details {
@@ -342,6 +421,19 @@ namespace bluetoe {
         else
         {
             out_size = begin - output;
+        }
+    }
+
+    template < typename ... Options >
+    template < class Iterator, class Filter >
+    void server< Options... >::all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iter, const Filter& filter )
+    {
+        for ( ; starting_handle <= ending_handle && starting_handle <= number_of_attributes; ++starting_handle )
+        {
+            const details::attribute attr = attribute_at( starting_handle -1 );
+
+            if ( filter( starting_handle, attr ) )
+                iter( starting_handle, attr );
         }
     }
 

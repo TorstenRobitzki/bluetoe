@@ -63,13 +63,6 @@ namespace bluetoe {
 
         /**
          * @brief gives access to the all attributes of the characteristic
-         *
-         * @TODO: the "Characteristic Declaration" contains an absolute handle value of the "Characteristic Value"
-         *        that "Characteristic Value" is the first attribute behind the Declaration. Two possible solutions:
-         *        - extend attribute_at to take two index (a global one) and a local one.
-         *        - return a wrong handle and fix the handle on a higher level
-         *
-         * @TODO: the "Characteristic Value Declaration" has an attribute type that can be 16 or 128 bit.
          */
         static details::attribute attribute_at( std::size_t index );
 

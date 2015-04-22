@@ -8,7 +8,7 @@ add_custom_target(all_tests)
 add_custom_target(all_tests.run)
 
 function(add_test TARGETNAME)
-    add_executable(${TARGETNAME} ${TARGETNAME}.cpp ${ARGV1} ${ARGV2} ${ARGV3} ${ARGV4})
+    add_executable(${TARGETNAME} ${TARGETNAME}.cpp hexdump.cpp ${ARGV1} ${ARGV2} ${ARGV3} ${ARGV4})
     add_custom_target(
         ${TARGETNAME}.run
         COMMAND ${TARGETNAME})
@@ -25,3 +25,4 @@ add_test(service_tests)
 add_test(options_tests)
 add_test(characteristic_tests)
 add_test(advertising_tests)
+add_test(filter_tests)
