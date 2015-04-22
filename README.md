@@ -2,7 +2,7 @@
 
 ## Overview
 
-Bluetoe aims to implement a GATT server with a very low memory footprint and convenience C++ interface. Bluetoe tries to make easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. Here is an example of a small GATT server:
+Bluetoe aims to implement a GATT server with a very low memory footprint and convenience C++ interface. Bluetoe tries to make easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is an example of a small GATT server:
 
     #include <bluetoe/server.hpp>
     #include <bluetoe/service.hpp>
