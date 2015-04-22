@@ -8,8 +8,11 @@ namespace {
     std::uint32_t global_temperature;
 
     typedef bluetoe::service<
-        bluetoe::bind_characteristic_value< std::uint32_t, &global_temperature >,
-        bluetoe::service_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >
+        bluetoe::service_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &global_temperature >
+        >
     > global_temperature_service;
 
     typedef bluetoe::service<

@@ -233,19 +233,32 @@ namespace bluetoe {
     namespace details {
         struct collect_primary_services
         {
-            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle )
+            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size )
                 : output_( output )
                 , end_( end )
                 , index_( starting_index )
                 , starting_handle_( starting_handle )
                 , ending_handle_( ending_handle )
+                , first_( true )
+                , is_128bit_uuid_( true )
+                , attribute_data_size_( attribute_data_size )
             {
             }
 
             template< typename Service >
             void each()
             {
-                output_ = Service::read_primary_service_response( output_, end_, index_ );
+                if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
+                {
+                    if ( first_ )
+                    {
+                        is_128bit_uuid_         = Service::uuid::is_128bit;
+                        first_                  = false;
+                        attribute_data_size_    = is_128bit_uuid_ ? 16 + 4 : 2 + 4;
+                    }
+
+                    output_ = Service::read_primary_service_response( output_, end_, index_, is_128bit_uuid_ );
+                }
 
                 index_ += Service::number_of_attributes;
             }
@@ -255,7 +268,9 @@ namespace bluetoe {
                   std::uint16_t   index_;
             const std::uint16_t   starting_handle_;
             const std::uint16_t   ending_handle_;
-
+                  bool            first_;
+                  bool            is_128bit_uuid_;
+                  std::uint8_t&   attribute_data_size_;
         };
     }
 
@@ -281,9 +296,13 @@ namespace bluetoe {
         std::uint8_t* const end   = output + out_size;
 
         begin = details::write_opcode( begin, details::att_opcodes::read_by_group_type_response );
-        begin = details::write_byte( begin, 2 + 2 + 16 );
+        ++begin; // gap for the size
 
-        details::for_< services >::each( details::collect_primary_services( begin, end, 1, starting_handle, ending_handle ) );
+        std::uint8_t* const data_begin = begin;
+        details::for_< services >::each( details::collect_primary_services( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
+
+        if ( begin == data_begin )
+            return error_response( opcode, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
 
         out_size = begin - output;
     }

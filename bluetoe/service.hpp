@@ -35,7 +35,7 @@ namespace bluetoe {
         std::uint16_t C,
         std::uint16_t D,
         std::uint64_t E >
-    class service_uuid : details::uuid< A, B, C, D, E >
+    class service_uuid : public details::uuid< A, B, C, D, E >
     {
     public:
         static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
@@ -51,7 +51,7 @@ namespace bluetoe {
      * @endcode
      */
     template < std::uint64_t UUID >
-    class service_uuid16 : details::uuid16< UUID >
+    class service_uuid16 : public details::uuid16< UUID >
     {
     public:
         static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
@@ -67,6 +67,7 @@ namespace bluetoe {
     {
     public:
         typedef typename details::find_all_by_meta_type< details::characteristic_meta_type, Options... >::type characteristics;
+        typedef typename details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type       uuid;
 
         static constexpr std::size_t number_of_service_attributes        = 1;
         static constexpr std::size_t number_of_characteristic_attributes = details::sum_up_attributes< characteristics >::value;
@@ -86,7 +87,7 @@ namespace bluetoe {
         /**
          * assembles one data packet for a "Read by Group Type Response"
          */
-        static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t& starting_index );
+        static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter );
 
         typedef details::service_meta_type meta_type;
     };
@@ -139,15 +140,17 @@ namespace bluetoe {
         assert( index < number_of_attributes );
 
         if ( index == 0 )
-            return details::attribute{ bits( details::gatt_uuids::primary_service ), &details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type::attribute_access };
+            return details::attribute{ bits( details::gatt_uuids::primary_service ), &uuid::attribute_access };
 
         return details::attribute_at_list< characteristics >::attribute_at( index -1 );
     }
 
     template < typename ... Options >
-    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t& starting_index )
+    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter )
     {
-        if ( end - output >= 20 )
+        const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
+
+        if ( is_128bit_filter == uuid::is_128bit && end - output >= attribute_data_size )
         {
             std::uint8_t* const old_output = output;
 
@@ -161,7 +164,6 @@ namespace bluetoe {
             if ( primary_service.access( read ) == details::attribute_access_result::success )
             {
                 output         += read.buffer_size;
-                starting_index += number_of_attributes;
             }
             else
             {
