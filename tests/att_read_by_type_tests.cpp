@@ -163,4 +163,49 @@ BOOST_FIXTURE_TEST_CASE( read_multiple_attributes_buffer_in_range, request_with_
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
+typedef bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< std::uint8_t, &ape1 >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0815 >,
+            bluetoe::bind_characteristic_value< std::uint8_t, &ape2 >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAC >,
+            bluetoe::bind_characteristic_value< std::uint8_t, &ape3 >
+        >
+    >
+> server_with_16bit_uuid_in_the_middle;
+
+typedef request_with_reponse< server_with_16bit_uuid_in_the_middle, 200 > r_and_r_with_server_with_16bit_uuid_in_the_middle_100;
+
+BOOST_FIXTURE_TEST_CASE( read_multiple_attributes_within_mixed_size, r_and_r_with_server_with_16bit_uuid_in_the_middle_100 )
+{
+    l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x03, 0x28 } );
+
+    static const std::uint8_t expected_result[] = {
+        0x09, 0x15,                 // response code, size = 2 for handle and 19 for attribute value (Properties, Value Handle + UUID)
+        0x02, 0x00,                 // attribute handle
+        0x0A,                       // Characteristic Properties (read + write)
+        0x03, 0x00,                 // Characteristic Value Handle
+        0xAA, 0x3C, 0xC7, 0x5B,     // Characteristic UUID
+        0xED, 0x4E, 0x8A, 0xA2,
+        0x9F, 0x49, 0xE2, 0x0D,
+        0x94, 0x40, 0x8B, 0x8C,
+        0x06, 0x00,                 // attribute handle
+        0x0A,                       // Characteristic Properties (read + write)
+        0x07, 0x00,                 // Characteristic Value Handle
+        0xAC, 0x3C, 0xC7, 0x5B,     // Characteristic UUID
+        0xED, 0x4E, 0x8A, 0xA2,
+        0x9F, 0x49, 0xE2, 0x0D,
+        0x94, 0x40, 0x8B, 0x8C
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

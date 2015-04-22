@@ -271,7 +271,7 @@ namespace bluetoe {
                 static constexpr std::size_t maximum_pdu_size = 253u;
                 static constexpr std::size_t header_size      = 2u;
 
-                if ( end_ - current_  >= header_size )
+                if ( end_ - current_ >= header_size )
                 {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
@@ -281,13 +281,17 @@ namespace bluetoe {
                     if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated && read.buffer_size == maximum_pdu_size )
                     {
                         assert( read.buffer_size <= maximum_pdu_size );
-                        current_ = details::write_handle( current_, handle );
-                        current_ += static_cast< std::uint8_t >( read.buffer_size );
 
                         if ( first_ )
                         {
                             size_   = read.buffer_size + header_size;
                             first_  = false;
+                        }
+
+                        if ( read.buffer_size + header_size == size_ )
+                        {
+                            current_ = details::write_handle( current_, handle );
+                            current_ += static_cast< std::uint8_t >( read.buffer_size );
                         }
                     }
                 }
