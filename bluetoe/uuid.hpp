@@ -55,22 +55,22 @@ namespace details {
         std::uint64_t E,
         typename F >
     const std::uint8_t uuid< A, B, C, D, E, F >::bytes[ 16 ] = {
-        ( A >> 24 ) & 0xff,
-        ( A >> 16 ) & 0xff,
-        ( A >> 8  ) & 0xff,
-        ( A >> 0  ) & 0xff,
-        ( B >> 8  ) & 0xff,
-        ( B >> 0  ) & 0xff,
-        ( C >> 8  ) & 0xff,
-        ( C >> 0  ) & 0xff,
-        ( D >> 8  ) & 0xff,
-        ( D >> 0  ) & 0xff,
-        ( E >> 40 ) & 0xff,
-        ( E >> 32 ) & 0xff,
-        ( E >> 24 ) & 0xff,
-        ( E >> 16 ) & 0xff,
+        ( E >> 0  ) & 0xff,
         ( E >> 8  ) & 0xff,
-        ( E >> 0  ) & 0xff
+        ( E >> 16 ) & 0xff,
+        ( E >> 24 ) & 0xff,
+        ( E >> 32 ) & 0xff,
+        ( E >> 40 ) & 0xff,
+        ( D >> 0  ) & 0xff,
+        ( D >> 8  ) & 0xff,
+        ( C >> 0  ) & 0xff,
+        ( C >> 8  ) & 0xff,
+        ( B >> 0  ) & 0xff,
+        ( B >> 8  ) & 0xff,
+        ( A >> 0  ) & 0xff,
+        ( A >> 8  ) & 0xff,
+        ( A >> 16 ) & 0xff,
+        ( A >> 24 ) & 0xff
     };
 
     /**
