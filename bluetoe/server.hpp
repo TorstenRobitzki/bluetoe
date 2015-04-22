@@ -73,7 +73,6 @@ namespace bluetoe {
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
 
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
-        std::uint8_t* collect_handle_data_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
     };
@@ -274,7 +273,7 @@ namespace bluetoe {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, 255u ) - 2;
 
                     auto read = attribute_access_arguments::read( current_ + 2, current_ + 2 + max_data_size );
-                    auto rc   = attr.access( read );
+                    auto rc   = attr.access( read, handle );
 
                     if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
                     {
@@ -480,7 +479,7 @@ namespace bluetoe {
 
         std::uint8_t buffer[ 3 + 16 ];
         auto read = details::attribute_access_arguments::read( buffer );
-        char_declaration.access( read );
+        char_declaration.access( read, 1 );
 
         assert( read.buffer_size == sizeof( buffer ) );
 

@@ -5,6 +5,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/uuid.hpp>
 #include <bluetoe/options.hpp>
+#include <bluetoe/bits.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -73,7 +74,7 @@ namespace bluetoe {
         typedef typename details::find_by_meta_type< details::characteristic_value_metat_type, Options... >::type base_value_type;
         typedef typename base_value_type::template value_impl< Options... >                                       value_type;
 
-        static details::attribute_access_result char_declaration_access( details::attribute_access_arguments& );
+        static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
 
     };
 
@@ -128,7 +129,7 @@ namespace bluetoe {
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = !std::is_const< T >::value && !details::has_option< no_write_access, Options... >::value;
 
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& );
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
         private:
             static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::true_type& );
             static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& );
@@ -170,7 +171,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    details::attribute_access_result characteristic< Options... >::char_declaration_access( details::attribute_access_arguments& args )
+    details::attribute_access_result characteristic< Options... >::char_declaration_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
     {
         typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
         static const auto uuid_offset = 3;
@@ -182,14 +183,16 @@ namespace bluetoe {
             args.buffer_size          = std::min< std::size_t >( args.buffer_size, uuid_offset + uuid_size );
             const auto max_uuid_bytes = std::min< std::size_t >( std::max< int >( 0, args.buffer_size -uuid_offset ), uuid_size );
 
-            if ( args.buffer_size > 0 )
+            if ( args.buffer_size > 2 )
             {
                 args.buffer[ 0 ] =
                     ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
                     ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 );
+
+                // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
+                details::write_handle( args.buffer + 1, attribute_handle + 1 );
             }
 
-            /// @TODO fill "Characteristic Value Attribute Handle"
             if ( max_uuid_bytes )
                 std::copy( std::begin( uuid::bytes ), std::begin( uuid::bytes ) + max_uuid_bytes, args.buffer + uuid_offset );
 
@@ -203,7 +206,7 @@ namespace bluetoe {
 
     template < typename T, T* Ptr >
     template < typename ... Options >
-    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_access( details::attribute_access_arguments& args )
+    details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
     {
         if ( args.type == details::attribute_access_type::read )
         {

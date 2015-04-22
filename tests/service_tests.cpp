@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
 
     std::uint8_t buffer[ 16 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer );
-    const auto access_result = attr.access( read );
+    const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
     check_service_uuid( read );
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer );
-    const auto access_result = attr.access( read );
+    const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
     check_service_uuid( read );
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
     std::uint8_t buffer[ 15 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer );
-    const auto access_result = attr.access( read );
+    const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::read_truncated );
     check_service_uuid( read, sizeof( buffer ) );
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE( write_to_primary_service )
 
     std::uint8_t buffer[] = { 1, 2, 3 };
     auto write = bluetoe::details::attribute_access_arguments::write( buffer );
-    const auto access_result = attr.access( write );
+    const auto access_result = attr.access( write, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::write_not_permitted );
 }

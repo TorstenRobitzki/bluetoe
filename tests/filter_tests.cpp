@@ -18,7 +18,7 @@ namespace {
 
     typedef bluetoe::details::uuid< 0x1, 0x2, 0x3, 0x4, 0x5 > big_uuid;
 
-    blued::attribute_access_result equal_to_big_uuid( blued::attribute_access_arguments& args )
+    blued::attribute_access_result equal_to_big_uuid( blued::attribute_access_arguments& args, std::uint16_t )
     {
         if ( args.type == blued::attribute_access_type::compare_128bit_uuid )
         {

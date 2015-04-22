@@ -38,7 +38,7 @@ namespace bluetoe {
     class service_uuid : public details::uuid< A, B, C, D, E >
     {
     public:
-        static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
+        static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
 
         typedef details::service_uuid_meta_type meta_type;
     };
@@ -54,7 +54,7 @@ namespace bluetoe {
     class service_uuid16 : public details::uuid16< UUID >
     {
     public:
-        static details::attribute_access_result attribute_access( details::attribute_access_arguments& );
+        static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
 
         typedef details::service_uuid_meta_type meta_type;
     };
@@ -99,7 +99,7 @@ namespace bluetoe {
         std::uint16_t C,
         std::uint16_t D,
         std::uint64_t E >
-    details::attribute_access_result service_uuid< A, B, C, D, E >::attribute_access( details::attribute_access_arguments& args )
+    details::attribute_access_result service_uuid< A, B, C, D, E >::attribute_access( details::attribute_access_arguments& args, std::uint16_t )
     {
         if ( args.type == details::attribute_access_type::read )
         {
@@ -117,7 +117,7 @@ namespace bluetoe {
 
     // service_uuid implementation
     template < std::uint64_t UUID >
-    details::attribute_access_result service_uuid16< UUID >::attribute_access( details::attribute_access_arguments& args )
+    details::attribute_access_result service_uuid16< UUID >::attribute_access( details::attribute_access_arguments& args, std::uint16_t )
     {
         if ( args.type == details::attribute_access_type::read )
         {
@@ -161,9 +161,9 @@ namespace bluetoe {
 
             auto read = details::attribute_access_arguments::read( output, end );
 
-            if ( primary_service.access( read ) == details::attribute_access_result::success )
+            if ( primary_service.access( read, 1 ) == details::attribute_access_result::success )
             {
-                output         += read.buffer_size;
+                output += read.buffer_size;
             }
             else
             {

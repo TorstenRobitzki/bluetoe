@@ -40,7 +40,7 @@ namespace details {
             {
                 auto compare = attribute_access_arguments::compare_128bit_uuid( bytes_ );
 
-                return attr.access( compare ) == attribute_access_result::uuid_equal;
+                return attr.access( compare, 1 ) == attribute_access_result::uuid_equal;
             }
             else
             {
