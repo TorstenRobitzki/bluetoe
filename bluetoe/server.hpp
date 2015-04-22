@@ -56,6 +56,7 @@ namespace bluetoe {
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( details::att_opcodes opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
         void handle_find_information_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void handle_read_by_type_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_group_type_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
@@ -114,6 +115,9 @@ namespace bluetoe {
         {
         case details::att_opcodes::find_information_request:
             handle_find_information_request( opcode, input, in_size, output, out_size );
+            break;
+        case details::att_opcodes::find_by_type_request:
+            handle_read_by_type_request( opcode, input, in_size, output, out_size );
             break;
         case details::att_opcodes::read_by_group_type_request:
             handle_read_by_group_type_request( opcode, input, in_size, output, out_size );
@@ -228,6 +232,22 @@ namespace bluetoe {
         write_ptr = collect_handle_uuid_tuples( starting_handle, ending_handle, only_16_bit_uuids, write_ptr, write_end );
 
         out_size = write_ptr - &output[ 0 ];
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_read_by_type_request( details::att_opcodes opcode, const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    {
+        if ( in_size != 5 + 2 && in_size != 5 + 16  )
+            return error_response( opcode, details::att_error_codes::invalid_pdu, output, out_size );
+
+        const std::uint16_t starting_handle = details::read_handle( &input[ 1 ] );
+        const std::uint16_t ending_handle   = details::read_handle( &input[ 3 ] );
+
+        if ( starting_handle == 0 || starting_handle > ending_handle )
+            return error_response( opcode, details::att_error_codes::invalid_handle, starting_handle, output, out_size );
+
+        if ( starting_handle > number_of_attributes )
+            return error_response( opcode, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
     }
 
     namespace details {
