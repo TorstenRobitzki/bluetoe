@@ -92,6 +92,21 @@ namespace details {
         ( UUID >> 0 ) & 0xff,
         ( UUID >> 8 ) & 0xff,
     };
+
+    /**
+     * @brief the 128 bit Bluetooth Base UUID
+     */
+    struct bluetooth_base_uuid : uuid< 0x00000000 ,0x0000, 0x1000, 0x8000, 0x00805F9B34FB >
+    {
+        /**
+         * @brief constructs a 128 bit uuid from a 16 bit Bluetooth UUID
+         */
+        template < std::uint64_t A >
+        using from_16bit = uuid< A ,0x0000, 0x1000, 0x8000, 0x00805F9B34FB > ;
+    };
+
+
+
 }
 }
 

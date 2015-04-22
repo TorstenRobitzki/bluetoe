@@ -21,12 +21,17 @@ namespace details {
         write_truncated,
 
         write_not_permitted,
-        read_not_permitted
+        read_not_permitted,
+
+        // returned when access type is compare_128bit_uuid and the attribute contains a 128bit uuid and
+        // the buffer in attribute_access_arguments is equal to the contained uuid.
+        uuid_equal
     };
 
     enum class attribute_access_type {
         read,
-        write
+        write,
+        compare_128bit_uuid
     };
 
     struct attribute_access_arguments
@@ -66,6 +71,14 @@ namespace details {
             };
         }
 
+        static attribute_access_arguments compare_128bit_uuid( const std::uint8_t* uuid )
+        {
+            return attribute_access_arguments{
+                attribute_access_type::compare_128bit_uuid,
+                const_cast< std::uint8_t* >( uuid ),
+                16u
+            };
+        }
     };
 
     typedef attribute_access_result ( *attribute_access )( attribute_access_arguments& );
