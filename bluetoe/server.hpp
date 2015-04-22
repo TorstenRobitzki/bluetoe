@@ -268,22 +268,25 @@ namespace bluetoe {
         {
             void operator()( std::uint16_t handle, const details::attribute& attr )
             {
-                if ( end_ - current_  >= 2 )
-                {
-                    const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, 255u ) - 2;
+                static constexpr std::size_t maximum_pdu_size = 253u;
+                static constexpr std::size_t header_size      = 2u;
 
-                    auto read = attribute_access_arguments::read( current_ + 2, current_ + 2 + max_data_size );
+                if ( end_ - current_  >= header_size )
+                {
+                    const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
+
+                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size );
                     auto rc   = attr.access( read, handle );
 
-                    if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+                    if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated && read.buffer_size == maximum_pdu_size )
                     {
-                        assert( read.buffer_size <= 253u );
+                        assert( read.buffer_size <= maximum_pdu_size );
                         current_ = details::write_handle( current_, handle );
                         current_ += static_cast< std::uint8_t >( read.buffer_size );
 
                         if ( first_ )
                         {
-                            size_   = read.buffer_size + 2;
+                            size_   = read.buffer_size + header_size;
                             first_  = false;
                         }
                     }
