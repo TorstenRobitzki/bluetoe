@@ -17,8 +17,8 @@ namespace details {
         success,
         // read just as much as was possible to write into the output buffer
         read_truncated,
-        // write just as much as was possible to the internal value
-        write_truncated,
+        // the data to be written was larger than the attribute can store
+        write_overflow,
 
         write_not_permitted,
         read_not_permitted,
@@ -70,6 +70,17 @@ namespace details {
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( &buffer[ 0 ] ),
                 N
+            };
+        }
+
+        static attribute_access_arguments write( std::uint8_t* begin, std::uint8_t* end )
+        {
+            assert( end >= begin );
+
+            return attribute_access_arguments{
+                attribute_access_type::write,
+                begin,
+                static_cast< std::size_t >( end - begin )
             };
         }
 

@@ -21,7 +21,9 @@ namespace details {
         read_request                = 0x0A,
         read_response               = 0x0B,
         read_by_group_type_request  = 0x10,
-        read_by_group_type_response = 0x11
+        read_by_group_type_response = 0x11,
+        write_request               = 0x12,
+        write_response              = 0x13
 
     };
 

@@ -71,6 +71,12 @@ namespace {
             BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
         }
 
+        void expected_result( const std::initializer_list< std::uint8_t >& input )
+        {
+            const std::vector< std::uint8_t > values( input );
+            BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &response[ 0 ], &response[ response_size ] );
+        }
+
         template < std::size_t PDU_Size >
         bool check_error_response( const std::uint8_t(&input)[PDU_Size], std::uint8_t expected_request_opcode, std::uint16_t expected_attribute_handle, std::uint8_t expected_error_code )
         {

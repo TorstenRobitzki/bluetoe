@@ -225,6 +225,23 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
         BOOST_REQUIRE( bluetoe::details::attribute_access_result::write_not_permitted == value_attribute.access( write, 1 ) );
     }
 
+    static std::uint32_t write_to_large_value = 15;
+
+    BOOST_AUTO_TEST_CASE( write_to_large )
+    {
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &write_to_large_value >
+        > characteristic;
+
+        std::uint8_t new_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( new_value );
+
+        BOOST_REQUIRE( bluetoe::details::attribute_access_result::write_overflow == characteristic.attribute_at( 1 ).access( write, 1 ) );
+        BOOST_CHECK_EQUAL( write_to_large_value, 15 );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( characteristic_properties )

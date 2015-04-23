@@ -67,12 +67,14 @@ namespace bluetoe {
 
         template < std::size_t A, std::size_t B = A >
         bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
+        bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
 
         void handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
@@ -150,8 +152,11 @@ namespace bluetoe {
         case details::att_opcodes::read_by_group_type_request:
             handle_read_by_group_type_request( input, in_size, output, out_size );
             break;
+        case details::att_opcodes::write_request:
+            handle_write_request( input, in_size, output, out_size );
+            break;
         default:
-            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
             break;
         }
     }
@@ -252,6 +257,12 @@ namespace bluetoe {
         if ( in_size != A && in_size != B )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
+        return check_handle( input, in_size, output, out_size, handle );
+    }
+
+    template < typename ... Options >
+    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    {
         handle = details::read_handle( &input[ 1 ] );
 
         if ( handle == 0 )
@@ -563,6 +574,38 @@ namespace bluetoe {
         else
         {
             out_size = begin - output;
+        }
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    {
+        if ( in_size < 3 )
+        {
+            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            return;
+        }
+
+        std::uint16_t handle;
+
+        if ( !check_handle( input, in_size, output, out_size, handle ) )
+            return;
+
+        auto write = details::attribute_access_arguments::write( output + 1, output + out_size );
+        auto rc    = attribute_at( handle - 1 ).access( write, handle );
+
+        if ( rc == details::attribute_access_result::success )
+        {
+            *output  = bits( details::att_opcodes::write_response );
+            out_size = 1;
+        }
+        else if ( rc == details::attribute_access_result::write_overflow )
+        {
+            error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
+        }
+        else
+        {
+            error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
         }
     }
 
