@@ -16,7 +16,7 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/bindings/btstack_libusb.hpp>
 
-unsigned temperature_value = 0;
+std::uint32_t temperature_value = 0x12345678;
 static const char server_name[] = "Temperature";
 
 typedef bluetoe::server<

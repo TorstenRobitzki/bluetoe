@@ -69,6 +69,7 @@ namespace bluetoe {
         bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
 
         void handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
@@ -133,6 +134,9 @@ namespace bluetoe {
         {
         case details::att_opcodes::find_information_request:
             handle_find_information_request( input, in_size, output, out_size );
+            break;
+        case details::att_opcodes::find_by_type_value_request:
+            handle_find_by_type_value_request( input, in_size, output, out_size );
             break;
         case details::att_opcodes::read_by_type_request:
             handle_read_by_type_request( input, in_size, output, out_size );
@@ -286,6 +290,24 @@ namespace bluetoe {
         write_ptr = collect_handle_uuid_tuples( starting_handle, ending_handle, only_16_bit_uuids, write_ptr, write_end );
 
         out_size = write_ptr - &output[ 0 ];
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    {
+        std::uint16_t starting_handle, ending_handle;
+
+        if ( !check_size_and_handle_range< 9u, 23u >( input, in_size, output, out_size, starting_handle, ending_handle ) )
+            return;
+
+        const std::uint16_t type = details::read_16bit_uuid( input + 5 );
+
+        if ( type != bits( details::gatt_uuids::primary_service ) )
+        {
+            // the spec (v4.2) doesn't define, what to return in this case, but this seems to be a resonable response
+            error_response( *input, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
+            return;
+        }
     }
 
     template < typename ... Options >

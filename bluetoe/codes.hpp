@@ -14,6 +14,8 @@ namespace details {
         exchange_mtu_response       = 0x03,
         find_information_request    = 0x04,
         find_information_response   = 0x05,
+        find_by_type_value_request  = 0x06,
+        find_by_type_value_response = 0x07,
         read_by_type_request        = 0x08,
         read_by_type_response       = 0x09,
         read_request                = 0x0A,

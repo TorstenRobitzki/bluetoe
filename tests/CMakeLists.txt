@@ -18,6 +18,7 @@ function(add_test TARGETNAME)
 endfunction()
 
 add_test(att_find_tests)
+add_test(att_find_by_type_value_tests)
 add_test(att_read_tests)
 add_test(att_read_by_group_type_tests)
 add_test(att_read_by_type_tests)
