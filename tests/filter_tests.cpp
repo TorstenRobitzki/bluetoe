@@ -105,4 +105,20 @@ BOOST_AUTO_TEST_CASE( compare_128bit_with_16bit )
     BOOST_CHECK( !filter( 4711, attribute ) );
 }
 
+BOOST_AUTO_TEST_CASE( matching_uuid16_filter )
+{
+    blued::uuid16_filter< blued::uuid16< 0x2800 > > filter;
+    const blued::attribute attribute  = { 0x2800, nullptr };
 
+    BOOST_CHECK( filter( 1,    attribute ) );
+    BOOST_CHECK( filter( 4711, attribute ) );
+}
+
+BOOST_AUTO_TEST_CASE( nomatching_uuid16_filter )
+{
+    blued::uuid16_filter< blued::uuid16< 0x2800 > > filter;
+    const blued::attribute attribute  = { 0x2801, nullptr };
+
+    BOOST_CHECK( !filter( 1,    attribute ) );
+    BOOST_CHECK( !filter( 4711, attribute ) );
+}

@@ -36,11 +36,17 @@ namespace details {
 
         bool operator()( std::uint16_t index, const attribute& attr ) const
         {
-            if ( is_128bit_ && attr.uuid == bits( gatt_uuids::internal_128bit_uuid ) )
+            if ( is_128bit_ )
             {
-                auto compare = attribute_access_arguments::compare_128bit_uuid( bytes_ );
-
-                return attr.access( compare, 1 ) == attribute_access_result::uuid_equal;
+                if ( attr.uuid == bits( gatt_uuids::internal_128bit_uuid ) )
+                {
+                    auto compare = attribute_access_arguments::compare_128bit_uuid( bytes_ );
+                    return attr.access( compare, 1 ) == attribute_access_result::uuid_equal;
+                }
+                else
+                {
+                    return false;
+                }
             }
             else
             {
@@ -48,14 +54,36 @@ namespace details {
             }
         }
 
+    private:
         static bool representable_as_16bit_uuid( const std::uint8_t* bytes )
         {
             return std::equal( std::begin( bluetooth_base_uuid::bytes ), std::end( bluetooth_base_uuid::bytes ) - 4, bytes )
                 && bytes[ 14 ] == 0 && bytes[ 15 ] == 0;
         }
-    private:
+
         const std::uint8_t* bytes_;
         bool                is_128bit_;
+    };
+
+    /**
+     * @brief filters a static 16bit uuid
+     *
+     * UUID have to be an instance of details::uuid16
+     * Example:
+     * @code
+    bluetoe::details::uuid16_filter< bluetoe::details::uuid16< 0x2800 > > filter;
+     * @endcode
+     */
+    template < class UUID >
+    struct uuid16_filter;
+
+    template < std::uint64_t UUID, typename Check >
+    struct uuid16_filter< uuid16< UUID, Check > >
+    {
+        bool operator()( std::uint16_t index, const attribute& attr ) const
+        {
+            return attr.uuid == UUID;
+        }
     };
 
     /**
