@@ -77,6 +77,9 @@ namespace bluetoe {
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
 
+        template < class Iterator, class Filter = details::all_uuid_filter >
+        bool all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
+
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
@@ -292,6 +295,59 @@ namespace bluetoe {
         out_size = write_ptr - &output[ 0 ];
     }
 
+    namespace details {
+        struct value_filter
+        {
+            value_filter( const std::uint8_t* begin, const std::uint8_t* end )
+                : begin_( begin )
+                , end_( end )
+            {
+            }
+
+            bool operator()( std::uint16_t index, const details::attribute& attr ) const
+            {
+                auto read = details::attribute_access_arguments::compare_value( begin_, end_ );
+                return attr.access( read, 1 ) == details::attribute_access_result::value_equal;
+            }
+
+            const std::uint8_t* const begin_;
+            const std::uint8_t* const end_;
+        };
+
+        struct collect_find_by_type_groups
+        {
+            collect_find_by_type_groups( std::uint8_t* begin, std::uint8_t* end )
+                : begin_( begin )
+                , end_( end )
+                , current_( begin )
+            {
+            }
+
+            template < typename Service >
+            bool operator()( std::uint16_t handle, const details::attribute& )
+            {
+                if ( end_ -  current_ >= 4 )
+                {
+                    current_ = details::write_handle( current_, handle );
+                    current_ = details::write_handle( current_, handle + Service::number_of_attributes - 1 );
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            std::uint8_t size() const
+            {
+                return current_ - begin_;
+            }
+
+            std::uint8_t* const begin_;
+            std::uint8_t* const end_;
+            std::uint8_t*       current_;
+        };
+    }
+
     template < typename ... Options >
     void server< Options... >::handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
@@ -300,14 +356,25 @@ namespace bluetoe {
         if ( !check_size_and_handle_range< 9u, 23u >( input, in_size, output, out_size, starting_handle, ending_handle ) )
             return;
 
-        const std::uint16_t type = details::read_16bit_uuid( input + 5 );
-
-        if ( type != bits( details::gatt_uuids::primary_service ) )
+        if ( details::read_handle( &input[ 5 ] ) != bits( details::gatt_uuids::primary_service ) )
         {
             // the spec (v4.2) doesn't define, what to return in this case, but this seems to be a resonable response
             error_response( *input, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
             return;
         }
+
+        details::collect_find_by_type_groups iterator( output + 1 , output + out_size );
+
+        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter( &input[ 7 ], input + in_size ) ) )
+        {
+            *output  = bits( details::att_opcodes::find_by_type_value_response );
+            out_size = iterator.size() + 1;
+        }
+        else
+        {
+            error_response( *input, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
+        }
+
     }
 
     template < typename ... Options >
@@ -510,6 +577,56 @@ namespace bluetoe {
             if ( filter( starting_handle, attr ) )
                 iter( starting_handle, attr );
         }
+    }
+
+    namespace details {
+        template < class Iterator, class Filter >
+        struct services_by_group
+        {
+            services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter, bool& found )
+                : starting_handle_( starting_handle )
+                , ending_handle_( ending_handle )
+                , index_( 1 )
+                , iterator_( iterator )
+                , filter_( filter )
+                , found_( found )
+            {
+
+            }
+
+            template< typename Service >
+            void each()
+            {
+                if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
+                {
+                    const details::attribute& attr = Service::attribute_at( 0 );
+
+                    if ( filter_( index_, attr ) )
+                    {
+                        found_ = iterator_.template operator()< Service >( index_, attr ) || found_;
+                    }
+                }
+
+                index_ += Service::number_of_attributes;
+            }
+
+            std::uint16_t   starting_handle_;
+            std::uint16_t   ending_handle_;
+            std::uint16_t   index_;
+            Iterator&       iterator_;
+            const Filter&   filter_;
+            bool&           found_;
+        };
+    }
+
+    template < typename ... Options >
+    template < class Iterator, class Filter >
+    bool server< Options... >::all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter )
+    {
+        bool result = false;
+        details::for_< services >::each( details::services_by_group< Iterator, Filter >( starting_handle, ending_handle, iterator, filter, result ) );
+
+        return result;
     }
 
     template < typename ... Options >

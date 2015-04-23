@@ -17,11 +17,11 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service )
     BOOST_CHECK_EQUAL( 0x2800, attr.uuid );
 }
 
-static const std::uint8_t expected_uuid[ 16 ] = { 0x2A, 0xD9, 0x91, 0x11, 0xAB, 0x5B, 0x58, 0xB0, 0x3B, 0x4F, 0x50, 0x44, 0x52, 0x6E, 0x42, 0xF0 };
+static const std::uint8_t global_temperature_service_uuid[ 16 ] = { 0x2A, 0xD9, 0x91, 0x11, 0xAB, 0x5B, 0x58, 0xB0, 0x3B, 0x4F, 0x50, 0x44, 0x52, 0x6E, 0x42, 0xF0 };
 
-static void check_service_uuid( const bluetoe::details::attribute_access_arguments& args, std::size_t size = sizeof( expected_uuid ) )
+static void check_service_uuid( const bluetoe::details::attribute_access_arguments& args, std::size_t size = sizeof( global_temperature_service_uuid ) )
 {
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_uuid ), std::begin( expected_uuid ) + size, args.buffer, args.buffer + args.buffer_size );
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( global_temperature_service_uuid ), std::begin( global_temperature_service_uuid ) + size, args.buffer, args.buffer + args.buffer_size );
 }
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
@@ -133,4 +133,10 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_spe
     };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), end, std::begin( expected_result ), std::end( expected_result ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( primary_service_value_compare_128bit, global_temperature_service )
+{
+    auto compare = bluetoe::details::attribute_access_arguments::compare_value( &global_temperature_service_uuid[ 0 ], &global_temperature_service_uuid[ sizeof global_temperature_service_uuid ]);
+    BOOST_CHECK( attribute_at( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal );
 }

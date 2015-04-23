@@ -111,6 +111,14 @@ namespace bluetoe {
                 ? details::attribute_access_result::success
                 : details::attribute_access_result::read_truncated;
         }
+        else if ( args.type == details::attribute_access_type::compare_value )
+        {
+            if ( sizeof( details::uuid< A, B, C, D, E >::bytes ) == args.buffer_size
+              && std::equal( std::begin( details::uuid< A, B, C, D, E >::bytes ), std::end( details::uuid< A, B, C, D, E >::bytes ), &args.buffer[ 0 ] ) )
+            {
+                return details::attribute_access_result::value_equal;
+            }
+        }
 
         return details::attribute_access_result::write_not_permitted;
     }
@@ -128,6 +136,14 @@ namespace bluetoe {
             return args.buffer_size == 2
                 ? details::attribute_access_result::success
                 : details::attribute_access_result::read_truncated;
+        }
+        else if ( args.type == details::attribute_access_type::compare_value )
+        {
+            if ( sizeof( details::uuid16< UUID >::bytes ) == args.buffer_size
+              && std::equal( std::begin( details::uuid16< UUID >::bytes ), std::end( details::uuid16< UUID >::bytes ), &args.buffer[ 0 ] ) )
+            {
+                return details::attribute_access_result::value_equal;
+            }
         }
 
         return details::attribute_access_result::write_not_permitted;
