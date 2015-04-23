@@ -65,8 +65,12 @@ namespace bluetoe {
         template < std::size_t A, std::size_t B = A >
         bool check_size_and_handle_range( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& starting_handle, std::uint16_t& ending_handle );
 
+        template < std::size_t A, std::size_t B = A >
+        bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
+
         void handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
@@ -121,7 +125,7 @@ namespace bluetoe {
     void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         assert( in_size != 0 );
-        assert( out_size >= 23 );
+        assert( out_size >= details::default_att_mtu_size );
 
         const details::att_opcodes opcode = static_cast< details::att_opcodes >( input[ 0 ] );
 
@@ -130,8 +134,11 @@ namespace bluetoe {
         case details::att_opcodes::find_information_request:
             handle_find_information_request( input, in_size, output, out_size );
             break;
-        case details::att_opcodes::find_by_type_request:
+        case details::att_opcodes::read_by_type_request:
             handle_read_by_type_request( input, in_size, output, out_size );
+            break;
+        case details::att_opcodes::read_request:
+            handle_read_request( input, in_size, output, out_size );
             break;
         case details::att_opcodes::read_by_group_type_request:
             handle_read_by_group_type_request( input, in_size, output, out_size );
@@ -193,7 +200,7 @@ namespace bluetoe {
             output[ 0 ] = bits( details::att_opcodes::error_response );
             output[ 1 ] = opcode;
             output[ 2 ] = handle & 0xff;
-            output[ 3 ] = handle << 8;
+            output[ 3 ] = handle >> 8;
             output[ 4 ] = bits( error_code );
             out_size = 5;
         }
@@ -232,6 +239,24 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
+    template < std::size_t A, std::size_t B >
+    bool server< Options... >::check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    {
+        if ( in_size != A && in_size != B )
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+
+        handle = details::read_handle( &input[ 1 ] );
+
+        if ( handle == 0 )
+            return error_response( *input, details::att_error_codes::invalid_handle, handle, output, out_size );
+
+        if ( handle > number_of_attributes )
+            return error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
+
+        return true;
+    }
+
+    template < typename ... Options >
     void server< Options... >::handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         std::uint16_t starting_handle, ending_handle;
@@ -261,6 +286,28 @@ namespace bluetoe {
         write_ptr = collect_handle_uuid_tuples( starting_handle, ending_handle, only_16_bit_uuids, write_ptr, write_end );
 
         out_size = write_ptr - &output[ 0 ];
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    {
+        std::uint16_t handle;
+
+        if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
+            return;
+
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size );
+        auto rc   = attribute_at( handle - 1 ).access( read, handle );
+
+        if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+        {
+            *output  = bits( details::att_opcodes::read_response );
+            out_size = 1 + read.buffer_size;
+        }
+        else
+        {
+            error_response( *input, details::att_error_codes::read_not_permitted, handle, output, out_size );
+        }
     }
 
     namespace details {
@@ -343,7 +390,7 @@ namespace bluetoe {
 
         if ( !iterator.empty() )
         {
-            output[ 0 ] = bits( details::att_opcodes::find_by_type_response );
+            output[ 0 ] = bits( details::att_opcodes::read_by_type_response );
             output[ 1 ] = iterator.data_size();
             out_size = 2 + iterator.size();
         }

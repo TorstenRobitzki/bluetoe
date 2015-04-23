@@ -12,7 +12,7 @@
 #include "hexdump.hpp"
 
 namespace {
-    unsigned temperature_value = 0;
+    std::uint16_t temperature_value = 0x0104;
 
     typedef bluetoe::server<
         bluetoe::service<
