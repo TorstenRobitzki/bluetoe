@@ -591,7 +591,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::write( output + 1, output + out_size );
+        auto write = details::attribute_access_arguments::write( input + 3, input + in_size );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::success )

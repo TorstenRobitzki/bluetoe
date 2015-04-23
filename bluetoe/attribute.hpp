@@ -73,13 +73,13 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments write( std::uint8_t* begin, std::uint8_t* end )
+        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end )
         {
             assert( end >= begin );
 
             return attribute_access_arguments{
                 attribute_access_type::write,
-                begin,
+                const_cast< std::uint8_t* >( begin ),
                 static_cast< std::size_t >( end - begin )
             };
         }
