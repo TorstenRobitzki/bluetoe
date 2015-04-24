@@ -15,9 +15,15 @@
 namespace bluetoe {
 
     namespace details {
-        struct characteristic_meta_type;
-        struct characteristic_uuid_meta_type;
-        struct characteristic_value_metat_type;
+        struct characteristic_meta_type {};
+        struct characteristic_uuid_meta_type {};
+        struct characteristic_value_meta_type {};
+        struct characteristic_parameter_meta_type {};
+
+        struct characteristic_user_description_parameter {};
+
+        template < typename ... Options >
+        struct generate_attributes;
     }
 
     /**
@@ -57,10 +63,12 @@ namespace bluetoe {
     class characteristic
     {
     public:
+        typedef typename details::generate_attributes< Options... > characteristic_descriptor_declarations;
+
         /**
          * a service is a list of attributes
          */
-        static constexpr std::size_t number_of_attributes = 2;
+        static constexpr std::size_t number_of_attributes = 2 + characteristic_descriptor_declarations::size;
 
         /**
          * @brief gives access to the all attributes of the characteristic
@@ -71,7 +79,7 @@ namespace bluetoe {
         typedef details::characteristic_meta_type meta_type;
 
     private:
-        typedef typename details::find_by_meta_type< details::characteristic_value_metat_type, Options... >::type base_value_type;
+        typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type base_value_type;
         typedef typename base_value_type::template value_impl< Options... >                                       value_type;
 
         static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
@@ -138,17 +146,32 @@ namespace bluetoe {
         };
 
 
-        typedef details::characteristic_value_metat_type meta_type;
+        typedef details::characteristic_value_meta_type meta_type;
     };
 
     /**
      * @brief adds a name to characteristic
      *
-     * Adds a "Characteristic User Description" to the characteristic
+     * Adds a "Characteristic User Description" to the characteristic. So a GATT client can read the name of the characteristic.
+     *
+     * Example
+     * @code
+    char simple_value = 0;
+    const char name[] = "Die ist der Name";
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_name< name >,
+        bluetoe::characteristic_uuid16< 0x0815 >,
+        bluetoe::bind_characteristic_value< char, &simple_value >
+    > named_char;
+     * @endcode
      */
     template < const char* const >
-    class characteristic_name
+    struct characteristic_name
     {
+        struct meta_type :
+            details::characteristic_parameter_meta_type,
+            details::characteristic_user_description_parameter {};
     };
 
     // implementation
@@ -167,7 +190,9 @@ namespace bluetoe {
             }
         };
 
-        return attributes[ index ];
+        return index < 2
+            ? attributes[ index ]
+            : characteristic_descriptor_declarations::attribute_at( index - 2 );
     }
 
     template < typename ... Options >
@@ -260,6 +285,93 @@ namespace bluetoe {
     details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& )
     {
         return details::attribute_access_result::write_not_permitted;
+    }
+
+    namespace details {
+
+
+        template < typename >
+        struct generate_attribute;
+
+        /*
+         * Characteristic User Description
+         */
+        template < const char* const Name >
+        struct generate_attribute< std::tuple< characteristic_name< Name > > >
+        {
+            static const attribute attr;
+
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                details::attribute_access_result result = attribute_access_result::write_not_permitted;
+
+                if ( args.type == attribute_access_type::read )
+                {
+                    const std::size_t str_len   = std::strlen( Name );
+                    const std::size_t read_size = std::min( args.buffer_size, str_len );
+
+                    std::copy( Name, Name + read_size, args.buffer );
+
+                    result = str_len > args.buffer_size
+                        ? attribute_access_result::read_truncated
+                        : attribute_access_result::success;
+
+                    args.buffer_size = read_size;
+                }
+
+                return result;
+            }
+
+        };
+
+        template < const char* const Name >
+        const attribute generate_attribute< std::tuple< characteristic_name< Name > > >::attr {
+            bits( gatt_uuids::characteristic_user_description ),
+            &generate_attribute< std::tuple< characteristic_name< Name > > >::access
+        };
+
+        template < typename >
+        struct generate_attribute_list;
+
+        template <>
+        struct generate_attribute_list< std::tuple<> >
+        {
+            static const attribute attribute_at( std::size_t index )
+            {
+                assert( !"should not happen" );
+            }
+        };
+
+        template < typename ... Options >
+        struct generate_attribute_list< std::tuple< Options... > >
+        {
+            static const attribute attribute_at( std::size_t index )
+            {
+                return attributes[ index ];
+            }
+
+            static attribute attributes[ sizeof ...(Options) ];
+        };
+
+        template < typename ... Options >
+        attribute generate_attribute_list< std::tuple< Options... > >::attributes[ sizeof ...(Options) ] = { generate_attribute< Options >::attr... };
+
+        template < typename ... Options >
+        struct generate_attributes
+        {
+            typedef typename group_by_meta_types_without_empty_groups<
+                std::tuple< Options... >,
+                characteristic_user_description_parameter
+            >::type declaraction_parameters;
+
+            enum { size = std::tuple_size< declaraction_parameters >::value };
+
+            static const attribute attribute_at( std::size_t index )
+            {
+                return generate_attribute_list< declaraction_parameters >::attribute_at( index );
+            }
+        };
+
     }
 }
 

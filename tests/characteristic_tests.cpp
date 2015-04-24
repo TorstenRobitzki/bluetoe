@@ -23,6 +23,50 @@ namespace {
     > simple_const_char;
 
     template < typename Char >
+    class access_attributes : public Char
+    {
+    public:
+        bluetoe::details::attribute attribute_by_type( std::uint16_t type )
+        {
+            for ( int index = 0; index != this->number_of_attributes; ++index )
+            {
+                const bluetoe::details::attribute value_attribute = this->attribute_at( index );
+
+                if ( value_attribute.uuid == type )
+                {
+                    return value_attribute;
+                }
+            }
+
+            BOOST_REQUIRE( !"Type not found" );
+
+            return bluetoe::details::attribute{ 0, 0 };
+        }
+
+        void compare_characteristic_at( const std::initializer_list< std::uint8_t >& input, std::size_t index )
+        {
+            compare_characteristic_impl( input, this->attribute_at( index ) );
+        }
+
+        void compare_characteristic( const std::initializer_list< std::uint8_t >& input, std::uint16_t type )
+        {
+            compare_characteristic_impl( input, attribute_by_type( type ) );
+        }
+
+    private:
+        void compare_characteristic_impl( const std::initializer_list< std::uint8_t >& input, const bluetoe::details::attribute& value_attribute )
+        {
+            const std::vector< std::uint8_t > values( input );
+
+            std::uint8_t buffer[ 1000 ];
+            auto read = bluetoe::details::attribute_access_arguments::read( buffer );
+
+            BOOST_REQUIRE( bluetoe::details::attribute_access_result::success == value_attribute.access( read, 1 ) );
+            BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );
+        }
+    };
+
+    template < typename Char >
     struct read_characteristic_properties : Char
     {
         read_characteristic_properties()
@@ -282,5 +326,54 @@ BOOST_AUTO_TEST_SUITE( characteristic_properties )
         BOOST_CHECK_EQUAL( properties & 0x02, 0 );
         BOOST_CHECK_EQUAL( properties & 0x08, 0 );
     }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( characteristic_extended_properties )
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( characteristic_user_description )
+
+    char simple_value = 0;
+    const char name[] = "Die ist der Name";
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_name< name >,
+        bluetoe::characteristic_uuid16< 0x0815 >,
+        bluetoe::bind_characteristic_value< char, &simple_value >
+    > named_char;
+
+    BOOST_FIXTURE_TEST_CASE( there_is_an_attribute_with_the_given_name, access_attributes< named_char > )
+    {
+        BOOST_CHECK_EQUAL( 3, int(number_of_attributes) );
+        compare_characteristic( { 'D', 'i', 'e', ' ', 'i', 's', 't', ' ', 'd', 'e', 'r', ' ', 'N', 'a', 'm', 'e' }, 0x2901 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( is_not_writeable, access_attributes< named_char > )
+    {
+        static std::uint8_t buffer[ 100 ];
+
+        auto attr  = attribute_by_type( 0x2901 );
+        auto write = bluetoe::details::attribute_access_arguments::write( buffer );
+
+        BOOST_CHECK( attr.access( write, 1 ) == bluetoe::details::attribute_access_result::write_not_permitted );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( server_characteristic_configuration )
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( characteristic_presentation_format )
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( characteristic_aggregate_format )
 
 BOOST_AUTO_TEST_SUITE_END()

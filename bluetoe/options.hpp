@@ -243,6 +243,16 @@ namespace details {
         typename ... MetaTypes >
     struct group_by_meta_types_without_empty_groups;
 
+    template <
+        typename ... Types,
+        typename ... MetaTypes >
+    struct group_by_meta_types_without_empty_groups< std::tuple< Types... >, MetaTypes...>
+        : remove_if_equal<
+            typename group_by_meta_types< std::tuple< Types... >, MetaTypes... >::type, std::tuple<> >
+    {
+    };
+
+
     /*
      * counts the number of Types with a given MetaType
      */
