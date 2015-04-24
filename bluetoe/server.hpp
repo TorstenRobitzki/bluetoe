@@ -62,16 +62,41 @@ namespace bluetoe {
              */
             std::uint16_t negotiated_mtu() const;
 
+            /**
+             * @brief sets the MTU size of the connected client.
+             *
+             * The default is 23. Usually this function will be called by the server implementation as reaction
+             * of an "Exchange MTU Request".
+             * @post client_mtu() == mtu
+             */
             void client_mtu( std::uint16_t mtu );
+
+            /**
+             * @brief returns the client MTU
+             *
+             * By default this returns 23 unless the client MTU was changed by call to client_mtu( std::size_t )
+             */
             std::uint16_t client_mtu() const;
+
+            /**
+             * @brief returns the MTU of this server as provided in the c'tor
+             * @pre connection_data(X).server_mtu() == X
+             */
             std::uint16_t server_mtu() const;
+
         private:
             std::uint16_t   server_mtu_;
             std::uint16_t   client_mtu_;
         };
 
+        /**
+         * @brief function to be called by a L2CAP implementation to provide the input from the L2CAP layer and the data assiziate with the connection
+         */
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
+        /**
+         * @brief returns the advertising data to the L2CAP implementation
+         */
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
 
     private:
@@ -150,14 +175,17 @@ namespace bluetoe {
      */
     template < const char* const Name >
     struct server_name {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::server_name_meta_type meta_type;
 
         static constexpr char const* name = Name;
+        /** @endcond */
     };
 
     /*
      * Implementation
      */
+    /** @cond HIDDEN_SYMBOLS */
     template < typename ... Options >
     void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
     {
@@ -817,6 +845,7 @@ namespace bluetoe {
         return server_mtu_;
     }
 
+    /** @endcond */
 }
 
 #endif

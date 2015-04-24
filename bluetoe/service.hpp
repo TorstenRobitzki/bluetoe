@@ -38,9 +38,11 @@ namespace bluetoe {
     class service_uuid : public details::uuid< A, B, C, D, E >
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
 
         typedef details::service_uuid_meta_type meta_type;
+        /** @endcond */
     };
 
     /**
@@ -54,9 +56,11 @@ namespace bluetoe {
     class service_uuid16 : public details::uuid16< UUID >
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
 
         typedef details::service_uuid_meta_type meta_type;
+        /** @endcond */
     };
 
     /**
@@ -66,6 +70,7 @@ namespace bluetoe {
     class service
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         typedef typename details::find_all_by_meta_type< details::characteristic_meta_type, Options... >::type characteristics;
         typedef typename details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type       uuid;
 
@@ -79,20 +84,19 @@ namespace bluetoe {
               number_of_service_attributes
             + number_of_characteristic_attributes;
 
-        /**
-         *
-         */
+        typedef details::service_meta_type meta_type;
+
         static details::attribute attribute_at( std::size_t index );
 
         /**
-         * assembles one data packet for a "Read by Group Type Response"
+         * @brief assembles one data packet for a "Read by Group Type Response"
          */
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter );
-
-        typedef details::service_meta_type meta_type;
+        /** @endcond */
     };
 
     // service_uuid implementation
+    /** @cond HIDDEN_SYMBOLS */
     template <
         std::uint32_t A,
         std::uint16_t B,
@@ -189,6 +193,8 @@ namespace bluetoe {
 
         return output;
     }
+
+    /** @endcond */
 
 }
 

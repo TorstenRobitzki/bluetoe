@@ -15,6 +15,7 @@
 #include <algorithm>
 
 namespace bluetoe {
+namespace binding {
 
     extern "C" void sigint_handler(int param)
     {
@@ -206,4 +207,5 @@ namespace bluetoe {
     std::function< void( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size ) >    btstack_libusb_device_base::l2cap_input_;
     std::uint16_t                                                                                                           btstack_libusb_device_base::connection_handle_ = 0;
     std::uint16_t                                                                                                           btstack_libusb_device_base::mtu_size_ = HCI_PACKET_BUFFER_SIZE - 8;
+}
 }

@@ -42,7 +42,9 @@ namespace bluetoe {
         std::uint64_t E >
     struct characteristic_uuid : details::uuid< A, B, C, D, E >
     {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::characteristic_uuid_meta_type meta_type;
+        /** @endcond */
     };
 
     /**
@@ -52,8 +54,10 @@ namespace bluetoe {
         std::uint64_t UUID >
     struct characteristic_uuid16 : details::uuid16< UUID >
     {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::characteristic_uuid_meta_type meta_type;
         static constexpr bool is_128bit = false;
+        /** @endcond */
     };
 
     /**
@@ -63,6 +67,8 @@ namespace bluetoe {
     class characteristic
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
+
         typedef typename details::generate_attributes< Options... > characteristic_descriptor_declarations;
 
         /**
@@ -70,13 +76,14 @@ namespace bluetoe {
          */
         static constexpr std::size_t number_of_attributes = 2 + characteristic_descriptor_declarations::size;
 
+        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
+        typedef details::characteristic_meta_type meta_type;
+        /** @endcond */
+
         /**
          * @brief gives access to the all attributes of the characteristic
          */
         static details::attribute attribute_at( std::size_t index );
-
-        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
-        typedef details::characteristic_meta_type meta_type;
 
     private:
         typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type base_value_type;
@@ -129,7 +136,10 @@ namespace bluetoe {
     class bind_characteristic_value
     {
     public:
-        // use a new type to mixin the options given to characteristic
+        /**
+         * @cond HIDDEN_SYMBOLS
+         * use a new type to mixin the options given to characteristic
+         */
         template < typename ... Options >
         class value_impl
         {
@@ -145,8 +155,8 @@ namespace bluetoe {
             static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& );
         };
 
-
         typedef details::characteristic_value_meta_type meta_type;
+        /** @endcond */
     };
 
     /**
@@ -169,12 +179,16 @@ namespace bluetoe {
     template < const char* const >
     struct characteristic_name
     {
+        /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
             details::characteristic_parameter_meta_type,
             details::characteristic_user_description_parameter {};
+        /** @endcond */
     };
 
     // implementation
+    /** @cond HIDDEN_SYMBOLS */
+
     template < typename ... Options >
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
@@ -372,6 +386,7 @@ namespace bluetoe {
             }
         };
 
+        /** @endcond */
     }
 }
 

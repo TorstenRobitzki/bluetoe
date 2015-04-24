@@ -5,7 +5,9 @@
 #include <functional>
 
 namespace bluetoe {
+namespace binding {
 
+    /** @cond HIDDEN_SYMBOLS */
     class btstack_libusb_device_base
     {
     public:
@@ -20,6 +22,7 @@ namespace bluetoe {
         static std::uint16_t connection_handle_;
         static std::uint16_t mtu_size_;
     };
+    /** @endcond */
 
     /**
      * @brief connects a server definition to a hardware to run on
@@ -32,6 +35,9 @@ namespace bluetoe {
     public:
         btstack_libusb_device();
 
+        /**
+         * @brief runs a server loop with the given server
+         */
         void run( Server& );
 
     private:
@@ -57,6 +63,8 @@ namespace bluetoe {
 
         init();
     }
-};
+
+}
+}
 
 #endif
