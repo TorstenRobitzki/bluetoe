@@ -62,6 +62,43 @@ namespace details {
     };
 
     /*
+     * Removes from a typelist (std::tuple) all elments that are equal to Zero
+     */
+    template < typename A, typename Zero >
+    struct remove_if_equal;
+
+    template < typename Zero >
+    struct remove_if_equal< std::tuple<>, Zero >
+    {
+        typedef std::tuple<> type;
+    };
+
+    template <
+        typename Type,
+        typename Zero
+     >
+    struct remove_if_equal< std::tuple< Type >, Zero >
+    {
+        typedef typename select_type<
+            std::is_same< Type, Zero >::value,
+            std::tuple<>,
+            std::tuple< Type > >::type type;
+    };
+
+    template <
+        typename Type,
+        typename ... Types,
+        typename Zero
+     >
+    struct remove_if_equal< std::tuple< Type, Types... >, Zero >
+    {
+        typedef typename add_type<
+            typename remove_if_equal< std::tuple< Type >, Zero >::type,
+            typename remove_if_equal< std::tuple< Types... >, Zero >::type
+        >::type type;
+    };
+
+    /*
      * a tuple type with two elements
      */
     template < typename A, typename B >
@@ -197,6 +234,14 @@ namespace details {
             typename group_by_meta_types< std::tuple< Types... >, MetaType >::type,
             typename group_by_meta_types< std::tuple< Types... >, MetaTypes... >::type >::type type;
     };
+
+    /**
+     * @brief just like group_by_meta_types, but the result has all std::pair<> removed
+     */
+    template <
+        typename Types,
+        typename ... MetaTypes >
+    struct group_by_meta_types_without_empty_groups;
 
     /*
      * counts the number of Types with a given MetaType

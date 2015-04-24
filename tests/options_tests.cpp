@@ -321,3 +321,26 @@ BOOST_AUTO_TEST_CASE( group_by_meta_type )
         typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3, type12 >, meta1, meta2 >::type,
         std::tuple< std::tuple< type1, type12 >, std::tuple< type2, type12 > > >::value ) );
 }
+
+BOOST_AUTO_TEST_CASE( remove_if_equal )
+{
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple<>, int >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< int >, int >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< float >, int >::type,
+        std::tuple< float > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< float, double, int, int, char >, int >::type,
+        std::tuple< float, double, char > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< int, float, double, char, int >, int >::type,
+        std::tuple< float, double, char > >::value ) );
+}
