@@ -36,7 +36,35 @@ Bluetoe aims to implement a GATT server with a very low memory footprint and con
 Bluetoe adds on top of an existing L2CAP implementation. Currently it comes only with one experimental L2CAP implementation on top of btstack's HCI layer that runs at least on OS/X but should also work on Linux (and maybe Windows).
 
 ## Current State
-The current state of the project is: `under construction`
+
+The following table show the list of GATT procedures and there implementation status and there planned implementation status:
+
+Feature | Sub-Procedure | Status
+--------|---------------|-------
+Server Configuration|Exchange MTU|implemented
+Primary Service Discovery|Discover All Primary Services|implemented
+ |Discover Primary Service By Service UUID|implemented
+Relationship Discovery|Find Included Services|implemented
+Characteristic Discovery|Discover All Characteristic of a Service|implemented
+ |Discover Characteristic by UUID|implemented
+Characteristic Descriptor Discovery|Discover All Characteristic Descriptors|implemented
+Characteristic Value Read|Read Characteristic Value|implemented
+ |Read Using Characteristic UUID|implemented
+ |Read Long Characteristic Value|planned
+ |Read Multiple Characteristic Values|planned
+Characteristic Value Write| Write Without Response|planned
+ |Signed Write Without Response|not planned
+ |Write Characteristic Value|implemented
+ |Write Long Characteristic Values|planned
+ |Characteristic Value Reliable Writes|planned
+Characteristic Value Notification|Notifications|planned
+Characteristic Value Indication|Indications|planned
+Characteristic Descriptor Value Read|Read Characteristic Descriptors|planned
+ |Read Long Characteristic Descriptors|planned
+Characteristic Descriptor Value Write|Write Characteristic Descriptors|planned
+ |Write Long Characteristic Descriptors|planned
+Cryptography|Encryption|not planned
+ |Authentication|not planned
 
 Pullrequests are wellcome.
 
