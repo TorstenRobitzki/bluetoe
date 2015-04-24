@@ -6,18 +6,9 @@
 
 namespace bluetoe {
 
-    /**
-     * @brief connects a server definition to a hardware to run on
-     *
-     * @attention this is currently a hack; basically for testing.
-     */
-    struct btstack_libusb_device
+    class btstack_libusb_device_base
     {
     public:
-        template < typename Server >
-        void run( Server& );
-
-    private:
         static void init();
         static void btstack_packet_handler( std::uint8_t packet_type, std::uint8_t *packet, std::uint16_t size );
         static void handle_event( std::uint8_t event_code, std::uint8_t param_size, const std::uint8_t *parameters );
@@ -30,16 +21,39 @@ namespace bluetoe {
         static std::uint16_t mtu_size_;
     };
 
+    /**
+     * @brief connects a server definition to a hardware to run on
+     *
+     * @attention this is currently a hack; basically for testing.
+     */
+    template < typename Server >
+    class btstack_libusb_device : btstack_libusb_device_base
+    {
+    public:
+        btstack_libusb_device();
+
+        void run( Server& );
+
+    private:
+        typename Server::connection_data connection_;
+    };
+
     /*
      * implementation
      */
     template < typename Server >
-    void btstack_libusb_device::run( Server& srv )
+    btstack_libusb_device< Server >::btstack_libusb_device()
+        : connection_( btstack_libusb_device_base::mtu_size_ )
+    {
+    }
+
+    template < typename Server >
+    void btstack_libusb_device< Server >::run( Server& srv )
     {
         using namespace std::placeholders;
 
         advertising_data_ = std::bind( &Server::advertising_data, std::ref( srv ), _1, _2 );
-        l2cap_input_      = std::bind( &Server::l2cap_input, std::ref( srv ), _1, _2, _3, _4 );
+        l2cap_input_      = std::bind( &Server::l2cap_input, std::ref( srv ), _1, _2, _3, _4, std::ref( connection_ ) );
 
         init();
     }

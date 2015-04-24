@@ -34,8 +34,8 @@ typedef bluetoe::server<
 
 int main()
 {
-    small_temperature_service       server;
-    bluetoe::btstack_libusb_device  device;
+    small_temperature_service                                   server;
+    bluetoe::btstack_libusb_device< small_temperature_service > device;
 
     device.run( server );
 }
