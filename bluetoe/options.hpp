@@ -163,11 +163,40 @@ namespace details {
 
     /*
      * groups a list of types by there meta types
+     *
+     * Returns a std::tuple with as much elements as MetaTypes where given. Every element in the result is a tuple containing
+     * the result of a call to find_all_by_meta_type<>
      */
     template <
         typename Types,
-        typename ... MetaType >
+        typename ... MetaTypes >
     struct group_by_meta_types;
+
+    template <
+        typename ... Types >
+    struct group_by_meta_types< std::tuple< Types... > >
+    {
+        typedef std::tuple<> type;
+    };
+
+    template <
+        typename ... Types,
+        typename MetaType >
+    struct group_by_meta_types< std::tuple< Types... >, MetaType >
+    {
+        typedef std::tuple< typename find_all_by_meta_type< MetaType, Types... >::type > type;
+    };
+
+    template <
+        typename ... Types,
+        typename MetaType,
+        typename ... MetaTypes >
+    struct group_by_meta_types< std::tuple< Types... >, MetaType, MetaTypes... >
+    {
+        typedef typename add_type<
+            typename group_by_meta_types< std::tuple< Types... >, MetaType >::type,
+            typename group_by_meta_types< std::tuple< Types... >, MetaTypes... >::type >::type type;
+    };
 
     /*
      * counts the number of Types with a given MetaType

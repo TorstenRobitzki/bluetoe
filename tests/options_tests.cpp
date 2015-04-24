@@ -294,5 +294,30 @@ BOOST_AUTO_TEST_CASE( for_each_feed_by_an_tuple )
 
 BOOST_AUTO_TEST_CASE( group_by_meta_type_empty )
 {
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple<> >::type,
+        std::tuple<> >::value ) );
 
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple<>, meta1 >::type,
+        std::tuple< std::tuple<> > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple<>, meta1, meta2 >::type,
+        std::tuple< std::tuple<>, std::tuple<> > >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( group_by_meta_type )
+{
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3 > >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3, type12 >, meta1 >::type,
+        std::tuple< std::tuple< type1, type12 > > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3, type12 >, meta1, meta2 >::type,
+        std::tuple< std::tuple< type1, type12 >, std::tuple< type2, type12 > > >::value ) );
 }
