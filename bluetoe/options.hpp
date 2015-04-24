@@ -117,7 +117,7 @@ namespace details {
     {
         typedef extract_meta_type< Type > meta_type;
         typedef typename select_type<
-            std::is_same< typename meta_type::type, MetaType >::value,
+            std::is_convertible< typename meta_type::type*, MetaType* >::value,
             Type, no_such_type >::type type;
     };
 
@@ -156,10 +156,18 @@ namespace details {
     {
         typedef extract_meta_type< Type > meta_type;
         typedef typename select_type<
-            std::is_same< typename meta_type::type, MetaType >::value,
+            std::is_convertible< typename meta_type::type*, MetaType* >::value,
             typename add_type< Type, typename find_all_by_meta_type< MetaType, Types... >::type >::type,
             typename find_all_by_meta_type< MetaType, Types... >::type >::type type;
     };
+
+    /*
+     * groups a list of types by there meta types
+     */
+    template <
+        typename Types,
+        typename ... MetaType >
+    struct group_by_meta_types;
 
     /*
      * counts the number of Types with a given MetaType

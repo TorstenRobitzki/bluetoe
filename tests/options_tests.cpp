@@ -26,15 +26,35 @@ BOOST_AUTO_TEST_CASE( not_type )
 
 namespace {
 
-    struct meta1;
-    struct meta2;
-    struct meta3;
+    struct meta1 {};
+    struct meta2 {};
+    struct meta3 {};
+
+    struct meta1a : meta1 {};
+
+    struct meta12 : meta1, meta2 {};
 
     struct type1 {
         typedef meta1 meta_type;
 
         static std::string name() {
             return "type1";
+        }
+    };
+
+    struct type1a {
+        typedef meta1a meta_type;
+
+        static std::string name() {
+            return "type1a";
+        }
+    };
+
+    struct type12 {
+        typedef meta12 meta_type;
+
+        static std::string name() {
+            return "type12";
         }
     };
 
@@ -93,6 +113,12 @@ BOOST_AUTO_TEST_CASE( find_meta_type_first_and_only_element )
 {
     BOOST_CHECK( (
         std::is_same< typename bluetoe::details::find_by_meta_type< meta1, type1 >::type, type1 >::value ) );
+
+    BOOST_CHECK( (
+        std::is_same< typename bluetoe::details::find_by_meta_type< meta1, type1a >::type, type1a >::value ) );
+
+    BOOST_CHECK( (
+        std::is_same< typename bluetoe::details::find_by_meta_type< meta1, type12 >::type, type12 >::value ) );
 
     BOOST_CHECK( (
         std::is_same< typename bluetoe::details::find_by_meta_type< meta1, type2 >::type, bluetoe::details::no_such_type >::value ) );
@@ -183,14 +209,22 @@ BOOST_AUTO_TEST_CASE( find_all_by_meta_type )
         typename bluetoe::details::find_all_by_meta_type< meta1, type1 >::type,
         std::tuple< type1 > >::value ) );
 
-    // more than one result elements
     BOOST_CHECK( ( std::is_same<
-        typename bluetoe::details::find_all_by_meta_type< meta1, type11, type2, type3, type1 >::type,
-        std::tuple< type11, type1 > >::value ) );
+        typename bluetoe::details::find_all_by_meta_type< meta1, type1a, type3, type2 >::type,
+        std::tuple< type1a > >::value ) );
 
     BOOST_CHECK( ( std::is_same<
-        typename bluetoe::details::find_all_by_meta_type< meta1, type2, type1, type11, type3 >::type,
-        std::tuple< type1, type11 > >::value ) );
+        typename bluetoe::details::find_all_by_meta_type< meta1, type12 >::type,
+        std::tuple< type12 > >::value ) );
+
+    // more than one result elements
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type11, type2, type3, type12, type1 >::type,
+        std::tuple< type11, type12, type1 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< meta1, type2, type1a, type11, type3 >::type,
+        std::tuple< type1a, type11 > >::value ) );
 
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::find_all_by_meta_type< meta1, type1, type3, type11, type2 >::type,
@@ -256,4 +290,9 @@ BOOST_AUTO_TEST_CASE( for_each_feed_by_an_tuple )
     const string_list expected_result = { "type1", "type1", "type2", "type3" };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
+}
+
+BOOST_AUTO_TEST_CASE( group_by_meta_type_empty )
+{
+
 }
