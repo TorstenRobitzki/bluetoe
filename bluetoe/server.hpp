@@ -42,8 +42,36 @@ namespace bluetoe {
     template < typename ... Options >
     class server {
     public:
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        /**
+         * @brief per connection data
+         *
+         * The underlying layer have to provide the memory for a connection and pass the connection_data to l2cap_input().
+         * The purpose of this class is to store all connection related data that must be keept per connection and must
+         * be reset with a new connection.
+         */
+        class connection_data
+        {
+        public:
+            /**
+             * @brief constructs a connection_data with the maximum transmission unit, the server can provide
+             */
+            explicit connection_data( std::uint16_t server_mtu );
+
+            /**
+             * @brief returns the negotiated MTU
+             */
+            std::uint16_t negotiated_mtu() const;
+
+            void client_mtu( std::uint16_t mtu );
+        private:
+            std::uint16_t   server_mtu_;
+            std::uint16_t   client_mtu_;
+        };
+
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
+
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
+
     private:
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
 
@@ -69,6 +97,7 @@ namespace bluetoe {
         bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
         bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
 
+        void handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
@@ -128,8 +157,11 @@ namespace bluetoe {
      * Implementation
      */
     template < typename ... Options >
-    void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
     {
+        // clip the output size to the negotiated mtu
+        out_size = std::min< std::size_t >( out_size, connection.negotiated_mtu() );
+
         assert( in_size != 0 );
         assert( out_size >= details::default_att_mtu_size );
 
@@ -137,6 +169,9 @@ namespace bluetoe {
 
         switch ( opcode )
         {
+        case details::att_opcodes::exchange_mtu_request:
+            handle_exchange_mtu_request( input, in_size, output, out_size, connection );
+            break;
         case details::att_opcodes::find_information_request:
             handle_find_information_request( input, in_size, output, out_size );
             break;
@@ -272,6 +307,25 @@ namespace bluetoe {
             return error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
 
         return true;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    {
+        if ( in_size != 3 )
+        {
+            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            return;
+        }
+
+        const std::uint16_t mtu = details::read_16bit( input + 1 );
+
+        if ( mtu < details::default_att_mtu_size )
+        {
+            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            return;
+        }
+
     }
 
     template < typename ... Options >
@@ -722,6 +776,26 @@ namespace bluetoe {
         std::copy( &read.buffer[ 3 ], &read.buffer[ 3 + 16 ], out );
     }
 
+    template < typename ... Options >
+    server< Options... >::connection_data::connection_data( std::uint16_t server_mtu )
+        : server_mtu_( server_mtu )
+        , client_mtu_( details::default_att_mtu_size )
+    {
+
+    }
+
+    template < typename ... Options >
+    std::uint16_t server< Options... >::connection_data::negotiated_mtu() const
+    {
+        return std::min( server_mtu_, client_mtu_ );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::connection_data::client_mtu( std::uint16_t mtu )
+    {
+        assert( mtu >= details::default_att_mtu_size );
+        client_mtu_ = mtu;
+    }
 }
 
 #endif

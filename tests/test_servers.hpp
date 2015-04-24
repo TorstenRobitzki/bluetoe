@@ -53,21 +53,24 @@ namespace {
     {
         request_with_reponse()
             : response_size( ResponseBufferSize )
+            , connection( ResponseBufferSize )
         {
             std::fill( std::begin( response ), std::end( response ), 0x55 );
+            connection.client_mtu( ResponseBufferSize );
         }
 
         template < std::size_t PDU_Size >
         void l2cap_input( const std::uint8_t(&input)[PDU_Size] )
         {
-            Server::l2cap_input( input, PDU_Size, response, response_size );
+            Server::l2cap_input( input, PDU_Size, response, response_size, connection );
             BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
         }
 
         void l2cap_input( const std::initializer_list< std::uint8_t >& input )
         {
             const std::vector< std::uint8_t > values( input );
-            Server::l2cap_input( &values[ 0 ], values.size(), response, response_size );
+
+            Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, connection );
             BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
         }
 
@@ -96,8 +99,9 @@ namespace {
 
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
-        std::uint8_t response[ ResponseBufferSize ];
-        std::size_t  response_size;
+        std::uint8_t                        response[ ResponseBufferSize ];
+        std::size_t                         response_size;
+        typename Server::connection_data    connection;
     private:
         template < typename T >
         std::string param_to_text( const T& param )
@@ -126,8 +130,7 @@ namespace {
             std::uint8_t output[ ResponseBufferSize ];
             std::size_t  outlength = sizeof( output );
 
-            Server srv;
-            srv.l2cap_input( input, input_size, output, outlength );
+            Server::l2cap_input( input, input_size, output, outlength, connection );
 
             const std::uint8_t  opcode           = output[ 0 ];
             const std::uint8_t  request_opcode   = output[ 1 ];

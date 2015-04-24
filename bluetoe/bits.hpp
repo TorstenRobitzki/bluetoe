@@ -17,6 +17,11 @@ namespace details {
         return read_handle( h );
     }
 
+    inline std::uint16_t read_16bit( const std::uint8_t* h )
+    {
+        return read_handle( h );
+    }
+
     inline std::uint8_t* write_handle( std::uint8_t* out, std::uint16_t handle )
     {
         out[ 0 ] = handle & 0xff;
