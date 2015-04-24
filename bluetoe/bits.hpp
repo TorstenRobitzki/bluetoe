@@ -35,6 +35,11 @@ namespace details {
         return write_handle( out, uuid );
     }
 
+    inline std::uint8_t* write_16bit( std::uint8_t* out, std::uint16_t bits16 )
+    {
+        return write_handle( out, bits16 );
+    }
+
     inline std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )
     {
         *out = bits( opcode );

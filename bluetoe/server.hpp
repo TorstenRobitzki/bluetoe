@@ -63,6 +63,8 @@ namespace bluetoe {
             std::uint16_t negotiated_mtu() const;
 
             void client_mtu( std::uint16_t mtu );
+            std::uint16_t client_mtu() const;
+            std::uint16_t server_mtu() const;
         private:
             std::uint16_t   server_mtu_;
             std::uint16_t   client_mtu_;
@@ -310,7 +312,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    void server< Options... >::handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
     {
         if ( in_size != 3 )
         {
@@ -326,6 +328,12 @@ namespace bluetoe {
             return;
         }
 
+        connection.client_mtu( mtu );
+
+        *output = bits( details::att_opcodes::exchange_mtu_response );
+        details::write_16bit( output + 1, connection.server_mtu() );
+
+        out_size = 3u;
     }
 
     template < typename ... Options >
@@ -781,7 +789,7 @@ namespace bluetoe {
         : server_mtu_( server_mtu )
         , client_mtu_( details::default_att_mtu_size )
     {
-
+        assert( server_mtu >= details::default_att_mtu_size );
     }
 
     template < typename ... Options >
@@ -796,6 +804,19 @@ namespace bluetoe {
         assert( mtu >= details::default_att_mtu_size );
         client_mtu_ = mtu;
     }
+
+    template < typename ... Options >
+    std::uint16_t server< Options... >::connection_data::client_mtu() const
+    {
+        return client_mtu_;
+    }
+
+    template < typename ... Options >
+    std::uint16_t server< Options... >::connection_data::server_mtu() const
+    {
+        return server_mtu_;
+    }
+
 }
 
 #endif
