@@ -66,6 +66,30 @@ Characteristic Descriptor Value Write|Write Characteristic Descriptors|planned
 Cryptography|Encryption|not planned
  |Authentication|not planned
 
+This is the current state of implemented Advertising Data:
+
+Advertising Data|Format|Status
+----------------|------|------
+Service UUID|Incomplete List of 16-bit Service UUIDs|planned
+ |Complete List of 16-bit Service UUIDs|planned
+ |Incomplete List of 32-bit Service UUIDs|planned
+ |Complete List of 32-bit Service UUIDs|planned
+ |Incomplete List of 128-bit Service UUIDs|planned
+ |Complete List of 128-bit Service UUIDs|planned
+Local Name|Shortened Local Name|implemented
+ |Complete Local Name|implemented
+Flags|Flags|planned
+Manufacturer Specific Data|Manufacturer Specific Data|planned
+TX Power Level|TX Power Level|planned
+Secure Simple Pairing Out of Band||not planned
+Security Manager Out of Band||not planned
+Security Manager TK Value||not planned
+Slave Connection Interval Range||not planned
+Service Solicitation||not planned
+Service Data||not planned
+Appearance|Appearance|planned
+LE Role|LE Role|planned
+
 Pullrequests are wellcome.
 
 ## Dependencies
