@@ -17,7 +17,7 @@ function(add_test TARGETNAME)
     add_dependencies(all_tests.run ${TARGETNAME}.run)
 endfunction()
 
-add_test(att_find_tests)
+add_test(att_find_information_tests)
 add_test(att_find_by_type_value_tests)
 add_test(att_read_tests)
 add_test(att_read_by_group_type_tests)
