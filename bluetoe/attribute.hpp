@@ -41,6 +41,7 @@ namespace details {
         attribute_access_type   type;
         std::uint8_t*           buffer;
         std::size_t             buffer_size;
+        std::size_t             buffer_offset;
 
         template < std::size_t N >
         static attribute_access_arguments read( std::uint8_t(&buffer)[N] )
@@ -48,18 +49,20 @@ namespace details {
             return attribute_access_arguments{
                 attribute_access_type::read,
                 &buffer[ 0 ],
-                N
+                N,
+                0
             };
         }
 
-        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end )
+        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset )
         {
             assert( end >= begin );
 
             return attribute_access_arguments{
                 attribute_access_type::read,
                 begin,
-                static_cast< std::size_t >( end - begin )
+                static_cast< std::size_t >( end - begin ),
+                offset
             };
         }
 
@@ -69,7 +72,8 @@ namespace details {
             return attribute_access_arguments{
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( &buffer[ 0 ] ),
-                N
+                N,
+                0
             };
         }
 
@@ -80,7 +84,8 @@ namespace details {
             return attribute_access_arguments{
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( begin ),
-                static_cast< std::size_t >( end - begin )
+                static_cast< std::size_t >( end - begin ),
+                0
             };
         }
 
@@ -89,7 +94,8 @@ namespace details {
             return attribute_access_arguments{
                 attribute_access_type::compare_128bit_uuid,
                 const_cast< std::uint8_t* >( uuid ),
-                16u
+                16u,
+                0
             };
         }
 
@@ -100,7 +106,8 @@ namespace details {
             return attribute_access_arguments{
                 attribute_access_type::compare_value,
                 const_cast< std::uint8_t* >( begin ),
-                static_cast< std::size_t >( end - begin )
+                static_cast< std::size_t >( end - begin ),
+                0
             };
         }
     };

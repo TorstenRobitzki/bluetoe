@@ -20,6 +20,7 @@ namespace details {
         read_by_type_response       = 0x09,
         read_request                = 0x0A,
         read_response               = 0x0B,
+        read_blob_request           = 0x0C,
         read_by_group_type_request  = 0x10,
         read_by_group_type_response = 0x11,
         write_request               = 0x12,

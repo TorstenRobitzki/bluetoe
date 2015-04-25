@@ -2,7 +2,7 @@
 
 ## Overview
 
-Bluetoe aims to implement a GATT server with a very low memory footprint and convenience C++ interface. Bluetoe tries to make easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is an example of a small GATT server:
+Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is an example of a small GATT server:
 
     #include <bluetoe/server.hpp>
     #include <bluetoe/service.hpp>
@@ -18,6 +18,7 @@ Bluetoe aims to implement a GATT server with a very low memory footprint and con
         bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
         bluetoe::characteristic<
             bluetoe::characteristic_name< characteristic_name >,
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0000, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
             bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
             bluetoe::no_read_access
         >
@@ -30,7 +31,7 @@ Bluetoe aims to implement a GATT server with a very low memory footprint and con
         // Binding to L2CAP
         static_cast< void >( server );
     }
-    
+
 ## L2CAP
 
 Bluetoe adds on top of an existing L2CAP implementation. Currently it comes only with one experimental L2CAP implementation on top of btstack's HCI layer that runs at least on OS/X but should also work on Linux (and maybe Windows).

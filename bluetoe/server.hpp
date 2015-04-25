@@ -129,6 +129,7 @@ namespace bluetoe {
         void handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
         void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
@@ -213,6 +214,9 @@ namespace bluetoe {
             break;
         case details::att_opcodes::read_request:
             handle_read_request( input, in_size, output, out_size );
+            break;
+        case details::att_opcodes::read_blob_request:
+            handle_read_blob_request( input, in_size, output, out_size );
             break;
         case details::att_opcodes::read_by_group_type_request:
             handle_read_by_group_type_request( input, in_size, output, out_size );
@@ -486,7 +490,7 @@ namespace bluetoe {
         if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
             return;
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0 );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
         if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
@@ -500,6 +504,30 @@ namespace bluetoe {
         }
     }
 
+    template < typename ... Options >
+    void server< Options... >::handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    {
+        std::uint16_t handle;
+
+        if ( !check_size_and_handle< 5 >( input, in_size, output, out_size, handle ) )
+            return;
+
+        const std::uint16_t offset = details::read_16bit( input + 3 );
+
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset );
+        auto rc   = attribute_at( handle - 1 ).access( read, handle );
+
+        if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+        {
+            *output  = bits( details::att_opcodes::read_response );
+            out_size = 1 + read.buffer_size;
+        }
+        else
+        {
+            error_response( *input, details::att_error_codes::read_not_permitted, handle, output, out_size );
+        }
+     }
+
     namespace details {
         struct collect_attributes
         {
@@ -512,7 +540,7 @@ namespace bluetoe {
                 {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
-                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size );
+                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0 );
                     auto rc   = attr.access( read, handle );
 
                     if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated && read.buffer_size == maximum_pdu_size )

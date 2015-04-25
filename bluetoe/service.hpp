@@ -179,7 +179,7 @@ namespace bluetoe {
 
             const details::attribute primary_service = attribute_at( 0 );
 
-            auto read = details::attribute_access_arguments::read( output, end );
+            auto read = details::attribute_access_arguments::read( output, end, 0 );
 
             if ( primary_service.access( read, 1 ) == details::attribute_access_result::success )
             {
