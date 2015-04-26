@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
     BOOST_REQUIRE( attr.access );
 
     std::uint8_t buffer[ 16 ];
-    auto read = bluetoe::details::attribute_access_arguments::read( buffer );
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
     const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
@@ -42,11 +42,36 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
     const auto attr = empty_service::attribute_at( 0 );
 
     std::uint8_t buffer[ 20 ];
-    auto read = bluetoe::details::attribute_access_arguments::read( buffer );
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
     const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
     check_service_uuid( read );
+}
+
+BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger_with_offset )
+{
+    const auto attr = empty_service::attribute_at( 0 );
+
+    std::uint8_t buffer[ 20 ];
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
+    const auto access_result = attr.access( read, 1 );
+
+    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( global_temperature_service_uuid ) + 4, std::end( global_temperature_service_uuid ),
+        &read.buffer[ 0 ], &read.buffer[ read.buffer_size ]);
+}
+
+BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger_with_offset_16 )
+{
+    const auto attr = empty_service::attribute_at( 0 );
+
+    std::uint8_t buffer[ 20 ];
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 16 );
+    const auto access_result = attr.access( read, 1 );
+
+    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
+    BOOST_CHECK_EQUAL( 0, read.buffer_size );
 }
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_to_small )
@@ -54,7 +79,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
     const auto attr = empty_service::attribute_at( 0 );
 
     std::uint8_t buffer[ 15 ];
-    auto read = bluetoe::details::attribute_access_arguments::read( buffer );
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
     const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::read_truncated );

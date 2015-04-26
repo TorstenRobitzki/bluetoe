@@ -213,34 +213,49 @@ namespace bluetoe {
     details::attribute_access_result characteristic< Options... >::char_declaration_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
     {
         typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
-        static const auto uuid_offset = 3;
 
-        if ( args.type == details::attribute_access_type::read )
+        static constexpr auto uuid_offset = 3;
+        static constexpr auto uuid_size = sizeof( uuid::bytes );
+        static constexpr auto data_size = uuid_offset + uuid_size;
+
+        if ( args.buffer_offset > data_size )
+            return details::attribute_access_result::invalid_offset;
+
+        if ( args.type != details::attribute_access_type::read )
+            return details::attribute_access_result::write_not_permitted;
+
+        // header (properties and handle) if offset points into the header
+        std::uint8_t* output = args.buffer;
+        const auto max_header_bytes = std::min< std::size_t >( uuid_offset, std::max< int >( 0, static_cast< int >( uuid_offset ) - args.buffer_offset ) );
+
+        if ( args.buffer_size > 2 && args.buffer_offset < uuid_offset )
         {
-            static constexpr auto uuid_size = sizeof( uuid::bytes );
+            std::uint8_t header_buffer[ uuid_offset ];
+            header_buffer[ 0 ] =
+                ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
+                ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 );
 
-            args.buffer_size          = std::min< std::size_t >( args.buffer_size, uuid_offset + uuid_size );
-            const auto max_uuid_bytes = std::min< std::size_t >( std::max< int >( 0, args.buffer_size -uuid_offset ), uuid_size );
+            // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
+            details::write_handle( header_buffer + 1, attribute_handle + 1 );
 
-            if ( args.buffer_size > 2 )
-            {
-                args.buffer[ 0 ] =
-                    ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
-                    ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 );
+            std::copy( &header_buffer[ args.buffer_offset ], &header_buffer[ args.buffer_offset + max_header_bytes ], output );
 
-                // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
-                details::write_handle( args.buffer + 1, attribute_handle + 1 );
-            }
-
-            if ( max_uuid_bytes )
-                std::copy( std::begin( uuid::bytes ), std::begin( uuid::bytes ) + max_uuid_bytes, args.buffer + uuid_offset );
-
-            return args.buffer_size == uuid_offset + uuid_size
-                ? details::attribute_access_result::success
-                : details::attribute_access_result::read_truncated;
+            output += max_header_bytes;
         }
 
-        return details::attribute_access_result::write_not_permitted;
+        const auto offset_into_uuid = std::max< int >( 0, args.buffer_offset - uuid_offset );
+        const auto max_uuid_bytes   = std::min< std::size_t >( uuid_size - offset_into_uuid, args.buffer_size - max_header_bytes );
+
+        const auto uuid_begin       = std::begin( uuid::bytes ) + offset_into_uuid;
+        const auto uuid_end         = uuid_begin + max_uuid_bytes;
+
+        std::copy( uuid_begin, uuid_end, output );
+
+        args.buffer_size = max_header_bytes + max_uuid_bytes;
+
+        return args.buffer_size == data_size - args.buffer_offset
+            ? details::attribute_access_result::success
+            : details::attribute_access_result::read_truncated;
     }
 
     template < typename T, T* Ptr >
@@ -263,11 +278,15 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_read_access( details::attribute_access_arguments& args, const std::true_type& )
     {
-        args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
-        static const std::uint8_t* ptr = static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) );
+        if ( args.buffer_offset > sizeof( T ) )
+            return details::attribute_access_result::invalid_offset;
+
+        args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) - args.buffer_offset );
+        const std::uint8_t* const ptr = static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) ) + args.buffer_offset;
+
         std::copy( ptr, ptr + args.buffer_size, args.buffer );
 
-        return args.buffer_size == sizeof( T )
+        return args.buffer_size == sizeof( T ) - args.buffer_offset
             ? details::attribute_access_result::success
             : details::attribute_access_result::read_truncated;
     }
@@ -288,7 +307,7 @@ namespace bluetoe {
 
         args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
 
-        static std::uint8_t* ptr = static_cast< std::uint8_t* >( static_cast< void* >( Ptr ) );
+        std::uint8_t* const ptr = static_cast< std::uint8_t* >( static_cast< void* >( Ptr ) );
         std::copy( args.buffer, args.buffer + args.buffer_size, ptr );
 
         return details::attribute_access_result::success;
@@ -317,16 +336,20 @@ namespace bluetoe {
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
+                const std::size_t str_len   = std::strlen( Name );
+
+                if ( args.buffer_offset > str_len )
+                    return details::attribute_access_result::invalid_offset;
+
                 details::attribute_access_result result = attribute_access_result::write_not_permitted;
 
                 if ( args.type == attribute_access_type::read )
                 {
-                    const std::size_t str_len   = std::strlen( Name );
-                    const std::size_t read_size = std::min( args.buffer_size, str_len );
+                    const std::size_t read_size = std::min( args.buffer_size, str_len - args.buffer_offset );
 
-                    std::copy( Name, Name + read_size, args.buffer );
+                    std::copy( Name + args.buffer_offset, Name + args.buffer_offset + read_size, args.buffer );
 
-                    result = str_len > args.buffer_size
+                    result = str_len - args.buffer_offset > args.buffer_size
                         ? attribute_access_result::read_truncated
                         : attribute_access_result::success;
 

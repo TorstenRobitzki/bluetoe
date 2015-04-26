@@ -19,6 +19,14 @@ namespace bluetoe {
     namespace details {
         struct service_uuid_meta_type {};
         struct service_meta_type {};
+
+        template < class UUID >
+        struct attribute_access_impl
+        {
+            typedef UUID uuid;
+            static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
+        };
+
     }
 
     /**
@@ -35,12 +43,10 @@ namespace bluetoe {
         std::uint16_t C,
         std::uint16_t D,
         std::uint64_t E >
-    class service_uuid : public details::uuid< A, B, C, D, E >
+    class service_uuid : public details::uuid< A, B, C, D, E >, public details::attribute_access_impl< details::uuid< A, B, C, D, E > >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
-
         typedef details::service_uuid_meta_type meta_type;
         /** @endcond */
     };
@@ -53,12 +59,10 @@ namespace bluetoe {
      * @endcode
      */
     template < std::uint64_t UUID >
-    class service_uuid16 : public details::uuid16< UUID >
+    class service_uuid16 : public details::uuid16< UUID >, public details::attribute_access_impl< details::uuid16< UUID > >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
-
         typedef details::service_uuid_meta_type meta_type;
         /** @endcond */
     };
@@ -97,54 +101,26 @@ namespace bluetoe {
 
     // service_uuid implementation
     /** @cond HIDDEN_SYMBOLS */
-    template <
-        std::uint32_t A,
-        std::uint16_t B,
-        std::uint16_t C,
-        std::uint16_t D,
-        std::uint64_t E >
-    details::attribute_access_result service_uuid< A, B, C, D, E >::attribute_access( details::attribute_access_arguments& args, std::uint16_t )
+    template < class UUID >
+    details::attribute_access_result details::attribute_access_impl< UUID >::attribute_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
     {
         if ( args.type == details::attribute_access_type::read )
         {
-            args.buffer_size = std::min< std::size_t >( sizeof( details::uuid< A, B, C, D, E >::bytes ), args.buffer_size );
+            if ( args.buffer_offset > sizeof( uuid::bytes ) )
+                return details::attribute_access_result::invalid_offset;
 
-            std::copy( std::begin( details::uuid< A, B, C, D, E >::bytes ), std::begin( details::uuid< A, B, C, D, E >::bytes ) + args.buffer_size, args.buffer );
+            args.buffer_size = std::min< std::size_t >( sizeof( uuid::bytes ) - args.buffer_offset, args.buffer_size );
 
-            return args.buffer_size == 16
+            std::copy( std::begin( uuid::bytes ) + args.buffer_offset , std::begin( uuid::bytes ) + args.buffer_offset + args.buffer_size, args.buffer );
+
+            return args.buffer_size == sizeof( uuid::bytes ) - args.buffer_offset
                 ? details::attribute_access_result::success
                 : details::attribute_access_result::read_truncated;
         }
         else if ( args.type == details::attribute_access_type::compare_value )
         {
-            if ( sizeof( details::uuid< A, B, C, D, E >::bytes ) == args.buffer_size
-              && std::equal( std::begin( details::uuid< A, B, C, D, E >::bytes ), std::end( details::uuid< A, B, C, D, E >::bytes ), &args.buffer[ 0 ] ) )
-            {
-                return details::attribute_access_result::value_equal;
-            }
-        }
-
-        return details::attribute_access_result::write_not_permitted;
-    }
-
-    // service_uuid implementation
-    template < std::uint64_t UUID >
-    details::attribute_access_result service_uuid16< UUID >::attribute_access( details::attribute_access_arguments& args, std::uint16_t )
-    {
-        if ( args.type == details::attribute_access_type::read )
-        {
-            args.buffer_size = std::min< std::size_t >( sizeof( details::uuid16< UUID >::bytes ), args.buffer_size );
-
-            std::copy( std::begin( details::uuid16< UUID >::bytes ), std::begin( details::uuid16< UUID >::bytes ) + args.buffer_size, args.buffer );
-
-            return args.buffer_size == 2
-                ? details::attribute_access_result::success
-                : details::attribute_access_result::read_truncated;
-        }
-        else if ( args.type == details::attribute_access_type::compare_value )
-        {
-            if ( sizeof( details::uuid16< UUID >::bytes ) == args.buffer_size
-              && std::equal( std::begin( details::uuid16< UUID >::bytes ), std::end( details::uuid16< UUID >::bytes ), &args.buffer[ 0 ] ) )
+            if ( sizeof( uuid::bytes ) == args.buffer_size
+              && std::equal( std::begin( uuid::bytes ), std::end( uuid::bytes ), &args.buffer[ 0 ] ) )
             {
                 return details::attribute_access_result::value_equal;
             }

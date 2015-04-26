@@ -832,7 +832,7 @@ namespace bluetoe {
         assert( char_declaration.uuid == bits( details::gatt_uuids::characteristic ) );
 
         std::uint8_t buffer[ 3 + 16 ];
-        auto read = details::attribute_access_arguments::read( buffer );
+        auto read = details::attribute_access_arguments::read( buffer, 0 );
         char_declaration.access( read, 1 );
 
         assert( read.buffer_size == sizeof( buffer ) );

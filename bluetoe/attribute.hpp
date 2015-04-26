@@ -19,6 +19,8 @@ namespace details {
         read_truncated,
         // the data to be written was larger than the attribute can store
         write_overflow,
+        // the read/write offset is greater than attributes data size
+        invalid_offset,
 
         write_not_permitted,
         read_not_permitted,
@@ -44,13 +46,13 @@ namespace details {
         std::size_t             buffer_offset;
 
         template < std::size_t N >
-        static attribute_access_arguments read( std::uint8_t(&buffer)[N] )
+        static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset )
         {
             return attribute_access_arguments{
                 attribute_access_type::read,
                 &buffer[ 0 ],
                 N,
-                0
+                offset
             };
         }
 
