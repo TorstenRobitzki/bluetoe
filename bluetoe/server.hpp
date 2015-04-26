@@ -519,8 +519,12 @@ namespace bluetoe {
 
         if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
         {
-            *output  = bits( details::att_opcodes::read_response );
+            *output  = bits( details::att_opcodes::read_blob_response );
             out_size = 1 + read.buffer_size;
+        }
+        else if ( rc == details::attribute_access_result::invalid_offset )
+        {
+            error_response( *input, details::att_error_codes::invalid_offset, handle, output, out_size );
         }
         else
         {

@@ -51,7 +51,7 @@ Characteristic Discovery|Discover All Characteristic of a Service|implemented
 Characteristic Descriptor Discovery|Discover All Characteristic Descriptors|implemented
 Characteristic Value Read|Read Characteristic Value|implemented
  |Read Using Characteristic UUID|implemented
- |Read Long Characteristic Value|planned
+ |Read Long Characteristic Value|implemented
  |Read Multiple Characteristic Values|planned
 Characteristic Value Write| Write Without Response|planned
  |Signed Write Without Response|not planned
