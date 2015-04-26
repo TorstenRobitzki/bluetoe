@@ -16,6 +16,9 @@ namespace bluetoe {
 
     namespace details {
         struct server_name_meta_type;
+
+        template < typename ... Options >
+        struct characteristic_configuration_data {};
     }
 
     /**
@@ -49,7 +52,7 @@ namespace bluetoe {
          * The purpose of this class is to store all connection related data that must be keept per connection and must
          * be reset with a new connection.
          */
-        class connection_data
+        class connection_data : details::characteristic_configuration_data< Options... >
         {
         public:
             /**
@@ -84,6 +87,11 @@ namespace bluetoe {
              */
             std::uint16_t server_mtu() const;
 
+            template < class T >
+            std::uint16_t characteristic_configuration( const T& characteristic_value ) const;
+
+            template < class T >
+            void characteristic_configuration( const T& characteristic_value, std::uint16_t value ) const;
         private:
             std::uint16_t   server_mtu_;
             std::uint16_t   client_mtu_;
@@ -98,6 +106,38 @@ namespace bluetoe {
          * @brief returns the advertising data to the L2CAP implementation
          */
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
+
+        /**
+         * @brief notifies all connected clients about this value
+         *
+         * There is no check whether there was actual a change to the value or not. It's safe to call this function from a different
+         * thread or from an interrupt service routine.
+         *
+         * The characteristic<> must have been given the notify parameter.
+         *
+         * Example:
+         @code
+        std::int32_t temperature;
+
+        typedef bluetoe::server<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
+                bluetoe::notify
+            >
+        > temperature_service;
+
+        int main()
+        {
+            temperature_service server;
+
+            server.notify( temperature );
+        }
+        @endcode
+
+         */
+        template < class T >
+        void notify( const T& value );
 
     private:
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
@@ -875,6 +915,20 @@ namespace bluetoe {
     std::uint16_t server< Options... >::connection_data::server_mtu() const
     {
         return server_mtu_;
+    }
+
+    template < typename ... Options >
+    template < class T >
+    std::uint16_t server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value ) const
+    {
+        return 0;
+    }
+
+    template < typename ... Options >
+    template < class T >
+    void server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value, std::uint16_t value ) const
+    {
+
     }
 
     /** @endcond */

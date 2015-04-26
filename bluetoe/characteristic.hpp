@@ -130,6 +130,12 @@ namespace bluetoe {
     class no_write_access {};
 
     /**
+     * @brief adds the ability to notify this characteristic.
+     * @sa server::notify
+     */
+    class notify {};
+
+    /**
      * @brief a very simple device to bind a characteristic to a global variable to provide access to the characteristic value
      */
     template < typename T, T* Ptr >
@@ -146,6 +152,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = !std::is_const< T >::value && !details::has_option< no_write_access, Options... >::value;
+            static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
 
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
         private:
@@ -233,7 +240,8 @@ namespace bluetoe {
             std::uint8_t header_buffer[ uuid_offset ];
             header_buffer[ 0 ] =
                 ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
-                ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 );
+                ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 ) |
+                ( value_type::has_notifcation  ? bits( details::gatt_characteristic_properties::notify ) : 0 );
 
             // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
             details::write_handle( header_buffer + 1, attribute_handle + 1 );

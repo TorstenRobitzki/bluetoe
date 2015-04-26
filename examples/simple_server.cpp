@@ -23,6 +23,9 @@ int main()
 {
     temperature_service server;
 
+    temperature = 10;
+    server.notify( temperature );
+
     // Binding to L2CAP
     static_cast< void >( server );
 }
