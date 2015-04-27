@@ -5,7 +5,7 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
-
+#include <bluetoe/client_characteristic_configuration.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -16,9 +16,6 @@ namespace bluetoe {
 
     namespace details {
         struct server_name_meta_type;
-
-        template < typename ... Options >
-        struct characteristic_configuration_data {};
     }
 
     /**
@@ -52,7 +49,7 @@ namespace bluetoe {
          * The purpose of this class is to store all connection related data that must be keept per connection and must
          * be reset with a new connection.
          */
-        class connection_data : details::characteristic_configuration_data< Options... >
+        class connection_data : details::client_characteristic_configuration< Options... >
         {
         public:
             /**
@@ -91,7 +88,7 @@ namespace bluetoe {
             std::uint16_t characteristic_configuration( const T& characteristic_value ) const;
 
             template < class T >
-            void characteristic_configuration( const T& characteristic_value, std::uint16_t value ) const;
+            void characteristic_configuration( const T& characteristic_value, std::uint16_t value );
         private:
             std::uint16_t   server_mtu_;
             std::uint16_t   client_mtu_;
@@ -921,14 +918,14 @@ namespace bluetoe {
     template < class T >
     std::uint16_t server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value ) const
     {
-        return 0;
+        return this->configuration( &characteristic_value );
     }
 
     template < typename ... Options >
     template < class T >
-    void server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value, std::uint16_t value ) const
+    void server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value, std::uint16_t value )
     {
-
+        this->configuration( &characteristic_value, value );
     }
 
     /** @endcond */

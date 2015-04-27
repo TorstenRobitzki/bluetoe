@@ -464,6 +464,23 @@ BOOST_AUTO_TEST_SUITE( characteristic_properties )
         BOOST_CHECK_EQUAL( properties & 0x08, 0 );
     }
 
+    typedef bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+            bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+            bluetoe::notify
+        > simple_char_with_notification;
+
+    BOOST_FIXTURE_TEST_CASE( with_notify, read_characteristic_properties< simple_char_with_notification > )
+    {
+        BOOST_CHECK_EQUAL( properties & 0x10, 0x10 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( without_notify, read_characteristic_properties< simple_char > )
+    {
+        BOOST_CHECK_EQUAL( properties & 0x10, 0 );
+    }
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( characteristic_extended_properties )

@@ -34,10 +34,18 @@ BOOST_FIXTURE_TEST_CASE( characteristic_configuration_is_initialized_with_zereo,
     BOOST_CHECK_EQUAL( 0, characteristic_configuration( temperature_value1 ) );
 }
 
-// BOOST_FIXTURE_TEST_CASE( is_writeable, connection_data )
+BOOST_FIXTURE_TEST_CASE( is_writeable, connection_data )
+{
+    characteristic_configuration( temperature_value1, 0x1234 );
+    BOOST_CHECK_EQUAL( 0x1234, characteristic_configuration( temperature_value1 ) );
+}
+
+// BOOST_FIXTURE_TEST_CASE( configurations_are_independent, connection_data )
 // {
 //     characteristic_configuration( temperature_value1, 0x1234 );
+//     characteristic_configuration( temperature_value2, 0x4711 );
 //     BOOST_CHECK_EQUAL( 0x1234, characteristic_configuration( temperature_value1 ) );
+//     BOOST_CHECK_EQUAL( 0x4711, characteristic_configuration( temperature_value2 ) );
 // }
 
 BOOST_AUTO_TEST_SUITE_END()
