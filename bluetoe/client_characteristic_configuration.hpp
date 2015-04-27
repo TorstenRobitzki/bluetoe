@@ -6,29 +6,47 @@
 namespace bluetoe {
 namespace details {
 
-
-    // basically this has to find out, how much characteristics have a "Client Characteristic Configuration" and to provide 2 bits per characteristic
-    template < typename ... Options >
-    struct client_characteristic_configuration
+    class client_characteristic_configuration
     {
-        client_characteristic_configuration() : v_( 0 ) {}
-
-        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
-
-        static constexpr std::size_t bits_per_characteristic                       = 2;
-        static constexpr std::size_t number_of_client_characteristic_configuration = 2;
-
-        std::uint16_t configuration( const void* characteristic_value ) const
+    public:
+        client_characteristic_configuration() : data_( 0 )
         {
-            return v_;
-        };
-
-        void configuration( const void* characteristic_value, std::uint16_t value )
-        {
-            v_ = value;
         }
 
-        std::uint16_t v_;
+        std::uint16_t flags() const
+        {
+            return data_;
+        }
+
+        void flags( std::uint16_t new_flags )
+        {
+            data_ = new_flags;
+        }
+    private:
+        std::uint16_t   data_;
+    };
+
+    template < std::size_t Size >
+    class client_characteristic_configurations
+    {
+    public:
+        client_characteristic_configuration* client_configurations()
+        {
+            return &configs_[ 0 ];
+        };
+
+    private:
+        client_characteristic_configuration configs_[ Size ];
+    };
+
+    template <>
+    class client_characteristic_configurations< 0 >
+    {
+    public:
+        client_characteristic_configuration* client_configurations()
+        {
+            return nullptr;
+        }
     };
 
 }

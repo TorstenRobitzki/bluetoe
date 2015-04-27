@@ -40,8 +40,13 @@ namespace bluetoe {
      * @sa service
      */
     template < typename ... Options >
-    class server {
+    class server
+    {
     public:
+        /** @cond HIDDEN_SYMBOLS */
+        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
+        /** @endcond */
+
         /**
          * @brief per connection data
          *
@@ -49,7 +54,7 @@ namespace bluetoe {
          * The purpose of this class is to store all connection related data that must be keept per connection and must
          * be reset with a new connection.
          */
-        class connection_data : details::client_characteristic_configuration< Options... >
+        class connection_data : public details::client_characteristic_configurations< details::sum_by< services, details::sum_by_client_configs >::value >
         {
         public:
             /**
@@ -83,12 +88,6 @@ namespace bluetoe {
              * @pre connection_data(X).server_mtu() == X
              */
             std::uint16_t server_mtu() const;
-
-            template < class T >
-            std::uint16_t characteristic_configuration( const T& characteristic_value ) const;
-
-            template < class T >
-            void characteristic_configuration( const T& characteristic_value, std::uint16_t value );
         private:
             std::uint16_t   server_mtu_;
             std::uint16_t   client_mtu_;
@@ -137,9 +136,7 @@ namespace bluetoe {
         void notify( const T& value );
 
     private:
-        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
-
-        static constexpr std::size_t number_of_attributes = details::sum_by< services, details::sum_by_attributes >::value;
+        static constexpr std::size_t number_of_attributes       = details::sum_by< services, details::sum_by_attributes >::value;
 
         static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
 
@@ -911,20 +908,6 @@ namespace bluetoe {
     std::uint16_t server< Options... >::connection_data::server_mtu() const
     {
         return server_mtu_;
-    }
-
-    template < typename ... Options >
-    template < class T >
-    std::uint16_t server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value ) const
-    {
-        return this->configuration( &characteristic_value );
-    }
-
-    template < typename ... Options >
-    template < class T >
-    void server< Options... >::connection_data::characteristic_configuration( const T& characteristic_value, std::uint16_t value )
-    {
-        this->configuration( &characteristic_value, value );
     }
 
     /** @endcond */
