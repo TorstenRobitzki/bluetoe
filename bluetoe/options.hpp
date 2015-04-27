@@ -318,6 +318,35 @@ namespace details {
         };
     };
 
+    /*
+     * counts the number of types, the predicate returned true for an element applied to it
+     */
+    template <
+        typename List,
+        template < typename > class Predicate
+    >
+    struct count_if;
+
+    template <
+        template < typename > class Predicate
+    >
+    struct count_if< std::tuple<>, Predicate > : std::integral_constant< int, 0 > {};
+
+    template <
+        typename T,
+        template < typename > class Predicate
+    >
+    struct count_if< std::tuple< T >, Predicate > : std::integral_constant< int, Predicate< T >::value ? 1 : 0 > {};
+
+    template <
+        typename T,
+        typename ...Ts,
+        template < typename > class Predicate
+    >
+    struct count_if< std::tuple< T, Ts... >, Predicate > : std::integral_constant< int,
+        count_if< std::tuple< T >, Predicate >::value
+      + count_if< std::tuple< Ts... >, Predicate >::value > {};
+
     /**
      * @brief returns true, if Option is given in Options
      */

@@ -579,6 +579,15 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         BOOST_CHECK( find_attribute_by_type( 0x2902 ).first );
     }
 
+    BOOST_FIXTURE_TEST_CASE( has_3_attributes, notified_char )
+    {
+        BOOST_CHECK_EQUAL( int( number_of_attributes ), 3u );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( number_of_client_configs_is_one, notified_char )
+    {
+        BOOST_CHECK_EQUAL( int( number_of_client_configs ), 1u );
+    }
 
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -75,7 +75,9 @@ namespace bluetoe {
         /**
          * a service is a list of attributes
          */
-        static constexpr std::size_t number_of_attributes = 2 + characteristic_descriptor_declarations::size;
+        static constexpr std::size_t number_of_attributes     = 2 + characteristic_descriptor_declarations::number_of_attributes;
+        static constexpr std::size_t number_of_client_configs = characteristic_descriptor_declarations::number_of_client_configs;
+        static constexpr std::size_t number_of_server_configs = characteristic_descriptor_declarations::number_of_server_configs;
 
         typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
         typedef details::characteristic_meta_type meta_type;
@@ -91,7 +93,6 @@ namespace bluetoe {
         typedef typename base_value_type::template value_impl< Options... >                                       value_type;
 
         static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
-
     };
 
     /**
@@ -429,6 +430,12 @@ namespace bluetoe {
         template < typename ... Options >
         attribute generate_attribute_list< std::tuple< Options... > >::attributes[ sizeof ...(Options) ] = { generate_attribute< Options >::attr... };
 
+        template < typename Parmeters >
+        struct are_client_characteristic_configuration_parameter : std::false_type {};
+
+        template < typename ... Ts >
+        struct are_client_characteristic_configuration_parameter< std::tuple< client_characteristic_configuration_parameter, Ts... > > : std::true_type {};
+
         template < typename ... Options >
         struct generate_attributes
         {
@@ -438,7 +445,9 @@ namespace bluetoe {
                 client_characteristic_configuration_parameter
             >::type declaraction_parameters;
 
-            enum { size = std::tuple_size< declaraction_parameters >::value };
+            enum { number_of_attributes     = std::tuple_size< declaraction_parameters >::value };
+            enum { number_of_client_configs = count_if< declaraction_parameters, are_client_characteristic_configuration_parameter >::value };
+            enum { number_of_server_configs = 0 };
 
             static const attribute attribute_at( std::size_t index )
             {

@@ -411,3 +411,26 @@ BOOST_AUTO_TEST_CASE( remove_if_with_one_wildcard )
         std::tuple< std::tuple< meta1, type1, type12 >, std::tuple< meta2, type2, type12 > > >::value ) );
 
 }
+
+namespace {
+    template < typename T >
+    struct is_int : std::false_type {};
+
+    template <>
+    struct is_int< int > : std::true_type {};
+}
+
+BOOST_AUTO_TEST_CASE( count_if )
+{
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple<>, is_int >::value ), 0 );
+
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple< int >, is_int >::value ), 1 );
+
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple< char >, is_int >::value ), 0 );
+
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple< int, char, int >, is_int >::value ), 2 );
+
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple< char, bool, int, float >, is_int >::value ), 1 );
+
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple< char, int >, is_int >::value ), 1 );
+}
