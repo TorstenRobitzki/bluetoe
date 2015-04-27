@@ -383,6 +383,26 @@ namespace bluetoe {
             &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >::access
         };
 
+        /*
+         * Client Characteristic Configuration
+         */
+        template < typename ... Options >
+        struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... > >
+        {
+            static const attribute attr;
+
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                return details::attribute_access_result::write_not_permitted;
+            }
+        };
+
+        template < typename ... Options >
+        const attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... > >::attr {
+            bits( gatt_uuids::client_characteristic_configuration ),
+            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... > >::access
+        };
+
         template < typename >
         struct generate_attribute_list;
 
@@ -414,7 +434,8 @@ namespace bluetoe {
         {
             typedef typename group_by_meta_types_without_empty_groups<
                 std::tuple< Options... >,
-                characteristic_user_description_parameter
+                characteristic_user_description_parameter,
+                client_characteristic_configuration_parameter
             >::type declaraction_parameters;
 
             enum { size = std::tuple_size< declaraction_parameters >::value };

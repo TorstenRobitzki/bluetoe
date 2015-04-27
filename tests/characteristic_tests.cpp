@@ -29,6 +29,21 @@ namespace {
     class access_attributes : public Char
     {
     public:
+        std::pair< bool, bluetoe::details::attribute > find_attribute_by_type( std::uint16_t type )
+        {
+            for ( int index = 0; index != this->number_of_attributes; ++index )
+            {
+                const bluetoe::details::attribute value_attribute = this->attribute_at( index );
+
+                if ( value_attribute.uuid == type )
+                {
+                    return std::make_pair( true, value_attribute );
+                }
+            }
+
+            return std::pair< bool, bluetoe::details::attribute >( false, bluetoe::details::attribute{} );
+        }
+
         bluetoe::details::attribute attribute_by_type( std::uint16_t type )
         {
             for ( int index = 0; index != this->number_of_attributes; ++index )
@@ -545,6 +560,25 @@ BOOST_AUTO_TEST_SUITE( characteristic_user_description )
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
+
+    BOOST_FIXTURE_TEST_CASE( does_not_exist_by_default, access_attributes< simple_char > )
+    {
+        BOOST_CHECK( !find_attribute_by_type( 0x2902 ).first );
+    }
+
+    char simple_value = 0;
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x0815 >,
+        bluetoe::bind_characteristic_value< char, &simple_value >,
+        bluetoe::notify
+    > notified_char;
+
+    BOOST_FIXTURE_TEST_CASE( exist_when_notification_is_enabled, access_attributes< notified_char > )
+    {
+        BOOST_CHECK( find_attribute_by_type( 0x2902 ).first );
+    }
+
 
 BOOST_AUTO_TEST_SUITE_END()
 
