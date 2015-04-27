@@ -347,6 +347,35 @@ namespace details {
         count_if< std::tuple< T >, Predicate >::value
       + count_if< std::tuple< Ts... >, Predicate >::value > {};
 
+    /*
+     * sums up the result of a call to Predicate with every element from List
+     */
+    template <
+        typename List,
+        template < typename > class Predicate
+    >
+    struct sum_by;
+
+    template <
+        template < typename > class Predicate
+    >
+    struct sum_by< std::tuple<>, Predicate > : std::integral_constant< int, 0 > {};
+
+    template <
+        typename T,
+        template < typename > class Predicate
+    >
+    struct sum_by< std::tuple< T >, Predicate > : std::integral_constant< int, Predicate< T >::value > {};
+
+    template <
+        typename T,
+        typename ...Ts,
+        template < typename > class Predicate
+    >
+    struct sum_by< std::tuple< T, Ts... >, Predicate > : std::integral_constant< int,
+        sum_by< std::tuple< T >, Predicate >::value
+      + sum_by< std::tuple< Ts... >, Predicate >::value > {};
+
     /**
      * @brief returns true, if Option is given in Options
      */

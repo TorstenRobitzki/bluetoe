@@ -160,29 +160,6 @@ namespace details {
         }
     };
 
-    /*
-     * Given that T is a tuple with Types that have a number_of_attributes, the result will be a value that
-     * contains the sum of all Types in T
-     */
-    template < typename T >
-    struct sum_up_attributes;
-
-    template <>
-    struct sum_up_attributes< std::tuple<> >
-    {
-        static constexpr std::size_t value = 0;
-    };
-
-    template <
-        typename T,
-        typename ...Ts >
-    struct sum_up_attributes< std::tuple< T, Ts... > >
-    {
-        static constexpr std::size_t value =
-            T::number_of_attributes
-          + sum_up_attributes< std::tuple< Ts... > >::value;
-    };
-
 }
 }
 

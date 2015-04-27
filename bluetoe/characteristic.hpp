@@ -25,6 +25,12 @@ namespace bluetoe {
 
         template < typename ... Options >
         struct generate_attributes;
+
+        template < typename Characteristic >
+        struct sum_by_attributes;
+
+        template < typename Characteristic >
+        struct sum_by_client_configs;
     }
 
     /**
@@ -453,6 +459,18 @@ namespace bluetoe {
             {
                 return generate_attribute_list< declaraction_parameters >::attribute_at( index );
             }
+        };
+
+        template < typename Characteristic >
+        struct sum_by_attributes
+        {
+            enum { value = Characteristic::number_of_attributes };
+        };
+
+        template < typename Characteristic >
+        struct sum_by_client_configs
+        {
+            enum { value = Characteristic::number_of_client_configs };
         };
 
         /** @endcond */

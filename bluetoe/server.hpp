@@ -139,8 +139,7 @@ namespace bluetoe {
     private:
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
 
-        static constexpr std::size_t number_of_attributes =
-            details::sum_up_attributes< services >::value;
+        static constexpr std::size_t number_of_attributes = details::sum_by< services, details::sum_by_attributes >::value;
 
         static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
 

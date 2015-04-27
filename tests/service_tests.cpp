@@ -165,3 +165,37 @@ BOOST_FIXTURE_TEST_CASE( primary_service_value_compare_128bit, global_temperatur
     auto compare = bluetoe::details::attribute_access_arguments::compare_value( &global_temperature_service_uuid[ 0 ], &global_temperature_service_uuid[ sizeof global_temperature_service_uuid ]);
     BOOST_CHECK( attribute_at( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal );
 }
+
+BOOST_AUTO_TEST_SUITE( number_of_client_configs )
+
+BOOST_AUTO_TEST_CASE( without_notifications_there_is_no_demand_for_client_configurations )
+{
+    BOOST_CHECK_EQUAL( 0, int( service_with_3_characteristics::number_of_client_configs ) );
+}
+
+char v1, v2, v3;
+
+typedef bluetoe::service<
+    bluetoe::service_uuid16< 0x8C8B4 >,
+    bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x8C8B4 >,
+        bluetoe::bind_characteristic_value< decltype( v1 ), &v1 >,
+        bluetoe::notify
+    >,
+    bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x8C8B5 >,
+        bluetoe::bind_characteristic_value< decltype( v2 ), &v2 >
+    >,
+    bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x8C8B6 >,
+        bluetoe::bind_characteristic_value< decltype( v2 ), &v3 >,
+        bluetoe::notify
+    >
+> service_with_2_notifications;
+
+BOOST_AUTO_TEST_CASE( service_with_2_notifications_has_2_client_configurations )
+{
+    BOOST_CHECK_EQUAL( 2, int( service_with_2_notifications::number_of_client_configs ) );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

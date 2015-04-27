@@ -79,7 +79,8 @@ namespace bluetoe {
         typedef typename details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type       uuid;
 
         static constexpr std::size_t number_of_service_attributes        = 1;
-        static constexpr std::size_t number_of_characteristic_attributes = details::sum_up_attributes< characteristics >::value;
+        static constexpr std::size_t number_of_characteristic_attributes = details::sum_by< characteristics, details::sum_by_attributes >::value;
+        static constexpr std::size_t number_of_client_configs            = details::sum_by< characteristics, details::sum_by_client_configs >::value;
 
         /**
          * a service is a list of attributes

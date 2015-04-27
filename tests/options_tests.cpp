@@ -434,3 +434,28 @@ BOOST_AUTO_TEST_CASE( count_if )
 
     BOOST_CHECK_EQUAL( ( bluetoe::details::count_if< std::tuple< char, int >, is_int >::value ), 1 );
 }
+
+namespace {
+    template < class T >
+    struct by_value : T {};
+};
+
+BOOST_AUTO_TEST_CASE( sum_by )
+{
+    BOOST_CHECK_EQUAL( ( bluetoe::details::sum_by< std::tuple<>, by_value >::value ), 0 );
+
+    BOOST_CHECK_EQUAL( (
+        bluetoe::details::sum_by<
+            std::tuple<
+                std::integral_constant< int, 4 >
+            >, by_value >::value ),
+        4 );
+
+    BOOST_CHECK_EQUAL( (
+        bluetoe::details::sum_by<
+            std::tuple<
+                std::integral_constant< int, 4 >,
+                std::integral_constant< int, 1 >
+            >, by_value >::value ),
+        5 );
+}
