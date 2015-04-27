@@ -29,6 +29,7 @@ namespace {
     struct meta1 {};
     struct meta2 {};
     struct meta3 {};
+    struct meta4 {};
 
     struct meta1a : meta1 {};
 
@@ -300,11 +301,11 @@ BOOST_AUTO_TEST_CASE( group_by_meta_type_empty )
 
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::group_by_meta_types< std::tuple<>, meta1 >::type,
-        std::tuple< std::tuple<> > >::value ) );
+        std::tuple< std::tuple< meta1 > > >::value ) );
 
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::group_by_meta_types< std::tuple<>, meta1, meta2 >::type,
-        std::tuple< std::tuple<>, std::tuple<> > >::value ) );
+        std::tuple< std::tuple< meta1 >, std::tuple< meta2 > > >::value ) );
 }
 
 BOOST_AUTO_TEST_CASE( group_by_meta_type )
@@ -315,11 +316,32 @@ BOOST_AUTO_TEST_CASE( group_by_meta_type )
 
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3, type12 >, meta1 >::type,
-        std::tuple< std::tuple< type1, type12 > > >::value ) );
+        std::tuple< std::tuple< meta1, type1, type12 > > >::value ) );
 
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3, type12 >, meta1, meta2 >::type,
-        std::tuple< std::tuple< type1, type12 >, std::tuple< type2, type12 > > >::value ) );
+        std::tuple< std::tuple< meta1, type1, type12 >, std::tuple< meta2, type2, type12 > > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types< std::tuple< type1, type2, type3, type12 >, meta1, meta2, meta4 >::type,
+        std::tuple< std::tuple< meta1, type1, type12 >, std::tuple< meta2, type2, type12 >, std::tuple< meta4 > > >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( group_by_meta_types_without_empty_groups )
+{
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::group_by_meta_types_without_empty_groups< std::tuple< type1, type2, type3 > >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::group_by_meta_types_without_empty_groups<
+                std::tuple< type1, type2, type3, type12 >,
+                meta1, meta2, meta4
+            >::type,
+            std::tuple< std::tuple< meta1, type1, type12 >, std::tuple< meta2, type2, type12 > >
+        >::value ) );
 }
 
 BOOST_AUTO_TEST_CASE( remove_if_equal )
@@ -343,4 +365,49 @@ BOOST_AUTO_TEST_CASE( remove_if_equal )
     BOOST_CHECK( ( std::is_same<
         typename bluetoe::details::remove_if_equal< std::tuple< int, float, double, char, int >, int >::type,
         std::tuple< float, double, char > >::value ) );
+}
+
+namespace {
+    template < class T >
+    struct templ {};
+
+    template < class T >
+    struct other_templ {};
+}
+
+BOOST_AUTO_TEST_CASE( remove_if_with_one_wildcard )
+{
+    typedef templ< bluetoe::details::wildcard > with_wildcard;
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple<>, with_wildcard >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< int >, with_wildcard >::type,
+        std::tuple< int > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< int, other_templ< int > >, with_wildcard >::type,
+        std::tuple< int, other_templ< int > > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< templ< char >, int, templ< int > >, with_wildcard >::type,
+        std::tuple< int > >::value ) );
+
+   BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< std::tuple< int > >, std::tuple< bluetoe::details::wildcard > >::type,
+        std::tuple<> >::value ) );
+
+   BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal< std::tuple< int, std::tuple< int, int >, std::tuple< int > >, std::tuple< bluetoe::details::wildcard > >::type,
+        std::tuple< int, std::tuple< int, int > > >::value ) );
+
+   BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::remove_if_equal<
+            std::tuple< std::tuple< meta1, type1, type12 >, std::tuple< meta2, type2, type12 >, std::tuple< meta4 > >,
+            std::tuple< bluetoe::details::wildcard >
+        >::type,
+        std::tuple< std::tuple< meta1, type1, type12 >, std::tuple< meta2, type2, type12 > > >::value ) );
+
 }

@@ -62,6 +62,11 @@ namespace details {
     };
 
     /*
+     * wildcard to be used when templates should be used within remove_if_equal
+     */
+    struct wildcard {};
+
+    /*
      * Removes from a typelist (std::tuple) all elments that are equal to Zero
      */
     template < typename A, typename Zero >
@@ -79,10 +84,36 @@ namespace details {
      >
     struct remove_if_equal< std::tuple< Type >, Zero >
     {
-        typedef typename select_type<
-            std::is_same< Type, Zero >::value,
-            std::tuple<>,
-            std::tuple< Type > >::type type;
+        typedef std::tuple< Type > type;
+    };
+
+    // to types are equal if they are the same types
+    template <
+        typename Zero
+     >
+    struct remove_if_equal< std::tuple< Zero >, Zero >
+    {
+        typedef std::tuple<> type;
+    };
+
+    // to types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
+    template <
+        template < typename > class Templ,
+        typename Type
+     >
+    struct remove_if_equal< std::tuple< Templ< Type > >, Templ< wildcard > >
+    {
+        typedef std::tuple<> type;
+    };
+
+    // to types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
+    template <
+        template < typename ... > class Templ,
+        typename Type
+     >
+    struct remove_if_equal< std::tuple< Templ< Type > >, Templ< wildcard > >
+    {
+        typedef std::tuple<> type;
     };
 
     template <
@@ -202,7 +233,7 @@ namespace details {
      * groups a list of types by there meta types
      *
      * Returns a std::tuple with as much elements as MetaTypes where given. Every element in the result is a tuple containing
-     * the result of a call to find_all_by_meta_type<>
+     * the meta type followed by the result of a call to find_all_by_meta_type<>
      */
     template <
         typename Types,
@@ -221,7 +252,12 @@ namespace details {
         typename MetaType >
     struct group_by_meta_types< std::tuple< Types... >, MetaType >
     {
-        typedef std::tuple< typename find_all_by_meta_type< MetaType, Types... >::type > type;
+        typedef std::tuple<
+            typename add_type<
+                MetaType,
+                typename find_all_by_meta_type< MetaType, Types... >::type
+            >::type
+        > type;
     };
 
     template <
@@ -247,9 +283,11 @@ namespace details {
         typename ... Types,
         typename ... MetaTypes >
     struct group_by_meta_types_without_empty_groups< std::tuple< Types... >, MetaTypes...>
-        : remove_if_equal<
-            typename group_by_meta_types< std::tuple< Types... >, MetaTypes... >::type, std::tuple<> >
     {
+        typedef typename remove_if_equal<
+            typename group_by_meta_types< std::tuple< Types... >, MetaTypes... >::type,
+            std::tuple< wildcard >
+        >::type type;
     };
 
 

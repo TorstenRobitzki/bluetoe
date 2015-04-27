@@ -21,6 +21,7 @@ namespace bluetoe {
         struct characteristic_parameter_meta_type {};
 
         struct characteristic_user_description_parameter {};
+        struct client_characteristic_configuration_parameter {};
 
         template < typename ... Options >
         struct generate_attributes;
@@ -131,9 +132,16 @@ namespace bluetoe {
 
     /**
      * @brief adds the ability to notify this characteristic.
+     *
+     * When a characteristic gets notified, the current value of the characteristic will be send to all
+     * connected clients that have subscribed for notifications.
      * @sa server::notify
      */
-    class notify {};
+    struct notify {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
+        /** @endcond */
+    };
 
     /**
      * @brief a very simple device to bind a characteristic to a global variable to provide access to the characteristic value
@@ -338,7 +346,7 @@ namespace bluetoe {
          * Characteristic User Description
          */
         template < const char* const Name >
-        struct generate_attribute< std::tuple< characteristic_name< Name > > >
+        struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >
         {
             static const attribute attr;
 
@@ -370,9 +378,9 @@ namespace bluetoe {
         };
 
         template < const char* const Name >
-        const attribute generate_attribute< std::tuple< characteristic_name< Name > > >::attr {
+        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >::attr {
             bits( gatt_uuids::characteristic_user_description ),
-            &generate_attribute< std::tuple< characteristic_name< Name > > >::access
+            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >::access
         };
 
         template < typename >
