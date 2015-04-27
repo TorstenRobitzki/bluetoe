@@ -303,7 +303,7 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute server< Options... >::attribute_at( std::size_t index )
     {
-        return details::attribute_at_list< services >::attribute_at( index );
+        return details::attribute_at_list< services, 0 >::attribute_at( index );
     }
 
     template < typename ... Options >
@@ -797,7 +797,7 @@ namespace bluetoe {
             {
                 if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
                 {
-                    const details::attribute& attr = Service::attribute_at( 0 );
+                    const details::attribute& attr = Service::characteristic_declaration_attribute();
 
                     if ( filter_( index_, attr ) )
                     {

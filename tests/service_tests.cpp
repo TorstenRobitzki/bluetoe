@@ -13,7 +13,7 @@ BOOST_AUTO_TEST_CASE( service_without_any_characteristic_results_in_one_attribut
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
     BOOST_CHECK_EQUAL( 0x2800, attr.uuid );
 }
 
@@ -26,7 +26,7 @@ static void check_service_uuid( const bluetoe::details::attribute_access_argumen
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
     BOOST_REQUIRE( attr.access );
 
     std::uint8_t buffer[ 16 ];
@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger_with_offset )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger_with_offset_16 )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 16 );
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_to_small )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
 
     std::uint8_t buffer[ 15 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( write_to_primary_service )
 {
-    const auto attr = empty_service::attribute_at( 0 );
+    const auto attr = empty_service::attribute_at< 0 >( 0 );
 
     std::uint8_t buffer[] = { 1, 2, 3 };
     auto write = bluetoe::details::attribute_access_arguments::write( buffer );
@@ -102,13 +102,13 @@ BOOST_FIXTURE_TEST_CASE( accessing_all_attributes, service_with_3_characteristic
     static constexpr std::size_t expected_number_of_attributes = 7u;
     BOOST_REQUIRE_EQUAL( unsigned( number_of_attributes ), expected_number_of_attributes );
 
-    BOOST_CHECK_EQUAL( 0x2800, attribute_at( 0 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at( 1 ).uuid );
-    BOOST_CHECK_EQUAL( 0x0001, attribute_at( 2 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at( 3 ).uuid );
-    BOOST_CHECK_EQUAL( 0x0001, attribute_at( 4 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at( 5 ).uuid );
-    BOOST_CHECK_EQUAL( 0x0815, attribute_at( 6 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2800, attribute_at< 0 >( 0 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 1 ).uuid );
+    BOOST_CHECK_EQUAL( 0x0001, attribute_at< 0 >( 2 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 3 ).uuid );
+    BOOST_CHECK_EQUAL( 0x0001, attribute_at< 0 >( 4 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 5 ).uuid );
+    BOOST_CHECK_EQUAL( 0x0815, attribute_at< 0 >( 6 ).uuid );
 }
 
 BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, service_with_3_characteristics )
@@ -163,7 +163,7 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_spe
 BOOST_FIXTURE_TEST_CASE( primary_service_value_compare_128bit, global_temperature_service )
 {
     auto compare = bluetoe::details::attribute_access_arguments::compare_value( &global_temperature_service_uuid[ 0 ], &global_temperature_service_uuid[ sizeof global_temperature_service_uuid ]);
-    BOOST_CHECK( attribute_at( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal );
+    BOOST_CHECK( attribute_at< 0 >( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal );
 }
 
 BOOST_AUTO_TEST_SUITE( number_of_client_configs )

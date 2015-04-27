@@ -2,6 +2,7 @@
 #define BLUETOE_ATTRIBUTE_HPP
 
 #include <bluetoe/options.hpp>
+#include <bluetoe/client_characteristic_configuration.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
@@ -40,23 +41,25 @@ namespace details {
 
     struct attribute_access_arguments
     {
-        attribute_access_type   type;
-        std::uint8_t*           buffer;
-        std::size_t             buffer_size;
-        std::size_t             buffer_offset;
+        attribute_access_type               type;
+        std::uint8_t*                       buffer;
+        std::size_t                         buffer_size;
+        std::size_t                         buffer_offset;
+        client_characteristic_configuration client_config;
 
         template < std::size_t N >
-        static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset )
+        static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset , const client_characteristic_configuration& cc = client_characteristic_configuration())
         {
             return attribute_access_arguments{
                 attribute_access_type::read,
                 &buffer[ 0 ],
                 N,
-                offset
+                offset,
+                cc
             };
         }
 
-        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset )
+        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration() )
         {
             assert( end >= begin );
 
@@ -64,22 +67,24 @@ namespace details {
                 attribute_access_type::read,
                 begin,
                 static_cast< std::size_t >( end - begin ),
-                offset
+                offset,
+                cc
             };
         }
 
         template < std::size_t N >
-        static attribute_access_arguments write( const std::uint8_t(&buffer)[N] )
+        static attribute_access_arguments write( const std::uint8_t(&buffer)[N], const client_characteristic_configuration& cc = client_characteristic_configuration() )
         {
             return attribute_access_arguments{
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( &buffer[ 0 ] ),
                 N,
-                0
+                0,
+                cc
             };
         }
 
-        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end )
+        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, const client_characteristic_configuration& cc = client_characteristic_configuration() )
         {
             assert( end >= begin );
 
@@ -87,7 +92,8 @@ namespace details {
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( begin ),
                 static_cast< std::size_t >( end - begin ),
-                0
+                0,
+                cc
             };
         }
 
@@ -97,7 +103,8 @@ namespace details {
                 attribute_access_type::compare_128bit_uuid,
                 const_cast< std::uint8_t* >( uuid ),
                 16u,
-                0
+                0,
+                client_characteristic_configuration()
             };
         }
 
@@ -109,7 +116,8 @@ namespace details {
                 attribute_access_type::compare_value,
                 const_cast< std::uint8_t* >( begin ),
                 static_cast< std::size_t >( end - begin ),
-                0
+                0,
+                client_characteristic_configuration()
             };
         }
     };
@@ -132,14 +140,14 @@ namespace details {
     };
 
     /*
-     * Given that T is a tuple with elements that implement attribute_at() and number_of_attributes, the type implements
+     * Given that T is a tuple with elements that implement attribute_at< std::size_t >() and number_of_attributes, the type implements
      * attribute_at() for a list of attribute lists.
      */
-    template < typename T >
+    template < typename T, std::size_t ClientCharacteristicIndex >
     struct attribute_at_list;
 
-    template <>
-    struct attribute_at_list< std::tuple<> >
+    template < std::size_t ClientCharacteristicIndex >
+    struct attribute_at_list< std::tuple<>, ClientCharacteristicIndex >
     {
         static details::attribute attribute_at( std::size_t index )
         {
@@ -149,14 +157,18 @@ namespace details {
 
     template <
         typename T,
-        typename ...Ts >
-    struct attribute_at_list< std::tuple< T, Ts... > >
+        typename ...Ts,
+        std::size_t ClientCharacteristicIndex >
+    struct attribute_at_list< std::tuple< T, Ts... >, ClientCharacteristicIndex >
     {
         static details::attribute attribute_at( std::size_t index )
         {
-            return index < T::number_of_attributes
-                ? T::attribute_at( index )
-                : details::attribute_at_list< std::tuple< Ts... > >::attribute_at( index - T::number_of_attributes );
+            if ( index < T::number_of_attributes )
+                return T::template attribute_at< ClientCharacteristicIndex >( index );
+
+            typedef details::attribute_at_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs > remaining_characteristics;
+
+            return remaining_characteristics::attribute_at( index - T::number_of_attributes );
         }
     };
 

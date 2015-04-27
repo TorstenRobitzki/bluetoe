@@ -1,7 +1,8 @@
 #ifndef BLUETOE_CLIENT_CHARACTERISTIC_CONFIGURATION_HPP
 #define BLUETOE_CLIENT_CHARACTERISTIC_CONFIGURATION_HPP
 
-#include <bluetoe/service.hpp>
+#include <cassert>
+#include <cstdint>
 
 namespace bluetoe {
 namespace details {

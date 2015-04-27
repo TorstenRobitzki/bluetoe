@@ -91,7 +91,16 @@ namespace bluetoe {
 
         typedef details::service_meta_type meta_type;
 
+        /**
+         * ClientCharacteristicIndex is the number of characteristics with a Client Characteristic Configuration attribute
+         */
+        template < std::size_t ClientCharacteristicIndex >
         static details::attribute attribute_at( std::size_t index );
+
+        /**
+         * returns the Characteristic Declaration attribute
+         */
+        static details::attribute characteristic_declaration_attribute();
 
         /**
          * @brief assembles one data packet for a "Read by Group Type Response"
@@ -132,14 +141,21 @@ namespace bluetoe {
 
     // service implementation
     template < typename ... Options >
+    template < std::size_t ClientCharacteristicIndex >
     details::attribute service< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
 
         if ( index == 0 )
-            return details::attribute{ bits( details::gatt_uuids::primary_service ), &uuid::attribute_access };
+            return characteristic_declaration_attribute();
 
-        return details::attribute_at_list< characteristics >::attribute_at( index -1 );
+        return details::attribute_at_list< characteristics, ClientCharacteristicIndex >::attribute_at( index -1 );
+    }
+
+    template < typename ... Options >
+    details::attribute service< Options... >::characteristic_declaration_attribute()
+    {
+        return details::attribute{ bits( details::gatt_uuids::primary_service ), &uuid::attribute_access };
     }
 
     template < typename ... Options >
@@ -154,7 +170,8 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            const details::attribute primary_service = attribute_at( 0 );
+            // TODO: by using 0, we generate attribute_at two times with different parameters: might cause code bloat
+            const details::attribute primary_service = attribute_at< 0 >( 0 );
 
             auto read = details::attribute_access_arguments::read( output, end, 0 );
 

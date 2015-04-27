@@ -92,6 +92,7 @@ namespace bluetoe {
         /**
          * @brief gives access to the all attributes of the characteristic
          */
+        template < std::size_t ClientCharacteristicIndex >
         static details::attribute attribute_at( std::size_t index );
 
     private:
@@ -212,6 +213,7 @@ namespace bluetoe {
     /** @cond HIDDEN_SYMBOLS */
 
     template < typename ... Options >
+    template < std::size_t ClientCharacteristicIndex >
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
@@ -228,7 +230,7 @@ namespace bluetoe {
 
         return index < 2
             ? attributes[ index ]
-            : characteristic_descriptor_declarations::attribute_at( index - 2 );
+            : characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index - 2 );
     }
 
     template < typename ... Options >
@@ -346,14 +348,14 @@ namespace bluetoe {
     namespace details {
 
 
-        template < typename >
+        template < typename, std::size_t >
         struct generate_attribute;
 
         /*
          * Characteristic User Description
          */
-        template < const char* const Name >
-        struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >
+        template < const char* const Name, std::size_t ClientCharacteristicIndex >
+        struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex >
         {
             static const attribute attr;
 
@@ -384,37 +386,69 @@ namespace bluetoe {
 
         };
 
-        template < const char* const Name >
-        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >::attr {
+        template < const char* const Name, std::size_t ClientCharacteristicIndex >
+        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex >::attr {
             bits( gatt_uuids::characteristic_user_description ),
-            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > > >::access
+            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex >::access
         };
 
         /*
          * Client Characteristic Configuration
          */
-        template < typename ... Options >
-        struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... > >
+        template < typename ... Options, std::size_t ClientCharacteristicIndex >
+        struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... >, ClientCharacteristicIndex >
         {
             static const attribute attr;
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
-                return details::attribute_access_result::write_not_permitted;
+                static constexpr std::size_t flags_size = 2;
+                std::uint8_t buffer[ flags_size ];
+
+                if ( args.buffer_offset > flags_size )
+                    return details::attribute_access_result::invalid_offset;
+
+                details::attribute_access_result result = attribute_access_result::write_not_permitted;
+
+                if ( args.type == attribute_access_type::read )
+                {
+                    write_16bit( &buffer[ 0 ], args.client_config.flags( ClientCharacteristicIndex ) );
+
+                    const std::size_t read_size = std::min( args.buffer_size, flags_size - args.buffer_offset );
+
+                    std::copy( &buffer[ args.buffer_offset ], &buffer[ args.buffer_offset + read_size ], args.buffer );
+
+                    result = flags_size - args.buffer_offset > args.buffer_size
+                        ? attribute_access_result::read_truncated
+                        : attribute_access_result::success;
+
+                    args.buffer_size = read_size;
+                }
+                else if ( args.type == attribute_access_type::write )
+                {
+                    if ( args.buffer_size > flags_size )
+                        return details::attribute_access_result::write_overflow;
+
+                    args.client_config.flags( ClientCharacteristicIndex, read_16bit( &args.buffer[ 0 ] ) );
+
+                    result = attribute_access_result::success;
+                }
+
+                return result;
             }
         };
 
-        template < typename ... Options >
-        const attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... > >::attr {
+        template < typename ... Options, std::size_t ClientCharacteristicIndex >
+        const attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... >, ClientCharacteristicIndex >::attr {
             bits( gatt_uuids::client_characteristic_configuration ),
-            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... > >::access
+            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... >, ClientCharacteristicIndex >::access
         };
 
-        template < typename >
+        template < typename, std::size_t >
         struct generate_attribute_list;
 
-        template <>
-        struct generate_attribute_list< std::tuple<> >
+        template < std::size_t ClientCharacteristicIndex >
+        struct generate_attribute_list< std::tuple<>, ClientCharacteristicIndex >
         {
             static const attribute attribute_at( std::size_t index )
             {
@@ -422,8 +456,8 @@ namespace bluetoe {
             }
         };
 
-        template < typename ... Options >
-        struct generate_attribute_list< std::tuple< Options... > >
+        template < typename ... Options, std::size_t ClientCharacteristicIndex >
+        struct generate_attribute_list< std::tuple< Options... >, ClientCharacteristicIndex >
         {
             static const attribute attribute_at( std::size_t index )
             {
@@ -433,8 +467,11 @@ namespace bluetoe {
             static attribute attributes[ sizeof ...(Options) ];
         };
 
-        template < typename ... Options >
-        attribute generate_attribute_list< std::tuple< Options... > >::attributes[ sizeof ...(Options) ] = { generate_attribute< Options >::attr... };
+        template < typename ... Options, std::size_t ClientCharacteristicIndex >
+        attribute generate_attribute_list< std::tuple< Options... >, ClientCharacteristicIndex >::attributes[ sizeof ...(Options) ] =
+        {
+            generate_attribute< Options, ClientCharacteristicIndex >::attr...
+        };
 
         template < typename Parmeters >
         struct are_client_characteristic_configuration_parameter : std::false_type {};
@@ -455,9 +492,10 @@ namespace bluetoe {
             enum { number_of_client_configs = count_if< declaraction_parameters, are_client_characteristic_configuration_parameter >::value };
             enum { number_of_server_configs = 0 };
 
+            template < std::size_t ClientCharacteristicIndex >
             static const attribute attribute_at( std::size_t index )
             {
-                return generate_attribute_list< declaraction_parameters >::attribute_at( index );
+                return generate_attribute_list< declaraction_parameters, ClientCharacteristicIndex >::attribute_at( index );
             }
         };
 
