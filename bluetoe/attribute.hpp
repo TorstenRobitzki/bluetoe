@@ -59,7 +59,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration() )
+        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc )
         {
             assert( end >= begin );
 
@@ -84,7 +84,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, const client_characteristic_configuration& cc = client_characteristic_configuration() )
+        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, const client_characteristic_configuration& cc )
         {
             assert( end >= begin );
 

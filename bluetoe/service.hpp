@@ -170,10 +170,9 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            // TODO: by using 0, we generate attribute_at two times with different parameters: might cause code bloat
-            const details::attribute primary_service = attribute_at< 0 >( 0 );
+            const details::attribute primary_service = characteristic_declaration_attribute();
 
-            auto read = details::attribute_access_arguments::read( output, end, 0 );
+            auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );
 
             if ( primary_service.access( read, 1 ) == details::attribute_access_result::success )
             {

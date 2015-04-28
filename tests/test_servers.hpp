@@ -57,6 +57,9 @@ namespace {
         {
             std::fill( std::begin( response ), std::end( response ), 0x55 );
             connection.client_mtu( ResponseBufferSize );
+
+            notification = nullptr;
+            this->notification_callback( &l2cap_layer_notify_cb );
         }
 
         template < std::size_t PDU_Size >
@@ -99,12 +102,30 @@ namespace {
             hex_dump( std::cout, &response[ 0 ], &response[ response_size ] );
         }
 
+        template < class T >
+        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected )
+        {
+            const std::vector< std::uint8_t > values( expected );
+            std::uint8_t buffer[ ResponseBufferSize ];
+            std::size_t  size = ResponseBufferSize;
+
+            this->notification_output( &buffer[ 0 ], size, connection, &value );
+            BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
+        }
+
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
         std::uint8_t                        response[ ResponseBufferSize ];
         std::size_t                         response_size;
         typename Server::connection_data    connection;
+        static const void*                  notification;
+
     private:
+        static void l2cap_layer_notify_cb( const void* item )
+        {
+            notification = item;
+        }
+
         template < typename T >
         std::string param_to_text( const T& param )
         {
@@ -153,6 +174,9 @@ namespace {
         }
 
     };
+
+    template < typename Server, std::size_t ResponseBufferSize >
+    const void* request_with_reponse< Server, ResponseBufferSize >::notification = nullptr;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;
