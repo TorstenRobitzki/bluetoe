@@ -95,12 +95,11 @@ namespace bluetoe {
         static details::attribute attribute_at( std::size_t index );
 
         /**
-         * @brief searches for the Characteristic Value Declaration that belongs to the given value.
-         *
-         * If the value is not within this service, the function will return 0 in the first element of the result.
+         * returns a correctly filled notification_data() object, if this characteristc was configured for notification or indication
+         * and the given value identifies the characteristic value. If not found find_notification_data( value ).valid() is false.
          */
-        template < std::size_t FirstAttributesHandle >
-        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* value );
+        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+        static details::notification_data find_notification_data( const void* value );
 
         /** @endcond */
     private:
@@ -243,23 +242,24 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    template < std::size_t FirstAttributesHandle >
-    std::pair< std::uint16_t, details::attribute > characteristic< Options... >::find_characteristic_value_declaration( const void* value )
+    template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+    details::notification_data characteristic< Options... >::find_notification_data( const void* value )
     {
         static_assert( FirstAttributesHandle != 0, "FirstAttributesHandle is invalid" );
 
-        if ( !value_type::is_this( value ) )
-            return std::pair< std::uint16_t, details::attribute >();
+        if ( !value_type::is_this( value ) || !value_type::has_notifcation )
+            return details::notification_data();
 
         return
-            std::pair< std::uint16_t, details::attribute >(
+            details::notification_data(
                 FirstAttributesHandle + 1,
-                details::attribute{
+                details::attribute {
                     uuid::is_128bit
                         ? bits( details::gatt_uuids::internal_128bit_uuid )
                         : uuid::as_16bit(),
                     &value_type::characteristic_value_access
-                }
+                },
+                ClientCharacteristicIndex
             );
     }
 

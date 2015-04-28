@@ -174,6 +174,10 @@ BOOST_AUTO_TEST_CASE( without_notifications_there_is_no_demand_for_client_config
     BOOST_CHECK_EQUAL( 0, int( service_with_3_characteristics::number_of_client_configs ) );
 }
 
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( find_notification_data )
+
 char v1, v2, v3;
 
 typedef bluetoe::service<
@@ -216,18 +220,34 @@ BOOST_FIXTURE_TEST_CASE( check_service_with_2_notifications_attribute_layout, se
     BOOST_CHECK_EQUAL( 0x2902, attribute_at< 0 >( 8 ).uuid );
 }
 
-BOOST_FIXTURE_TEST_CASE( notification_value_not_found, service_with_2_notifications )
+BOOST_FIXTURE_TEST_CASE( notification_data_not_found, service_with_2_notifications )
 {
-    BOOST_CHECK_EQUAL( find_characteristic_value_declaration< 1 >( nullptr ).first, 0 );
+    BOOST_CHECK( !( find_notification_data< 1, 0 >( nullptr ).valid() ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( notification_value_found, service_with_2_notifications )
+BOOST_FIXTURE_TEST_CASE( notification_data_found_first_char, service_with_2_notifications )
 {
-    std::pair< std::uint16_t, bluetoe::details::attribute > result1 = find_characteristic_value_declaration< 1 >( &v1 );
-    std::pair< std::uint16_t, bluetoe::details::attribute > result2 = find_characteristic_value_declaration< 1 >( &v3 );
+    const auto result1 = find_notification_data< 1, 0 >( &v1 );
 
-    BOOST_CHECK_EQUAL( result1.first, 3 );
-    BOOST_CHECK_EQUAL( result2.first, 8 );
+    BOOST_REQUIRE( result1.valid() );
+    BOOST_CHECK_EQUAL( result1.handle(), 3 );
+    BOOST_CHECK_EQUAL( result1.value_attribute().uuid, 0x8C8B );
+    BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( notification_data_found_second_char, service_with_2_notifications )
+{
+    const auto result2 = find_notification_data< 1, 0 >( &v3 );
+
+    BOOST_REQUIRE( result2.valid() );
+    BOOST_CHECK_EQUAL( result2.handle(), 8 );
+    BOOST_CHECK_EQUAL( result2.value_attribute().uuid, 0x8C8D );
+    BOOST_CHECK_EQUAL( result2.client_characteristic_configuration_index(), 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( characteristic_without_notification_cant_be_found, service_with_2_notifications )
+{
+    BOOST_CHECK( !( find_notification_data< 1, 0 >( &v2 ).valid() ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -172,19 +172,66 @@ namespace details {
         }
     };
 
+    /**
+     * @brief data needed to send an indication or notification the l2cap layer
+     */
+    class notification_data
+    {
+    public:
+        notification_data()
+            : att_handle_( 0 )
+            , characteristic_value_attribute_{}
+            , client_characteristic_configuration_index_( 0 )
+        {
+            assert( !valid() );
+        }
+
+        notification_data( std::uint16_t value_attribute_handle, const attribute& value_attribute, std::size_t client_characteristic_configuration_index )
+            : att_handle_( value_attribute_handle )
+            , characteristic_value_attribute_( value_attribute )
+            , client_characteristic_configuration_index_( client_characteristic_configuration_index )
+        {
+            assert( valid() );
+        }
+
+        bool valid() const
+        {
+            return att_handle_ != 0;
+        }
+
+        std::uint16_t handle() const
+        {
+            return att_handle_;
+        }
+
+        const attribute& value_attribute() const
+        {
+            return characteristic_value_attribute_;
+        }
+
+        std::size_t client_characteristic_configuration_index() const
+        {
+            return client_characteristic_configuration_index_;
+        }
+    private:
+        std::uint16_t   att_handle_;
+        attribute       characteristic_value_attribute_;
+        std::size_t     client_characteristic_configuration_index_;
+    };
+
     /*
      * similar to the algorithm above, but this time the number of attributes is summed up.
      */
     template < typename T >
-    struct find_characteristic_value_declaration_in_list;
+    struct find_notification_data_in_list;
 
     template <>
-    struct find_characteristic_value_declaration_in_list< std::tuple<> >
+    struct find_notification_data_in_list< std::tuple<> >
     {
-        template < std::size_t FirstAttributesHandle >
-        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* )
+        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+        static notification_data find_notification_data( const void* )
         {
-            return std::pair< std::uint16_t, details::attribute >( 0, details::attribute{} );
+            return notification_data();
         }
     };
 
@@ -192,17 +239,19 @@ namespace details {
         typename T,
         typename ...Ts
     >
-    struct find_characteristic_value_declaration_in_list< std::tuple< T, Ts... > >
+    struct find_notification_data_in_list< std::tuple< T, Ts... > >
     {
-        template < std::size_t FirstAttributesHandle >
-        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* value )
+        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+        static notification_data find_notification_data( const void* value )
         {
-            std::pair< std::uint16_t, details::attribute > result = T::template find_characteristic_value_declaration< FirstAttributesHandle >( value );
+            notification_data result = T::template find_notification_data< FirstAttributesHandle, ClientCharacteristicIndex >( value );
 
-            if ( result.first == 0 )
+            if ( !result.valid() )
             {
-                typedef find_characteristic_value_declaration_in_list< std::tuple< Ts... > > next;
-                result = next::template find_characteristic_value_declaration< FirstAttributesHandle + T::number_of_attributes >( value );
+                typedef find_notification_data_in_list< std::tuple< Ts... > > next;
+                result = next::template find_notification_data<
+                    FirstAttributesHandle + T::number_of_attributes,
+                    ClientCharacteristicIndex + T::number_of_client_configs >( value );
             }
 
             return result;

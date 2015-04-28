@@ -691,20 +691,36 @@ BOOST_AUTO_TEST_SUITE( characteristic_aggregate_format )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( find_characteristic_value_declaration )
+BOOST_AUTO_TEST_SUITE( find_notification_data )
 
-    BOOST_FIXTURE_TEST_CASE( not_found, access_attributes< simple_char > )
+    char value = 0xff;
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::bind_characteristic_value< char, &value >,
+        bluetoe::notify
+    > notifiable_char;
+
+    BOOST_FIXTURE_TEST_CASE( not_found, access_attributes< notifiable_char > )
     {
-        BOOST_CHECK_EQUAL( find_characteristic_value_declaration< 1 >( &simple_const_value ).first, 0 );
-        BOOST_CHECK_EQUAL( find_characteristic_value_declaration< 1 >( nullptr ).first, 0 );
+        BOOST_CHECK( ( !find_notification_data< 1, 0 >( &simple_const_value ).valid() ) );
+        BOOST_CHECK( ( !find_notification_data< 1, 0 >( nullptr ).valid() ) );
     }
 
-    BOOST_FIXTURE_TEST_CASE( found, access_attributes< simple_char > )
+    BOOST_FIXTURE_TEST_CASE( found, access_attributes< notifiable_char > )
     {
-        std::pair< std::uint16_t, bluetoe::details::attribute > result = find_characteristic_value_declaration< 1 >( &simple_value );
+        const auto result = find_notification_data< 1, 0 >( &value );
 
-        BOOST_CHECK_EQUAL( result.first, 2 );
-        BOOST_CHECK_EQUAL( result.second.uuid, bits( bluetoe::details::gatt_uuids::internal_128bit_uuid ) );
+        BOOST_REQUIRE( result.valid() );
+        BOOST_CHECK_EQUAL( result.handle(), 2 );
+        BOOST_CHECK_EQUAL( result.value_attribute().uuid, 0xD0B1 );
+        BOOST_CHECK_EQUAL( result.client_characteristic_configuration_index(), 0 );
+    }
+
+
+    BOOST_FIXTURE_TEST_CASE( not_found_if_characteristic_has_not_been_configured_for_notification, access_attributes< simple_char > )
+    {
+        BOOST_CHECK( ( !find_notification_data< 1, 0 >( &simple_value ).valid() ) );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
