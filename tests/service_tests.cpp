@@ -1,3 +1,4 @@
+#include <iostream>
 #include "test_services.hpp"
 
 #define BOOST_TEST_MODULE
@@ -176,19 +177,19 @@ BOOST_AUTO_TEST_CASE( without_notifications_there_is_no_demand_for_client_config
 char v1, v2, v3;
 
 typedef bluetoe::service<
-    bluetoe::service_uuid16< 0x8C8B4 >,
+    bluetoe::service_uuid16< 0x8C8B >,
     bluetoe::characteristic<
-        bluetoe::characteristic_uuid16< 0x8C8B4 >,
+        bluetoe::characteristic_uuid16< 0x8C8B >,
         bluetoe::bind_characteristic_value< decltype( v1 ), &v1 >,
         bluetoe::notify
     >,
     bluetoe::characteristic<
-        bluetoe::characteristic_uuid16< 0x8C8B5 >,
+        bluetoe::characteristic_uuid16< 0x8C8C >,
         bluetoe::bind_characteristic_value< decltype( v2 ), &v2 >
     >,
     bluetoe::characteristic<
-        bluetoe::characteristic_uuid16< 0x8C8B6 >,
-        bluetoe::bind_characteristic_value< decltype( v2 ), &v3 >,
+        bluetoe::characteristic_uuid16< 0x8C8D >,
+        bluetoe::bind_characteristic_value< decltype( v3 ), &v3 >,
         bluetoe::notify
     >
 > service_with_2_notifications;
@@ -196,6 +197,37 @@ typedef bluetoe::service<
 BOOST_AUTO_TEST_CASE( service_with_2_notifications_has_2_client_configurations )
 {
     BOOST_CHECK_EQUAL( 2, int( service_with_2_notifications::number_of_client_configs ) );
+}
+
+// just to be sure
+BOOST_FIXTURE_TEST_CASE( check_service_with_2_notifications_attribute_layout, service_with_2_notifications )
+{
+    BOOST_CHECK_EQUAL( 0x2800, attribute_at< 0 >( 0 ).uuid );
+
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 1 ).uuid );
+    BOOST_CHECK_EQUAL( 0x8C8B, attribute_at< 0 >( 2 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2902, attribute_at< 0 >( 3 ).uuid );
+
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 4 ).uuid );
+    BOOST_CHECK_EQUAL( 0x8C8C, attribute_at< 0 >( 5 ).uuid );
+
+    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 6 ).uuid );
+    BOOST_CHECK_EQUAL( 0x8C8D, attribute_at< 0 >( 7 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2902, attribute_at< 0 >( 8 ).uuid );
+}
+
+BOOST_FIXTURE_TEST_CASE( notification_value_not_found, service_with_2_notifications )
+{
+    BOOST_CHECK_EQUAL( find_characteristic_value_declaration< 1 >( nullptr ).first, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( notification_value_found, service_with_2_notifications )
+{
+    std::pair< std::uint16_t, bluetoe::details::attribute > result1 = find_characteristic_value_declaration< 1 >( &v1 );
+    std::pair< std::uint16_t, bluetoe::details::attribute > result2 = find_characteristic_value_declaration< 1 >( &v3 );
+
+    BOOST_CHECK_EQUAL( result1.first, 3 );
+    BOOST_CHECK_EQUAL( result2.first, 8 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
