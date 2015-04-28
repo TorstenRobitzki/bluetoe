@@ -94,14 +94,9 @@ namespace bluetoe {
         };
 
         /**
-         * @brief function to be called by a L2CAP implementation to provide the input from the L2CAP layer and the data assiziate with the connection
+         * @brief a server takes no runtime construction parameters
          */
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-
-        /**
-         * @brief returns the advertising data to the L2CAP implementation
-         */
-        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
+        server();
 
         /**
          * @brief notifies all connected clients about this value
@@ -134,6 +129,32 @@ namespace bluetoe {
          */
         template < class T >
         void notify( const T& value );
+
+        /** @cond HIDDEN_SYMBOLS */
+        // function relevant only for l2cap layers
+        /**
+         * @brief function to be called by a L2CAP implementation to provide the input from the L2CAP layer and the data assiziate with the connection
+         */
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
+
+        /**
+         * @brief returns the advertising data to the L2CAP implementation
+         */
+        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
+
+
+        typedef void (*lcap_notification_callback_t)( const void* item );
+
+        /**
+         * @brief sets the callback for the l2cap layer to receive notifications and indications
+         *
+         * The server will inform the l2cap layer about that fact, that there are outstanding notifications for all connection for the
+         * characteristic given by the item pointer. It's up to the l2cap layer to call notification_output
+         */
+        void notification_callback( lcap_notification_callback_t );
+
+        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const void* item );
+        /** @endcond */
 
     private:
         static constexpr std::size_t number_of_attributes       = details::sum_by< services, details::sum_by_attributes >::value;
@@ -175,6 +196,9 @@ namespace bluetoe {
         std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
+
+        // data
+        lcap_notification_callback_t l2cap_cb_;
     };
 
     /**
@@ -220,6 +244,13 @@ namespace bluetoe {
      * Implementation
      */
     /** @cond HIDDEN_SYMBOLS */
+    template < typename ... Options >
+    server< Options... >::server()
+        : l2cap_cb_( nullptr )
+    {
+
+    }
+
     template < typename ... Options >
     void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
     {
@@ -298,6 +329,26 @@ namespace bluetoe {
         }
 
         return buffer_size - ( end - begin );
+    }
+
+    template < typename ... Options >
+    template < class T >
+    void server< Options... >::notify( const T& value )
+    {
+        assert( l2cap_cb_ );
+        l2cap_cb_( &value );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_callback( lcap_notification_callback_t cb )
+    {
+        l2cap_cb_ = cb;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const void* item )
+    {
+        out_size = 0;
     }
 
     template < typename ... Options >
