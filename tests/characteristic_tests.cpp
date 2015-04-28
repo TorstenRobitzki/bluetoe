@@ -690,3 +690,21 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( characteristic_aggregate_format )
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( find_characteristic_value_declaration )
+
+    BOOST_FIXTURE_TEST_CASE( not_found, access_attributes< simple_char > )
+    {
+        BOOST_CHECK_EQUAL( find_characteristic_value_declaration< 1 >( &simple_const_value ).first, 0 );
+        BOOST_CHECK_EQUAL( find_characteristic_value_declaration< 1 >( nullptr ).first, 0 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( found, access_attributes< simple_char > )
+    {
+        std::pair< std::uint16_t, bluetoe::details::attribute > result = find_characteristic_value_declaration< 1 >( &simple_value );
+
+        BOOST_CHECK_EQUAL( result.first, 2 );
+        BOOST_CHECK_EQUAL( result.second.uuid, bits( bluetoe::details::gatt_uuids::internal_128bit_uuid ) );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

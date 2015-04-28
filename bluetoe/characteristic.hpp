@@ -87,7 +87,6 @@ namespace bluetoe {
 
         typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
         typedef details::characteristic_meta_type meta_type;
-        /** @endcond */
 
         /**
          * @brief gives access to the all attributes of the characteristic
@@ -95,9 +94,18 @@ namespace bluetoe {
         template < std::size_t ClientCharacteristicIndex >
         static details::attribute attribute_at( std::size_t index );
 
+        /**
+         * @brief searches for the Characteristic Value Declaration that belongs to the given value.
+         *
+         * If the value is not within this service, the function will return 0 in the first element of the result.
+         */
+        template < std::size_t FirstAttributesHandle >
+        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* value );
+
+        /** @endcond */
     private:
-        typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type base_value_type;
-        typedef typename base_value_type::template value_impl< Options... >                                       value_type;
+        typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type    base_value_type;
+        typedef typename base_value_type::template value_impl< Options... >                                         value_type;
 
         static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
     };
@@ -171,6 +179,7 @@ namespace bluetoe {
             static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
 
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
+            static bool is_this( const void* value );
         private:
             static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::true_type& );
             static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& );
@@ -231,6 +240,27 @@ namespace bluetoe {
         return index < 2
             ? attributes[ index ]
             : characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index - 2 );
+    }
+
+    template < typename ... Options >
+    template < std::size_t FirstAttributesHandle >
+    std::pair< std::uint16_t, details::attribute > characteristic< Options... >::find_characteristic_value_declaration( const void* value )
+    {
+        static_assert( FirstAttributesHandle != 0, "FirstAttributesHandle is invalid" );
+
+        if ( !value_type::is_this( value ) )
+            return std::pair< std::uint16_t, details::attribute >();
+
+        return
+            std::pair< std::uint16_t, details::attribute >(
+                FirstAttributesHandle + 1,
+                details::attribute{
+                    uuid::is_128bit
+                        ? bits( details::gatt_uuids::internal_128bit_uuid )
+                        : uuid::as_16bit(),
+                    &value_type::characteristic_value_access
+                }
+            );
     }
 
     template < typename ... Options >
@@ -343,6 +373,13 @@ namespace bluetoe {
     details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& )
     {
         return details::attribute_access_result::write_not_permitted;
+    }
+
+    template < typename T, T* Ptr >
+    template < typename ... Options >
+    bool bind_characteristic_value< T, Ptr >::value_impl< Options... >::is_this( const void* value )
+    {
+        return value == Ptr;
     }
 
     namespace details {

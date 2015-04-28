@@ -198,6 +198,8 @@ namespace bluetoe {
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
 
+        std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* ) const;
+
         // data
         lcap_notification_callback_t l2cap_cb_;
     };
@@ -350,6 +352,7 @@ namespace bluetoe {
     template < typename ... Options >
     void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const void* item )
     {
+
         out_size = 0;
     }
 
@@ -930,6 +933,12 @@ namespace bluetoe {
         assert( read.buffer_size == sizeof( buffer ) );
 
         std::copy( &read.buffer[ 3 ], &read.buffer[ 3 + 16 ], out );
+    }
+
+    template < typename ... Options >
+    std::pair< std::uint16_t, details::attribute > server< Options... >::find_characteristic_value_declaration( const void* ) const
+    {
+        return std::pair< std::uint16_t, details::attribute >();
     }
 
     template < typename ... Options >

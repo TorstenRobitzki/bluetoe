@@ -172,6 +172,42 @@ namespace details {
         }
     };
 
+    /*
+     * similar to the algorithm above, but this time the number of attributes is summed up.
+     */
+    template < typename T >
+    struct find_characteristic_value_declaration_in_list;
+
+    template <>
+    struct find_characteristic_value_declaration_in_list< std::tuple<> >
+    {
+        template < std::size_t FirstAttributesHandle >
+        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* )
+        {
+            return std::pair< std::uint16_t, details::attribute >( 0, details::attribute{} );
+        }
+    };
+
+    template <
+        typename T,
+        typename ...Ts
+    >
+    struct find_characteristic_value_declaration_in_list< std::tuple< T, Ts... > >
+    {
+        template < std::size_t FirstAttributesHandle >
+        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* value )
+        {
+            std::pair< std::uint16_t, details::attribute > result = T::template find_characteristic_value_declaration< FirstAttributesHandle >( value );
+
+            if ( result.first == 0 )
+            {
+                typedef find_characteristic_value_declaration_in_list< std::tuple< Ts... > > next;
+                result = next::template find_characteristic_value_declaration< FirstAttributesHandle + T::number_of_attributes >( value );
+            }
+
+            return result;
+        }
+    };
 }
 }
 

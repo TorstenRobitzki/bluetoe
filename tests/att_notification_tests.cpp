@@ -33,11 +33,11 @@ BOOST_AUTO_TEST_SUITE( simple_notify )
 
     BOOST_FIXTURE_TEST_CASE( notification_if_enabled, request_with_reponse< simple_server > )
     {
-        // l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
-        // expected_result( { 0x13 } );
+        l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
+        expected_result( { 0x13 } );
 
-        // value = 0xab;
-        // expected_output( value, { 0x1B, 0x03, 0x00, 0xab } );
+        value = 0xab;
+        expected_output( value, { 0x1B, 0x03, 0x00, 0xab } );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

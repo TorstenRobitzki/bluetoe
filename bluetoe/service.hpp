@@ -106,6 +106,14 @@ namespace bluetoe {
          * @brief assembles one data packet for a "Read by Group Type Response"
          */
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter );
+
+        /**
+         * @brief searches for the Characteristic Value Declaration that belongs to the given value.
+         *
+         * If the value is not within this service, the function will return 0 in the first element of the result.
+         */
+        template < std::size_t FirstAttributesHandle >
+        static std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* value );
         /** @endcond */
     };
 
@@ -187,6 +195,12 @@ namespace bluetoe {
         return output;
     }
 
+    template < typename ... Options >
+    template < std::size_t FirstAttributesHandle >
+    std::pair< std::uint16_t, details::attribute > service< Options... >::find_characteristic_value_declaration( const void* value )
+    {
+        return details::find_characteristic_value_declaration_in_list< characteristics >::template find_characteristic_value_declaration< number_of_service_attributes + FirstAttributesHandle >( value );
+    }
     /** @endcond */
 
 }
