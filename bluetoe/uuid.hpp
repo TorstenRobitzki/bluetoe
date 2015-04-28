@@ -18,7 +18,7 @@ namespace details {
     template < std::uint64_t UUID >
     struct check_uuid_parameter16
     {
-        static_assert( UUID < 0x100000000,      "uuid16: a 16 bit UUID can not be longer than 4 bytes." );
+        static_assert( UUID < 0x10000,       "uuid16: a 16 bit UUID can not be longer than 4 bytes." );
         typedef void type;
     };
 
