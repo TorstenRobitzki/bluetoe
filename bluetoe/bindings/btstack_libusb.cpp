@@ -17,6 +17,8 @@
 namespace bluetoe {
 namespace binding {
 
+    static constexpr auto hci_header_size = 8;
+
     extern "C" void sigint_handler(int param)
     {
         log_info(" <= SIGINT received, shutting down..\n");
@@ -78,8 +80,6 @@ namespace binding {
                     const std::uint16_t l2cap_length     = read_u16( packet + 4 );
                     const std::uint16_t l2cap_channel_id = read_u16( packet + 6 );
 
-                    static constexpr auto hci_header_size = 8;
-
                     if ( l2cap_channel_id == 0x0004 && l2cap_length == size - 8 && hci_length == size - 4 )
                     {
                         size    -= hci_header_size;
@@ -122,6 +122,20 @@ namespace binding {
 
             ++init_phase;
         }
+    }
+
+    void btstack_libusb_device_base::send_notification( std::uint8_t* buffer, std::size_t size )
+    {
+        log_info( "*ATT-Notification: %i", size );
+        hexdump( buffer, size );
+
+        hci_reserve_packet_buffer();
+        uint8_t     *acl_buffer      = hci_get_outgoing_packet_buffer();
+        std::size_t out_buffer_size  = mtu_size_;
+
+        std::copy( buffer, buffer + size, acl_buffer );
+
+        send_acl_package( acl_buffer, size + hci_header_size );
     }
 
     void btstack_libusb_device_base::send_acl_package( std::uint8_t* acl_buffer, std::size_t size )

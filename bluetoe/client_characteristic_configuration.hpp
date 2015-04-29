@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <algorithm>
 
 namespace bluetoe {
 namespace details {

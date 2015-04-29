@@ -343,12 +343,12 @@ namespace bluetoe {
     void server< Options... >::notify( const T& value )
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
-        assert( l2cap_cb_ );
 
         const details::notification_data data = find_notification_data( &value );
         assert( data.valid() );
 
-        l2cap_cb_( data );
+        if ( l2cap_cb_ )
+            l2cap_cb_( data );
     }
 
     template < typename ... Options >
