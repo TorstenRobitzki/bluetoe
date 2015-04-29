@@ -63,6 +63,11 @@ namespace details {
     class client_characteristic_configurations
     {
     public:
+        client_characteristic_configurations()
+        {
+            std::fill( std::begin( configs_ ), std::end( configs_ ), 0 );
+        }
+
         client_characteristic_configuration client_configurations()
         {
             return client_characteristic_configuration( &configs_[ 0 ], Size );

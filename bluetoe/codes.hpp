@@ -25,7 +25,8 @@ namespace details {
         read_by_group_type_request  = 0x10,
         read_by_group_type_response = 0x11,
         write_request               = 0x12,
-        write_response              = 0x13
+        write_response              = 0x13,
+        notification                = 0x1B
 
     };
 
@@ -104,6 +105,10 @@ namespace details {
     {
         return static_cast< std::uint8_t >( c );
     }
+
+    enum {
+        client_characteristic_configuration_notification_enabled = 1
+    };
 
 }
 }

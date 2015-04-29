@@ -144,7 +144,7 @@ namespace bluetoe {
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
 
 
-        typedef void (*lcap_notification_callback_t)( const void* item );
+        typedef void (*lcap_notification_callback_t)( const details::notification_data& item );
 
         /**
          * @brief sets the callback for the l2cap layer to receive notifications and indications
@@ -154,7 +154,7 @@ namespace bluetoe {
          */
         void notification_callback( lcap_notification_callback_t );
 
-        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const void* item );
+        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
         /** @endcond */
 
     private:
@@ -198,10 +198,14 @@ namespace bluetoe {
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
 
-        std::pair< std::uint16_t, details::attribute > find_characteristic_value_declaration( const void* ) const;
-
         // data
         lcap_notification_callback_t l2cap_cb_;
+
+    protected:
+
+        // for testing
+        details::notification_data find_notification_data( const void* ) const;
+
     };
 
     /**
@@ -340,7 +344,11 @@ namespace bluetoe {
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
         assert( l2cap_cb_ );
-        l2cap_cb_( &value );
+
+        const details::notification_data data = find_notification_data( &value );
+        assert( data.valid() );
+
+        l2cap_cb_( data );
     }
 
     template < typename ... Options >
@@ -350,10 +358,28 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const void* item )
+    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, const details::notification_data& data )
     {
+        assert( data.valid() );
 
-        out_size = 0;
+        if ( connection.client_configurations().flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled &&
+             out_size >= 3 )
+        {
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
+            auto rc   = data.value_attribute().access( read, data.handle() );
+
+            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            {
+                *output = bits( details::att_opcodes::notification );
+                details::write_handle( output +1, data.handle() );
+            }
+
+            out_size = 3 + read.buffer_size;
+        }
+        else
+        {
+            out_size = 0;
+        }
     }
 
     template < typename ... Options >
@@ -936,9 +962,9 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    std::pair< std::uint16_t, details::attribute > server< Options... >::find_characteristic_value_declaration( const void* ) const
+    details::notification_data server< Options... >::find_notification_data( const void* value ) const
     {
-        return std::pair< std::uint16_t, details::attribute >();
+        return details::find_notification_data_in_list< services >::template find_notification_data< 1, 0 >( value );
     }
 
     template < typename ... Options >

@@ -58,7 +58,7 @@ namespace {
             std::fill( std::begin( response ), std::end( response ), 0x55 );
             connection.client_mtu( ResponseBufferSize );
 
-            notification = nullptr;
+            notification = bluetoe::details::notification_data();
             this->notification_callback( &l2cap_layer_notify_cb );
         }
 
@@ -70,13 +70,18 @@ namespace {
             BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
         }
 
-        void l2cap_input( const std::initializer_list< std::uint8_t >& input )
+        void l2cap_input( const std::initializer_list< std::uint8_t >& input, typename Server::connection_data& con )
         {
             const std::vector< std::uint8_t > values( input );
 
             response_size = ResponseBufferSize;
-            Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, connection );
+            Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
             BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
+        }
+
+        void l2cap_input( const std::initializer_list< std::uint8_t >& input )
+        {
+            l2cap_input( input, connection );
         }
 
         void expected_result( const std::initializer_list< std::uint8_t >& input )
@@ -102,26 +107,46 @@ namespace {
             hex_dump( std::cout, &response[ 0 ], &response[ response_size ] );
         }
 
-        template < class T >
-        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected )
+        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
         {
+            assert( value.valid() );
+
             const std::vector< std::uint8_t > values( expected );
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;
 
-            this->notification_output( &buffer[ 0 ], size, connection, &value );
+            this->notification_output( &buffer[ 0 ], size, con, value );
             BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
+        }
+
+        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected )
+        {
+            expected_output( value, expected, connection );
+        }
+
+        template < class T >
+        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        {
+            expected_output( find_notification_data( &value ), expected, con );
+        }
+
+        template < class T >
+        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected )
+        {
+            expected_output( find_notification_data( &value ), expected, connection );
         }
 
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
-        std::uint8_t                        response[ ResponseBufferSize ];
-        std::size_t                         response_size;
-        typename Server::connection_data    connection;
-        static const void*                  notification;
+        using Server::find_notification_data;
+
+        std::uint8_t                                response[ ResponseBufferSize ];
+        std::size_t                                 response_size;
+        typename Server::connection_data            connection;
+        static bluetoe::details::notification_data  notification;
 
     private:
-        static void l2cap_layer_notify_cb( const void* item )
+        static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item )
         {
             notification = item;
         }
@@ -176,7 +201,7 @@ namespace {
     };
 
     template < typename Server, std::size_t ResponseBufferSize >
-    const void* request_with_reponse< Server, ResponseBufferSize >::notification = nullptr;
+    bluetoe::details::notification_data request_with_reponse< Server, ResponseBufferSize >::notification;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;

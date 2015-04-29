@@ -112,7 +112,7 @@ namespace bluetoe {
          * and the given value identifies the characteristic value. If not found find_notification_data( value ).valid() is false.
          */
         template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-        details::notification_data find_notification_data( const void* value );
+        static details::notification_data find_notification_data( const void* value );
         /** @endcond */
     };
 
