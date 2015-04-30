@@ -180,7 +180,7 @@ namespace details {
     public:
         notification_data()
             : att_handle_( 0 )
-            , characteristic_value_attribute_{}
+            , characteristic_value_attribute_{ 0, nullptr }
             , client_characteristic_configuration_index_( 0 )
         {
             assert( !valid() );

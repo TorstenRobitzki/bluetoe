@@ -34,7 +34,7 @@ namespace details {
             }
         }
 
-        bool operator()( std::uint16_t index, const attribute& attr ) const
+        bool operator()( std::uint16_t, const attribute& attr ) const
         {
             if ( is_128bit_ )
             {

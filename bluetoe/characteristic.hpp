@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <cassert>
+#include <cstring>
 #include <algorithm>
 #include <type_traits>
 

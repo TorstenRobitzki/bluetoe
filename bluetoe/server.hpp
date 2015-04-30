@@ -524,7 +524,7 @@ namespace bluetoe {
             {
             }
 
-            bool operator()( std::uint16_t index, const details::attribute& attr ) const
+            bool operator()( std::uint16_t, const details::attribute& attr ) const
             {
                 auto read = details::attribute_access_arguments::compare_value( begin_, end_ );
                 return attr.access( read, 1 ) == details::attribute_access_result::value_equal;
@@ -655,7 +655,7 @@ namespace bluetoe {
                 static constexpr std::size_t maximum_pdu_size = 253u;
                 static constexpr std::size_t header_size      = 2u;
 
-                if ( end_ - current_ >= header_size )
+                if ( end_ - current_ >= static_cast< std::ptrdiff_t >( header_size ) )
                 {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
