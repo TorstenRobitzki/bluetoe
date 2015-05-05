@@ -186,6 +186,7 @@ namespace bluetoe {
         void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
+        void handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
@@ -291,6 +292,9 @@ namespace bluetoe {
             break;
         case details::att_opcodes::read_by_group_type_request:
             handle_read_by_group_type_request( input, in_size, output, out_size, connection );
+            break;
+        case details::att_opcodes::read_multiple_request:
+            handle_read_multiple_request( input, in_size, output, out_size, connection );
             break;
         case details::att_opcodes::write_request:
             handle_write_request( input, in_size, output, out_size, connection );
@@ -813,6 +817,52 @@ namespace bluetoe {
         else
         {
             out_size = begin - output;
+        }
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* const output, std::size_t& out_size, connection_data& cc )
+    {
+        if ( in_size < 5 || in_size % 2 == 0 )
+        {
+            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            return;
+        }
+
+        const std::uint8_t opcode = *input;
+        ++input;
+
+        std::uint8_t* const end_output = output + out_size;
+        std::uint8_t*       out_ptr    = output;
+
+        for ( const std::uint8_t* const end_input = input + in_size; input != end_input; input += 2 )
+        {
+            const std::uint16_t handle = details::read_handle( input );
+
+            if ( handle == 0 )
+            {
+                error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
+                return;
+            }
+
+            if ( handle > number_of_attributes )
+            {
+                error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
+                return;
+            }
+
+            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations() );
+            auto rc   = attribute_at( handle - 1 ).access( read, handle );
+
+            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            {
+
+            }
+            else
+            {
+                error_response( opcode, details::att_error_codes::read_not_permitted, handle, output, out_size );
+                return;
+            }
         }
     }
 
