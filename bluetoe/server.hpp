@@ -188,6 +188,7 @@ namespace bluetoe {
         void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
+        void handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
@@ -298,6 +299,9 @@ namespace bluetoe {
             break;
         case details::att_opcodes::write_request:
             handle_write_request( input, in_size, output, out_size, connection );
+            break;
+        case details::att_opcodes::write_command:
+            handle_write_command( input, in_size, output, out_size, connection );
             break;
         default:
             error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
@@ -894,6 +898,16 @@ namespace bluetoe {
         {
             error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
         }
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& cc )
+    {
+        // just like a write request
+        handle_write_request( input, in_size, output, out_size, cc );
+
+        // but ignore all output
+        out_size = 0;
     }
 
     template < typename ... Options >

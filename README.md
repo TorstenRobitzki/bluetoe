@@ -53,7 +53,7 @@ Characteristic Value Read|Read Characteristic Value|implemented
  |Read Using Characteristic UUID|implemented
  |Read Long Characteristic Value|implemented
  |Read Multiple Characteristic Values|implemented
-Characteristic Value Write| Write Without Response|planned
+Characteristic Value Write| Write Without Response|implemented
  |Signed Write Without Response|not planned
  |Write Characteristic Value|implemented
  |Write Long Characteristic Values|planned
