@@ -164,8 +164,8 @@ namespace bluetoe {
 
         static details::attribute attribute_at( std::size_t index );
 
-        bool error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
-        bool error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
+        void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
+        void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
 
         /**
          * for a PDU what starts with an opcode, followed by a pair of handles, the function checks the size of the PDU (must be A or B) and checks the handles.
@@ -393,7 +393,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    bool server< Options... >::error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size )
+    void server< Options... >::error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size )
     {
         if ( out_size >= 5 )
         {
@@ -408,14 +408,12 @@ namespace bluetoe {
         {
             out_size = 0 ;
         }
-
-        return false;
     }
 
     template < typename ... Options >
-    bool server< Options... >::error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size )
+    void server< Options... >::error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size )
     {
-        return error_response( opcode, error_code, 0, output, out_size );
+        error_response( opcode, error_code, 0, output, out_size );
     }
 
     template < typename ... Options >
@@ -424,16 +422,25 @@ namespace bluetoe {
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& starting_handle, std::uint16_t& ending_handle )
     {
         if ( in_size != A && in_size != B )
-            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+        {
+            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            return false;
+        }
 
         starting_handle = details::read_handle( &input[ 1 ] );
         ending_handle   = details::read_handle( &input[ 3 ] );
 
         if ( starting_handle == 0 || starting_handle > ending_handle )
-            return error_response( *input, details::att_error_codes::invalid_handle, starting_handle, output, out_size );
+        {
+            error_response( *input, details::att_error_codes::invalid_handle, starting_handle, output, out_size );
+            return false;
+        }
 
         if ( starting_handle > number_of_attributes )
-            return error_response( *input, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
+        {
+            error_response( *input, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
+            return false;
+        }
 
         return true;
     }
@@ -443,7 +450,10 @@ namespace bluetoe {
     bool server< Options... >::check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
     {
         if ( in_size != A && in_size != B )
-            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+        {
+            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+            return false;
+        }
 
         return check_handle( input, in_size, output, out_size, handle );
     }
@@ -454,10 +464,16 @@ namespace bluetoe {
         handle = details::read_handle( &input[ 1 ] );
 
         if ( handle == 0 )
-            return error_response( *input, details::att_error_codes::invalid_handle, handle, output, out_size );
+        {
+            error_response( *input, details::att_error_codes::invalid_handle, handle, output, out_size );
+            return false;
+        }
 
         if ( handle > number_of_attributes )
-            return error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
+        {
+            error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
+            return false;
+        }
 
         return true;
     }
@@ -466,18 +482,12 @@ namespace bluetoe {
     void server< Options... >::handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
     {
         if ( in_size != 3 )
-        {
-            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
-            return;
-        }
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         const std::uint16_t mtu = details::read_16bit( input + 1 );
 
         if ( mtu < details::default_att_mtu_size )
-        {
-            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
-            return;
-        }
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         connection.client_mtu( mtu );
 
@@ -580,12 +590,9 @@ namespace bluetoe {
         if ( !check_size_and_handle_range< 9u, 23u >( input, in_size, output, out_size, starting_handle, ending_handle ) )
             return;
 
+        // the spec (v4.2) doesn't define, what to return in this case, but this seems to be a resonable response
         if ( details::read_handle( &input[ 5 ] ) != bits( details::gatt_uuids::primary_service ) )
-        {
-            // the spec (v4.2) doesn't define, what to return in this case, but this seems to be a resonable response
-            error_response( *input, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
-            return;
-        }
+            return error_response( *input, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
 
         details::collect_find_by_type_groups iterator( output + 1 , output + out_size );
 
@@ -796,10 +803,7 @@ namespace bluetoe {
             return;
 
         if ( in_size == 5 + 16 || details::read_handle( &input[ 5 ] ) != bits( details::gatt_uuids::primary_service ) )
-        {
-            error_response( *input, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
-            return;
-        }
+            return error_response( *input, details::att_error_codes::unsupported_group_type, starting_handle, output, out_size );
 
         std::uint8_t*       begin = output;
         std::uint8_t* const end   = output + out_size;
@@ -824,10 +828,7 @@ namespace bluetoe {
     void server< Options... >::handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* const output, std::size_t& out_size, connection_data& cc )
     {
         if ( in_size < 5 || in_size % 2 == 0 )
-        {
-            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
-            return;
-        }
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         const std::uint8_t opcode = *input;
         ++input;
@@ -840,16 +841,10 @@ namespace bluetoe {
             const std::uint16_t handle = details::read_handle( input );
 
             if ( handle == 0 )
-            {
-                error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
-                return;
-            }
+                return error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
 
             if ( handle > number_of_attributes )
-            {
-                error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
-                return;
-            }
+                return error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
 
             auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations() );
             auto rc   = attribute_at( handle - 1 ).access( read, handle );
@@ -860,8 +855,7 @@ namespace bluetoe {
             }
             else
             {
-                error_response( opcode, details::att_error_codes::read_not_permitted, handle, output, out_size );
-                return;
+                return error_response( opcode, details::att_error_codes::read_not_permitted, handle, output, out_size );
             }
         }
     }
@@ -870,10 +864,7 @@ namespace bluetoe {
     void server< Options... >::handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
     {
         if ( in_size < 3 )
-        {
-            error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
-            return;
-        }
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         std::uint16_t handle;
 
