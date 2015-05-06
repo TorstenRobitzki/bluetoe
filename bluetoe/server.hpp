@@ -205,6 +205,9 @@ namespace bluetoe {
         void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
         template < typename WriteQueue >
         void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
+        void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
+        template < typename WriteQueue >
+        void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
@@ -320,6 +323,9 @@ namespace bluetoe {
             break;
         case details::att_opcodes::prepare_write_request:
             handle_prepair_write_request( input, in_size, output, out_size, connection, write_queue_type() );
+            break;
+        case details::att_opcodes::execute_write_request:
+            handle_execute_write_request( input, in_size, output, out_size, connection, write_queue_type() );
             break;
         default:
             error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
@@ -970,6 +976,19 @@ namespace bluetoe {
 
         out_size = std::min< std::size_t >( out_size, in_size );
         std::copy( input + 1, input + out_size, output + 1 );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
+    {
+        error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
+    }
+
+    template < typename ... Options >
+    template < typename WriteQueue >
+    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& )
+    {
+        return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
     }
 
     template < typename ... Options >

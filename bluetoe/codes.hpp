@@ -30,6 +30,7 @@ namespace details {
         write_response              = 0x13,
         prepare_write_request       = 0x16,
         prepare_write_response      = 0x17,
+        execute_write_request       = 0x18,
         write_command               = 0x52,
         notification                = 0x1B
 
