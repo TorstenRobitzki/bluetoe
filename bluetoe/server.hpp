@@ -6,6 +6,7 @@
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
+#include <bluetoe/write_queue.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -16,7 +17,6 @@ namespace bluetoe {
 
     namespace details {
         struct server_name_meta_type;
-        struct write_queue_meta_type;
     }
 
     /**
@@ -44,12 +44,14 @@ namespace bluetoe {
      * @sa server_name
      */
     template < typename ... Options >
-    class server
+    class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
         static constexpr std::size_t number_of_client_configs = details::sum_by< services, details::sum_by_client_configs >::value;
+
+        typedef typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type write_queue_type;
         /** @endcond */
 
         /**
@@ -159,6 +161,12 @@ namespace bluetoe {
         void notification_callback( lcap_notification_callback_t );
 
         void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
+
+        /**
+         * @attention this function must be called with every client that got disconnected.
+         */
+        void client_disconnected( connection_data& );
+
         /** @endcond */
 
     private:
@@ -193,8 +201,6 @@ namespace bluetoe {
         void handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-
-        typedef typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type write_queue_type;
 
         void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
         template < typename WriteQueue >
@@ -255,46 +261,6 @@ namespace bluetoe {
         typedef details::server_name_meta_type meta_type;
 
         static constexpr char const* name = Name;
-        /** @endcond */
-    };
-
-    /**
-     * @brief defines a write queue size that is shared among all connected clients
-     *
-     * Defines the size of a per server write queue in bytes. The queue is allocated within the server object.
-     * All connected clients share the same write queue. The write queue is needed to implement the
-     * "Write Long Characteristic" procedure defined by GATT.
-     *
-     * To write objects of the size N, the queue size must be ( ( N + 17 ) / 18 * 7 ) + N bytes (integer math). For example, if the
-     * size of the largest object to be writen is 100 bytes, than the queue size must be ( ( 100 + 17 ) / 18 * 7 ) + 100 = 142
-     *
-     * As all connections share one write queue, the whole queue is allocated to the first connection that starts writing a long characteristic
-     * value until that client is done with writing or gets disconnected. All othere connections will get an "Prepare Queue Full" error meanwhile.
-     *
-     * If no write queue size if given, the server will respond with "Request Not Supported" to a ATT "Prepare Write Request" or "Execute Write Request".
-     *
-     * @sa server
-     *
-     * example:
-     * @code
-    typedef bluetoe::server<
-        bluetoe::shared_write_queue< 128 >,
-    ...
-    > large_object_server;
-
-    typedef bluetoe::extend_server<
-        small_temperature_service,
-        bluetoe::server_name< name >
-    > small_named_temperature_service;
-
-     * @endcode
-     */
-    template < std::uint16_t S >
-    struct shared_write_queue {
-        /** @cond HIDDEN_SYMBOLS */
-        typedef details::write_queue_meta_type meta_type;
-
-        static constexpr std::uint16_t queue_size = S;
         /** @endcond */
     };
 
@@ -440,6 +406,12 @@ namespace bluetoe {
         {
             out_size = 0;
         }
+    }
+
+    template < typename ... Options >
+    void server< Options... >::client_disconnected( connection_data& client )
+    {
+        this->free_write_queue( client );
     }
 
     template < typename ... Options >
@@ -970,7 +942,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < typename WriteQueue >
-    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& )
+    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& client, const WriteQueue& )
     {
         if ( in_size < 5 )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
@@ -985,6 +957,19 @@ namespace bluetoe {
 
         if ( rc == details::attribute_access_result::write_not_permitted )
             return error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
+
+        // find size in the queue to write all but the opcode
+        std::uint8_t* const queue_element = this->allocate_from_write_queue( in_size - 1, client );
+
+        if ( queue_element == nullptr )
+            return error_response( *input, details::att_error_codes::prepare_queue_full, handle, output, out_size );
+
+        std::copy( input + 1, input + in_size, queue_element );
+
+        *output = bits( details::att_opcodes::prepare_write_response );
+
+        out_size = std::min< std::size_t >( out_size, in_size );
+        std::copy( input + 1, input + out_size, output + 1 );
     }
 
     template < typename ... Options >

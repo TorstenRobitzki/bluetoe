@@ -23,8 +23,7 @@ typedef bluetoe::server<
         bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
         bluetoe::characteristic<
             bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
-            bluetoe::bind_characteristic_value< decltype( very_large_value ), &very_large_value >,
-            bluetoe::no_write_access
+            bluetoe::bind_characteristic_value< decltype( very_large_value ), &very_large_value >
         >
     >
 > very_large_value_server;
@@ -51,12 +50,92 @@ BOOST_FIXTURE_TEST_CASE( write_protected, large_fixture )
     BOOST_CHECK( check_error_response( { 0x16, 0x01, 0x00, 0x00, 0x00 }, 0x16, 0x0001, 0x03 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( write_queue_full, large_fixture )
+typedef bluetoe::server<
+    bluetoe::shared_write_queue< 12 >,
+    bluetoe::service<
+        bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< decltype( very_large_value ), &very_large_value >
+        >
+    >
+> large_value_server_with_small_queue;
+
+BOOST_FIXTURE_TEST_CASE( write_queue_full, request_with_reponse< large_value_server_with_small_queue > )
 {
+    BOOST_CHECK( check_error_response(
+        { 0x16, 0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 },
+        0x16, 0x0003, 0x09 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( write_queue_used_by_other_client, large_fixture )
 {
+    connection_data con1( 23 );
+    connection_data con2( 23 );
+
+    l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con1 );
+    expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
+
+    l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con2 );
+    expected_result( { 0x01, 0x16, 0x03, 0x00, 0x09 } );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( prepare_writes )
+
+std::uint16_t ape1 = 1, ape2 = 2, ape3 = 3;
+
+typedef bluetoe::server<
+    bluetoe::shared_write_queue< 30 >,
+    bluetoe::service<
+        bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< std::uint16_t, &ape1 >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAB >,
+            bluetoe::bind_characteristic_value< std::uint16_t, &ape2 >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAC >,
+            bluetoe::bind_characteristic_value< std::uint16_t, &ape3 >
+        >
+    >
+> three_apes_server;
+
+BOOST_FIXTURE_TEST_CASE( prepare_3_writes, request_with_reponse< three_apes_server > )
+{
+    l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
+    expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
+
+    l2cap_input( { 0x16, 0x05, 0x00, 0x00, 0x00, 0x00, 0x02 } );
+    expected_result( { 0x17, 0x05, 0x00, 0x00, 0x00, 0x00, 0x02 } );
+
+    l2cap_input( { 0x16, 0x07, 0x00, 0x00, 0x00, 0x00, 0x03 } );
+    expected_result( { 0x17, 0x07, 0x00, 0x00, 0x00, 0x00, 0x03 } );
+}
+
+BOOST_FIXTURE_TEST_CASE( queue_can_be_used_after_beeing_released, request_with_reponse< three_apes_server > )
+{
+    connection_data con1( 23 );
+    connection_data con2( 23 );
+
+    l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con1 );
+
+    l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con2 );
+    expected_result( { 0x01, 0x16, 0x03, 0x00, 0x09 } );
+
+    this->client_disconnected( con1 );
+
+    l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con2 );
+    expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
+}
+
+BOOST_FIXTURE_TEST_CASE( client_disconnected_can_be_called_without_queue, small_temperature_service_with_response<> )
+{
+    this->client_disconnected( connection );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

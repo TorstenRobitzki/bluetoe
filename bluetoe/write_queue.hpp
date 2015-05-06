@@ -101,6 +101,9 @@ namespace details {
     template <>
     class write_queue< no_such_type >
     {
+    public:
+        template < typename ConData >
+        void free_write_queue( ConData& ) {}
     };
 
     // implementation
