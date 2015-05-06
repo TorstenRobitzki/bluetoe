@@ -52,7 +52,7 @@ Characteristic Descriptor Discovery|Discover All Characteristic Descriptors|impl
 Characteristic Value Read|Read Characteristic Value|implemented
  |Read Using Characteristic UUID|implemented
  |Read Long Characteristic Value|implemented
- |Read Multiple Characteristic Values|planned
+ |Read Multiple Characteristic Values|implemented
 Characteristic Value Write| Write Without Response|planned
  |Signed Write Without Response|not planned
  |Write Characteristic Value|implemented

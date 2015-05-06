@@ -832,9 +832,13 @@ namespace bluetoe {
 
         const std::uint8_t opcode = *input;
         ++input;
+        --in_size;
 
         std::uint8_t* const end_output = output + out_size;
         std::uint8_t*       out_ptr    = output;
+
+        *out_ptr = bits( details::att_opcodes::read_multiple_response );
+        ++out_ptr;
 
         for ( const std::uint8_t* const end_input = input + in_size; input != end_input; input += 2 )
         {
@@ -851,13 +855,16 @@ namespace bluetoe {
 
             if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
             {
-
+                out_ptr += read.buffer_size;
+                assert( out_ptr <= end_output );
             }
             else
             {
                 return error_response( opcode, details::att_error_codes::read_not_permitted, handle, output, out_size );
             }
         }
+
+        out_size = out_ptr - output;
     }
 
     template < typename ... Options >

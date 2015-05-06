@@ -23,6 +23,7 @@ namespace details {
         read_blob_request           = 0x0C,
         read_blob_response          = 0x0D,
         read_multiple_request       = 0x0E,
+        read_multiple_response      = 0x0F,
         read_by_group_type_request  = 0x10,
         read_by_group_type_response = 0x11,
         write_request               = 0x12,
