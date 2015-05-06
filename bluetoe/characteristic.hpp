@@ -279,11 +279,14 @@ namespace bluetoe {
         if ( args.type != details::attribute_access_type::read )
             return details::attribute_access_result::write_not_permitted;
 
-        // header (properties and handle) if offset points into the header
-        std::uint8_t* output = args.buffer;
-        const auto max_header_bytes = std::min< std::size_t >( uuid_offset, std::max< int >( 0, static_cast< int >( uuid_offset ) - args.buffer_offset ) );
+        // transform the output buffer into two pointers that point into the characteristic declaracation:
+        const std::size_t begin = args.buffer_offset;
+        const std::size_t end   = std::min< std::size_t >( args.buffer_offset + args.buffer_size, data_size );
 
-        if ( args.buffer_size > 2 && args.buffer_offset < uuid_offset )
+        std::uint8_t* output = args.buffer;
+
+        // header (properties and handle) if offset points into the header
+        if ( begin < uuid_offset )
         {
             std::uint8_t header_buffer[ uuid_offset ];
             header_buffer[ 0 ] =
@@ -294,20 +297,21 @@ namespace bluetoe {
             // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
             details::write_handle( header_buffer + 1, attribute_handle + 1 );
 
-            std::copy( &header_buffer[ args.buffer_offset ], &header_buffer[ args.buffer_offset + max_header_bytes ], output );
+            const std::size_t end_header_bytes = std::min< std::size_t >( end, uuid_offset );
+            std::copy( &header_buffer[ begin ], &header_buffer[ end_header_bytes ], output );
 
-            output += max_header_bytes;
+            output += end_header_bytes - begin;
         }
 
-        const auto offset_into_uuid = std::max< int >( 0, args.buffer_offset - uuid_offset );
-        const auto max_uuid_bytes   = std::min< std::size_t >( uuid_size - offset_into_uuid, args.buffer_size - max_header_bytes );
+        if ( end > uuid_offset )
+        {
+            const std::size_t start_uuid_bytes = std::max< std::size_t >( begin, uuid_offset );
+            std::copy( &uuid::bytes[ start_uuid_bytes - uuid_offset ], &uuid::bytes[ end - uuid_offset ], output );
 
-        const auto uuid_begin       = std::begin( uuid::bytes ) + offset_into_uuid;
-        const auto uuid_end         = uuid_begin + max_uuid_bytes;
+            output += end - start_uuid_bytes;
+        }
 
-        std::copy( uuid_begin, uuid_end, output );
-
-        args.buffer_size = max_header_bytes + max_uuid_bytes;
+        args.buffer_size = output - args.buffer;
 
         return args.buffer_size == data_size - args.buffer_offset
             ? details::attribute_access_result::success

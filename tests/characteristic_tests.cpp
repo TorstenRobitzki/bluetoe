@@ -301,6 +301,59 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         BOOST_CHECK( char_declaration.access( write, 1 ) == bluetoe::details::attribute_access_result::write_not_permitted );
     }
 
+    BOOST_FIXTURE_TEST_CASE( read_zero_bytes, simple_char )
+    {
+        const bluetoe::details::attribute char_declaration = attribute_at< 0 >( 0 );
+        std::uint8_t buffer;
+
+        auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer, 0, bluetoe::details::client_characteristic_configuration() );
+        auto rc   = char_declaration.access( read, 1 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( read.buffer_size == 0 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_first_single_byte, simple_char )
+    {
+        const bluetoe::details::attribute char_declaration = attribute_at< 0 >( 0 );
+        std::uint8_t buffer;
+
+        auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer + 1, 0, bluetoe::details::client_characteristic_configuration() );
+        auto rc   = char_declaration.access( read, 1 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( read.buffer_size == 1 );
+        BOOST_CHECK( buffer == 0x0A ); // property == read + write
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_two_bytes_second_byte_points_into_the_uuid, simple_char )
+    {
+        const bluetoe::details::attribute char_declaration = attribute_at< 0 >( 0 );
+        std::uint8_t buffer[ 2 ];
+
+        auto read = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
+        auto rc   = char_declaration.access( read, 1 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( read.buffer_size == 2 );
+        BOOST_CHECK( buffer[ 0 ] == 0x00 ); // hi byte char value handle
+        BOOST_CHECK( buffer[ 1 ] == 0x6B ); // first byte of the uuid
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_one_byte_from_the_uuid, simple_char )
+    {
+        const bluetoe::details::attribute char_declaration = attribute_at< 0 >( 0 );
+        std::uint8_t buffer[ 1 ];
+
+        auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
+        auto rc   = char_declaration.access( read, 1 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( read.buffer_size == 1 );
+        BOOST_CHECK( buffer[ 0 ] == 0x95 );
+    }
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( characteristic_value_access )
