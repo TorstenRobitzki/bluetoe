@@ -16,6 +16,7 @@ namespace bluetoe {
 
     namespace details {
         struct server_name_meta_type;
+        struct write_queue_meta_type;
     }
 
     /**
@@ -38,6 +39,9 @@ namespace bluetoe {
     > small_temperature_service;
      * @endcode
      * @sa service
+     * @sa shared_write_queue
+     * @sa extend_server
+     * @sa server_name
      */
     template < typename ... Options >
     class server
@@ -190,6 +194,12 @@ namespace bluetoe {
         void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
         void handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
+        typedef typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type write_queue_type;
+
+        void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
+        template < typename WriteQueue >
+        void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
+
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
 
@@ -203,9 +213,8 @@ namespace bluetoe {
         // data
         lcap_notification_callback_t l2cap_cb_;
 
-    protected:
+    protected: // for testing
 
-        // for testing
         details::notification_data find_notification_data( const void* ) const;
 
     };
@@ -246,6 +255,46 @@ namespace bluetoe {
         typedef details::server_name_meta_type meta_type;
 
         static constexpr char const* name = Name;
+        /** @endcond */
+    };
+
+    /**
+     * @brief defines a write queue size that is shared among all connected clients
+     *
+     * Defines the size of a per server write queue in bytes. The queue is allocated within the server object.
+     * All connected clients share the same write queue. The write queue is needed to implement the
+     * "Write Long Characteristic" procedure defined by GATT.
+     *
+     * To write objects of the size N, the queue size must be ( ( N + 17 ) / 18 * 7 ) + N bytes (integer math). For example, if the
+     * size of the largest object to be writen is 100 bytes, than the queue size must be ( ( 100 + 17 ) / 18 * 7 ) + 100 = 142
+     *
+     * As all connections share one write queue, the whole queue is allocated to the first connection that starts writing a long characteristic
+     * value until that client is done with writing or gets disconnected. All othere connections will get an "Prepare Queue Full" error meanwhile.
+     *
+     * If no write queue size if given, the server will respond with "Request Not Supported" to a ATT "Prepare Write Request" or "Execute Write Request".
+     *
+     * @sa server
+     *
+     * example:
+     * @code
+    typedef bluetoe::server<
+        bluetoe::shared_write_queue< 128 >,
+    ...
+    > large_object_server;
+
+    typedef bluetoe::extend_server<
+        small_temperature_service,
+        bluetoe::server_name< name >
+    > small_named_temperature_service;
+
+     * @endcode
+     */
+    template < std::uint16_t S >
+    struct shared_write_queue {
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::write_queue_meta_type meta_type;
+
+        static constexpr std::uint16_t queue_size = S;
         /** @endcond */
     };
 
@@ -302,6 +351,9 @@ namespace bluetoe {
             break;
         case details::att_opcodes::write_command:
             handle_write_command( input, in_size, output, out_size, connection );
+            break;
+        case details::att_opcodes::prepare_write_request:
+            handle_prepair_write_request( input, in_size, output, out_size, connection, write_queue_type() );
             break;
         default:
             error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
@@ -908,6 +960,31 @@ namespace bluetoe {
 
         // but ignore all output
         out_size = 0;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
+    {
+        error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
+    }
+
+    template < typename ... Options >
+    template < typename WriteQueue >
+    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& )
+    {
+        if ( in_size < 5 )
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+
+        std::uint16_t handle;
+
+        if ( !check_handle( input, in_size, output, out_size, handle ) )
+            return;
+
+        auto write = details::attribute_access_arguments::check_write();
+        auto rc    = attribute_at( handle - 1 ).access( write, handle );
+
+        if ( rc == details::attribute_access_result::write_not_permitted )
+            return error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
     }
 
     template < typename ... Options >

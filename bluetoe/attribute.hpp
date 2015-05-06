@@ -97,6 +97,17 @@ namespace details {
             };
         }
 
+        static attribute_access_arguments check_write()
+        {
+            return attribute_access_arguments{
+                attribute_access_type::write,
+                0,
+                0,
+                0,
+                client_characteristic_configuration()
+            };
+        }
+
         static attribute_access_arguments compare_128bit_uuid( const std::uint8_t* uuid )
         {
             return attribute_access_arguments{

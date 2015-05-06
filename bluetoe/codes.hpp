@@ -28,6 +28,7 @@ namespace details {
         read_by_group_type_response = 0x11,
         write_request               = 0x12,
         write_response              = 0x13,
+        prepare_write_request       = 0x16,
         write_command               = 0x52,
         notification                = 0x1B
 
