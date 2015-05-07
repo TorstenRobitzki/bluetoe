@@ -912,7 +912,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, connection.client_configurations() );
+        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations() );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -1001,9 +1001,9 @@ namespace bluetoe {
             for ( std::pair< std::uint8_t*, std::size_t > queue = this->first_write_queue_element( client ); queue.first; queue = this->next_write_queue_element( queue.first, client ) )
             {
                 const uint16_t handle = details::read_handle( queue.first );
-                //const uint16_t offset = details::read_16bit( queue.first + 2 );
+                const uint16_t offset = details::read_16bit( queue.first + 2 );
 
-                auto write = details::attribute_access_arguments::write( queue.first, queue.first + queue.second, client.client_configurations() );
+                auto write = details::attribute_access_arguments::write( queue.first, queue.first + queue.second, offset, client.client_configurations() );
                 auto rc    = attribute_at( handle -1 ).access( write, handle );
 
                 if ( rc != details::attribute_access_result::success )

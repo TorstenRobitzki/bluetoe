@@ -73,18 +73,18 @@ namespace details {
         }
 
         template < std::size_t N >
-        static attribute_access_arguments write( const std::uint8_t(&buffer)[N], const client_characteristic_configuration& cc = client_characteristic_configuration() )
+        static attribute_access_arguments write( const std::uint8_t(&buffer)[N], std::size_t offset = 0, const client_characteristic_configuration& cc = client_characteristic_configuration() )
         {
             return attribute_access_arguments{
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( &buffer[ 0 ] ),
                 N,
-                0,
+                offset,
                 cc
             };
         }
 
-        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, const client_characteristic_configuration& cc )
+        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc )
         {
             assert( end >= begin );
 
@@ -92,7 +92,7 @@ namespace details {
                 attribute_access_type::write,
                 const_cast< std::uint8_t* >( begin ),
                 static_cast< std::size_t >( end - begin ),
-                0,
+                offset,
                 cc
             };
         }

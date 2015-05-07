@@ -362,13 +362,16 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute_access_result bind_characteristic_value< T, Ptr >::value_impl< Options... >::characteristic_value_write_access( details::attribute_access_arguments& args, const std::true_type& )
     {
-        if ( args.buffer_size > sizeof( T ) )
+        if ( args.buffer_offset > sizeof( T ) )
+            return details::attribute_access_result::invalid_offset;
+
+        if ( args.buffer_size + args.buffer_offset > sizeof( T ) )
             return details::attribute_access_result::write_overflow;
 
-        args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) );
+        args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) - args.buffer_offset );
 
         std::uint8_t* const ptr = static_cast< std::uint8_t* >( static_cast< void* >( Ptr ) );
-        std::copy( args.buffer, args.buffer + args.buffer_size, ptr );
+        std::copy( args.buffer, args.buffer + args.buffer_size, ptr + args.buffer_offset );
 
         return details::attribute_access_result::success;
     }
