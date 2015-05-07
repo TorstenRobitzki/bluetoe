@@ -986,9 +986,35 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < typename WriteQueue >
-    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& )
+    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& client, const WriteQueue& )
     {
-        return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+        if ( in_size != 2 || input[ 1 ] != 0 && input[ 1 ] != 1 )
+            return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
+
+        // the write queue will be freed in any case
+        details::write_queue_guard< connection_data, details::write_queue< write_queue_type > > queue_guard( client, *this );
+
+        const std::uint8_t execute_flag = input[ 1 ];
+        if ( execute_flag )
+        {
+
+            for ( std::pair< std::uint8_t*, std::size_t > queue = this->first_write_queue_element( client ); queue.first; queue = this->next_write_queue_element( queue.first, client ) )
+            {
+                const uint16_t handle = details::read_handle( queue.first );
+                //const uint16_t offset = details::read_16bit( queue.first + 2 );
+
+                auto write = details::attribute_access_arguments::write( queue.first, queue.first + queue.second, client.client_configurations() );
+                auto rc    = attribute_at( handle -1 ).access( write, handle );
+
+                if ( rc != details::attribute_access_result::success )
+                {
+                    return;
+                }
+            }
+        }
+
+        *output  = bits( details::att_opcodes::execute_write_response );
+        out_size = 1;
     }
 
     template < typename ... Options >

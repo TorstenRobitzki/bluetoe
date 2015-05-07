@@ -55,7 +55,7 @@ namespace bluetoe {
 namespace details {
 
     /*
-     * Interface to access a
+     * Interface to access a write queue. All member named are some kind of prefixed with 'write_queue', because this type will be fixed into the server
      */
     template < typename QueueParameter >
     class write_queue;
@@ -108,6 +108,24 @@ namespace details {
     public:
         template < typename ConData >
         void free_write_queue( ConData& ) {}
+    };
+
+    /*
+     * guard to make sure, that free_write_queue is called when this guard goes out of scope
+     */
+    template < typename ConData, typename WriteQueue >
+    class write_queue_guard
+    {
+    public:
+        write_queue_guard( ConData& client, WriteQueue& queue );
+        ~write_queue_guard();
+
+    private:
+        write_queue_guard( const write_queue_guard& ) = delete;
+        write_queue_guard& operator=( const write_queue_guard& ) = delete;
+
+        ConData&    client_;
+        WriteQueue& queue_;
     };
 
     // implementation
@@ -182,6 +200,19 @@ namespace details {
     std::size_t write_queue< shared_write_queue< S > >::read_size( std::uint8_t* last ) const
     {
         return *( last - 2 ) + *( last - 1 ) * 256;
+    }
+
+    template < typename ConData, typename WriteQueue >
+    write_queue_guard< ConData, WriteQueue >::write_queue_guard( ConData& client, WriteQueue& queue )
+        : client_( client )
+        , queue_( queue )
+    {
+    }
+
+    template < typename ConData, typename WriteQueue >
+    write_queue_guard< ConData, WriteQueue >::~write_queue_guard()
+    {
+        queue_.free_write_queue( client_ );
     }
 
 }
