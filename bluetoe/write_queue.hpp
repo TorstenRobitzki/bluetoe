@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
+#include <utility>
 
 namespace bluetoe {
 
@@ -82,15 +83,18 @@ namespace details {
          * return the first element of the queue for the given client. If no element was allocated, the function returns nullptr.
          */
         template < typename ConData >
-        std::uint8_t* first_write_queue_element( ConData& client );
+        std::pair< std::uint8_t*, std::size_t > first_write_queue_element( ConData& client );
 
         /*
          * Returns the next element in the queue to current. current must not be nullptr and must be obtained by a call to
          * first_element() or next_element()
          */
         template < typename ConData >
-        std::uint8_t* next_write_queue_element( std::uint8_t* current, ConData& );
+        std::pair< std::uint8_t*, std::size_t > next_write_queue_element( std::uint8_t* current, ConData& );
     private:
+
+        std::size_t read_size( std::uint8_t* ) const;
+
         void*           current_client_;
         std::uint8_t    buffer_[ S ];
         std::uint16_t   buffer_end_;
@@ -145,34 +149,41 @@ namespace details {
 
     template < std::uint16_t S >
     template < typename ConData >
-    std::uint8_t* write_queue< shared_write_queue< S > >::first_write_queue_element( ConData& client )
+    std::pair< std::uint8_t*, std::size_t > write_queue< shared_write_queue< S > >::first_write_queue_element( ConData& client )
     {
         if( current_client_ != &client || buffer_end_ == 0 )
         {
-            return nullptr;
+            return std::make_pair( nullptr, 0 );
         }
 
-        return &buffer_[ 2 ];
+        return std::make_pair( &buffer_[ 2 ], read_size( &buffer_[ 2 ] ) );
     }
 
     template < std::uint16_t S >
     template < typename ConData >
-    std::uint8_t* write_queue< shared_write_queue< S > >::next_write_queue_element( std::uint8_t* last, ConData& client )
+    std::pair< std::uint8_t*, std::size_t > write_queue< shared_write_queue< S > >::next_write_queue_element( std::uint8_t* last, ConData& client )
     {
         assert( last );
         assert( last >= &buffer_[ 2 ] );
         assert( last <= &buffer_[ S ] );
         assert( &client == current_client_ );
 
-        const std::uint16_t size = *( last - 2 ) + *( last - 1 ) * 256;
+        const std::size_t size = read_size( last );
 
         // lets point last to the next size value
         last += size;
 
         return last == &buffer_[ buffer_end_ ]
-            ? nullptr
-            : last + 2;
+            ? std::make_pair( nullptr, 0 )
+            : std::make_pair( last + 2, read_size( last + 2 ) );
     }
+
+    template < std::uint16_t S >
+    std::size_t write_queue< shared_write_queue< S > >::read_size( std::uint8_t* last ) const
+    {
+        return *( last - 2 ) + *( last - 1 ) * 256;
+    }
+
 }
 }
 #endif

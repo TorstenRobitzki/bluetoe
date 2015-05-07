@@ -57,34 +57,34 @@ BOOST_FIXTURE_TEST_CASE( can_allocate_after_releasing, queue_100 )
 
 BOOST_FIXTURE_TEST_CASE( no_first_element_in_empty_queue, queue_100 )
 {
-    BOOST_CHECK( first_write_queue_element( client ) == nullptr );
+    BOOST_CHECK( first_write_queue_element( client ).first == nullptr );
 }
 
 BOOST_FIXTURE_TEST_CASE( queue_can_be_iterated, queue_100 )
 {
-    static const std::uint8_t test1[ 5 ] = { 1, 2, 3, 4, 5 };
-    static const std::uint8_t test2[ 5 ] = { 6, 7, 8, 8, 8 };
-    static const std::uint8_t test3[ 5 ] = { 100, 101, 102, 103, 104 };
+    static const std::uint8_t test1[] = { 1, 2, 3, 4, 5 };
+    static const std::uint8_t test2[] = { 6, 7, 8 };
+    static const std::uint8_t test3[] = { 100, 101, 102, 103, 104, 105, 106 };
 
-    std::uint8_t* p1 = allocate_from_write_queue( 5, client );
+    std::uint8_t* p1 = allocate_from_write_queue( sizeof( test1 ), client );
     std::copy( std::begin( test1 ), std::end( test1 ), p1 );
 
-    std::uint8_t* p2 = allocate_from_write_queue( 5, client );
+    std::uint8_t* p2 = allocate_from_write_queue( sizeof( test2 ), client );
     std::copy( std::begin( test2 ), std::end( test2 ), p2 );
 
-    std::uint8_t* p3 = allocate_from_write_queue( 5, client );
+    std::uint8_t* p3 = allocate_from_write_queue( sizeof( test3 ), client );
     std::copy( std::begin( test3 ), std::end( test3 ), p3 );
 
-    std::uint8_t* ele1 = first_write_queue_element( client );
-    BOOST_CHECK_EQUAL_COLLECTIONS( ele1, ele1 + 5, std::begin( test1 ), std::end( test1 ) );
+    std::pair< std::uint8_t*, std::size_t > ele1 = first_write_queue_element( client );
+    BOOST_CHECK_EQUAL_COLLECTIONS( ele1.first, ele1.first + ele1.second, std::begin( test1 ), std::end( test1 ) );
 
-    std::uint8_t* ele2 = next_write_queue_element( ele1, client );
-    BOOST_CHECK_EQUAL_COLLECTIONS( ele2, ele2 + 5, std::begin( test2 ), std::end( test2 ) );
+    std::pair< std::uint8_t*, std::size_t > ele2 = next_write_queue_element( ele1.first, client );
+    BOOST_CHECK_EQUAL_COLLECTIONS( ele2.first, ele2.first + ele2.second, std::begin( test2 ), std::end( test2 ) );
 
-    std::uint8_t* ele3 = next_write_queue_element( ele2, client );
-    BOOST_CHECK_EQUAL_COLLECTIONS( ele3, ele3 + 5, std::begin( test3 ), std::end( test3 ) );
+    std::pair< std::uint8_t*, std::size_t > ele3 = next_write_queue_element( ele2.first, client );
+    BOOST_CHECK_EQUAL_COLLECTIONS( ele3.first, ele3.first + ele3.second, std::begin( test3 ), std::end( test3 ) );
 
-    BOOST_CHECK( next_write_queue_element( ele3, client ) == nullptr );
+    BOOST_CHECK( next_write_queue_element( ele3.first, client ).first == nullptr );
 }
 
 struct locked_by_client1 : queue_100
@@ -104,7 +104,7 @@ BOOST_FIXTURE_TEST_CASE( seems_to_be_full, locked_by_client1 )
 
 BOOST_FIXTURE_TEST_CASE( but_also_seems_to_be_empty, locked_by_client1 )
 {
-    BOOST_CHECK( first_write_queue_element( client2 ) == nullptr );
+    BOOST_CHECK( first_write_queue_element( client2 ).first == nullptr );
 }
 
 BOOST_FIXTURE_TEST_CASE( can_not_be_freed_by_othere_clients, locked_by_client1 )
