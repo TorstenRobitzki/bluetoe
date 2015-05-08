@@ -471,10 +471,11 @@ namespace bluetoe {
                 }
                 else if ( args.type == attribute_access_type::write )
                 {
-                    if ( args.buffer_size > flags_size )
+                    if ( args.buffer_size + args.buffer_offset > flags_size )
                         return details::attribute_access_result::write_overflow;
 
-                    args.client_config.flags( ClientCharacteristicIndex, read_16bit( &args.buffer[ 0 ] ) );
+                    if ( args.buffer_offset == 0 )
+                        args.client_config.flags( ClientCharacteristicIndex, read_16bit( &args.buffer[ 0 ] ) );
 
                     result = attribute_access_result::success;
                 }

@@ -797,6 +797,45 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::invalid_offset );
     }
 
+    BOOST_FIXTURE_TEST_CASE( write_only_the_last_byte, access_attributes< notified_char > )
+    {
+        static const std::uint8_t bytes_to_write[] = { 0xff };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( bytes_to_write, 1, client_configurations() );
+        BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::success );
+
+        // write will be ignored
+        compare_characteristic( { 0x00, 0x00 }, 0x2902 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_zero_bytes_at_the_end, access_attributes< notified_char > )
+    {
+        static const std::uint8_t byte = 0;
+
+        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte, 2, client_configurations() );
+        BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::success );
+
+        // write as no effect
+        compare_characteristic( { 0x00, 0x00 }, 0x2902 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_over_the_end, access_attributes< notified_char > )
+    {
+        static const std::uint8_t byte = 0;
+
+        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 2, client_configurations() );
+        BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::write_overflow );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_behind_the_end, access_attributes< notified_char > )
+    {
+        static const std::uint8_t byte = 0;
+
+        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 3, client_configurations() );
+        BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::invalid_offset );
+    }
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( server_characteristic_configuration )
