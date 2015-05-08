@@ -56,14 +56,14 @@ Characteristic Value Read|Read Characteristic Value|implemented
 Characteristic Value Write| Write Without Response|implemented
  |Signed Write Without Response|not planned
  |Write Characteristic Value|implemented
- |Write Long Characteristic Values|planned
- |Characteristic Value Reliable Writes|planned
+ |Write Long Characteristic Values|implemented
+ |Characteristic Value Reliable Writes|implemented
 Characteristic Value Notification|Notifications|implemented
 Characteristic Value Indication|Indications|planned
-Characteristic Descriptor Value Read|Read Characteristic Descriptors|planned
- |Read Long Characteristic Descriptors|planned
-Characteristic Descriptor Value Write|Write Characteristic Descriptors|planned
- |Write Long Characteristic Descriptors|planned
+Characteristic Descriptor Value Read|Read Characteristic Descriptors|implemented
+ |Read Long Characteristic Descriptors|implemented
+Characteristic Descriptor Value Write|Write Characteristic Descriptors|implemented
+ |Write Long Characteristic Descriptors|implemented
 Cryptography|Encryption|not planned
  |Authentication|not planned
 

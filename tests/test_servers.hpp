@@ -142,6 +142,7 @@ namespace {
 
         std::uint8_t                                response[ ResponseBufferSize ];
         std::size_t                                 response_size;
+        static constexpr std::size_t                mtu_size = ResponseBufferSize;
         typename Server::connection_data            connection;
         static bluetoe::details::notification_data  notification;
 
@@ -175,23 +176,22 @@ namespace {
 
         bool check_error_response_impl( std::uint8_t const * input, std::size_t input_size, std::uint8_t expected_request_opcode, std::uint16_t expected_attribute_handle, std::uint8_t expected_error_code )
         {
-            std::uint8_t output[ ResponseBufferSize ];
-            std::size_t  outlength = sizeof( output );
+            response_size = sizeof( response );
 
-            Server::l2cap_input( input, input_size, output, outlength, connection );
+            Server::l2cap_input( input, input_size, response, response_size, connection );
 
-            const std::uint8_t  opcode           = output[ 0 ];
-            const std::uint8_t  request_opcode   = output[ 1 ];
-            const std::uint16_t attribute_handle = output[ 2 ] + ( output[ 3 ] << 8 );
-            const std::uint8_t  error_code       = output[ 4 ];
+            const std::uint8_t  opcode           = response[ 0 ];
+            const std::uint8_t  request_opcode   = response[ 1 ];
+            const std::uint16_t attribute_handle = response[ 2 ] + ( response[ 3 ] << 8 );
+            const std::uint8_t  error_code       = response[ 4 ];
 
-            BOOST_CHECK_MESSAGE( outlength == 5, should_be_but( "PDU Size", 5, outlength ) );
+            BOOST_CHECK_MESSAGE( response_size == 5, should_be_but( "PDU Size", 5, response_size ) );
             BOOST_CHECK_MESSAGE( opcode == 0x01, should_be_but( "Attribute Opcode", 0x01, opcode ) );
             BOOST_CHECK_MESSAGE( request_opcode == expected_request_opcode, should_be_but( "Request Opcode In Error", expected_request_opcode, request_opcode ) );
             BOOST_CHECK_MESSAGE( attribute_handle == expected_attribute_handle, should_be_but( "Attribute Handle In Error", expected_attribute_handle, attribute_handle ) );
             BOOST_CHECK_MESSAGE( error_code == expected_error_code, should_be_but( "Error Code", expected_error_code, error_code ) );
 
-            return outlength == 5
+            return response_size == 5
                 && opcode == 0x01
                 && request_opcode == expected_request_opcode
                 && attribute_handle == expected_attribute_handle

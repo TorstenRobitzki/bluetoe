@@ -1003,12 +1003,15 @@ namespace bluetoe {
                 const uint16_t handle = details::read_handle( queue.first );
                 const uint16_t offset = details::read_16bit( queue.first + 2 );
 
-                auto write = details::attribute_access_arguments::write( queue.first, queue.first + queue.second, offset, client.client_configurations() );
+                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second, offset, client.client_configurations() );
                 auto rc    = attribute_at( handle -1 ).access( write, handle );
 
                 if ( rc != details::attribute_access_result::success )
                 {
-                    return;
+                    if ( rc == details::attribute_access_result::write_overflow )
+                        return error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
+
+                    return error_response( *input, details::att_error_codes::invalid_offset, handle, output, out_size );
                 }
             }
         }
