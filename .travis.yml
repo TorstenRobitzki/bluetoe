@@ -1,7 +1,16 @@
 language: cpp
+compiler:
+    - clang
+    - gcc
 
-install:
-    - sudo apt-get install --yes doxygen graphviz
+before_script:
+    - mkdir build
+    - cd build
+    - cmake ..
+
+script:
+    - make all && make all_tests.run
 
 after_success:
+    - sudo apt-get install --yes doxygen graphviz
     - ./publish-doxygen
