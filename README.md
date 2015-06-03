@@ -32,6 +32,10 @@ Bluetoe implements a GATT server with a very low memory footprint and a convenie
         device.run( server );
     }
 
+## Documentation
+
+http://torstenrobitzki.github.io/bluetoe/
+
 ## L2CAP
 
 Bluetoe adds on top of an existing L2CAP implementation. Currently it comes only with one experimental L2CAP implementation on top of btstack's HCI layer that runs at least on OS/X but should also work on Linux (and maybe Windows).
