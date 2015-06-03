@@ -1,5 +1,7 @@
+language: cpp
+
 install:
-- sudo apt-get install --yes doxygen graphviz
+    - sudo apt-get install --yes doxygen graphviz
 
 after_success:
-- ./publish-doxygen
+    - ./publish-doxygen
