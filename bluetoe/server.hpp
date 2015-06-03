@@ -223,9 +223,10 @@ namespace bluetoe {
         lcap_notification_callback_t l2cap_cb_;
 
     protected: // for testing
+        /** @cond HIDDEN_SYMBOLS */
 
         details::notification_data find_notification_data( const void* ) const;
-
+        /** @endcond */
     };
 
     /**
