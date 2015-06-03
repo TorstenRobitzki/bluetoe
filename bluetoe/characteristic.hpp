@@ -41,6 +41,7 @@ namespace bluetoe {
      * @code{.cpp}
      * bluetoe::characteristic_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >
      * @endcode
+     * @sa characteristic
      */
     template <
         std::uint64_t A,
@@ -57,6 +58,7 @@ namespace bluetoe {
 
     /**
      * @brief a 16-Bit UUID used to identify a characteristic.
+     * @sa characteristic
      */
     template <
         std::uint64_t UUID >
@@ -69,7 +71,51 @@ namespace bluetoe {
     };
 
     /**
-     * @brief a characteristic is a data point that is accessable by client.
+     * @brief A characteristic is an attribute that is accessable by a GATT client.
+     *
+     * A characteristics type (not it terms of C++ data type) is defined by a UUID. Characteristics with the
+     * same UUID should represent attributes with the same type / characteristic. Usually a GATT client referes
+     * an attribute by its UUID.
+     *
+     * To define the UUID of a characteristic add an instanciated characteristic_uuid<> or characteristic_uuid16<>
+     * type as option to the characteristic.
+     *
+     * For example to define a user defined type to a characteristic:
+     * @code
+     * typedef bluetoe::characteristic<
+     *    bluetue::characteristic_uuid16< 0xF0E6EBE6, 0x3749, 0x41A6, 0xB190, 0x591B262AC20A >
+     * > speed_over_ground_characteristic;
+     * @endcode
+     *
+     * If no UUID is given, bluetoe derives a 128bit UUID from the UUID of the service in which this characteric
+     * is placed in. The first characteristic gets an UUID, where the last bytes are xored with 1, the second
+     * characteristic will get an UUID, where the last bytes are xored with 2 and so on...
+     *
+     * The following examples show a service with the UUID 48B7F909-B039-4550-97AF-336228C45CED and two characteristics,
+     * without an explicit UUID. In this case, the first characteristic becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEC
+     * and the second UUID becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEF
+     *
+     * @code
+     * typedef bluetoe::service<
+     *     bluetoe::service_uuid< 0x48B7F909, 0xB039, 0x4550, 0x97AF, 0x336228C45CED >,
+     *     bluetoe::characteristic<
+     *         bluetoe::bind_characteristic_value< std::uint32_t, &presure >,
+     *         bluetoe::no_write_access,
+     *         bluetoe::notify
+     *     >,
+     *     bluetoe::characteristic<
+     *         bluetoe::bind_characteristic_value< std::uint32_t, &alarm_threshold >
+     *     >
+     * > presure_service;
+     * @endcode
+     *
+     * @sa characteristic_uuid
+     * @sa characteristic_uuid16
+     * @sa no_read_access
+     * @sa no_write_access
+     * @sa notify
+     * @sa bind_characteristic_value
+     * @sa characteristic_name
      */
     template < typename ... Options >
     class characteristic
