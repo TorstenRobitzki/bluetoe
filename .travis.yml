@@ -10,7 +10,7 @@ install:
 before_script:
     - mkdir build
     - cd build
-    - cmake ..
+    - BUILD_ON_TRAVIS=1 cmake ..
 
 script:
     - make all_tests && make all_tests.run
