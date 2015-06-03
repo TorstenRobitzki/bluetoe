@@ -1,19 +1,24 @@
+# see for the idea behin this script http://blog.gockelhut.com/2014/09/automatic-documentation-publishing-with.html
 REPO_PATH=git@github.com:TorstenRobitzki/bluetoe.git
 HTML_PATH=documentation/html
 COMMIT_USER="Documentation Builder"
 COMMIT_EMAIL="travis@robitzki.com"
 CHANGESET=$(git rev-parse --verify HEAD)
 
+# code github pages
 rm -rf ${HTML_PATH}
 mkdir -p ${HTML_PATH}
 git clone -b gh-pages "${REPO_PATH}" --single-branch ${HTML_PATH}
 
+# remove old content
 cd ${HTML_PATH}
 git rm -rf .
 cd -
 
+# generate new documentation
 doxygen 1> /dev/null
 
+# commit new documentation
 cd ${HTML_PATH}
 git add .
 git config user.name "${COMMIT_USER}"
