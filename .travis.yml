@@ -9,7 +9,7 @@ before_script:
     - cmake ..
 
 script:
-    - make all && make all_tests.run
+    - make all_tests && make all_tests.run
 
 after_success:
     - sudo apt-get install --yes doxygen graphviz
