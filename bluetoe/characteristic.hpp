@@ -151,6 +151,10 @@ namespace bluetoe {
         /** @endcond */
     private:
         typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type    base_value_type;
+
+        static_assert( !std::is_same< base_value_type, details::no_such_type >::value,
+            "please make sure, that every characteristic defines some kind of value (bind_characteristic_value<> for example)" );
+
         typedef typename base_value_type::template value_impl< Options... >                                         value_type;
 
         static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );

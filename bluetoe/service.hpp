@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
+#include <type_traits>
 
 namespace bluetoe {
 
@@ -121,8 +122,11 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef typename details::find_all_by_meta_type< details::characteristic_meta_type, Options... >::type characteristics;
-        typedef typename details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type       uuid;
+        typedef typename details::find_all_by_meta_type< details::characteristic_meta_type, Options... >::type  characteristics;
+
+        typedef typename details::find_by_meta_type< details::service_uuid_meta_type, Options... >::type        uuid;
+
+        static_assert( !std::is_same< uuid, details::no_such_type >::value, "Please provide a UUID to the service (service_uuid or service_uuid16 for example)." );
 
         static constexpr std::size_t number_of_service_attributes        = 1;
         static constexpr std::size_t number_of_characteristic_attributes = details::sum_by< characteristics, details::sum_by_attributes >::value;
