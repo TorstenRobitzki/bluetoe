@@ -1,15 +1,13 @@
 language: cpp
-
 compiler:
-    - clang
-
+- clang
 script:
-    - echo "Success! ;-)"
-
+- echo "Success! ;-)"
 after_success:
-    - sudo apt-get install --yes doxygen graphviz
-    - ./publish-doxygen
-
+- sudo apt-get install --yes doxygen graphviz
+- ./publish-doxygen
 before_install:
-    - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv
-        -in config/travisci_rsa.enc -out config/travisci_rsa -d
+- openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv
+  -in travisci_rsa.enc -out config/travisci_rsa -d
+- openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv
+  -in config/travisci_rsa.enc -out config/travisci_rsa -d
