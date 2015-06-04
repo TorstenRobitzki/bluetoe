@@ -92,8 +92,8 @@ namespace bluetoe {
      * characteristic will get an UUID, where the last bytes are xored with 2 and so on...
      *
      * The following examples show a service with the UUID 48B7F909-B039-4550-97AF-336228C45CED and two characteristics,
-     * without an explicit UUID. In this case, the first characteristic becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEC
-     * and the second UUID becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEF
+     * without an explicit UUID. In this case, the first characteristic becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEC (0x336228C45CED ^ 1 )
+     * and the second UUID becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEF (0x336228C45CED ^ 2 )
      *
      * @code
      * typedef bluetoe::service<

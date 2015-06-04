@@ -36,6 +36,8 @@ namespace bluetoe {
      * @code{.cpp}
      * bluetoe::service_uuid< 0xF0426E52, 0x4450, 0x4F3B, 0xB058, 0x5BAB1191D92A >
      * @endcode
+     *
+     * @sa service
      */
     template <
         std::uint32_t A,
@@ -43,7 +45,10 @@ namespace bluetoe {
         std::uint16_t C,
         std::uint16_t D,
         std::uint64_t E >
-    class service_uuid : public details::uuid< A, B, C, D, E >, public details::attribute_access_impl< details::uuid< A, B, C, D, E > >
+    class service_uuid
+        /** @cond HIDDEN_SYMBOLS */
+            : public details::uuid< A, B, C, D, E >, public details::attribute_access_impl< details::uuid< A, B, C, D, E > >
+        /** @endcond */
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
@@ -57,9 +62,14 @@ namespace bluetoe {
      * @code{.cpp}
      * bluetoe::service_uuid16< 0x1816 >
      * @endcode
+     *
+     * @sa service
      */
     template < std::uint64_t UUID >
-    class service_uuid16 : public details::uuid16< UUID >, public details::attribute_access_impl< details::uuid16< UUID > >
+    class service_uuid16
+        /** @cond HIDDEN_SYMBOLS */
+            : public details::uuid16< UUID >, public details::attribute_access_impl< details::uuid16< UUID > >
+        /** @endcond */
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
@@ -69,6 +79,42 @@ namespace bluetoe {
 
     /**
      * @brief a service with zero or more characteristics
+     *
+     * In GATT, a service groups a set of characteristics to something that is usefull as a group. For example, having a quadcopter, it would
+     * make sense to group the x, y and z position of the quadcopter to a quadcopter position service. All characteristics that should be
+     * part of the service, must be given as template parameter.
+     *
+     * Example:
+     * @code
+     * typedef bluetoe::service<
+     *     bluetoe::characteristic<
+     *         bluetoe::bind_characteristic_value< std::int64_t, &x_pos >,
+     *         bluetoe::characteristic_name< x_pos_name >
+     *     >,
+     *     bluetoe::characteristic<
+     *         bluetoe::bind_characteristic_value< std::int64_t, &y_pos >,
+     *         bluetoe::characteristic_name< y_pos_name >
+     *     >,
+     *     bluetoe::characteristic<
+     *         bluetoe::bind_characteristic_value< std::int64_t, &z_pos >,
+     *         bluetoe::characteristic_name< z_pos_name >
+     *     >,
+     *     bluetoe::service_uuid< 0xA0C271BF, 0xBD17, 0x4627, 0xB5DF, 0x5E26AA194920 >
+     * > quadcopter_position_service;
+     * @endcode
+     *
+     * To identify a service, every service have to have a unique UUID. 128 bit UUIDs are used for custiom services,
+     * while the shorter 16 bit UUIDs are used to identify services that have a special meaning the is documented
+     * in <a href="https://developer.bluetooth.org/gatt/services/Pages/ServicesHome.aspx?_ga=1.140855218.1800461708.1407160742">specifications</a>
+     * writen by the bluetooth special interrest group.
+     * So every service must have either a service_uuid or a service_uuid16 as template parameter. The position of the UUID parameter is irelevant.
+     * A GATT client can use this UUID to identify the service; in the example above, a GATT client would look for a service with the UUID
+     * A0C271BF-BD17-4627-B5DF-5E26AA194920 to find the position service of the quadcopter.
+     *
+     * @sa server
+     * @sa characteristic
+     * @sa service_uuid
+     * @sa service_uuid16
      */
     template < typename ... Options >
     class service
