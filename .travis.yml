@@ -12,4 +12,4 @@ after_success:
 
 before_install:
     - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv
-        -in travisci_rsa.enc -out config/travisci_rsa -d
+        -in config/travisci_rsa.enc -out config/travisci_rsa -d
