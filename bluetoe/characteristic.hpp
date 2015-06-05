@@ -21,8 +21,10 @@ namespace bluetoe {
         struct characteristic_value_meta_type {};
         struct characteristic_parameter_meta_type {};
 
+        struct characteristic_value_declaration_parameter {};
         struct characteristic_user_description_parameter {};
         struct client_characteristic_configuration_parameter {};
+
 
         template < typename ... Options >
         struct generate_attributes;
@@ -54,7 +56,7 @@ namespace bluetoe {
     struct characteristic_uuid : details::uuid< A, B, C, D, E >
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::characteristic_uuid_meta_type meta_type;
+        struct meta_type : details::characteristic_uuid_meta_type, details::characteristic_value_declaration_parameter {};
         /** @endcond */
     };
 
@@ -67,7 +69,7 @@ namespace bluetoe {
     struct characteristic_uuid16 : details::uuid16< UUID >
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::characteristic_uuid_meta_type meta_type;
+        struct meta_type : details::characteristic_uuid_meta_type, details::characteristic_value_declaration_parameter {};
         static constexpr bool is_128bit = false;
         /** @endcond */
     };
@@ -130,11 +132,10 @@ namespace bluetoe {
         /**
          * a service is a list of attributes
          */
-        static constexpr std::size_t number_of_attributes     = 2 + characteristic_descriptor_declarations::number_of_attributes;
+        static constexpr std::size_t number_of_attributes     = 1 + characteristic_descriptor_declarations::number_of_attributes;
         static constexpr std::size_t number_of_client_configs = characteristic_descriptor_declarations::number_of_client_configs;
         static constexpr std::size_t number_of_server_configs = characteristic_descriptor_declarations::number_of_server_configs;
 
-        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
         typedef details::characteristic_meta_type meta_type;
 
         /**
@@ -150,14 +151,18 @@ namespace bluetoe {
         template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
         static details::notification_data find_notification_data( const void* value );
 
-        /** @endcond */
-    private:
         typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type    base_value_type;
 
         static_assert( !std::is_same< base_value_type, details::no_such_type >::value,
             "please make sure, that every characteristic defines some kind of value (bind_characteristic_value<> for example)" );
 
         typedef typename base_value_type::template value_impl< Options... >                                         value_type;
+
+        /** @endcond */
+    private:
+        // the first two attributes are always the declaration, followed by the value
+        static constexpr std::size_t characteristic_declaration_index = 0;
+        static constexpr std::size_t characteristic_value_index       = 1;
 
         static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
     };
@@ -239,7 +244,7 @@ namespace bluetoe {
             static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& );
         };
 
-        typedef details::characteristic_value_meta_type meta_type;
+        struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
         /** @endcond */
     };
 
@@ -280,18 +285,14 @@ namespace bluetoe {
         assert( index < number_of_attributes );
 
         static const details::attribute attributes[] = {
-            { bits( details::gatt_uuids::characteristic ), &char_declaration_access },
-            {
-                uuid::is_128bit
-                    ? bits( details::gatt_uuids::internal_128bit_uuid )
-                    : uuid::as_16bit(),
-                &value_type::characteristic_value_access
-            }
+            { bits( details::gatt_uuids::characteristic ), &char_declaration_access }
         };
 
-        return index < sizeof( attributes ) / sizeof( attributes[ 0 ] )
+        static constexpr std::size_t number_of_predefined_attributes = sizeof( attributes ) / sizeof( attributes[ 0 ] );
+
+        return index < number_of_predefined_attributes
             ? attributes[ index ]
-            : characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index - 2 );
+            : characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index - number_of_predefined_attributes );
     }
 
     template < typename ... Options >
@@ -306,12 +307,7 @@ namespace bluetoe {
         return
             details::notification_data(
                 FirstAttributesHandle + 1,
-                details::attribute {
-                    uuid::is_128bit
-                        ? bits( details::gatt_uuids::internal_128bit_uuid )
-                        : uuid::as_16bit(),
-                    &value_type::characteristic_value_access
-                },
+                attribute_at< ClientCharacteristicIndex >( characteristic_value_index ),
                 ClientCharacteristicIndex
             );
     }
@@ -445,14 +441,34 @@ namespace bluetoe {
     namespace details {
 
 
-        template < typename, std::size_t >
+        template < typename, std::size_t, typename ... Options >
         struct generate_attribute;
+
+        /*
+         * Characteristic Value
+         */
+        template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >
+        {
+            // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
+            typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, AttrOptions... >::type     uuid;
+
+            static const attribute attr;
+        };
+
+        template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::attr {
+            uuid::is_128bit
+                ? bits( details::gatt_uuids::internal_128bit_uuid )
+                : uuid::as_16bit(),
+            &characteristic< Options... >::value_type::characteristic_value_access
+        };
 
         /*
          * Characteristic User Description
          */
-        template < const char* const Name, std::size_t ClientCharacteristicIndex >
-        struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex >
+        template < const char* const Name, std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex, Options... >
         {
             static const attribute attr;
 
@@ -483,17 +499,17 @@ namespace bluetoe {
 
         };
 
-        template < const char* const Name, std::size_t ClientCharacteristicIndex >
-        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex >::attr {
+        template < const char* const Name, std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex, Options... >::attr {
             bits( gatt_uuids::characteristic_user_description ),
-            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex >::access
+            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, ClientCharacteristicIndex, Options... >::access
         };
 
         /*
          * Client Characteristic Configuration
          */
-        template < typename ... Options, std::size_t ClientCharacteristicIndex >
-        struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... >, ClientCharacteristicIndex >
+        template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >
         {
             static const attribute attr;
 
@@ -536,17 +552,26 @@ namespace bluetoe {
             }
         };
 
-        template < typename ... Options, std::size_t ClientCharacteristicIndex >
-        const attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... >, ClientCharacteristicIndex >::attr {
+        template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::attr {
             bits( gatt_uuids::client_characteristic_configuration ),
-            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, Options... >, ClientCharacteristicIndex >::access
+            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::access
         };
 
-        template < typename, std::size_t >
+        /**
+         * generate a const static array of attributes out of a list of tuples, containing the parameter to generate a attribute
+         *
+         *  Attributes: A std::tuple, containing a tuple for every attribute to generate.
+         *
+         *  ClientCharacteristicIndex: The index of the characteristic to be generate in the containing service
+         *
+         *  Options: All options that where given to the characteristic
+         */
+        template < typename Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
         struct generate_attribute_list;
 
-        template < std::size_t ClientCharacteristicIndex >
-        struct generate_attribute_list< std::tuple<>, ClientCharacteristicIndex >
+        template < std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute_list< std::tuple<>, ClientCharacteristicIndex, Options... >
         {
             static const attribute attribute_at( std::size_t index )
             {
@@ -554,21 +579,21 @@ namespace bluetoe {
             }
         };
 
-        template < typename ... Options, std::size_t ClientCharacteristicIndex >
-        struct generate_attribute_list< std::tuple< Options... >, ClientCharacteristicIndex >
+        template < typename ... Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute_list< std::tuple< Attributes... >, ClientCharacteristicIndex, Options... >
         {
             static const attribute attribute_at( std::size_t index )
             {
                 return attributes[ index ];
             }
 
-            static attribute attributes[ sizeof ...(Options) ];
+            static attribute attributes[ sizeof ...(Attributes) ];
         };
 
-        template < typename ... Options, std::size_t ClientCharacteristicIndex >
-        attribute generate_attribute_list< std::tuple< Options... >, ClientCharacteristicIndex >::attributes[ sizeof ...(Options) ] =
+        template < typename ... Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
+        attribute generate_attribute_list< std::tuple< Attributes... >, ClientCharacteristicIndex, Options... >::attributes[ sizeof ...(Attributes) ] =
         {
-            generate_attribute< Options, ClientCharacteristicIndex >::attr...
+            generate_attribute< Attributes, ClientCharacteristicIndex, Options... >::attr...
         };
 
         template < typename Parmeters >
@@ -584,6 +609,7 @@ namespace bluetoe {
             typedef typename group_by_meta_types_without_empty_groups<
                 std::tuple< Options... >,
                 // List of meta types. The order of this meta types defines the order in the attribute list.
+                characteristic_value_declaration_parameter,
                 characteristic_user_description_parameter,
                 client_characteristic_configuration_parameter
             >::type declaraction_parameters;
@@ -595,7 +621,7 @@ namespace bluetoe {
             template < std::size_t ClientCharacteristicIndex >
             static const attribute attribute_at( std::size_t index )
             {
-                return generate_attribute_list< declaraction_parameters, ClientCharacteristicIndex >::attribute_at( index );
+                return generate_attribute_list< declaraction_parameters, ClientCharacteristicIndex, Options... >::attribute_at( index );
             }
         };
 
