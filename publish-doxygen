@@ -5,6 +5,8 @@ COMMIT_USER="Documentation Builder"
 COMMIT_EMAIL="travis@robitzki.de"
 CHANGESET=$(git rev-parse --verify HEAD)
 
+ROOT="$PWD"
+
 # code github pages
 rm -rf ${HTML_PATH}
 mkdir -p ${HTML_PATH}
@@ -14,7 +16,7 @@ git clone -b gh-pages "${REPO_PATH}" --single-branch ${HTML_PATH}
 cd ${HTML_PATH} && git rm -rf .
 
 # generate new documentation
-doxygen 1> /dev/null
+cd "$ROOT" && doxygen 1> /dev/null
 
 # commit new documentation
 cd ${HTML_PATH} \
