@@ -1,11 +1,13 @@
 #include <iostream>
 
 #include <bluetoe/characteristic.hpp>
+#include <bluetoe/service.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 #include "hexdump.hpp"
+#include "test_attribute_access.hpp"
 
 namespace {
     std::uint32_t       simple_value       = 0xaabbccdd;
@@ -25,65 +27,6 @@ namespace {
         bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
         bluetoe::bind_characteristic_value< const std::uint32_t, &simple_const_value >
     > simple_const_char;
-
-    template < typename Char >
-    class access_attributes : public Char, public bluetoe::details::client_characteristic_configurations< Char::number_of_client_configs >
-    {
-    public:
-        std::pair< bool, bluetoe::details::attribute > find_attribute_by_type( std::uint16_t type )
-        {
-            for ( int index = 0; index != this->number_of_attributes; ++index )
-            {
-                const bluetoe::details::attribute value_attribute = this->template attribute_at< 0 >( index );
-
-                if ( value_attribute.uuid == type )
-                {
-                    return std::make_pair( true, value_attribute );
-                }
-            }
-
-            return std::pair< bool, bluetoe::details::attribute >( false, bluetoe::details::attribute{} );
-        }
-
-        bluetoe::details::attribute attribute_by_type( std::uint16_t type )
-        {
-            for ( int index = 0; index != this->number_of_attributes; ++index )
-            {
-                const bluetoe::details::attribute value_attribute = this->template attribute_at< 0 >( index );
-
-                if ( value_attribute.uuid == type )
-                {
-                    return value_attribute;
-                }
-            }
-
-            BOOST_REQUIRE( !"Type not found" );
-
-            return bluetoe::details::attribute{ 0, 0 };
-        }
-
-        void compare_characteristic_at( const std::initializer_list< std::uint8_t >& input, std::size_t index )
-        {
-            compare_characteristic_impl( input, this->template attribute_at< 0 >( index ) );
-        }
-
-        void compare_characteristic( const std::initializer_list< std::uint8_t >& input, std::uint16_t type )
-        {
-            compare_characteristic_impl( input, attribute_by_type( type ) );
-        }
-
-    private:
-        void compare_characteristic_impl( const std::initializer_list< std::uint8_t >& input, const bluetoe::details::attribute& value_attribute )
-        {
-            const std::vector< std::uint8_t > values( input );
-
-            std::uint8_t buffer[ 1000 ];
-            auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0, this->client_configurations() );
-
-            BOOST_REQUIRE( bluetoe::details::attribute_access_result::success == value_attribute.access( read, 1 ) );
-            BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );
-        }
-    };
 
     template < typename Char >
     struct read_characteristic_properties : Char

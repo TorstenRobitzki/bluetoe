@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <vector>
 #include <sstream>
+#include <iostream>
 #include <iomanip>
 #include "hexdump.hpp"
 

@@ -32,6 +32,8 @@ namespace bluetoe {
 
         template < typename Characteristic >
         struct sum_by_client_configs;
+
+
     }
 
     /**
@@ -277,7 +279,7 @@ namespace bluetoe {
     {
         assert( index < number_of_attributes );
 
-        static const details::attribute attributes[ number_of_attributes ] = {
+        static const details::attribute attributes[] = {
             { bits( details::gatt_uuids::characteristic ), &char_declaration_access },
             {
                 uuid::is_128bit
@@ -287,7 +289,7 @@ namespace bluetoe {
             }
         };
 
-        return index < 2
+        return index < sizeof( attributes ) / sizeof( attributes[ 0 ] )
             ? attributes[ index ]
             : characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index - 2 );
     }
@@ -578,8 +580,10 @@ namespace bluetoe {
         template < typename ... Options >
         struct generate_attributes
         {
+            // this constructs groups all Options by there meta type. Empty groups are removed from the result set.
             typedef typename group_by_meta_types_without_empty_groups<
                 std::tuple< Options... >,
+                // List of meta types. The order of this meta types defines the order in the attribute list.
                 characteristic_user_description_parameter,
                 client_characteristic_configuration_parameter
             >::type declaraction_parameters;
