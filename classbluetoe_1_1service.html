@@ -101,13 +101,37 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 class bluetoe::service&lt; Options &gt;</h3>
 
 <p>a service with zero or more characteristics </p>
+<p>In GATT, a service groups a set of characteristics to something that is usefull as a group. For example, having a quadcopter, it would make sense to group the x, y and z position of the quadcopter to a quadcopter position service. All characteristics that should be part of the service, must be given as template parameter.</p>
+<p>Example: </p><div class="fragment"><div class="line"><span class="keyword">typedef</span> <a class="code" href="classbluetoe_1_1service.html">bluetoe::service</a>&lt;</div>
+<div class="line">    <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div>
+<div class="line">        <a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; std::int64_t, &amp;x_pos &gt;</a>,</div>
+<div class="line">        <a class="code" href="structbluetoe_1_1characteristic__name.html">bluetoe::characteristic_name&lt; x_pos_name &gt;</a></div>
+<div class="line">    &gt;,</div>
+<div class="line">    <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div>
+<div class="line">        <a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; std::int64_t, &amp;y_pos &gt;</a>,</div>
+<div class="line">        <a class="code" href="structbluetoe_1_1characteristic__name.html">bluetoe::characteristic_name&lt; y_pos_name &gt;</a></div>
+<div class="line">    &gt;,</div>
+<div class="line">    <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div>
+<div class="line">        <a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; std::int64_t, &amp;z_pos &gt;</a>,</div>
+<div class="line">        <a class="code" href="structbluetoe_1_1characteristic__name.html">bluetoe::characteristic_name&lt; z_pos_name &gt;</a></div>
+<div class="line">    &gt;,</div>
+<div class="line">    <a class="code" href="classbluetoe_1_1service__uuid.html">bluetoe::service_uuid&lt; 0xA0C271BF, 0xBD17, 0x4627, 0xB5DF, 0x5E26AA194920 &gt;</a></div>
+<div class="line">&gt; quadcopter_position_service;</div>
+</div><!-- fragment --><p>To identify a service, every service have to have a unique UUID. 128 bit UUIDs are used for custiom services, while the shorter 16 bit UUIDs are used to identify services that have a special meaning the is documented in <a href="https://developer.bluetooth.org/gatt/services/Pages/ServicesHome.aspx?_ga=1.140855218.1800461708.1407160742">specifications</a> writen by the bluetooth special interrest group. So every service must have either a <a class="el" href="classbluetoe_1_1service__uuid.html" title="a 128-Bit UUID used to identify a service. ">service_uuid</a> or a <a class="el" href="classbluetoe_1_1service__uuid16.html" title="a 16-Bit UUID used to identify a service ">service_uuid16</a> as template parameter. The position of the UUID parameter is irelevant. A GATT client can use this UUID to identify the service; in the example above, a GATT client would look for a service with the UUID A0C271BF-BD17-4627-B5DF-5E26AA194920 to find the position service of the quadcopter.</p>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classbluetoe_1_1server.html" title="Root of the declaration of a GATT server. ">server</a> </dd>
+<dd>
+<a class="el" href="classbluetoe_1_1characteristic.html" title="A characteristic is an attribute that is accessable by a GATT client. ">characteristic</a> </dd>
+<dd>
+<a class="el" href="classbluetoe_1_1service__uuid.html" title="a 128-Bit UUID used to identify a service. ">service_uuid</a> </dd>
+<dd>
+<a class="el" href="classbluetoe_1_1service__uuid16.html" title="a 16-Bit UUID used to identify a service ">service_uuid16</a> </dd></dl>
 </div><hr/>The documentation for this class was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="service_8hpp_source.html">service.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Thu Jun 4 2015 11:06:40 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Jun 5 2015 20:17:28 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

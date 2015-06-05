@@ -375,7 +375,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00424"></a><span class="lineno">  424</span>&#160;    <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
 <div class="line"><a name="l00425"></a><span class="lineno">  425</span>&#160;    details::attribute server&lt; Options... &gt;::attribute_at( std::size_t index )</div>
 <div class="line"><a name="l00426"></a><span class="lineno">  426</span>&#160;    {</div>
-<div class="line"><a name="l00427"></a><span class="lineno">  427</span>&#160;        <span class="keywordflow">return</span> details::attribute_at_list&lt; services, 0 &gt;::attribute_at( index );</div>
+<div class="line"><a name="l00427"></a><span class="lineno">  427</span>&#160;        <span class="keywordflow">return</span> details::attribute_from_service_list&lt; services, 0 &gt;::attribute_at( index );</div>
 <div class="line"><a name="l00428"></a><span class="lineno">  428</span>&#160;    }</div>
 <div class="line"><a name="l00429"></a><span class="lineno">  429</span>&#160;</div>
 <div class="line"><a name="l00430"></a><span class="lineno">  430</span>&#160;    <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
@@ -1141,7 +1141,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Thu Jun 4 2015 11:06:40 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Jun 5 2015 20:17:28 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

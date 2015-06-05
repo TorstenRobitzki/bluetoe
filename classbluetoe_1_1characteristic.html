@@ -109,7 +109,7 @@ class bluetoe::characteristic&lt; Options &gt;</h3>
 <div class="line">   bluetue::characteristic_uuid16&lt; 0xF0E6EBE6, 0x3749, 0x41A6, 0xB190, 0x591B262AC20A &gt;</div>
 <div class="line">&gt; speed_over_ground_characteristic;</div>
 </div><!-- fragment --><p>If no UUID is given, bluetoe derives a 128bit UUID from the UUID of the service in which this characteric is placed in. The first characteristic gets an UUID, where the last bytes are xored with 1, the second characteristic will get an UUID, where the last bytes are xored with 2 and so on...</p>
-<p>The following examples show a service with the UUID 48B7F909-B039-4550-97AF-336228C45CED and two characteristics, without an explicit UUID. In this case, the first characteristic becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEC and the second UUID becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEF</p>
+<p>The following examples show a service with the UUID 48B7F909-B039-4550-97AF-336228C45CED and two characteristics, without an explicit UUID. In this case, the first characteristic becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEC (0x336228C45CED ^ 1 ) and the second UUID becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEF (0x336228C45CED ^ 2 )</p>
 <div class="fragment"><div class="line"><span class="keyword">typedef</span> <a class="code" href="classbluetoe_1_1service.html">bluetoe::service</a>&lt;</div>
 <div class="line">    <a class="code" href="classbluetoe_1_1service__uuid.html">bluetoe::service_uuid&lt; 0x48B7F909, 0xB039, 0x4550, 0x97AF, 0x336228C45CED &gt;</a>,</div>
 <div class="line">    <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div>
@@ -140,7 +140,7 @@ class bluetoe::characteristic&lt; Options &gt;</h3>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Thu Jun 4 2015 11:06:40 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Jun 5 2015 20:17:28 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>
