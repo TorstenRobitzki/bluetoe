@@ -7,6 +7,7 @@
 #include <bluetoe/uuid.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/bits.hpp>
+#include <bluetoe/scattered_access.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -136,7 +137,7 @@ namespace bluetoe {
         /**
          * @brief gives access to the all attributes of the characteristic
          */
-        template < std::size_t ClientCharacteristicIndex >
+        template < std::size_t ClientCharacteristicIndex, typename ServiceUUID = void >
         static details::attribute attribute_at( std::size_t index );
 
         /**
@@ -152,8 +153,6 @@ namespace bluetoe {
             "please make sure, that every characteristic defines some kind of value (bind_characteristic_value<> for example)" );
 
         typedef typename base_value_type::template value_impl< Options... >                                         value_type;
-
-        static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
 
         /** @endcond */
     private:
@@ -193,12 +192,12 @@ namespace bluetoe {
     /** @cond HIDDEN_SYMBOLS */
 
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
 
-        return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index );
+        return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex, ServiceUUID >( index );
     }
 
     template < typename ... Options >
@@ -218,60 +217,6 @@ namespace bluetoe {
             );
     }
 
-    template < typename ... Options >
-    details::attribute_access_result characteristic< Options... >::char_declaration_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
-    {
-        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type uuid;
-
-        static constexpr auto uuid_offset = 3;
-        static constexpr auto uuid_size = sizeof( uuid::bytes );
-        static constexpr auto data_size = uuid_offset + uuid_size;
-
-        if ( args.buffer_offset > data_size )
-            return details::attribute_access_result::invalid_offset;
-
-        if ( args.type != details::attribute_access_type::read )
-            return details::attribute_access_result::write_not_permitted;
-
-        // transform the output buffer into two pointers that point into the characteristic declaracation:
-        const std::size_t begin = args.buffer_offset;
-        const std::size_t end   = std::min< std::size_t >( args.buffer_offset + args.buffer_size, data_size );
-
-        std::uint8_t* output = args.buffer;
-
-        // header (properties and handle) if offset points into the header
-        if ( begin < uuid_offset )
-        {
-            std::uint8_t header_buffer[ uuid_offset ];
-            header_buffer[ 0 ] =
-                ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
-                ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 ) |
-                ( value_type::has_notifcation  ? bits( details::gatt_characteristic_properties::notify ) : 0 );
-
-            // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
-            details::write_handle( header_buffer + 1, attribute_handle + 1 );
-
-            const std::size_t end_header_bytes = std::min< std::size_t >( end, uuid_offset );
-            std::copy( &header_buffer[ begin ], &header_buffer[ end_header_bytes ], output );
-
-            output += end_header_bytes - begin;
-        }
-
-        if ( end > uuid_offset )
-        {
-            const std::size_t start_uuid_bytes = std::max< std::size_t >( begin, uuid_offset );
-            std::copy( &uuid::bytes[ start_uuid_bytes - uuid_offset ], &uuid::bytes[ end - uuid_offset ], output );
-
-            output += end - start_uuid_bytes;
-        }
-
-        args.buffer_size = output - args.buffer;
-
-        return args.buffer_size == data_size - args.buffer_offset
-            ? details::attribute_access_result::success
-            : details::attribute_access_result::read_truncated;
-    }
-
     namespace details {
 
 
@@ -286,6 +231,42 @@ namespace bluetoe {
         {
             // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
             typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, AttrOptions... >::type     uuid;
+            typedef typename characteristic< Options... >::value_type                                                       value_type;
+
+            /*
+             * the characteristic decalarion consists of 3 parts a Properties byte, two bytes index and 2 - 16 bytes UUID
+             */
+            static details::attribute_access_result char_declaration_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                if ( args.type != details::attribute_access_type::read )
+                    return details::attribute_access_result::write_not_permitted;
+
+                const std::uint8_t properties[] = {
+                    static_cast< std::uint8_t >(
+                        ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
+                        ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 ) |
+                        ( value_type::has_notifcation  ? bits( details::gatt_characteristic_properties::notify ) : 0 ) )
+                };
+
+                // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
+                const std::uint8_t value_handle[] = {
+                    static_cast< std::uint8_t >( ( attribute_handle +1 ) & 0xff ),
+                    static_cast< std::uint8_t >( ( attribute_handle +1 ) >> 8 )
+                };
+
+                static constexpr auto data_size = sizeof( properties ) + sizeof( value_handle ) + sizeof( uuid::bytes );
+
+                if ( args.buffer_offset > data_size )
+                    return details::attribute_access_result::invalid_offset;
+
+                details::scattered_read_access( args.buffer_offset, properties, value_handle, uuid::bytes, args.buffer, args.buffer_size );
+
+                args.buffer_size = std::min< std::size_t >( data_size - args.buffer_offset, args.buffer_size );
+
+                return args.buffer_size == data_size - args.buffer_offset
+                    ? details::attribute_access_result::success
+                    : details::attribute_access_result::read_truncated;
+            }
 
             static const attribute attr;
         };
@@ -293,7 +274,7 @@ namespace bluetoe {
         template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
         const attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::attr {
             bits( details::gatt_uuids::characteristic ),
-            &characteristic< Options... >::char_declaration_access
+            &generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::char_declaration_access
         };
 
         /*
@@ -471,10 +452,10 @@ namespace bluetoe {
             enum { number_of_client_configs = count_if< declaraction_parameters, are_client_characteristic_configuration_parameter >::value };
             enum { number_of_server_configs = 0 };
 
-            template < std::size_t ClientCharacteristicIndex >
+            template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
             static const attribute attribute_at( std::size_t index )
             {
-                return generate_attribute_list< declaraction_parameters, ClientCharacteristicIndex, Options... >::attribute_at( index );
+                return generate_attribute_list< declaraction_parameters, ClientCharacteristicIndex, Options..., ServiceUUID >::attribute_at( index );
             }
         };
 
