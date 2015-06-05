@@ -24,6 +24,7 @@ add_test(characteristic_tests)
 add_test(advertising_tests)
 add_test(filter_tests)
 add_test(server_tests)
+add_test(auto_uuid_tests)
 add_test(scattered_access_tests)
 
 add_subdirectory(att)

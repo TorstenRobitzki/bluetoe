@@ -467,6 +467,11 @@ namespace details {
         }
     };
 
+    // defines an empty type with the given meta_type
+    template < typename MetaType >
+    struct empty_meta_type {
+        typedef MetaType meta_type;
+    };
 
 }
 }

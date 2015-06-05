@@ -1,6 +1,7 @@
 #ifndef BLUETOE_SERVICE_HPP
 #define BLUETOE_SERVICE_HPP
 
+#include <bluetoe/service_uuid.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/options.hpp>
@@ -18,7 +19,6 @@ namespace bluetoe {
     class service_name {};
 
     namespace details {
-        struct service_uuid_meta_type {};
         struct service_meta_type {};
 
         template < class UUID >
@@ -206,7 +206,7 @@ namespace bluetoe {
         if ( index == 0 )
             return characteristic_declaration_attribute();
 
-        return details::attribute_at_list< characteristics, ClientCharacteristicIndex >::attribute_at( index -1 );
+        return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid >::attribute_at( index -1 );
     }
 
     template < typename ... Options >

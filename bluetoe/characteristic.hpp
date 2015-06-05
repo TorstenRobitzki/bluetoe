@@ -8,6 +8,7 @@
 #include <bluetoe/options.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/scattered_access.hpp>
+#include <bluetoe/service_uuid.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -218,7 +219,19 @@ namespace bluetoe {
     }
 
     namespace details {
+        template < typename ... Options >
+        struct characteristic_or_service_uuid
+        {
+            typedef typename find_by_meta_type< service_uuid_meta_type, Options... >::type            service_uuid;
 
+            typedef typename find_by_meta_type< characteristic_uuid_meta_type, Options... >::type     char_uuid;
+
+            typedef typename or_type< no_such_type, char_uuid, service_uuid >::type                   uuid;
+
+            static_assert( !std::is_same< uuid, no_such_type >::value, "If instanciating a characteristic<> for testing, please provide a UUID." );
+
+            static constexpr bool auto_generated_uuid = std::is_same< char_uuid, no_such_type >::value;
+        };
 
         template < typename, std::size_t, typename ... Options >
         struct generate_attribute;
@@ -229,9 +242,25 @@ namespace bluetoe {
         template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
         struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >
         {
-            // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
-            typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, AttrOptions... >::type     uuid;
-            typedef typename characteristic< Options... >::value_type                                                       value_type;
+            typedef typename characteristic_or_service_uuid< Options... >::uuid                             uuid;
+            typedef typename characteristic< Options... >::value_type                                       value_type;
+
+            static void fixup_auto_uuid( details::attribute_access_arguments& args )
+            {
+                // needs a 16 bit characteristic index!!!
+                std::uint16_t char_index = 1;
+
+                static constexpr std::size_t uuid_offset = 3;
+
+                int index_low  = static_cast< int >( args.buffer_offset ) - static_cast< int >( uuid_offset );
+                int index_high = static_cast< int >( args.buffer_offset ) - static_cast< int >( uuid_offset + 1 );
+
+                if ( index_low >= 0 && index_low < args.buffer_size )
+                    args.buffer[ index_low ] ^= ( char_index & 0xff );
+
+                if ( index_high >= 0 && index_high < args.buffer_size )
+                    args.buffer[ index_high ] ^= ( char_index >> 8 );
+            }
 
             /*
              * the characteristic decalarion consists of 3 parts a Properties byte, two bytes index and 2 - 16 bytes UUID
@@ -261,6 +290,9 @@ namespace bluetoe {
 
                 details::scattered_read_access( args.buffer_offset, properties, value_handle, uuid::bytes, args.buffer, args.buffer_size );
 
+                if ( characteristic_or_service_uuid< Options... >::auto_generated_uuid )
+                    fixup_auto_uuid( args );
+
                 args.buffer_size = std::min< std::size_t >( data_size - args.buffer_offset, args.buffer_size );
 
                 return args.buffer_size == data_size - args.buffer_offset
@@ -284,7 +316,7 @@ namespace bluetoe {
         struct generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >
         {
             // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
-            typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, AttrOptions... >::type     uuid;
+            typedef typename characteristic_or_service_uuid< Options... >::uuid uuid;
 
             static const attribute attr;
         };
@@ -440,7 +472,10 @@ namespace bluetoe {
         {
             // this constructs groups all Options by there meta type. Empty groups are removed from the result set.
             typedef typename group_by_meta_types_without_empty_groups<
-                std::tuple< Options... >,
+                std::tuple<
+                    Options...,
+                    empty_meta_type< characteristic_declaration_parameter > // force the existens of an characteristic declaration, even without Options with this meta_type
+                >,
                 // List of meta types. The order of this meta types defines the order in the attribute list.
                 characteristic_declaration_parameter,
                 characteristic_value_declaration_parameter,

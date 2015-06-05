@@ -151,14 +151,47 @@ namespace details {
     };
 
     /*
-     * Given that T is a tuple with elements that implement attribute_at< std::size_t >() and number_of_attributes, the type implements
+     * Given that T is a tuple with elements that implement attribute_at< std::size_t, ServiceUUID >() and number_of_attributes, the type implements
      * attribute_at() for a list of attribute lists.
      */
-    template < typename T, std::size_t ClientCharacteristicIndex >
+    template < typename T, std::size_t ClientCharacteristicIndex, typename ServiceUUID >
     struct attribute_at_list;
 
+    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
+    struct attribute_at_list< std::tuple<>, ClientCharacteristicIndex, ServiceUUID >
+    {
+        static details::attribute attribute_at( std::size_t index )
+        {
+            assert( !"index out of bound" );
+        }
+    };
+
+    template <
+        typename T,
+        typename ...Ts,
+        std::size_t ClientCharacteristicIndex,
+        typename ServiceUUID >
+    struct attribute_at_list< std::tuple< T, Ts... >, ClientCharacteristicIndex, ServiceUUID >
+    {
+        static details::attribute attribute_at( std::size_t index )
+        {
+            if ( index < T::number_of_attributes )
+                return T::template attribute_at< ClientCharacteristicIndex, ServiceUUID >( index );
+
+            typedef details::attribute_at_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs, ServiceUUID > remaining_characteristics;
+
+            return remaining_characteristics::attribute_at( index - T::number_of_attributes );
+        }
+    };
+
+    /*
+     * Iterating the list of services is the same, but needs less parameters
+     */
+    template < typename Serives, std::size_t ClientCharacteristicIndex = 0 >
+    struct attribute_from_service_list;
+
     template < std::size_t ClientCharacteristicIndex >
-    struct attribute_at_list< std::tuple<>, ClientCharacteristicIndex >
+    struct attribute_from_service_list< std::tuple<>, ClientCharacteristicIndex >
     {
         static details::attribute attribute_at( std::size_t index )
         {
@@ -170,14 +203,14 @@ namespace details {
         typename T,
         typename ...Ts,
         std::size_t ClientCharacteristicIndex >
-    struct attribute_at_list< std::tuple< T, Ts... >, ClientCharacteristicIndex >
+    struct attribute_from_service_list< std::tuple< T, Ts... >, ClientCharacteristicIndex >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
                 return T::template attribute_at< ClientCharacteristicIndex >( index );
 
-            typedef details::attribute_at_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs > remaining_characteristics;
+            typedef details::attribute_from_service_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs > remaining_characteristics;
 
             return remaining_characteristics::attribute_at( index - T::number_of_attributes );
         }

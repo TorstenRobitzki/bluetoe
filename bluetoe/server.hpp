@@ -424,7 +424,7 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute server< Options... >::attribute_at( std::size_t index )
     {
-        return details::attribute_at_list< services, 0 >::attribute_at( index );
+        return details::attribute_from_service_list< services, 0 >::attribute_at( index );
     }
 
     template < typename ... Options >
