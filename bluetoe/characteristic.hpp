@@ -21,6 +21,7 @@ namespace bluetoe {
         struct characteristic_value_meta_type {};
         struct characteristic_parameter_meta_type {};
 
+        struct characteristic_declaration_parameter {};
         struct characteristic_value_declaration_parameter {};
         struct characteristic_user_description_parameter {};
         struct client_characteristic_configuration_parameter {};
@@ -56,7 +57,7 @@ namespace bluetoe {
     struct characteristic_uuid : details::uuid< A, B, C, D, E >
     {
         /** @cond HIDDEN_SYMBOLS */
-        struct meta_type : details::characteristic_uuid_meta_type, details::characteristic_value_declaration_parameter {};
+        struct meta_type : details::characteristic_uuid_meta_type, details::characteristic_value_declaration_parameter, details::characteristic_declaration_parameter {};
         /** @endcond */
     };
 
@@ -69,7 +70,7 @@ namespace bluetoe {
     struct characteristic_uuid16 : details::uuid16< UUID >
     {
         /** @cond HIDDEN_SYMBOLS */
-        struct meta_type : details::characteristic_uuid_meta_type, details::characteristic_value_declaration_parameter {};
+        struct meta_type : details::characteristic_uuid_meta_type, details::characteristic_value_declaration_parameter, details::characteristic_declaration_parameter {};
         static constexpr bool is_128bit = false;
         /** @endcond */
     };
@@ -132,7 +133,7 @@ namespace bluetoe {
         /**
          * a service is a list of attributes
          */
-        static constexpr std::size_t number_of_attributes     = 1 + characteristic_descriptor_declarations::number_of_attributes;
+        static constexpr std::size_t number_of_attributes     = characteristic_descriptor_declarations::number_of_attributes;
         static constexpr std::size_t number_of_client_configs = characteristic_descriptor_declarations::number_of_client_configs;
         static constexpr std::size_t number_of_server_configs = characteristic_descriptor_declarations::number_of_server_configs;
 
@@ -158,13 +159,13 @@ namespace bluetoe {
 
         typedef typename base_value_type::template value_impl< Options... >                                         value_type;
 
+        static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
+
         /** @endcond */
     private:
         // the first two attributes are always the declaration, followed by the value
         static constexpr std::size_t characteristic_declaration_index = 0;
         static constexpr std::size_t characteristic_value_index       = 1;
-
-        static details::attribute_access_result char_declaration_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
     };
 
     /**
@@ -284,15 +285,7 @@ namespace bluetoe {
     {
         assert( index < number_of_attributes );
 
-        static const details::attribute attributes[] = {
-            { bits( details::gatt_uuids::characteristic ), &char_declaration_access }
-        };
-
-        static constexpr std::size_t number_of_predefined_attributes = sizeof( attributes ) / sizeof( attributes[ 0 ] );
-
-        return index < number_of_predefined_attributes
-            ? attributes[ index ]
-            : characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index - number_of_predefined_attributes );
+        return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex >( index );
     }
 
     template < typename ... Options >
@@ -443,6 +436,24 @@ namespace bluetoe {
 
         template < typename, std::size_t, typename ... Options >
         struct generate_attribute;
+
+        /*
+         * Characteristic declaration
+         */
+        template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >
+        {
+            // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
+            typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, AttrOptions... >::type     uuid;
+
+            static const attribute attr;
+        };
+
+        template < typename ... AttrOptions, std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::attr {
+            bits( details::gatt_uuids::characteristic ),
+            &characteristic< Options... >::char_declaration_access
+        };
 
         /*
          * Characteristic Value
@@ -609,6 +620,7 @@ namespace bluetoe {
             typedef typename group_by_meta_types_without_empty_groups<
                 std::tuple< Options... >,
                 // List of meta types. The order of this meta types defines the order in the attribute list.
+                characteristic_declaration_parameter,
                 characteristic_value_declaration_parameter,
                 characteristic_user_description_parameter,
                 client_characteristic_configuration_parameter
