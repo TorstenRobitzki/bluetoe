@@ -26,5 +26,5 @@
 *.exe
 *.out
 *.app
-build
+build*/
 documentation/
