@@ -7,8 +7,11 @@ endif()
 add_custom_target(all_tests)
 add_custom_target(all_tests.run)
 
+add_library(test_tools ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp)
+
 function(add_test TARGETNAME)
-    add_executable(${TARGETNAME} ${TARGETNAME}.cpp ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp ${ARGV1} ${ARGV2} ${ARGV3} ${ARGV4})
+    add_executable(${TARGETNAME} ${TARGETNAME}.cpp ${ARGV1} ${ARGV2} ${ARGV3} ${ARGV4})
+    target_link_libraries(${TARGETNAME} bluetoe test_tools)
     add_custom_target(
         ${TARGETNAME}.run
         COMMAND ${TARGETNAME})

@@ -1,0 +1,1 @@
+add_test(ll_advertising_tests)
