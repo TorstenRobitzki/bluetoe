@@ -5,11 +5,6 @@
 namespace bluetoe {
 namespace link_layer {
 
-    delta_time::delta_time( std::uint32_t usec )
-        : usec_( usec )
-    {
-    }
-
     delta_time delta_time::usec( std::uint32_t usec )
     {
         return delta_time( usec );
@@ -71,11 +66,27 @@ namespace link_layer {
         return usec_ <= rhs.usec_;
     }
 
+    bool delta_time::operator>( const delta_time& rhs ) const
+    {
+        return usec_ > rhs.usec_;
+    }
+
+    bool delta_time::operator>=( const delta_time& rhs ) const
+    {
+        return usec_ >= rhs.usec_;
+    }
+
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
     {
         t.print( out );
 
         return out;
+    }
+
+    delta_time operator+( delta_time lhs, delta_time rhs )
+    {
+        lhs += rhs;
+        return lhs;
     }
 
     delta_time operator-( delta_time lhs, delta_time rhs )

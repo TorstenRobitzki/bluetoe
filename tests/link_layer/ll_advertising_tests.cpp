@@ -1,4 +1,8 @@
+#include <iostream>
+#include <map>
+
 #include <bluetoe/link_layer/link_layer.hpp>
+#include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/server.hpp>
 #include "test_radio.hpp"
 #include "../test_servers.hpp"
@@ -6,19 +10,20 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <map>
-
 namespace {
 
-    struct advertising : bluetoe::link_layer::link_layer< small_temperature_service, test::radio >
+    template < typename ... Options >
+    struct advertising_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
     {
-        advertising()
+        advertising_base()
         {
             this->run( gatt_server_ );
         }
 
         small_temperature_service gatt_server_;
     };
+
+    struct advertising : advertising_base<> {};
 
 }
 
@@ -75,8 +80,50 @@ BOOST_FIXTURE_TEST_CASE( less_than_10ms_between_two_PDUs, advertising )
         [&]( const test::schedule_data& a, const test::schedule_data& b )
         {
             return a.channel != 37 && a.channel != 38
-                || ( b.transmision_time - a.transmision_time ) <= bluetoe::link_layer::delta_time::msec( 10 );
+                || ( b.on_air_time - a.on_air_time ) <= bluetoe::link_layer::delta_time::msec( 10 );
         },
         "less_than_10ms_between_two_PDUs"
+    );
+}
+
+/**
+ * @test the advertising interval is 50ms plus a pseudo random interval of 0ms to 10ms
+ */
+BOOST_FIXTURE_TEST_CASE( configured_advertising_interval_is_kept, advertising_base< bluetoe::link_layer::advertising_interval< 50 > > )
+{
+    check_scheduling(
+        [&]( const test::schedule_data& a )
+        {
+            return a.channel == 37;
+        },
+        [&]( const test::schedule_data& a, const test::schedule_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 50 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 60 );
+        },
+        "configured_advertising_interval_is_kept"
+    );
+}
+
+/**
+ * @test by default, the interval is 100ms
+ */
+BOOST_FIXTURE_TEST_CASE( default_advertising_interval_is_kept, advertising )
+{
+    check_scheduling(
+        [&]( const test::schedule_data& a )
+        {
+            return a.channel == 37;
+        },
+        [&]( const test::schedule_data& a, const test::schedule_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 100 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 110 );
+        },
+        "configured_advertising_interval_is_kept"
     );
 }
