@@ -25,6 +25,11 @@ namespace {
 
     struct advertising : advertising_base<> {};
 
+    static const auto filter_channel_37 = []( const test::schedule_data& a )
+    {
+        return a.channel == 37;
+    };
+
 }
 
 BOOST_FIXTURE_TEST_CASE( advertising_scheduled, advertising )
@@ -92,10 +97,7 @@ BOOST_FIXTURE_TEST_CASE( less_than_10ms_between_two_PDUs, advertising )
 BOOST_FIXTURE_TEST_CASE( configured_advertising_interval_is_kept, advertising_base< bluetoe::link_layer::advertising_interval< 50 > > )
 {
     check_scheduling(
-        [&]( const test::schedule_data& a )
-        {
-            return a.channel == 37;
-        },
+        filter_channel_37,
         [&]( const test::schedule_data& a, const test::schedule_data& b )
         {
             const auto diff = b.on_air_time - a.on_air_time;
@@ -113,10 +115,7 @@ BOOST_FIXTURE_TEST_CASE( configured_advertising_interval_is_kept, advertising_ba
 BOOST_FIXTURE_TEST_CASE( default_advertising_interval_is_kept, advertising )
 {
     check_scheduling(
-        [&]( const test::schedule_data& a )
-        {
-            return a.channel == 37;
-        },
+        filter_channel_37,
         [&]( const test::schedule_data& a, const test::schedule_data& b )
         {
             const auto diff = b.on_air_time - a.on_air_time;
@@ -126,4 +125,42 @@ BOOST_FIXTURE_TEST_CASE( default_advertising_interval_is_kept, advertising )
         },
         "configured_advertising_interval_is_kept"
     );
+}
+
+/**
+ * @test perturbation looks quit random
+ * - no two adjanced equal values
+ * - all values are equally distributed.
+ */
+BOOST_FIXTURE_TEST_CASE( perturbation_looks_quit_random, advertising )
+{
+    std::map< bluetoe::link_layer::delta_time, unsigned >   perturbations;
+    bluetoe::link_layer::delta_time                         last_perturbation = bluetoe::link_layer::delta_time::now();
+
+    all_data(
+        filter_channel_37,
+        [&]( const test::schedule_data& a, const test::schedule_data& b )
+        {
+            const auto current_perturbation = b.on_air_time - a.on_air_time - bluetoe::link_layer::delta_time::msec( 100 );
+
+            if ( !perturbations.empty() )
+            {
+                BOOST_CHECK_NE( last_perturbation, current_perturbation );
+            }
+
+            ++perturbations[ current_perturbation ];
+            last_perturbation = current_perturbation;
+        }
+    );
+
+    double average = 0.0;
+    unsigned count = 0;
+
+    for ( auto p : perturbations )
+    {
+        average += p.first.usec() * p.second;
+        count   += p.second;
+    }
+
+    BOOST_CHECK_CLOSE_FRACTION( ( average / count ), 5.0 * 1000, 0.2 );
 }

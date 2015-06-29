@@ -41,10 +41,17 @@ namespace test {
         void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
 
         void all_data( std::function< void ( const schedule_data& ) > ) const;
+        void all_data( const std::function< bool ( const schedule_data& ) >& filter, const std::function< void ( const schedule_data& first, const schedule_data& next ) >& ) const;
     protected:
-        std::vector< schedule_data >::const_iterator next( std::vector< schedule_data >::const_iterator, const std::function< bool ( const schedule_data& ) >& filter ) const;
+        typedef std::vector< schedule_data > data_list;
+        data_list transmitted_data_;
+        data_list::const_iterator next( std::vector< schedule_data >::const_iterator, const std::function< bool ( const schedule_data& ) >& filter ) const;
 
-        std::vector< schedule_data > transmitted_data_;
+        void pair_wise_check(
+            const std::function< bool ( const schedule_data& ) >&                                               filter,
+            const std::function< bool ( const schedule_data& first, const schedule_data& next ) >&              check,
+            const std::function< void ( data_list::const_iterator first, data_list::const_iterator next ) >&    fail ) const;
+
     };
 
     template < typename CallBack >

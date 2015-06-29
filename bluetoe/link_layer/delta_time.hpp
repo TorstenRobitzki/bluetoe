@@ -28,6 +28,10 @@ namespace link_layer {
         bool operator<=( const delta_time& rhs ) const;
         bool operator>( const delta_time& rhs ) const;
         bool operator>=( const delta_time& rhs ) const;
+        bool operator==( const delta_time& rhs ) const;
+        bool operator!=( const delta_time& rhs ) const;
+
+        std::uint32_t usec() const;
     private:
         std::uint32_t usec_;
     };

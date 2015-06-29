@@ -76,6 +76,21 @@ namespace link_layer {
         return usec_ >= rhs.usec_;
     }
 
+    bool delta_time::operator==( const delta_time& rhs ) const
+    {
+        return usec_ == rhs.usec_;
+    }
+
+    bool delta_time::operator!=( const delta_time& rhs ) const
+    {
+        return usec_ != rhs.usec_;
+    }
+
+    std::uint32_t delta_time::usec() const
+    {
+        return usec_;
+    }
+
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
     {
         t.print( out );
