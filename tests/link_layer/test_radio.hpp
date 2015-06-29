@@ -16,7 +16,7 @@ namespace test {
         unsigned                        channel;
         bluetoe::link_layer::delta_time schedule_time;
         bluetoe::link_layer::delta_time transmision_time;
-        std::vector< std::uint8_t >     transmited_data;
+        std::vector< std::uint8_t >     transmitted_data;
         bluetoe::link_layer::delta_time timeout;
     };
 
@@ -24,7 +24,7 @@ namespace test {
     {
     public:
         // test interface
-        const std::vector< schedule_data >& transmitted_data() const;
+        const std::vector< schedule_data >& scheduling() const;
 
         /**
          * @brief calls check with every scheduled_data

@@ -5,7 +5,7 @@
 
 namespace test {
 
-    const std::vector< schedule_data >& radio_base::transmitted_data() const
+    const std::vector< schedule_data >& radio_base::scheduling() const
     {
         return transmitted_data_;
     }
@@ -21,7 +21,7 @@ namespace test {
                 boost::test_tools::predicate_result result( false );
                 result.message() << "\nfor " << ( n + 1 ) << "th scheduled action at: " << data.transmision_time << " timeout: " << data.timeout;
                 result.message() << "\nTesting: \"" << message << "\" failed.";
-                result.message() << "\nData:\n" << hex_dump( data.transmited_data.begin(), data.transmited_data.end() );
+                result.message() << "\nData:\n" << hex_dump( data.transmitted_data.begin(), data.transmitted_data.end() );
                 BOOST_CHECK( result );
                 return;
             }
@@ -48,9 +48,9 @@ namespace test {
                 result.message() << "\nfor " << ( n + 1 ) << "th and " << ( n + 2 ) << "th scheduled action";
                 result.message() << "\nTesting: \"" << message << "\" failed.";
                 result.message() << "\n" << ( n + 1 ) << "th scheduled action, at: " << first.transmision_time << " timeout: " << first.timeout;
-                result.message() << "\nData:\n" << hex_dump( first.transmited_data.begin(), first.transmited_data.end() );
+                result.message() << "\nData:\n" << hex_dump( first.transmitted_data.begin(), first.transmitted_data.end() );
                 result.message() << "\n" << ( n + 2 ) << "th scheduled action, at: " << second.transmision_time << " timeout: " << second.timeout;
-                result.message() << "\nData:\n" << hex_dump( second.transmited_data.begin(), second.transmited_data.end() );
+                result.message() << "\nData:\n" << hex_dump( second.transmitted_data.begin(), second.transmitted_data.end() );
                 BOOST_CHECK( result );
                 return;
             }

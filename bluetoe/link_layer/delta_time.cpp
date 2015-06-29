@@ -51,9 +51,24 @@ namespace link_layer {
         return *this;
     }
 
+    delta_time& delta_time::operator-=( const delta_time& rhs )
+    {
+        auto const diff = usec_ - rhs.usec_;
+        assert( diff <= usec_ );
+
+        usec_ = diff;
+
+        return *this;
+    }
+
     bool delta_time::operator<( const delta_time& rhs ) const
     {
         return usec_ < rhs.usec_;
+    }
+
+    bool delta_time::operator<=( const delta_time& rhs ) const
+    {
+        return usec_ <= rhs.usec_;
     }
 
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
@@ -61,6 +76,12 @@ namespace link_layer {
         t.print( out );
 
         return out;
+    }
+
+    delta_time operator-( delta_time lhs, delta_time rhs )
+    {
+        lhs-= rhs;
+        return lhs;
     }
 
 }

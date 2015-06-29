@@ -19,14 +19,18 @@ namespace link_layer {
         void print( std::ostream& ) const;
 
         delta_time& operator+=( const delta_time& rhs );
+        delta_time& operator-=( const delta_time& rhs );
 
         bool operator<( const delta_time& rhs ) const;
+        bool operator<=( const delta_time& rhs ) const;
     private:
         std::uint32_t usec_;
     };
 
 
     std::ostream& operator<<( std::ostream&, const delta_time& );
+
+    delta_time operator-( delta_time lhs, delta_time rhs );
 }
 }
 #endif
