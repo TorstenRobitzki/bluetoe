@@ -31,12 +31,24 @@ BOOST_FIXTURE_TEST_CASE( advertising_uses_all_three_adv_channels, advertising )
 {
     std::map< unsigned, unsigned > channel;
 
-    all_data( [&]( const test::scheduled_data& d ) { ++channel[ d.channel ]; } );
+    all_data( [&]( const test::schedule_data& d ) { ++channel[ d.channel ]; } );
 
     BOOST_CHECK_EQUAL( channel.size(), 3u );
     BOOST_CHECK_GT( channel[ 37 ], 0 );
     BOOST_CHECK_GT( channel[ 38 ], 0 );
     BOOST_CHECK_GT( channel[ 39 ], 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( channels_are_iterated, advertising )
+{
+    check_scheduling(
+        [&]( const test::schedule_data& a, const test::schedule_data& b ) -> bool
+        {
+            return a.channel != b.channel;
+        },
+        "channels_are_iterated"
+     );
+
 }
 
 /**

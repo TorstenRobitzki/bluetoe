@@ -8,7 +8,10 @@
 
 namespace test {
 
-    struct scheduled_data
+    /**
+     * @brief stores all relevant arguments to a schedule function call to the radio
+     */
+    struct schedule_data
     {
         unsigned                        channel;
         bluetoe::link_layer::delta_time schedule_time;
@@ -21,13 +24,21 @@ namespace test {
     {
     public:
         // test interface
-        const std::vector< scheduled_data >& transmitted_data() const;
+        const std::vector< schedule_data >& transmitted_data() const;
 
-        void check_all_data( std::function< bool ( const scheduled_data& ) > check, const char* message );
+        /**
+         * @brief calls check with every scheduled_data
+         */
+        void check_scheduling( std::function< bool ( const schedule_data& ) > check, const char* message ) const;
 
-        void all_data( std::function< void ( const scheduled_data& ) > );
+        /**
+         * @brief calls check with adjanced pairs of schedule_data.
+         */
+        void check_scheduling( std::function< bool ( const schedule_data& first, const schedule_data& next ) > check, const char* message ) const;
+
+        void all_data( std::function< void ( const schedule_data& ) > ) const;
     protected:
-        std::vector< scheduled_data > transmitted_data_;
+        std::vector< schedule_data > transmitted_data_;
     };
 
     template < typename CallBack >
@@ -66,7 +77,7 @@ namespace test {
             const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
             const bluetoe::link_layer::read_buffer& receive, bluetoe::link_layer::delta_time timeout )
     {
-        const scheduled_data data{
+        const schedule_data data{
             channel,
             now_,
             when,
