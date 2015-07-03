@@ -5,6 +5,7 @@
 #include <bluetoe/link_layer/delta_time.hpp>
 #include <vector>
 #include <functional>
+#include <iosfwd>
 
 namespace test {
 
@@ -21,6 +22,8 @@ namespace test {
         bluetoe::link_layer::delta_time transmision_time;
         std::vector< std::uint8_t >     transmitted_data;
     };
+
+    std::ostream& operator<<( std::ostream& out, const schedule_data& data );
 
     class radio_base
     {
