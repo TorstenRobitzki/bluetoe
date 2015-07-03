@@ -66,7 +66,7 @@ namespace link_layer {
         this->schedule_transmit_and_receive(
             current_advertising_channel_,
             write_buffer{ adv_buffer_, adv_size_ }, delta_time::now(),
-            read_buffer(), delta_time::now() ); // TODO resonable TO
+            read_buffer() );
 
         ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >::run();
     }
@@ -90,7 +90,7 @@ namespace link_layer {
         this->schedule_transmit_and_receive(
             current_advertising_channel_,
             write_buffer{ adv_buffer_, adv_size_ }, next_time,
-            read_buffer(), next_time );
+            read_buffer() );
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >

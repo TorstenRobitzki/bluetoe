@@ -20,7 +20,6 @@ namespace test {
         unsigned                        channel;
         bluetoe::link_layer::delta_time transmision_time;
         std::vector< std::uint8_t >     transmitted_data;
-        bluetoe::link_layer::delta_time timeout;
     };
 
     class radio_base
@@ -67,7 +66,7 @@ namespace test {
         void schedule_transmit_and_receive(
                 unsigned channel,
                 const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
-                const bluetoe::link_layer::read_buffer& receive, bluetoe::link_layer::delta_time timeout );
+                const bluetoe::link_layer::read_buffer& receive );
 
         void run();
     private:
@@ -88,15 +87,14 @@ namespace test {
     void radio< CallBack >::schedule_transmit_and_receive(
             unsigned channel,
             const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
-            const bluetoe::link_layer::read_buffer& receive, bluetoe::link_layer::delta_time timeout )
+            const bluetoe::link_layer::read_buffer& receive )
     {
         const schedule_data data{
             now_,
             now_ + when,
             channel,
             when,
-            std::vector< std::uint8_t >( transmit.buffer, transmit.buffer + transmit.size ),
-            timeout
+            std::vector< std::uint8_t >( transmit.buffer, transmit.buffer + transmit.size )
         };
 
         transmitted_data_.push_back( data );
@@ -112,7 +110,7 @@ namespace test {
             // for now, only timeouts are simulated
             if ( true )
             {
-                now_ += transmitted_data_.back().timeout;
+                now_ += transmitted_data_.back().transmision_time;
                 static_cast< CallBack* >( this )->timeout();
             }
         } while ( now_ < eos_ );

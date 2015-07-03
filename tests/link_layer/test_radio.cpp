@@ -19,7 +19,7 @@ namespace test {
             if ( !check( data ) )
             {
                 boost::test_tools::predicate_result result( false );
-                result.message() << "\nfor " << ( n + 1 ) << "th scheduled action at: " << data.transmision_time << " timeout: " << data.timeout;
+                result.message() << "\nfor " << ( n + 1 ) << "th scheduled action at: " << data.transmision_time;
                 result.message() << "\nTesting: \"" << message << "\" failed.";
                 result.message() << "\nData:\n" << hex_dump( data.transmitted_data.begin(), data.transmitted_data.end() );
                 BOOST_CHECK( result );
@@ -52,9 +52,9 @@ namespace test {
                 boost::test_tools::predicate_result result( false );
                 result.message() << "\nfor " << n << "th and " << nn << "th scheduled action";
                 result.message() << "\nTesting: \"" << message << "\" failed.";
-                result.message() << "\n" << n << "th scheduled action, at: " << first->schedule_time << "; scheduled: " << first->transmision_time << "; timeout: " << first->timeout << "; channel: " << first->channel;
+                result.message() << "\n" << n << "th scheduled action, at: " << first->schedule_time << "; scheduled: " << first->transmision_time << "; channel: " << first->channel;
                 result.message() << "\nData:\n" << hex_dump( first->transmitted_data.begin(), first->transmitted_data.end() );
-                result.message() << "\n" << nn << "th scheduled action, at: " << next->schedule_time << "; scheduled: " << next->transmision_time << "; timeout: " << next->timeout << "; channel: " << next->channel;
+                result.message() << "\n" << nn << "th scheduled action, at: " << next->schedule_time << "; scheduled: " << next->transmision_time << "; channel: " << next->channel;
                 result.message() << "\nData:\n" << hex_dump( next->transmitted_data.begin(), next->transmitted_data.end() );
                 BOOST_CHECK( result );
             }
