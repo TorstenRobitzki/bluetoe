@@ -38,7 +38,7 @@ http://torstenrobitzki.github.io/bluetoe/
 
 ## L2CAP
 
-Bluetoe adds on top of an existing L2CAP implementation. Currently it comes only with one experimental L2CAP implementation on top of btstack's HCI layer that runs at least on OS/X but should also work on Linux (and maybe Windows).
+Bluetoe ships with its own link layer. Currently a link layer based on the nrf51422 is under construction. The link layer implementation will be based and tested on an abstract device, called a scheduled radio and should be easily ported to similar hardware. As Bluetoe is a GATT server implementation, only that parts of the link layer are implemented, that are nessary. Bluetoe can easily adapted to any other existing L2CAP implementation (based on HCI for example).
 
 ## Current State
 
@@ -94,6 +94,29 @@ Service Solicitation||not planned
 Service Data||not planned
 Appearance|Appearance|planned
 LE Role|LE Role|planned
+
+This is the current state of the Link Layer implementation:
+
+Aspect | Feature | Status
+-------|---------|--------
+Roles|Slave Role|under construction
+ |Master Role|not planned
+Advertising|connectable undirected advertising|implemented
+ |connectable directed advertising|planned
+ |non-connectable undirected advertising|planned
+ |scannable undirected advertising|planned
+Device Filtering||not planned
+Connections|Single Connection|planned
+ |Multiple Connection|not planned
+Connection|Slave Latency|planned
+Feature Support|LE Encryption|not planned
+ |Connection Parameters Request Procedure|planned
+ |Extended Reject Indication|planned
+ |Slave-initiated Features Exchange|planned
+ |LE Ping|planned
+ |LE Data Packet Length Extension|planned
+ |LL Privacy|not planned
+ |Extended Scanner Filter Policies|not planned
 
 Pullrequests are wellcome.
 
