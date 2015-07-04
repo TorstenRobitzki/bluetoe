@@ -8,7 +8,22 @@ namespace test {
     std::ostream& operator<<( std::ostream& out, const schedule_data& data )
     {
         out << "at: " << data.schedule_time << "; scheduled: " << data.transmision_time << "; channel: " << data.channel;
-        out << "\nData:\n" << hex_dump( data.transmitted_data.begin(), data.transmitted_data.end() );
+        out << "\ndata:\n" << hex_dump( data.transmitted_data.begin(), data.transmitted_data.end() );
+
+        return out;
+    }
+
+    incomming_data::incomming_data()
+        : channel( 0 )
+        , delay( bluetoe::link_layer::delta_time( 0 ) )
+    {
+
+    }
+
+    std::ostream& operator<<( std::ostream& out, const incomming_data& data )
+    {
+        out << "channel: " << data.channel << "; delayed: " << data.delay;
+        out << "\ndata:\n" << hex_dump( data.received_data.begin(), data.received_data.end() );
 
         return out;
     }
@@ -113,4 +128,30 @@ namespace test {
             []( data_list::const_iterator first, data_list::const_iterator next ){}
         );
     }
+
+    void radio_base::add_responder( const responder_t& responder )
+    {
+        responders_.push_back( responder );
+    }
+
+    void radio_base::respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu )
+    {
+        add_responder(
+            []( const schedule_data& ) -> std::pair< bool, incomming_data >
+            {
+                return std::pair< bool, incomming_data >( false, incomming_data{} );
+            }
+        );
+    }
+
+    std::pair< bool, incomming_data > radio_base::find_response( const schedule_data& data ) const
+    {
+        std::pair< bool, incomming_data > result( false, incomming_data{} );
+
+        for ( auto f = responders_.begin(); f != responders_.end() && !result.first; ++f )
+            result = (*f)( data );
+
+        return result;
+    }
+
 }

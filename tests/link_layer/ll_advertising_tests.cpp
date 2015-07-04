@@ -25,6 +25,19 @@ namespace {
 
     struct advertising : advertising_base<> {};
 
+    template < typename ... Options >
+    struct advertising_and_connect_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
+    {
+        typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+        void run()
+        {
+            small_temperature_service gatt_server_;
+            base::run( gatt_server_ );
+        }
+    };
+
+    struct advertising_and_connect : advertising_and_connect_base<> {};
+
     static const auto filter_channel_37 = []( const test::schedule_data& a )
     {
         return a.channel == 37;
@@ -76,7 +89,7 @@ BOOST_FIXTURE_TEST_CASE( connectable_undirected_is_the_default, advertising )
 }
 
 /**
- * @test according to the specs, the distance between two advertising PDUs shall be short than or equal to 10ms
+ * @test according to the specs, the distance between two advertising PDUs shall be shorter than or equal to 10ms
  *       We identify the start of an advertising event by the first channel 37
  */
 BOOST_FIXTURE_TEST_CASE( less_than_10ms_between_two_PDUs, advertising )
@@ -163,4 +176,36 @@ BOOST_FIXTURE_TEST_CASE( perturbation_looks_quit_random, advertising )
     }
 
     BOOST_CHECK_CLOSE_FRACTION( ( average / count ), 5.0 * 1000, 0.2 );
+}
+
+/**
+ * @test until now, the link layer should respond with an empty response
+ */
+BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connect )
+{
+}
+
+/**
+ * @test no respond if the device is not addressed
+ */
+BOOST_FIXTURE_TEST_CASE( no_repond_to_a_scan_request_with_different_address, advertising_and_connect )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( no_connection_after_a_broken_connection_request, advertising_and_connect )
+{
+}
+
+/**
+ * @test after a valid connection request, the connection is established
+ */
+BOOST_FIXTURE_TEST_CASE( connected_after_connection_request, advertising_and_connect )
+{
+}
+
+/**
+ * @test no connection is established when the connection request doesn't contain the devices address
+ */
+BOOST_FIXTURE_TEST_CASE( connection_request_from_wrong_address, advertising_and_connect )
+{
 }
