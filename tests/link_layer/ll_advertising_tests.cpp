@@ -82,9 +82,9 @@ BOOST_FIXTURE_TEST_CASE( connectable_undirected_is_the_default, advertising )
         [&]( const test::schedule_data& scheduled ) -> bool
         {
             return !scheduled.transmitted_data.empty()
-                && ( scheduled.transmitted_data[ 0 ] & 0xF0 ) == 0;
+                && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
         },
-        "channels_are_iterated"
+        "connectable_undirected_is_the_default"
     );
 }
 
@@ -178,11 +178,105 @@ BOOST_FIXTURE_TEST_CASE( perturbation_looks_quit_random, advertising )
     BOOST_CHECK_CLOSE_FRACTION( ( average / count ), 5.0 * 1000, 0.2 );
 }
 
+BOOST_FIXTURE_TEST_CASE( sending_advertising_pdus, advertising )
+{
+    check_scheduling(
+        []( const test::schedule_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 2 && ( pdu[ 0 ] & 0x0f ) == 0;
+        },
+        "sending_advertising_pdus"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( advertising_pdus_contain_the_address, advertising )
+{
+    static const bluetoe::link_layer::address expected_address = bluetoe::link_layer::address::generate_static_random_address( 0x47110815 );
+
+    check_scheduling(
+        [&]( const test::schedule_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 8 && bluetoe::link_layer::address( &pdu[ 2 ] ) == expected_address;
+        },
+        "advertising_pdus_contain_the_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( txadd_and_rxadd_bits_are_set_corretly_for_random_address, advertising )
+{
+    check_scheduling(
+        [&]( const test::schedule_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+            return pdu.size() >= 1 && ( pdu[ 0 ] & ( 3 << 6 ) ) == ( 1 << 6 );
+        },
+        "txadd_and_rxadd_bits_are_set_corretly_for_random_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( length_field_is_set_corretly, advertising )
+{
+    check_scheduling(
+        [&]( const test::schedule_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+            return pdu.size() >= 2 && ( pdu[ 1 ] & 0x3f ) == pdu.size() - 2;
+        },
+        "length_field_is_set_corretly"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( pdus_contain_the_gap_data, advertising )
+{
+    std::uint8_t        gap[ 31 ];
+    const std::size_t   gap_size = gatt_server_.advertising_data( &gap[ 0 ], sizeof( gap ) );
+
+    check_scheduling(
+        [&]( const test::schedule_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+            return pdu.size() == 8 + gap_size && std::equal( &pdu[ 8 ], &pdu[ 8 + gap_size ], &gap[ 0 ] );
+        },
+        "pdus_contain_the_gap_data"
+    );
+}
+
 /**
  * @test until now, the link layer should respond with an empty response
  */
 BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connect )
 {
+#if 0
+    respond_to(
+        37, // channel
+        {
+            0x03, 0x0C, // header
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // scanner address
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // advertiser address
+        }
+    );
+
+    run();
+
+    static const std::vector< std::uint8_t > expected_response =
+    {
+
+    };
+
+    find_schedulting(
+        []( const test::schedule_data& pdu ) -> bool
+        {
+            return pdu.channel == 37
+                && pdu.transmision_time.zero()
+                && pdu.transmitted_data == expected_response;
+        },
+        "empty_reponds_to_a_scan_request"
+    );
+#endif
 }
 
 /**

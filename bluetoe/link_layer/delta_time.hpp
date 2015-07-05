@@ -10,6 +10,10 @@ namespace link_layer {
     class delta_time
     {
     public:
+        constexpr delta_time() : usec_( 0 )
+        {
+        }
+
         constexpr explicit delta_time( std::uint32_t usec ) : usec_( usec )
         {
         }
@@ -32,6 +36,8 @@ namespace link_layer {
         bool operator!=( const delta_time& rhs ) const;
 
         std::uint32_t usec() const;
+
+        bool zero() const;
     private:
         std::uint32_t usec_;
     };

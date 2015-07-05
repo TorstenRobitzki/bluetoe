@@ -80,6 +80,42 @@ namespace test {
         );
     }
 
+    void radio_base::check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const
+    {
+        check_scheduling(
+            [&]( const schedule_data& data ) -> bool
+            {
+                return !filter( data ) || check( data );
+            },
+            message
+        );
+    }
+
+    void radio_base::find_schedulting( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const
+    {
+        unsigned found = 0;
+
+        for ( const schedule_data& data : transmitted_data_ )
+        {
+            if ( filter( data ) )
+                ++found;
+        }
+
+        if ( found != 1u )
+        {
+            boost::test_tools::predicate_result result( false );
+            if ( found )
+            {
+                result.message() << message << ": required to find only in scheduling, but found: " << found;
+            }
+            else
+            {
+                result.message() << message << ": no required scheduling found!";
+            }
+            BOOST_CHECK( result );
+        }
+    }
+
     std::vector< schedule_data >::const_iterator radio_base::next( std::vector< schedule_data >::const_iterator first, const std::function< bool ( const schedule_data& ) >& filter ) const
     {
         while ( first != transmitted_data_.end() && !filter( *first ) )
@@ -152,6 +188,11 @@ namespace test {
             result = (*f)( data );
 
         return result;
+    }
+
+    std::uint32_t radio_base::static_random_address_seed() const
+    {
+        return 0x47110815;
     }
 
 }

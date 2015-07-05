@@ -4,6 +4,7 @@
 #include <bluetoe/link_layer/buffer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
 #include <bluetoe/link_layer/options.hpp>
+#include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/options.hpp>
 
 namespace bluetoe {
@@ -33,21 +34,34 @@ namespace link_layer {
 
         void timeout();
     private:
+        // calculates the time point for the next advertising event
         delta_time next_adv_event();
+
+        void fill_advertising_buffer( const Server& server );
 
         static constexpr std::size_t    max_advertising_data_size   = 31;
         static constexpr std::size_t    advertising_pdu_header_size = 2;
+        static constexpr std::size_t    address_length              = 6;
 
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       last_advertising_channel    = 39;
         static constexpr unsigned       max_adv_perturbation_       = 10;
 
+        static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
+        static constexpr std::uint8_t   header_txaddr_field         = 0x40;
+
         unsigned                        current_advertising_channel_;
-        std::uint8_t                    adv_buffer_[ max_advertising_data_size + advertising_pdu_header_size ];
+        std::uint8_t                    adv_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
         std::size_t                     adv_size_;
         unsigned                        adv_perturbation_;
+        const address                   address_;
 
         typedef                         advertising_interval< 100 > default_advertising_interval;
+        typedef                         random_static_address       default_device_address;
+
+        typedef typename ::bluetoe::details::find_by_meta_type<
+            details::device_address_meta_type,
+            Options..., default_device_address >::type              device_address;
     };
 
     // implementation
@@ -55,13 +69,14 @@ namespace link_layer {
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : current_advertising_channel_( first_advertising_channel )
         , adv_perturbation_( 0 )
+        , address_( device_address::address( *this ) )
     {
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::run( Server& server )
     {
-        adv_size_ = server.advertising_data( adv_buffer_, sizeof( adv_buffer_ ) );
+        fill_advertising_buffer( server );
 
         this->schedule_transmit_and_receive(
             current_advertising_channel_,
@@ -105,6 +120,18 @@ namespace link_layer {
         return adv_interval::interval() + delta_time::msec( adv_perturbation_ );
     }
 
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer( const Server& server )
+    {
+        adv_buffer_[ 0 ] = adv_ind_pdu_type_code;
+
+        if ( device_address::is_random() )
+            adv_buffer_[ 0 ] |= header_txaddr_field;
+
+        adv_buffer_[ 1 ] = address_length + server.advertising_data( &adv_buffer_[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+        std::copy( address_.begin(), address_.end(), &adv_buffer_[ 2 ] );
+        adv_size_ = advertising_pdu_header_size + adv_buffer_[ 1 ];
+    }
 }
 }
 

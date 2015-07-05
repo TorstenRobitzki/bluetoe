@@ -91,6 +91,11 @@ namespace link_layer {
         return usec_;
     }
 
+    bool delta_time::zero() const
+    {
+        return usec_ == 0;
+    }
+
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
     {
         t.print( out );

@@ -55,6 +55,12 @@ namespace test {
          */
         void check_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
         void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const;
+
+        /**
+         * @brief there must be exactly one scheduled_data that fitts to the given filter
+         */
+        void find_schedulting( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const;
 
         void all_data( std::function< void ( const schedule_data& ) > ) const;
         void all_data( const std::function< bool ( const schedule_data& ) >& filter, const std::function< void ( const schedule_data& first, const schedule_data& next ) >& ) const;
@@ -76,6 +82,11 @@ namespace test {
          * @brief response to sending on the given channel with the given PDU send on the same channel without delay
          */
         void respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu );
+
+        /**
+         * @brief returns 0x47110815
+         */
+        std::uint32_t static_random_address_seed() const;
 
     protected:
         typedef std::vector< schedule_data > data_list;

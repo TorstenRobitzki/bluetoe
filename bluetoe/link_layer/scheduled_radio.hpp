@@ -49,6 +49,11 @@ namespace link_layer {
         void schedule_transmit( unsigned channel, const std::uint8_t* data, std::size_t size, delta_time when_ms );
 
         void schedule_receive( unsigned channel, delta_time when_ms, delta_time timeout_ms );
+
+        /**
+         * @brief function to return a device specific value that is persistant and unique for the device (CPU id or such)
+         */
+        std::uint32_t static_random_address_seed() const;
     };
 }
 
