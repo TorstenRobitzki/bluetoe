@@ -147,7 +147,7 @@ namespace bluetoe {
         /**
          * @brief returns the advertising data to the L2CAP implementation
          */
-        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
+        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
 
         typedef void (*lcap_notification_callback_t)( const details::notification_data& item );
@@ -335,7 +335,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size )
+    std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size ) const
     {
         std::uint8_t* const end = begin + buffer_size;
 
