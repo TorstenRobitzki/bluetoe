@@ -334,6 +334,44 @@ namespace bluetoe {
         }
     }
 
+    namespace details {
+        // all this hassel to stop gcc from complaining about constant argument to if
+        template < bool >
+        struct copy_name
+        {
+            static std::uint8_t* impl( std::uint8_t* begin, std::uint8_t* end, const char* const name )
+            {
+                if ( ( end - begin ) <= 2 )
+                    return begin;
+
+                const std::size_t name_length  = std::strlen( name );
+                const std::size_t max_name_len = std::min< std::size_t >( name_length, end - begin - 2 );
+
+                if ( name_length > 0 )
+                {
+                    begin[ 0 ] = max_name_len + 1;
+                    begin[ 1 ] = max_name_len == name_length
+                        ? bits( details::gap_types::complete_local_name )
+                        : bits( details::gap_types::shortened_local_name );
+
+                    std::copy( name + 0, name + max_name_len, &begin[ 2 ] );
+                    begin += max_name_len + 2;
+                }
+
+                return begin;
+            }
+        };
+
+        template <>
+        struct copy_name< false >
+        {
+            static std::uint8_t* impl( std::uint8_t* begin, std::uint8_t*, const char* const )
+            {
+                return begin;
+            }
+        };
+    }
+
     template < typename ... Options >
     std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size ) const
     {
@@ -351,22 +389,7 @@ namespace bluetoe {
 
         typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
 
-        if ( name::name && ( end - begin ) > 2 )
-        {
-            const std::size_t name_length  = name::name ? std::strlen( name::name ) : 0u;
-            const std::size_t max_name_len = std::min< std::size_t >( name_length, end - begin - 2 );
-
-            if ( name_length > 0 )
-            {
-                begin[ 0 ] = max_name_len + 1;
-                begin[ 1 ] = max_name_len == name_length
-                    ? bits( details::gap_types::complete_local_name )
-                    : bits( details::gap_types::shortened_local_name );
-
-                std::copy( name::name + 0, name::name + max_name_len, &begin[ 2 ] );
-                begin += max_name_len + 2;
-            }
-        }
+        begin = details::copy_name< name::name != nullptr >::impl( begin, end, name::name );
 
         return buffer_size - ( end - begin );
     }
