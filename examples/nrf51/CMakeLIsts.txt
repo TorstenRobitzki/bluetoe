@@ -22,11 +22,15 @@ set(CXX_SPECIFIC_FLAGS "${CXX_SPECIFIC_FLAGS} -ftemplate-backtrace-limit=0 -fvis
 set(CXX_DISABLED_WARNINGS "${CXX_DISABLED_WARNINGS} -Wno-unused-local-typedefs")
 set(LINK_DEFAULT_FLAGS "${LINK_DEFAULT_FLAGS} -Wl,--gc-sections -L ${CMAKE_SOURCE_DIR}/examples")
 
+# debugging
+set(CXX_BUILD_TYPE_FLAGS "-g -O0")
+set(LINK_BUILD_TYPE_FLAGS "-g")
+
 project(bluetoe_nrf51_examples CXX ASM C)
 
 set(CMAKE_CXX_FLAGS "${CXX_DEFAULT_FLAGS} ${CXX_SPECIFIC_FLAGS} ${CXX_ARC_FLAGS} ${CXX_BUILD_TYPE_FLAGS} ${CXX_DISABLED_WARNINGS}")
 set(CMAKE_C_FLAGS   "${CXX_DEFAULT_FLAGS} ${CXX_ARC_FLAGS} ${CXX_BUILD_TYPE_FLAGS} ${CXX_DISABLED_WARNINGS}")
-set(CMAKE_EXE_LINKER_FLAGS "${LINK_DEFAULT_FLAGS} ${LINK_ARC_FLAGS} ${LINK_BUID_TYPE_FLAGS} -L ${CMAKE_SOURCE_DIR}")
+set(CMAKE_EXE_LINKER_FLAGS "${LINK_DEFAULT_FLAGS} ${LINK_ARC_FLAGS} ${LINK_BUILD_TYPE_FLAGS} -L ${CMAKE_SOURCE_DIR}")
 
 add_definitions(-D_LITTLE_ENDIAN=1 -DNRF51)
 
@@ -39,7 +43,14 @@ include_directories(${BLUETOE_ROOT})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 function(add_example TARGETNAME)
-    add_executable(${TARGETNAME}.elf ${TARGETNAME}.cpp ${BLUETOE_ROOT}/bluetoe/bindings/nrf51.cpp system_nrf51422.c gcc_startup_nrf51.s)
+    add_executable(${TARGETNAME}.elf
+        ${TARGETNAME}.cpp
+        ${BLUETOE_ROOT}/bluetoe/link_layer/delta_time.cpp
+        ${BLUETOE_ROOT}/bluetoe/link_layer/address.cpp
+        ${BLUETOE_ROOT}/bluetoe/bindings/nrf51.cpp
+        system_nrf51422.c
+        gcc_startup_nrf51.s
+    )
 
     set_target_properties(${TARGETNAME}.elf PROPERTIES
         LINK_FLAGS "-T ${CMAKE_CURRENT_LIST_DIR}/nrf51_xxaa.ld -Wl,-Map -Wl,${TARGETNAME}.map")

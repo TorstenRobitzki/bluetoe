@@ -6,6 +6,9 @@
 #include <bluetoe/link_layer/buffer.hpp>
 #include <cstdint>
 
+extern "C" void RADIO_IRQHandler(void);
+extern "C" void TIMER0_IRQHandler(void);
+
 namespace bluetoe
 {
     namespace nrf51_details
@@ -28,10 +31,29 @@ namespace bluetoe
             void schedule_transmit_and_receive(
                     unsigned channel,
                     const link_layer::write_buffer& transmit, link_layer::delta_time when,
-                    const link_layer::read_buffer& receive, link_layer::delta_time timeout );
+                    const link_layer::read_buffer& receive );
 
+            void run();
+
+            std::uint32_t static_random_address_seed() const;
         private:
+
+            friend void ::RADIO_IRQHandler(void);
+            friend void ::TIMER0_IRQHandler(void);
+
+            void radio_interrupt();
+            void timer_interrupt();
+
+            unsigned frequency_from_channel( unsigned channel ) const;
+
             callbacks& callbacks_;
+            volatile bool timeout_;
+            volatile bool recieved_;
+
+            volatile bool stopping_;
+            volatile bool receiving_;
+
+            link_layer::read_buffer receive_buffer_;
         };
 
         template < typename CallBack >

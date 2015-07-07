@@ -4,12 +4,17 @@
 
 #include <cassert>
 #include <cstdint>
+#include <algorithm>
 
 namespace bluetoe {
 namespace nrf51_details {
 
     static constexpr std::uint32_t      radio_access_address = 0x8E89BED6;
     static constexpr NRF_RADIO_Type*    nrf_radio            = NRF_RADIO;
+    static constexpr NRF_TIMER_Type*    nrf_timer            = NRF_TIMER0;
+    static scheduled_radio_base*        instance             = nullptr;
+    // the timeout timer will be canceled when the address is received; that's after T_IFS (150µs +- 2) 5 Bytes and some addition 20µs
+    static constexpr std::uint32_t      reponse_timeout_us   = 152 + 5 * 8 + 20;
 
     static void init_debug_pins()
     {
@@ -63,19 +68,24 @@ namespace nrf51_details {
 
     static void init_timer()
     {
-        NRF_TIMER0->MODE        = TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos;
-        NRF_TIMER0->BITMODE     = TIMER_BITMODE_BITMODE_32Bit;
-        NRF_TIMER0->PRESCALER   = 4; // resulting in a timer resolution of 1µs
+        nrf_timer->MODE        = TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos;
+        nrf_timer->BITMODE     = TIMER_BITMODE_BITMODE_32Bit;
+        nrf_timer->PRESCALER   = 4; // resulting in a timer resolution of 1µs
 
-        NRF_TIMER0->TASKS_STOP  = 1;
-        NRF_TIMER0->TASKS_CLEAR = 1;
-        NRF_TIMER0->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->TASKS_STOP  = 1;
+        nrf_timer->TASKS_CLEAR = 1;
+        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->INTENCLR    = 0xffffffff;
 
-        NRF_TIMER0->INTENSET    = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos;
+        nrf_timer->TASKS_START = 1;
     }
 
     scheduled_radio_base::scheduled_radio_base( callbacks& cbs )
         : callbacks_( cbs )
+        , timeout_( false )
+        , recieved_( false )
+        , stopping_( false )
+        , receiving_( false )
     {
         // start high freuquence clock source if not done yet
         if ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
@@ -90,19 +100,157 @@ namespace nrf51_details {
         init_radio();
         init_timer();
 
+        instance = this;
+
         NVIC_ClearPendingIRQ( RADIO_IRQn );
         NVIC_EnableIRQ( RADIO_IRQn );
         NVIC_ClearPendingIRQ( TIMER0_IRQn );
         NVIC_EnableIRQ( TIMER0_IRQn );
     }
 
+    unsigned scheduled_radio_base::frequency_from_channel( unsigned channel ) const
+    {
+        assert( channel < 40 );
+
+        if ( channel <= 10 )
+            return 4 + 2 * channel;
+
+        if ( channel <= 36 )
+            return 6 + 2 * channel;
+
+        if ( channel == 37 )
+            return 2;
+
+        if ( channel == 38 )
+            return 6;
+
+        return 80;
+    }
+
     void scheduled_radio_base::schedule_transmit_and_receive(
             unsigned channel,
             const link_layer::write_buffer& transmit, link_layer::delta_time when,
-            const link_layer::read_buffer& receive, link_layer::delta_time timeout )
+            const link_layer::read_buffer& receive )
     {
+        assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
+        assert( !recieved_ );
+        assert( !timeout_ );
+
+        const unsigned      frequency  = frequency_from_channel( channel );
+        const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, 255 );
+
+        receive_buffer_      = receive;
+        receive_buffer_.size = std::min< std::size_t >( receive.size, 255 );
+
+        NRF_RADIO->FREQUENCY   = frequency;
+        NRF_RADIO->DATAWHITEIV = channel & 0x3F;
+        NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( transmit.buffer );
+        NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( send_size << RADIO_PCNF1_MAXLEN_Pos );
+
+        NRF_RADIO->EVENTS_END       = 0;
+        NRF_RADIO->EVENTS_DISABLED  = 0;
+        NRF_RADIO->EVENTS_READY     = 0;
+
+        NRF_RADIO->INTENCLR    = 0xffffffff;
+
+        NRF_RADIO->SHORTS      =
+            RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+
+        if ( when.zero() )
+        {
+            NRF_RADIO->TASKS_TXEN = 1;
+        }
     }
 
+    void scheduled_radio_base::run()
+    {
+        // TODO send cpu to sleep
+        while ( !recieved_ && !timeout_ )
+            ;
+
+        if ( recieved_ )
+        {
+            recieved_ = false;
+            callbacks_.received( link_layer::read_buffer{ reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ),  } );
+        }
+        else
+        {
+            timeout_ = false;
+            callbacks_.timeout();
+        }
+
+        assert( !recieved_ );
+        assert( !timeout_ );
+    }
+
+    void scheduled_radio_base::radio_interrupt()
+    {
+        if ( NRF_RADIO->EVENTS_DISABLED )
+        {
+            // Stopped while receiving
+            if ( stopping_ )
+            {
+                stopping_ = false;
+                timeout_ = true;
+            }
+            // Transmitted
+            else if ( !receiving_ )
+            {
+                receiving_ = true;
+
+                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+
+                nrf_timer->TASKS_CAPTURE[ 0 ]  = 1;
+                nrf_timer->CC[0]              += reponse_timeout_us;
+                nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+                nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
+
+                NRF_RADIO->EVENTS_ADDRESS      = 0;
+                NRF_RADIO->EVENTS_DISABLED     = 0;
+                NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
+
+                NRF_RADIO->TASKS_RXEN  = 1;
+            }
+            // Received
+            else
+            {
+                nrf_timer->INTENCLR            = TIMER_INTENSET_COMPARE0_Msk;
+                nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+
+                receiving_ = false;
+                recieved_  = true;
+            }
+        }
+        else if ( NRF_RADIO->EVENTS_ADDRESS )
+        {
+            nrf_timer->TASKS_STOP = 1;
+        }
+    }
+
+    void scheduled_radio_base::timer_interrupt()
+    {
+        stopping_ = true;
+        nrf_timer->INTENCLR   = TIMER_INTENSET_COMPARE0_Msk;
+        NRF_RADIO->TASKS_STOP = 1;
+    }
+
+    std::uint32_t scheduled_radio_base::static_random_address_seed() const
+    {
+        return NRF_FICR->DEVICEID[ 0 ];
+    }
 
 }
+}
+
+extern "C" void RADIO_IRQHandler(void)
+{
+    bluetoe::nrf51_details::instance->radio_interrupt();
+}
+
+extern "C" void TIMER0_IRQHandler(void)
+{
+    bluetoe::nrf51_details::instance->timer_interrupt();
 }
