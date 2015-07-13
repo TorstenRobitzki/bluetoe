@@ -76,6 +76,7 @@ namespace nrf51_details {
         nrf_timer->TASKS_STOP  = 1;
         nrf_timer->TASKS_CLEAR = 1;
         nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
         nrf_timer->INTENCLR    = 0xffffffff;
 
         nrf_timer->TASKS_START = 1;
@@ -160,11 +161,27 @@ namespace nrf51_details {
 
         NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
-        state_ = state::transmitting;
-
         if ( when.zero() )
         {
+            state_ = state::transmitting;
             NRF_RADIO->TASKS_TXEN = 1;
+        }
+        else
+        {
+            state_ = state::transmitting_pending;
+
+            nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+            nrf_timer->CC[0]               = when.usec();
+
+            // manually triggering event for timer beeing already behind target time
+            nrf_timer->TASKS_CAPTURE[ 1 ]  = 1;
+            nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
+
+            if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 1 ] >= nrf_timer->CC[ 0 ] )
+            {
+                state_ = state::transmitting;
+                NRF_RADIO->TASKS_TXEN = 1;
+            }
         }
     }
 
@@ -197,14 +214,17 @@ namespace nrf51_details {
 
             if ( state_ == state::timeout_stopping )
             {
+                state_ = state::idle;
+
                 NRF_RADIO->INTENCLR    = 0xffffffff;
                 nrf_timer->INTENCLR    = 0xffffffff;
 
                 timeout_ = true;
-                state_ = state::idle;
             }
             else if ( state_ == state::transmitting )
             {
+                state_ = state::receiving;
+
                 NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
                 NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
@@ -217,16 +237,15 @@ namespace nrf51_details {
                 NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
 
                 NRF_RADIO->TASKS_RXEN          = 1;
-
-                state_ = state::receiving;
             }
             else if ( state_ == state::receiving )
             {
+                state_ = state::idle;
+
                 nrf_timer->INTENCLR            = TIMER_INTENSET_COMPARE0_Msk;
                 nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
 
                 received_  = true;
-                state_ = state::idle;
             }
         }
 
@@ -249,10 +268,18 @@ namespace nrf51_details {
     {
         if ( state_ == state::receiving )
         {
+            state_ = state::timeout_stopping;
+
             nrf_timer->INTENCLR      = TIMER_INTENSET_COMPARE0_Msk;
             NRF_RADIO->TASKS_DISABLE = 1;
+        }
+        else if ( state_ == state::transmitting_pending )
+        {
+            state_ = state::transmitting;
 
-            state_ = state::timeout_stopping;
+            // this time can be used as new T0, so lets reset the timer
+            nrf_timer->TASKS_CLEAR = 1;
+            NRF_RADIO->TASKS_TXEN  = 1;
         }
     }
 

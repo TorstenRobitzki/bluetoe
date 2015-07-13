@@ -55,7 +55,9 @@ namespace bluetoe
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
                 timeout_stopping,
                 transmitting,
-                receiving
+                // wait until the right time to transmit
+                transmitting_pending,
+                receiving,
             };
 
             volatile state state_;
