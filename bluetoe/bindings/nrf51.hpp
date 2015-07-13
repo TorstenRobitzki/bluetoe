@@ -48,10 +48,17 @@ namespace bluetoe
 
             callbacks& callbacks_;
             volatile bool timeout_;
-            volatile bool recieved_;
+            volatile bool received_;
 
-            volatile bool stopping_;
-            volatile bool receiving_;
+            enum class state {
+                idle,
+                // timeout while receiving, stopping the radio, waiting for the radio to become disabled
+                timeout_stopping,
+                transmitting,
+                receiving
+            };
+
+            volatile state state_;
 
             link_layer::read_buffer receive_buffer_;
         };

@@ -55,6 +55,7 @@ namespace link_layer {
         std::size_t                     adv_size_;
         unsigned                        adv_perturbation_;
         const address                   address_;
+        bool                            initial_advertising_;
 
         typedef                         advertising_interval< 100 > default_advertising_interval;
         typedef                         random_static_address       default_device_address;
@@ -70,18 +71,24 @@ namespace link_layer {
         : current_advertising_channel_( first_advertising_channel )
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
+        , initial_advertising_( true )
     {
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::run( Server& server )
     {
-        fill_advertising_buffer( server );
+        // after the initial scheduling, the timeout and receive callback will setup the next scheduling
+        if ( initial_advertising_ )
+        {
+            initial_advertising_ = false;
+            fill_advertising_buffer( server );
 
-        this->schedule_transmit_and_receive(
-            current_advertising_channel_,
-            write_buffer{ adv_buffer_, adv_size_ }, delta_time::now(),
-            read_buffer() );
+            this->schedule_transmit_and_receive(
+                current_advertising_channel_,
+                write_buffer{ adv_buffer_, adv_size_ }, delta_time::now(),
+                read_buffer() );
+        }
 
         ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >::run();
     }

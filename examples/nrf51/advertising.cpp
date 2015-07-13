@@ -22,5 +22,7 @@ int main()
     small_temperature_service                   gatt;
     bluetoe::nrf51< small_temperature_service > server;
 
-    server.run( gatt );
+
+    for ( ;; )
+        server.run( gatt );
 }
