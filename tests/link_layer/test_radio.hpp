@@ -133,6 +133,9 @@ namespace test {
         // end of simulations
         const bluetoe::link_layer::delta_time eos_;
               bluetoe::link_layer::delta_time now_;
+
+        // make sure, there is only one action scheduled
+        bool idle_;
     };
 
     // implementation
@@ -140,6 +143,7 @@ namespace test {
     radio< CallBack >::radio()
         : eos_( bluetoe::link_layer::delta_time::seconds( 10 ) )
         , now_( bluetoe::link_layer::delta_time::now() )
+        , idle_( true )
     {
     }
 
@@ -149,6 +153,9 @@ namespace test {
             const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
             const bluetoe::link_layer::read_buffer& receive )
     {
+        assert( idle_ );
+        idle_ = false;
+
         const schedule_data data{
             now_,
             now_ + when,
@@ -181,11 +188,13 @@ namespace test {
 
                 std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
 
+                idle_ = true;
                 static_cast< CallBack* >( this )->received( current.receive_buffer );
             }
             else
             {
                 now_ += transmitted_data_.back().transmision_time;
+                idle_ = true;
                 static_cast< CallBack* >( this )->timeout();
             }
         } while ( now_ < eos_ );
