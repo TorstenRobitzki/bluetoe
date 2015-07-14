@@ -86,8 +86,8 @@ namespace bluetoe
         };
     }
 
-    template < class Server >
-    using nrf51 = link_layer::link_layer< Server, nrf51_details::scheduled_radio >;
+    template < class Server, typename ... Options >
+    using nrf51 = link_layer::link_layer< Server, nrf51_details::scheduled_radio, Options... >;
 }
 
 #endif // include guard

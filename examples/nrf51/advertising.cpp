@@ -1,4 +1,5 @@
 #include <bluetoe/bindings/nrf51.hpp>
+#include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/server.hpp>
 
 std::uint32_t temperature_value = 0x12345678;
@@ -20,8 +21,10 @@ typedef bluetoe::server<
 int main()
 {
     small_temperature_service                   gatt;
-    bluetoe::nrf51< small_temperature_service > server;
-
+    bluetoe::nrf51<
+        small_temperature_service,
+        bluetoe::link_layer::advertising_interval< 1000u >
+    > server;
 
     for ( ;; )
         server.run( gatt );

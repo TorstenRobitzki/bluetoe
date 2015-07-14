@@ -28,6 +28,12 @@ namespace nrf51_details {
             ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
     }
 
+    static void toggle_debug_pins()
+    {
+        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 18 );
+        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 19 );
+    }
+
     static void init_radio()
     {
         if ( ( NRF_FICR->OVERRIDEEN & FICR_OVERRIDEEN_BLE_1MBIT_Msk ) == (FICR_OVERRIDEEN_BLE_1MBIT_Override << FICR_OVERRIDEEN_BLE_1MBIT_Pos) )
