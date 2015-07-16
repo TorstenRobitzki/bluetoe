@@ -39,6 +39,7 @@ namespace link_layer {
 
         void fill_advertising_buffer( const Server& server );
         void fill_advertising_response_buffer( const Server& server );
+        bool is_valid_scan_request( const read_buffer& receive ) const;
 
         static constexpr std::size_t    max_advertising_data_size   = 31;
         static constexpr std::size_t    advertising_pdu_header_size = 2;
@@ -106,10 +107,7 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::received( const read_buffer& receive )
     {
-        static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
-        static constexpr std::uint8_t scan_request_code = 0x03;
-
-        if ( receive.size == scan_request_size && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code )
+        if ( is_valid_scan_request( receive ) )
         {
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
@@ -178,6 +176,19 @@ namespace link_layer {
 
         adv_response_size_ = advertising_pdu_header_size + adv_response_buffer_[ 1 ];
     }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::is_valid_scan_request( const read_buffer& receive ) const
+    {
+        static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
+        static constexpr std::uint8_t scan_request_code = 0x03;
+
+        bool result = receive.size == scan_request_size && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
+        result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
+
+        return result;
+    }
+
 }
 }
 

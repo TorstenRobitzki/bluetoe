@@ -278,9 +278,24 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising )
+BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and_connect )
 {
+    respond_to(
+        37, // channel
+        {
+            0x03, 0x0C // just a header
+        }
+    );
 
+    run();
+
+    check_scheduling(
+        []( const test::schedule_data& pdu ) -> bool
+        {
+            return ( pdu.transmitted_data[ 0 ] & 0xf ) == 0;
+        },
+        "still_advertising_after_an_invalid_pdu"
+    );
 }
 
 /**
@@ -288,6 +303,24 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising )
  */
 BOOST_FIXTURE_TEST_CASE( no_repond_to_a_scan_request_with_different_address, advertising_and_connect )
 {
+    respond_to(
+        37, // channel
+        {
+            0x03, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc1  // not advertiser address
+        }
+    );
+
+    run();
+
+    check_scheduling(
+        []( const test::schedule_data& pdu ) -> bool
+        {
+            return ( pdu.transmitted_data[ 0 ] & 0xf ) == 0;
+        },
+        "no_repond_to_a_scan_request_with_different_address"
+    );
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_after_a_broken_connection_request, advertising_and_connect )
