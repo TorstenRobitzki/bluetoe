@@ -20,6 +20,14 @@ namespace test {
 
     }
 
+    incomming_data::incomming_data( unsigned c, std::initializer_list< std::uint8_t > d, const bluetoe::link_layer::delta_time l )
+        : channel( c )
+        , received_data( d )
+        , delay( l )
+    {
+
+    }
+
     std::ostream& operator<<( std::ostream& out, const incomming_data& data )
     {
         out << "channel: " << data.channel << "; delayed: " << data.delay;
@@ -173,19 +181,31 @@ namespace test {
     void radio_base::respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu )
     {
         add_responder(
-            []( const schedule_data& ) -> std::pair< bool, incomming_data >
+            [=]( const schedule_data& ) -> std::pair< bool, incomming_data >
             {
-                return std::pair< bool, incomming_data >( false, incomming_data{} );
+                return std::pair< bool, incomming_data >(
+                    true,
+                    incomming_data{ channel, pdu, T_IFS }
+                );
             }
         );
     }
 
-    std::pair< bool, incomming_data > radio_base::find_response( const schedule_data& data ) const
+    std::pair< bool, incomming_data > radio_base::find_response( const schedule_data& data )
     {
         std::pair< bool, incomming_data > result( false, incomming_data{} );
 
-        for ( auto f = responders_.begin(); f != responders_.end() && !result.first; ++f )
+        for ( auto f = responders_.begin(); f != responders_.end(); ++f )
+        {
             result = (*f)( data );
+
+            if ( result.first )
+            {
+                responders_.erase( f );
+
+                return result;
+            }
+        }
 
         return result;
     }
@@ -194,5 +214,7 @@ namespace test {
     {
         return 0x47110815;
     }
+
+    const bluetoe::link_layer::delta_time radio_base::T_IFS = bluetoe::link_layer::delta_time( 150u );
 
 }

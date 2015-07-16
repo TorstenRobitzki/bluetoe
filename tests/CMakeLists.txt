@@ -7,7 +7,10 @@ endif()
 add_custom_target(all_tests)
 add_custom_target(all_tests.run)
 
-add_library(test_tools ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp ${CMAKE_SOURCE_DIR}/tests/link_layer/test_radio.cpp)
+add_library(test_tools
+    ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp
+    ${CMAKE_SOURCE_DIR}/tests/link_layer/test_radio.cpp
+    ${CMAKE_SOURCE_DIR}/tests/link_layer/buffer_io.cpp)
 
 function(add_test TARGETNAME)
     add_executable(${TARGETNAME} ${TARGETNAME}.cpp ${ARGV1} ${ARGV2} ${ARGV3} ${ARGV4})

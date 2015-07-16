@@ -38,6 +38,7 @@ namespace link_layer {
         delta_time next_adv_event();
 
         void fill_advertising_buffer( const Server& server );
+        void fill_advertising_response_buffer( const Server& server );
 
         static constexpr std::size_t    max_advertising_data_size   = 31;
         static constexpr std::size_t    advertising_pdu_header_size = 2;
@@ -48,11 +49,17 @@ namespace link_layer {
         static constexpr unsigned       max_adv_perturbation_       = 10;
 
         static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
+        static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
+
         static constexpr std::uint8_t   header_txaddr_field         = 0x40;
 
-        unsigned                        current_advertising_channel_;
         std::uint8_t                    adv_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
         std::size_t                     adv_size_;
+        std::uint8_t                    adv_response_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
+        std::size_t                     adv_response_size_;
+        std::uint8_t                    receive_buffer_[ 40 ];
+
+        unsigned                        current_advertising_channel_;
         unsigned                        adv_perturbation_;
         const address                   address_;
         bool                            initial_advertising_;
@@ -68,7 +75,9 @@ namespace link_layer {
     // implementation
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
-        : current_advertising_channel_( first_advertising_channel )
+        : adv_size_( 0 )
+        , adv_response_size_( 0 )
+        , current_advertising_channel_( first_advertising_channel )
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
         , initial_advertising_( true )
@@ -83,11 +92,12 @@ namespace link_layer {
         {
             initial_advertising_ = false;
             fill_advertising_buffer( server );
+            fill_advertising_response_buffer( server );
 
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
                 write_buffer{ adv_buffer_, adv_size_ }, delta_time::now(),
-                read_buffer() );
+                read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
         }
 
         ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >::run();
@@ -96,6 +106,20 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::received( const read_buffer& receive )
     {
+        static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
+        static constexpr std::uint8_t scan_request_code = 0x03;
+
+        if ( receive.size == scan_request_size && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code )
+        {
+            this->schedule_transmit_and_receive(
+                current_advertising_channel_,
+                write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
+                read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
+        }
+        else
+        {
+            timeout();
+        }
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
@@ -138,6 +162,21 @@ namespace link_layer {
         adv_buffer_[ 1 ] = address_length + server.advertising_data( &adv_buffer_[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
         std::copy( address_.begin(), address_.end(), &adv_buffer_[ 2 ] );
         adv_size_ = advertising_pdu_header_size + adv_buffer_[ 1 ];
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer( const Server& server )
+    {
+        adv_response_buffer_[ 0 ] = scan_response_pdu_type_code;
+
+        if ( device_address::is_random() )
+            adv_response_buffer_[ 0 ] |= header_txaddr_field;
+
+        adv_response_buffer_[ 1 ] = address_length;
+
+        std::copy( address_.begin(), address_.end(), &adv_response_buffer_[ 2 ] );
+
+        adv_response_size_ = advertising_pdu_header_size + adv_response_buffer_[ 1 ];
     }
 }
 }

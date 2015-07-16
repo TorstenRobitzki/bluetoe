@@ -250,13 +250,12 @@ BOOST_FIXTURE_TEST_CASE( pdus_contain_the_gap_data, advertising )
  */
 BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connect )
 {
-#if 0
     respond_to(
         37, // channel
         {
             0x03, 0x0C, // header
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // scanner address
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // advertiser address
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
         }
     );
 
@@ -264,7 +263,8 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
 
     static const std::vector< std::uint8_t > expected_response =
     {
-
+        0x44, 0x06,
+        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0
     };
 
     find_schedulting(
@@ -276,7 +276,11 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
         },
         "empty_reponds_to_a_scan_request"
     );
-#endif
+}
+
+BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising )
+{
+
 }
 
 /**

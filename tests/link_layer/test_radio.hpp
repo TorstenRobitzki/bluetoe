@@ -32,6 +32,8 @@ namespace test {
     {
         incomming_data();
 
+        incomming_data( unsigned c, std::initializer_list< std::uint8_t > d, const bluetoe::link_layer::delta_time l );
+
         unsigned                        channel;
         std::vector< std::uint8_t >     received_data;
         bluetoe::link_layer::delta_time delay;
@@ -74,7 +76,7 @@ namespace test {
          * @brief simulates an incomming PDU
          *
          * Given that a transmition was scheduled and the function responder() returns a pair with the first bool set to true, when applied to the transmitting
-         * data, the given incomming_data is used to simulate an incoming PDU.
+         * data, the given incomming_data is used to simulate an incoming PDU. The first function that returns true, will be applied and removed from the list.
          */
         void add_responder( const responder_t& responder );
 
@@ -88,6 +90,7 @@ namespace test {
          */
         std::uint32_t static_random_address_seed() const;
 
+        static const bluetoe::link_layer::delta_time T_IFS;
     protected:
         typedef std::vector< schedule_data > data_list;
         data_list transmitted_data_;
@@ -102,7 +105,7 @@ namespace test {
             const std::function< bool ( const schedule_data& first, const schedule_data& next ) >&              check,
             const std::function< void ( data_list::const_iterator first, data_list::const_iterator next ) >&    fail ) const;
 
-        std::pair< bool, incomming_data > find_response( const schedule_data& ) const;
+        std::pair< bool, incomming_data > find_response( const schedule_data& );
     };
 
     /**
@@ -127,8 +130,6 @@ namespace test {
          * @brief runs the simulation
          */
         void run();
-
-        static const bluetoe::link_layer::delta_time T_IFS;
     private:
         // end of simulations
         const bluetoe::link_layer::delta_time eos_;
@@ -175,7 +176,7 @@ namespace test {
 
         do
         {
-            const schedule_data&                current  = transmitted_data_.back();
+            schedule_data&                      current  = transmitted_data_.back();
             std::pair< bool, incomming_data >   response = find_response( current );
 
             // for now, only timeouts are simulated
@@ -187,6 +188,7 @@ namespace test {
                 const std::size_t copy_size = std::min< std::size_t >( current.receive_buffer.size, received_data.size() );
 
                 std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
+                current.receive_buffer.size = copy_size;
 
                 idle_ = true;
                 static_cast< CallBack* >( this )->received( current.receive_buffer );
@@ -199,9 +201,6 @@ namespace test {
             }
         } while ( now_ < eos_ );
     }
-
-    template < typename CallBack >
-    const bluetoe::link_layer::delta_time radio< CallBack >::T_IFS = bluetoe::link_layer::delta_time( 150u );
 
 }
 
