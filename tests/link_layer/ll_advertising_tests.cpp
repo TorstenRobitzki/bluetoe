@@ -29,11 +29,30 @@ namespace {
     struct advertising_and_connect_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
     {
         typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+
         void run()
         {
             small_temperature_service gatt_server_;
             base::run( gatt_server_ );
         }
+
+        /*
+         * this function runs the simulation and checks that no response was generated
+         */
+        void run_expect_no_response( const char* message )
+        {
+            run();
+
+            this->check_scheduling(
+                []( const test::schedule_data& pdu ) -> bool
+                {
+                    return ( pdu.transmitted_data[ 0 ] & 0xf ) == 0;
+                },
+                message
+            );
+        }
+
+
     };
 
     struct advertising_and_connect : advertising_and_connect_base<> {};
@@ -278,7 +297,7 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and_connect )
+BOOST_FIXTURE_TEST_CASE( no_repond_to_an_invalid_pdu, advertising_and_connect )
 {
     respond_to(
         37, // channel
@@ -287,15 +306,7 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
         }
     );
 
-    run();
-
-    check_scheduling(
-        []( const test::schedule_data& pdu ) -> bool
-        {
-            return ( pdu.transmitted_data[ 0 ] & 0xf ) == 0;
-        },
-        "still_advertising_after_an_invalid_pdu"
-    );
+    run_expect_no_response( "no_repond_to_an_invalid_pdu" );
 }
 
 /**
@@ -312,15 +323,88 @@ BOOST_FIXTURE_TEST_CASE( no_repond_to_a_scan_request_with_different_address, adv
         }
     );
 
+    run_expect_no_response( "no_repond_to_a_scan_request_with_different_address" );
+}
+
+BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and_connect )
+{
+    respond_to(
+        37, // channel
+        {
+            0x03, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06  // scanner address
+            // missing advertiser address
+        }
+    );
+
     run();
 
+    const unsigned number_of_advertising_packages =
+        this->sum_data(
+            std::function< unsigned ( const test::schedule_data&, unsigned ) >(
+                []( const test::schedule_data& pdu, unsigned start_value )
+                {
+                    return ( pdu.transmitted_data[ 0 ] & 0xf ) == 0
+                        ? start_value + 1
+                        : start_value;
+                }
+            ),
+            0u
+        );
+
+    BOOST_CHECK_GT( number_of_advertising_packages, 5 );
+}
+
+/**
+ * @brief After the SCAN_RSP PDU is sent, the advertiser shall either move to the next used advertising channel index to send another ADV_IND PDU
+ */
+BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_connect )
+{
+    static const std::initializer_list< std::uint8_t > valid_scan_request = {
+        0x03, 0x0C, // header
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+    };
+
+    for ( unsigned int c = 0; c != 4; ++c )
+    {
+        add_responder(
+            [c]( const test::schedule_data& d ) -> std::pair< bool, test::incomming_data >
+            {
+                const unsigned channel = 37 + c % 3;
+
+                return ( d.transmitted_data[ 0 ] & 0xf ) == 0 && d.channel == channel
+                    ? std::pair< bool, test::incomming_data >(
+                        true,
+                        test::incomming_data{ channel, valid_scan_request, T_IFS } )
+                    : std::pair< bool, test::incomming_data >( false, test::incomming_data() );
+            }
+        );
+    }
+
+    run();
+
+    unsigned count = 0;
+
     check_scheduling(
-        []( const test::schedule_data& pdu ) -> bool
+        [ &count ]( const test::schedule_data& first, const test::schedule_data& next ) -> bool
         {
-            return ( pdu.transmitted_data[ 0 ] & 0xf ) == 0;
+            if ( ( first.transmitted_data[ 0 ] & 0xf ) != 0x4 )
+                return true;
+
+            ++count;
+
+            // `first` is an scan response, `second` should now be an advertising message on the next channel
+            return ( next.transmitted_data[ 0 ] & 0xf ) == 0
+                 && next.channel != first.channel
+                 // when changing to the second and third advertising channel, no delay should applied
+                 && ( next.transmision_time.zero() || next.channel == 37 );
         },
-        "no_repond_to_a_scan_request_with_different_address"
+        "move_to_next_chanel_after_adverting"
     );
+
+    // make sure, the test realy found 4 scan responses
+    BOOST_REQUIRE_EQUAL( count, 4 );
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_after_a_broken_connection_request, advertising_and_connect )

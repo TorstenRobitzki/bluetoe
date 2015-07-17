@@ -64,6 +64,7 @@ namespace link_layer {
         unsigned                        adv_perturbation_;
         const address                   address_;
         bool                            initial_advertising_;
+        bool                            do_not_respond_to_;
 
         typedef                         advertising_interval< 100 > default_advertising_interval;
         typedef                         random_static_address       default_device_address;
@@ -82,6 +83,7 @@ namespace link_layer {
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
         , initial_advertising_( true )
+        , do_not_respond_to_( false )
     {
     }
 
@@ -107,8 +109,10 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::received( const read_buffer& receive )
     {
-        if ( is_valid_scan_request( receive ) )
+        if ( is_valid_scan_request( receive ) && !do_not_respond_to_ )
         {
+            do_not_respond_to_ = true;
+
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
                 write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
@@ -123,6 +127,8 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::timeout()
     {
+        do_not_respond_to_ = false;
+
         current_advertising_channel_ = current_advertising_channel_ == last_advertising_channel
             ? first_advertising_channel
             : current_advertising_channel_ + 1;
@@ -134,7 +140,7 @@ namespace link_layer {
         this->schedule_transmit_and_receive(
             current_advertising_channel_,
             write_buffer{ adv_buffer_, adv_size_ }, next_time,
-            read_buffer() );
+            read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >

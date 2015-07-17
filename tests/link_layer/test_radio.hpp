@@ -67,6 +67,9 @@ namespace test {
         void all_data( std::function< void ( const schedule_data& ) > ) const;
         void all_data( const std::function< bool ( const schedule_data& ) >& filter, const std::function< void ( const schedule_data& first, const schedule_data& next ) >& ) const;
 
+        template < class Accu >
+        Accu sum_data( std::function< Accu ( const schedule_data&, Accu start_value ) >, Accu start_value ) const;
+
         /**
          * @brief function to take the arguments to a scheduling function and optional return a response
          */
@@ -84,6 +87,12 @@ namespace test {
          * @brief response to sending on the given channel with the given PDU send on the same channel without delay
          */
         void respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu );
+
+        /**
+         * @brief response `times` times
+         */
+        void respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu, unsigned times );
+
 
         /**
          * @brief returns 0x47110815
@@ -140,6 +149,15 @@ namespace test {
     };
 
     // implementation
+    template < class Accu >
+    Accu radio_base::sum_data( std::function< Accu ( const schedule_data&, Accu start_value ) > f, Accu start_value ) const
+    {
+        for ( const auto& d : transmitted_data_ )
+            start_value = f( d, start_value );
+
+        return start_value;
+    }
+
     template < typename CallBack >
     radio< CallBack >::radio()
         : eos_( bluetoe::link_layer::delta_time::seconds( 10 ) )

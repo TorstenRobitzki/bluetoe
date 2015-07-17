@@ -180,6 +180,8 @@ namespace test {
 
     void radio_base::respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu )
     {
+        assert( channel < 40 );
+
         add_responder(
             [=]( const schedule_data& ) -> std::pair< bool, incomming_data >
             {
@@ -189,6 +191,12 @@ namespace test {
                 );
             }
         );
+    }
+
+    void radio_base::respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu, unsigned times )
+    {
+        for ( ;times; --times )
+            respond_to( channel, pdu );
     }
 
     std::pair< bool, incomming_data > radio_base::find_response( const schedule_data& data )
