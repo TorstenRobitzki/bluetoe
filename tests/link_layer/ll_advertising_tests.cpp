@@ -356,7 +356,7 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
 }
 
 /**
- * @brief After the SCAN_RSP PDU is sent, the advertiser shall either move to the next used advertising channel index to send another ADV_IND PDU
+ * @brief After the SCAN_RSP PDU is sent, the advertiser shall move to the next used advertising channel index to send another ADV_IND PDU
  */
 BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_connect )
 {
@@ -366,6 +366,7 @@ BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_co
         0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
     };
 
+    // simulate 4 scan requests on 4 different channels
     for ( unsigned int c = 0; c != 4; ++c )
     {
         add_responder(

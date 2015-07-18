@@ -16,6 +16,13 @@ namespace nrf51_details {
     static scheduled_radio_base*        instance             = nullptr;
     // the timeout timer will be canceled when the address is received; that's after T_IFS (150µs +- 2) 5 Bytes and some addition 20µs
     static constexpr std::uint32_t      reponse_timeout_us   = 152 + 5 * 8 + 20;
+    static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
+
+    static void toggle_debug_pins()
+    {
+        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 18 );
+        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 19 );
+    }
 
     static void init_debug_pins()
     {
@@ -26,12 +33,8 @@ namespace nrf51_details {
         NRF_GPIO->PIN_CNF[ 19 ] =
             ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
             ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
-    }
 
-    static void toggle_debug_pins()
-    {
-        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 18 );
-        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 19 );
+        toggle_debug_pins();
     }
 
     static void init_radio()
@@ -61,6 +64,7 @@ namespace nrf51_details {
         NRF_RADIO->BASE0     = ( radio_access_address << 8 ) & 0xFFFFFF00;
         NRF_RADIO->PREFIX0   = ( radio_access_address >> 24 ) & RADIO_PREFIX0_AP0_Msk;
         NRF_RADIO->TXADDRESS = 0;
+        NRF_RADIO->RXADDRESSES = 1 << 0;
 
         NRF_RADIO->CRCCNF    =
             ( RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos ) |
@@ -143,12 +147,14 @@ namespace nrf51_details {
         assert( !received_ );
         assert( !timeout_ );
         assert( state_ == state::idle );
+        assert( receive.buffer );
+        assert( receive.size >= 2u );
 
         const unsigned      frequency  = frequency_from_channel( channel );
-        const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, 255 );
+        const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, maximum_advertising_pdu_size );
 
         receive_buffer_      = receive;
-        receive_buffer_.size = std::min< std::size_t >( receive.size, 255 );
+        receive_buffer_.size = std::min< std::size_t >( receive.size, maximum_advertising_pdu_size );
 
         NRF_RADIO->FREQUENCY   = frequency;
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
@@ -197,19 +203,24 @@ namespace nrf51_details {
         while ( !received_ && !timeout_ )
             ;
 
+        // when either received_ or timeout_ is true, no timer should be scheduled and the radio should be idle
+        assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
+        assert( nrf_timer->INTENCLR == 0 );
+
         if ( received_ )
         {
+            assert( reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ) == receive_buffer_.buffer );
+
+            receive_buffer_.size = std::min< std::size_t >( receive_buffer_.size, ( receive_buffer_.buffer[ 1 ] & 0x3f ) + 2 );
             received_ = false;
-            callbacks_.received( link_layer::read_buffer{ reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ),  } );
+
+            callbacks_.received( receive_buffer_ );
         }
         else
         {
             timeout_ = false;
             callbacks_.timeout();
         }
-
-        assert( !received_ );
-        assert( !timeout_ );
     }
 
     void scheduled_radio_base::radio_interrupt()
@@ -272,18 +283,20 @@ namespace nrf51_details {
 
     void scheduled_radio_base::timer_interrupt()
     {
+        nrf_timer->INTENCLR            = TIMER_INTENSET_COMPARE0_Msk;
+        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+
         if ( state_ == state::receiving )
         {
             state_ = state::timeout_stopping;
 
-            nrf_timer->INTENCLR      = TIMER_INTENSET_COMPARE0_Msk;
             NRF_RADIO->TASKS_DISABLE = 1;
         }
         else if ( state_ == state::transmitting_pending )
         {
             state_ = state::transmitting;
 
-            // this time can be used as new T0, so lets reset the timer
+            // this time can be used as new T0, so lets reset the timer; TODO only true, for the first channel
             nrf_timer->TASKS_CLEAR = 1;
             NRF_RADIO->TASKS_TXEN  = 1;
         }
