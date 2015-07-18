@@ -11,6 +11,11 @@ namespace link_layer {
     {
         std::uint8_t*   buffer;
         std::size_t     size;
+
+        bool empty() const
+        {
+            return buffer == nullptr && size == 0;
+        }
     };
 
     struct write_buffer

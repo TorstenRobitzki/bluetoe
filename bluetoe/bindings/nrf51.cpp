@@ -147,8 +147,7 @@ namespace nrf51_details {
         assert( !received_ );
         assert( !timeout_ );
         assert( state_ == state::idle );
-        assert( receive.buffer );
-        assert( receive.size >= 2u );
+        assert( receive.buffer && receive.size >= 2u || receive.empty() );
 
         const unsigned      frequency  = frequency_from_channel( channel );
         const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, maximum_advertising_pdu_size );
@@ -238,7 +237,12 @@ namespace nrf51_details {
 
                 timeout_ = true;
             }
-            else if ( state_ == state::transmitting )
+            else if ( state_ == state::transmitting && receive_buffer_.empty() )
+            {
+                state_ = state::idle;
+                timeout_ = true;
+            }
+            else if ( state_ == state::transmitting && !receive_buffer_.empty() )
             {
                 state_ = state::receiving;
 

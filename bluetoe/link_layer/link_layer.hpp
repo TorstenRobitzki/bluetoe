@@ -116,7 +116,7 @@ namespace link_layer {
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
                 write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
-                read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
+                read_buffer{ nullptr, 0 } );
         }
         else
         {

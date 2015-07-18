@@ -34,11 +34,13 @@ namespace link_layer {
          * CallBack::received() or CallBack::timeout() is called. In both cases, every following call to a scheduling
          * function is based on the time, the tranmision was scheduled. So the new T0 = T0 + when.
          *
-         * This function is intended to be used for sending advertising PDU.
+         * This function is intended to be used for sending advertising PDUs. If the given receive buffer is empty, the timeout callback
+         * will be called when the PDU was sent.
          *
          * @param channel channel to transmit and to receive on
          * @param transmit data to be transmitted
          * @param when point in time, when the first bit of data should be started to be transmitted
+         * @param receive
          */
         void schedule_transmit_and_receive(
                 unsigned                                    channel,

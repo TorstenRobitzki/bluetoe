@@ -291,7 +291,8 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
         {
             return pdu.channel == 37
                 && pdu.transmision_time.zero()
-                && pdu.transmitted_data == expected_response;
+                && pdu.transmitted_data == expected_response
+                && pdu.receive_buffer.empty();
         },
         "empty_reponds_to_a_scan_request"
     );
