@@ -41,6 +41,8 @@ namespace bluetoe
                 const bluetoe::link_layer::read_buffer&     receive,
                 const bluetoe::link_layer::write_buffer&    answert );
 
+            void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
+
             void run();
 
             std::uint32_t static_random_address_seed() const;

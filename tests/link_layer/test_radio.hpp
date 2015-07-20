@@ -27,6 +27,9 @@ namespace test {
 
         bool                                receive_and_transmit;
         bluetoe::link_layer::delta_time     window_size;
+
+        std::uint32_t                       access_address;
+        std::uint32_t                       crc_init;
     };
 
     std::ostream& operator<<( std::ostream& out, const schedule_data& data );
@@ -47,6 +50,8 @@ namespace test {
     class radio_base
     {
     public:
+        radio_base();
+
         // test interface
         const std::vector< schedule_data >& scheduling() const;
 
@@ -96,6 +101,7 @@ namespace test {
          */
         void respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu, unsigned times );
 
+        void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
         /**
          * @brief returns 0x47110815
@@ -109,6 +115,10 @@ namespace test {
 
         typedef std::vector< responder_t > responder_list;
         responder_list responders_;
+
+        std::uint32_t   access_address_;
+        std::uint32_t   crc_init_;
+        bool            access_address_and_crc_valid_;
 
         data_list::const_iterator next( std::vector< schedule_data >::const_iterator, const std::function< bool ( const schedule_data& ) >& filter ) const;
 
@@ -146,7 +156,7 @@ namespace test {
             const bluetoe::link_layer::read_buffer&     receive,
             const bluetoe::link_layer::write_buffer&    answert );
 
-        /**
+      /**
          * @brief runs the simulation
          */
         void run();
@@ -184,6 +194,8 @@ namespace test {
             const bluetoe::link_layer::read_buffer& receive )
     {
         assert( idle_ );
+        assert( access_address_and_crc_valid_ );
+
         idle_ = false;
 
         const schedule_data data{
@@ -194,7 +206,9 @@ namespace test {
             std::vector< std::uint8_t >( transmit.buffer, transmit.buffer + transmit.size ),
             receive,
             false,
-            bluetoe::link_layer::delta_time::now()
+            bluetoe::link_layer::delta_time::now(),
+            access_address_,
+            crc_init_
         };
 
         transmitted_data_.push_back( data );
@@ -209,6 +223,7 @@ namespace test {
         const bluetoe::link_layer::write_buffer&    answert )
     {
         assert( idle_ );
+        assert( access_address_and_crc_valid_ );
         idle_ = false;
 
         const schedule_data data{
@@ -219,7 +234,9 @@ namespace test {
             std::vector< std::uint8_t >( answert.buffer, answert.buffer + answert.size ),
             receive,
             true,
-            window_size
+            window_size,
+            access_address_,
+            crc_init_
         };
 
         transmitted_data_.push_back( data );

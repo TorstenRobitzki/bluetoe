@@ -41,6 +41,11 @@ namespace test {
         return transmitted_data_;
     }
 
+    radio_base::radio_base()
+        : access_address_and_crc_valid_( false )
+    {
+    }
+
     void radio_base::check_scheduling( const std::function< bool ( const schedule_data& ) >& check, const char* message ) const
     {
         unsigned n = 0;
@@ -216,6 +221,14 @@ namespace test {
         }
 
         return result;
+    }
+
+    void radio_base::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+    {
+        access_address_ = access_address;
+        crc_init_       = crc_init;
+
+        access_address_and_crc_valid_ = true;
     }
 
     std::uint32_t radio_base::static_random_address_seed() const

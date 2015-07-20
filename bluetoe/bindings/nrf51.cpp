@@ -9,7 +9,6 @@
 namespace bluetoe {
 namespace nrf51_details {
 
-    static constexpr std::uint32_t      radio_access_address = 0x8E89BED6;
     static constexpr NRF_RADIO_Type*    nrf_radio            = NRF_RADIO;
     static constexpr NRF_TIMER_Type*    nrf_timer            = NRF_TIMER0;
     static constexpr NVIC_Type*         nvic                 = NVIC;
@@ -61,8 +60,6 @@ namespace nrf51_details {
             ( 3 << RADIO_PCNF1_BALEN_Pos ) |
             ( 0 << RADIO_PCNF1_STATLEN_Pos );
 
-        NRF_RADIO->BASE0     = ( radio_access_address << 8 ) & 0xFFFFFF00;
-        NRF_RADIO->PREFIX0   = ( radio_access_address >> 24 ) & RADIO_PREFIX0_AP0_Msk;
         NRF_RADIO->TXADDRESS = 0;
         NRF_RADIO->RXADDRESSES = 1 << 0;
 
@@ -72,7 +69,6 @@ namespace nrf51_details {
 
         // The polynomial has the form of x^24 +x^10 +x^9 +x^6 +x^4 +x^3 +x+1
         NRF_RADIO->CRCPOLY   = 0x100065B;
-        NRF_RADIO->CRCINIT   = 0x555555;
 
         NRF_RADIO->TIFS      = 150;
     }
@@ -203,6 +199,13 @@ namespace nrf51_details {
         const bluetoe::link_layer::read_buffer&     receive,
         const bluetoe::link_layer::write_buffer&    answert )
     {
+    }
+
+    void scheduled_radio_base::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+    {
+        NRF_RADIO->BASE0     = ( access_address << 8 ) & 0xFFFFFF00;
+        NRF_RADIO->PREFIX0   = ( access_address >> 24 ) & RADIO_PREFIX0_AP0_Msk;
+        NRF_RADIO->CRCINIT   = 0x555555;
     }
 
     void scheduled_radio_base::run()

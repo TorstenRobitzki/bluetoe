@@ -122,6 +122,28 @@ BOOST_FIXTURE_TEST_CASE( less_than_10ms_between_two_PDUs, advertising )
     );
 }
 
+BOOST_FIXTURE_TEST_CASE( correct_access_address_is_used, advertising )
+{
+    check_scheduling(
+        []( const test::schedule_data& data )
+        {
+            return data.access_address == 0x8E89BED6;
+        },
+        "correct_access_address_is_used"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_crc_init_is_used, advertising )
+{
+    check_scheduling(
+        []( const test::schedule_data& data )
+        {
+            return data.crc_init == 0x555555;
+        },
+        "correct_crc_init_is_used"
+    );
+}
+
 /**
  * @test the advertising interval is 50ms plus a pseudo random interval of 0ms to 10ms
  */

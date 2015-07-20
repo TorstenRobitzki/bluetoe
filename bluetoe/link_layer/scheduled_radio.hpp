@@ -55,6 +55,13 @@ namespace link_layer {
             const bluetoe::link_layer::read_buffer&     receive,
             const bluetoe::link_layer::write_buffer&    answert );
 
+        /**
+         * @brief set the access address initial CRC value for transmitted and received PDU
+         *
+         * The values should be changed, when there is no outstanding scheduled transmission or receiving.
+         * The values will be applied with the next call to schedule_transmit_and_receive() or schedule_receive_and_transmit().
+         */
+        void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
         /**
          * @brief function to return a device specific value that is persistant and unique for the device (CPU id or such)

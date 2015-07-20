@@ -58,6 +58,9 @@ namespace link_layer {
 
         static constexpr std::uint8_t   header_txaddr_field         = 0x40;
 
+        static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
+        static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
+
         std::uint8_t                    adv_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
         std::size_t                     adv_size_;
         std::uint8_t                    adv_response_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
@@ -104,6 +107,10 @@ namespace link_layer {
             state_ = state::advertising;
             fill_advertising_buffer( server );
             fill_advertising_response_buffer( server );
+
+            this->set_access_address_and_crc_init(
+                advertising_radio_access_address,
+                advertising_crc_init );
 
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
