@@ -47,6 +47,7 @@ function(add_example TARGETNAME)
         ${TARGETNAME}.cpp
         ${BLUETOE_ROOT}/bluetoe/link_layer/delta_time.cpp
         ${BLUETOE_ROOT}/bluetoe/link_layer/address.cpp
+        ${BLUETOE_ROOT}/bluetoe/link_layer/channel_map.cpp
         ${BLUETOE_ROOT}/bluetoe/bindings/nrf51.cpp
         system_nrf51422.c
         gcc_startup_nrf51.s

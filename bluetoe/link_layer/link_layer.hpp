@@ -5,6 +5,7 @@
 #include <bluetoe/link_layer/delta_time.hpp>
 #include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/link_layer/channel_map.hpp>
 #include <bluetoe/options.hpp>
 
 #include <algorithm>
@@ -74,6 +75,7 @@ namespace link_layer {
         unsigned                        current_advertising_channel_;
         unsigned                        adv_perturbation_;
         const address                   address_;
+        channel_map                     channels_;
 
         enum class state
         {
@@ -137,7 +139,7 @@ namespace link_layer {
                     write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
                     read_buffer{ nullptr, 0 } );
             }
-            else if ( is_valid_connect_request( receive ) )
+            else if ( is_valid_connect_request( receive ) && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f ) )
             {
                 state_ = state::connected;
 

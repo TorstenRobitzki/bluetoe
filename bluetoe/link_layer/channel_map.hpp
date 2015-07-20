@@ -14,12 +14,20 @@ namespace link_layer {
     public:
         channel_map();
 
-        void reset( const std::uint8_t* map, const unsigned hop );
+        /**
+         * sets a new list of used channels and a new hop value.
+         *
+         * The function returns true, if the given parameters are valid.
+         * A valid map contains at least 2 channel.
+         * A hop increment shall have a value in the range of 5 to 16.
+         */
+        bool reset( const std::uint8_t* map, const unsigned hop );
 
         unsigned next_channel( unsigned ) const;
 
     private:
-        unsigned hop_;
+        static constexpr unsigned max_number_of_data_channels = 37;
+        std::uint8_t map_[ max_number_of_data_channels ];
     };
 }
 }
