@@ -43,14 +43,18 @@ namespace link_layer {
          * @param receive buffer where the radio will copy the received data, before calling Callback::receive(). This parameter can be empty if no receiving is intended.
          */
         void schedule_transmit_and_receive(
-                unsigned                                    channel,
-                const bluetoe::link_layer::write_buffer&    transmit,
-                bluetoe::link_layer::delta_time             when,
-                const bluetoe::link_layer::read_buffer&     receive );
+            unsigned                                    channel,
+            const bluetoe::link_layer::write_buffer&    transmit,
+            bluetoe::link_layer::delta_time             when,
+            const bluetoe::link_layer::read_buffer&     receive );
 
-        void schedule_transmit( unsigned channel, const std::uint8_t* data, std::size_t size, delta_time when_ms );
+        void schedule_receive_and_transmit(
+            unsigned                                    channel,
+            bluetoe::link_layer::delta_time             when,
+            bluetoe::link_layer::delta_time             window_size,
+            const bluetoe::link_layer::read_buffer&     receive,
+            const bluetoe::link_layer::write_buffer&    answert );
 
-        void schedule_receive( unsigned channel, delta_time when_ms, delta_time timeout_ms );
 
         /**
          * @brief function to return a device specific value that is persistant and unique for the device (CPU id or such)

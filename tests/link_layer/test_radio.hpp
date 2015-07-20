@@ -24,6 +24,9 @@ namespace test {
         bluetoe::link_layer::delta_time     transmision_time;
         std::vector< std::uint8_t >         transmitted_data;
         bluetoe::link_layer::read_buffer    receive_buffer;
+
+        bool                                receive_and_transmit;
+        bluetoe::link_layer::delta_time     window_size;
     };
 
     std::ostream& operator<<( std::ostream& out, const schedule_data& data );
@@ -131,9 +134,17 @@ namespace test {
 
         // scheduled_radio interface
         void schedule_transmit_and_receive(
-                unsigned channel,
-                const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
-                const bluetoe::link_layer::read_buffer& receive );
+            unsigned                                    channel,
+            const bluetoe::link_layer::write_buffer&    transmit,
+            bluetoe::link_layer::delta_time             when,
+            const bluetoe::link_layer::read_buffer&     receive );
+
+        void schedule_receive_and_transmit(
+            unsigned                                    channel,
+            bluetoe::link_layer::delta_time             when,
+            bluetoe::link_layer::delta_time             window_size,
+            const bluetoe::link_layer::read_buffer&     receive,
+            const bluetoe::link_layer::write_buffer&    answert );
 
         /**
          * @brief runs the simulation
@@ -181,7 +192,34 @@ namespace test {
             channel,
             when,
             std::vector< std::uint8_t >( transmit.buffer, transmit.buffer + transmit.size ),
-            receive
+            receive,
+            false,
+            bluetoe::link_layer::delta_time::now()
+        };
+
+        transmitted_data_.push_back( data );
+    }
+
+    template < typename CallBack >
+    void radio< CallBack >::schedule_receive_and_transmit(
+        unsigned                                    channel,
+        bluetoe::link_layer::delta_time             when,
+        bluetoe::link_layer::delta_time             window_size,
+        const bluetoe::link_layer::read_buffer&     receive,
+        const bluetoe::link_layer::write_buffer&    answert )
+    {
+        assert( idle_ );
+        idle_ = false;
+
+        const schedule_data data{
+            now_,
+            now_ + when,
+            channel,
+            when,
+            std::vector< std::uint8_t >( answert.buffer, answert.buffer + answert.size ),
+            receive,
+            true,
+            window_size
         };
 
         transmitted_data_.push_back( data );
@@ -192,8 +230,12 @@ namespace test {
     {
         assert( !transmitted_data_.empty() );
 
+        auto count = transmitted_data_.size();
+
         do
         {
+            count = transmitted_data_.size();
+
             schedule_data&                      current  = transmitted_data_.back();
             std::pair< bool, incomming_data >   response = find_response( current );
 
@@ -217,7 +259,9 @@ namespace test {
                 idle_ = true;
                 static_cast< CallBack* >( this )->timeout();
             }
-        } while ( now_ < eos_ );
+
+//            assert( count + 1 == transmitted_data_.size() );
+        } while ( now_ < eos_ && count + 1 == transmitted_data_.size() );
     }
 
 }

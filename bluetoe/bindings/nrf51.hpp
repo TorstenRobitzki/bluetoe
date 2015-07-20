@@ -29,9 +29,17 @@ namespace bluetoe
             explicit scheduled_radio_base( callbacks& );
 
             void schedule_transmit_and_receive(
-                    unsigned channel,
-                    const link_layer::write_buffer& transmit, link_layer::delta_time when,
-                    const link_layer::read_buffer& receive );
+                unsigned                        channel,
+                const link_layer::write_buffer& transmit,
+                link_layer::delta_time          when,
+                const link_layer::read_buffer&  receive );
+
+            void schedule_receive_and_transmit(
+                unsigned                                    channel,
+                bluetoe::link_layer::delta_time             when,
+                bluetoe::link_layer::delta_time             window_size,
+                const bluetoe::link_layer::read_buffer&     receive,
+                const bluetoe::link_layer::write_buffer&    answert );
 
             void run();
 

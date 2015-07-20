@@ -196,6 +196,15 @@ namespace nrf51_details {
         }
     }
 
+    void scheduled_radio_base::schedule_receive_and_transmit(
+        unsigned                                    channel,
+        bluetoe::link_layer::delta_time             when,
+        bluetoe::link_layer::delta_time             window_size,
+        const bluetoe::link_layer::read_buffer&     receive,
+        const bluetoe::link_layer::write_buffer&    answert )
+    {
+    }
+
     void scheduled_radio_base::run()
     {
         // TODO send cpu to sleep
