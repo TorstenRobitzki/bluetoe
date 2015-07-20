@@ -205,7 +205,7 @@ namespace nrf51_details {
     {
         NRF_RADIO->BASE0     = ( access_address << 8 ) & 0xFFFFFF00;
         NRF_RADIO->PREFIX0   = ( access_address >> 24 ) & RADIO_PREFIX0_AP0_Msk;
-        NRF_RADIO->CRCINIT   = 0x555555;
+        NRF_RADIO->CRCINIT   = crc_init;
     }
 
     void scheduled_radio_base::run()
