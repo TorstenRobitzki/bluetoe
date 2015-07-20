@@ -1,4 +1,3 @@
-#include <iostream>
 #include <map>
 
 #include <bluetoe/link_layer/link_layer.hpp>

@@ -129,6 +129,12 @@ namespace link_layer {
             else if ( is_valid_connect_request( receive ) )
             {
                 state_ = state::connected;
+
+                this->schedule_receive_and_transmit(
+                    current_advertising_channel_,
+                    delta_time::usec( 15 ), delta_time::usec( 15 ),
+                    read_buffer{ nullptr, 0 },
+                    write_buffer{ adv_response_buffer_, adv_response_size_ } );
             }
             else
             {
@@ -218,7 +224,10 @@ namespace link_layer {
         static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
         static constexpr std::uint8_t scan_request_code = 0x03;
 
-        bool result = receive.size == scan_request_size && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
+        bool result = receive.size == scan_request_size
+            && ( receive.buffer[ 1 ] & 0x3f ) == scan_request_size - advertising_pdu_header_size
+            && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
+
         result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
 
         return result;
@@ -227,8 +236,16 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::is_valid_connect_request( const read_buffer& receive ) const
     {
+        static constexpr std::size_t  connect_request_size = 34 + advertising_pdu_header_size;
         static constexpr std::uint8_t connect_request_code = 0x05;
-        return ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
+
+        bool result = receive.size == connect_request_size
+                && ( receive.buffer[ 1 ] & 0x3f ) == connect_request_size - advertising_pdu_header_size
+                && ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
+
+        result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
+
+        return result;
     }
 
 }
