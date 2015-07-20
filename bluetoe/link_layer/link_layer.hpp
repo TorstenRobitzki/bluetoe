@@ -7,6 +7,9 @@
 #include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/options.hpp>
 
+#include <algorithm>
+#include <cassert>
+
 namespace bluetoe {
 namespace link_layer {
 
@@ -40,6 +43,7 @@ namespace link_layer {
         void fill_advertising_buffer( const Server& server );
         void fill_advertising_response_buffer( const Server& server );
         bool is_valid_scan_request( const read_buffer& receive ) const;
+        bool is_valid_connect_request( const read_buffer& receive ) const;
 
         static constexpr std::size_t    max_advertising_data_size   = 31;
         static constexpr std::size_t    advertising_pdu_header_size = 2;
@@ -63,8 +67,13 @@ namespace link_layer {
         unsigned                        current_advertising_channel_;
         unsigned                        adv_perturbation_;
         const address                   address_;
-        bool                            initial_advertising_;
-        bool                            do_not_respond_to_;
+
+        enum class state
+        {
+            initial,
+            advertising,
+            connected
+        }                               state_;
 
         typedef                         advertising_interval< 100 > default_advertising_interval;
         typedef                         random_static_address       default_device_address;
@@ -82,8 +91,7 @@ namespace link_layer {
         , current_advertising_channel_( first_advertising_channel )
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
-        , initial_advertising_( true )
-        , do_not_respond_to_( false )
+        , state_( state::initial )
     {
     }
 
@@ -91,9 +99,9 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::run( Server& server )
     {
         // after the initial scheduling, the timeout and receive callback will setup the next scheduling
-        if ( initial_advertising_ )
+        if ( state_ == state::initial )
         {
-            initial_advertising_ = false;
+            state_ = state::advertising;
             fill_advertising_buffer( server );
             fill_advertising_response_buffer( server );
 
@@ -109,38 +117,59 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::received( const read_buffer& receive )
     {
-        if ( is_valid_scan_request( receive ) && !do_not_respond_to_ )
+        if ( state_ == state::advertising )
         {
-            do_not_respond_to_ = true;
-
-            this->schedule_transmit_and_receive(
-                current_advertising_channel_,
-                write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
-                read_buffer{ nullptr, 0 } );
+            if ( is_valid_scan_request( receive ) )
+            {
+                this->schedule_transmit_and_receive(
+                    current_advertising_channel_,
+                    write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
+                    read_buffer{ nullptr, 0 } );
+            }
+            else if ( is_valid_connect_request( receive ) )
+            {
+                state_ = state::connected;
+            }
+            else
+            {
+                timeout();
+            }
+        }
+        else if ( state_ == state::connected )
+        {
         }
         else
         {
-            timeout();
+            assert( !"invalid state" );
         }
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::timeout()
     {
-        do_not_respond_to_ = false;
+        if ( state_ == state::advertising )
+        {
+            current_advertising_channel_ = current_advertising_channel_ == last_advertising_channel
+                ? first_advertising_channel
+                : current_advertising_channel_ + 1;
 
-        current_advertising_channel_ = current_advertising_channel_ == last_advertising_channel
-            ? first_advertising_channel
-            : current_advertising_channel_ + 1;
+            const delta_time next_time = current_advertising_channel_ == first_advertising_channel
+                ? next_adv_event()
+                : delta_time::now();
 
-        const delta_time next_time = current_advertising_channel_ == first_advertising_channel
-            ? next_adv_event()
-            : delta_time::now();
+            this->schedule_transmit_and_receive(
+                current_advertising_channel_,
+                write_buffer{ adv_buffer_, adv_size_ }, next_time,
+                read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
+        }
+        else if ( state_ == state::connected )
+        {
 
-        this->schedule_transmit_and_receive(
-            current_advertising_channel_,
-            write_buffer{ adv_buffer_, adv_size_ }, next_time,
-            read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
+        }
+        else
+        {
+            assert( !"invalid state" );
+        }
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
@@ -193,6 +222,13 @@ namespace link_layer {
         result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
 
         return result;
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::is_valid_connect_request( const read_buffer& receive ) const
+    {
+        static constexpr std::uint8_t connect_request_code = 0x05;
+        return ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
     }
 
 }

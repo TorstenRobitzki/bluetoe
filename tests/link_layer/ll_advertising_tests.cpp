@@ -408,21 +408,3 @@ BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_co
     // make sure, the test realy found 4 scan responses
     BOOST_REQUIRE_EQUAL( count, 4 );
 }
-
-BOOST_FIXTURE_TEST_CASE( no_connection_after_a_broken_connection_request, advertising_and_connect )
-{
-}
-
-/**
- * @test after a valid connection request, the connection is established
- */
-BOOST_FIXTURE_TEST_CASE( connected_after_connection_request, advertising_and_connect )
-{
-}
-
-/**
- * @test no connection is established when the connection request doesn't contain the devices address
- */
-BOOST_FIXTURE_TEST_CASE( connection_request_from_wrong_address, advertising_and_connect )
-{
-}
