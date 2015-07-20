@@ -53,6 +53,8 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
 
 struct unconnected : unconnected_base<> {};
 
+struct connecting {};
+
 struct connected {};
 
 typedef boost::mpl::list<
@@ -216,10 +218,22 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_initial_crc_value, unconnected )
     BOOST_CHECK_EQUAL( crc_init(), 0xf68108 );
 }
 
-/**
- * @test no connection is established when the connection request doesn't contain the devices address
+/*
+ * At the start of a connection event, unmappedChannel shall be calculated using the following basic algorithm:
+ *    unmappedChannel = (lastUnmappedChannel + hopIncrement) mod 37
  */
-BOOST_FIXTURE_TEST_CASE( connection_request_from_wrong_address, unconnected )
+BOOST_FIXTURE_TEST_CASE( start_receiving_on_the_correct_channel, connecting )
+{
+}
+
+/*
+ * Assumed that the first unmappedChannel is not within the channel map, the
+ */
+BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, connecting )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 {
 }
 
