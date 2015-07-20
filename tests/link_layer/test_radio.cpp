@@ -231,6 +231,20 @@ namespace test {
         access_address_and_crc_valid_ = true;
     }
 
+    std::uint32_t radio_base::access_address() const
+    {
+        assert( access_address_and_crc_valid_ );
+
+        return access_address_;
+    }
+
+    std::uint32_t radio_base::crc_init() const
+    {
+        assert( access_address_and_crc_valid_ );
+
+        return crc_init_;
+    }
+
     std::uint32_t radio_base::static_random_address_seed() const
     {
         return 0x47110815;

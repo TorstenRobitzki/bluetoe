@@ -103,6 +103,9 @@ namespace test {
 
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
+        std::uint32_t access_address() const;
+        std::uint32_t crc_init() const;
+
         /**
          * @brief returns 0x47110815
          */

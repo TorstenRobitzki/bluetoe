@@ -45,6 +45,10 @@ namespace link_layer {
         bool is_valid_scan_request( const read_buffer& receive ) const;
         bool is_valid_connect_request( const read_buffer& receive ) const;
 
+        static std::uint16_t read_16( const std::uint8_t* );
+        static std::uint32_t read_24( const std::uint8_t* );
+        static std::uint32_t read_32( const std::uint8_t* );
+
         static constexpr std::size_t    max_advertising_data_size   = 31;
         static constexpr std::size_t    advertising_pdu_header_size = 2;
         static constexpr std::size_t    address_length              = 6;
@@ -136,6 +140,10 @@ namespace link_layer {
             else if ( is_valid_connect_request( receive ) )
             {
                 state_ = state::connected;
+
+                this->set_access_address_and_crc_init(
+                    read_32( &receive.buffer[ 14 ] ),
+                    read_24( &receive.buffer[ 18 ] ) );
 
                 this->schedule_receive_and_transmit(
                     current_advertising_channel_,
@@ -253,6 +261,24 @@ namespace link_layer {
         result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
 
         return result;
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    std::uint16_t link_layer< Server, ScheduledRadio, Options... >::read_16( const std::uint8_t* p )
+    {
+        return *p | *( p + 1 ) << 8;
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_24( const std::uint8_t* p )
+    {
+        return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( *( p + 2 ) ) << 16;
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_32( const std::uint8_t* p )
+    {
+        return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
     }
 
 }
