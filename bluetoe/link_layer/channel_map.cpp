@@ -8,6 +8,11 @@ namespace link_layer {
     {
     }
 
+    static bool in_map( const std::uint8_t* map, unsigned index )
+    {
+        return map[ index / 8 ] & ( 1 << ( index % 8 ) );
+    }
+
     bool channel_map::reset( const std::uint8_t* map, const unsigned hop )
     {
         assert( map );
@@ -17,7 +22,15 @@ namespace link_layer {
 
         for ( unsigned index = 0, channel = hop; index != max_number_of_data_channels; ++index )
         {
-            map_[ index ] = channel;
+            if ( in_map( map, channel ) )
+            {
+                map_[ index ] = channel;
+            }
+            else
+            {
+                map_[ index ] = 0;
+            }
+
             channel = ( channel + hop ) % max_number_of_data_channels;
         }
 
