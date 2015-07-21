@@ -23,10 +23,15 @@ namespace link_layer {
          */
         bool reset( const std::uint8_t* map, const unsigned hop );
 
-        unsigned next_channel( unsigned ) const;
+        /**
+         * the BLE channel hop sequence is 37 entries long, after 37 hops, the sequence starts again.
+         * This function returns the entries in this sequence. The channel for the first entry is given
+         * by calling the function with index = 0, the last entry with index = max_number_of_data_channels -1
+         */
+        unsigned data_channel( unsigned index ) const;
 
-    private:
         static constexpr unsigned max_number_of_data_channels = 37;
+    private:
         std::uint8_t map_[ max_number_of_data_channels ];
     };
 }

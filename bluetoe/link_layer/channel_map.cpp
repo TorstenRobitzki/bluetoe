@@ -15,17 +15,19 @@ namespace link_layer {
         if ( hop < 5 || hop > 16 )
             return false;
 
-        map_[ 0 ] = hop % max_number_of_data_channels;
-
-        for ( unsigned channel = hop; channel != 0; channel = map_[ channel ] )
-            map_[ channel ] = ( channel + hop ) % max_number_of_data_channels;
+        for ( unsigned index = 0, channel = hop; index != max_number_of_data_channels; ++index )
+        {
+            map_[ index ] = channel;
+            channel = ( channel + hop ) % max_number_of_data_channels;
+        }
 
         return true;
     }
 
-    unsigned channel_map::next_channel( unsigned last_unmapped_channel ) const
+    unsigned channel_map::data_channel( unsigned index ) const
     {
-        return map_[ last_unmapped_channel ];
+        assert( index < max_number_of_data_channels );
+        return map_[ index ];
     }
 
 
