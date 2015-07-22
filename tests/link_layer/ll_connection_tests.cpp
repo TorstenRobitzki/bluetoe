@@ -25,6 +25,10 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
     0xaa                                // hop increment and sleep clock accuracy
 };
 
+const auto receive_and_transmit_data_filter = []( const test::schedule_data& data )
+    {
+        return data.receive_and_transmit;
+    };
 
 template < typename ... Options >
 struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
@@ -70,7 +74,21 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
 
 struct unconnected : unconnected_base<> {};
 
-struct connecting {};
+template < typename ... Options >
+struct connecting_base : unconnected_base< Options... >
+{
+    typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+
+    connecting_base()
+    {
+        this->respond_to( 37, valid_connection_request_pdu );
+
+        small_temperature_service gatt_server_;
+        base::run( gatt_server_ );
+    }
+};
+
+using connecting = connecting_base<>;
 
 struct connected {};
 
@@ -288,10 +306,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( start_receiving_on_the_correct_channel, Channel, 
     run();
 
     check_scheduling(
-        []( const test::schedule_data& data )
-        {
-            return data.receive_and_transmit;
-        },
+        receive_and_transmit_data_filter,
         []( const test::schedule_data& data )
         {
             return data.channel == ( 0 + 10 ) % 37;
@@ -299,25 +314,76 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( start_receiving_on_the_correct_channel, Channel, 
         "start_receiving_on_the_correct_channel"
     );
 
-    BOOST_CHECK_GE( count_data(
-        []( const test::schedule_data& data )
-        {
-            return data.receive_and_transmit;
-        } ), 1
-    );
+    // make sure, a at least one element within the filter was scheduled
+    BOOST_CHECK_GE( count_data( receive_and_transmit_data_filter ), 1 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
 
 /*
- * Assumed that the first unmappedChannel is not within the channel map, the
+ * Assumed that the first unmappedChannel is not within the channel map, the remapped channel should be used
  */
-BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, connecting )
+BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
+{
+    respond_to(
+        38,
+        {
+            0xc5, 0x22,                         // header
+            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xfb, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        } );
+
+    run();
+
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        []( const test::schedule_data& data )
+        {
+            return data.channel == ( ( 0 + 10 ) % 37 ) % 36 + 1;
+        },
+        "start_receiving_on_the_correct_channel"
+    );
+}
+
+BOOST_AUTO_TEST_CASE( no_connection_if_transmit_window_size_is_invalid )
 {
 }
 
-BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
+BOOST_AUTO_TEST_CASE( no_connection_if_transmit_window_offset_is_invalid )
 {
+}
+
+/*
+ * The default devie sleep clock accuracy is 500ppm, the masters sca is 50ppm.
+ * The last T0 was the reception of the connect request. The transmit window offset is
+ * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
+ * 15ms - 15ms + 550ppm = 14992µs; the window ends at 21.25ms + 21.25ms * 550ppm = 21261µs
+ */
+// BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
+// {
+//     check_scheduling(
+//         receive_and_transmit_data_filter,
+//         []( const test::schedule_data& data )
+//         {
+//             return data.transmision_time.usec() == 14992
+//                 && data.window_size.usec() == 21261 - 14992;
+//         },
+//         "start_receiving_with_the_correct_window"
+//     );
+// }
+
+BOOST_FIXTURE_TEST_CASE( link_layer_informs_host_about_established, unconnected )
+{
+
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, connected )

@@ -50,8 +50,8 @@ namespace link_layer {
 
         void schedule_receive_and_transmit(
             unsigned                                    channel,
-            bluetoe::link_layer::delta_time             when,
-            bluetoe::link_layer::delta_time             window_size,
+            bluetoe::link_layer::delta_time             start_receive,
+            bluetoe::link_layer::delta_time             end_receive,
             const bluetoe::link_layer::read_buffer&     receive,
             const bluetoe::link_layer::write_buffer&    answert );
 

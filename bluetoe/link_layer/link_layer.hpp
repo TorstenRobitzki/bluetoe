@@ -45,6 +45,9 @@ namespace link_layer {
         void fill_advertising_response_buffer( const Server& server );
         bool is_valid_scan_request( const read_buffer& receive ) const;
         bool is_valid_connect_request( const read_buffer& receive ) const;
+        unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
+        bool parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request );
+
 
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
@@ -76,6 +79,9 @@ namespace link_layer {
         unsigned                        adv_perturbation_;
         const address                   address_;
         channel_map                     channels_;
+        unsigned                        cumulated_sleep_clock_accuracy_;
+        delta_time                      transmit_window_offset_;
+        delta_time                      transmit_window_size_;
 
         enum class state
         {
@@ -84,12 +90,19 @@ namespace link_layer {
             connected
         }                               state_;
 
-        typedef                         advertising_interval< 100 > default_advertising_interval;
-        typedef                         random_static_address       default_device_address;
+        // default configuration parameters
+        typedef                         advertising_interval< 100 >         default_advertising_interval;
+        typedef                         sleep_clock_accuracy_ppm< 500 >     default_sleep_clock_accuracy;
+        typedef                         random_static_address               default_device_address;
 
         typedef typename ::bluetoe::details::find_by_meta_type<
             details::device_address_meta_type,
             Options..., default_device_address >::type              device_address;
+
+        typedef typename ::bluetoe::details::find_by_meta_type<
+            details::sleep_clock_accuracy_meta_type,
+            Options..., default_sleep_clock_accuracy >::type        device_sleep_clock_accuracy;
+
     };
 
     // implementation
@@ -139,10 +152,14 @@ namespace link_layer {
                     write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
                     read_buffer{ nullptr, 0 } );
             }
-            else if ( is_valid_connect_request( receive ) && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f ) )
+            else if (
+                   is_valid_connect_request( receive )
+                && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
+                && parse_transmit_window_from_connect_request( receive ) )
             {
-                state_ = state::connected;
-                current_advertising_channel_ = 0;
+                state_                          = state::connected;
+                current_advertising_channel_    = 0;
+                cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
 
                 this->set_access_address_and_crc_init(
                     read_32( &receive.buffer[ 14 ] ),
@@ -150,7 +167,8 @@ namespace link_layer {
 
                 this->schedule_receive_and_transmit(
                     channels_.data_channel( current_advertising_channel_ ),
-                    delta_time::usec( 15 ), delta_time::usec( 15 ),
+                    transmit_window_offset_,
+                    transmit_window_size_,
                     read_buffer{ nullptr, 0 },
                     write_buffer{ adv_response_buffer_, adv_response_size_ } );
             }
@@ -267,6 +285,22 @@ namespace link_layer {
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    unsigned link_layer< Server, ScheduledRadio, Options... >::sleep_clock_accuracy( const read_buffer& receive ) const
+    {
+        static constexpr std::uint16_t inaccuracy_ppm[ 8 ] = {
+            500, 250, 150, 100, 75, 50, 30, 20
+        };
+
+        return inaccuracy_ppm[ ( receive.buffer[ 35 ] & 0xc0 ) >> 6 ];
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request )
+    {
+        return true;
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
     std::uint16_t link_layer< Server, ScheduledRadio, Options... >::read_16( const std::uint8_t* p )
     {
         return *p | *( p + 1 ) << 8;
@@ -283,6 +317,7 @@ namespace link_layer {
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
     }
+
 
 }
 }
