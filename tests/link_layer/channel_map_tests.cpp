@@ -6,23 +6,21 @@
 static const std::uint8_t all_channel_map[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
 static const std::uint8_t all_but_one_map[] = { 0xff, 0xff, 0xff, 0xff, 0xf };
 
-template < unsigned Hop >
-struct all_channel : bluetoe::link_layer::channel_map
+template < unsigned Hop, const std::uint8_t*  Map >
+struct fixture : bluetoe::link_layer::channel_map
 {
-    all_channel()
+    fixture()
     {
-        BOOST_REQUIRE( reset( all_channel_map, Hop ) );
+        BOOST_REQUIRE( reset( Map, Hop ) );
     }
 };
 
+
 template < unsigned Hop >
-struct all_but_one_channel : bluetoe::link_layer::channel_map
-{
-    all_but_one_channel()
-    {
-        BOOST_REQUIRE( reset( all_but_one_map, Hop ) );
-    }
-};
+using all_channel = fixture< Hop, all_channel_map >;
+
+template < unsigned Hop >
+using all_but_one_channel = fixture< Hop, all_but_one_map >;
 
 using all_channel_5 = all_channel< 5 >;
 
@@ -82,16 +80,7 @@ BOOST_FIXTURE_TEST_CASE( all_but_one_channels_hop_10, all_but_one_channel_10 )
 
 static const std::uint8_t a_few_channels_map[] = { 0x17, 0x44, 0x00, 0xff, 0x05 };
 
-template < unsigned Hop >
-struct only_a_few_channels : bluetoe::link_layer::channel_map
-{
-    only_a_few_channels()
-    {
-        BOOST_REQUIRE( reset( a_few_channels_map, Hop ) );
-    }
-};
-
-using only_a_few_channels_7 = only_a_few_channels< 7 >;
+using only_a_few_channels_7 = fixture< 7, a_few_channels_map >;
 
 /* the list of channels in the map is:
    0, 1, 2, 4, 10, 14, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34
@@ -137,6 +126,41 @@ BOOST_FIXTURE_TEST_CASE( only_a_few_channels_hop_7, only_a_few_channels_7 )
     BOOST_CHECK_EQUAL( data_channel( 34 ), 25 ); // 23 % 16
     BOOST_CHECK_EQUAL( data_channel( 35 ), 30 );
     BOOST_CHECK_EQUAL( data_channel( 36 ), 0  );
+}
+
+/*
+ * A map just containing channel 0 and channel 36
+ */
+static const std::uint8_t only_two_channels_map[] = { 0x01, 0x00, 0x00, 0x00, 0x10 };
+
+using only_two_channels_8 = fixture< 8, only_two_channels_map >;
+
+BOOST_FIXTURE_TEST_CASE( having_odd_hop_increment_with_two_channels_leeds_to_long_periods_on_the_same_channel, only_two_channels_8 )
+{
+    BOOST_CHECK_EQUAL( data_channel( 0  ), 0 );
+    BOOST_CHECK_EQUAL( data_channel( 1  ), 0 );
+    BOOST_CHECK_EQUAL( data_channel( 2  ), 0 );
+    // ...
+    BOOST_CHECK_EQUAL( data_channel( 34  ), 36 );
+    BOOST_CHECK_EQUAL( data_channel( 35  ), 36 );
+    BOOST_CHECK_EQUAL( data_channel( 36  ), 0 );
+}
+
+/*
+ * A map just containing one channel
+ */
+static const std::uint8_t only_one_channel_map[] = { 0x00, 0x04, 0x00, 0x00, 0x00 };
+static const std::uint8_t only_one_channel_and_some_rfu_bits_map[] = { 0x00, 0x04, 0x00, 0x00, 0x60 };
+
+using only_two_channels_8 = fixture< 8, only_two_channels_map >;
+
+// 4.5.8.1 The minimum number of used channels shall be 2.
+BOOST_FIXTURE_TEST_CASE( channel_map_shall_contain_at_least_two_bits, bluetoe::link_layer::channel_map )
+{
+    BOOST_CHECK( !reset( only_one_channel_map, 5 ) );
+    BOOST_CHECK( !reset( only_one_channel_map, 11 ) );
+    BOOST_CHECK( !reset( only_one_channel_and_some_rfu_bits_map, 5 ) );
+    BOOST_CHECK( !reset( only_one_channel_and_some_rfu_bits_map, 11 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( invalid_hops_are_recognized, bluetoe::link_layer::channel_map )

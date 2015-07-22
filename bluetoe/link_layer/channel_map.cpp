@@ -39,6 +39,9 @@ namespace link_layer {
         std::uint8_t   used_channels[ max_number_of_data_channels ];
         const unsigned used_channels_count = build_used_channel_map( map, used_channels );
 
+        if ( used_channels_count < 2 )
+            return false;
+
         for ( unsigned index = 0, channel = hop; index != max_number_of_data_channels; ++index )
         {
             if ( in_map( map, channel ) )
