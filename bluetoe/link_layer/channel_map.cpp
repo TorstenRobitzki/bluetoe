@@ -13,12 +13,31 @@ namespace link_layer {
         return map[ index / 8 ] & ( 1 << ( index % 8 ) );
     }
 
+    unsigned channel_map::build_used_channel_map( const std::uint8_t* map, std::uint8_t* used ) const
+    {
+        unsigned count = 0;
+
+        for ( unsigned channel = 0; channel != max_number_of_data_channels; ++channel )
+        {
+            if ( in_map( map, channel ) )
+            {
+                used[ count ] = channel;
+                ++count;
+            }
+        }
+
+        return count;
+    }
+
     bool channel_map::reset( const std::uint8_t* map, const unsigned hop )
     {
         assert( map );
 
         if ( hop < 5 || hop > 16 )
             return false;
+
+        std::uint8_t   used_channels[ max_number_of_data_channels ];
+        const unsigned used_channels_count = build_used_channel_map( map, used_channels );
 
         for ( unsigned index = 0, channel = hop; index != max_number_of_data_channels; ++index )
         {
@@ -28,7 +47,7 @@ namespace link_layer {
             }
             else
             {
-                map_[ index ] = 0;
+                map_[ index ] = used_channels[ channel % used_channels_count ];
             }
 
             channel = ( channel + hop ) % max_number_of_data_channels;
