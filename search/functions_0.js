@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['client_5fmtu',['client_mtu',['../classbluetoe_1_1server_1_1connection__data.html#a3e8577316f38bfc51944ede836827e4a',1,'bluetoe::server::connection_data::client_mtu(std::uint16_t mtu)'],['../classbluetoe_1_1server_1_1connection__data.html#a53410f461c63d0be76cf2cca66005bd2',1,'bluetoe::server::connection_data::client_mtu() const ']]],
-  ['connection_5fdata',['connection_data',['../classbluetoe_1_1server_1_1connection__data.html#a89ae08f99816456d524034c05e405c73',1,'bluetoe::server::connection_data']]]
+  ['address',['address',['../classbluetoe_1_1link__layer_1_1address.html#aa3d55b4edfb553898adec242392f4d5f',1,'bluetoe::link_layer::address::address(const std::initializer_list&lt; std::uint8_t &gt; &amp;initial_values)'],['../classbluetoe_1_1link__layer_1_1address.html#aa2b78ad0d88e1e5b5675aa43ccc36009',1,'bluetoe::link_layer::address::address(const std::uint8_t *initial_values)']]]
 ];

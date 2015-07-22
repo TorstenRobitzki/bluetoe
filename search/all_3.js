@@ -1,8 +1,6 @@
 var searchData=
 [
-  ['negotiated_5fmtu',['negotiated_mtu',['../classbluetoe_1_1server_1_1connection__data.html#a6a0194a90bf94748fb331d7c41167d78',1,'bluetoe::server::connection_data']]],
-  ['no_5fread_5faccess',['no_read_access',['../classbluetoe_1_1no__read__access.html',1,'bluetoe']]],
-  ['no_5fwrite_5faccess',['no_write_access',['../classbluetoe_1_1no__write__access.html',1,'bluetoe']]],
-  ['notify',['notify',['../structbluetoe_1_1notify.html',1,'bluetoe']]],
-  ['notify',['notify',['../classbluetoe_1_1server.html#ac92676e3f7e27b66f67cd164cb810abf',1,'bluetoe::server']]]
+  ['data_5fchannel',['data_channel',['../classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09',1,'bluetoe::link_layer::channel_map']]],
+  ['delta_5ftime',['delta_time',['../classbluetoe_1_1link__layer_1_1delta__time.html',1,'bluetoe::link_layer']]],
+  ['device_5faddress_5fmeta_5ftype',['device_address_meta_type',['../structbluetoe_1_1link__layer_1_1details_1_1device__address__meta__type.html',1,'bluetoe::link_layer::details']]]
 ];

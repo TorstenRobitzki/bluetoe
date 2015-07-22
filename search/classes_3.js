@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['no_5fread_5faccess',['no_read_access',['../classbluetoe_1_1no__read__access.html',1,'bluetoe']]],
-  ['no_5fwrite_5faccess',['no_write_access',['../classbluetoe_1_1no__write__access.html',1,'bluetoe']]],
-  ['notify',['notify',['../structbluetoe_1_1notify.html',1,'bluetoe']]]
+  ['delta_5ftime',['delta_time',['../classbluetoe_1_1link__layer_1_1delta__time.html',1,'bluetoe::link_layer']]],
+  ['device_5faddress_5fmeta_5ftype',['device_address_meta_type',['../structbluetoe_1_1link__layer_1_1details_1_1device__address__meta__type.html',1,'bluetoe::link_layer::details']]]
 ];

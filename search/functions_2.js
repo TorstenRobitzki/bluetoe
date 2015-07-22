@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['run',['run',['../classbluetoe_1_1binding_1_1btstack__libusb__device.html#a3e2ce3665f0506ab637b220b70d70cb9',1,'bluetoe::binding::btstack_libusb_device']]]
+  ['data_5fchannel',['data_channel',['../classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09',1,'bluetoe::link_layer::channel_map']]]
 ];

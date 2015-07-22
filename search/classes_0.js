@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['bind_5fcharacteristic_5fvalue',['bind_characteristic_value',['../classbluetoe_1_1bind__characteristic__value.html',1,'bluetoe']]],
-  ['btstack_5flibusb_5fdevice',['btstack_libusb_device',['../classbluetoe_1_1binding_1_1btstack__libusb__device.html',1,'bluetoe::binding']]]
+  ['address',['address',['../classbluetoe_1_1link__layer_1_1address.html',1,'bluetoe::link_layer']]],
+  ['advertising_5finterval',['advertising_interval',['../structbluetoe_1_1link__layer_1_1advertising__interval.html',1,'bluetoe::link_layer']]],
+  ['advertising_5finterval_5fmeta_5ftype',['advertising_interval_meta_type',['../structbluetoe_1_1link__layer_1_1details_1_1advertising__interval__meta__type.html',1,'bluetoe::link_layer::details']]]
 ];

@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['run',['run',['../classbluetoe_1_1binding_1_1btstack__libusb__device.html#a3e2ce3665f0506ab637b220b70d70cb9',1,'bluetoe::binding::btstack_libusb_device']]]
+  ['extend_5fserver',['extend_server',['../structbluetoe_1_1extend__server.html',1,'bluetoe']]],
+  ['extend_5fserver_3c_20server_3c_20serveroptions_2e_2e_2e_20_3e_2c_20options_2e_2e_2e_20_3e',['extend_server&lt; server&lt; ServerOptions... &gt;, Options... &gt;',['../structbluetoe_1_1extend__server_3_01server_3_01_server_options_8_8_8_01_4_00_01_options_8_8_8_01_4.html',1,'bluetoe']]]
 ];
