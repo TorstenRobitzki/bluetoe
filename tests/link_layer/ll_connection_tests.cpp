@@ -196,6 +196,32 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_hop_is_invalid, HopIncrement, in
     check_not_connected( "no_connection_after_a_connection_request_with_wrong_advertiser_address" );
 }
 
+BOOST_AUTO_TEST_CASE( no_connection_if_only_one_channel_is_used )
+{
+    respond_to(
+        39,
+        {
+            0xc5, 0x22,                         // header
+            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0x01, 0x00, 0x00, 0x00, 0x00,       // only channel 0
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    run();
+
+    check_not_connected( "no_connection_if_only_one_channel_is_used" );
+
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_FIXTURE_TEST_CASE( takes_the_give_access_address, unconnected )
