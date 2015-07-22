@@ -58,6 +58,33 @@ namespace link_layer
 
         typedef details::device_address_meta_type meta_type;
     };
+
+    namespace details {
+        struct sleep_clock_accuracy_meta_type {};
+
+        template < unsigned long long SleepClockAccuracyPPM >
+        struct check_sleep_clock_accuracy_ppm {
+            static_assert( SleepClockAccuracyPPM <= 500, "The highest, possible sleep clock accuracy is 500ppm." );
+
+            typedef void type;
+        };
+
+    }
+
+    /**
+     * @brief defines the sleep clock accuracy of the device hardware.
+     *
+     * The stack uses the accuracy information to keep the time window where the slave listens for radio messages
+     * from the master, as small as possible. It's important to determine the real sleep clock accuracy.
+     * Giving to large accuracy will leed to not optimal power consumption.
+     * To small accuracy will leed to instable connections.
+     */
+    template < unsigned long long SleepClockAccuracyPPM, typename = typename details::check_sleep_clock_accuracy_ppm< SleepClockAccuracyPPM >::type >
+    struct sleep_clock_accuracy_ppm
+    {
+        static constexpr unsigned accuracy_ppm = static_cast< unsigned >( SleepClockAccuracyPPM );
+        typedef details::sleep_clock_accuracy_meta_type meta_type;
+    };
 }
 }
 
