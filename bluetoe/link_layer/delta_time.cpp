@@ -96,6 +96,11 @@ namespace link_layer {
         return usec_ == 0;
     }
 
+    delta_time delta_time::ppm( unsigned part ) const
+    {
+        return delta_time( std::uint64_t( usec_ ) * part / 1000000 );
+    }
+
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
     {
         t.print( out );

@@ -7,6 +7,9 @@
 namespace bluetoe {
 namespace link_layer {
 
+    /**
+     * @brief positiv time quantum used to express distance in time.
+     */
     class delta_time
     {
     public:
@@ -38,6 +41,13 @@ namespace link_layer {
         std::uint32_t usec() const;
 
         bool zero() const;
+
+        /**
+         * @brief returns the given parts per million.
+         *
+         * delta_time::usec( 1000000 ).ppm( 44 ).usec() == 44
+         */
+        delta_time ppm( unsigned part ) const;
     private:
         std::uint32_t usec_;
     };
