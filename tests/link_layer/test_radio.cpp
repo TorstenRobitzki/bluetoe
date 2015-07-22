@@ -178,6 +178,18 @@ namespace test {
         );
     }
 
+    unsigned radio_base::count_data( const std::function< bool ( const schedule_data& ) >& filter ) const
+    {
+        return sum_data< unsigned >(
+            [filter]( const schedule_data& data, unsigned count )
+            {
+                return filter( data )
+                    ? count + 1
+                    : count;
+            }, 0u
+        );
+    }
+
     void radio_base::add_responder( const responder_t& responder )
     {
         responders_.push_back( responder );

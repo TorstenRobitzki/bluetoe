@@ -79,6 +79,11 @@ namespace test {
         Accu sum_data( std::function< Accu ( const schedule_data&, Accu start_value ) >, Accu start_value ) const;
 
         /**
+         * @brief counts the number of times the given filter returns true for all schedule_data
+         */
+        unsigned count_data( const std::function< bool ( const schedule_data& ) >& filter ) const;
+
+        /**
          * @brief function to take the arguments to a scheduling function and optional return a response
          */
         typedef std::function< std::pair< bool, incomming_data > ( const schedule_data& ) > responder_t;

@@ -9,6 +9,23 @@
 
 #include <type_traits>
 
+static const std::initializer_list< std::uint8_t > valid_connection_request_pdu =
+{
+    0xc5, 0x22,                         // header
+    0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+    0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+    0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+    0x08, 0x81, 0xf6,                   // CRC Init
+    0x03,                               // transmit window size
+    0x0b, 0x00,                         // window offset
+    0x18, 0x00,                         // interval
+    0x00, 0x00,                         // slave latency
+    0x48, 0x00,                         // connection timeout
+    0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+    0xaa                                // hop increment and sleep clock accuracy
+};
+
+
 template < typename ... Options >
 struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
 {
@@ -69,23 +86,7 @@ BOOST_FIXTURE_TEST_SUITE( starting_unconnected_tests, unconnected )
  */
 BOOST_AUTO_TEST_CASE_TEMPLATE( connected_after_connection_request, Channel, advertising_channels )
 {
-    respond_to(
-        Channel::value,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x0b, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
-            0x48, 0x00,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    respond_to( Channel::value, valid_connection_request_pdu );
 
     run();
 
@@ -274,13 +275,39 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_initial_crc_value, unconnected )
     BOOST_CHECK_EQUAL( crc_init(), 0xf68108 );
 }
 
+BOOST_FIXTURE_TEST_SUITE( starting_unconnected_tests, unconnected )
+
 /*
  * At the start of a connection event, unmappedChannel shall be calculated using the following basic algorithm:
- *    unmappedChannel = (lastUnmappedChannel + hopIncrement) mod 37
+ *    unmappedChannel = (lastUnmappedChannel + hopIncrement) mod 37; for the first connection event lastUnmappedChannel is zero.
  */
-BOOST_FIXTURE_TEST_CASE( start_receiving_on_the_correct_channel, connecting )
+BOOST_AUTO_TEST_CASE_TEMPLATE( start_receiving_on_the_correct_channel, Channel, advertising_channels )
 {
+    respond_to( Channel::value, valid_connection_request_pdu );
+
+    run();
+
+    check_scheduling(
+        []( const test::schedule_data& data )
+        {
+            return data.receive_and_transmit;
+        },
+        []( const test::schedule_data& data )
+        {
+            return data.channel == ( 0 + 10 ) % 37;
+        },
+        "start_receiving_on_the_correct_channel"
+    );
+
+    BOOST_CHECK_GE( count_data(
+        []( const test::schedule_data& data )
+        {
+            return data.receive_and_transmit;
+        } ), 1
+    );
 }
+
+BOOST_AUTO_TEST_SUITE_END()
 
 /*
  * Assumed that the first unmappedChannel is not within the channel map, the

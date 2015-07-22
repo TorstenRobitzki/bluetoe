@@ -142,13 +142,14 @@ namespace link_layer {
             else if ( is_valid_connect_request( receive ) && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f ) )
             {
                 state_ = state::connected;
+                current_advertising_channel_ = 0;
 
                 this->set_access_address_and_crc_init(
                     read_32( &receive.buffer[ 14 ] ),
                     read_24( &receive.buffer[ 18 ] ) );
 
                 this->schedule_receive_and_transmit(
-                    current_advertising_channel_,
+                    channels_.data_channel( current_advertising_channel_ ),
                     delta_time::usec( 15 ), delta_time::usec( 15 ),
                     read_buffer{ nullptr, 0 },
                     write_buffer{ adv_response_buffer_, adv_response_size_ } );
