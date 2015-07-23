@@ -38,7 +38,7 @@ namespace test {
     {
         incomming_data();
 
-        incomming_data( unsigned c, std::initializer_list< std::uint8_t > d, const bluetoe::link_layer::delta_time l );
+        incomming_data( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l );
 
         unsigned                        channel;
         std::vector< std::uint8_t >     received_data;
@@ -100,6 +100,7 @@ namespace test {
          * @brief response to sending on the given channel with the given PDU send on the same channel without delay
          */
         void respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu );
+        void respond_to( unsigned channel, std::vector< std::uint8_t > pdu );
 
         /**
          * @brief response `times` times

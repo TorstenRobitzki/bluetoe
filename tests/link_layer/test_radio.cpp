@@ -20,7 +20,7 @@ namespace test {
 
     }
 
-    incomming_data::incomming_data( unsigned c, std::initializer_list< std::uint8_t > d, const bluetoe::link_layer::delta_time l )
+    incomming_data::incomming_data( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l )
         : channel( c )
         , received_data( d )
         , delay( l )
@@ -196,6 +196,11 @@ namespace test {
     }
 
     void radio_base::respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu )
+    {
+        respond_to( channel, std::vector< std::uint8_t >( pdu ) );
+    }
+
+    void radio_base::respond_to( unsigned channel, std::vector< std::uint8_t > pdu )
     {
         assert( channel < 40 );
 

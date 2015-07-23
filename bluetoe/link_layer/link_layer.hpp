@@ -82,6 +82,7 @@ namespace link_layer {
         unsigned                        cumulated_sleep_clock_accuracy_;
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
+        delta_time                      connection_interval_;
 
         enum class state
         {
@@ -297,7 +298,16 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request )
     {
-        return true;
+        static constexpr delta_time max_mimum_transmit_window_offset( 10 * 1000 );
+        static constexpr auto       us_per_digits = 1125;
+
+        transmit_window_offset_ = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
+        connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
+
+        bool result = transmit_window_offset_ <= max_mimum_transmit_window_offset
+                   && transmit_window_offset_ <= connection_interval_;
+
+        return result;
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >

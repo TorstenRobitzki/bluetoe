@@ -70,6 +70,30 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
             test
         );
     }
+
+    void respond_with_connection_request( std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval )
+    {
+        const std::vector< std::uint8_t > pdu =
+        {
+            0xc5, 0x22,                         // header
+            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            window_size,                        // transmit window size
+            static_cast< std::uint8_t >( window_offset & 0xff ),  // window offset
+            static_cast< std::uint8_t >( window_offset >> 8 ),
+            static_cast< std::uint8_t >( interval & 0xff ), // interval
+            static_cast< std::uint8_t >( interval >> 8 ),
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        };
+
+        this->respond_to( 37, pdu );
+    }
+
 };
 
 struct unconnected : unconnected_base<> {};
@@ -354,8 +378,30 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
     );
 }
 
-BOOST_AUTO_TEST_CASE( no_connection_if_transmit_window_size_is_invalid )
+BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_10ms, unconnected )
 {
+    respond_with_connection_request(
+        0x09, // window_size
+        0x0b, // window_offset
+        0x18  // interval
+    );
+
+    run();
+
+    check_not_connected( "no_connection_if_only_one_channel_is_used" );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_connection_interval, unconnected )
+{
+    respond_with_connection_request(
+        0x07, // window_size
+        0x0b, // window_offset
+        0x06  // interval
+    );
+
+    run();
+
+    check_not_connected( "no_connection_if_only_one_channel_is_used" );
 }
 
 BOOST_AUTO_TEST_CASE( no_connection_if_transmit_window_offset_is_invalid )
