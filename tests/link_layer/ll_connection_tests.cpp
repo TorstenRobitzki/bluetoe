@@ -421,20 +421,63 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_
  * The default devie sleep clock accuracy is 500ppm, the masters sca is 50ppm.
  * The last T0 was the reception of the connect request. The transmit window offset is
  * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
- * 15ms - 15ms + 550ppm = 14992µs; the window ends at 21.25ms + 21.25ms * 550ppm = 21261µs
+ * 15ms - 15ms + 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
  */
-// BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
-// {
-//     check_scheduling(
-//         receive_and_transmit_data_filter,
-//         []( const test::schedule_data& data )
-//         {
-//             return data.transmision_time.usec() == 14992
-//                 && data.window_size.usec() == 21261 - 14992;
-//         },
-//         "start_receiving_with_the_correct_window"
-//     );
-// }
+BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
+{
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        []( const test::schedule_data& data )
+        {
+            return data.transmision_time.usec() == 14992
+                && data.end_receive.usec() == 18760;
+        },
+        "start_receiving_with_the_correct_window"
+    );
+}
+
+/*
+ * Second example, with a different configured sleep clock accuracy of 100ppm.
+ * The master is announcing a sleep clock accuracy of 250 ppm. In sum: 350ppm.
+ *
+ * Start at:
+ *   2001.25ms - 350ppm = 2001950µs
+ * End at:
+ *   ( 2001.25ms + 318.75 ) + 350ppm = 2320812µs
+ */
+using local_device_with_100ppm = unconnected_base< bluetoe::link_layer::sleep_clock_accuracy_ppm< 100 > >;
+BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_device_with_100ppm )
+{
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0xff,                               // transmit window size = 318.75ms
+            0x40, 0x06,                         // window offset 2 sec
+            0x40, 0x06,                         // interval 2 sec
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0x2a                                // 1: sleep clock accuracy 151 ppm to 250 ppm
+        }
+    );
+
+    run();
+
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        []( const test::schedule_data& data )
+        {
+            return data.transmision_time.usec() == 2001950
+                && data.end_receive.usec() == 2320812;
+        },
+        "start_receiving_with_the_correct_window_II"
+    );
+}
 
 BOOST_FIXTURE_TEST_CASE( link_layer_informs_host_about_established, unconnected )
 {

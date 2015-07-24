@@ -166,10 +166,15 @@ namespace link_layer {
                     read_32( &receive.buffer[ 14 ] ),
                     read_24( &receive.buffer[ 18 ] ) );
 
+                const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
+                      delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
+
+                window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+
                 this->schedule_receive_and_transmit(
                     channels_.data_channel( current_advertising_channel_ ),
-                    transmit_window_offset_,
-                    transmit_window_size_,
+                    window_start,
+                    window_end,
                     read_buffer{ nullptr, 0 },
                     write_buffer{ adv_response_buffer_, adv_response_size_ } );
             }
@@ -292,17 +297,17 @@ namespace link_layer {
             500, 250, 150, 100, 75, 50, 30, 20
         };
 
-        return inaccuracy_ppm[ ( receive.buffer[ 35 ] & 0xc0 ) >> 6 ];
+        return inaccuracy_ppm[ ( receive.buffer[ 35 ] >> 5 & 0x7 )  ];
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request )
     {
         static constexpr delta_time max_mimum_transmit_window_offset( 10 * 1000 );
-        static constexpr auto       us_per_digits = 1125;
+        static constexpr auto       us_per_digits = 1250;
 
         transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits );
+        transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
 
         bool result = transmit_window_size_ <= max_mimum_transmit_window_offset

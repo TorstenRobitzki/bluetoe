@@ -21,12 +21,12 @@ namespace test {
 
         // parameters
         unsigned                            channel;
-        bluetoe::link_layer::delta_time     transmision_time;
+        bluetoe::link_layer::delta_time     transmision_time; // or start of receiving
         std::vector< std::uint8_t >         transmitted_data;
         bluetoe::link_layer::read_buffer    receive_buffer;
 
         bool                                receive_and_transmit;
-        bluetoe::link_layer::delta_time     window_size;
+        bluetoe::link_layer::delta_time     end_receive;
 
         std::uint32_t                       access_address;
         std::uint32_t                       crc_init;
@@ -226,8 +226,8 @@ namespace test {
     template < typename CallBack >
     void radio< CallBack >::schedule_receive_and_transmit(
         unsigned                                    channel,
-        bluetoe::link_layer::delta_time             when,
-        bluetoe::link_layer::delta_time             window_size,
+        bluetoe::link_layer::delta_time             start_receive,
+        bluetoe::link_layer::delta_time             end_receive,
         const bluetoe::link_layer::read_buffer&     receive,
         const bluetoe::link_layer::write_buffer&    answert )
     {
@@ -237,13 +237,13 @@ namespace test {
 
         const schedule_data data{
             now_,
-            now_ + when,
+            now_ + start_receive,
             channel,
-            when,
+            start_receive,
             std::vector< std::uint8_t >( answert.buffer, answert.buffer + answert.size ),
             receive,
             true,
-            window_size,
+            end_receive,
             access_address_,
             crc_init_
         };
