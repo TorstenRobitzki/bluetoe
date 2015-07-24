@@ -21,7 +21,7 @@ namespace test {
 
         // parameters
         unsigned                            channel;
-        bluetoe::link_layer::delta_time     transmision_time; // or start of receiving
+        bluetoe::link_layer::delta_time     transmision_time;  // or start of receiving
         std::vector< std::uint8_t >         transmitted_data;
         bluetoe::link_layer::read_buffer    receive_buffer;
 
@@ -165,7 +165,7 @@ namespace test {
             const bluetoe::link_layer::read_buffer&     receive,
             const bluetoe::link_layer::write_buffer&    answert );
 
-      /**
+        /**
          * @brief runs the simulation
          */
         void run();

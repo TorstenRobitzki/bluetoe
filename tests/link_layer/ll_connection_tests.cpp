@@ -479,6 +479,34 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
     );
 }
 
+BOOST_FIXTURE_TEST_CASE( first_scheduled_reply_should_be_an_empty_ll_data_pdu, connecting )
+{
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        []( const test::schedule_data& data )
+        {
+            return data.transmitted_data.size() == 0x2
+                && ( data.transmitted_data[ 0 ] & 0x3 ) == 0x1
+                &&   data.transmitted_data[ 1 ] == 0;
+        },
+        "first_scheduled_reply_should_be_an_empty_ll_data_pdu"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( first_scheduled_reply_should_have_sn_and_nesn_zero, connecting )
+{
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        []( const test::schedule_data& data )
+        {
+            return data.transmitted_data.size() == 0x2
+                && ( data.transmitted_data[ 0 ] & 0x4 ) == 0
+                && ( data.transmitted_data[ 1 ] & 0x8 ) == 0;
+        },
+        "first_scheduled_reply_should_be_an_empty_ll_data_pdu"
+    );
+}
+
 BOOST_FIXTURE_TEST_CASE( link_layer_informs_host_about_established, unconnected )
 {
 

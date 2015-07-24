@@ -47,7 +47,7 @@ namespace link_layer {
         bool is_valid_connect_request( const read_buffer& receive ) const;
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
         bool parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request );
-
+        write_buffer create_empty_ll_data_pdu();
 
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
@@ -74,6 +74,7 @@ namespace link_layer {
         std::uint8_t                    adv_response_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
         std::size_t                     adv_response_size_;
         std::uint8_t                    receive_buffer_[ 40 ];
+        std::uint8_t                    send_buffer_[ 40 ];
 
         unsigned                        current_advertising_channel_;
         unsigned                        adv_perturbation_;
@@ -83,6 +84,8 @@ namespace link_layer {
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
+        unsigned                        transmit_sequence_number_;
+        unsigned                        next_expected_sequence_number_;
 
         enum class state
         {
@@ -160,6 +163,8 @@ namespace link_layer {
             {
                 state_                          = state::connected;
                 current_advertising_channel_    = 0;
+                transmit_sequence_number_       = 0;
+                next_expected_sequence_number_  = 0;
                 cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
 
                 this->set_access_address_and_crc_init(
@@ -176,7 +181,7 @@ namespace link_layer {
                     window_start,
                     window_end,
                     read_buffer{ nullptr, 0 },
-                    write_buffer{ adv_response_buffer_, adv_response_size_ } );
+                    create_empty_ll_data_pdu() );
             }
             else
             {
@@ -333,6 +338,15 @@ namespace link_layer {
     std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_32( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    write_buffer link_layer< Server, ScheduledRadio, Options... >::create_empty_ll_data_pdu()
+    {
+        send_buffer_[ 0 ] = 0x1;
+        send_buffer_[ 1 ] = 0;
+
+        return write_buffer{ &send_buffer_[ 0 ], 2 };
     }
 
 
