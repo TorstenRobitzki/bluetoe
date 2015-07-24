@@ -301,10 +301,12 @@ namespace link_layer {
         static constexpr delta_time max_mimum_transmit_window_offset( 10 * 1000 );
         static constexpr auto       us_per_digits = 1125;
 
-        transmit_window_offset_ = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
+        transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
+        transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
 
-        bool result = transmit_window_offset_ <= max_mimum_transmit_window_offset
+        bool result = transmit_window_size_ <= max_mimum_transmit_window_offset
+                   && transmit_window_size_ <= connection_interval_
                    && transmit_window_offset_ <= connection_interval_;
 
         return result;

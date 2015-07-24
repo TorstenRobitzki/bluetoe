@@ -388,7 +388,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_10ms, u
 
     run();
 
-    check_not_connected( "no_connection_if_only_one_channel_is_used" );
+    check_not_connected( "no_connection_if_transmit_window_is_larger_than_10ms" );
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_connection_interval, unconnected )
@@ -401,11 +401,20 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_connect
 
     run();
 
-    check_not_connected( "no_connection_if_only_one_channel_is_used" );
+    check_not_connected( "no_connection_if_transmit_window_is_larger_than_connection_interval" );
 }
 
-BOOST_AUTO_TEST_CASE( no_connection_if_transmit_window_offset_is_invalid )
+BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_connection_interval, unconnected )
 {
+    respond_with_connection_request(
+        0x02, // window_size
+        0x0b, // window_offset
+        0x0a  // interval
+    );
+
+    run();
+
+    check_not_connected( "no_connection_if_transmit_window_offset_is_larger_than_connection_interval" );
 }
 
 /*
