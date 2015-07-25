@@ -87,7 +87,7 @@ namespace link_layer {
         delta_time                      connection_interval_;
         unsigned                        transmit_sequence_number_;
         unsigned                        next_expected_sequence_number_;
-        unsigned                        number_of_receive_timeouts_til_connection_lost_;
+        unsigned                        timeouts_til_connection_lost_;
 
         enum class state
         {
@@ -169,7 +169,7 @@ namespace link_layer {
                 transmit_sequence_number_       = 0;
                 next_expected_sequence_number_  = 0;
                 cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
-                number_of_receive_timeouts_til_connection_lost_ = num_windows_til_timeout - 1;
+                timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
 
                 this->set_access_address_and_crc_init(
                     read_32( &receive.buffer[ 14 ] ),
@@ -221,12 +221,12 @@ namespace link_layer {
         }
         else if ( state_ == state::connecting )
         {
-            if ( number_of_receive_timeouts_til_connection_lost_ )
+            if ( timeouts_til_connection_lost_ )
             {
                 ++current_advertising_channel_;
 
-                const delta_time con_interval_offset = connection_interval_ * ( num_windows_til_timeout - number_of_receive_timeouts_til_connection_lost_ );
-                --number_of_receive_timeouts_til_connection_lost_;
+                const delta_time con_interval_offset = connection_interval_ * ( num_windows_til_timeout - timeouts_til_connection_lost_ );
+                --timeouts_til_connection_lost_;
 
                 delta_time window_start = transmit_window_offset_ + con_interval_offset;
                 delta_time window_end   = window_start + transmit_window_size_;

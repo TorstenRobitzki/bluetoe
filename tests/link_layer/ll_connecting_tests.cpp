@@ -549,6 +549,23 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
     );
 }
 
+BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_master_channels_are_hopped, connecting )
+{
+    std::vector< unsigned > channels = { 10, 20, 30, 3, 13 };
+
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        [&channels]( const test::schedule_data& data )
+        {
+            const unsigned channel = channels.front();
+            channels.erase( channels.begin() );
+
+            return data.channel == channel;
+        },
+        "while_waiting_for_a_message_from_the_master_channels_are_hopped"
+    );
+}
+
 BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, connecting )
 {
 
