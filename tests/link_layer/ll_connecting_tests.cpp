@@ -329,7 +329,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( start_receiving_on_the_correct_channel, Channel, 
 
     run();
 
-    check_scheduling(
+    check_first_scheduling(
         receive_and_transmit_data_filter,
         []( const test::schedule_data& data )
         {
@@ -368,7 +368,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
 
     run();
 
-    check_scheduling(
+    check_first_scheduling(
         receive_and_transmit_data_filter,
         []( const test::schedule_data& data )
         {
@@ -421,11 +421,11 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_
  * The default devie sleep clock accuracy is 500ppm, the masters sca is 50ppm.
  * The last T0 was the reception of the connect request. The transmit window offset is
  * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
- * 15ms - 15ms + 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
+ * 15ms - 15ms * 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
  */
 BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 {
-    check_scheduling(
+    check_first_scheduling(
         receive_and_transmit_data_filter,
         []( const test::schedule_data& data )
         {
@@ -505,6 +505,53 @@ BOOST_FIXTURE_TEST_CASE( first_scheduled_reply_should_have_sn_and_nesn_zero, con
         },
         "first_scheduled_reply_should_be_an_empty_ll_data_pdu"
     );
+}
+
+/*
+ * The first connection timeout is reached after 6 times the conenction interval is reached. Because the first
+ * connection windows is already at least 1.25ms after the connection request, the sixed window would be already
+ * after 6 * connectionInterval.
+ */
+BOOST_FIXTURE_TEST_CASE( there_should_be_5_receive_attempts_before_the_connecting_times_out, connecting )
+{
+    BOOST_CHECK_EQUAL( count_data(
+        receive_and_transmit_data_filter
+    ), 5 );
+}
+
+/*
+ * The default devie sleep clock accuracy is 500ppm, the masters sca is 50ppm.
+ * The last T0 was the reception of the connect request. The transmit window offset is
+ * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
+ * 15ms - 15ms * 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
+ *
+ * The conenction interval is 30ms
+ */
+BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, connecting )
+{
+    unsigned count = 0;
+
+    check_scheduling(
+        receive_and_transmit_data_filter,
+        [&count]( const test::schedule_data& data )
+        {
+            unsigned start = 15000 + count * 30000;
+            unsigned end   = start + 3750;
+            ++count;
+
+            start -= start * 550 / 1000000;
+            end   += end * 550 / 1000000;
+
+            return data.transmision_time.usec() == start
+                && data.end_receive.usec() == end;
+        },
+        "window_widening_is_applied_with_every_receive_attempt"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, connecting )
+{
+
 }
 
 BOOST_FIXTURE_TEST_CASE( link_layer_informs_host_about_established, unconnected )

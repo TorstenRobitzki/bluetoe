@@ -67,6 +67,8 @@ namespace test {
         void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
         void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const;
 
+        void check_first_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const;
+
         /**
          * @brief there must be exactly one scheduled_data that fitts to the given filter
          */

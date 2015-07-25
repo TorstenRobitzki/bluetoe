@@ -104,6 +104,22 @@ namespace test {
         );
     }
 
+    void radio_base::check_first_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const
+    {
+        bool ignore = false;
+        check_scheduling(
+            [&ignore, filter]( const schedule_data& d )
+            {
+                const bool result = !ignore && filter( d );
+                ignore = true;
+
+                return result;
+            },
+            check,
+            message
+        );
+    }
+
     void radio_base::find_schedulting( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const
     {
         unsigned found = 0;

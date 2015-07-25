@@ -60,6 +60,7 @@ namespace link_layer {
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       last_advertising_channel    = 39;
         static constexpr unsigned       max_adv_perturbation_       = 10;
+        static constexpr unsigned       num_windows_til_timeout     = 5;
 
         static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
         static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
@@ -86,11 +87,13 @@ namespace link_layer {
         delta_time                      connection_interval_;
         unsigned                        transmit_sequence_number_;
         unsigned                        next_expected_sequence_number_;
+        unsigned                        number_of_receive_timeouts_til_connection_lost_;
 
         enum class state
         {
             initial,
             advertising,
+            connecting,
             connected
         }                               state_;
 
@@ -161,11 +164,12 @@ namespace link_layer {
                 && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
                 && parse_transmit_window_from_connect_request( receive ) )
             {
-                state_                          = state::connected;
+                state_                          = state::connecting;
                 current_advertising_channel_    = 0;
                 transmit_sequence_number_       = 0;
                 next_expected_sequence_number_  = 0;
                 cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
+                number_of_receive_timeouts_til_connection_lost_ = num_windows_til_timeout - 1;
 
                 this->set_access_address_and_crc_init(
                     read_32( &receive.buffer[ 14 ] ),
@@ -215,9 +219,28 @@ namespace link_layer {
                 write_buffer{ adv_buffer_, adv_size_ }, next_time,
                 read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
         }
-        else if ( state_ == state::connected )
+        else if ( state_ == state::connecting )
         {
+            if ( number_of_receive_timeouts_til_connection_lost_ )
+            {
+                ++current_advertising_channel_;
 
+                const delta_time con_interval_offset = connection_interval_ * ( num_windows_til_timeout - number_of_receive_timeouts_til_connection_lost_ );
+                --number_of_receive_timeouts_til_connection_lost_;
+
+                delta_time window_start = transmit_window_offset_ + con_interval_offset;
+                delta_time window_end   = window_start + transmit_window_size_;
+
+                window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
+                window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+
+                this->schedule_receive_and_transmit(
+                    channels_.data_channel( current_advertising_channel_ ),
+                    window_start,
+                    window_end,
+                    read_buffer{ nullptr, 0 },
+                    create_empty_ll_data_pdu() );
+            }
         }
         else
         {

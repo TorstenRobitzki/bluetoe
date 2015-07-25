@@ -56,6 +56,31 @@ namespace link_layer {
         return *this;
     }
 
+    delta_time& delta_time::operator*=( unsigned rhs )
+    {
+        if ( rhs == 0 || usec_ == 0 )
+        {
+            usec_ = 0;
+        }
+        else if ( rhs > 1 )
+        {
+            if ( usec_ == 1 )
+            {
+                usec_ = rhs;
+            }
+            else
+            {
+                auto const prod = usec_ * rhs;
+                assert( prod > usec_ );
+                assert( prod > rhs );
+
+                usec_ = prod;
+            }
+        }
+
+        return *this;
+    }
+
     bool delta_time::operator<( const delta_time& rhs ) const
     {
         return usec_ < rhs.usec_;
@@ -118,6 +143,18 @@ namespace link_layer {
     {
         lhs-= rhs;
         return lhs;
+    }
+
+    delta_time operator*( delta_time lhs, unsigned rhs )
+    {
+        lhs *= rhs;
+        return lhs;
+    }
+
+    delta_time operator*( unsigned lhs, delta_time rhs )
+    {
+        rhs *= lhs;
+        return rhs;
     }
 
 }

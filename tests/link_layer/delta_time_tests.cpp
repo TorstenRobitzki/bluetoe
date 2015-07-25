@@ -77,3 +77,54 @@ BOOST_AUTO_TEST_CASE( can_calculate_part_per_million )
 {
     BOOST_CHECK_EQUAL( bll::delta_time::usec( 5000 ).ppm( 1000000).usec(), 5000 );
 }
+
+BOOST_AUTO_TEST_CASE( multiplication_with_zero )
+{
+    bll::delta_time z( 0 );
+    bll::delta_time o( 1 );
+    bll::delta_time h( 100 );
+
+    z *= 0;
+    o *= 0;
+    h *= 0;
+
+    BOOST_CHECK_EQUAL( z, bll::delta_time::now() );
+    BOOST_CHECK_EQUAL( o, bll::delta_time::now() );
+    BOOST_CHECK_EQUAL( h, bll::delta_time::now() );
+}
+
+BOOST_AUTO_TEST_CASE( multiplication_with_one )
+{
+    bll::delta_time z( 0 );
+    bll::delta_time o( 1 );
+    bll::delta_time h( 100 );
+
+    z *= 1;
+    o *= 1;
+    h *= 1;
+
+    BOOST_CHECK_EQUAL( z, bll::delta_time( 0 ) );
+    BOOST_CHECK_EQUAL( o, bll::delta_time( 1 ) );
+    BOOST_CHECK_EQUAL( h, bll::delta_time( 100 ) );
+}
+
+BOOST_AUTO_TEST_CASE( multiplication_with_greater_than_1 )
+{
+    bll::delta_time z( 0 );
+    bll::delta_time o( 1 );
+    bll::delta_time h( 100 );
+
+    z *= 5;
+    o *= 5;
+    h *= 5;
+
+    BOOST_CHECK_EQUAL( z, bll::delta_time( 0 ) );
+    BOOST_CHECK_EQUAL( o, bll::delta_time( 5 ) );
+    BOOST_CHECK_EQUAL( h, bll::delta_time( 500 ) );
+}
+
+BOOST_AUTO_TEST_CASE( binary_multiplication_operators )
+{
+    BOOST_CHECK_EQUAL( bll::delta_time( 5 ) * 5, bll::delta_time( 25 ) );
+    BOOST_CHECK_EQUAL( 5 * bll::delta_time( 5 ), bll::delta_time( 25 ) );
+}
