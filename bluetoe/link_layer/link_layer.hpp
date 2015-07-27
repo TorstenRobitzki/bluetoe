@@ -241,6 +241,13 @@ namespace link_layer {
                     read_buffer{ nullptr, 0 },
                     create_empty_ll_data_pdu() );
             }
+            else
+            {
+                current_advertising_channel_ = last_advertising_channel;
+                state_ = state::advertising;
+
+                timeout();
+            }
         }
         else
         {

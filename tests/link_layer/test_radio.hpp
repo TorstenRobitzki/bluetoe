@@ -72,7 +72,8 @@ namespace test {
         /**
          * @brief there must be exactly one scheduled_data that fitts to the given filter
          */
-        void find_schedulting( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const;
+        void find_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const;
+        void find_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
 
         void all_data( std::function< void ( const schedule_data& ) > ) const;
         void all_data( const std::function< bool ( const schedule_data& ) >& filter, const std::function< void ( const schedule_data& first, const schedule_data& next ) >& ) const;

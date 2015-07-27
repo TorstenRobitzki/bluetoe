@@ -307,7 +307,7 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
         0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0
     };
 
-    find_schedulting(
+    find_scheduling(
         []( const test::schedule_data& pdu ) -> bool
         {
             return pdu.channel == 37

@@ -120,7 +120,7 @@ namespace test {
         );
     }
 
-    void radio_base::find_schedulting( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const
+    void radio_base::find_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const
     {
         unsigned found = 0;
 
@@ -140,6 +140,34 @@ namespace test {
             else
             {
                 result.message() << message << ": no required scheduling found!";
+            }
+            BOOST_CHECK( result );
+        }
+    }
+
+    void radio_base::find_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const
+    {
+        int count = 0;
+
+        all_data(
+            []( const schedule_data& ){ return true; },
+            [ &count, &check ]( const schedule_data& first, const schedule_data& next )
+            {
+                if ( check( first, next ) )
+                    ++count;
+            }
+        );
+
+        if ( count != 1 )
+        {
+            boost::test_tools::predicate_result result( false );
+            if ( count == 0 )
+            {
+                result.message() << message << ": no required scheduling found!";
+            }
+            else
+            {
+                result.message() << message << ": required to find only in scheduling, but found: " << count;
             }
             BOOST_CHECK( result );
         }
@@ -181,17 +209,21 @@ namespace test {
             f( data );
     }
 
-    void radio_base::all_data( const std::function< bool ( const schedule_data& ) >& filter, const std::function< void ( const schedule_data& first, const schedule_data& next ) >& iter ) const
+    void radio_base::all_data(
+        const std::function< bool ( const schedule_data& ) >& filter,
+        const std::function< void ( const schedule_data& first, const schedule_data& next ) >& iter ) const
     {
-        pair_wise_check(
-            filter,
-            [&]( const schedule_data& first, const schedule_data& next )
+        for ( auto data = next( transmitted_data_.begin(), filter ); data != transmitted_data_.end(); )
+        {
+            const auto next_data = next( data +1, filter );
+
+            if ( next_data != transmitted_data_.end() )
             {
-                iter( first, next );
-                return true;
-            },
-            []( data_list::const_iterator first, data_list::const_iterator next ){}
-        );
+                iter( *data, *next_data );
+            }
+
+            data = next_data;
+        }
     }
 
     unsigned radio_base::count_data( const std::function< bool ( const schedule_data& ) >& filter ) const

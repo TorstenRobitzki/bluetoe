@@ -41,25 +41,6 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
         base::run( gatt_server_ );
     }
 
-    void check_connected( unsigned channel, const char* test ) const
-    {
-        // no advertising packages after the connect request
-        bool last_advertising_message_found = false;
-
-        this->check_scheduling(
-            [&]( const test::schedule_data& data ) -> bool
-            {
-                const bool is_advertising = ( data.transmitted_data[ 0 ] & 0xf ) == 0;
-                const bool result         = !last_advertising_message_found || !is_advertising;
-
-                last_advertising_message_found = last_advertising_message_found || data.channel == channel;
-
-                return result;
-            },
-            test
-        );
-    }
-
     void check_not_connected( const char* test ) const
     {
         this->check_scheduling(
@@ -132,7 +113,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( connected_after_connection_request, Channel, adve
 
     run();
 
-    check_connected( Channel::value, "connected_after_connection_request" );
+    BOOST_CHECK_GE( count_data(
+        [&]( const test::schedule_data& data ) -> bool
+        {
+            bool is_advertising = ( data.transmitted_data[ 0 ] & 0xf ) == 0;
+                 is_advertising = is_advertising && data.channel >= 37 && data.channel >= 40;
+
+            return !is_advertising;
+        } ), 1 );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wrong_length, Channel, advertising_channels )
@@ -566,9 +554,23 @@ BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_master_channels_ar
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, connecting )
+BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, unconnected )
 {
+    respond_to(
+        37,
+        valid_connection_request_pdu
+    );
 
+    run();
+
+    // there must be a transistion from receive_and_transmit data to transmit_and_receive
+    find_scheduling(
+        []( const test::schedule_data& first, const test::schedule_data& next )
+        {
+            return first.receive_and_transmit && !next.receive_and_transmit;
+        },
+        "again_advertising_after_the_connection_timeout_was_reached"
+    );
 }
 
 BOOST_FIXTURE_TEST_CASE( link_layer_informs_host_about_established, unconnected )

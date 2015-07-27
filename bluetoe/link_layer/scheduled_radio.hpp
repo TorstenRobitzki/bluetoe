@@ -30,9 +30,10 @@ namespace link_layer {
         /**
          * @brief schedules for transmission and starts to receive 150µs later
          *
-         * The function will return imedately. Depending on whether a response is received or the receiving times out,
+         * The function will return immediately. Depending on whether a response is received or the receiving times out,
          * CallBack::received() or CallBack::timeout() is called. In both cases, every following call to a scheduling
-         * function is based on the time, the tranmision was scheduled. So the new T0 = T0 + when.
+         * function is based on the time, the tranmision was scheduled. So the new T0 = T0 + when. In case of a CRC error,
+         * CallBack::timeout() will be called immediately .
          *
          * This function is intended to be used for sending advertising PDUs. If the given receive buffer is empty, the timeout callback
          * will be called when the PDU was sent.
@@ -48,6 +49,15 @@ namespace link_layer {
             bluetoe::link_layer::delta_time             when,
             const bluetoe::link_layer::read_buffer&     receive );
 
+        /**
+         * @brief schedules for receiving and starts transmitting 150µs later
+         *
+         * The function will return immediately and schedule the receiver to start at start_receive.
+         * When the receiver receives a PDU, it will call CallBack::received() or in case of a CRC error
+         * it will call CallBack::crc_error(). If a PDU without CRC error was received, the radio will
+         * start to transmit answert 150µs later. If until end_receive no PDU was received, CallBack::timeout()
+         * will be called. Both, start_receive and end_receive are bases on T0.
+         */
         void schedule_receive_and_transmit(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
