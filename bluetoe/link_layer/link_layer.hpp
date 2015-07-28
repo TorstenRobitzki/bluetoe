@@ -192,8 +192,9 @@ namespace link_layer {
                 timeout();
             }
         }
-        else if ( state_ == state::connected )
+        else if ( state_ == state::connecting )
         {
+            timeout();
         }
         else
         {
