@@ -11,8 +11,8 @@ BOOST_FIXTURE_TEST_CASE( slave_nacks_data_with_crc_error, connecting )
         []( const test::schedule_data& d )
         {
             return d.channel == 20
-                && sn( d ) == false
-                && nesn( d ) == false;
+                && sn( d ) == 0
+                && nesn( d ) == 0;
         },
         "slave_nacks_data_with_crc_error" );
 }

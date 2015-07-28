@@ -5,14 +5,14 @@
 
 namespace test {
 
-    bool sn( const schedule_data& data )
+    unsigned sn( const schedule_data& data )
     {
-        return data.transmitted_data[ 0 ] & 8;
+        return ( data.transmitted_data[ 0 ] & 8 ) >> 4;
     }
 
-    bool nesn( const schedule_data& data )
+    unsigned nesn( const schedule_data& data )
     {
-        return data.transmitted_data[ 0 ] & 4;
+        return ( data.transmitted_data[ 0 ] & 4 ) >> 3;
     }
 
     std::ostream& operator<<( std::ostream& out, const schedule_data& data )

@@ -32,8 +32,8 @@ namespace test {
         std::uint32_t                       crc_init;
     };
 
-    bool sn( const schedule_data& );
-    bool nesn( const schedule_data& );
+    unsigned sn( const schedule_data& );
+    unsigned nesn( const schedule_data& );
 
     std::ostream& operator<<( std::ostream& out, const schedule_data& data );
 
