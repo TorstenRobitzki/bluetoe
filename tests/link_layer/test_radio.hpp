@@ -32,6 +32,9 @@ namespace test {
         std::uint32_t                       crc_init;
     };
 
+    bool sn( const schedule_data& );
+    bool nesn( const schedule_data& );
+
     std::ostream& operator<<( std::ostream& out, const schedule_data& data );
 
     struct incomming_data
@@ -40,9 +43,12 @@ namespace test {
 
         incomming_data( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l );
 
+        static incomming_data crc_error();
+
         unsigned                        channel;
         std::vector< std::uint8_t >     received_data;
         bluetoe::link_layer::delta_time delay;
+        bool                            has_crc_error;
     };
 
     std::ostream& operator<<( std::ostream& out, const incomming_data& data );
@@ -104,6 +110,7 @@ namespace test {
          */
         void respond_to( unsigned channel, std::initializer_list< std::uint8_t > pdu );
         void respond_to( unsigned channel, std::vector< std::uint8_t > pdu );
+        void respond_with_crc_error( unsigned channel );
 
         /**
          * @brief response `times` times
@@ -272,15 +279,23 @@ namespace test {
             if ( response.first )
             {
                 now_ += T_IFS;
-                const auto& received_data = response.second.received_data;
 
-                const std::size_t copy_size = std::min< std::size_t >( current.receive_buffer.size, received_data.size() );
+                if ( response.second.has_crc_error )
+                {
+                    idle_ = true;
+                    static_cast< CallBack* >( this )->crc_error();
+                }
+                else
+                {
+                    const auto& received_data = response.second.received_data;
+                    const std::size_t copy_size = std::min< std::size_t >( current.receive_buffer.size, received_data.size() );
 
-                std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
-                current.receive_buffer.size = copy_size;
+                    std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
+                    current.receive_buffer.size = copy_size;
 
-                idle_ = true;
-                static_cast< CallBack* >( this )->received( current.receive_buffer );
+                    idle_ = true;
+                    static_cast< CallBack* >( this )->received( current.receive_buffer );
+                }
             }
             else
             {

@@ -484,7 +484,7 @@ BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reac
 BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    respond_to( 37, valid_connection_request_pdu );
+    respond_to( 10, valid_connection_request_pdu );
 
     run();
 
@@ -494,6 +494,7 @@ BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, unconnected 
         receive_and_transmit_data_filter,
         [&channels]( const test::schedule_data& data )
         {
+            assert( !channels.empty() );
             const unsigned channel = channels.front();
             channels.erase( channels.begin() );
 

@@ -5,6 +5,16 @@
 
 namespace test {
 
+    bool sn( const schedule_data& data )
+    {
+        return data.transmitted_data[ 0 ] & 8;
+    }
+
+    bool nesn( const schedule_data& data )
+    {
+        return data.transmitted_data[ 0 ] & 4;
+    }
+
     std::ostream& operator<<( std::ostream& out, const schedule_data& data )
     {
         out << "at: " << data.schedule_time << "; scheduled: " << data.transmision_time << "; channel: " << data.channel;
@@ -16,16 +26,24 @@ namespace test {
     incomming_data::incomming_data()
         : channel( 0 )
         , delay( bluetoe::link_layer::delta_time( 0 ) )
+        , has_crc_error( false )
     {
-
     }
 
     incomming_data::incomming_data( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l )
         : channel( c )
         , received_data( d )
         , delay( l )
+        , has_crc_error( false )
     {
+    }
 
+    incomming_data incomming_data::crc_error()
+    {
+        incomming_data result;
+        result.has_crc_error = true;
+
+        return result;
     }
 
     std::ostream& operator<<( std::ostream& out, const incomming_data& data )
@@ -253,10 +271,10 @@ namespace test {
         assert( channel < 40 );
 
         add_responder(
-            [=]( const schedule_data& ) -> std::pair< bool, incomming_data >
+            [=]( const schedule_data& d ) -> std::pair< bool, incomming_data >
             {
                 return std::pair< bool, incomming_data >(
-                    true,
+                    d.channel == channel,
                     incomming_data{ channel, pdu, T_IFS }
                 );
             }
@@ -267,6 +285,21 @@ namespace test {
     {
         for ( ;times; --times )
             respond_to( channel, pdu );
+    }
+
+    void radio_base::respond_with_crc_error( unsigned channel )
+    {
+        assert( channel < 40 );
+
+        add_responder(
+            [=]( const schedule_data& ) -> std::pair< bool, incomming_data >
+            {
+                return std::pair< bool, incomming_data >(
+                    true,
+                    incomming_data::crc_error()
+                );
+            }
+        );
     }
 
     std::pair< bool, incomming_data > radio_base::find_response( const schedule_data& data )

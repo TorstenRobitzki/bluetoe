@@ -3,8 +3,18 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_CASE( slave_nacks_data_with_crc_error, connected )
+BOOST_FIXTURE_TEST_CASE( slave_nacks_data_with_crc_error, connecting )
 {
+    respond_with_crc_error( 10 );
+
+    find_scheduling(
+        []( const test::schedule_data& d )
+        {
+            return d.channel == 20
+                && sn( d ) == false
+                && nesn( d ) == false;
+        },
+        "slave_nacks_data_with_crc_error" );
 }
 
 BOOST_FIXTURE_TEST_CASE( slave_nacks_data_with_wrong_sn, connected )

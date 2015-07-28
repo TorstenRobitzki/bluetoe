@@ -37,6 +37,8 @@ namespace link_layer {
         void received( const read_buffer& receive );
 
         void timeout();
+
+        void crc_error();
     private:
         // calculates the time point for the next advertising event
         delta_time next_adv_event();
@@ -254,6 +256,11 @@ namespace link_layer {
         {
             assert( !"invalid state" );
         }
+    }
+
+    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::crc_error()
+    {
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
