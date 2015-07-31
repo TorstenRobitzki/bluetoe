@@ -93,12 +93,37 @@ BOOST_FIXTURE_TEST_CASE( max_rx_is_reset_to_27, buffer )
     BOOST_CHECK_EQUAL( max_rx_size(), 27u );
 }
 
-
 BOOST_FIXTURE_TEST_CASE( an_allocated_receive_buffer_must_be_max_rx_in_size, running_mode )
 {
     const auto pdu = allocate_receive_buffer();
     BOOST_CHECK_EQUAL( pdu.size, max_rx_size() );
 }
+
+BOOST_FIXTURE_TEST_CASE( default_max_tx_size_is_27, buffer )
+{
+    BOOST_CHECK_EQUAL( max_tx_size(), 27u );
+}
+
+BOOST_FIXTURE_TEST_CASE( max_tx_size_can_be_changed, buffer )
+{
+    max_tx_size( 100u );
+    BOOST_CHECK_EQUAL( max_tx_size(), 100u );
+}
+
+BOOST_FIXTURE_TEST_CASE( max_tx_is_reset_to_27, buffer )
+{
+    max_tx_size( 100u );
+    reset();
+
+    BOOST_CHECK_EQUAL( max_tx_size(), 27u );
+}
+
+BOOST_FIXTURE_TEST_CASE( an_allocated_transmit_buffer_must_be_max_tx_in_size, running_mode )
+{
+    const auto pdu = allocate_transmit_buffer();
+    BOOST_CHECK_EQUAL( pdu.size, max_tx_size() );
+}
+
 
 BOOST_FIXTURE_TEST_CASE( if_only_empty_pdus_are_received_the_buffer_will_never_overflow, running_mode )
 {
@@ -229,7 +254,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_FIXTURE_TEST_CASE( receive_pdu_with_1_octet_size, running_mode )
-{
-}
 
+BOOST_FIXTURE_TEST_CASE( as_long_as_an_pdu_is_not_acknowlaged_it_will_be_retransmited, running_mode )
+{
+    auto write = allocate_transmit_buffer( 3 );
+}

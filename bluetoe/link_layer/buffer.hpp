@@ -107,7 +107,7 @@ namespace link_layer {
          * @brief set the maximum receive size
          *
          * The used size must be smaller or equal to ReceiveSize / max_max_rx_size(), smaller than 252 and larger or equal to 27.
-         * The memory is best used, when ReceiveSize devided by max_size results in an integer. That integer is
+         * The memory is best used, when ReceiveSize divided by max_size results in an integer. That integer is
          * then the number of PDUs that can be buffered on the receivin side.
          *
          * By default the function will return 27.
@@ -115,6 +115,36 @@ namespace link_layer {
          * @post max_rx_size() == max_size
          */
         void max_rx_size( std::size_t max_size );
+
+        /**
+         * @brief returns the maximum value that can be used as maximum receive size.
+         *
+         * The result is equal to TransmitSize.
+         */
+        constexpr std::size_t max_max_tx_size() const
+        {
+            return TransmitSize;
+        }
+
+        /**
+         * @brief the current maximum transmit size
+         *
+         * No PDU with larger size can be transmitted. This will always return at least 27.
+         */
+        std::size_t max_tx_size() const;
+
+        /**
+         * @brief set the maximum transmit size
+         *
+         * The used size must be smaller or equal to TransmitSize / max_max_tx_size(), smaller than 252 and larger or equal to 27.
+         * The memory is best used, when TransmitSize divided by max_size results in an integer. That integer is
+         * then the number of PDUs that can be buffered on the transmitting side.
+         *
+         * By default the function will return 27.
+         *
+         * @post max_tx_size() == max_size
+         */
+        void max_tx_size( std::size_t max_size );
 
         /**@}*/
 
@@ -167,8 +197,14 @@ namespace link_layer {
          *
          * @post r = allocate_transmit_buffer( n ); r.size == 0 || r.size == n
          * @pre  buffer is in running mode
+         * @pre size <= max_tx_size()
          */
-        read_buffer allocate_transmit_buffer( std::size_t );
+        read_buffer allocate_transmit_buffer( std::size_t size );
+
+        /**
+         * @brief calles allocate_transmit_buffer( max_tx_size() );
+         */
+        read_buffer allocate_transmit_buffer();
 
         /**
          * @brief indicates that prior allocated memory is now ready for transmission
@@ -178,9 +214,10 @@ namespace link_layer {
          * size that the PDU is really filled with at the begining of the buffer.
          *
          * @pre a buffer must have been allocated by a call to allocate_transmit_buffer()
+         * @pre size
          * @pre buffer is in running mode
          */
-        void commit_transmit_buffer( std::size_t );
+        void commit_transmit_buffer( read_buffer );
 
         /**@}*/
 
@@ -256,16 +293,36 @@ namespace link_layer {
         // until received_end_ is reached. If a length field is filled with 0, the next element
         // starts at the beginning of the buffer. If the next length field is outside the buffer,
         // the next element starts at the beginning of the buffer.
-        std::uint8_t* volatile received_;
-        std::uint8_t* volatile received_end_;
+        std::uint8_t* volatile  received_;
+        std::uint8_t* volatile  received_end_;
 
-        std::size_t     max_rx_size_;
+        volatile std::size_t    max_rx_size_;
+
+        std::uint8_t* volatile  transmitted_;
+        std::uint8_t* volatile  transmitted_end_;
+
+        volatile std::size_t    max_tx_size_;
 
         static constexpr std::size_t ll_header_size = 2;
 
         std::uint8_t* transmit_buffer()
         {
             return &buffer_[ 0 ];
+        }
+
+        const std::uint8_t* transmit_buffer() const
+        {
+            return &buffer_[ 0 ];
+        }
+
+        std::uint8_t* end_transmit_buffer()
+        {
+            return &buffer_[ TransmitSize + 1 ];
+        }
+
+        const std::uint8_t* end_transmit_buffer() const
+        {
+            return &buffer_[ TransmitSize + 1 ];
         }
 
         std::uint8_t* receive_buffer()
@@ -316,17 +373,52 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    std::size_t ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::max_tx_size() const
+    {
+        return max_tx_size_;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::max_tx_size( std::size_t max_size )
+    {
+        assert( max_size >= min_buffer_size );
+        assert( max_size <= max_buffer_size );
+        assert( max_size <= TransmitSize );
+
+        max_tx_size_ = max_size;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::reset()
     {
         max_rx_size_  = min_buffer_size;
         received_end_ = receive_buffer();
         received_     = receive_buffer();
+
+        max_tx_size_  = min_buffer_size;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     std::uint8_t* ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::raw()
     {
         return &buffer_[ 0 ];
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer( std::size_t )
+    {
+        return read_buffer{ transmit_buffer() , max_tx_size_ };
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer()
+    {
+        return allocate_transmit_buffer( max_tx_size_ );
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer )
+    {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
