@@ -35,7 +35,7 @@ struct running_mode : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_ra
 
         buffer.buffer[ 0 ] = 1;
         buffer.buffer[ 1 ] = size;
-        std::copy( begin, end, &buffer.buffer[ 0 ] );
+        std::copy( begin, end, &buffer.buffer[ 2 ] );
 
         commit_transmit_buffer( buffer );
     }
@@ -76,12 +76,7 @@ struct one_element_in_transmit_buffer : running_mode
 {
     one_element_in_transmit_buffer()
     {
-        auto write = allocate_transmit_buffer();
-        write.buffer[ 0 ] = 1;
-        write.buffer[ 1 ] = 1;
-        write.buffer[ 2 ] = 0x34;
-
-        commit_transmit_buffer( write );
+       transmit_pdu( { 0x34 } );
     }
 };
 
@@ -376,3 +371,31 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
     BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0xf, first.buffer[ 0 ] & 0xf );
 }
 
+BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowladged, running_mode )
+{
+    transmit_pdu( { 1 } );
+    transmit_pdu( { 2 } );
+    transmit_pdu( { 3 } );
+    transmit_pdu( { 4 } );
+
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 1 );
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 1 );
+
+    // incomming PDU acknowledges
+    auto incomming = allocate_receive_buffer();
+    incomming.buffer[ 0 ] = 1 | 4;
+    incomming.buffer[ 1 ] = 0;
+    received( incomming );
+
+    // now the next pdu to be transmitted
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 2 );
+
+    // next incomming PDU acknowledges, this time with NESN = 0
+    incomming = allocate_receive_buffer();
+    incomming.buffer[ 0 ] = 1;
+    incomming.buffer[ 1 ] = 0;
+    received( incomming );
+
+    // now the next pdu to be transmitted
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 3 );
+}

@@ -315,6 +315,8 @@ namespace link_layer {
 
         static constexpr std::size_t  ll_header_size = 2;
         static constexpr std::uint8_t more_data_flag = 0x10;
+        static constexpr std::uint8_t sn_flag        = 0x8;
+        static constexpr std::uint8_t nesn_flag      = 0x4;
         static constexpr std::uint8_t ll_empty_id    = 0x01;
 
         std::uint8_t* transmit_buffer()
@@ -359,6 +361,7 @@ namespace link_layer {
 
         bool check_receive_buffer_consistency( const char* label ) const;
 
+        void acknowledge( bool sequence_number );
     };
 
     // implementation
@@ -460,7 +463,12 @@ namespace link_layer {
         assert( pdu.buffer );
         assert( pdu.size >= pdu.buffer[ 1 ] + ll_header_size );
 
-        // remove more data flag
+        // add sequence number
+        if ( sequence_number_ )
+            *pdu.buffer |= sn_flag;
+
+        sequence_number_ = !sequence_number_;
+
         transmit_end_ = pdu.buffer + pdu.buffer[ 1 ] + ll_header_size;
 
         assert( transmit_ != transmit_end_ );
@@ -486,6 +494,28 @@ namespace link_layer {
         }
 
         return write_buffer{ transmit_, transmit_[ 1 ] + ll_header_size };
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( bool nesn )
+    {
+        // the transmit buffer could be empty if we receive without sending prior. That happens during testing
+        if ( transmit_ == transmit_end_ )
+            return;
+
+        if ( static_cast< bool >( transmit_[ 0 ] & sn_flag ) != nesn )
+        {
+            transmit_ += transmit_[ 1 ] + ll_header_size;
+
+            // do we have to wrap?
+            if ( end_transmit_buffer() - transmit_ < 2 || transmit_[ 1 ] == 0 )
+            {
+                if ( transmit_ == transmit_end_ )
+                    transmit_end_ = transmit_buffer();
+
+                transmit_ = transmit_buffer();
+            }
+        }
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -604,9 +634,12 @@ namespace link_layer {
         assert( end_receive_buffer() - pdu.buffer >= pdu.buffer[ 1 ] + ll_header_size );
         assert( check_receive_buffer_consistency( "+received" ) );
 
+        // TODO Check for invalid PDUs!!!
+
+        acknowledge( pdu.buffer[ 0 ] & nesn_flag );
+
         if ( pdu.buffer[ 1 ] != 0 )
         {
-            // TODO: Flow control
             received_end_ = pdu.buffer + pdu.buffer[ 1 ] + ll_header_size;
 
             // we received data, so we can not end up with the receive buffer beeing empty
