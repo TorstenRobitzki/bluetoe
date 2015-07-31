@@ -25,6 +25,26 @@ struct running_mode : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_ra
         reset();
     }
 
+    template < class Iter >
+    void transmit_pdu( Iter begin, Iter end )
+    {
+        const auto size = std::distance( begin, end );
+
+        auto buffer = allocate_transmit_buffer( size + 2 );
+        assert( buffer.size == size +2 );
+
+        buffer.buffer[ 0 ] = 1;
+        buffer.buffer[ 1 ] = size;
+        std::copy( begin, end, &buffer.buffer[ 0 ] );
+
+        commit_transmit_buffer( buffer );
+    }
+
+    void transmit_pdu( std::initializer_list< std::uint8_t > pdu )
+    {
+        transmit_pdu( std::begin( pdu ), std::end( pdu ) );
+    }
+
     std::vector< std::uint8_t > random_data( std::size_t s )
     {
         std::uniform_int_distribution< std::uint8_t > dist;
@@ -333,10 +353,26 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_not_set_if_only_one_element_is_in_the
 
 BOOST_FIXTURE_TEST_CASE( more_data_flag_is_set_if_there_is_more_than_one_element_in_the_transmit_buffer, one_element_in_transmit_buffer )
 {
-    auto new_pdu = allocate_transmit_buffer();
-    new_pdu.buffer[ 1 ] = 4;
-    commit_transmit_buffer( new_pdu );
+    transmit_pdu( { 0x01 } );
 
     auto transmit = next_transmit();
     BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & 0x10, 0x10 );
 }
+
+BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
+{
+    // empty PDU without MD flag
+    auto first = next_transmit();
+    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0x10, 0 );
+
+    transmit_pdu( { 0x01, 0x02, 0x03, 0x04 } );
+
+    auto next = next_transmit();
+
+    // must be the same PDU, as it was not acknowladged
+    BOOST_CHECK_EQUAL_COLLECTIONS( &first.buffer[ 2 ], &first.buffer[ first.size ], &next.buffer[ 2 ], &next.buffer[ next.size ] );
+
+    // sequence numbers and LLID must be equal
+    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0xf, first.buffer[ 0 ] & 0xf );
+}
+

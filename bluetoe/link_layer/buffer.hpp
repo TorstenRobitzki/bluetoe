@@ -295,7 +295,6 @@ namespace link_layer {
     private:
         // transmit buffer followed by receive buffer at buffer_[ TransmitSize ]
         std::uint8_t    buffer_[ size + 2 ];
-        std::uint8_t    empty_[ 2 ];
 
         // pointers into the receive buffer. received_ will point to the oldest not yet freed
         // element. The LL Data PDU length field ( offset 1 ) will give a pointer to next element
@@ -316,6 +315,7 @@ namespace link_layer {
 
         static constexpr std::size_t  ll_header_size = 2;
         static constexpr std::uint8_t more_data_flag = 0x10;
+        static constexpr std::uint8_t ll_empty_id    = 0x01;
 
         std::uint8_t* transmit_buffer()
         {
@@ -365,8 +365,6 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::ll_data_pdu_buffer()
     {
-        empty_[ 0 ] = 1;
-        empty_[ 1 ] = 0;
         reset();
     }
 
@@ -471,14 +469,21 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_transmit()
     {
+        // if transmit buffer is empty, create a new, empty one
         if ( transmit_ == transmit_end_ )
-            return write_buffer{ empty_, 2 };
+        {
+            transmit_      = transmit_buffer();
+            transmit_end_  = transmit_ + 2;
+            transmit_[ 0 ] = ll_empty_id;
+            transmit_[ 1 ] = 0;
+        }
+        else
+        {
+            const bool more_data = transmit_ + transmit_[ 1 ] + ll_header_size != transmit_end_;
 
-        // add more data flag, if needed
-        const bool more_data = transmit_ + transmit_[ 1 ] + ll_header_size != transmit_end_;
-
-        if ( more_data )
-            transmit_[ 0 ] |= more_data_flag;
+            if ( more_data )
+                transmit_[ 0 ] |= more_data_flag;
+        }
 
         return write_buffer{ transmit_, transmit_[ 1 ] + ll_header_size };
     }
