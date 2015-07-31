@@ -312,6 +312,7 @@ namespace link_layer {
         volatile std::size_t    max_tx_size_;
 
         bool                    sequence_number_;
+        bool                    next_expected_sequence_number_;
 
         static constexpr std::size_t  ll_header_size = 2;
         static constexpr std::uint8_t more_data_flag = 0x10;
@@ -415,6 +416,7 @@ namespace link_layer {
         transmit_end_   = transmit_buffer();
 
         sequence_number_ = false;
+        next_expected_sequence_number_ = false;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -492,6 +494,10 @@ namespace link_layer {
             if ( more_data )
                 transmit_[ 0 ] |= more_data_flag;
         }
+
+        // insert the next expected sequence for every attempt to send the PDU, because it could be that
+        // the slave is able to receive data, while the master is not able to.
+        transmit_[ 0 ] = ( transmit_[ 0 ] & ~nesn_flag ) | ( next_expected_sequence_number_ ? nesn_flag : 0 );
 
         return write_buffer{ transmit_, transmit_[ 1 ] + ll_header_size };
     }
@@ -634,22 +640,29 @@ namespace link_layer {
         assert( end_receive_buffer() - pdu.buffer >= pdu.buffer[ 1 ] + ll_header_size );
         assert( check_receive_buffer_consistency( "+received" ) );
 
-        // TODO Check for invalid PDUs!!!
-
-        acknowledge( pdu.buffer[ 0 ] & nesn_flag );
-
-        if ( pdu.buffer[ 1 ] != 0 )
+        // invalid LLID or resent?
+        if ( ( pdu.buffer[ 0 ] & 0x3 ) != 0 )
         {
-            received_end_ = pdu.buffer + pdu.buffer[ 1 ] + ll_header_size;
+            acknowledge( pdu.buffer[ 0 ] & nesn_flag );
 
-            // we received data, so we can not end up with the receive buffer beeing empty
-            assert( received_end_ != received_ );
+            // resent PDU?
+            if ( static_cast< bool >( pdu.buffer[ 0 ] & sn_flag ) == next_expected_sequence_number_ )
+            {
+                next_expected_sequence_number_ = !next_expected_sequence_number_;
+
+                if ( pdu.buffer[ 1 ] != 0 )
+                {
+                    received_end_ = pdu.buffer + pdu.buffer[ 1 ] + ll_header_size;
+
+                    // we received data, so we can not end up with the receive buffer beeing empty
+                    assert( received_end_ != received_ );
+                }
+            }
         }
 
         assert( check_receive_buffer_consistency( "-received" ) );
 
-        // TODO: current element from transmit buffer
-        return write_buffer{ 0, 0 };
+        return next_transmit();
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >

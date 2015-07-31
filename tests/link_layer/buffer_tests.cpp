@@ -45,6 +45,31 @@ struct running_mode : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_ra
         transmit_pdu( std::begin( pdu ), std::end( pdu ) );
     }
 
+    template < class Iter >
+    void receive_pdu( Iter begin, Iter end, bool sn, bool nesn )
+    {
+        const auto size = std::distance( begin, end );
+        auto pdu = allocate_receive_buffer();
+
+        pdu.buffer[ 0 ] = 1;
+        pdu.buffer[ 1 ] = size;
+
+        if ( sn )
+            pdu.buffer[ 0 ] |= 8;
+
+        if ( nesn )
+            pdu.buffer[ 0 ] |= 4;
+
+        std::copy( begin, end, &pdu.buffer[ 2 ] );
+
+        received( pdu );
+    }
+
+    void receive_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn )
+    {
+        receive_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn );
+    }
+
     std::vector< std::uint8_t > random_data( std::size_t s )
     {
         std::uniform_int_distribution< std::uint8_t > dist;
@@ -157,6 +182,7 @@ BOOST_FIXTURE_TEST_CASE( an_allocated_transmit_buffer_must_be_max_tx_in_size, ru
 
 BOOST_FIXTURE_TEST_CASE( if_only_empty_pdus_are_received_the_buffer_will_never_overflow, running_mode )
 {
+    // 1/500 == never (by definition)
     for ( int i = 0; i != 500; ++i )
     {
         const auto pdu = allocate_receive_buffer();
@@ -233,6 +259,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
     max_rx_size( max_rx_size_value );
 
     auto emergency_counter = 2 * test_data.size();
+    bool sequence_number   = false;
 
     for ( std::size_t send_size = 0; send_size < test_data.size(); --emergency_counter )
     {
@@ -248,6 +275,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
 
             read.buffer[ 1 ] = size;
             read.buffer[ 0 ] = 2;
+
+            if ( sequence_number )
+                read.buffer[ 0 ] |= 8;
+
+            sequence_number = !sequence_number;
 
             std::copy( test_data.begin() + send_size, test_data.begin() + send_size + size, &read.buffer[ 2 ] );
             received( read );
@@ -393,9 +425,42 @@ BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowlad
     // next incomming PDU acknowledges, this time with NESN = 0
     incomming = allocate_receive_buffer();
     incomming.buffer[ 0 ] = 1;
-    incomming.buffer[ 1 ] = 0;
+    incomming.buffer[ 1 ] = 25;
     received( incomming );
 
     // now the next pdu to be transmitted
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 3 );
+}
+
+BOOST_FIXTURE_TEST_CASE( received_pdu_with_LLID_0_is_ignored, running_mode )
+{
+    auto pdu = allocate_receive_buffer();
+    pdu.buffer[ 0 ] = 0;
+    pdu.buffer[ 1 ] = 1;
+
+    received( pdu );
+
+    BOOST_CHECK_EQUAL( next_received().size, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( received_pdus_are_ignored_when_they_are_resent, running_mode )
+{
+    receive_pdu( { 1 }, false, false );
+    receive_pdu( { 2 }, false, false );
+
+    BOOST_CHECK_EQUAL( next_received().buffer[ 2 ], 1 );
+    free_received();
+
+    BOOST_CHECK_EQUAL( next_received().size, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( with_every_new_received_pdu_a_new_sequence_is_expected, running_mode )
+{
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0 );
+
+    receive_pdu( { 1 }, false, false );
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0x4 );
+
+    receive_pdu( { 2 }, true, false );
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0 );
 }
