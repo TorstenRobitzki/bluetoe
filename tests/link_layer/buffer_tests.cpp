@@ -9,6 +9,8 @@
 #include <tuple>
 #include <type_traits>
 
+#include "buffer_io.hpp"
+
 struct mock_radio {
 
 };
@@ -48,6 +50,19 @@ struct running_mode : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_ra
     }
 
     std::mt19937        random;
+};
+
+struct one_element_in_transmit_buffer : running_mode
+{
+    one_element_in_transmit_buffer()
+    {
+        auto write = allocate_transmit_buffer();
+        write.buffer[ 0 ] = 1;
+        write.buffer[ 1 ] = 1;
+        write.buffer[ 2 ] = 0x34;
+
+        commit_transmit_buffer( write );
+    }
 };
 
 constexpr std::uint8_t simple_pdu[] = {
@@ -255,7 +270,73 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
 BOOST_AUTO_TEST_SUITE_END()
 
 
-BOOST_FIXTURE_TEST_CASE( as_long_as_an_pdu_is_not_acknowlaged_it_will_be_retransmited, running_mode )
+BOOST_FIXTURE_TEST_CASE( the_transmitbuffer_will_yield_an_empty_pdu_if_the_buffer_is_empty, running_mode )
 {
-    auto write = allocate_transmit_buffer( 3 );
+    auto write = next_transmit();
+
+    BOOST_CHECK_EQUAL( write.size, 2 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x03, 1 );
+    BOOST_CHECK_EQUAL( write.buffer[ 1 ], 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( if_transmit_buffer_is_empty_mode_data_flag_is_not_set, running_mode )
+{
+    auto write = next_transmit();
+
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x10, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( as_long_as_an_pdu_is_not_acknowlaged_it_will_be_retransmited, one_element_in_transmit_buffer )
+{
+    for ( int i = 0; i != 3; ++i )
+    {
+        auto trans = next_transmit();
+        BOOST_REQUIRE_EQUAL( trans.size, 3 );
+        BOOST_CHECK_EQUAL( trans.buffer[ 1 ], 1 );
+        BOOST_CHECK_EQUAL( trans.buffer[ 2 ], 0x34 );
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( sequence_number_and_next_sequence_number_must_be_0_for_the_first_empty_pdu, one_element_in_transmit_buffer )
+{
+    auto write = next_transmit();
+
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x4, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x8, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( sequence_number_and_next_sequence_number_must_be_0_for_the_first_pdu, one_element_in_transmit_buffer )
+{
+    auto write = next_transmit();
+
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x4, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x8, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( only_one_transmitbuffer_entry_allocatable, running_mode )
+{
+    max_tx_size( 100 );
+
+    auto write1 = allocate_transmit_buffer();
+    write1.buffer[ 1 ] = 98;
+    commit_transmit_buffer( write1 );
+
+    auto write2 = allocate_transmit_buffer();
+    BOOST_CHECK_EQUAL( write2.size, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( more_data_flag_is_not_set_if_only_one_element_is_in_the_transmit_buffer, one_element_in_transmit_buffer )
+{
+    auto write = next_transmit();
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x10, 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( more_data_flag_is_set_if_there_is_more_than_one_element_in_the_transmit_buffer, one_element_in_transmit_buffer )
+{
+    auto new_pdu = allocate_transmit_buffer();
+    new_pdu.buffer[ 1 ] = 4;
+    commit_transmit_buffer( new_pdu );
+
+    auto transmit = next_transmit();
+    BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & 0x10, 0x10 );
 }

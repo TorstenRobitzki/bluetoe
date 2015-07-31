@@ -282,11 +282,20 @@ namespace link_layer {
          */
         void timeout();
 
+        /**
+         * @brief returns the next PDU to be transmitted
+         *
+         * If the transmit buffer is empty, the function will return an empty PDU.
+         * @post next_transmit().size != 0 && next_transmit().buffer != nullptr
+         */
+        write_buffer next_transmit();
+
         /**@}*/
 
     private:
         // transmit buffer followed by receive buffer at buffer_[ TransmitSize ]
         std::uint8_t    buffer_[ size + 2 ];
+        std::uint8_t    empty_[ 2 ];
 
         // pointers into the receive buffer. received_ will point to the oldest not yet freed
         // element. The LL Data PDU length field ( offset 1 ) will give a pointer to next element
@@ -298,12 +307,15 @@ namespace link_layer {
 
         volatile std::size_t    max_rx_size_;
 
-        std::uint8_t* volatile  transmitted_;
-        std::uint8_t* volatile  transmitted_end_;
+        std::uint8_t* volatile  transmit_;
+        std::uint8_t* volatile  transmit_end_;
 
         volatile std::size_t    max_tx_size_;
 
-        static constexpr std::size_t ll_header_size = 2;
+        bool                    sequence_number_;
+
+        static constexpr std::size_t  ll_header_size = 2;
+        static constexpr std::uint8_t more_data_flag = 0x10;
 
         std::uint8_t* transmit_buffer()
         {
@@ -353,6 +365,8 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::ll_data_pdu_buffer()
     {
+        empty_[ 0 ] = 1;
+        empty_[ 1 ] = 0;
         reset();
     }
 
@@ -391,11 +405,15 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::reset()
     {
-        max_rx_size_  = min_buffer_size;
-        received_end_ = receive_buffer();
-        received_     = receive_buffer();
+        max_rx_size_    = min_buffer_size;
+        received_end_   = receive_buffer();
+        received_       = receive_buffer();
 
-        max_tx_size_  = min_buffer_size;
+        max_tx_size_    = min_buffer_size;
+        transmit_       = transmit_buffer();
+        transmit_end_   = transmit_buffer();
+
+        sequence_number_ = false;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -405,20 +423,70 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer( std::size_t )
+    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer( std::size_t size )
     {
-        return read_buffer{ transmit_buffer() , max_tx_size_ };
+        // The gap must be greater than size or otherwise we could endup with
+        // transmit_ == transmit_end_ without the buffer beeing empty
+        if ( transmit_end_ >= transmit_ )
+        {
+            // place a 0 into the length field to denote that the rest until the buffer end is not used
+            if ( end_transmit_buffer() - transmit_end_ >= ll_header_size )
+            {
+                transmit_end_[ 1 ] = 0;
+            }
+
+            // is there still a gap at the end of the buffer?
+            if ( end_transmit_buffer() - transmit_end_ > size )
+            {
+                return read_buffer{ transmit_end_, size };
+            }
+
+            // is there a gap at the beginning of the buffer?
+            if ( transmit_ - transmit_buffer() > size )
+            {
+                return read_buffer{ transmit_buffer(), size };
+            }
+        }
+        // the filled part of the buffer is wrapped around the end; is there a gap in the middle?
+        else if ( transmit_ - transmit_end_ > size )
+        {
+            return read_buffer{ transmit_end_, size };
+        }
+
+        return read_buffer{ nullptr, 0 };
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer pdu )
+    {
+        assert( pdu.buffer );
+        assert( pdu.size >= pdu.buffer[ 1 ] + ll_header_size );
+
+        // remove more data flag
+        transmit_end_ = pdu.buffer + pdu.buffer[ 1 ] + ll_header_size;
+
+        assert( transmit_ != transmit_end_ );
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_transmit()
+    {
+        if ( transmit_ == transmit_end_ )
+            return write_buffer{ empty_, 2 };
+
+        // add more data flag, if needed
+        const bool more_data = transmit_ + transmit_[ 1 ] + ll_header_size != transmit_end_;
+
+        if ( more_data )
+            transmit_[ 0 ] |= more_data_flag;
+
+        return write_buffer{ transmit_, transmit_[ 1 ] + ll_header_size };
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer()
     {
         return allocate_transmit_buffer( max_tx_size_ );
-    }
-
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer )
-    {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
