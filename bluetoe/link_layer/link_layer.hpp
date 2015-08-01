@@ -84,10 +84,11 @@ namespace link_layer {
         static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
         static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
 
-        std::uint8_t                    adv_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
+        static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ), "buffer to small" );
+
         std::size_t                     adv_size_;
-        std::uint8_t                    adv_response_buffer_[ max_advertising_data_size + address_length + advertising_pdu_header_size ];
         std::size_t                     adv_response_size_;
+
         std::uint8_t                    receive_buffer_[ 40 ];
         std::uint8_t                    send_buffer_[ 40 ];
 
@@ -170,7 +171,7 @@ namespace link_layer {
             {
                 this->schedule_transmit_and_receive(
                     current_advertising_channel_,
-                    write_buffer{ adv_response_buffer_, adv_response_size_ }, delta_time::now(),
+                    write_buffer{ this->raw() + max_advertising_data_size + address_length + advertising_pdu_header_size, adv_response_size_ }, delta_time::now(),
                     read_buffer{ nullptr, 0 } );
             }
             else if (
@@ -305,16 +306,18 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer( const Server& server )
     {
-        adv_response_buffer_[ 0 ] = scan_response_pdu_type_code;
+        std::uint8_t* adv_response_buffer = this->raw() + max_advertising_data_size + address_length + advertising_pdu_header_size;
+
+        adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
 
         if ( device_address::is_random() )
-            adv_response_buffer_[ 0 ] |= header_txaddr_field;
+            adv_response_buffer[ 0 ] |= header_txaddr_field;
 
-        adv_response_buffer_[ 1 ] = address_length;
+        adv_response_buffer[ 1 ] = address_length;
 
-        std::copy( address_.begin(), address_.end(), &adv_response_buffer_[ 2 ] );
+        std::copy( address_.begin(), address_.end(), &adv_response_buffer[ 2 ] );
 
-        adv_response_size_ = advertising_pdu_header_size + adv_response_buffer_[ 1 ];
+        adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
