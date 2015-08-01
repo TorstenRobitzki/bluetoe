@@ -14,6 +14,20 @@
 namespace bluetoe {
 namespace link_layer {
 
+    namespace details {
+        template < typename ... Options >
+        struct buffer_sizes
+        {
+            typedef typename ::bluetoe::details::find_by_meta_type<
+                buffer_sizes_meta_type,
+                Options...,
+                ::bluetoe::link_layer::buffer_sizes<>  // default
+            >::type s_type;
+
+            static constexpr std::size_t tx_size = s_type::transmit_buffer_size;
+            static constexpr std::size_t rx_size = s_type::receive_buffer_size;
+        };
+    }
 
     /**
      * @brief link layer implementation
@@ -36,7 +50,7 @@ namespace link_layer {
         class ScheduledRadio,
         typename ... Options
     >
-    class link_layer : public ScheduledRadio< 100, 100, link_layer< Server, ScheduledRadio, Options... > >
+    class link_layer : public ScheduledRadio< details::buffer_sizes< Options... >::tx_size, details::buffer_sizes< Options... >::rx_size, link_layer< Server, ScheduledRadio, Options... > >
     {
     public:
         link_layer();
@@ -50,7 +64,10 @@ namespace link_layer {
         void crc_error();
 
     private:
-        typedef ScheduledRadio< 100, 100, link_layer< Server, ScheduledRadio, Options... > > radio_t;
+        typedef ScheduledRadio<
+            details::buffer_sizes< Options... >::tx_size,
+            details::buffer_sizes< Options... >::rx_size,
+            link_layer< Server, ScheduledRadio, Options... > > radio_t;
 
         // calculates the time point for the next advertising event
         delta_time next_adv_event();

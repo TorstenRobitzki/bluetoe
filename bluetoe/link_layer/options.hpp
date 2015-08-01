@@ -12,6 +12,7 @@ namespace link_layer
     namespace details {
         struct advertising_interval_meta_type {};
         struct device_address_meta_type {};
+        struct buffer_sizes_meta_type {};
 
         template < unsigned long long AdvertisingIntervalMilliSeconds >
         struct check_advertising_interval_parameter {
@@ -85,6 +86,19 @@ namespace link_layer
         static constexpr unsigned accuracy_ppm = static_cast< unsigned >( SleepClockAccuracyPPM );
         typedef details::sleep_clock_accuracy_meta_type meta_type;
     };
+
+    /**
+     * @brief defines link layer transmit and receive buffer sizes
+     */
+    template < std::size_t TransmitSize = 39, std::size_t ReceiveSize = 39 >
+    struct buffer_sizes
+    {
+        typedef details::buffer_sizes_meta_type meta_type;
+
+        static constexpr std::size_t transmit_buffer_size = TransmitSize;
+        static constexpr std::size_t receive_buffer_size  = ReceiveSize;
+    };
+
 }
 }
 
