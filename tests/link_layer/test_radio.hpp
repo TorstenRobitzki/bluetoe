@@ -152,8 +152,8 @@ namespace test {
     /**
      * @brief test implementation of the link_layer::scheduled_radio interface, that simulates receiving and transmitted data
      */
-    template < typename CallBack >
-    class radio : public radio_base
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    class radio : public radio_base, public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, radio< TransmitSize, ReceiveSize, CallBack > >
     {
     public:
         /**
@@ -198,16 +198,16 @@ namespace test {
         return start_value;
     }
 
-    template < typename CallBack >
-    radio< CallBack >::radio()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    radio< TransmitSize, ReceiveSize, CallBack >::radio()
         : eos_( bluetoe::link_layer::delta_time::seconds( 10 ) )
         , now_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
     {
     }
 
-    template < typename CallBack >
-    void radio< CallBack >::schedule_transmit_and_receive(
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_transmit_and_receive(
             unsigned channel,
             const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
             const bluetoe::link_layer::read_buffer& receive )
@@ -233,8 +233,8 @@ namespace test {
         transmitted_data_.push_back( data );
     }
 
-    template < typename CallBack >
-    void radio< CallBack >::schedule_receive_and_transmit(
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_receive_and_transmit(
         unsigned                                    channel,
         bluetoe::link_layer::delta_time             start_receive,
         bluetoe::link_layer::delta_time             end_receive,
@@ -261,8 +261,8 @@ namespace test {
         transmitted_data_.push_back( data );
     }
 
-    template < typename CallBack >
-    void radio< CallBack >::run()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
         assert( !transmitted_data_.empty() );
 

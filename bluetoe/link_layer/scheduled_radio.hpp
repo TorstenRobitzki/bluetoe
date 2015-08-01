@@ -18,7 +18,7 @@ namespace link_layer {
      * first T0 is defined by the return of the constructor. After that, every scheduling function have to define what the next T0 is, that the next
      * functions relative point in time, is based on.
      */
-    template < typename CallBack >
+    template <  std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     class scheduled_radio
     {
     public:

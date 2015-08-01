@@ -26,8 +26,17 @@ namespace link_layer {
      * - opt. Advertising Event type
      * - opt. Used Channels
      */
-    template < class Server, template < class CallBack > class ScheduledRadio, typename ... Options >
-    class link_layer : public ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >
+    template <
+        class Server,
+        template <
+            std::size_t TransmitSize,
+            std::size_t ReceiveSize,
+            class CallBack
+        >
+        class ScheduledRadio,
+        typename ... Options
+    >
+    class link_layer : public ScheduledRadio< 100, 100, link_layer< Server, ScheduledRadio, Options... > >
     {
     public:
         link_layer();
@@ -39,7 +48,10 @@ namespace link_layer {
         void timeout();
 
         void crc_error();
+
     private:
+        typedef ScheduledRadio< 100, 100, link_layer< Server, ScheduledRadio, Options... > > radio_t;
+
         // calculates the time point for the next advertising event
         delta_time next_adv_event();
 
@@ -115,7 +127,7 @@ namespace link_layer {
     };
 
     // implementation
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : adv_size_( 0 )
         , adv_response_size_( 0 )
@@ -126,7 +138,7 @@ namespace link_layer {
     {
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::run( Server& server )
     {
         // after the initial scheduling, the timeout and receive callback will setup the next scheduling
@@ -142,14 +154,14 @@ namespace link_layer {
 
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
-                write_buffer{ adv_buffer_, adv_size_ }, delta_time::now(),
+                write_buffer{ this->raw(), adv_size_ }, delta_time::now(),
                 read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
         }
 
-        ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >::run();
+        radio_t::run();
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::received( const read_buffer& receive )
     {
         if ( state_ == state::advertising )
@@ -204,7 +216,7 @@ namespace link_layer {
         }
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::timeout()
     {
         if ( state_ == state::advertising )
@@ -219,7 +231,7 @@ namespace link_layer {
 
             this->schedule_transmit_and_receive(
                 current_advertising_channel_,
-                write_buffer{ adv_buffer_, adv_size_ }, next_time,
+                write_buffer{ this->raw(), adv_size_ }, next_time,
                 read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
         }
         else if ( state_ == state::connecting )
@@ -258,12 +270,12 @@ namespace link_layer {
         }
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::crc_error()
     {
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     delta_time link_layer< Server, ScheduledRadio, Options... >::next_adv_event()
     {
         adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
@@ -275,20 +287,22 @@ namespace link_layer {
         return adv_interval::interval() + delta_time::msec( adv_perturbation_ );
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer( const Server& server )
     {
-        adv_buffer_[ 0 ] = adv_ind_pdu_type_code;
+        std::uint8_t* const adv_buffer = this->raw();
+
+        adv_buffer[ 0 ] = adv_ind_pdu_type_code;
 
         if ( device_address::is_random() )
-            adv_buffer_[ 0 ] |= header_txaddr_field;
+            adv_buffer[ 0 ] |= header_txaddr_field;
 
-        adv_buffer_[ 1 ] = address_length + server.advertising_data( &adv_buffer_[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
-        std::copy( address_.begin(), address_.end(), &adv_buffer_[ 2 ] );
-        adv_size_ = advertising_pdu_header_size + adv_buffer_[ 1 ];
+        adv_buffer[ 1 ] = address_length + server.advertising_data( &adv_buffer[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+        std::copy( address_.begin(), address_.end(), &adv_buffer[ 2 ] );
+        adv_size_ = advertising_pdu_header_size + adv_buffer[ 1 ];
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer( const Server& server )
     {
         adv_response_buffer_[ 0 ] = scan_response_pdu_type_code;
@@ -303,7 +317,7 @@ namespace link_layer {
         adv_response_size_ = advertising_pdu_header_size + adv_response_buffer_[ 1 ];
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::is_valid_scan_request( const read_buffer& receive ) const
     {
         static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
@@ -318,7 +332,7 @@ namespace link_layer {
         return result;
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::is_valid_connect_request( const read_buffer& receive ) const
     {
         static constexpr std::size_t  connect_request_size = 34 + advertising_pdu_header_size;
@@ -333,7 +347,7 @@ namespace link_layer {
         return result;
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     unsigned link_layer< Server, ScheduledRadio, Options... >::sleep_clock_accuracy( const read_buffer& receive ) const
     {
         static constexpr std::uint16_t inaccuracy_ppm[ 8 ] = {
@@ -343,7 +357,7 @@ namespace link_layer {
         return inaccuracy_ppm[ ( receive.buffer[ 35 ] >> 5 & 0x7 )  ];
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request )
     {
         static constexpr delta_time max_mimum_transmit_window_offset( 10 * 1000 );
@@ -360,25 +374,25 @@ namespace link_layer {
         return result;
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     std::uint16_t link_layer< Server, ScheduledRadio, Options... >::read_16( const std::uint8_t* p )
     {
         return *p | *( p + 1 ) << 8;
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_24( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( *( p + 2 ) ) << 16;
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_32( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
     }
 
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     write_buffer link_layer< Server, ScheduledRadio, Options... >::create_empty_ll_data_pdu()
     {
         send_buffer_[ 0 ] = 0x1;
