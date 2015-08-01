@@ -162,7 +162,7 @@ namespace test {
         radio();
 
         // scheduled_radio interface
-        void schedule_transmit_and_receive(
+        void schedule_advertisment_and_receive(
             unsigned                                    channel,
             const bluetoe::link_layer::write_buffer&    transmit,
             bluetoe::link_layer::delta_time             when,
@@ -207,7 +207,7 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_transmit_and_receive(
+    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_advertisment_and_receive(
             unsigned channel,
             const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
             const bluetoe::link_layer::read_buffer& receive )

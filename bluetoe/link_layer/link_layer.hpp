@@ -101,6 +101,7 @@ namespace link_layer {
         static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
         static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
 
+        // TODO: calculate the actual needed buffer size for advertising, not the maximum
         static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ), "buffer to small" );
 
         std::size_t                     adv_size_;
@@ -170,7 +171,7 @@ namespace link_layer {
                 advertising_radio_access_address,
                 advertising_crc_init );
 
-            this->schedule_transmit_and_receive(
+            this->schedule_advertisment_and_receive(
                 current_advertising_channel_,
                 write_buffer{ this->raw(), adv_size_ }, delta_time::now(),
                 read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
@@ -186,7 +187,7 @@ namespace link_layer {
         {
             if ( is_valid_scan_request( receive ) )
             {
-                this->schedule_transmit_and_receive(
+                this->schedule_advertisment_and_receive(
                     current_advertising_channel_,
                     write_buffer{ this->raw() + max_advertising_data_size + address_length + advertising_pdu_header_size, adv_response_size_ }, delta_time::now(),
                     read_buffer{ nullptr, 0 } );
@@ -247,7 +248,7 @@ namespace link_layer {
                 ? next_adv_event()
                 : delta_time::now();
 
-            this->schedule_transmit_and_receive(
+            this->schedule_advertisment_and_receive(
                 current_advertising_channel_,
                 write_buffer{ this->raw(), adv_size_ }, next_time,
                 read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );

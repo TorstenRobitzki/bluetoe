@@ -28,7 +28,7 @@ namespace link_layer {
         scheduled_radio();
 
         /**
-         * @brief schedules for transmission and starts to receive 150µs later
+         * @brief schedules for transmission of advertising data and starts to receive 150µs later
          *
          * The function will return immediately. Depending on whether a response is received or the receiving times out,
          * CallBack::received() or CallBack::timeout() is called. In both cases, every following call to a scheduling
@@ -43,7 +43,7 @@ namespace link_layer {
          * @param when point in time, when the first bit of data should be started to be transmitted
          * @param receive buffer where the radio will copy the received data, before calling Callback::receive(). This parameter can be empty if no receiving is intended.
          */
-        void schedule_transmit_and_receive(
+        void schedule_advertisment_and_receive(
             unsigned                                    channel,
             const bluetoe::link_layer::write_buffer&    transmit,
             bluetoe::link_layer::delta_time             when,
@@ -58,7 +58,7 @@ namespace link_layer {
          * start to transmit answert 150µs later. If until end_receive no PDU was received, CallBack::timeout()
          * will be called. Both, start_receive and end_receive are bases on T0.
          */
-        void schedule_receive_and_transmit(
+        void schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
@@ -69,7 +69,7 @@ namespace link_layer {
          * @brief set the access address initial CRC value for transmitted and received PDU
          *
          * The values should be changed, when there is no outstanding scheduled transmission or receiving.
-         * The values will be applied with the next call to schedule_transmit_and_receive() or schedule_receive_and_transmit().
+         * The values will be applied with the next call to schedule_advertisment_and_receive() or schedule_receive_and_transmit().
          */
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
