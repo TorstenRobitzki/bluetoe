@@ -328,14 +328,14 @@ namespace test {
                     current.receive_buffer.size = copy_size;
 
                     idle_ = true;
-                    static_cast< CallBack* >( this )->received( current.receive_buffer );
+                    static_cast< CallBack* >( this )->adv_received( current.receive_buffer );
                 }
             }
             else
             {
                 now_ += transmitted_data_.back().transmision_time;
                 idle_ = true;
-                static_cast< CallBack* >( this )->timeout();
+                static_cast< CallBack* >( this )->adv_timeout();
             }
 
 //            assert( count + 1 == transmitted_data_.size() );

@@ -57,9 +57,9 @@ namespace link_layer {
 
         void run( Server& );
 
-        void received( const read_buffer& receive );
+        void adv_received( const read_buffer& receive );
 
-        void timeout();
+        void adv_timeout();
 
         void crc_error();
 
@@ -180,7 +180,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::received( const read_buffer& receive )
+    void link_layer< Server, ScheduledRadio, Options... >::adv_received( const read_buffer& receive )
     {
         if ( state_ == state::advertising )
         {
@@ -218,12 +218,12 @@ namespace link_layer {
             }
             else
             {
-                timeout();
+                adv_timeout();
             }
         }
         else if ( state_ == state::connecting )
         {
-            timeout();
+            adv_timeout();
         }
         else
         {
@@ -232,7 +232,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::timeout()
+    void link_layer< Server, ScheduledRadio, Options... >::adv_timeout()
     {
         if ( state_ == state::advertising )
         {
@@ -275,7 +275,7 @@ namespace link_layer {
                 current_channel_index_ = last_advertising_channel;
                 state_ = state::advertising;
 
-                timeout();
+                adv_timeout();
             }
         }
         else

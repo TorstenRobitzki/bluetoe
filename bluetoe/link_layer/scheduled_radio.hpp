@@ -31,7 +31,7 @@ namespace link_layer {
          * @brief schedules for transmission of advertising data and starts to receive 150µs later
          *
          * The function will return immediately. Depending on whether a response is received or the receiving times out,
-         * CallBack::received() or CallBack::timeout() is called. In both cases, every following call to a scheduling
+         * CallBack::adv_received() or CallBack::adv_timeout() is called. In both cases, every following call to a scheduling
          * function is based on the time, the tranmision was scheduled. So the new T0 = T0 + when. In case of a CRC error,
          * CallBack::timeout() will be called immediately .
          *
@@ -41,7 +41,7 @@ namespace link_layer {
          * @param channel channel to transmit and to receive on
          * @param transmit data to be transmitted
          * @param when point in time, when the first bit of data should be started to be transmitted
-         * @param receive buffer where the radio will copy the received data, before calling Callback::receive(). This parameter can be empty if no receiving is intended.
+         * @param receive buffer where the radio will copy the received data, before calling Callback::adv_receive(). This parameter can be empty if no receiving is intended.
          */
         void schedule_advertisment_and_receive(
             unsigned                                    channel,
