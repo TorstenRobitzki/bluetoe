@@ -50,20 +50,16 @@ namespace link_layer {
             const bluetoe::link_layer::read_buffer&     receive );
 
         /**
-         * @brief schedules for receiving and starts transmitting 150µs later
+         * @brief schedules a connection event
          *
          * The function will return immediately and schedule the receiver to start at start_receive.
-         * When the receiver receives a PDU, it will call CallBack::received() or in case of a CRC error
-         * it will call CallBack::crc_error(). If a PDU without CRC error was received, the radio will
-         * start to transmit answert 150µs later. If until end_receive no PDU was received, CallBack::timeout()
-         * will be called. Both, start_receive and end_receive are bases on T0.
+         *
          */
         void schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
-            const bluetoe::link_layer::read_buffer&     receive,
-            const bluetoe::link_layer::write_buffer&    answert );
+            bluetoe::link_layer::delta_time             connection_interval );
 
         /**
          * @brief set the access address initial CRC value for transmitted and received PDU

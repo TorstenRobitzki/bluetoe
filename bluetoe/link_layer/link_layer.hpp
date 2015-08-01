@@ -78,7 +78,10 @@ namespace link_layer {
         bool is_valid_connect_request( const read_buffer& receive ) const;
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
         bool parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request );
-        write_buffer create_empty_ll_data_pdu();
+
+        std::uint8_t* advertising_buffer();
+        std::uint8_t* advertising_response_buffer();
+        std::uint8_t* advertising_receive_buffer();
 
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
@@ -87,6 +90,7 @@ namespace link_layer {
         static constexpr std::size_t    max_advertising_data_size   = 31;
         static constexpr std::size_t    advertising_pdu_header_size = 2;
         static constexpr std::size_t    address_length              = 6;
+        static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
 
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       last_advertising_channel    = 39;
@@ -102,13 +106,10 @@ namespace link_layer {
         static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
 
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
-        static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ), "buffer to small" );
+        static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ) + maximum_adv_request_size, "buffer to small" );
 
         std::size_t                     adv_size_;
         std::size_t                     adv_response_size_;
-
-        std::uint8_t                    receive_buffer_[ 40 ];
-        std::uint8_t                    send_buffer_[ 40 ];
 
         unsigned                        current_advertising_channel_;
         unsigned                        adv_perturbation_;
@@ -118,8 +119,6 @@ namespace link_layer {
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
-        unsigned                        transmit_sequence_number_;
-        unsigned                        next_expected_sequence_number_;
         unsigned                        timeouts_til_connection_lost_;
 
         enum class state
@@ -173,8 +172,8 @@ namespace link_layer {
 
             this->schedule_advertisment_and_receive(
                 current_advertising_channel_,
-                write_buffer{ this->raw(), adv_size_ }, delta_time::now(),
-                read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
+                write_buffer{ advertising_buffer(), adv_size_ }, delta_time::now(),
+                read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
         }
 
         radio_t::run();
@@ -189,7 +188,7 @@ namespace link_layer {
             {
                 this->schedule_advertisment_and_receive(
                     current_advertising_channel_,
-                    write_buffer{ this->raw() + max_advertising_data_size + address_length + advertising_pdu_header_size, adv_response_size_ }, delta_time::now(),
+                    write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
                     read_buffer{ nullptr, 0 } );
             }
             else if (
@@ -199,8 +198,6 @@ namespace link_layer {
             {
                 state_                          = state::connecting;
                 current_advertising_channel_    = 0;
-                transmit_sequence_number_       = 0;
-                next_expected_sequence_number_  = 0;
                 cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
                 timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
 
@@ -213,12 +210,11 @@ namespace link_layer {
 
                 window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
-                this->schedule_receive_and_transmit(
+                this->schedule_connection_event(
                     channels_.data_channel( current_advertising_channel_ ),
                     window_start,
                     window_end,
-                    read_buffer{ nullptr, 0 },
-                    create_empty_ll_data_pdu() );
+                    connection_interval_ );
             }
             else
             {
@@ -250,8 +246,8 @@ namespace link_layer {
 
             this->schedule_advertisment_and_receive(
                 current_advertising_channel_,
-                write_buffer{ this->raw(), adv_size_ }, next_time,
-                read_buffer{ receive_buffer_, sizeof( receive_buffer_ ) } );
+                write_buffer{ advertising_buffer(), adv_size_ }, next_time,
+                read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
         }
         else if ( state_ == state::connecting )
         {
@@ -268,12 +264,11 @@ namespace link_layer {
                 window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
                 window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
-                this->schedule_receive_and_transmit(
+                this->schedule_connection_event(
                     channels_.data_channel( current_advertising_channel_ ),
                     window_start,
                     window_end,
-                    read_buffer{ nullptr, 0 },
-                    create_empty_ll_data_pdu() );
+                    connection_interval_ );
             }
             else
             {
@@ -309,7 +304,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer( const Server& server )
     {
-        std::uint8_t* const adv_buffer = this->raw();
+        std::uint8_t* const adv_buffer = advertising_buffer();
 
         adv_buffer[ 0 ] = adv_ind_pdu_type_code;
 
@@ -324,7 +319,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer( const Server& server )
     {
-        std::uint8_t* adv_response_buffer = this->raw() + max_advertising_data_size + address_length + advertising_pdu_header_size;
+        std::uint8_t* adv_response_buffer = advertising_response_buffer();
 
         adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
 
@@ -381,18 +376,36 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request )
     {
-        static constexpr delta_time max_mimum_transmit_window_offset( 10 * 1000 );
+        static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr auto       us_per_digits = 1250;
 
         transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
 
-        bool result = transmit_window_size_ <= max_mimum_transmit_window_offset
+        bool result = transmit_window_size_ <= maximum_transmit_window_offset
                    && transmit_window_size_ <= connection_interval_
                    && transmit_window_offset_ <= connection_interval_;
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_buffer()
+    {
+        return this->raw();
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_response_buffer()
+    {
+        return advertising_buffer() + max_advertising_data_size + address_length + advertising_pdu_header_size;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_receive_buffer()
+    {
+        return advertising_response_buffer() + max_advertising_data_size + address_length + advertising_pdu_header_size;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -412,16 +425,6 @@ namespace link_layer {
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
     }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    write_buffer link_layer< Server, ScheduledRadio, Options... >::create_empty_ll_data_pdu()
-    {
-        send_buffer_[ 0 ] = 0x1;
-        send_buffer_[ 1 ] = 0;
-
-        return write_buffer{ &send_buffer_[ 0 ], 2 };
-    }
-
 
 }
 }

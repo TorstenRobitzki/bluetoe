@@ -32,6 +32,19 @@ namespace test {
         std::uint32_t                       crc_init;
     };
 
+    struct connection_event
+    {
+        bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled (from start of simulation)
+
+        // parameters
+        unsigned                            channel;
+        bluetoe::link_layer::delta_time     start_receive;
+        bluetoe::link_layer::delta_time     end_receive;
+        bluetoe::link_layer::delta_time     connection_interval;
+
+        std::vector< std::uint8_t >         transmitted_data;
+    };
+
     unsigned sn( const schedule_data& );
     unsigned nesn( const schedule_data& );
 
@@ -60,6 +73,7 @@ namespace test {
 
         // test interface
         const std::vector< schedule_data >& scheduling() const;
+        const std::vector< connection_event >& connection_events() const;
 
         /**
          * @brief calls check with every scheduled_data
@@ -129,8 +143,11 @@ namespace test {
 
         static const bluetoe::link_layer::delta_time T_IFS;
     protected:
-        typedef std::vector< schedule_data > data_list;
-        data_list transmitted_data_;
+        typedef std::vector< schedule_data > advertising_list;
+        advertising_list transmitted_data_;
+
+        typedef std::vector< connection_event > connection_event_list;
+        connection_event_list connection_events_;
 
         typedef std::vector< responder_t > responder_list;
         responder_list responders_;
@@ -139,12 +156,12 @@ namespace test {
         std::uint32_t   crc_init_;
         bool            access_address_and_crc_valid_;
 
-        data_list::const_iterator next( std::vector< schedule_data >::const_iterator, const std::function< bool ( const schedule_data& ) >& filter ) const;
+        advertising_list::const_iterator next( std::vector< schedule_data >::const_iterator, const std::function< bool ( const schedule_data& ) >& filter ) const;
 
         void pair_wise_check(
             const std::function< bool ( const schedule_data& ) >&                                               filter,
             const std::function< bool ( const schedule_data& first, const schedule_data& next ) >&              check,
-            const std::function< void ( data_list::const_iterator first, data_list::const_iterator next ) >&    fail ) const;
+            const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const;
 
         std::pair< bool, incomming_data > find_response( const schedule_data& );
     };
@@ -168,12 +185,11 @@ namespace test {
             bluetoe::link_layer::delta_time             when,
             const bluetoe::link_layer::read_buffer&     receive );
 
-        void schedule_receive_and_transmit(
+        void schedule_connection_event(
             unsigned                                    channel,
-            bluetoe::link_layer::delta_time             when,
-            bluetoe::link_layer::delta_time             window_size,
-            const bluetoe::link_layer::read_buffer&     receive,
-            const bluetoe::link_layer::write_buffer&    answert );
+            bluetoe::link_layer::delta_time             start_receive,
+            bluetoe::link_layer::delta_time             end_receive,
+            bluetoe::link_layer::delta_time             connection_interval );
 
         /**
          * @brief runs the simulation
@@ -234,32 +250,50 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_receive_and_transmit(
+    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_connection_event(
         unsigned                                    channel,
         bluetoe::link_layer::delta_time             start_receive,
         bluetoe::link_layer::delta_time             end_receive,
-        const bluetoe::link_layer::read_buffer&     receive,
-        const bluetoe::link_layer::write_buffer&    answert )
+        bluetoe::link_layer::delta_time             connection_interval )
     {
-        assert( idle_ );
-        assert( access_address_and_crc_valid_ );
-        idle_ = false;
-
-        const schedule_data data{
+        const connection_event data{
             now_,
-            now_ + start_receive,
             channel,
             start_receive,
-            std::vector< std::uint8_t >( answert.buffer, answert.buffer + answert.size ),
-            receive,
-            true,
             end_receive,
-            access_address_,
-            crc_init_
+            connection_interval,
+            std::vector< std::uint8_t >()
         };
 
-        transmitted_data_.push_back( data );
+        connection_events_.push_back( data );
     }
+
+    // void radio< TransmitSize, ReceiveSize, CallBack >::schedule_receive_and_transmit(
+    //     unsigned                                    channel,
+    //     bluetoe::link_layer::delta_time             start_receive,
+    //     bluetoe::link_layer::delta_time             end_receive,
+    //     const bluetoe::link_layer::read_buffer&     receive,
+    //     const bluetoe::link_layer::write_buffer&    answert )
+    // {
+    //     assert( idle_ );
+    //     assert( access_address_and_crc_valid_ );
+    //     idle_ = false;
+
+    //     const schedule_data data{
+    //         now_,
+    //         now_ + start_receive,
+    //         channel,
+    //         start_receive,
+    //         std::vector< std::uint8_t >( answert.buffer, answert.buffer + answert.size ),
+    //         receive,
+    //         true,
+    //         end_receive,
+    //         access_address_,
+    //         crc_init_
+    //     };
+
+    //     transmitted_data_.push_back( data );
+    // }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::run()

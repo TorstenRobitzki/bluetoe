@@ -1,3 +1,5 @@
+#include <iostream>
+#include "buffer_io.hpp"
 #include "connected.hpp"
 
 #define BOOST_TEST_MODULE
@@ -131,10 +133,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_hop_is_invalid, HopIncrement, in
     check_not_connected( "no_connection_after_a_connection_request_with_wrong_advertiser_address" );
 }
 
-BOOST_AUTO_TEST_CASE( no_connection_if_only_one_channel_is_used )
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_only_one_channel_is_used, Channel, advertising_channels )
 {
     respond_to(
-        39,
+        Channel::value,
         {
             0xc5, 0x22,                         // header
             0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
@@ -221,17 +223,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( start_receiving_on_the_correct_channel, Channel, 
 
     run();
 
-    check_first_scheduling(
-        receive_and_transmit_data_filter,
-        []( const test::schedule_data& data )
-        {
-            return data.channel == ( 0 + 10 ) % 37;
-        },
-        "start_receiving_on_the_correct_channel"
-    );
-
-    // make sure, a at least one element within the filter was scheduled
-    BOOST_CHECK_GE( count_data( receive_and_transmit_data_filter ), 1 );
+    BOOST_REQUIRE( !connection_events().empty() );
+    BOOST_CHECK_EQUAL( connection_events().front().channel, ( 0 + 10 ) % 37 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -260,14 +253,8 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
 
     run();
 
-    check_first_scheduling(
-        receive_and_transmit_data_filter,
-        []( const test::schedule_data& data )
-        {
-            return data.channel == ( ( 0 + 10 ) % 37 ) % 36 + 1;
-        },
-        "start_receiving_on_the_correct_channel"
-    );
+    BOOST_REQUIRE( !connection_events().empty() );
+    BOOST_CHECK_EQUAL( connection_events().front().channel, ( ( 0 + 10 ) % 37 ) % 36 + 1 );
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_10ms, unconnected )
@@ -317,15 +304,13 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_
  */
 BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 {
-    check_first_scheduling(
-        receive_and_transmit_data_filter,
-        []( const test::schedule_data& data )
-        {
-            return data.transmision_time.usec() == 14992
-                && data.end_receive.usec() == 18760;
-        },
-        "start_receiving_with_the_correct_window"
-    );
+    BOOST_REQUIRE( !connection_events().empty() );
+
+    const auto& event = connection_events().front();
+
+    BOOST_CHECK_EQUAL( event.start_receive.usec(), 14992 );
+    BOOST_CHECK_EQUAL( event.end_receive.usec(), 18760 );
+    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 30000 );
 }
 
 /*
@@ -333,9 +318,9 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
  * The master is announcing a sleep clock accuracy of 250 ppm. In sum: 350ppm.
  *
  * Start at:
- *   2001.25ms - 350ppm = 2001950µs
+ *   2000ms - 350ppm = 1999300µs
  * End at:
- *   ( 2001.25ms + 318.75 ) + 350ppm = 2320812µs
+ *   ( 2000ms + 10ms ) + 350ppm = 2010703µs
  */
 using local_device_with_100ppm = unconnected_base< bluetoe::link_layer::sleep_clock_accuracy_ppm< 100 > >;
 BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_device_with_100ppm )
@@ -348,8 +333,8 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
             0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
             0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
             0x08, 0x81, 0xf6,                   // CRC Init
-            0xff,                               // transmit window size = 318.75ms
-            0x40, 0x06,                         // window offset 2 sec
+            0x08,                               // maximum transmit window size = 10ms
+            0x3f, 0x06,                         // window offset 2 sec
             0x40, 0x06,                         // interval 2 sec
             0x00, 0x00,                         // slave latency
             0x48, 0x00,                         // connection timeout
@@ -360,45 +345,16 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
 
     run();
 
-    check_scheduling(
-        receive_and_transmit_data_filter,
-        []( const test::schedule_data& data )
-        {
-            return data.transmision_time.usec() == 2001950
-                && data.end_receive.usec() == 2320812;
-        },
-        "start_receiving_with_the_correct_window_II"
-    );
+    BOOST_REQUIRE( !connection_events().empty() );
+
+    const auto& event = connection_events().front();
+
+    BOOST_CHECK_EQUAL( event.start_receive.usec(), 1999300 );
+    BOOST_CHECK_EQUAL( event.end_receive.usec(), 2010703 );
+    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 2000000 );
 }
 
-BOOST_FIXTURE_TEST_CASE( first_scheduled_reply_should_be_an_empty_ll_data_pdu, connecting )
-{
-    check_scheduling(
-        receive_and_transmit_data_filter,
-        []( const test::schedule_data& data )
-        {
-            return data.transmitted_data.size() == 0x2
-                && ( data.transmitted_data[ 0 ] & 0x3 ) == 0x1
-                &&   data.transmitted_data[ 1 ] == 0;
-        },
-        "first_scheduled_reply_should_be_an_empty_ll_data_pdu"
-    );
-}
-
-BOOST_FIXTURE_TEST_CASE( first_scheduled_reply_should_have_sn_and_nesn_zero, connecting )
-{
-    check_scheduling(
-        receive_and_transmit_data_filter,
-        []( const test::schedule_data& data )
-        {
-            return data.transmitted_data.size() == 0x2
-                && ( data.transmitted_data[ 0 ] & 0x4 ) == 0
-                && ( data.transmitted_data[ 1 ] & 0x8 ) == 0;
-        },
-        "first_scheduled_reply_should_be_an_empty_ll_data_pdu"
-    );
-}
-
+#if 0
 /*
  * The first connection timeout is reached after 6 times the conenction interval is reached. Because the first
  * connection windows is already at least 1.25ms after the connection request, the sixed window would be already
@@ -513,3 +469,4 @@ BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, unconnected 
     );
 }
 
+#endif

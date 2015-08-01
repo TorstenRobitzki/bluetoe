@@ -90,7 +90,7 @@ namespace link_layer
     /**
      * @brief defines link layer transmit and receive buffer sizes
      */
-    template < std::size_t TransmitSize = 39, std::size_t ReceiveSize = 39 >
+    template < std::size_t TransmitSize = 57, std::size_t ReceiveSize = 57 >
     struct buffer_sizes
     {
         typedef details::buffer_sizes_meta_type meta_type;

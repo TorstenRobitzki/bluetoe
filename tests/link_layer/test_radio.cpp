@@ -59,6 +59,11 @@ namespace test {
         return transmitted_data_;
     }
 
+    const std::vector< connection_event >& radio_base::connection_events() const
+    {
+        return connection_events_;
+    }
+
     radio_base::radio_base()
         : access_address_and_crc_valid_( false )
     {
@@ -96,7 +101,7 @@ namespace test {
         pair_wise_check(
             filter,
             check,
-            [&]( data_list::const_iterator first, data_list::const_iterator next )
+            [&]( advertising_list::const_iterator first, advertising_list::const_iterator next )
             {
                 const auto n  = std::distance( transmitted_data_.begin(), first ) + 1;
                 const auto nn = std::distance( first, next ) + n;
@@ -202,7 +207,7 @@ namespace test {
     void radio_base::pair_wise_check(
         const std::function< bool ( const schedule_data& ) >&                                               filter,
         const std::function< bool ( const schedule_data& first, const schedule_data& next ) >&              check,
-        const std::function< void ( data_list::const_iterator first, data_list::const_iterator next ) >&    fail ) const
+        const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const
     {
         for ( auto data = next( transmitted_data_.begin(), filter ); data != transmitted_data_.end(); )
         {
