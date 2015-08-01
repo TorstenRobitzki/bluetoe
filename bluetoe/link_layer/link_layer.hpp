@@ -111,7 +111,7 @@ namespace link_layer {
         std::size_t                     adv_size_;
         std::size_t                     adv_response_size_;
 
-        unsigned                        current_advertising_channel_;
+        unsigned                        current_channel_index_;
         unsigned                        adv_perturbation_;
         const address                   address_;
         channel_map                     channels_;
@@ -149,7 +149,7 @@ namespace link_layer {
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : adv_size_( 0 )
         , adv_response_size_( 0 )
-        , current_advertising_channel_( first_advertising_channel )
+        , current_channel_index_( first_advertising_channel )
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
         , state_( state::initial )
@@ -171,7 +171,7 @@ namespace link_layer {
                 advertising_crc_init );
 
             this->schedule_advertisment_and_receive(
-                current_advertising_channel_,
+                current_channel_index_,
                 write_buffer{ advertising_buffer(), adv_size_ }, delta_time::now(),
                 read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
         }
@@ -187,7 +187,7 @@ namespace link_layer {
             if ( is_valid_scan_request( receive ) )
             {
                 this->schedule_advertisment_and_receive(
-                    current_advertising_channel_,
+                    current_channel_index_,
                     write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
                     read_buffer{ nullptr, 0 } );
             }
@@ -197,7 +197,7 @@ namespace link_layer {
                 && parse_transmit_window_from_connect_request( receive ) )
             {
                 state_                          = state::connecting;
-                current_advertising_channel_    = 0;
+                current_channel_index_    = 0;
                 cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
                 timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
 
@@ -211,7 +211,7 @@ namespace link_layer {
                 window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
                 this->schedule_connection_event(
-                    channels_.data_channel( current_advertising_channel_ ),
+                    channels_.data_channel( current_channel_index_ ),
                     window_start,
                     window_end,
                     connection_interval_ );
@@ -236,16 +236,16 @@ namespace link_layer {
     {
         if ( state_ == state::advertising )
         {
-            current_advertising_channel_ = current_advertising_channel_ == last_advertising_channel
+            current_channel_index_ = current_channel_index_ == last_advertising_channel
                 ? first_advertising_channel
-                : current_advertising_channel_ + 1;
+                : current_channel_index_ + 1;
 
-            const delta_time next_time = current_advertising_channel_ == first_advertising_channel
+            const delta_time next_time = current_channel_index_ == first_advertising_channel
                 ? next_adv_event()
                 : delta_time::now();
 
             this->schedule_advertisment_and_receive(
-                current_advertising_channel_,
+                current_channel_index_,
                 write_buffer{ advertising_buffer(), adv_size_ }, next_time,
                 read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
         }
@@ -253,7 +253,7 @@ namespace link_layer {
         {
             if ( timeouts_til_connection_lost_ )
             {
-                ++current_advertising_channel_;
+                ++current_channel_index_;
 
                 const delta_time con_interval_offset = connection_interval_ * ( num_windows_til_timeout - timeouts_til_connection_lost_ );
                 --timeouts_til_connection_lost_;
@@ -265,14 +265,14 @@ namespace link_layer {
                 window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
                 this->schedule_connection_event(
-                    channels_.data_channel( current_advertising_channel_ ),
+                    channels_.data_channel( current_channel_index_ ),
                     window_start,
                     window_end,
                     connection_interval_ );
             }
             else
             {
-                current_advertising_channel_ = last_advertising_channel;
+                current_channel_index_ = last_advertising_channel;
                 state_ = state::advertising;
 
                 timeout();
