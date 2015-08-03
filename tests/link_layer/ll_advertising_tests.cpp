@@ -392,15 +392,15 @@ BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_co
     for ( unsigned int c = 0; c != 4; ++c )
     {
         add_responder(
-            [c]( const test::advertising_data& d ) -> std::pair< bool, test::incomming_data >
+            [c]( const test::advertising_data& d ) -> std::pair< bool, test::advertising_response >
             {
                 const unsigned channel = 37 + c % 3;
 
                 return ( d.transmitted_data[ 0 ] & 0xf ) == 0 && d.channel == channel
-                    ? std::pair< bool, test::incomming_data >(
+                    ? std::pair< bool, test::advertising_response >(
                         true,
-                        test::incomming_data{ channel, valid_scan_request, T_IFS } )
-                    : std::pair< bool, test::incomming_data >( false, test::incomming_data() );
+                        test::advertising_response{ channel, valid_scan_request, T_IFS } )
+                    : std::pair< bool, test::advertising_response >( false, test::advertising_response() );
             }
         );
     }

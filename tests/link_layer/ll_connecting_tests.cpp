@@ -354,7 +354,6 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
     BOOST_CHECK_EQUAL( event.connection_interval.usec(), 2000000 );
 }
 
-#if 0
 /*
  * The first connection timeout is reached after 6 times the conenction interval is reached. Because the first
  * connection windows is already at least 1.25ms after the connection request, the sixed window would be already
@@ -362,9 +361,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
  */
 BOOST_FIXTURE_TEST_CASE( there_should_be_5_receive_attempts_before_the_connecting_times_out, connecting )
 {
-    BOOST_CHECK_EQUAL( count_data(
-        receive_and_transmit_data_filter
-    ), 5 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 5u );
 }
 
 /*
@@ -379,94 +376,41 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
 {
     unsigned count = 0;
 
-    check_scheduling(
-        receive_and_transmit_data_filter,
-        [&count]( const test::advertising_data& data )
-        {
-            unsigned start = 15000 + count * 30000;
-            unsigned end   = start + 3750;
-            ++count;
+    for ( const auto& ev: connection_events() )
+    {
+        unsigned start = 15000 + count * 30000;
+        unsigned end   = start + 3750;
+        ++count;
 
-            start -= start * 550 / 1000000;
-            end   += end * 550 / 1000000;
+        start -= start * 550 / 1000000;
+        end   += end * 550 / 1000000;
 
-            return data.transmision_time.usec() == start
-                && data.end_receive.usec() == end;
-        },
-        "window_widening_is_applied_with_every_receive_attempt"
-    );
+        BOOST_CHECK_EQUAL( ev.start_receive.usec(), start );
+        BOOST_CHECK_EQUAL( ev.end_receive.usec(), end );
+    }
 }
 
 BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_master_channels_are_hopped, connecting )
 {
-    std::vector< unsigned > channels = { 10, 20, 30, 3, 13 };
+    std::vector< unsigned > expected_channels = { 10, 20, 30, 3, 13 };
+    std::vector< unsigned > channels;
 
-    check_scheduling(
-        receive_and_transmit_data_filter,
-        [&channels]( const test::advertising_data& data )
-        {
-            const unsigned channel = channels.front();
-            channels.erase( channels.begin() );
+    for ( const auto& ev: connection_events() )
+    {
+        channels.push_back( ev.channel );
+    }
 
-            return data.channel == channel;
-        },
-        "while_waiting_for_a_message_from_the_master_channels_are_hopped"
-    );
+    BOOST_CHECK_EQUAL_COLLECTIONS( expected_channels.begin(), expected_channels.end(), channels.begin(), channels.end() );
 }
 
-BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, unconnected )
+BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, connecting )
 {
-    respond_to(
-        37,
-        valid_connection_request_pdu
-    );
+    // there must be an advertising pdu after the last connection event attempt
+    const auto last = connection_events().back().schedule_time;
 
-    run();
-
-    // there must be a transistion from receive_and_transmit data to transmit_and_receive
-    find_scheduling(
-        []( const test::advertising_data& first, const test::advertising_data& next )
+    BOOST_CHECK_GE( count_data(
+        [&last]( const test::advertising_data& adv )
         {
-            return first.receive_and_transmit && !next.receive_and_transmit;
-        },
-        "again_advertising_after_the_connection_timeout_was_reached"
-    );
+            return adv.schedule_time >= last;
+        } ), 1 );
 }
-
-/*
- * while the link layer is waiting for the first PDU after a connect request, a second link layer shouldn't
- * confuse the link layer
- */
-BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, unconnected )
-{
-    respond_to( 37, valid_connection_request_pdu );
-    respond_to( 10, valid_connection_request_pdu );
-
-    run();
-
-    std::vector< unsigned > channels = { 10, 20, 30, 3, 13 };
-
-    check_scheduling(
-        receive_and_transmit_data_filter,
-        [&channels]( const test::advertising_data& data )
-        {
-            assert( !channels.empty() );
-            const unsigned channel = channels.front();
-            channels.erase( channels.begin() );
-
-            return data.channel == channel;
-        },
-        "connection_request_while_beeing_connected"
-    );
-
-    // there must be a transistion from receive_and_transmit data to transmit_and_receive
-    find_scheduling(
-        []( const test::advertising_data& first, const test::advertising_data& next )
-        {
-            return first.receive_and_transmit && !next.receive_and_transmit;
-        },
-        "connection_request_while_beeing_connected"
-    );
-}
-
-#endif

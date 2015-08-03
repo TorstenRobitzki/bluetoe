@@ -13,14 +13,14 @@ namespace test {
         return out;
     }
 
-    incomming_data::incomming_data()
+    advertising_response::advertising_response()
         : channel( 0 )
         , delay( bluetoe::link_layer::delta_time( 0 ) )
         , has_crc_error( false )
     {
     }
 
-    incomming_data::incomming_data( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l )
+    advertising_response::advertising_response( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l )
         : channel( c )
         , received_data( d )
         , delay( l )
@@ -28,15 +28,15 @@ namespace test {
     {
     }
 
-    incomming_data incomming_data::crc_error()
+    advertising_response advertising_response::crc_error()
     {
-        incomming_data result;
+        advertising_response result;
         result.has_crc_error = true;
 
         return result;
     }
 
-    std::ostream& operator<<( std::ostream& out, const incomming_data& data )
+    std::ostream& operator<<( std::ostream& out, const advertising_response& data )
     {
         out << "channel: " << data.channel << "; delayed: " << data.delay;
         out << "\ndata:\n" << hex_dump( data.received_data.begin(), data.received_data.end() );
@@ -46,7 +46,7 @@ namespace test {
 
     const std::vector< advertising_data >& radio_base::scheduling() const
     {
-        return transmitted_data_;
+        return advertised_data_;
     }
 
     const std::vector< connection_event >& radio_base::connection_events() const
@@ -63,7 +63,7 @@ namespace test {
     {
         unsigned n = 0;
 
-        for ( const advertising_data& data : transmitted_data_ )
+        for ( const advertising_data& data : advertised_data_ )
         {
             if ( !check( data ) )
             {
@@ -93,7 +93,7 @@ namespace test {
             check,
             [&]( advertising_list::const_iterator first, advertising_list::const_iterator next )
             {
-                const auto n  = std::distance( transmitted_data_.begin(), first ) + 1;
+                const auto n  = std::distance( advertised_data_.begin(), first ) + 1;
                 const auto nn = std::distance( first, next ) + n;
 
                 boost::test_tools::predicate_result result( false );
@@ -137,7 +137,7 @@ namespace test {
     {
         unsigned found = 0;
 
-        for ( const advertising_data& data : transmitted_data_ )
+        for ( const advertising_data& data : advertised_data_ )
         {
             if ( filter( data ) )
                 ++found;
@@ -188,7 +188,7 @@ namespace test {
 
     std::vector< advertising_data >::const_iterator radio_base::next( std::vector< advertising_data >::const_iterator first, const std::function< bool ( const advertising_data& ) >& filter ) const
     {
-        while ( first != transmitted_data_.end() && !filter( *first ) )
+        while ( first != advertised_data_.end() && !filter( *first ) )
             ++first;
 
         return first;
@@ -199,11 +199,11 @@ namespace test {
         const std::function< bool ( const advertising_data& first, const advertising_data& next ) >&              check,
         const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const
     {
-        for ( auto data = next( transmitted_data_.begin(), filter ); data != transmitted_data_.end(); )
+        for ( auto data = next( advertised_data_.begin(), filter ); data != advertised_data_.end(); )
         {
             const auto next_data = next( data +1, filter );
 
-            if ( next_data != transmitted_data_.end() )
+            if ( next_data != advertised_data_.end() )
             {
                 if ( !check( *data, *next_data ) )
                 {
@@ -218,7 +218,7 @@ namespace test {
 
     void radio_base::all_data( std::function< void ( const advertising_data& ) > f ) const
     {
-        for ( const advertising_data& data : transmitted_data_ )
+        for ( const advertising_data& data : advertised_data_ )
             f( data );
     }
 
@@ -226,11 +226,11 @@ namespace test {
         const std::function< bool ( const advertising_data& ) >& filter,
         const std::function< void ( const advertising_data& first, const advertising_data& next ) >& iter ) const
     {
-        for ( auto data = next( transmitted_data_.begin(), filter ); data != transmitted_data_.end(); )
+        for ( auto data = next( advertised_data_.begin(), filter ); data != advertised_data_.end(); )
         {
             const auto next_data = next( data +1, filter );
 
-            if ( next_data != transmitted_data_.end() )
+            if ( next_data != advertised_data_.end() )
             {
                 iter( *data, *next_data );
             }
@@ -266,11 +266,11 @@ namespace test {
         assert( channel < 40 );
 
         add_responder(
-            [=]( const advertising_data& d ) -> std::pair< bool, incomming_data >
+            [=]( const advertising_data& d ) -> std::pair< bool, advertising_response >
             {
-                return std::pair< bool, incomming_data >(
+                return std::pair< bool, advertising_response >(
                     d.channel == channel,
-                    incomming_data{ channel, pdu, T_IFS }
+                    advertising_response{ channel, pdu, T_IFS }
                 );
             }
         );
@@ -287,19 +287,19 @@ namespace test {
         assert( channel < 40 );
 
         add_responder(
-            [=]( const advertising_data& ) -> std::pair< bool, incomming_data >
+            [=]( const advertising_data& ) -> std::pair< bool, advertising_response >
             {
-                return std::pair< bool, incomming_data >(
+                return std::pair< bool, advertising_response >(
                     true,
-                    incomming_data::crc_error()
+                    advertising_response::crc_error()
                 );
             }
         );
     }
 
-    std::pair< bool, incomming_data > radio_base::find_response( const advertising_data& data )
+    std::pair< bool, advertising_response > radio_base::find_response( const advertising_data& data )
     {
-        std::pair< bool, incomming_data > result( false, incomming_data{} );
+        std::pair< bool, advertising_response > result( false, advertising_response{} );
 
         for ( auto f = responders_.begin(); f != responders_.end(); ++f )
         {

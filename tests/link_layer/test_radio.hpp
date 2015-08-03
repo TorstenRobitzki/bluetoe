@@ -29,6 +29,10 @@ namespace test {
         std::uint32_t                       crc_init;
     };
 
+    std::ostream& operator<<( std::ostream& out, const advertising_data& data );
+
+    typedef std::vector< std::vector< std::uint8_t > > pdu_list_t;
+
     struct connection_event
     {
         bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled (from start of simulation)
@@ -39,18 +43,24 @@ namespace test {
         bluetoe::link_layer::delta_time     end_receive;
         bluetoe::link_layer::delta_time     connection_interval;
 
-        std::vector< std::uint8_t >         transmitted_data;
+
+        pdu_list_t                          transmitted_data;
+        pdu_list_t                          received_data;
     };
 
-    std::ostream& operator<<( std::ostream& out, const advertising_data& data );
-
-    struct incomming_data
+    struct connection_event_response
     {
-        incomming_data();
+        bool                                timeout; // respond with an timeout
+        pdu_list_t                          data;    // respond with data (including no data)
+    };
 
-        incomming_data( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l );
+    struct advertising_response
+    {
+        advertising_response();
 
-        static incomming_data crc_error();
+        advertising_response( unsigned c, std::vector< std::uint8_t > d, const bluetoe::link_layer::delta_time l );
+
+        static advertising_response crc_error();
 
         unsigned                        channel;
         std::vector< std::uint8_t >     received_data;
@@ -58,7 +68,7 @@ namespace test {
         bool                            has_crc_error;
     };
 
-    std::ostream& operator<<( std::ostream& out, const incomming_data& data );
+    std::ostream& operator<<( std::ostream& out, const advertising_response& data );
 
     class radio_base
     {
@@ -103,13 +113,13 @@ namespace test {
         /**
          * @brief function to take the arguments to a scheduling function and optional return a response
          */
-        typedef std::function< std::pair< bool, incomming_data > ( const advertising_data& ) > advertising_responder_t;
+        typedef std::function< std::pair< bool, advertising_response > ( const advertising_data& ) > advertising_responder_t;
 
         /**
          * @brief simulates an incomming PDU
          *
          * Given that a transmition was scheduled and the function responder() returns a pair with the first bool set to true, when applied to the transmitting
-         * data, the given incomming_data is used to simulate an incoming PDU. The first function that returns true, will be applied and removed from the list.
+         * data, the given advertising_response is used to simulate an incoming PDU. The first function that returns true, will be applied and removed from the list.
          */
         void add_responder( const advertising_responder_t& responder );
 
@@ -130,6 +140,8 @@ namespace test {
         std::uint32_t access_address() const;
         std::uint32_t crc_init() const;
 
+        void add_connection_event_respond( pdu_list_t );
+
         /**
          * @brief returns 0x47110815
          */
@@ -138,13 +150,16 @@ namespace test {
         static const bluetoe::link_layer::delta_time T_IFS;
     protected:
         typedef std::vector< advertising_data > advertising_list;
-        advertising_list transmitted_data_;
+        advertising_list advertised_data_;
 
         typedef std::vector< connection_event > connection_event_list;
         connection_event_list connection_events_;
 
         typedef std::vector< advertising_responder_t > responder_list;
         responder_list responders_;
+
+        typedef std::vector< pdu_list_t > connection_event_response_list;
+        connection_event_response_list connection_events_response_;
 
         std::uint32_t   access_address_;
         std::uint32_t   crc_init_;
@@ -157,7 +172,7 @@ namespace test {
             const std::function< bool ( const advertising_data& first, const advertising_data& next ) >&              check,
             const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const;
 
-        std::pair< bool, incomming_data > find_response( const advertising_data& );
+        std::pair< bool, advertising_response > find_response( const advertising_data& );
     };
 
     /**
@@ -194,15 +209,19 @@ namespace test {
         const bluetoe::link_layer::delta_time eos_;
               bluetoe::link_layer::delta_time now_;
 
+        void simulate_advertising_response();
+        void simulate_connection_event_response();
+
         // make sure, there is only one action scheduled
         bool idle_;
+        bool advertising_response_;
     };
 
     // implementation
     template < class Accu >
     Accu radio_base::sum_data( std::function< Accu ( const advertising_data&, Accu start_value ) > f, Accu start_value ) const
     {
-        for ( const auto& d : transmitted_data_ )
+        for ( const auto& d : advertised_data_ )
             start_value = f( d, start_value );
 
         return start_value;
@@ -226,6 +245,7 @@ namespace test {
         assert( access_address_and_crc_valid_ );
 
         idle_ = false;
+        advertising_response_ = true;
 
         const advertising_data data{
             now_,
@@ -238,7 +258,7 @@ namespace test {
             crc_init_
         };
 
-        transmitted_data_.push_back( data );
+        advertised_data_.push_back( data );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
@@ -248,13 +268,16 @@ namespace test {
         bluetoe::link_layer::delta_time             end_receive,
         bluetoe::link_layer::delta_time             connection_interval )
     {
+        advertising_response_ = false;
+
         const connection_event data{
             now_,
             channel,
             start_receive,
             end_receive,
             connection_interval,
-            std::vector< std::uint8_t >()
+            pdu_list_t(),
+            pdu_list_t()
         };
 
         connection_events_.push_back( data );
@@ -263,47 +286,71 @@ namespace test {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
-        assert( !transmitted_data_.empty() );
-
-        auto count = transmitted_data_.size();
+        bool new_scheduling_added = false;
 
         do
         {
-            count = transmitted_data_.size();
+            unsigned count = advertised_data_.size() + connection_events_.size();;
 
-            advertising_data&                      current  = transmitted_data_.back();
-            std::pair< bool, incomming_data >   response = find_response( current );
-
-            // for now, only timeouts are simulated
-            if ( response.first )
+            if ( advertising_response_ )
             {
-                now_ += T_IFS;
-
-                if ( response.second.has_crc_error )
-                {
-                    idle_ = true;
-                    static_cast< CallBack* >( this )->crc_error();
-                }
-                else
-                {
-                    const auto& received_data = response.second.received_data;
-                    const std::size_t copy_size = std::min< std::size_t >( current.receive_buffer.size, received_data.size() );
-
-                    std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
-                    current.receive_buffer.size = copy_size;
-
-                    idle_ = true;
-                    static_cast< CallBack* >( this )->adv_received( current.receive_buffer );
-                }
+                simulate_advertising_response();
             }
             else
             {
-                now_ += transmitted_data_.back().transmision_time;
-                idle_ = true;
-                static_cast< CallBack* >( this )->adv_timeout();
+                simulate_connection_event_response();
             }
 
-        } while ( now_ < eos_ && count + 1 == transmitted_data_.size() );
+            // there should be at max one call to a schedule function
+            assert( count + 1 <= advertised_data_.size() + connection_events_.size() );
+
+            new_scheduling_added = advertised_data_.size() + connection_events_.size() > count;
+
+        } while ( now_ < eos_ && new_scheduling_added );
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::simulate_advertising_response()
+    {
+        assert( !advertised_data_.empty() );
+
+        advertising_data&                       current  = advertised_data_.back();
+        std::pair< bool, advertising_response > response = find_response( current );
+
+        if ( response.first )
+        {
+            now_ += T_IFS;
+
+            if ( response.second.has_crc_error )
+            {
+                idle_ = true;
+                static_cast< CallBack* >( this )->crc_error();
+            }
+            else
+            {
+                const auto& received_data = response.second.received_data;
+                const std::size_t copy_size = std::min< std::size_t >( current.receive_buffer.size, received_data.size() );
+
+                std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
+                current.receive_buffer.size = copy_size;
+
+                idle_ = true;
+                static_cast< CallBack* >( this )->adv_received( current.receive_buffer );
+            }
+        }
+        else
+        {
+            now_ += advertised_data_.back().transmision_time;
+            idle_ = true;
+            static_cast< CallBack* >( this )->adv_timeout();
+        }
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::simulate_connection_event_response()
+    {
+        now_ += connection_events_.back().end_receive;
+        static_cast< CallBack* >( this )->timeout();
     }
 
 }
