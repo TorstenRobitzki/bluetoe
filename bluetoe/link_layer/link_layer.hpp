@@ -61,8 +61,9 @@ namespace link_layer {
 
         void adv_timeout();
 
-        void crc_error();
+        void timeout();
 
+        void end_event();
     private:
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
@@ -182,74 +183,69 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::adv_received( const read_buffer& receive )
     {
-        if ( state_ == state::advertising )
+        assert( state_ == state::advertising );
+
+        if ( is_valid_scan_request( receive ) )
         {
-            if ( is_valid_scan_request( receive ) )
-            {
-                this->schedule_advertisment_and_receive(
-                    current_channel_index_,
-                    write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
-                    read_buffer{ nullptr, 0 } );
-            }
-            else if (
-                   is_valid_connect_request( receive )
-                && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
-                && parse_transmit_window_from_connect_request( receive ) )
-            {
-                state_                          = state::connecting;
-                current_channel_index_    = 0;
-                cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
-                timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
-
-                this->set_access_address_and_crc_init(
-                    read_32( &receive.buffer[ 14 ] ),
-                    read_24( &receive.buffer[ 18 ] ) );
-
-                const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
-                      delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
-
-                window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
-
-                this->schedule_connection_event(
-                    channels_.data_channel( current_channel_index_ ),
-                    window_start,
-                    window_end,
-                    connection_interval_ );
-            }
-            else
-            {
-                adv_timeout();
-            }
+            this->schedule_advertisment_and_receive(
+                current_channel_index_,
+                write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
+                read_buffer{ nullptr, 0 } );
         }
-        else if ( state_ == state::connecting )
+        else if (
+               is_valid_connect_request( receive )
+            && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
+            && parse_transmit_window_from_connect_request( receive ) )
         {
-            adv_timeout();
+            state_                          = state::connecting;
+            current_channel_index_    = 0;
+            cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
+            timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
+
+            this->set_access_address_and_crc_init(
+                read_32( &receive.buffer[ 14 ] ),
+                read_24( &receive.buffer[ 18 ] ) );
+
+            const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
+                  delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
+
+            window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+
+            this->schedule_connection_event(
+                channels_.data_channel( current_channel_index_ ),
+                window_start,
+                window_end,
+                connection_interval_ );
         }
         else
         {
-            assert( !"invalid state" );
+            adv_timeout();
         }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::adv_timeout()
     {
-        if ( state_ == state::advertising )
-        {
-            current_channel_index_ = current_channel_index_ == last_advertising_channel
-                ? first_advertising_channel
-                : current_channel_index_ + 1;
+        assert( state_ == state::advertising );
 
-            const delta_time next_time = current_channel_index_ == first_advertising_channel
-                ? next_adv_event()
-                : delta_time::now();
+        current_channel_index_ = current_channel_index_ == last_advertising_channel
+            ? first_advertising_channel
+            : current_channel_index_ + 1;
 
-            this->schedule_advertisment_and_receive(
-                current_channel_index_,
-                write_buffer{ advertising_buffer(), adv_size_ }, next_time,
-                read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
-        }
-        else if ( state_ == state::connecting )
+        const delta_time next_time = current_channel_index_ == first_advertising_channel
+            ? next_adv_event()
+            : delta_time::now();
+
+        this->schedule_advertisment_and_receive(
+            current_channel_index_,
+            write_buffer{ advertising_buffer(), adv_size_ }, next_time,
+            read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::timeout()
+    {
+        if ( state_ == state::connecting )
         {
             if ( timeouts_til_connection_lost_ )
             {
@@ -278,14 +274,10 @@ namespace link_layer {
                 adv_timeout();
             }
         }
-        else
-        {
-            assert( !"invalid state" );
-        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::crc_error()
+    void link_layer< Server, ScheduledRadio, Options... >::end_event()
     {
     }
 
