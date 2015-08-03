@@ -29,11 +29,6 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
     0xaa                                // hop increment and sleep clock accuracy
 };
 
-const auto receive_and_transmit_data_filter = []( const test::schedule_data& data )
-    {
-        return data.receive_and_transmit;
-    };
-
 template < typename ... Options >
 struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
 {
@@ -47,13 +42,7 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
 
     void check_not_connected( const char* test ) const
     {
-        this->check_scheduling(
-            []( const test::schedule_data& data ) -> bool
-            {
-                return ( data.transmitted_data[ 0 ] & 0xf ) == 0 && !data.receive_and_transmit;
-            },
-            test
-        );
+        BOOST_CHECK( this->connection_events().empty() );
     }
 
     void respond_with_connection_request( std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval )

@@ -12,9 +12,9 @@
 namespace test {
 
     /**
-     * @brief stores all relevant arguments to a schedule function call to the radio
+     * @brief stores all relevant arguments to a schedule_advertisment_and_receive() function call to the radio
      */
-    struct schedule_data
+    struct advertising_data
     {
         bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled (from start of simulation)
         bluetoe::link_layer::delta_time     on_air_time;       // when was the action on air (from start of simulation)
@@ -24,9 +24,6 @@ namespace test {
         bluetoe::link_layer::delta_time     transmision_time;  // or start of receiving
         std::vector< std::uint8_t >         transmitted_data;
         bluetoe::link_layer::read_buffer    receive_buffer;
-
-        bool                                receive_and_transmit;
-        bluetoe::link_layer::delta_time     end_receive;
 
         std::uint32_t                       access_address;
         std::uint32_t                       crc_init;
@@ -45,10 +42,7 @@ namespace test {
         std::vector< std::uint8_t >         transmitted_data;
     };
 
-    unsigned sn( const schedule_data& );
-    unsigned nesn( const schedule_data& );
-
-    std::ostream& operator<<( std::ostream& out, const schedule_data& data );
+    std::ostream& operator<<( std::ostream& out, const advertising_data& data );
 
     struct incomming_data
     {
@@ -72,44 +66,44 @@ namespace test {
         radio_base();
 
         // test interface
-        const std::vector< schedule_data >& scheduling() const;
+        const std::vector< advertising_data >& scheduling() const;
         const std::vector< connection_event >& connection_events() const;
 
         /**
          * @brief calls check with every scheduled_data
          */
-        void check_scheduling( const std::function< bool ( const schedule_data& ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message ) const;
 
         /**
-         * @brief calls check with adjanced pairs of schedule_data.
+         * @brief calls check with adjanced pairs of advertising_data.
          */
-        void check_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
-        void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
-        void check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const;
 
-        void check_first_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const;
+        void check_first_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const;
 
         /**
          * @brief there must be exactly one scheduled_data that fitts to the given filter
          */
-        void find_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const;
-        void find_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const;
+        void find_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const char* message ) const;
+        void find_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
 
-        void all_data( std::function< void ( const schedule_data& ) > ) const;
-        void all_data( const std::function< bool ( const schedule_data& ) >& filter, const std::function< void ( const schedule_data& first, const schedule_data& next ) >& ) const;
+        void all_data( std::function< void ( const advertising_data& ) > ) const;
+        void all_data( const std::function< bool ( const advertising_data& ) >& filter, const std::function< void ( const advertising_data& first, const advertising_data& next ) >& ) const;
 
         template < class Accu >
-        Accu sum_data( std::function< Accu ( const schedule_data&, Accu start_value ) >, Accu start_value ) const;
+        Accu sum_data( std::function< Accu ( const advertising_data&, Accu start_value ) >, Accu start_value ) const;
 
         /**
-         * @brief counts the number of times the given filter returns true for all schedule_data
+         * @brief counts the number of times the given filter returns true for all advertising_data
          */
-        unsigned count_data( const std::function< bool ( const schedule_data& ) >& filter ) const;
+        unsigned count_data( const std::function< bool ( const advertising_data& ) >& filter ) const;
 
         /**
          * @brief function to take the arguments to a scheduling function and optional return a response
          */
-        typedef std::function< std::pair< bool, incomming_data > ( const schedule_data& ) > responder_t;
+        typedef std::function< std::pair< bool, incomming_data > ( const advertising_data& ) > responder_t;
 
         /**
          * @brief simulates an incomming PDU
@@ -143,7 +137,7 @@ namespace test {
 
         static const bluetoe::link_layer::delta_time T_IFS;
     protected:
-        typedef std::vector< schedule_data > advertising_list;
+        typedef std::vector< advertising_data > advertising_list;
         advertising_list transmitted_data_;
 
         typedef std::vector< connection_event > connection_event_list;
@@ -156,14 +150,14 @@ namespace test {
         std::uint32_t   crc_init_;
         bool            access_address_and_crc_valid_;
 
-        advertising_list::const_iterator next( std::vector< schedule_data >::const_iterator, const std::function< bool ( const schedule_data& ) >& filter ) const;
+        advertising_list::const_iterator next( std::vector< advertising_data >::const_iterator, const std::function< bool ( const advertising_data& ) >& filter ) const;
 
         void pair_wise_check(
-            const std::function< bool ( const schedule_data& ) >&                                               filter,
-            const std::function< bool ( const schedule_data& first, const schedule_data& next ) >&              check,
+            const std::function< bool ( const advertising_data& ) >&                                               filter,
+            const std::function< bool ( const advertising_data& first, const advertising_data& next ) >&              check,
             const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const;
 
-        std::pair< bool, incomming_data > find_response( const schedule_data& );
+        std::pair< bool, incomming_data > find_response( const advertising_data& );
     };
 
     /**
@@ -206,7 +200,7 @@ namespace test {
 
     // implementation
     template < class Accu >
-    Accu radio_base::sum_data( std::function< Accu ( const schedule_data&, Accu start_value ) > f, Accu start_value ) const
+    Accu radio_base::sum_data( std::function< Accu ( const advertising_data&, Accu start_value ) > f, Accu start_value ) const
     {
         for ( const auto& d : transmitted_data_ )
             start_value = f( d, start_value );
@@ -233,15 +227,13 @@ namespace test {
 
         idle_ = false;
 
-        const schedule_data data{
+        const advertising_data data{
             now_,
             now_ + when,
             channel,
             when,
             std::vector< std::uint8_t >( transmit.buffer, transmit.buffer + transmit.size ),
             receive,
-            false,
-            bluetoe::link_layer::delta_time::now(),
             access_address_,
             crc_init_
         };
@@ -268,33 +260,6 @@ namespace test {
         connection_events_.push_back( data );
     }
 
-    // void radio< TransmitSize, ReceiveSize, CallBack >::schedule_receive_and_transmit(
-    //     unsigned                                    channel,
-    //     bluetoe::link_layer::delta_time             start_receive,
-    //     bluetoe::link_layer::delta_time             end_receive,
-    //     const bluetoe::link_layer::read_buffer&     receive,
-    //     const bluetoe::link_layer::write_buffer&    answert )
-    // {
-    //     assert( idle_ );
-    //     assert( access_address_and_crc_valid_ );
-    //     idle_ = false;
-
-    //     const schedule_data data{
-    //         now_,
-    //         now_ + start_receive,
-    //         channel,
-    //         start_receive,
-    //         std::vector< std::uint8_t >( answert.buffer, answert.buffer + answert.size ),
-    //         receive,
-    //         true,
-    //         end_receive,
-    //         access_address_,
-    //         crc_init_
-    //     };
-
-    //     transmitted_data_.push_back( data );
-    // }
-
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
@@ -306,7 +271,7 @@ namespace test {
         {
             count = transmitted_data_.size();
 
-            schedule_data&                      current  = transmitted_data_.back();
+            advertising_data&                      current  = transmitted_data_.back();
             std::pair< bool, incomming_data >   response = find_response( current );
 
             // for now, only timeouts are simulated
@@ -338,7 +303,6 @@ namespace test {
                 static_cast< CallBack* >( this )->adv_timeout();
             }
 
-//            assert( count + 1 == transmitted_data_.size() );
         } while ( now_ < eos_ && count + 1 == transmitted_data_.size() );
     }
 

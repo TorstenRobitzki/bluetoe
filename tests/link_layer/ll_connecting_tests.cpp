@@ -1,10 +1,10 @@
-#include <iostream>
-#include "buffer_io.hpp"
-#include "connected.hpp"
-
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 #include <boost/test/test_case_template.hpp>
+
+#include <iostream>
+#include "buffer_io.hpp"
+#include "connected.hpp"
 
 #include <type_traits>
 
@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( connected_after_connection_request, Channel, adve
     run();
 
     BOOST_CHECK_GE( count_data(
-        [&]( const test::schedule_data& data ) -> bool
+        [&]( const test::advertising_data& data ) -> bool
         {
             bool is_advertising = ( data.transmitted_data[ 0 ] & 0xf ) == 0;
                  is_advertising = is_advertising && data.channel >= 37 && data.channel >= 40;
@@ -381,7 +381,7 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
 
     check_scheduling(
         receive_and_transmit_data_filter,
-        [&count]( const test::schedule_data& data )
+        [&count]( const test::advertising_data& data )
         {
             unsigned start = 15000 + count * 30000;
             unsigned end   = start + 3750;
@@ -403,7 +403,7 @@ BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_master_channels_ar
 
     check_scheduling(
         receive_and_transmit_data_filter,
-        [&channels]( const test::schedule_data& data )
+        [&channels]( const test::advertising_data& data )
         {
             const unsigned channel = channels.front();
             channels.erase( channels.begin() );
@@ -425,7 +425,7 @@ BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reac
 
     // there must be a transistion from receive_and_transmit data to transmit_and_receive
     find_scheduling(
-        []( const test::schedule_data& first, const test::schedule_data& next )
+        []( const test::advertising_data& first, const test::advertising_data& next )
         {
             return first.receive_and_transmit && !next.receive_and_transmit;
         },
@@ -448,7 +448,7 @@ BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, unconnected 
 
     check_scheduling(
         receive_and_transmit_data_filter,
-        [&channels]( const test::schedule_data& data )
+        [&channels]( const test::advertising_data& data )
         {
             assert( !channels.empty() );
             const unsigned channel = channels.front();
@@ -461,7 +461,7 @@ BOOST_FIXTURE_TEST_CASE( connection_request_while_beeing_connected, unconnected 
 
     // there must be a transistion from receive_and_transmit data to transmit_and_receive
     find_scheduling(
-        []( const test::schedule_data& first, const test::schedule_data& next )
+        []( const test::advertising_data& first, const test::advertising_data& next )
         {
             return first.receive_and_transmit && !next.receive_and_transmit;
         },

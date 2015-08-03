@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_SCHEDULED_RADIO_HPP
 
 #include <cstdint>
+#include <bluetoe/link_layer/buffer.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -13,13 +14,13 @@ namespace link_layer {
     /*
      * @brief Type responsible for radio I/O and timeing
      *
-     * The API provides a set of scheduling functions, which schedules transmit and/or receiving of the radion. All scheduling functions take a point in time
+     * The API provides a set of scheduling functions, to schedule advertising or to schedule connection events. All scheduling functions take a point in time
      * to switch on the receiver / transmitter and to transmit and to receive. This points are defined as relative offsets to a previous point in time T0. The
      * first T0 is defined by the return of the constructor. After that, every scheduling function have to define what the next T0 is, that the next
      * functions relative point in time, is based on.
      */
-    template <  std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    class scheduled_radio
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    class scheduled_radio : public ll_data_pdu_buffer< TransmitSize, ReceiveSize, < scheduled_radio< TransmitSize, ReceiveSize, CallBack > >
     {
     public:
         /**
@@ -33,7 +34,7 @@ namespace link_layer {
          * The function will return immediately. Depending on whether a response is received or the receiving times out,
          * CallBack::adv_received() or CallBack::adv_timeout() is called. In both cases, every following call to a scheduling
          * function is based on the time, the tranmision was scheduled. So the new T0 = T0 + when. In case of a CRC error,
-         * CallBack::timeout() will be called immediately .
+         * CallBack::adv_timeout() will be called immediately .
          *
          * This function is intended to be used for sending advertising PDUs. If the given receive buffer is empty, the timeout callback
          * will be called when the PDU was sent.
@@ -53,7 +54,13 @@ namespace link_layer {
          * @brief schedules a connection event
          *
          * The function will return immediately and schedule the receiver to start at start_receive.
+         * CallBack::timeout() is called when between start_receive and end_receive no valid is received. The new T0 is the old T0.
+         * CallBack::end_event() is called when the connection event is over. The new T0 is the time point where the first PDU was
+         * reveived from the Master.
          *
+         * In any case is one (and only one) of the callbacks called (timeout(), end_event()). The context of the callback call is run().
+         *
+         * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
          */
         void schedule_connection_event(
             unsigned                                    channel,
@@ -73,6 +80,16 @@ namespace link_layer {
          * @brief function to return a device specific value that is persistant and unique for the device (CPU id or such)
          */
         std::uint32_t static_random_address_seed() const;
+
+        /**
+         * @brief allocates the CPU to the scheduled_radio
+         *
+         * All callbacks given by the CallBack parameter are called from within this CPU context.
+         * The function will return from time to time, when an external event happend. It's up to concrete
+         * implementations to identify and to define situations where the CPU should be released back to the
+         * calling application.
+         */
+        void run();
     };
 }
 

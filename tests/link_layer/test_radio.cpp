@@ -5,17 +5,7 @@
 
 namespace test {
 
-    unsigned sn( const schedule_data& data )
-    {
-        return ( data.transmitted_data[ 0 ] & 8 ) >> 4;
-    }
-
-    unsigned nesn( const schedule_data& data )
-    {
-        return ( data.transmitted_data[ 0 ] & 4 ) >> 3;
-    }
-
-    std::ostream& operator<<( std::ostream& out, const schedule_data& data )
+    std::ostream& operator<<( std::ostream& out, const advertising_data& data )
     {
         out << "at: " << data.schedule_time << "; scheduled: " << data.transmision_time << "; channel: " << data.channel;
         out << "\ndata:\n" << hex_dump( data.transmitted_data.begin(), data.transmitted_data.end() );
@@ -54,7 +44,7 @@ namespace test {
         return out;
     }
 
-    const std::vector< schedule_data >& radio_base::scheduling() const
+    const std::vector< advertising_data >& radio_base::scheduling() const
     {
         return transmitted_data_;
     }
@@ -69,11 +59,11 @@ namespace test {
     {
     }
 
-    void radio_base::check_scheduling( const std::function< bool ( const schedule_data& ) >& check, const char* message ) const
+    void radio_base::check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message ) const
     {
         unsigned n = 0;
 
-        for ( const schedule_data& data : transmitted_data_ )
+        for ( const advertising_data& data : transmitted_data_ )
         {
             if ( !check( data ) )
             {
@@ -87,16 +77,16 @@ namespace test {
         }
     }
 
-    void radio_base::check_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const
+    void radio_base::check_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const
     {
         check_scheduling(
-            [&]( const schedule_data& ) { return true; },
+            [&]( const advertising_data& ) { return true; },
             check,
             message
         );
     }
 
-    void radio_base::check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const
+    void radio_base::check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const
     {
         pair_wise_check(
             filter,
@@ -116,10 +106,10 @@ namespace test {
         );
     }
 
-    void radio_base::check_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const
+    void radio_base::check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const
     {
         check_scheduling(
-            [&]( const schedule_data& data ) -> bool
+            [&]( const advertising_data& data ) -> bool
             {
                 return !filter( data ) || check( data );
             },
@@ -127,11 +117,11 @@ namespace test {
         );
     }
 
-    void radio_base::check_first_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const std::function< bool ( const schedule_data& data ) >& check, const char* message ) const
+    void radio_base::check_first_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const
     {
         bool ignore = false;
         check_scheduling(
-            [&ignore, filter]( const schedule_data& d )
+            [&ignore, filter]( const advertising_data& d )
             {
                 const bool result = !ignore && filter( d );
                 ignore = true;
@@ -143,11 +133,11 @@ namespace test {
         );
     }
 
-    void radio_base::find_scheduling( const std::function< bool ( const schedule_data& ) >& filter, const char* message ) const
+    void radio_base::find_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const char* message ) const
     {
         unsigned found = 0;
 
-        for ( const schedule_data& data : transmitted_data_ )
+        for ( const advertising_data& data : transmitted_data_ )
         {
             if ( filter( data ) )
                 ++found;
@@ -168,13 +158,13 @@ namespace test {
         }
     }
 
-    void radio_base::find_scheduling( const std::function< bool ( const schedule_data& first, const schedule_data& next ) >& check, const char* message ) const
+    void radio_base::find_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const
     {
         int count = 0;
 
         all_data(
-            []( const schedule_data& ){ return true; },
-            [ &count, &check ]( const schedule_data& first, const schedule_data& next )
+            []( const advertising_data& ){ return true; },
+            [ &count, &check ]( const advertising_data& first, const advertising_data& next )
             {
                 if ( check( first, next ) )
                     ++count;
@@ -196,7 +186,7 @@ namespace test {
         }
     }
 
-    std::vector< schedule_data >::const_iterator radio_base::next( std::vector< schedule_data >::const_iterator first, const std::function< bool ( const schedule_data& ) >& filter ) const
+    std::vector< advertising_data >::const_iterator radio_base::next( std::vector< advertising_data >::const_iterator first, const std::function< bool ( const advertising_data& ) >& filter ) const
     {
         while ( first != transmitted_data_.end() && !filter( *first ) )
             ++first;
@@ -205,8 +195,8 @@ namespace test {
     }
 
     void radio_base::pair_wise_check(
-        const std::function< bool ( const schedule_data& ) >&                                               filter,
-        const std::function< bool ( const schedule_data& first, const schedule_data& next ) >&              check,
+        const std::function< bool ( const advertising_data& ) >&                                               filter,
+        const std::function< bool ( const advertising_data& first, const advertising_data& next ) >&              check,
         const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const
     {
         for ( auto data = next( transmitted_data_.begin(), filter ); data != transmitted_data_.end(); )
@@ -226,15 +216,15 @@ namespace test {
         }
     }
 
-    void radio_base::all_data( std::function< void ( const schedule_data& ) > f ) const
+    void radio_base::all_data( std::function< void ( const advertising_data& ) > f ) const
     {
-        for ( const schedule_data& data : transmitted_data_ )
+        for ( const advertising_data& data : transmitted_data_ )
             f( data );
     }
 
     void radio_base::all_data(
-        const std::function< bool ( const schedule_data& ) >& filter,
-        const std::function< void ( const schedule_data& first, const schedule_data& next ) >& iter ) const
+        const std::function< bool ( const advertising_data& ) >& filter,
+        const std::function< void ( const advertising_data& first, const advertising_data& next ) >& iter ) const
     {
         for ( auto data = next( transmitted_data_.begin(), filter ); data != transmitted_data_.end(); )
         {
@@ -249,10 +239,10 @@ namespace test {
         }
     }
 
-    unsigned radio_base::count_data( const std::function< bool ( const schedule_data& ) >& filter ) const
+    unsigned radio_base::count_data( const std::function< bool ( const advertising_data& ) >& filter ) const
     {
         return sum_data< unsigned >(
-            [filter]( const schedule_data& data, unsigned count )
+            [filter]( const advertising_data& data, unsigned count )
             {
                 return filter( data )
                     ? count + 1
@@ -276,7 +266,7 @@ namespace test {
         assert( channel < 40 );
 
         add_responder(
-            [=]( const schedule_data& d ) -> std::pair< bool, incomming_data >
+            [=]( const advertising_data& d ) -> std::pair< bool, incomming_data >
             {
                 return std::pair< bool, incomming_data >(
                     d.channel == channel,
@@ -297,7 +287,7 @@ namespace test {
         assert( channel < 40 );
 
         add_responder(
-            [=]( const schedule_data& ) -> std::pair< bool, incomming_data >
+            [=]( const advertising_data& ) -> std::pair< bool, incomming_data >
             {
                 return std::pair< bool, incomming_data >(
                     true,
@@ -307,7 +297,7 @@ namespace test {
         );
     }
 
-    std::pair< bool, incomming_data > radio_base::find_response( const schedule_data& data )
+    std::pair< bool, incomming_data > radio_base::find_response( const advertising_data& data )
     {
         std::pair< bool, incomming_data > result( false, incomming_data{} );
 
