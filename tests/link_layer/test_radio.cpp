@@ -251,7 +251,7 @@ namespace test {
         );
     }
 
-    void radio_base::add_responder( const responder_t& responder )
+    void radio_base::add_responder( const advertising_responder_t& responder )
     {
         responders_.push_back( responder );
     }

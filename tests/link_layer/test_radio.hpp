@@ -103,7 +103,7 @@ namespace test {
         /**
          * @brief function to take the arguments to a scheduling function and optional return a response
          */
-        typedef std::function< std::pair< bool, incomming_data > ( const advertising_data& ) > responder_t;
+        typedef std::function< std::pair< bool, incomming_data > ( const advertising_data& ) > advertising_responder_t;
 
         /**
          * @brief simulates an incomming PDU
@@ -111,7 +111,7 @@ namespace test {
          * Given that a transmition was scheduled and the function responder() returns a pair with the first bool set to true, when applied to the transmitting
          * data, the given incomming_data is used to simulate an incoming PDU. The first function that returns true, will be applied and removed from the list.
          */
-        void add_responder( const responder_t& responder );
+        void add_responder( const advertising_responder_t& responder );
 
         /**
          * @brief response to sending on the given channel with the given PDU send on the same channel without delay
@@ -143,7 +143,7 @@ namespace test {
         typedef std::vector< connection_event > connection_event_list;
         connection_event_list connection_events_;
 
-        typedef std::vector< responder_t > responder_list;
+        typedef std::vector< advertising_responder_t > responder_list;
         responder_list responders_;
 
         std::uint32_t   access_address_;
