@@ -42,7 +42,12 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
 
     void check_not_connected( const char* test ) const
     {
-        BOOST_CHECK( this->connection_events().empty() );
+        if ( !this->connection_events().empty() )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << "in " << test << " check_not_connected failed.";
+            BOOST_CHECK( result );
+        }
     }
 
     void respond_with_connection_request( std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval )
