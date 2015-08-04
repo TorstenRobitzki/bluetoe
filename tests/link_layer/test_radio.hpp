@@ -43,7 +43,6 @@ namespace test {
         bluetoe::link_layer::delta_time     end_receive;
         bluetoe::link_layer::delta_time     connection_interval;
 
-
         pdu_list_t                          transmitted_data;
         pdu_list_t                          received_data;
     };
@@ -140,7 +139,8 @@ namespace test {
         std::uint32_t access_address() const;
         std::uint32_t crc_init() const;
 
-        void add_connection_event_respond( pdu_list_t );
+        void add_connection_event_respond( const connection_event_response& );
+        void add_connection_event_respond( std::initializer_list< std::uint8_t > );
 
         /**
          * @brief returns 0x47110815
@@ -158,7 +158,7 @@ namespace test {
         typedef std::vector< advertising_responder_t > responder_list;
         responder_list responders_;
 
-        typedef std::vector< pdu_list_t > connection_event_response_list;
+        typedef std::vector< connection_event_response > connection_event_response_list;
         connection_event_response_list connection_events_response_;
 
         std::uint32_t   access_address_;
@@ -302,7 +302,7 @@ namespace test {
             }
 
             // there should be at max one call to a schedule function
-            assert( count + 1 <= advertised_data_.size() + connection_events_.size() );
+            assert( count + 1 >= advertised_data_.size() + connection_events_.size() );
 
             new_scheduling_added = advertised_data_.size() + connection_events_.size() > count;
 
@@ -349,10 +349,80 @@ namespace test {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::simulate_connection_event_response()
     {
-        now_ += connection_events_.back().end_receive;
-        static_cast< CallBack* >( this )->timeout();
-    }
+        connection_event_response response = connection_events_response_.empty()
+            ? connection_event_response{ true, pdu_list_t() }
+            : connection_events_response_.front();
 
+        auto& event = connection_events_.back();
+
+        if ( !connection_events_response_.empty() )
+        {
+            connection_events_response_.erase( connection_events_response_.begin() );
+        }
+
+        if ( response.timeout )
+        {
+            now_ += event.end_receive;
+            static_cast< CallBack* >( this )->timeout();
+        }
+        else
+        {
+            now_ += event.start_receive;
+
+            static constexpr std::uint8_t sn_flag        = 0x8;
+            static constexpr std::uint8_t nesn_flag      = 0x4;
+            static constexpr std::uint8_t more_data_flag = 0x10;
+
+            std::uint8_t sequence_number    = 0;
+            std::uint8_t ne_sequence_number = 0;
+
+            bool more_data = false;
+
+            pdu_list_t pdus = response.data;
+            event.transmitted_data = pdus;
+
+            do
+            {
+                auto receive_buffer = this->allocate_receive_buffer();
+
+                if ( receive_buffer.size )
+                {
+                    // what is the link layer going to receive?
+                    if ( pdus.empty() )
+                    {
+                        receive_buffer.buffer[ 0 ] = 1;
+                        receive_buffer.buffer[ 1 ] = 0;
+                    }
+                    else
+                    {
+                        auto pdu = pdus.front();
+                        pdus.erase( pdus.begin() );
+
+                        std::copy( pdu.begin(), pdu.end(), receive_buffer.buffer );
+                    }
+
+                    receive_buffer.buffer[ 0 ] |= sequence_number | sequence_number;
+                    sequence_number    ^= sn_flag;
+                }
+
+                more_data = !pdus.empty();
+
+                if ( more_data && receive_buffer.size )
+                    receive_buffer.buffer[ 0 ] |= more_data_flag;
+
+                auto response = this->received( receive_buffer );
+
+                more_data = more_data || ( response.buffer[ 0 ] & more_data_flag );
+                event.received_data.push_back(
+                    std::vector< std::uint8_t >( &response.buffer[ 0 ], &response.buffer[ 2 ] + response.buffer[ 1 ] ) );
+
+                ne_sequence_number ^= nesn_flag;
+
+            } while ( more_data );
+
+            static_cast< CallBack* >( this )->end_event();
+        }
+    }
 }
 
 #endif // include guard

@@ -338,6 +338,19 @@ namespace test {
         return crc_init_;
     }
 
+    void radio_base::add_connection_event_respond( const connection_event_response& resp )
+    {
+        connection_events_response_.push_back( resp );
+    }
+
+    void radio_base::add_connection_event_respond( std::initializer_list< std::uint8_t > pdu )
+    {
+        add_connection_event_respond(
+            connection_event_response{
+                false, pdu_list_t( 1, pdu )
+            } );
+    }
+
     std::uint32_t radio_base::static_random_address_seed() const
     {
         return 0x47110815;

@@ -279,6 +279,28 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::end_event()
     {
+        if ( state_ == state::connecting )
+        {
+            state_ = state::connected;
+
+            delta_time window_size  = connection_interval_.ppm( cumulated_sleep_clock_accuracy_ );
+            delta_time window_start = connection_interval_ - window_size;
+            delta_time window_end   = connection_interval_ + window_size;
+
+            this->schedule_connection_event(
+                channels_.data_channel( current_channel_index_ ),
+                window_start,
+                window_end,
+                connection_interval_ );
+        }
+        else if ( state_ == state::connected )
+        {
+
+        }
+        else
+        {
+            assert( !"invalid state" );
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
