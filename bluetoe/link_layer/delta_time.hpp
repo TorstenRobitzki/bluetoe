@@ -31,6 +31,7 @@ namespace link_layer {
         delta_time& operator+=( const delta_time& rhs );
         delta_time& operator-=( const delta_time& rhs );
         delta_time& operator*=( unsigned rhs );
+        unsigned operator/(const delta_time& rhs );
 
         bool operator<( const delta_time& rhs ) const;
         bool operator<=( const delta_time& rhs ) const;

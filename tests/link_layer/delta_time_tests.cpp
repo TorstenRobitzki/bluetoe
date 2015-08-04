@@ -128,3 +128,14 @@ BOOST_AUTO_TEST_CASE( binary_multiplication_operators )
     BOOST_CHECK_EQUAL( bll::delta_time( 5 ) * 5, bll::delta_time( 25 ) );
     BOOST_CHECK_EQUAL( 5 * bll::delta_time( 5 ), bll::delta_time( 25 ) );
 }
+
+BOOST_AUTO_TEST_CASE( division_by_delta_time )
+{
+    bll::delta_time h( 100 );
+    bll::delta_time z( 20 );
+    bll::delta_time s( 1000 );
+
+    BOOST_CHECK_EQUAL( h / z, 5 );
+    BOOST_CHECK_EQUAL( h / s, 0 );
+    BOOST_CHECK_EQUAL( h / h, 1 );
+}

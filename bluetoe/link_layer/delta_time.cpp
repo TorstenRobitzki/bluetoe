@@ -81,6 +81,12 @@ namespace link_layer {
         return *this;
     }
 
+    unsigned delta_time::operator/(const delta_time& rhs )
+    {
+        assert( rhs.usec_ );
+        return usec_ / rhs.usec_;
+    }
+
     bool delta_time::operator<( const delta_time& rhs ) const
     {
         return usec_ < rhs.usec_;
