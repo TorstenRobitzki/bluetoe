@@ -78,7 +78,7 @@ namespace link_layer {
         bool is_valid_scan_request( const read_buffer& receive ) const;
         bool is_valid_connect_request( const read_buffer& receive ) const;
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
-        bool parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request );
+        bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
 
         std::uint8_t* advertising_buffer();
         std::uint8_t* advertising_response_buffer();
@@ -121,6 +121,7 @@ namespace link_layer {
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
         unsigned                        timeouts_til_connection_lost_;
+        unsigned                        max_timeouts_til_connection_lost_;
 
         enum class state
         {
@@ -195,7 +196,7 @@ namespace link_layer {
         else if (
                is_valid_connect_request( receive )
             && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
-            && parse_transmit_window_from_connect_request( receive ) )
+            && parse_timing_parameters_from_connect_request( receive ) )
         {
             state_                          = state::connecting;
             current_channel_index_    = 0;
@@ -249,7 +250,7 @@ namespace link_layer {
         {
             if ( timeouts_til_connection_lost_ )
             {
-                ++current_channel_index_;
+                current_channel_index_ = ( current_channel_index_ + 1 ) % first_advertising_channel;
 
                 const delta_time con_interval_offset = connection_interval_ * ( num_windows_til_timeout - timeouts_til_connection_lost_ );
                 --timeouts_til_connection_lost_;
@@ -274,6 +275,32 @@ namespace link_layer {
                 adv_timeout();
             }
         }
+        else if ( state_ == state::connected )
+        {
+            if ( timeouts_til_connection_lost_ )
+            {
+                current_channel_index_ = ( current_channel_index_ + 1 ) % first_advertising_channel;
+                --timeouts_til_connection_lost_;
+
+                delta_time window_target = connection_interval_ * ( max_timeouts_til_connection_lost_ - timeouts_til_connection_lost_ + 1 );
+                delta_time window_size   = window_target.ppm( cumulated_sleep_clock_accuracy_ );
+                delta_time window_start  = window_target - window_size;
+                delta_time window_end    = window_target + window_size;
+
+                this->schedule_connection_event(
+                    channels_.data_channel( current_channel_index_ ),
+                    window_start,
+                    window_end,
+                    connection_interval_ );
+            }
+            else
+            {
+                current_channel_index_ = last_advertising_channel;
+                state_ = state::advertising;
+
+                adv_timeout();
+            }
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -281,7 +308,9 @@ namespace link_layer {
     {
         if ( state_ == state::connecting )
         {
-            state_ = state::connected;
+            state_                        = state::connected;
+            current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
+            timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
 
             delta_time window_size  = connection_interval_.ppm( cumulated_sleep_clock_accuracy_ );
             delta_time window_start = connection_interval_ - window_size;
@@ -388,18 +417,29 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::parse_transmit_window_from_connect_request( const read_buffer& valid_connect_request )
+    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request )
     {
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
+        static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
+        static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
+        static constexpr auto       max_slave_latency = 499;
         static constexpr auto       us_per_digits = 1250;
 
         transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
+        auto slave_latency      = read_16( &valid_connect_request.buffer[ 26 ] );
+        delta_time timeout      = delta_time( read_16( &valid_connect_request.buffer[ 28 ] ) * 10000 );
 
         bool result = transmit_window_size_ <= maximum_transmit_window_offset
                    && transmit_window_size_ <= connection_interval_
-                   && transmit_window_offset_ <= connection_interval_;
+                   && transmit_window_offset_ <= connection_interval_
+                   && timeout >= minimum_connection_timeout
+                   && timeout <= maximum_connection_timeout
+                   && timeout >= ( slave_latency + 1 ) * 2 * connection_interval_
+                   && slave_latency <= max_slave_latency;
+
+        max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
         return result;
     }
