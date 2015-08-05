@@ -183,7 +183,7 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_access_address, unconnected )
 
     run();
 
-    BOOST_CHECK_EQUAL( access_address(), 0xaf9ab35a );
+    BOOST_CHECK_EQUAL( connection_events().front().access_address, 0xaf9ab35a );
 }
 
 BOOST_FIXTURE_TEST_CASE( takes_the_give_initial_crc_value, unconnected )
@@ -208,7 +208,7 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_initial_crc_value, unconnected )
 
     run();
 
-    BOOST_CHECK_EQUAL( crc_init(), 0xf68108 );
+    BOOST_CHECK_EQUAL( connection_events().front().crc_init, 0xf68108 );
 }
 
 BOOST_FIXTURE_TEST_SUITE( starting_unconnected_tests, unconnected )

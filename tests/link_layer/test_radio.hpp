@@ -43,6 +43,9 @@ namespace test {
         bluetoe::link_layer::delta_time     end_receive;
         bluetoe::link_layer::delta_time     connection_interval;
 
+        std::uint32_t                       access_address;
+        std::uint32_t                       crc_init;
+
         pdu_list_t                          transmitted_data;
         pdu_list_t                          received_data;
     };
@@ -79,7 +82,7 @@ namespace test {
         radio_base();
 
         // test interface
-        const std::vector< advertising_data >& scheduling() const;
+        const std::vector< advertising_data >& advertisings() const;
         const std::vector< connection_event >& connection_events() const;
 
         /**
@@ -284,6 +287,8 @@ namespace test {
             start_receive,
             end_receive,
             connection_interval,
+            access_address_,
+            crc_init_,
             pdu_list_t(),
             pdu_list_t()
         };

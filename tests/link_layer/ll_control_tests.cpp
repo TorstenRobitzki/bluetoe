@@ -5,7 +5,7 @@
 
 BOOST_FIXTURE_TEST_CASE( respond_with_an_unknown_rsp, unconnected )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     add_connection_event_respond( {
         0x03, 0x01, 0xff
     } );

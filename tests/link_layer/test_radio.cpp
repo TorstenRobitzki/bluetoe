@@ -83,7 +83,7 @@ namespace test {
         return out;
     }
 
-    const std::vector< advertising_data >& radio_base::scheduling() const
+    const std::vector< advertising_data >& radio_base::advertisings() const
     {
         return advertised_data_;
     }

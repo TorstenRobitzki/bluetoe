@@ -5,6 +5,7 @@
 #include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/server.hpp>
 #include "test_radio.hpp"
+#include "connected.hpp"
 #include "../test_servers.hpp"
 
 #include <map>
@@ -65,7 +66,7 @@ namespace {
 
 BOOST_FIXTURE_TEST_CASE( advertising_scheduled, advertising )
 {
-    BOOST_CHECK_GT( scheduling().size(), 0 );
+    BOOST_CHECK_GT( advertisings().size(), 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( advertising_uses_all_three_adv_channels, advertising )
@@ -428,4 +429,26 @@ BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_co
 
     // make sure, the test realy found 4 scan responses
     BOOST_REQUIRE_EQUAL( count, 4 );
+}
+
+BOOST_FIXTURE_TEST_CASE( after_beeing_connected_the_ll_starts_to_advertise_again, connected_and_timeout )
+{
+    auto const adv = advertisings().back();
+    auto const con = connection_events().back();
+
+    BOOST_CHECK_GT( adv.schedule_time, con.schedule_time );
+}
+
+BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_crc_have_to_be_used, connected_and_timeout )
+{
+    auto const adv = advertisings().back();
+
+    BOOST_CHECK_EQUAL( adv.crc_init, 0x555555 );
+}
+
+BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_access_address_have_to_be_used, connected_and_timeout )
+{
+    auto const adv = advertisings().back();
+
+    BOOST_CHECK_EQUAL( adv.access_address, 0x8E89BED6 );
 }

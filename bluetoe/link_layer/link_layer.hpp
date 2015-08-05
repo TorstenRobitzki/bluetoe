@@ -73,12 +73,13 @@ namespace link_layer {
         // calculates the time point for the next advertising event
         delta_time next_adv_event();
 
-        void fill_advertising_buffer( const Server& server );
-        void fill_advertising_response_buffer( const Server& server );
+        void fill_advertising_buffer();
+        void fill_advertising_response_buffer();
         bool is_valid_scan_request( const read_buffer& receive ) const;
         bool is_valid_connect_request( const read_buffer& receive ) const;
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
         bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
+        void start_advertising();
 
         std::uint8_t* advertising_buffer();
         std::uint8_t* advertising_response_buffer();
@@ -125,6 +126,7 @@ namespace link_layer {
         delta_time                      connection_interval_;
         unsigned                        timeouts_til_connection_lost_;
         unsigned                        max_timeouts_til_connection_lost_;
+        Server*                         server_;
 
         enum class state
         {
@@ -157,6 +159,7 @@ namespace link_layer {
         , current_channel_index_( first_advertising_channel )
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
+        , server_( nullptr )
         , state_( state::initial )
     {
     }
@@ -167,18 +170,8 @@ namespace link_layer {
         // after the initial scheduling, the timeout and receive callback will setup the next scheduling
         if ( state_ == state::initial )
         {
-            state_ = state::advertising;
-            fill_advertising_buffer( server );
-            fill_advertising_response_buffer( server );
-
-            this->set_access_address_and_crc_init(
-                advertising_radio_access_address,
-                advertising_crc_init );
-
-            this->schedule_advertisment_and_receive(
-                current_channel_index_,
-                write_buffer{ advertising_buffer(), adv_size_ }, delta_time::now(),
-                read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
+            server_ = &server;
+            start_advertising();
         }
 
         radio_t::run();
@@ -250,60 +243,43 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::timeout()
     {
-        if ( state_ == state::connecting )
+        assert( state_ == state::connecting || state_ == state::connected );
+
+        if ( timeouts_til_connection_lost_ )
         {
-            if ( timeouts_til_connection_lost_ )
+            delta_time window_start;
+            delta_time window_end;
+            current_channel_index_ = ( current_channel_index_ + 1 ) % first_advertising_channel;
+
+            --timeouts_til_connection_lost_;
+
+            if ( state_ == state::connecting )
             {
-                current_channel_index_ = ( current_channel_index_ + 1 ) % first_advertising_channel;
-
-                const delta_time con_interval_offset = connection_interval_ * ( num_windows_til_timeout - timeouts_til_connection_lost_ );
-                --timeouts_til_connection_lost_;
-
-                delta_time window_start = transmit_window_offset_ + con_interval_offset;
-                delta_time window_end   = window_start + transmit_window_size_;
+                const delta_time window_target = connection_interval_ * ( num_windows_til_timeout - timeouts_til_connection_lost_ - 1 );
+                window_start = transmit_window_offset_ + window_target;
+                window_end   = window_start + transmit_window_size_;
 
                 window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
                 window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
-
-                this->schedule_connection_event(
-                    channels_.data_channel( current_channel_index_ ),
-                    window_start,
-                    window_end,
-                    connection_interval_ );
             }
             else
             {
-                current_channel_index_ = last_advertising_channel;
-                state_ = state::advertising;
+                const delta_time window_target = connection_interval_ * ( max_timeouts_til_connection_lost_ - timeouts_til_connection_lost_ + 1 );
+                const delta_time window_size   = window_target.ppm( cumulated_sleep_clock_accuracy_ );
 
-                adv_timeout();
+                window_start  = window_target - window_size;
+                window_end    = window_target + window_size;
             }
+
+            this->schedule_connection_event(
+                channels_.data_channel( current_channel_index_ ),
+                window_start,
+                window_end,
+                connection_interval_ );
         }
-        else if ( state_ == state::connected )
+        else
         {
-            if ( timeouts_til_connection_lost_ )
-            {
-                current_channel_index_ = ( current_channel_index_ + 1 ) % first_advertising_channel;
-                --timeouts_til_connection_lost_;
-
-                delta_time window_target = connection_interval_ * ( max_timeouts_til_connection_lost_ - timeouts_til_connection_lost_ + 1 );
-                delta_time window_size   = window_target.ppm( cumulated_sleep_clock_accuracy_ );
-                delta_time window_start  = window_target - window_size;
-                delta_time window_end    = window_target + window_size;
-
-                this->schedule_connection_event(
-                    channels_.data_channel( current_channel_index_ ),
-                    window_start,
-                    window_end,
-                    connection_interval_ );
-            }
-            else
-            {
-                current_channel_index_ = last_advertising_channel;
-                state_ = state::advertising;
-
-                adv_timeout();
-            }
+            start_advertising();
         }
     }
 
@@ -342,7 +318,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer( const Server& server )
+    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer()
     {
         std::uint8_t* const adv_buffer = advertising_buffer();
 
@@ -351,13 +327,13 @@ namespace link_layer {
         if ( device_address::is_random() )
             adv_buffer[ 0 ] |= header_txaddr_field;
 
-        adv_buffer[ 1 ] = address_length + server.advertising_data( &adv_buffer[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+        adv_buffer[ 1 ] = address_length + server_->advertising_data( &adv_buffer[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
         std::copy( address_.begin(), address_.end(), &adv_buffer[ 2 ] );
         adv_size_ = advertising_pdu_header_size + adv_buffer[ 1 ];
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer( const Server& server )
+    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer()
     {
         std::uint8_t* adv_response_buffer = advertising_response_buffer();
 
@@ -439,6 +415,25 @@ namespace link_layer {
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::start_advertising()
+    {
+        state_ = state::advertising;
+        current_channel_index_ = first_advertising_channel;
+
+        fill_advertising_buffer();
+        fill_advertising_response_buffer();
+
+        this->set_access_address_and_crc_init(
+            advertising_radio_access_address,
+            advertising_crc_init );
+
+        this->schedule_advertisment_and_receive(
+            current_channel_index_,
+            write_buffer{ advertising_buffer(), adv_size_ }, delta_time::now(),
+            read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

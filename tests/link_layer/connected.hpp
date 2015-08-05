@@ -93,7 +93,19 @@ struct connecting_base : unconnected_base< Options... >
 
 using connecting = connecting_base<>;
 
-struct connected {};
+
+struct connected_and_timeout : unconnected
+{
+    connected_and_timeout()
+    {
+        this->respond_to( 37, valid_connection_request_pdu );
+        this->add_connection_event_respond( { 1, 0 } );
+        this->add_connection_event_respond( { 1, 0 } );
+
+        small_temperature_service gatt_server_;
+        base::run( gatt_server_ );
+    }
+};
 
 typedef boost::mpl::list<
     std::integral_constant< unsigned, 37u >,
