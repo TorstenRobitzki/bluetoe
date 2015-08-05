@@ -47,11 +47,15 @@ namespace test {
         pdu_list_t                          received_data;
     };
 
+    std::ostream& operator<<( std::ostream& out, const connection_event& );
+
     struct connection_event_response
     {
         bool                                timeout; // respond with an timeout
         pdu_list_t                          data;    // respond with data (including no data)
     };
+
+    std::ostream& operator<<( std::ostream& out, const connection_event_response& );
 
     struct advertising_response
     {
@@ -141,6 +145,7 @@ namespace test {
 
         void add_connection_event_respond( const connection_event_response& );
         void add_connection_event_respond( std::initializer_list< std::uint8_t > );
+        void add_connection_event_respond_timeout();
 
         /**
          * @brief returns 0x47110815
@@ -164,6 +169,9 @@ namespace test {
         std::uint32_t   access_address_;
         std::uint32_t   crc_init_;
         bool            access_address_and_crc_valid_;
+        std::uint8_t    master_sequence_number_    = 0;
+        std::uint8_t    master_ne_sequence_number_ = 0;
+
 
         advertising_list::const_iterator next( std::vector< advertising_data >::const_iterator, const std::function< bool ( const advertising_data& ) >& filter ) const;
 
@@ -287,6 +295,8 @@ namespace test {
     void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
         bool new_scheduling_added = false;
+        master_sequence_number_    = 0;
+        master_ne_sequence_number_ = 0;
 
         do
         {
@@ -373,17 +383,15 @@ namespace test {
             static constexpr std::uint8_t nesn_flag      = 0x4;
             static constexpr std::uint8_t more_data_flag = 0x10;
 
-            std::uint8_t sequence_number    = 0;
-            std::uint8_t ne_sequence_number = 0;
-
             bool more_data = false;
 
-            pdu_list_t pdus = response.data;
-            event.transmitted_data = pdus;
+            pdu_list_t& pdus = response.data;
 
             do
             {
                 auto receive_buffer = this->allocate_receive_buffer();
+
+                more_data = false;
 
                 if ( receive_buffer.size )
                 {
@@ -399,13 +407,12 @@ namespace test {
                         pdus.erase( pdus.begin() );
 
                         std::copy( pdu.begin(), pdu.end(), receive_buffer.buffer );
+                        more_data = !pdus.empty();
                     }
 
-                    receive_buffer.buffer[ 0 ] |= sequence_number | sequence_number;
-                    sequence_number    ^= sn_flag;
+                    receive_buffer.buffer[ 0 ] |= master_sequence_number_ | master_ne_sequence_number_;
+                    master_sequence_number_    ^= sn_flag;
                 }
-
-                more_data = !pdus.empty();
 
                 if ( more_data && receive_buffer.size )
                     receive_buffer.buffer[ 0 ] |= more_data_flag;
@@ -413,10 +420,13 @@ namespace test {
                 auto response = this->received( receive_buffer );
 
                 more_data = more_data || ( response.buffer[ 0 ] & more_data_flag );
-                event.received_data.push_back(
-                    std::vector< std::uint8_t >( &response.buffer[ 0 ], &response.buffer[ 2 ] + response.buffer[ 1 ] ) );
+                master_ne_sequence_number_ ^= nesn_flag;
 
-                ne_sequence_number ^= nesn_flag;
+                event.received_data.push_back(
+                    std::vector< std::uint8_t >( &receive_buffer.buffer[ 0 ], &receive_buffer.buffer[ 2 ] + receive_buffer.buffer[ 1 ] ) );
+
+                event.transmitted_data.push_back(
+                    std::vector< std::uint8_t >( &response.buffer[ 0 ], &response.buffer[ 2 ] + response.buffer[ 1 ] ) );
 
             } while ( more_data );
 

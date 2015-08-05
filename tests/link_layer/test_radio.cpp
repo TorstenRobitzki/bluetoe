@@ -13,6 +13,45 @@ namespace test {
         return out;
     }
 
+    std::ostream& operator<<( std::ostream& out, const connection_event_response& rsp )
+    {
+        if ( rsp.timeout )
+        {
+            out << "response-timeout";
+        }
+        else
+        {
+            out << "\ndata:\n";
+
+            for ( const auto& pdu: rsp.data )
+            {
+                hex_dump( out, pdu.begin(), pdu.end() );
+            }
+        }
+
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const connection_event& data )
+    {
+        out << "schedule_time: " << data.schedule_time << "; channel: " << data.channel
+            << "\nstart_receive: " << data.start_receive << "; end_receive: " << data.end_receive << "; connection_interval: " << data.connection_interval
+            << "\nreceived_data:\n";
+
+        for ( const auto& pdu: data.received_data )
+        {
+            hex_dump( out, pdu.begin(), pdu.end() );
+        }
+
+        out << "transmitted_data:\n";
+        for ( const auto& pdu: data.transmitted_data )
+        {
+            hex_dump( out, pdu.begin(), pdu.end() );
+        }
+
+        return out;
+    }
+
     advertising_response::advertising_response()
         : channel( 0 )
         , delay( bluetoe::link_layer::delta_time( 0 ) )

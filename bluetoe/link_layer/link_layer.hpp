@@ -84,6 +84,8 @@ namespace link_layer {
         std::uint8_t* advertising_response_buffer();
         std::uint8_t* advertising_receive_buffer();
 
+        void handle_received_data();
+
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
         static std::uint32_t read_32( const std::uint8_t* );
@@ -100,6 +102,7 @@ namespace link_layer {
 
         static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
         static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
+        static constexpr std::uint8_t   ll_control_pdu_code         = 3;
 
         static constexpr std::uint8_t   header_txaddr_field         = 0x40;
 
@@ -212,6 +215,7 @@ namespace link_layer {
 
             window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
+            this->reset();
             this->schedule_connection_event(
                 channels_.data_channel( current_channel_index_ ),
                 window_start,
@@ -306,30 +310,23 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::end_event()
     {
-        if ( state_ == state::connecting )
-        {
-            state_                        = state::connected;
-            current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
-            timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
+        assert( state_ == state::connecting || state_ == state::connected );
 
-            delta_time window_size  = connection_interval_.ppm( cumulated_sleep_clock_accuracy_ );
-            delta_time window_start = connection_interval_ - window_size;
-            delta_time window_end   = connection_interval_ + window_size;
+        state_                        = state::connected;
+        current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
+        timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
 
-            this->schedule_connection_event(
-                channels_.data_channel( current_channel_index_ ),
-                window_start,
-                window_end,
-                connection_interval_ );
-        }
-        else if ( state_ == state::connected )
-        {
+        delta_time window_size  = connection_interval_.ppm( cumulated_sleep_clock_accuracy_ );
+        delta_time window_start = connection_interval_ - window_size;
+        delta_time window_end   = connection_interval_ + window_size;
 
-        }
-        else
-        {
-            assert( !"invalid state" );
-        }
+        this->schedule_connection_event(
+            channels_.data_channel( current_channel_index_ ),
+            window_start,
+            window_end,
+            connection_interval_ );
+
+        handle_received_data();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -460,6 +457,33 @@ namespace link_layer {
     std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_receive_buffer()
     {
         return advertising_response_buffer() + max_advertising_data_size + address_length + advertising_pdu_header_size;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
+    {
+        static constexpr std::uint8_t LL_UNKNOWN_RSP = 0x07;
+
+        for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
+        {
+            if ( ( pdu.buffer[ 0 ] & 0x3 ) == ll_control_pdu_code )
+            {
+                const std::uint8_t size   = pdu.buffer[ 1 ];
+                const std::uint8_t opcode = size > 0 ? pdu.buffer[ 2 ] : 0xff;
+
+                auto write = this->allocate_transmit_buffer( 4 );
+
+                if ( write.size )
+                {
+                    write.buffer[ 0 ] = ll_control_pdu_code;
+                    write.buffer[ 1 ] = 2;
+                    write.buffer[ 2 ] = LL_UNKNOWN_RSP;
+                    write.buffer[ 3 ] = opcode;
+
+                    this->commit_transmit_buffer( write );
+                }
+            }
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
