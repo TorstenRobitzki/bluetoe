@@ -458,25 +458,38 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
     {
         static constexpr std::uint8_t LL_UNKNOWN_RSP = 0x07;
+        static constexpr std::uint8_t LL_VERSION_IND = 0x0C;
+
+        static constexpr std::uint8_t LL_VERSION_NR  = 0x08;
 
         for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
         {
+            // the allocated size could be optimized to the required size for the answer
+            auto write = this->allocate_transmit_buffer();
+            if ( write.size == 0 )
+                return;
+
+            assert( write.size >= radio_t::min_buffer_size );
+
             if ( ( pdu.buffer[ 0 ] & 0x3 ) == ll_control_pdu_code )
             {
+
                 const std::uint8_t size   = pdu.buffer[ 1 ];
                 const std::uint8_t opcode = size > 0 ? pdu.buffer[ 2 ] : 0xff;
 
-                auto write = this->allocate_transmit_buffer( 4 );
-
-                if ( write.size )
+                if ( opcode == LL_VERSION_IND && size == 6 )
                 {
-                    write.buffer[ 0 ] = ll_control_pdu_code;
-                    write.buffer[ 1 ] = 2;
-                    write.buffer[ 2 ] = LL_UNKNOWN_RSP;
-                    write.buffer[ 3 ] = opcode;
-
-                    this->commit_transmit_buffer( write );
+                    write.fill( {
+                        ll_control_pdu_code, 6, LL_VERSION_IND,
+                        LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
+                    } );
                 }
+                else
+                {
+                    write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
+                }
+
+                this->commit_transmit_buffer( write );
             }
         }
     }

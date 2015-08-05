@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cassert>
+#include <initializer_list>
+#include <algorithm>
 
 namespace bluetoe {
 namespace link_layer {
@@ -33,6 +35,12 @@ namespace link_layer {
         bool empty() const
         {
             return buffer == nullptr && size == 0;
+        }
+
+        void fill( std::initializer_list< std::uint8_t > data )
+        {
+            assert( data.size() <= size );
+            std::copy( data.begin(), data.end(), buffer );
         }
     };
 

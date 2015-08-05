@@ -73,6 +73,39 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
         this->respond_to( 37, pdu );
     }
 
+    std::vector< std::uint8_t > run_single_ll_control_pdu( std::initializer_list< std::uint8_t > pdu )
+    {
+        this->respond_to( 37, valid_connection_request_pdu );
+        this->add_connection_event_respond( pdu );
+        this->add_connection_event_respond( { 0x01, 0x00 } );
+
+        this->run();
+
+        BOOST_REQUIRE_GE( this->connection_events().size(), 2 );
+        auto event = this->connection_events()[ 1 ];
+
+        BOOST_REQUIRE_EQUAL( event.transmitted_data.size(), 1 );
+
+        return event.transmitted_data[ 0 ];
+    }
+
+    void check_single_ll_control_pdu( std::initializer_list< std::uint8_t > pdu, std::initializer_list< std::uint8_t > expected_response, const char* label )
+    {
+        auto response = run_single_ll_control_pdu( pdu );
+        response[ 0 ] &= 0x03;
+
+        if ( response.size() != expected_response.size() || !std::equal( response.begin(), response.end(), expected_response.begin() ) )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << "\n" << label << ": not expected response: \n";
+            result.message() << "PDU:\n" << hex_dump( pdu.begin(), pdu.end() );
+            result.message() << "expected:\n" << hex_dump( expected_response.begin(), expected_response.end() );
+            result.message() << "found:\n" << hex_dump( response.begin(), response.end() );
+
+            BOOST_CHECK( result );
+
+        }
+    }
 };
 
 struct unconnected : unconnected_base<> {};
