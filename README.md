@@ -106,14 +106,14 @@ Advertising|connectable undirected advertising|implemented
  |non-connectable undirected advertising|planned
  |scannable undirected advertising|planned
 Device Filtering||not planned
-Connections|Single Connection|planned
+Connections|Single Connection|implemented
  |Multiple Connection|not planned
 Connection|Slave Latency|planned
 Feature Support|LE Encryption|not planned
  |Connection Parameters Request Procedure|planned
  |Extended Reject Indication|planned
  |Slave-initiated Features Exchange|planned
- |LE Ping|planned
+ |LE Ping|implemented
  |LE Data Packet Length Extension|planned
  |LL Privacy|not planned
  |Extended Scanner Filter Policies|not planned

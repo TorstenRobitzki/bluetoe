@@ -40,12 +40,19 @@ BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_second_respond_to_a_version_request, unconnected )
-{
-}
-
 BOOST_FIXTURE_TEST_CASE( respond_to_a_ping, unconnected )
 {
+    check_single_ll_control_pdu(
+        {
+            0x03, 0x01,
+            0x12                // LL_PING_REQ
+        },
+        {
+            0x03, 0x01,
+            0x13                // LL_PING_RSP
+        },
+        "respond_to_a_ping"
+    );
 }
 
 BOOST_FIXTURE_TEST_CASE( accept_termination, unconnected )

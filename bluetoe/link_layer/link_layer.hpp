@@ -459,6 +459,8 @@ namespace link_layer {
     {
         static constexpr std::uint8_t LL_UNKNOWN_RSP = 0x07;
         static constexpr std::uint8_t LL_VERSION_IND = 0x0C;
+        static constexpr std::uint8_t LL_PING_REQ    = 0x12;
+        static constexpr std::uint8_t LL_PING_RSP    = 0x13;
 
         static constexpr std::uint8_t LL_VERSION_NR  = 0x08;
 
@@ -483,6 +485,10 @@ namespace link_layer {
                         ll_control_pdu_code, 6, LL_VERSION_IND,
                         LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
                     } );
+                }
+                else if ( opcode == LL_PING_REQ && size == 1 )
+                {
+                    write.fill( { ll_control_pdu_code, 1, LL_PING_RSP } );
                 }
                 else
                 {
