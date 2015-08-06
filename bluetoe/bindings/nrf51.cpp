@@ -88,7 +88,7 @@ namespace nrf51_details {
         nrf_timer->TASKS_START = 1;
     }
 
-    scheduled_radio_base::scheduled_radio_base( callbacks& cbs )
+    scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs )
         : callbacks_( cbs )
         , timeout_( false )
         , received_( false )
@@ -134,7 +134,7 @@ namespace nrf51_details {
         return 80;
     }
 
-    void scheduled_radio_base::schedule_transmit_and_receive(
+    void scheduled_radio_base::schedule_advertisment_and_receive(
             unsigned channel,
             const link_layer::write_buffer& transmit, link_layer::delta_time when,
             const link_layer::read_buffer& receive )
@@ -192,15 +192,6 @@ namespace nrf51_details {
         }
     }
 
-    void scheduled_radio_base::schedule_receive_and_transmit(
-        unsigned                                    channel,
-        bluetoe::link_layer::delta_time             when,
-        bluetoe::link_layer::delta_time             window_size,
-        const bluetoe::link_layer::read_buffer&     receive,
-        const bluetoe::link_layer::write_buffer&    answert )
-    {
-    }
-
     void scheduled_radio_base::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
     {
         NRF_RADIO->BASE0     = ( access_address << 8 ) & 0xFFFFFF00;
@@ -225,12 +216,12 @@ namespace nrf51_details {
             receive_buffer_.size = std::min< std::size_t >( receive_buffer_.size, ( receive_buffer_.buffer[ 1 ] & 0x3f ) + 2 );
             received_ = false;
 
-            callbacks_.received( receive_buffer_ );
+            callbacks_.adv_received( receive_buffer_ );
         }
         else
         {
             timeout_ = false;
-            callbacks_.timeout();
+            callbacks_.adv_timeout();
         }
     }
 
