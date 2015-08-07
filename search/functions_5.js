@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['negotiated_5fmtu',['negotiated_mtu',['../classbluetoe_1_1server_1_1connection__data.html#a6a0194a90bf94748fb331d7c41167d78',1,'bluetoe::server::connection_data']]],
-  ['notify',['notify',['../classbluetoe_1_1server.html#ac92676e3f7e27b66f67cd164cb810abf',1,'bluetoe::server']]]
+  ['fill',['fill',['../structbluetoe_1_1link__layer_1_1read__buffer.html#aebbab2c42edb964f1f85dc732731a0f1',1,'bluetoe::link_layer::read_buffer']]],
+  ['free_5freceived',['free_received',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#ae8ca705319b23860aeabe4d6d19bd6e0',1,'bluetoe::link_layer::ll_data_pdu_buffer']]]
 ];

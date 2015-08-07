@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['reset',['reset',['../classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2',1,'bluetoe::link_layer::channel_map']]],
-  ['run',['run',['../classbluetoe_1_1binding_1_1btstack__libusb__device.html#a3e2ce3665f0506ab637b220b70d70cb9',1,'bluetoe::binding::btstack_libusb_device']]]
+  ['interval',['interval',['../structbluetoe_1_1link__layer_1_1advertising__interval.html#ad9f1a4d09697d5832a360cedfc29bd7b',1,'bluetoe::link_layer::advertising_interval']]],
+  ['is_5frandom',['is_random',['../structbluetoe_1_1link__layer_1_1random__static__address.html#abb3a309d6b1668ad84ddf96cbfae7a2b',1,'bluetoe::link_layer::random_static_address']]]
 ];
