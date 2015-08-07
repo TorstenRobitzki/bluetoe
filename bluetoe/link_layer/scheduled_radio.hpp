@@ -90,6 +90,11 @@ namespace link_layer {
          * calling application.
          */
         void run();
+
+        /**
+         * @brief type to allow ll_data_pdu_buffer to synchronize the access to the buffer data structures.
+         */
+        class lock_guard;
     };
 }
 
