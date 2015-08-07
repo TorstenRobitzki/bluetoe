@@ -33,12 +33,6 @@ namespace link_layer {
      * @brief link layer implementation
      *
      * Implements a binding to a server by implementing a link layout on top of a ScheduleRadio device.
-     *
-     * Missing Parameters:
-     * - Advertising Interval
-     * - opt. Address
-     * - opt. Advertising Event type
-     * - opt. Used Channels
      */
     template <
         class Server,
@@ -55,14 +49,36 @@ namespace link_layer {
     public:
         link_layer();
 
+        /**
+         * @brief this function passes the CPU to the link layer implementation
+         *
+         * This function should return on certain events to alow user code to do
+         * usefull things. Details depend on the ScheduleRadio implemention.
+         */
         void run( Server& );
 
+        /**
+         * @brief call back that will be called when the master responds to an advertising PDU
+         * @sa scheduled_radio::schedule_advertisment_and_receive
+         */
         void adv_received( const read_buffer& receive );
 
+        /**
+         * @brief call back that will be called when the master does not respond to an advertising PDU
+         * @sa scheduled_radio::schedule_advertisment_and_receive
+         */
         void adv_timeout();
 
+        /**
+         * @brief call back that will be called when connect event times out
+         * @sa scheduled_radio::schedule_connection_event
+         */
         void timeout();
 
+        /**
+         * @brief call back that will be called after a connect event was closed.
+         * @sa scheduled_radio::schedule_connection_event
+         */
         void end_event();
     private:
         typedef ScheduledRadio<

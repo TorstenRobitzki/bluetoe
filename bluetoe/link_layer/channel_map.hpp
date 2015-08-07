@@ -30,6 +30,9 @@ namespace link_layer {
          */
         unsigned data_channel( unsigned index ) const;
 
+        /**
+         * the number of channels, used as data channel.
+         */
         static constexpr unsigned max_number_of_data_channels = 37;
     private:
         unsigned build_used_channel_map( const std::uint8_t* map, std::uint8_t* used ) const;

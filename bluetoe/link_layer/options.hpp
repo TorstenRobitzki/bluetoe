@@ -30,10 +30,15 @@ namespace link_layer
     template < std::uint16_t AdvertisingIntervalMilliSeconds, typename = typename details::check_advertising_interval_parameter< AdvertisingIntervalMilliSeconds >::type >
     struct advertising_interval
     {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_interval_meta_type meta_type;
+        /** @endcond */
 
+        /**
+         * timeout in ms roundet to the next 0.625ms
+         */
         static constexpr delta_time interval() {
-            // timeout in ms roundet to the next 0.625ms
+
             return delta_time( AdvertisingIntervalMilliSeconds * 1000 );
         }
     };
@@ -46,18 +51,26 @@ namespace link_layer
      */
     struct random_static_address
     {
+        /**
+         * @brief returns true, because this is a random address
+         */
         static constexpr bool is_random()
         {
             return true;
         }
 
+        /**
+         * @brief takes a scheduled radio and generates a random static address
+         */
         template < class Radio >
         static address address( const Radio& r )
         {
             return address::generate_static_random_address( r.static_random_address_seed() );
         }
 
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::device_address_meta_type meta_type;
+        /** @endcond */
     };
 
     namespace details {
@@ -83,8 +96,14 @@ namespace link_layer
     template < unsigned long long SleepClockAccuracyPPM, typename = typename details::check_sleep_clock_accuracy_ppm< SleepClockAccuracyPPM >::type >
     struct sleep_clock_accuracy_ppm
     {
+        /**
+         * @brief configured sleep clock accuracy
+         */
         static constexpr unsigned accuracy_ppm = static_cast< unsigned >( SleepClockAccuracyPPM );
+
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::sleep_clock_accuracy_meta_type meta_type;
+        /** @endcond */
     };
 
     /**
@@ -93,9 +112,18 @@ namespace link_layer
     template < std::size_t TransmitSize = 57, std::size_t ReceiveSize = 57 >
     struct buffer_sizes
     {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::buffer_sizes_meta_type meta_type;
+        /** @endcond */
 
+        /**
+         * configured link layer transmit buffer size in bytes.
+         */
         static constexpr std::size_t transmit_buffer_size = TransmitSize;
+
+        /**
+         * configured link layer receive buffer size in bytes.
+         */
         static constexpr std::size_t receive_buffer_size  = ReceiveSize;
     };
 

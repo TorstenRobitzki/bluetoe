@@ -9,7 +9,7 @@ namespace bluetoe {
 namespace link_layer {
 
     /**
-     * a 48-bit universal LAN MAC address
+     * @brief a 48-bit universal LAN MAC address
      */
     class address
     {
@@ -46,12 +46,29 @@ namespace link_layer {
          */
         std::uint8_t msb() const;
 
+        /**
+         * @brief returns true, if this address is the same as the rhs address
+         */
         bool operator==( const address& rhs ) const;
+
+        /**
+         * @brief returns false, if this address is the same as the rhs address
+         */
         bool operator!=( const address& rhs ) const;
 
+        /**
+         * @brief random access iterator
+         */
         typedef std::uint8_t const * const_iterator;
 
+        /**
+         * @brief returns an iterator to the first byte (LSB) of the address
+         */
         const_iterator begin() const;
+
+        /**
+         * @brief returns an iterator one behind the last byte of the address
+         */
         const_iterator end() const;
     private:
         static constexpr std::size_t address_size_in_bytes = 6;

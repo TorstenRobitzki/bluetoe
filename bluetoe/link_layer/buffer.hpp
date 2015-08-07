@@ -37,6 +37,10 @@ namespace link_layer {
             return buffer == nullptr && size == 0;
         }
 
+        /**
+         * @brief copies the given data into the buffer
+         * @pre data.size() <= size
+         */
         void fill( std::initializer_list< std::uint8_t > data )
         {
             assert( data.size() <= size );
@@ -86,7 +90,15 @@ namespace link_layer {
          * @brief the size of memory in bytes that are return by raw()
          */
         static constexpr std::size_t    size            = TransmitSize + ReceiveSize;
+
+        /**
+         * @brief the minimum size an element in the buffer can have
+         */
         static constexpr std::size_t    min_buffer_size = 27;
+
+        /**
+         * @brief the maximum size an element in the buffer can have
+         */
         static constexpr std::size_t    max_buffer_size = 251;
 
         /**@{*/
