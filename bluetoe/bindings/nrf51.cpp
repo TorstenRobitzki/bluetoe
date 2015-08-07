@@ -88,6 +88,18 @@ namespace nrf51_details {
         nrf_timer->TASKS_START = 1;
     }
 
+    // see https://devzone.nordicsemi.com/question/47493/disable-interrupts-and-enable-interrupts-if-they-where-enabled/
+    scheduled_radio_base::lock_guard::lock_guard()
+        : context_( __get_PRIMASK() )
+    {
+        __disable_irq();
+    }
+
+    scheduled_radio_base::lock_guard::~lock_guard()
+    {
+        __set_PRIMASK( context_ );
+    }
+
     scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs )
         : callbacks_( cbs )
         , timeout_( false )
@@ -247,20 +259,28 @@ namespace nrf51_details {
             }
             else if ( state_ == state::transmitting && !receive_buffer_.empty() )
             {
-                state_ = state::receiving;
+                if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
+                {
+                    state_ = state::receiving;
 
-                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
-                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+                    NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+                    NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
-                nrf_timer->TASKS_CAPTURE[ 0 ]  = 1;
-                nrf_timer->CC[0]              += reponse_timeout_us;
-                nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
-                nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
+                    nrf_timer->TASKS_CAPTURE[ 0 ]  = 1;
+                    nrf_timer->CC[0]              += reponse_timeout_us;
+                    nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+                    nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
 
-                NRF_RADIO->EVENTS_ADDRESS      = 0;
-                NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
+                    NRF_RADIO->EVENTS_ADDRESS      = 0;
+                    NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
 
-                NRF_RADIO->TASKS_RXEN          = 1;
+                    NRF_RADIO->TASKS_RXEN          = 1;
+                }
+                else
+                {
+                    state_ = state::idle;
+                    timeout_ = true;
+                }
             }
             else if ( state_ == state::receiving )
             {
@@ -314,6 +334,50 @@ namespace nrf51_details {
         return NRF_FICR->DEVICEID[ 0 ];
     }
 
+    void scheduled_radio_base::start_connection_event(
+        unsigned                        channel,
+        bluetoe::link_layer::delta_time start_receive,
+        bluetoe::link_layer::delta_time end_receive,
+        const link_layer::read_buffer&  receive_buffer )
+    {
+        assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
+        assert( state_ == state::idle );
+        assert( receive_buffer.buffer && receive_buffer.size >= 2u || receive_buffer.empty() );
+
+        const unsigned      frequency  = frequency_from_channel( channel );
+
+        NRF_RADIO->FREQUENCY   = frequency;
+        NRF_RADIO->DATAWHITEIV = channel & 0x3F;
+        NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
+        NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer.size << RADIO_PCNF1_MAXLEN_Pos );
+
+        NRF_RADIO->EVENTS_END       = 0;
+        NRF_RADIO->EVENTS_DISABLED  = 0;
+        NRF_RADIO->EVENTS_READY     = 0;
+        NRF_RADIO->EVENTS_ADDRESS   = 0;
+
+        NRF_RADIO->INTENCLR    = 0xffffffff;
+
+        NRF_RADIO->SHORTS      =
+            RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+
+        state_ = state::wait_connection_event;
+
+        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->CC[0]               = start_receive.usec();
+
+        // manually triggering event for timer beeing already behind target time
+        nrf_timer->TASKS_CAPTURE[ 1 ]  = 1;
+        nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
+
+        if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 1 ] >= nrf_timer->CC[ 0 ] )
+        {
+            state_ = state::transmitting;
+            NRF_RADIO->TASKS_TXEN = 1;
+        }
+    }
 }
 }
 
