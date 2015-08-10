@@ -182,12 +182,12 @@ namespace nrf51_details {
 
         if ( when.zero() )
         {
-            state_ = state::transmitting;
+            state_ = state::adv_transmitting;
             NRF_RADIO->TASKS_TXEN = 1;
         }
         else
         {
-            state_ = state::transmitting_pending;
+            state_ = state::adv_transmitting_pending;
 
             nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
             nrf_timer->CC[0]               = when.usec();
@@ -198,7 +198,7 @@ namespace nrf51_details {
 
             if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 1 ] >= nrf_timer->CC[ 0 ] )
             {
-                state_ = state::transmitting;
+                state_ = state::adv_transmitting;
                 NRF_RADIO->TASKS_TXEN = 1;
             }
         }
@@ -243,7 +243,7 @@ namespace nrf51_details {
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
 
-            if ( state_ == state::timeout_stopping )
+            if ( state_ == state::adv_timeout_stopping )
             {
                 state_ = state::idle;
 
@@ -252,16 +252,16 @@ namespace nrf51_details {
 
                 timeout_ = true;
             }
-            else if ( state_ == state::transmitting && receive_buffer_.empty() )
+            else if ( state_ == state::adv_transmitting && receive_buffer_.empty() )
             {
                 state_ = state::idle;
                 timeout_ = true;
             }
-            else if ( state_ == state::transmitting && !receive_buffer_.empty() )
+            else if ( state_ == state::adv_transmitting && !receive_buffer_.empty() )
             {
                 if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
                 {
-                    state_ = state::receiving;
+                    state_ = state::adv_receiving;
 
                     NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
                     NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
@@ -282,7 +282,7 @@ namespace nrf51_details {
                     timeout_ = true;
                 }
             }
-            else if ( state_ == state::receiving )
+            else if ( state_ == state::adv_receiving )
             {
                 state_ = state::idle;
 
@@ -297,7 +297,7 @@ namespace nrf51_details {
         {
             NRF_RADIO->EVENTS_ADDRESS  = 0;
 
-            if ( state_ == state::receiving )
+            if ( state_ == state::adv_receiving )
             {
                 // dismantel timer, we are getting an end event now
                 nrf_timer->INTENCLR            = TIMER_INTENSET_COMPARE0_Msk;
@@ -313,15 +313,15 @@ namespace nrf51_details {
         nrf_timer->INTENCLR            = TIMER_INTENSET_COMPARE0_Msk;
         nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
 
-        if ( state_ == state::receiving )
+        if ( state_ == state::adv_receiving )
         {
-            state_ = state::timeout_stopping;
+            state_ = state::adv_timeout_stopping;
 
             NRF_RADIO->TASKS_DISABLE = 1;
         }
-        else if ( state_ == state::transmitting_pending )
+        else if ( state_ == state::adv_transmitting_pending )
         {
-            state_ = state::transmitting;
+            state_ = state::adv_transmitting;
 
             // this time can be used as new T0, so lets reset the timer; TODO only true, for the first channel
             nrf_timer->TASKS_CLEAR = 1;
@@ -363,7 +363,7 @@ namespace nrf51_details {
 
         NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
-        state_ = state::wait_connection_event;
+        state_ = state::evt_wait_connect;
 
         nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
         nrf_timer->CC[0]               = start_receive.usec();
@@ -374,7 +374,7 @@ namespace nrf51_details {
 
         if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 1 ] >= nrf_timer->CC[ 0 ] )
         {
-            state_ = state::transmitting;
+            state_ = state::adv_transmitting;
             NRF_RADIO->TASKS_TXEN = 1;
         }
     }
