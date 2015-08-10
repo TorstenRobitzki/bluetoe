@@ -195,13 +195,14 @@ namespace nrf51_details {
         NRF_RADIO->EVENTS_DISABLED  = 0;
         NRF_RADIO->EVENTS_READY     = 0;
         NRF_RADIO->EVENTS_ADDRESS   = 0;
+        NRF_RADIO->EVENTS_PAYLOAD   = 0;
 
         NRF_RADIO->SHORTS      =
             RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
         NRF_PPI->CHENCLR = ( 1 << compare0_rxen_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
 
-        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk | RADIO_INTENSET_PAYLOAD_Msk;
 
         if ( when.zero() )
         {
@@ -263,6 +264,21 @@ namespace nrf51_details {
 
     void scheduled_radio_base::radio_interrupt()
     {
+        if ( NRF_RADIO->EVENTS_PAYLOAD )
+        {
+            NRF_RADIO->EVENTS_PAYLOAD = 0;
+
+            if ( state_ == state::adv_transmitting && !receive_buffer_.empty() )
+            {
+                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+
+                NRF_RADIO->EVENTS_ADDRESS      = 0;
+                NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
+                NRF_RADIO->INTENCLR            = RADIO_INTENSET_PAYLOAD_Msk;
+            }
+        }
+
         if ( NRF_RADIO->EVENTS_DISABLED )
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
@@ -283,20 +299,13 @@ namespace nrf51_details {
             }
             else if ( state_ == state::adv_transmitting && !receive_buffer_.empty() )
             {
+                NRF_RADIO->TASKS_RXEN          = 1;
                 state_ = state::adv_receiving;
-
-                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
-                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
                 nrf_timer->TASKS_CAPTURE[ 0 ]  = 1;
                 nrf_timer->CC[0]              += reponse_timeout_us;
                 nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
                 nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
-
-                NRF_RADIO->EVENTS_ADDRESS      = 0;
-                NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
-
-                NRF_RADIO->TASKS_RXEN          = 1;
             }
             else if ( state_ == state::adv_receiving )
             {
