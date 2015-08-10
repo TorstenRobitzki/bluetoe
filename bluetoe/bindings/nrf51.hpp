@@ -22,7 +22,8 @@ namespace bluetoe
             virtual void timeout() = 0;
             virtual void end_event() = 0;
 
-            virtual link_layer::write_buffer received_more_data( const link_layer::read_buffer& ) = 0;
+            virtual void received_data( const link_layer::read_buffer& ) = 0;
+            virtual link_layer::write_buffer more_data() = 0;
 
             virtual ~adv_callbacks() {}
         };
@@ -75,6 +76,8 @@ namespace bluetoe
             adv_callbacks& callbacks_;
             volatile bool timeout_;
             volatile bool received_;
+            volatile bool evt_timeout_;
+            volatile bool end_evt_;
 
             enum class state {
                 idle,
@@ -85,7 +88,10 @@ namespace bluetoe
                 adv_transmitting_pending,
                 adv_receiving,
                 // connection event
-                evt_wait_connect
+                evt_wait_connect,
+                evt_transmiting,
+                evt_transmiting_closing,
+                evt_receiving
             };
 
             volatile state                  state_;
@@ -93,6 +99,7 @@ namespace bluetoe
             // last scheduled action was an advertising
             bool                            last_advertising_;
             bluetoe::link_layer::delta_time anchor_offset_;
+            bool                            more_data_;
 
             link_layer::read_buffer         receive_buffer_;
         };
@@ -135,10 +142,16 @@ namespace bluetoe
                 static_cast< CallBack* >( this )->end_event();
             }
 
-            link_layer::write_buffer received_more_data( const link_layer::read_buffer& b ) override
+            void received_data( const link_layer::read_buffer& b ) override
             {
                 // this function is called within an ISR context, so no need to disable interrupts
-                return this->received( b );
+                this->received( b );
+            }
+
+            link_layer::write_buffer more_data() override
+            {
+                // this function is called within an ISR context, so no need to disable interrupts
+                return this->next_transmit();
             }
         };
 
