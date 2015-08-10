@@ -88,9 +88,13 @@ namespace bluetoe
                 evt_wait_connect
             };
 
-            volatile state state_;
+            volatile state                  state_;
 
-            link_layer::read_buffer receive_buffer_;
+            // last scheduled action was an advertising
+            bool                            last_advertising_;
+            bluetoe::link_layer::delta_time anchor_offset_;
+
+            link_layer::read_buffer         receive_buffer_;
         };
 
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
