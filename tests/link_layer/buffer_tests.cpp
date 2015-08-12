@@ -464,3 +464,14 @@ BOOST_FIXTURE_TEST_CASE( with_every_new_received_pdu_a_new_sequence_is_expected,
     receive_pdu( { 2 }, true, false );
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0 );
 }
+
+BOOST_FIXTURE_TEST_CASE( getting_an_empty_pdu_must_not_result_in_changing_allocated_transmit_buffer, running_mode )
+{
+    auto trans = allocate_transmit_buffer();
+    std::fill( trans.buffer, trans.buffer + trans.size, 0x22 );
+
+    // this call should not change the allocated buffer
+    next_transmit();
+
+    BOOST_CHECK( std::find_if( trans.buffer, trans.buffer + trans.size, []( std::uint8_t b ) { return b != 0x22; } ) == trans.buffer + trans.size );
+}

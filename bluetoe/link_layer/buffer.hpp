@@ -333,12 +333,16 @@ namespace link_layer {
 
         bool                    sequence_number_;
         bool                    next_expected_sequence_number_;
+        uint8_t                 empty_[ 2 ];
+        bool                    next_empty_;
+        bool                    empty_sequence_number_;
 
         static constexpr std::size_t  ll_header_size = 2;
         static constexpr std::uint8_t more_data_flag = 0x10;
         static constexpr std::uint8_t sn_flag        = 0x8;
         static constexpr std::uint8_t nesn_flag      = 0x4;
         static constexpr std::uint8_t ll_empty_id    = 0x01;
+
 
         std::uint8_t* transmit_buffer()
         {
@@ -389,6 +393,7 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::ll_data_pdu_buffer()
     {
+        empty_[ 1 ] = 0;
         reset();
     }
 
@@ -437,6 +442,7 @@ namespace link_layer {
 
         sequence_number_ = false;
         next_expected_sequence_number_ = false;
+        next_empty_      = false;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -499,37 +505,56 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_transmit()
     {
-        // if transmit buffer is empty, create a new, empty one
-        if ( transmit_ == transmit_end_ )
+        std::uint8_t* result = &empty_[ 0 ];
+        bool more_data       = false;
+
+        if ( next_empty_ )
         {
-            transmit_      = transmit_buffer();
-            transmit_end_  = transmit_ + 2;
-            transmit_[ 0 ] = ll_empty_id;
-            transmit_[ 1 ] = 0;
+            more_data = transmit_ != transmit_end_;
+        }
+        else if ( transmit_ == transmit_end_ )
+        {
+            empty_[ 0 ] = ll_empty_id;
+            next_empty_ = true;
+
+            // we created an PDU, so it have to have a new sequnce number
+            if ( sequence_number_ )
+                empty_[ 0 ] |= sn_flag;
+
+            empty_sequence_number_ = sequence_number_;
+            sequence_number_ = !sequence_number_;
         }
         else
         {
-            const bool more_data = transmit_ + transmit_[ 1 ] + ll_header_size != transmit_end_;
-
-            if ( more_data )
-                transmit_[ 0 ] |= more_data_flag;
+            more_data = transmit_ + transmit_[ 1 ] + ll_header_size != transmit_end_;
+            result    = transmit_;
         }
+
+        if ( more_data )
+            result[ 0 ] |= more_data_flag;
 
         // insert the next expected sequence for every attempt to send the PDU, because it could be that
         // the slave is able to receive data, while the master is not able to.
-        transmit_[ 0 ] = ( transmit_[ 0 ] & ~nesn_flag ) | ( next_expected_sequence_number_ ? nesn_flag : 0 );
+        result[ 0 ] = next_expected_sequence_number_
+            ? ( result[ 0 ] | nesn_flag )
+            : ( result[ 0 ] & ~nesn_flag );
 
-        return write_buffer{ transmit_, transmit_[ 1 ] + ll_header_size };
+        return write_buffer{ result, result[ 1 ] + ll_header_size };
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( bool nesn )
     {
         // the transmit buffer could be empty if we receive without sending prior. That happens during testing
-        if ( transmit_ == transmit_end_ )
+        if ( transmit_ == transmit_end_ && !next_empty_ )
             return;
 
-        if ( static_cast< bool >( transmit_[ 0 ] & sn_flag ) != nesn )
+        if ( next_empty_ )
+        {
+            if ( empty_sequence_number_ != nesn )
+                next_empty_ = false;
+        }
+        else if ( static_cast< bool >( transmit_[ 0 ] & sn_flag ) != nesn )
         {
             transmit_ += transmit_[ 1 ] + ll_header_size;
 
