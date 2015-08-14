@@ -73,6 +73,37 @@ namespace link_layer
         /** @endcond */
     };
 
+    /**
+     * @brief defines a defined static random address
+     *
+     * The address will be A:B:C:D:E:F
+     */
+    template < std::uint8_t A, std::uint8_t B, std::uint8_t C, std::uint8_t D, std::uint8_t E, std::uint8_t F >
+    struct static_address
+    {
+        /**
+         * @brief returns true, because this is a random address
+         */
+        static constexpr bool is_random()
+        {
+            return true;
+        }
+
+        /**
+         * @brief returns the static, configured address A:B:C:D:E:F
+         */
+        template < class Radio >
+        static address address( const Radio& )
+        {
+            static const std::uint8_t addr[] = { F, E, D, C, B, A };
+            return ::bluetoe::link_layer::address( addr );
+        }
+
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::device_address_meta_type meta_type;
+        /** @endcond */
+    };
+
     namespace details {
         struct sleep_clock_accuracy_meta_type {};
 
