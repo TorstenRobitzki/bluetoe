@@ -23,7 +23,8 @@ int main()
     small_temperature_service                   gatt;
     bluetoe::nrf51<
         small_temperature_service,
-        bluetoe::link_layer::advertising_interval< 1000u >
+        bluetoe::link_layer::advertising_interval< 50u >,
+        bluetoe::link_layer::static_address< 0xf0, 0xa6, 0xd5, 0x4f, 0x60, 0x0b >
     > server;
 
     for ( ;; )
