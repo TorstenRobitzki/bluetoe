@@ -23,7 +23,8 @@ namespace bluetoe
             virtual void end_event() = 0;
 
             virtual void received_data( const link_layer::read_buffer& ) = 0;
-            virtual link_layer::write_buffer more_data() = 0;
+            virtual link_layer::write_buffer next_transmit() = 0;
+            virtual link_layer::read_buffer allocate_receive_buffer() = 0;
 
             virtual ~adv_callbacks() {}
         };
@@ -79,6 +80,7 @@ namespace bluetoe
             volatile bool evt_timeout_;
             volatile bool end_evt_;
 
+
             enum class state {
                 idle,
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
@@ -96,12 +98,14 @@ namespace bluetoe
 
             volatile state                  state_;
 
-            // last scheduled action was an advertising
-            bool                            last_advertising_;
             bluetoe::link_layer::delta_time anchor_offset_;
             bool                            more_data_;
 
             link_layer::read_buffer         receive_buffer_;
+
+            // number of consecutive crc reveice errors
+            volatile unsigned               crc_reveice_failure_;
+            volatile bool                   received_data_during_connection_event_;
         };
 
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
@@ -122,6 +126,8 @@ namespace bluetoe
                 bluetoe::link_layer::delta_time             connection_interval );
 
         private:
+            using buffer = bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack > >;
+
             void adv_received( const link_layer::read_buffer& receive ) override
             {
                 static_cast< CallBack* >( this )->adv_received( receive );
@@ -148,10 +154,15 @@ namespace bluetoe
                 this->received( b );
             }
 
-            link_layer::write_buffer more_data() override
+            link_layer::write_buffer next_transmit() override
             {
                 // this function is called within an ISR context, so no need to disable interrupts
-                return this->next_transmit();
+                return buffer::next_transmit();
+            }
+
+            link_layer::read_buffer allocate_receive_buffer() override
+            {
+                return buffer::allocate_receive_buffer();
             }
         };
 
@@ -166,7 +177,7 @@ namespace bluetoe
             link_layer::read_buffer read;
             {
                 lock_guard lock;
-                read = this->allocate_receive_buffer();
+                read = buffer::allocate_receive_buffer();
             }
 
             start_connection_event( channel, start_receive, end_receive, read );

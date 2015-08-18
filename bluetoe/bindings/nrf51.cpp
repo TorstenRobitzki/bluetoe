@@ -16,10 +16,16 @@ namespace nrf51_details {
     // the timeout timer will be canceled when the address is received; that's after T_IFS (150µs +- 2) 5 Bytes and some addition 20µs
     static constexpr std::uint32_t      reponse_timeout_us   = 152 + 5 * 8 + 20;
     static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
+
+    static constexpr std::size_t        radio_address_capture2_ppi_channel = 26;
     static constexpr std::size_t        radio_end_capture2_ppi_channel = 27;
     static constexpr std::size_t        compare0_rxen_ppi_channel = 21;
     static constexpr std::size_t        compare1_disable_ppi_channel = 22;
     static constexpr std::uint8_t       more_data_flag = 0x10;
+
+    static constexpr unsigned           us_from_packet_start_to_address_end = ( 1 + 4 ) * 8;
+    static constexpr unsigned           us_radio_rx_startup_time            = 138;
+    static constexpr unsigned           connect_request_size                = 36;
 
     static void toggle_debug_pins()
     {
@@ -83,9 +89,8 @@ namespace nrf51_details {
             ( RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos ) |
             ( RADIO_CRCCNF_SKIPADDR_Skip << RADIO_CRCCNF_SKIPADDR_Pos );
 
-        // capture timer0 in CC[ 2 ] with every end event. This is used to define the first anchor when switching
-        // from advertising to connecting
-        NRF_PPI->CHENSET = 1 << radio_end_capture2_ppi_channel;
+        // capture timer0 in CC[ 2 ] with every address event. This is used to correct the anchor point, without the need to know the payload size.
+        NRF_PPI->CHENSET = 1 << radio_address_capture2_ppi_channel;
 
         // The polynomial has the form of x^24 +x^10 +x^9 +x^6 +x^4 +x^3 +x+1
         NRF_RADIO->CRCPOLY   = 0x100065B;
@@ -103,6 +108,8 @@ namespace nrf51_details {
         nrf_timer->TASKS_CLEAR = 1;
         nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
         nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 3 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 4 ] = 0;
         nrf_timer->INTENCLR    = 0xffffffff;
 
         nrf_timer->TASKS_START = 1;
@@ -127,7 +134,8 @@ namespace nrf51_details {
         , evt_timeout_( false )
         , end_evt_( false )
         , state_( state::idle )
-        , last_advertising_( false )
+        , crc_reveice_failure_( 0 )
+        , received_data_during_connection_event_( false )
     {
         // start high freuquence clock source if not done yet
         if ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
@@ -180,15 +188,13 @@ namespace nrf51_details {
         assert( state_ == state::idle );
         assert( receive.buffer && receive.size >= 2u || receive.empty() );
 
-        last_advertising_ = true;
-        const unsigned      frequency  = frequency_from_channel( channel );
         const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, maximum_advertising_pdu_size );
 
         more_data_           = false;
         receive_buffer_      = receive;
         receive_buffer_.size = std::min< std::size_t >( receive.size, maximum_advertising_pdu_size );
 
-        NRF_RADIO->FREQUENCY   = frequency;
+        NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
         NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( transmit.buffer );
         NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( send_size << RADIO_PCNF1_MAXLEN_Pos );
@@ -221,10 +227,10 @@ namespace nrf51_details {
             nrf_timer->CC[0]               = when.usec();
 
             // manually triggering event for timer beeing already behind target time
-            nrf_timer->TASKS_CAPTURE[ 1 ]  = 1;
+            nrf_timer->TASKS_CAPTURE[ 2 ]  = 1;
             nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
 
-            if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 1 ] >= nrf_timer->CC[ 0 ] )
+            if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 2 ] >= nrf_timer->CC[ 0 ] )
             {
                 state_ = state::adv_transmitting;
                 nrf_timer->TASKS_CLEAR = 1;
@@ -285,7 +291,7 @@ namespace nrf51_details {
         {
             NRF_RADIO->EVENTS_PAYLOAD = 0;
 
-            if ( state_ == state::adv_transmitting && !receive_buffer_.empty() )
+            if ( state_ == state::adv_transmitting )
             {
                 NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
                 NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
@@ -296,17 +302,20 @@ namespace nrf51_details {
             }
             else if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
             {
-                const auto trans = callbacks_.more_data();
+                const auto trans = callbacks_.next_transmit();
 
                 NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
                 NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
 
                 more_data_ = receive_buffer_.buffer[ 0 ] & more_data_flag;
-                more_data_ = more_data_ || trans.buffer[ 0 ] & more_data_flag;
+                more_data_ = more_data_ || ( trans.buffer[ 0 ] & more_data_flag ) != 0;
             }
             else if ( state_ == state::evt_transmiting )
             {
+                receive_buffer_ = callbacks_.allocate_receive_buffer();
 
+                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
             }
         }
 
@@ -330,8 +339,9 @@ namespace nrf51_details {
             }
             else if ( state_ == state::adv_transmitting && !receive_buffer_.empty() )
             {
-                NRF_RADIO->TASKS_RXEN          = 1;
                 state_ = state::adv_receiving;
+
+                NRF_RADIO->TASKS_RXEN          = 1;
 
                 nrf_timer->TASKS_CAPTURE[ 0 ]  = 1;
                 nrf_timer->CC[0]              += reponse_timeout_us;
@@ -345,6 +355,9 @@ namespace nrf51_details {
                 nrf_timer->INTENCLR            = TIMER_INTENSET_COMPARE0_Msk;
                 nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
 
+                // the anchor is the end of the connect request, the timer was captured at the end of the access address
+                anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 1 ] + connect_request_size * 8 );
+
                 if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
                 {
                     received_  = true;
@@ -356,10 +369,29 @@ namespace nrf51_details {
             }
             else if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
             {
-                if ( more_data_ )
+                if ( state_ == state::evt_wait_connect )
+                {
+                    received_data_during_connection_event_ = true;
+                    anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 1 ] - us_from_packet_start_to_address_end );
+                }
+
+                if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
+                {
+                    if ( !receive_buffer_.empty() )
+                        callbacks_.received_data( receive_buffer_ );
+
+                    crc_reveice_failure_ = 0;
+                }
+                else
+                {
+                    ++crc_reveice_failure_;
+                }
+
+                if ( more_data_ && crc_reveice_failure_ < 2 && false )
                 {
                     state_ = state::evt_transmiting;
 
+                    // radio is already ramping up for transmission
                     NRF_RADIO->SHORTS =
                         RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
                 }
@@ -370,12 +402,12 @@ namespace nrf51_details {
                     NRF_RADIO->SHORTS =
                         RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
                 }
-
-
-                if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
-                {
-                    callbacks_.received_data( receive_buffer_ );
-                }
+            }
+            else if ( state_ == state::evt_transmiting )
+            {
+                // radio is already ramping up for reception
+                NRF_RADIO->SHORTS =
+                    RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
             }
             else if ( state_ == state::evt_transmiting_closing )
             {
@@ -440,10 +472,11 @@ namespace nrf51_details {
 
         state_ = state::evt_wait_connect;
 
-        const unsigned      frequency  = frequency_from_channel( channel );
-        receive_buffer_ = receive_buffer;
+        receive_buffer_         = receive_buffer;
+        crc_reveice_failure_    = 0;
+        received_data_during_connection_event_ = false;
 
-        NRF_RADIO->FREQUENCY   = frequency;
+        NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
         NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
         NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer.size << RADIO_PCNF1_MAXLEN_Pos );
@@ -465,29 +498,25 @@ namespace nrf51_details {
         nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
         nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
 
-        // If last_advertising_ is set, there was no previous connection event, but an advertising event.
-        // CC[ 2 ] contains the time of the last radio end event, thus the anchor for the connection
-        if ( last_advertising_ )
-        {
-            last_advertising_ = false;
-            anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] );
-        }
+        nrf_timer->CC[ 0 ]             = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
+        nrf_timer->CC[ 1 ]             = end_receive.usec() + anchor_offset_.usec() + 1000;
 
-        nrf_timer->CC[ 0 ]             = start_receive.usec() + anchor_offset_.usec() - 138;
-        nrf_timer->CC[ 1 ]             = end_receive.usec() + anchor_offset_.usec();
+        NRF_PPI->CHENSET = ( 1 << compare0_rxen_ppi_channel ); //| ( 1 << compare1_disable_ppi_channel );
 
-        NRF_PPI->CHENSET = ( 1 << compare0_rxen_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
+        // manually triggering event for timer beeing already behind target time; this could result in
+        // timer ISR being called more than once and thus the ISR must be idempotent
+        // nrf_timer->TASKS_CAPTURE[ 2 ]  = 1;
 
-        // manually triggering event for timer beeing already behind target time
-        nrf_timer->TASKS_CAPTURE[ 2 ]  = 1;
+        // if ( nrf_timer->CC[ 2 ] >= nrf_timer->CC[ 0 ] )
+        // {
+        //     NRF_RADIO->TASKS_RXEN = 1;
+        //     nrf_timer->EVENTS_COMPARE[ 0 ] = 1;
+        // }
 
-        if ( nrf_timer->CC[ 2 ] >= nrf_timer->CC[ 0 ] )
-            nrf_timer->EVENTS_COMPARE[ 0 ] = 1;
+        // if ( nrf_timer->CC[ 2 ] >= nrf_timer->CC[ 1 ] )
+        //     nrf_timer->EVENTS_COMPARE[ 1 ] = 1;
 
-        if ( nrf_timer->CC[ 2 ] >= nrf_timer->CC[ 1 ] )
-            nrf_timer->EVENTS_COMPARE[ 1 ] = 1;
-
-        nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE1_Msk;
+        // nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE1_Msk;
     }
 }
 }
