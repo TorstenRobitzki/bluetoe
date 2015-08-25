@@ -30,9 +30,16 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
 };
 
 template < typename ... Options >
-struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
+class unconnected_base : public bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
 {
+public:
     typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+
+    unconnected_base()
+        : sequence_( 0 )
+        , next_expected_sequence_( 0 )
+    {
+    }
 
     void run()
     {
@@ -106,6 +113,37 @@ struct unconnected_base : bluetoe::link_layer::link_layer< small_temperature_ser
 
         }
     }
+
+
+    void ll_control_pdu( std::initializer_list< std::uint8_t > control )
+    {
+        std::vector< std::uint8_t > pdu = {
+            static_cast< std::uint8_t >( 0x03 | sequence_ | next_expected_sequence_ ),
+            static_cast< std::uint8_t >( control.size() ) };
+        pdu.insert( pdu.end(), control.begin(), control.end() );
+
+        const test::connection_event_response response{ false, { pdu } };
+
+        this->add_connection_event_respond( response );
+        next_sequences();
+    }
+
+    void ll_empty_pdu()
+    {
+        this->add_connection_event_respond( {
+            static_cast< std::uint8_t >( 0x01 | sequence_ | next_expected_sequence_ ), 0 } );
+        next_sequences();
+    }
+
+private:
+    void next_sequences()
+    {
+        sequence_ ^= 0x08;
+        next_expected_sequence_ ^= 0x04;
+    }
+
+    std::uint8_t sequence_;
+    std::uint8_t next_expected_sequence_;
 };
 
 struct unconnected : unconnected_base<> {};

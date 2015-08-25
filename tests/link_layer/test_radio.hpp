@@ -150,6 +150,8 @@ namespace test {
         void add_connection_event_respond( std::initializer_list< std::uint8_t > );
         void add_connection_event_respond_timeout();
 
+        void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
+
         /**
          * @brief returns 0x47110815
          */

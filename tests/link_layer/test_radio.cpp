@@ -390,6 +390,19 @@ namespace test {
             } );
     }
 
+    void radio_base::check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message )
+    {
+        for ( const auto& event : connection_events_ )
+        {
+            if ( filter( event ) && !check( event ) )
+            {
+                boost::test_tools::predicate_result result( false );
+                result.message() << message << ": " << event;
+                BOOST_CHECK( result );
+            }
+        }
+    }
+
     std::uint32_t radio_base::static_random_address_seed() const
     {
         return 0x47110815;
