@@ -42,6 +42,7 @@ BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeout
     BOOST_CHECK_EQUAL( event.end_receive, bluetoe::link_layer::delta_time::usec( 60000 + 33 ) );
 
 }
+
 /*
  * Once the link layer received a PDU from the master, the supervision timeout is in charge
  * In this example, the timeout is 720ms, the connection interval is 30ms, so the timeout is
@@ -52,3 +53,87 @@ BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_mas
     BOOST_CHECK_EQUAL( connection_events().size(), 26u );
 }
 
+template < std::uint16_t Instance = 5, std::uint64_t Map = 0x1FFFFFFFFF >
+struct connect_and_channel_map_request_base : unconnected
+{
+    static_assert( Instance > 0, "Instance > 0" );
+
+    void channel_map_request( std::uint16_t instance, std::uint64_t map )
+    {
+        ll_control_pdu( {
+            0x01,                                                   // opcode
+            static_cast< std::uint8_t >( map >> 0 ),                // map
+            static_cast< std::uint8_t >( map >> 8 ),
+            static_cast< std::uint8_t >( map >> 16 ),
+            static_cast< std::uint8_t >( map >> 24 ),
+            static_cast< std::uint8_t >( map >> 32 ),
+            static_cast< std::uint8_t >( instance >> 0 ),           // instance
+            static_cast< std::uint8_t >( instance >> 8 )
+        } );
+
+        for ( std::uint16_t instance = 1; instance != Instance; ++instance )
+        {
+            ll_empty_pdu();
+        }
+    }
+
+    connect_and_channel_map_request_base()
+    {
+        respond_to( 37, valid_connection_request_pdu );
+        channel_map_request( Instance, Map );
+
+        run();
+    }
+
+};
+
+using instance_in_past = connect_and_channel_map_request_base< 0xffff >;
+
+// static const auto filter_channel_map_requests = []( const test::connection_event& ev ) -> bool
+// {
+//     if ( ev.received_data.empty() )
+//         return false;
+
+//     const auto& pdu = ev.received_data.front();
+
+//     return pdu.size() > 2 && ( pdu[ 0 ] & 0x03 ) == 0x03 && pdu[ 2 ] == 0x01;
+// };
+
+/*
+ * When the instance is in the past, the slave should consider the connection to be lost.
+ * The bluetoe behaviour is to go back and advertise.
+ */
+BOOST_FIXTURE_TEST_CASE( channel_map_request_with_instance_in_past, instance_in_past )
+{
+    BOOST_CHECK_EQUAL( connection_events().size(), 1u );
+}
+
+using connect_and_channel_map_request = connect_and_channel_map_request_base<>;
+
+BOOST_FIXTURE_TEST_CASE( channel_map_request, connect_and_channel_map_request )
+{
+}
+
+/*
+ * This test should make sure that connEventCounter is incremented, event when an connection event timed out
+ */
+BOOST_FIXTURE_TEST_CASE( channel_map_request_with_one_timeout, connect_and_channel_map_request )
+{
+
+}
+
+/*
+ * This test should make sure the instance is correctly interpreted after the connect count wrapped from 0xffff to 0x0000
+ */
+BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, connect_and_channel_map_request )
+{
+
+}
+
+BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_two_pdus, only_one_pdu_from_master )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_only_one_pdus, only_one_pdu_from_master )
+{
+}
