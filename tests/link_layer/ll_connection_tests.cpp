@@ -108,6 +108,39 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_with_instance_in_past, instance_in_
     BOOST_CHECK_EQUAL( connection_events().size(), 1u );
 }
 
+BOOST_FIXTURE_TEST_CASE( channel_map_request_with_wrong_size, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+
+    ll_control_pdu( {
+        0x01,                                                   // opcode
+        0xff,                                                   // map
+        0xff,
+        0xff,
+        0xff,
+        0x00,
+        0,                                                      // instance
+        8,
+        0xaa                                                    // ups, too large
+    } );
+
+    ll_empty_pdu();                                             // the response is expected to this connection event
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    static constexpr std::uint8_t expected_response[] = {
+        0x03, 0x02,             // ll header
+        0x07, 0x01
+    };
+
+    auto response = connection_events().at( 1u ).transmitted_data.front();
+    response.at( 0 ) &= 0x03;
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::end( response ), std::begin( expected_response ), std::end( expected_response ) );
+}
+
 using connect_and_channel_map_request = connect_and_channel_map_request_base<>;
 
 BOOST_FIXTURE_TEST_CASE( channel_map_request, connect_and_channel_map_request )
