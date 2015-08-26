@@ -159,6 +159,8 @@ namespace test {
         std::uint32_t static_random_address_seed() const;
 
         static const bluetoe::link_layer::delta_time T_IFS;
+
+        void end_of_simulation( bluetoe::link_layer::delta_time );
     protected:
         typedef std::vector< advertising_data > advertising_list;
         advertising_list advertised_data_;
@@ -178,6 +180,8 @@ namespace test {
         std::uint8_t    master_sequence_number_    = 0;
         std::uint8_t    master_ne_sequence_number_ = 0;
 
+        // end of simulations
+        bluetoe::link_layer::delta_time eos_;
 
         advertising_list::const_iterator next( std::vector< advertising_data >::const_iterator, const std::function< bool ( const advertising_data& ) >& filter ) const;
 
@@ -219,9 +223,7 @@ namespace test {
          */
         void run();
     private:
-        // end of simulations
-        const bluetoe::link_layer::delta_time eos_;
-              bluetoe::link_layer::delta_time now_;
+        bluetoe::link_layer::delta_time now_;
 
         void simulate_advertising_response();
         void simulate_connection_event_response();
@@ -243,8 +245,7 @@ namespace test {
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     radio< TransmitSize, ReceiveSize, CallBack >::radio()
-        : eos_( bluetoe::link_layer::delta_time::seconds( 10 ) )
-        , now_( bluetoe::link_layer::delta_time::now() )
+        : now_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
     {
     }

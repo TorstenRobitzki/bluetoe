@@ -53,35 +53,37 @@ BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_mas
     BOOST_CHECK_EQUAL( connection_events().size(), 26u );
 }
 
+void add_channel_map_request( unconnected& c, std::uint16_t instance, std::uint64_t map )
+{
+    c.ll_control_pdu( {
+        0x01,                                                   // opcode
+        static_cast< std::uint8_t >( map >> 0 ),                // map
+        static_cast< std::uint8_t >( map >> 8 ),
+        static_cast< std::uint8_t >( map >> 16 ),
+        static_cast< std::uint8_t >( map >> 24 ),
+        static_cast< std::uint8_t >( map >> 32 ),
+        static_cast< std::uint8_t >( instance >> 0 ),           // instance
+        static_cast< std::uint8_t >( instance >> 8 )
+    } );
+}
+
+void add_empty_pdus( unconnected& c, unsigned count )
+{
+
+    for ( ; count; --count )
+        c.ll_empty_pdu();
+}
+
 template < std::uint16_t Instance = 6, std::uint64_t Map = 0x1555555555, unsigned EmptyPDUs = Instance + 2 >
 struct setup_connect_and_channel_map_request_base : unconnected
 {
     static_assert( Instance > 0, "Instance > 0" );
 
-    void channel_map_request( std::uint16_t instance, std::uint64_t map )
-    {
-        ll_control_pdu( {
-            0x01,                                                   // opcode
-            static_cast< std::uint8_t >( map >> 0 ),                // map
-            static_cast< std::uint8_t >( map >> 8 ),
-            static_cast< std::uint8_t >( map >> 16 ),
-            static_cast< std::uint8_t >( map >> 24 ),
-            static_cast< std::uint8_t >( map >> 32 ),
-            static_cast< std::uint8_t >( instance >> 0 ),           // instance
-            static_cast< std::uint8_t >( instance >> 8 )
-        } );
-    }
-
     setup_connect_and_channel_map_request_base()
     {
         respond_to( 37, valid_connection_request_pdu );
-        channel_map_request( Instance, Map );
-
-
-        for ( unsigned empty = 0; empty != EmptyPDUs; ++empty )
-        {
-            ll_empty_pdu();
-        }
+        add_channel_map_request( *this, Instance, Map );
+        add_empty_pdus( *this, EmptyPDUs );
     }
 
 };
@@ -230,13 +232,34 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_within_timeout, channel_map_request
     }
 }
 
+struct channel_map_request_after_connection_count_wrap_fixture : unconnected
+{
+    channel_map_request_after_connection_count_wrap_fixture()
+    {
+        respond_to( 37, valid_connection_request_pdu );
+
+        add_empty_pdus( *this, 0x10000 - 4 );
+        add_channel_map_request( *this, 2, 0x1000000001 );
+        add_empty_pdus( *this, 8 );
+    }
+};
+
+#ifdef BLUETOE_EXECUTE_SLOW_TESTS
+
 /*
  * This test should make sure the instance is correctly interpreted after the connect count wrapped from 0xffff to 0x0000
  */
-BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, connect_and_channel_map_request )
+BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, channel_map_request_after_connection_count_wrap_fixture )
 {
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 3000 ) );
+    run();
 
+    BOOST_CHECK_EQUAL( connection_events().at( 0x10002 ).channel, 36 );
+    BOOST_CHECK_EQUAL( connection_events().at( 0x10003 ).channel, 36 );
+    BOOST_CHECK_EQUAL( connection_events().at( 0x10004 ).channel, 36 );
 }
+
+#endif
 
 BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_two_pdus, only_one_pdu_from_master )
 {

@@ -95,6 +95,7 @@ namespace test {
 
     radio_base::radio_base()
         : access_address_and_crc_valid_( false )
+        , eos_( bluetoe::link_layer::delta_time::seconds( 10 ) )
     {
     }
 
@@ -414,5 +415,10 @@ namespace test {
     }
 
     const bluetoe::link_layer::delta_time radio_base::T_IFS = bluetoe::link_layer::delta_time( 150u );
+
+    void radio_base::end_of_simulation( bluetoe::link_layer::delta_time eos )
+    {
+        eos_ = eos;
+    }
 
 }
