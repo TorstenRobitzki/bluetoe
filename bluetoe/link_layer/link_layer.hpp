@@ -107,6 +107,8 @@ namespace link_layer {
         };
 
         ll_result handle_received_data();
+        ll_result handle_ll_control_data( const write_buffer& pdu );
+        void handle_defered_ll_control();
 
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
@@ -131,6 +133,15 @@ namespace link_layer {
         static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
         static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
 
+        static constexpr std::uint8_t   LL_UNKNOWN_RSP        = 0x07;
+        static constexpr std::uint8_t   LL_VERSION_IND        = 0x0C;
+        static constexpr std::uint8_t   LL_PING_REQ           = 0x12;
+        static constexpr std::uint8_t   LL_PING_RSP           = 0x13;
+        static constexpr std::uint8_t   LL_CHANNEL_MAP_REQ    = 0x01;
+
+        static constexpr std::uint8_t   LL_VERSION_NR         = 0x08;
+
+
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
         static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ) + maximum_adv_request_size, "buffer to small" );
 
@@ -141,11 +152,14 @@ namespace link_layer {
         unsigned                        adv_perturbation_;
         const address                   address_;
         channel_map                     channels_;
+        std::uint8_t                    hop_;
         unsigned                        cumulated_sleep_clock_accuracy_;
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
         std::uint16_t                   conn_event_counter_;
+        std::uint16_t                   defered_conn_event_counter_;
+        write_buffer                    defered_ll_control_pdu_;
         unsigned                        timeouts_til_connection_lost_;
         unsigned                        max_timeouts_til_connection_lost_;
         Server*                         server_;
@@ -181,6 +195,7 @@ namespace link_layer {
         , current_channel_index_( first_advertising_channel )
         , adv_perturbation_( 0 )
         , address_( device_address::address( *this ) )
+        , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
         , state_( state::initial )
     {
@@ -216,7 +231,8 @@ namespace link_layer {
             && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
             && parse_timing_parameters_from_connect_request( receive ) )
         {
-            state_                          = state::connecting;
+            hop_                      = receive.buffer[ 35 ] & 0x1f;
+            state_                    = state::connecting;
             current_channel_index_    = 0;
             conn_event_counter_       = 0;
             cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
@@ -314,6 +330,7 @@ namespace link_layer {
         state_                        = state::connected;
         current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
         timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
+        ++conn_event_counter_;
 
         delta_time window_size  = connection_interval_.ppm( cumulated_sleep_clock_accuracy_ );
         delta_time window_start = connection_interval_ - window_size;
@@ -325,7 +342,6 @@ namespace link_layer {
         }
         else
         {
-            ++conn_event_counter_;
             this->schedule_connection_event(
                 channels_.data_channel( current_channel_index_ ),
                 window_start,
@@ -486,56 +502,90 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
     {
-        static constexpr std::uint8_t LL_UNKNOWN_RSP        = 0x07;
-        static constexpr std::uint8_t LL_VERSION_IND        = 0x0C;
-        static constexpr std::uint8_t LL_PING_REQ           = 0x12;
-        static constexpr std::uint8_t LL_PING_RSP           = 0x13;
-        static constexpr std::uint8_t LL_CHANNEL_MAP_REQ    = 0x01;
-
-        static constexpr std::uint8_t LL_VERSION_NR         = 0x08;
-
         ll_result result = ll_result::go_ahead;
 
-        for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
+        if ( defered_ll_control_pdu_.empty() )
         {
-            // the allocated size could be optimized to the required size for the answer
-            auto write = this->allocate_transmit_buffer();
-            if ( write.size == 0 )
-                return result;
+            for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
+                result = handle_ll_control_data( pdu );
+        }
+        else if ( defered_conn_event_counter_ == conn_event_counter_ )
+        {
+            handle_defered_ll_control();
 
-            assert( write.size >= radio_t::min_buffer_size );
-
-            if ( ( pdu.buffer[ 0 ] & 0x3 ) == ll_control_pdu_code )
-            {
-
-                const std::uint8_t size   = pdu.buffer[ 1 ];
-                const std::uint8_t opcode = size > 0 ? pdu.buffer[ 2 ] : 0xff;
-
-                if ( opcode == LL_VERSION_IND && size == 6 )
-                {
-                    write.fill( {
-                        ll_control_pdu_code, 6, LL_VERSION_IND,
-                        LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
-                    } );
-                }
-                else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
-                {
-                    result = ll_result::disconnect;
-                }
-                else if ( opcode == LL_PING_REQ && size == 1 )
-                {
-                    write.fill( { ll_control_pdu_code, 1, LL_PING_RSP } );
-                }
-                else
-                {
-                    write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
-                }
-
-                this->commit_transmit_buffer( write );
-            }
+            // defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
         }
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_ll_control_data( const write_buffer& pdu )
+    {
+        ll_result result = ll_result::go_ahead;
+
+        // the allocated size could be optimized to the required size for the answer
+        auto write = this->allocate_transmit_buffer();
+        if ( write.size == 0 )
+            return result;
+
+        assert( write.size >= radio_t::min_buffer_size );
+
+        if ( ( pdu.buffer[ 0 ] & 0x3 ) == ll_control_pdu_code )
+        {
+
+            const std::uint8_t size   = pdu.buffer[ 1 ];
+            const std::uint8_t opcode = size > 0 ? pdu.buffer[ 2 ] : 0xff;
+
+            if ( opcode == LL_VERSION_IND && size == 6 )
+            {
+                write.fill( {
+                    ll_control_pdu_code, 6, LL_VERSION_IND,
+                    LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
+                } );
+            }
+            else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
+            {
+                defered_conn_event_counter_ = read_16( &pdu.buffer[ 8 ] );
+
+                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000 )
+                {
+                    result = ll_result::disconnect;
+                }
+                else
+                {
+                    defered_ll_control_pdu_ = pdu;
+                }
+            }
+            else if ( opcode == LL_PING_REQ && size == 1 )
+            {
+                write.fill( { ll_control_pdu_code, 1, LL_PING_RSP } );
+            }
+            else
+            {
+                write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
+            }
+
+            this->commit_transmit_buffer( write );
+        }
+
+        return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::handle_defered_ll_control()
+    {
+        const std::uint8_t opcode = defered_ll_control_pdu_.buffer[ 2 ];
+
+        if ( opcode == LL_CHANNEL_MAP_REQ )
+        {
+            channels_.reset( &defered_ll_control_pdu_.buffer[ 3 ], hop_ );
+        }
+        else
+        {
+            assert( !"invalid opcode" );
+        }
+
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

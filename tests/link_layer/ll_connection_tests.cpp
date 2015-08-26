@@ -53,7 +53,7 @@ BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_mas
     BOOST_CHECK_EQUAL( connection_events().size(), 26u );
 }
 
-template < std::uint16_t Instance = 5, std::uint64_t Map = 0x1FFFFFFFFF >
+template < std::uint16_t Instance = 6, std::uint64_t Map = 0x1555555555, unsigned EmptyPDUs = Instance + 2 >
 struct connect_and_channel_map_request_base : unconnected
 {
     static_assert( Instance > 0, "Instance > 0" );
@@ -70,11 +70,6 @@ struct connect_and_channel_map_request_base : unconnected
             static_cast< std::uint8_t >( instance >> 0 ),           // instance
             static_cast< std::uint8_t >( instance >> 8 )
         } );
-
-        for ( std::uint16_t instance = 1; instance != Instance; ++instance )
-        {
-            ll_empty_pdu();
-        }
     }
 
     connect_and_channel_map_request_base()
@@ -82,12 +77,18 @@ struct connect_and_channel_map_request_base : unconnected
         respond_to( 37, valid_connection_request_pdu );
         channel_map_request( Instance, Map );
 
+
+        for ( unsigned empty = 0; empty != EmptyPDUs; ++empty )
+        {
+            ll_empty_pdu();
+        }
+
         run();
     }
 
 };
 
-using instance_in_past = connect_and_channel_map_request_base< 0xffff >;
+using instance_in_past = connect_and_channel_map_request_base< 0xffff, 0x1555555555, 20 >;
 
 // static const auto filter_channel_map_requests = []( const test::connection_event& ev ) -> bool
 // {
@@ -114,19 +115,12 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_with_wrong_size, unconnected )
 
     ll_control_pdu( {
         0x01,                                                   // opcode
-        0xff,                                                   // map
-        0xff,
-        0xff,
-        0xff,
-        0x00,
-        0,                                                      // instance
-        8,
+        0xff, 0xff, 0xff, 0xff, 0x00,                           // map
+        0, 8,                                                   // instance
         0xaa                                                    // ups, too large
     } );
 
     ll_empty_pdu();                                             // the response is expected to this connection event
-    ll_empty_pdu();
-    ll_empty_pdu();
 
     run();
 
@@ -143,8 +137,20 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_with_wrong_size, unconnected )
 
 using connect_and_channel_map_request = connect_and_channel_map_request_base<>;
 
+/*
+ * In this test, the odd channels are removed in connection event number 6. 19 channels remain.
+ */
 BOOST_FIXTURE_TEST_CASE( channel_map_request, connect_and_channel_map_request )
 {
+    static constexpr unsigned expected_hop_sequence[] = {
+        10, 20, 30, 3, 13, 23, // connection event 0-5
+        28, 6
+    };
+
+    for ( unsigned i = 0; i != sizeof( expected_hop_sequence ) / sizeof( expected_hop_sequence[ 0 ] ); ++i )
+    {
+        BOOST_CHECK_EQUAL( connection_events().at( i ).channel, expected_hop_sequence[ i ] );
+    }
 }
 
 /*

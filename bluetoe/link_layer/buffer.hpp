@@ -59,6 +59,14 @@ namespace link_layer {
 
         /** @copydoc read_buffer::size */
         std::size_t         size;
+
+        /**
+         * @brief returns true, if the buffer is empty
+         */
+        bool empty() const
+        {
+            return buffer == nullptr && size == 0;
+        }
     };
 
     /**
