@@ -15,13 +15,20 @@ namespace link_layer {
         channel_map();
 
         /**
-         * sets a new list of used channels and a new hop value.
+         * @brief sets a new list of used channels and a new hop value.
          *
          * The function returns true, if the given parameters are valid.
          * A valid map contains at least 2 channel.
          * A hop increment shall have a value in the range of 5 to 16.
          */
         bool reset( const std::uint8_t* map, const unsigned hop );
+
+        /**
+         * @brief sets a new list of used channels and keeps the old hop value.
+         *
+         * @pre reset( const std::uint8_t* map, const unsigned hop ) must have been called before, to have an old hop value
+         */
+        bool reset( const std::uint8_t* map );
 
         /**
          * the BLE channel hop sequence is 37 entries long, after 37 hops, the sequence starts again.
@@ -38,6 +45,7 @@ namespace link_layer {
         unsigned build_used_channel_map( const std::uint8_t* map, std::uint8_t* used ) const;
 
         std::uint8_t map_[ max_number_of_data_channels ];
+        std::uint8_t hop_;
     };
 }
 }

@@ -5,6 +5,7 @@ namespace bluetoe {
 namespace link_layer {
 
     channel_map::channel_map()
+        : hop_( 0 )
     {
     }
 
@@ -36,6 +37,8 @@ namespace link_layer {
         if ( hop < 5 || hop > 16 )
             return false;
 
+        hop_ = hop;
+
         std::uint8_t   used_channels[ max_number_of_data_channels ];
         const unsigned used_channels_count = build_used_channel_map( map, used_channels );
 
@@ -57,6 +60,11 @@ namespace link_layer {
         }
 
         return true;
+    }
+
+    bool channel_map::reset( const std::uint8_t* map )
+    {
+        return reset( map, hop_ );
     }
 
     unsigned channel_map::data_channel( unsigned index ) const

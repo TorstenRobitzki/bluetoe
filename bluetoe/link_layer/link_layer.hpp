@@ -152,7 +152,6 @@ namespace link_layer {
         unsigned                        adv_perturbation_;
         const address                   address_;
         channel_map                     channels_;
-        std::uint8_t                    hop_;
         unsigned                        cumulated_sleep_clock_accuracy_;
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
@@ -231,7 +230,6 @@ namespace link_layer {
             && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
             && parse_timing_parameters_from_connect_request( receive ) )
         {
-            hop_                      = receive.buffer[ 35 ] & 0x1f;
             state_                    = state::connecting;
             current_channel_index_    = 0;
             conn_event_counter_       = 0;
@@ -579,7 +577,7 @@ namespace link_layer {
 
         if ( opcode == LL_CHANNEL_MAP_REQ )
         {
-            channels_.reset( &defered_ll_control_pdu_.buffer[ 3 ], hop_ );
+            channels_.reset( &defered_ll_control_pdu_.buffer[ 3 ] );
         }
         else
         {

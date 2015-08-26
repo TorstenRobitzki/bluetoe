@@ -178,3 +178,11 @@ BOOST_FIXTURE_TEST_CASE( valid_hops_are_recognized, bluetoe::link_layer::channel
     BOOST_CHECK( reset( all_but_one_map, 10 ) );
     BOOST_CHECK( reset( all_channel_map, 16 ) );
 }
+
+BOOST_FIXTURE_TEST_CASE( stores_the_right_hop, all_channel_5 )
+{
+    BOOST_CHECK( reset( only_two_channels_map ) );
+
+    BOOST_CHECK_EQUAL( data_channel( 0  ), 36 );
+    BOOST_CHECK_EQUAL( data_channel( 1  ), 0 );
+}
