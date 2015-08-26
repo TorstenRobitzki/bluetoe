@@ -54,7 +54,7 @@ BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_mas
 }
 
 template < std::uint16_t Instance = 6, std::uint64_t Map = 0x1555555555, unsigned EmptyPDUs = Instance + 2 >
-struct connect_and_channel_map_request_base : unconnected
+struct setup_connect_and_channel_map_request_base : unconnected
 {
     static_assert( Instance > 0, "Instance > 0" );
 
@@ -72,7 +72,7 @@ struct connect_and_channel_map_request_base : unconnected
         } );
     }
 
-    connect_and_channel_map_request_base()
+    setup_connect_and_channel_map_request_base()
     {
         respond_to( 37, valid_connection_request_pdu );
         channel_map_request( Instance, Map );
@@ -82,10 +82,17 @@ struct connect_and_channel_map_request_base : unconnected
         {
             ll_empty_pdu();
         }
-
-        run();
     }
 
+};
+
+template < std::uint16_t Instance = 6, std::uint64_t Map = 0x1555555555, unsigned EmptyPDUs = Instance + 2 >
+struct connect_and_channel_map_request_base : setup_connect_and_channel_map_request_base< Instance, Map, EmptyPDUs >
+{
+    connect_and_channel_map_request_base()
+    {
+        this->run();
+    }
 };
 
 using instance_in_past = connect_and_channel_map_request_base< 0xffff, 0x1555555555, 20 >;
@@ -151,6 +158,27 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request, connect_and_channel_map_request )
     {
         BOOST_CHECK_EQUAL( connection_events().at( i ).channel, expected_hop_sequence[ i ] );
     }
+}
+
+using setup_connect_and_channel_map_request = setup_connect_and_channel_map_request_base<>;
+
+/*
+ * Make sure, that after a channel map request, the link layer still works as expected
+ */
+BOOST_FIXTURE_TEST_CASE( link_layer_still_active_after_channel_map_request, setup_connect_and_channel_map_request )
+{
+    ll_control_pdu( { 0x12 } ); // this will be send within the 10th connection event
+    ll_empty_pdu();             // the response is expected to this connection event
+    run();
+
+    // and the response is send with the 11th event
+    BOOST_REQUIRE( !connection_events().at( 10 ).transmitted_data.empty() );
+    auto pdu = connection_events().at( 10 ).transmitted_data.front();
+    BOOST_REQUIRE( !pdu.empty() );
+    pdu[ 0 ] &= 0x3;
+
+    static constexpr std::uint8_t expected_response[] = { 0x03, 0x01, 0x13 };
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( pdu ), std::end( pdu ), std::begin( expected_response ), std::end( expected_response ) );
 }
 
 /*

@@ -511,7 +511,7 @@ namespace link_layer {
         {
             handle_defered_ll_control();
 
-            // defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
+            defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
         }
 
         return result;
