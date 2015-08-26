@@ -390,6 +390,11 @@ namespace test {
             } );
     }
 
+    void radio_base::add_connection_event_respond_timeout()
+    {
+        add_connection_event_respond( connection_event_response{ true, pdu_list_t() } );
+    }
+
     void radio_base::check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message )
     {
         for ( const auto& event : connection_events_ )

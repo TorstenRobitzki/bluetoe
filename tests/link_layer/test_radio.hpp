@@ -31,7 +31,8 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const advertising_data& data );
 
-    typedef std::vector< std::vector< std::uint8_t > > pdu_list_t;
+    using pdu_t = std::vector< std::uint8_t >;
+    using pdu_list_t = std::vector< pdu_t >;
 
     struct connection_event
     {

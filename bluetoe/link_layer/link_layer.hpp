@@ -108,7 +108,7 @@ namespace link_layer {
 
         ll_result handle_received_data();
         ll_result handle_ll_control_data( const write_buffer& pdu );
-        void handle_defered_ll_control();
+        void handle_pending_ll_control();
 
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
@@ -289,6 +289,9 @@ namespace link_layer {
             current_channel_index_ = ( current_channel_index_ + 1 ) % first_advertising_channel;
 
             --timeouts_til_connection_lost_;
+            ++conn_event_counter_;
+
+            handle_pending_ll_control();
 
             if ( state_ == state::connecting )
             {
@@ -500,18 +503,14 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
     {
+        handle_pending_ll_control();
+
         ll_result result = ll_result::go_ahead;
 
         if ( defered_ll_control_pdu_.empty() )
         {
             for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
                 result = handle_ll_control_data( pdu );
-        }
-        else if ( defered_conn_event_counter_ == conn_event_counter_ )
-        {
-            handle_defered_ll_control();
-
-            defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
         }
 
         return result;
@@ -571,19 +570,23 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::handle_defered_ll_control()
+    void link_layer< Server, ScheduledRadio, Options... >::handle_pending_ll_control()
     {
-        const std::uint8_t opcode = defered_ll_control_pdu_.buffer[ 2 ];
-
-        if ( opcode == LL_CHANNEL_MAP_REQ )
+        if ( !defered_ll_control_pdu_.empty() && defered_conn_event_counter_ == conn_event_counter_ )
         {
-            channels_.reset( &defered_ll_control_pdu_.buffer[ 3 ] );
-        }
-        else
-        {
-            assert( !"invalid opcode" );
-        }
+            const std::uint8_t opcode = defered_ll_control_pdu_.buffer[ 2 ];
 
+            if ( opcode == LL_CHANNEL_MAP_REQ )
+            {
+                channels_.reset( &defered_ll_control_pdu_.buffer[ 3 ] );
+            }
+            else
+            {
+                assert( !"invalid opcode" );
+            }
+
+            defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

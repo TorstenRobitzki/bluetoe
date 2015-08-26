@@ -181,12 +181,53 @@ BOOST_FIXTURE_TEST_CASE( link_layer_still_active_after_channel_map_request, setu
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( pdu ), std::end( pdu ), std::begin( expected_response ), std::end( expected_response ) );
 }
 
+using channel_map_request_with_one_timeout_fixture = setup_connect_and_channel_map_request_base< 5, 0x1000000001, 2 >;
+
 /*
  * This test should make sure that connEventCounter is incremented, event when an connection event timed out
  */
-BOOST_FIXTURE_TEST_CASE( channel_map_request_with_one_timeout, connect_and_channel_map_request )
+BOOST_FIXTURE_TEST_CASE( channel_map_request_with_one_timeout, channel_map_request_with_one_timeout_fixture )
 {
+    add_connection_event_respond_timeout(); // event 3
+    ll_empty_pdu();
+    ll_empty_pdu();                         // event 5; here the map change is applied
+    ll_empty_pdu();
 
+    run();
+
+    static constexpr unsigned expected_hop_sequence[] = {
+        10, 20, 30, 3, 13, // connection event 0-4
+        36, 36
+    };
+
+    for ( unsigned i = 0; i != sizeof( expected_hop_sequence ) / sizeof( expected_hop_sequence[ 0 ] ); ++i )
+    {
+        BOOST_CHECK_EQUAL( connection_events().at( i ).channel, expected_hop_sequence[ i ] );
+    }
+}
+
+/*
+ * This test should make sure that even when the map change is to be applied on an event, where a timeout
+ * occures, that the map change is applied correctly
+ */
+BOOST_FIXTURE_TEST_CASE( channel_map_request_within_timeout, channel_map_request_with_one_timeout_fixture )
+{
+    ll_empty_pdu(); // event 3
+    add_connection_event_respond_timeout();
+    ll_empty_pdu(); // event 5; here the map change is applied
+    ll_empty_pdu();
+
+    run();
+
+    static constexpr unsigned expected_hop_sequence[] = {
+        10, 20, 30, 3, 13, // connection event 0-4
+        36, 36
+    };
+
+    for ( unsigned i = 0; i != sizeof( expected_hop_sequence ) / sizeof( expected_hop_sequence[ 0 ] ); ++i )
+    {
+        BOOST_CHECK_EQUAL( connection_events().at( i ).channel, expected_hop_sequence[ i ] );
+    }
 }
 
 /*
