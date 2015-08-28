@@ -74,6 +74,13 @@ void add_empty_pdus( unconnected& c, unsigned count )
         c.ll_empty_pdu();
 }
 
+void add_ll_timeouts( unconnected& c, unsigned count )
+{
+
+    for ( ; count; --count )
+        c.add_connection_event_respond_timeout();
+}
+
 template < std::uint16_t Instance = 6, std::uint64_t Map = 0x1555555555, unsigned EmptyPDUs = Instance + 2 >
 struct setup_connect_and_channel_map_request_base : unconnected
 {
@@ -291,18 +298,24 @@ BOOST_FIXTURE_TEST_CASE( connection_update_in_the_past, unconnected )
     BOOST_CHECK_EQUAL( connection_events().size(), 1u );
 }
 
+struct connected_and_valid_connection_update_request : unconnected
+{
+    connected_and_valid_connection_update_request()
+    {
+        respond_to( 37, valid_connection_request_pdu );
+        add_connection_update_request( *this, 5, 6, 40, 1, 200, 6 );
+        add_empty_pdus( *this, 20 );
+
+        run();
+    }
+};
+
 /*
  * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
  * The old connection interval is 30ms
  */
-BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, unconnected )
+BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_and_valid_connection_update_request )
 {
-    respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( *this, 5, 6, 40, 1, 200, 6 );
-    add_empty_pdus( *this, 6 );
-
-    run();
-
     auto const evt = connection_events()[ 6 ];
 
     bluetoe::link_layer::delta_time window_start( 30000 + 7500 );
@@ -314,4 +327,87 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, unconnected 
 
     BOOST_CHECK_EQUAL( evt.start_receive, window_start );
     BOOST_CHECK_EQUAL( evt.end_receive, window_end );
+}
+
+/*
+ * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
+ * The new connection interval is 50ms
+ */
+BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used, connected_and_valid_connection_update_request )
+{
+    auto const evt = connection_events()[ 7 ];
+
+    const bluetoe::link_layer::delta_time event_start( 50000 );
+
+    BOOST_CHECK_EQUAL( evt.start_receive, event_start - event_start.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( evt.end_receive, event_start + event_start.ppm( 550 ) );
+}
+
+/*
+ * The old connection timeout is 720ms, the new connection timeout is 250ms
+ * The new connection interval is 50ms, so after 5 connection events with timeout, the connection is timed out.
+ */
+BOOST_FIXTURE_TEST_CASE( connection_update_correct_timeout_used, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( *this, 5, 6, 40, 1, 25, 6 );
+    add_empty_pdus( *this, 6 );
+    add_ll_timeouts( *this, 10 );
+
+    run();
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 8 + 5 );
+}
+
+static void simulate_connection_update_request(
+    unconnected& c, std::uint8_t win_size, std::uint16_t win_offset, std::uint16_t interval,
+    std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
+{
+    c.respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( c, win_size, win_offset, interval, latency, timeout, instance );
+    add_empty_pdus( c, 10 );
+
+    c.run();
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_size, unconnected )
+{
+    simulate_connection_update_request( *this, 205, 6, 40, 1, 25, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_offset, unconnected )
+{
+    simulate_connection_update_request( *this, 5, 206, 40, 1, 25, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_interval, unconnected )
+{
+    simulate_connection_update_request( *this, 5, 6, 3200, 1, 25, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_latency, unconnected )
+{
+    simulate_connection_update_request( *this, 5, 6, 40, 500, 25, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_timeout, unconnected )
+{
+    simulate_connection_update_request( *this, 5, 6, 40, 1, 3300, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_instance, unconnected )
+{
+    simulate_connection_update_request( *this, 5, 6, 40, 1, 25, 1 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 1 );
 }

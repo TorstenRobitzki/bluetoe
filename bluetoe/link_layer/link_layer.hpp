@@ -94,6 +94,7 @@ namespace link_layer {
         bool is_valid_scan_request( const read_buffer& receive ) const;
         bool is_valid_connect_request( const read_buffer& receive ) const;
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
+        bool check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const;
         bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
         bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
         void start_advertising();
@@ -110,7 +111,7 @@ namespace link_layer {
 
         ll_result handle_received_data();
         ll_result handle_ll_control_data( const write_buffer& pdu );
-        void handle_pending_ll_control();
+        ll_result handle_pending_ll_control();
 
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
@@ -294,8 +295,14 @@ namespace link_layer {
             --timeouts_til_connection_lost_;
             ++conn_event_counter_;
 
-            handle_pending_ll_control();
-            wait_for_connection_event();
+            if ( handle_pending_ll_control() == ll_result::disconnect )
+            {
+                start_advertising();
+            }
+            else
+            {
+                wait_for_connection_event();
+            }
         }
         else
         {
@@ -448,12 +455,25 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request )
+    bool link_layer< Server, ScheduledRadio, Options... >::check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const
     {
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
         static constexpr auto       max_slave_latency = 499;
+
+        return transmit_window_size_ <= maximum_transmit_window_offset
+            && transmit_window_size_ <= connection_interval_
+            && transmit_window_offset_ <= connection_interval_
+            && timeout >= minimum_connection_timeout
+            && timeout <= maximum_connection_timeout
+            && timeout >= ( slave_latency + 1 ) * 2 * connection_interval_
+            && slave_latency <= max_slave_latency;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request )
+    {
         static constexpr auto       us_per_digits = 1250;
 
         transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
@@ -462,17 +482,9 @@ namespace link_layer {
         auto slave_latency      = read_16( &valid_connect_request.buffer[ 26 ] );
         delta_time timeout      = delta_time( read_16( &valid_connect_request.buffer[ 28 ] ) * 10000 );
 
-        bool result = transmit_window_size_ <= maximum_transmit_window_offset
-                   && transmit_window_size_ <= connection_interval_
-                   && transmit_window_offset_ <= connection_interval_
-                   && timeout >= minimum_connection_timeout
-                   && timeout <= maximum_connection_timeout
-                   && timeout >= ( slave_latency + 1 ) * 2 * connection_interval_
-                   && slave_latency <= max_slave_latency;
-
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
-        return result;
+        return check_timing_paremeters( slave_latency, timeout );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -483,12 +495,12 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_update_request.buffer[ 3 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_update_request.buffer[ 4 ] ) * us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_update_request.buffer[ 6 ] ) * us_per_digits );
-        //auto slave_latency      = read_16( &valid_update_request.buffer[ 8 ] );
+        auto slave_latency      = read_16( &valid_update_request.buffer[ 8 ] );
         delta_time timeout      = delta_time( read_16( &valid_update_request.buffer[ 10 ] ) * 10000 );
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
-        return true;
+        return check_timing_paremeters( slave_latency, timeout );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -496,6 +508,7 @@ namespace link_layer {
     {
         state_ = state::advertising;
         current_channel_index_ = first_advertising_channel;
+        defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
 
         fill_advertising_buffer();
         fill_advertising_response_buffer();
@@ -531,11 +544,9 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
     {
-        handle_pending_ll_control();
+        ll_result result = handle_pending_ll_control();
 
-        ll_result result = ll_result::go_ahead;
-
-        if ( defered_ll_control_pdu_.empty() )
+        if ( result == ll_result::go_ahead && defered_ll_control_pdu_.empty() )
         {
             for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
                 result = handle_ll_control_data( pdu );
@@ -566,7 +577,8 @@ namespace link_layer {
             {
                 defered_conn_event_counter_ = read_16( &pdu.buffer[ 12 ] );
 
-                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000 )
+                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000
+                    || defered_conn_event_counter_ == conn_event_counter_ )
                 {
                     result = ll_result::disconnect;
                 }
@@ -611,8 +623,10 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::handle_pending_ll_control()
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_pending_ll_control()
     {
+        ll_result result = ll_result::go_ahead;
+
         if ( !defered_ll_control_pdu_.empty() && defered_conn_event_counter_ == conn_event_counter_ )
         {
             const std::uint8_t opcode = defered_ll_control_pdu_.buffer[ 2 ];
@@ -624,10 +638,15 @@ namespace link_layer {
             else if ( opcode == LL_CONNECTION_UPDATE_REQ )
             {
                 connection_interval_old_ = connection_interval_;
-                parse_timing_parameters_from_connection_update_request( defered_ll_control_pdu_ );
-
-                timeouts_til_connection_lost_ = 0;
-                state_ = state::connection_update;
+                if ( parse_timing_parameters_from_connection_update_request( defered_ll_control_pdu_ ) )
+                {
+                    timeouts_til_connection_lost_ = 0;
+                    state_ = state::connection_update;
+                }
+                else
+                {
+                    result = ll_result::disconnect;
+                }
             }
             else
             {
@@ -636,6 +655,8 @@ namespace link_layer {
 
             defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
         }
+
+        return result;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

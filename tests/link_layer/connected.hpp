@@ -24,7 +24,7 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
     0x0b, 0x00,                         // window offset
     0x18, 0x00,                         // interval (30ms)
     0x00, 0x00,                         // slave latency
-    0x48, 0x00,                         // connection timeout
+    0x48, 0x00,                         // connection timeout (720ms)
     0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
     0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
 };
