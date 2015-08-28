@@ -244,7 +244,7 @@ struct channel_map_request_after_connection_count_wrap_fixture : unconnected
     }
 };
 
-#ifdef BLUETOE_EXECUTE_SLOW_TESTS
+#ifndef BLUETOE_EXCLUDE_SLOW_TESTS
 
 /*
  * This test should make sure the instance is correctly interpreted after the connect count wrapped from 0xffff to 0x0000

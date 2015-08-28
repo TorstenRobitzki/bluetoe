@@ -23,6 +23,11 @@ function(add_test TARGETNAME)
     add_dependencies(all_tests.run ${TARGETNAME}.run)
 endfunction()
 
+if (BLUETOE_EXCLUDE_SLOW_TESTS)
+    add_definitions(-DBLUETOE_EXCLUDE_SLOW_TESTS)
+    message(WARNING "excluding slow tests from test set!")
+endif()
+
 add_test(write_queue_tests)
 add_test(service_tests)
 add_test(options_tests)
