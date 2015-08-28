@@ -54,7 +54,7 @@ namespace link_layer {
          * @brief schedules a connection event
          *
          * The function will return immediately and schedule the receiver to start at start_receive.
-         * CallBack::timeout() is called when between start_receive and end_receive no valid is received. The new T0 is the old T0.
+         * CallBack::timeout() is called when between start_receive and end_receive no valid pdu is received. The new T0 is then the old T0.
          * CallBack::end_event() is called when the connection event is over. The new T0 is the time point where the first PDU was
          * reveived from the Master.
          *

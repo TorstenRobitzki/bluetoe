@@ -99,16 +99,6 @@ struct connect_and_channel_map_request_base : setup_connect_and_channel_map_requ
 
 using instance_in_past = connect_and_channel_map_request_base< 0xffff, 0x1555555555, 20 >;
 
-// static const auto filter_channel_map_requests = []( const test::connection_event& ev ) -> bool
-// {
-//     if ( ev.received_data.empty() )
-//         return false;
-
-//     const auto& pdu = ev.received_data.front();
-
-//     return pdu.size() > 2 && ( pdu[ 0 ] & 0x03 ) == 0x03 && pdu[ 2 ] == 0x01;
-// };
-
 /*
  * When the instance is in the past, the slave should consider the connection to be lost.
  * The bluetoe behaviour is to go back and advertise.
@@ -263,8 +253,65 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, channe
 
 BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_two_pdus, only_one_pdu_from_master )
 {
+    /// @TODO implement
 }
 
 BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_only_one_pdus, only_one_pdu_from_master )
 {
+    /// @TODO implement
+}
+
+void add_connection_update_request(
+    unconnected& c, std::uint8_t win_size, std::uint16_t win_offset, std::uint16_t interval,
+    std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
+{
+    c.ll_control_pdu( {
+        0x00,                                                   // opcode
+        win_size,
+        static_cast< std::uint8_t >( win_offset ),  static_cast< std::uint8_t >( win_offset >> 8 ),
+        static_cast< std::uint8_t >( interval ),    static_cast< std::uint8_t >( interval >> 8 ),
+        static_cast< std::uint8_t >( latency ),     static_cast< std::uint8_t >( latency >> 8 ),
+        static_cast< std::uint8_t >( timeout ),     static_cast< std::uint8_t >( timeout >> 8 ),
+        static_cast< std::uint8_t >( instance ),    static_cast< std::uint8_t >( instance >> 8 )
+    } );
+
+}
+
+/*
+ * connection update procedure with a "instance" in the past results in falling back to advertising
+ */
+BOOST_FIXTURE_TEST_CASE( connection_update_in_the_past, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( *this, 5, 5, 40, 1, 200, 0x8002 );
+    add_empty_pdus( *this, 5 );
+
+    run();
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 1u );
+}
+
+/*
+ * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
+ * The old connection interval is 30ms
+ */
+BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( *this, 5, 6, 40, 1, 200, 6 );
+    add_empty_pdus( *this, 6 );
+
+    run();
+
+    auto const evt = connection_events()[ 6 ];
+
+    bluetoe::link_layer::delta_time window_start( 30000 + 7500 );
+    bluetoe::link_layer::delta_time window_end( 30000 + 7500 + 6250 );
+    window_start -= window_start.ppm( 550 );
+    window_end   += window_end.ppm( 550 );
+
+    BOOST_REQUIRE_LT( window_start, window_end );
+
+    BOOST_CHECK_EQUAL( evt.start_receive, window_start );
+    BOOST_CHECK_EQUAL( evt.end_receive, window_end );
 }
