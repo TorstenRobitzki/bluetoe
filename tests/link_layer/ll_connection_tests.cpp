@@ -411,3 +411,26 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_instance, unconnected
 
     BOOST_CHECK_EQUAL( connection_events().size(), 1 );
 }
+
+BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_control_pdu({
+        0x08,
+        0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    });
+    ll_empty_pdu();
+
+    run();
+
+    auto response = connection_events().at( 1 ).transmitted_data.at( 0 );
+    response[ 0 ] &= 0x03;
+
+    static const std::uint8_t expected_response[] = {
+        0x03, 0x09,
+        0x09,
+        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::end( response ), std::begin( expected_response ), std::end( expected_response ) );
+}
