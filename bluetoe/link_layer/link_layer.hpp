@@ -111,6 +111,7 @@ namespace link_layer {
 
         ll_result handle_received_data();
         ll_result handle_ll_control_data( const write_buffer& pdu );
+        ll_result handle_l2cap( const write_buffer& pdu );
         ll_result handle_pending_ll_control();
 
         static std::uint16_t read_16( const std::uint8_t* );
@@ -130,6 +131,7 @@ namespace link_layer {
         static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
         static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
+        static constexpr std::uint8_t   lld_data_pdu_code           = 2;
 
         static constexpr std::uint8_t   header_txaddr_field         = 0x40;
 
@@ -548,10 +550,23 @@ namespace link_layer {
     {
         ll_result result = handle_pending_ll_control();
 
-        if ( result == ll_result::go_ahead && defered_ll_control_pdu_.empty() )
+        if ( result != ll_result::go_ahead )
+            return result;
+
+        if ( defered_ll_control_pdu_.empty() )
         {
             for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
-                result = handle_ll_control_data( pdu );
+            {
+                const auto llid = pdu.buffer[ 0 ] & 0x03;
+                if ( llid == ll_control_pdu_code )
+                {
+                    result = handle_ll_control_data( pdu );
+                }
+                else if ( llid == lld_data_pdu_code )
+                {
+                    result = handle_l2cap( pdu );
+                }
+            }
         }
 
         return result;
@@ -633,6 +648,48 @@ namespace link_layer {
         }
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& pdu )
+    {
+        static constexpr std::uint16_t l2cap_gap_channel       = 4;
+//        static constexpr std::uint16_t l2cap_signaling_channel = 5;
+
+        static constexpr std::size_t   l2cap_header_size = 4;
+        static constexpr std::size_t   all_header_size   = 6;
+
+
+        const std::uint8_t  pdu_size      = pdu.buffer[ 1 ];
+        const std::uint16_t l2cap_size    = read_16( &pdu.buffer[ 2 ] );
+        const std::uint16_t l2cap_channel = read_16( &pdu.buffer[ 4 ] );
+
+        if ( pdu_size - l2cap_header_size != l2cap_size )
+            return ll_result::disconnect;
+
+        if ( l2cap_channel == l2cap_gap_channel )
+        {
+            auto write = this->allocate_transmit_buffer();
+
+            if ( write.empty() )
+                return ll_result::go_ahead;
+
+            std::size_t gap_size = write.size - all_header_size;
+
+            typename Server::connection_data connection( 23 );
+            server_->l2cap_input( &pdu.buffer[ all_header_size ], l2cap_size, &write.buffer[ all_header_size ], gap_size, connection );
+
+            write.buffer[ 0 ] = lld_data_pdu_code;
+            write.buffer[ 1 ] = static_cast< std::uint8_t >( gap_size + l2cap_header_size );
+            write.buffer[ 2 ] = static_cast< std::uint8_t >( gap_size );
+            write.buffer[ 3 ] = 0;
+            write.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_gap_channel );
+            write.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_gap_channel >> 8 );
+
+            this->commit_transmit_buffer( write );
+        }
+
+        return ll_result::go_ahead;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

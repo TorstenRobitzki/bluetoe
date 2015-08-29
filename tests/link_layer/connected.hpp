@@ -114,11 +114,10 @@ public:
         }
     }
 
-
-    void ll_control_pdu( std::initializer_list< std::uint8_t > control )
+    void ll_pdu( std::uint8_t llid, std::initializer_list< std::uint8_t > control )
     {
         std::vector< std::uint8_t > pdu = {
-            static_cast< std::uint8_t >( 0x03 | sequence_ | next_expected_sequence_ ),
+            static_cast< std::uint8_t >( llid | sequence_ | next_expected_sequence_ ),
             static_cast< std::uint8_t >( control.size() ) };
         pdu.insert( pdu.end(), control.begin(), control.end() );
 
@@ -128,6 +127,11 @@ public:
         next_sequences();
     }
 
+    void ll_control_pdu( std::initializer_list< std::uint8_t > control )
+    {
+        ll_pdu( 0x03, control );
+    }
+
     void ll_empty_pdu()
     {
         this->add_connection_event_respond( {
@@ -135,6 +139,10 @@ public:
         next_sequences();
     }
 
+    void ll_data_pdu( std::initializer_list< std::uint8_t > control )
+    {
+        ll_pdu( 0x02, control );
+    }
 private:
     void next_sequences()
     {
