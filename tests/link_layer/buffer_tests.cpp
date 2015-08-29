@@ -129,9 +129,9 @@ BOOST_FIXTURE_TEST_CASE( raw_accessable_in_stopped_mode, buffer )
     std::fill( raw(), raw() + size, 0 );
 }
 
-BOOST_FIXTURE_TEST_CASE( default_max_rx_size_is_27, buffer )
+BOOST_FIXTURE_TEST_CASE( default_max_rx_size_is_29, buffer )
 {
-    BOOST_CHECK_EQUAL( max_rx_size(), 27u );
+    BOOST_CHECK_EQUAL( max_rx_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( max_rx_size_can_be_changed, buffer )
@@ -140,12 +140,12 @@ BOOST_FIXTURE_TEST_CASE( max_rx_size_can_be_changed, buffer )
     BOOST_CHECK_EQUAL( max_rx_size(), 100u );
 }
 
-BOOST_FIXTURE_TEST_CASE( max_rx_is_reset_to_27, buffer )
+BOOST_FIXTURE_TEST_CASE( max_rx_is_reset_to_29, buffer )
 {
     max_rx_size( 100u );
     reset();
 
-    BOOST_CHECK_EQUAL( max_rx_size(), 27u );
+    BOOST_CHECK_EQUAL( max_rx_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( an_allocated_receive_buffer_must_be_max_rx_in_size, running_mode )
@@ -154,9 +154,9 @@ BOOST_FIXTURE_TEST_CASE( an_allocated_receive_buffer_must_be_max_rx_in_size, run
     BOOST_CHECK_EQUAL( pdu.size, max_rx_size() );
 }
 
-BOOST_FIXTURE_TEST_CASE( default_max_tx_size_is_27, buffer )
+BOOST_FIXTURE_TEST_CASE( default_max_tx_size_is_29, buffer )
 {
-    BOOST_CHECK_EQUAL( max_tx_size(), 27u );
+    BOOST_CHECK_EQUAL( max_tx_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( max_tx_size_can_be_changed, buffer )
@@ -165,12 +165,12 @@ BOOST_FIXTURE_TEST_CASE( max_tx_size_can_be_changed, buffer )
     BOOST_CHECK_EQUAL( max_tx_size(), 100u );
 }
 
-BOOST_FIXTURE_TEST_CASE( max_tx_is_reset_to_27, buffer )
+BOOST_FIXTURE_TEST_CASE( max_tx_is_reset_to_29, buffer )
 {
     max_tx_size( 100u );
     reset();
 
-    BOOST_CHECK_EQUAL( max_tx_size(), 27u );
+    BOOST_CHECK_EQUAL( max_tx_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( an_allocated_transmit_buffer_must_be_max_tx_in_size, running_mode )
@@ -236,12 +236,12 @@ using intt = std::integral_constant< std::size_t, V >;
 
 typedef boost::mpl::list<
     //          max_rx_size  min payload  max payload
-    std::tuple< intt< 27 >,  intt< 1 >,   intt< 25 > >,
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 25 > >,
     std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
     std::tuple< intt< 100 >, intt< 1 >,   intt< 98 > >,
-    std::tuple< intt< 27 >,  intt< 1 >,   intt< 1 > >,
-    std::tuple< intt< 27 >,  intt< 0 >,   intt< 25 > >,
-    std::tuple< intt< 27 >,  intt< 25 >,  intt< 25 > >,
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
+    std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
+    std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >,
     std::tuple< intt< 100 >, intt< 98 >,  intt< 98 > >
 > test_sizes;
 

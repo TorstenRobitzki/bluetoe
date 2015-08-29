@@ -102,7 +102,7 @@ namespace link_layer {
         /**
          * @brief the minimum size an element in the buffer can have
          */
-        static constexpr std::size_t    min_buffer_size = 27;
+        static constexpr std::size_t    min_buffer_size = 29;
 
         /**
          * @brief the maximum size an element in the buffer can have
@@ -127,18 +127,18 @@ namespace link_layer {
         /**
          * @brief the current maximum receive size
          *
-         * No PDU with larger size can be receive. This will always return at least 27.
+         * No PDU with larger size can be receive. This will always return at least 29.
          */
         std::size_t max_rx_size() const;
 
         /**
          * @brief set the maximum receive size
          *
-         * The used size must be smaller or equal to ReceiveSize / max_max_rx_size(), smaller than 252 and larger or equal to 27.
+         * The used size must be smaller or equal to ReceiveSize / max_max_rx_size(), smaller than 251 and larger or equal to 29.
          * The memory is best used, when ReceiveSize divided by max_size results in an integer. That integer is
          * then the number of PDUs that can be buffered on the receivin side.
          *
-         * By default the function will return 27.
+         * By default the function will return 29.
          *
          * @post max_rx_size() == max_size
          */
@@ -157,18 +157,18 @@ namespace link_layer {
         /**
          * @brief the current maximum transmit size
          *
-         * No PDU with larger size can be transmitted. This will always return at least 27.
+         * No PDU with larger size can be transmitted. This will always return at least 29.
          */
         std::size_t max_tx_size() const;
 
         /**
          * @brief set the maximum transmit size
          *
-         * The used size must be smaller or equal to TransmitSize / max_max_tx_size(), smaller than 252 and larger or equal to 27.
+         * The used size must be smaller or equal to TransmitSize / max_max_tx_size(), smaller than 251 and larger or equal to 29.
          * The memory is best used, when TransmitSize divided by max_size results in an integer. That integer is
          * then the number of PDUs that can be buffered on the transmitting side.
          *
-         * By default the function will return 27.
+         * By default the function will return 29.
          *
          * @post max_tx_size() == max_size
          */
@@ -204,7 +204,7 @@ namespace link_layer {
          * max_rx_size() is set to default
          *
          * @post next_received().empty()
-         * @post max_rx_size() == 27u
+         * @post max_rx_size() == 29u
          */
         void reset();
 
