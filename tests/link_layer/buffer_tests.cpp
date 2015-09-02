@@ -12,8 +12,29 @@
 #include "buffer_io.hpp"
 
 struct mock_radio {
+    class lock_guard
+    {
+    public:
+        lock_guard()
+        {
+            assert( !locked_ );
+            locked_ = true;
+        }
 
+        ~lock_guard()
+        {
+            locked_ = false;
+        }
+
+    private:
+        lock_guard( const lock_guard& ) = delete;
+        lock_guard& operator=( const lock_guard& ) = delete;
+
+        static bool locked_;
+    };
 };
+
+bool mock_radio::lock_guard::locked_ = false;
 
 struct buffer : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_radio > {};
 

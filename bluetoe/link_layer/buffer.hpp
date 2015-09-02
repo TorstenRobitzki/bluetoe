@@ -208,8 +208,6 @@ namespace link_layer {
          */
         void reset();
 
-        void schedule_next_connection_event();
-
         /**@}*/
 
         /**@{*/
@@ -462,6 +460,8 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer( std::size_t size )
     {
+        typename Radio::lock_guard lock;
+
         // The gap must be greater than size or otherwise we could endup with
         // transmit_ == transmit_end_ without the buffer beeing empty
         if ( transmit_end_ >= transmit_ )
@@ -496,6 +496,8 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer pdu )
     {
+        typename Radio::lock_guard lock;
+
         assert( pdu.buffer );
         assert( pdu.size >= pdu.buffer[ 1 ] + ll_header_size );
 
@@ -586,6 +588,8 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_received() const
     {
+        typename Radio::lock_guard lock;
+
         return received_ != received_end_
             ? write_buffer{ received_, received_[ 1 ] + ll_header_size }
             : write_buffer{ 0, 0 };
@@ -594,6 +598,8 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::free_received()
     {
+        typename Radio::lock_guard lock;
+
         assert( received_ != received_end_ );
         assert( check_receive_buffer_consistency( "+free_received" ) );
 

@@ -161,6 +161,19 @@ namespace test {
         static const bluetoe::link_layer::delta_time T_IFS;
 
         void end_of_simulation( bluetoe::link_layer::delta_time );
+
+        class lock_guard
+        {
+        public:
+            lock_guard();
+            ~lock_guard();
+
+            lock_guard( const lock_guard& ) = delete;
+            lock_guard& operator=( const lock_guard& ) = delete;
+        private:
+            static bool locked_;
+        };
+
     protected:
         typedef std::vector< advertising_data > advertising_list;
         advertising_list advertised_data_;

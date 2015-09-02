@@ -421,4 +421,17 @@ namespace test {
         eos_ = eos;
     }
 
+
+    radio_base::lock_guard::lock_guard()
+    {
+        assert( !locked_ );
+        locked_ = true;
+    }
+
+    radio_base::lock_guard::~lock_guard()
+    {
+        locked_ = false;
+    }
+
+    bool radio_base::lock_guard::locked_ = false;
 }
