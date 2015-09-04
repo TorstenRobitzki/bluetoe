@@ -26,7 +26,6 @@ namespace bluetoe
             virtual link_layer::write_buffer next_transmit() = 0;
             virtual link_layer::read_buffer allocate_receive_buffer() = 0;
 
-            virtual ~adv_callbacks() {}
         };
 
         class scheduled_radio_base

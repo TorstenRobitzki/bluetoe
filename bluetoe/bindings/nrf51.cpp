@@ -108,8 +108,8 @@ namespace nrf51_details {
         nrf_timer->TASKS_CLEAR = 1;
         nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
         nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 2 ] = 0;
         nrf_timer->EVENTS_COMPARE[ 3 ] = 0;
-        nrf_timer->EVENTS_COMPARE[ 4 ] = 0;
         nrf_timer->INTENCLR    = 0xffffffff;
 
         nrf_timer->TASKS_START = 1;
