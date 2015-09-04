@@ -441,6 +441,7 @@ namespace bluetoe {
             static const attribute attribute_at( std::size_t index )
             {
                 assert( !"should not happen" );
+                return attribute();
             }
         };
 

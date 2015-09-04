@@ -163,6 +163,7 @@ namespace details {
         static details::attribute attribute_at( std::size_t index )
         {
             assert( !"index out of bound" );
+            return details::attribute();
         }
     };
 
@@ -196,6 +197,7 @@ namespace details {
         static details::attribute attribute_at( std::size_t index )
         {
             assert( !"index out of bound" );
+            return details::attribute();
         }
     };
 
