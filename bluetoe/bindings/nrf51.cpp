@@ -135,7 +135,6 @@ namespace nrf51_details {
         , end_evt_( false )
         , state_( state::idle )
         , crc_reveice_failure_( 0 )
-        , received_data_during_connection_event_( false )
     {
         // start high freuquence clock source if not done yet
         if ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
@@ -190,7 +189,6 @@ namespace nrf51_details {
 
         const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, maximum_advertising_pdu_size );
 
-        more_data_           = false;
         receive_buffer_      = receive;
         receive_buffer_.size = std::min< std::size_t >( receive.size, maximum_advertising_pdu_size );
 
@@ -300,27 +298,11 @@ namespace nrf51_details {
                 NRF_RADIO->INTENSET            = RADIO_INTENSET_ADDRESS_Msk;
                 NRF_RADIO->INTENCLR            = RADIO_INTENSET_PAYLOAD_Msk;
             }
-            else if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
-            {
-                const auto trans = callbacks_.next_transmit();
-
-                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
-                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
-
-                more_data_ = receive_buffer_.buffer[ 0 ] & more_data_flag;
-                more_data_ = more_data_ || ( trans.buffer[ 0 ] & more_data_flag ) != 0;
-            }
-            else if ( state_ == state::evt_transmiting )
-            {
-                receive_buffer_ = callbacks_.allocate_receive_buffer();
-
-                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
-                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
-            }
         }
 
         if ( NRF_RADIO->EVENTS_DISABLED )
         {
+toggle_debug_pin1();
             NRF_RADIO->EVENTS_DISABLED = 0;
 
             if ( state_ == state::adv_timeout_stopping )
@@ -369,12 +351,6 @@ namespace nrf51_details {
             }
             else if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
             {
-                if ( state_ == state::evt_wait_connect )
-                {
-                    received_data_during_connection_event_ = true;
-                    anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 1 ] - us_from_packet_start_to_address_end );
-                }
-
                 if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
                 {
                     if ( !receive_buffer_.empty() )
@@ -387,24 +363,32 @@ namespace nrf51_details {
                     ++crc_reveice_failure_;
                 }
 
-                if ( more_data_ && crc_reveice_failure_ < 2 && false )
-                {
-                    state_ = state::evt_transmiting;
+                const auto trans = callbacks_.next_transmit();
 
-                    // radio is already ramping up for transmission
-                    NRF_RADIO->SHORTS =
-                        RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
-                }
-                else
-                {
-                    state_ = state::evt_transmiting_closing;
+toggle_debug_pin2();
+                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
+                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
+toggle_debug_pin2();
 
-                    NRF_RADIO->SHORTS =
-                        RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+                const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
+
+                if ( state_ == state::evt_wait_connect )
+                {
+                    anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 1 ] - us_from_packet_start_to_address_end );
                 }
+
+                state_ = state::evt_transmiting_closing;
+
+                NRF_RADIO->SHORTS =
+                    RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
             }
             else if ( state_ == state::evt_transmiting )
             {
+                receive_buffer_ = callbacks_.allocate_receive_buffer();
+
+                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+
                 // radio is already ramping up for reception
                 NRF_RADIO->SHORTS =
                     RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
@@ -417,6 +401,7 @@ namespace nrf51_details {
                 state_ = state::idle;
                 end_evt_ = true;
             }
+toggle_debug_pin1();
         }
 
         if ( NRF_RADIO->EVENTS_ADDRESS )
@@ -474,7 +459,6 @@ namespace nrf51_details {
 
         receive_buffer_         = receive_buffer;
         crc_reveice_failure_    = 0;
-        received_data_during_connection_event_ = false;
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
