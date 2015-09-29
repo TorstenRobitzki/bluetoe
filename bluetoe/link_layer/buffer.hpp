@@ -497,6 +497,7 @@ namespace link_layer {
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer pdu )
     {
         static constexpr std::uint8_t header_rfu_mask = 0xe0;
+        static_cast< void >( header_rfu_mask );
 
         typename Radio::lock_guard lock;
 
