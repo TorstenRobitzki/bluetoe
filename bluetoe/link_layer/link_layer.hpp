@@ -576,6 +576,7 @@ namespace link_layer {
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_ll_control_data( const write_buffer& pdu )
     {
         ll_result result = ll_result::go_ahead;
+        bool      commit = true;
 
         // the allocated size could be optimized to the required size for the answer
         auto write = this->allocate_transmit_buffer();
@@ -593,6 +594,7 @@ namespace link_layer {
             if ( opcode == LL_CONNECTION_UPDATE_REQ && size == 12 )
             {
                 defered_conn_event_counter_ = read_16( &pdu.buffer[ 12 ] );
+                commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000
                     || defered_conn_event_counter_ == conn_event_counter_ )
@@ -614,6 +616,7 @@ namespace link_layer {
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {
                 defered_conn_event_counter_ = read_16( &pdu.buffer[ 8 ] );
+                commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000 )
                 {
@@ -644,7 +647,8 @@ namespace link_layer {
                 write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
             }
 
-            this->commit_transmit_buffer( write );
+            if ( commit )
+                this->commit_transmit_buffer( write );
         }
 
         return result;

@@ -496,10 +496,15 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer pdu )
     {
+        static constexpr std::uint8_t header_rfu_mask = 0xe0;
+
         typename Radio::lock_guard lock;
 
         assert( pdu.buffer );
         assert( pdu.size >= pdu.buffer[ 1 ] + ll_header_size );
+
+        // make sure, no NFU bits are set
+        assert( ( pdu.buffer[ 0 ] & header_rfu_mask ) == 0 );
 
         // add sequence number
         if ( sequence_number_ )
