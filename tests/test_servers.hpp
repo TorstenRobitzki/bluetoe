@@ -23,7 +23,8 @@ namespace {
                 bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >,
                 bluetoe::no_write_access
             >
-        >
+        >,
+        bluetoe::no_gap_service_for_gatt_servers
     > small_temperature_service;
 
     /*
@@ -46,7 +47,8 @@ namespace {
                 bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAC >,
                 bluetoe::bind_characteristic_value< std::uint8_t, &ape3 >
             >
-        >
+        >,
+        bluetoe::no_gap_service_for_gatt_servers
     > three_apes_service;
 
     template < class Server, std::size_t ResponseBufferSize = 23 >

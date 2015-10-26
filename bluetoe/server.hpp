@@ -7,6 +7,7 @@
 #include <bluetoe/filter.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
+#include <bluetoe/gap_service.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -48,7 +49,13 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
+        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services_without_gap;
+
+        // append gap serivce for gatt servers
+        typedef typename details::find_by_meta_type< details::gap_service_definition_meta_type  ,
+            Options..., gap_service_for_gatt_servers >::type gap_service_definition;
+        typedef typename gap_service_definition::template add_service< services_without_gap, Options... >::type services;
+
         static constexpr std::size_t number_of_client_configs = details::sum_by< services, details::sum_by_client_configs >::value;
 
         typedef typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type write_queue_type;
