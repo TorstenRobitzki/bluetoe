@@ -34,11 +34,20 @@ namespace bluetoe {
     };
 
     struct gap_service_for_gatt_servers {
+        static const std::uint16_t dummy;
         typedef details::gap_service_definition_meta_type meta_type;
 
         typedef service<
             // TODO, use the correct uuid
-            service_uuid16< 0x4711 >
+            service_uuid16< 0x4711 >,
+            characteristic<
+                characteristic_uuid16< 0x2A00 >,
+                bind_characteristic_value< const std::uint16_t, &dummy >
+            >,
+            characteristic<
+                characteristic_uuid16< 0x2A01 >,
+                bind_characteristic_value< const std::uint16_t, &dummy >
+            >
         > gap_service;
 
         template < typename Services, typename ... ServerOptions >
@@ -46,6 +55,8 @@ namespace bluetoe {
             typedef typename details::add_type< Services, gap_service >::type type;
         };
     };
+
+    const std::uint16_t gap_service_for_gatt_servers::dummy = 0;
 }
 
 #endif

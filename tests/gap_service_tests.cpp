@@ -20,14 +20,34 @@ typedef bluetoe::server<
     >
 > nupsy_service;
 
-/* device name is mandatory */
-BOOST_FIXTURE_TEST_CASE( named_server, request_with_reponse< nupsy_service > )
+// service is discoverable and contains at least two characteristics
+BOOST_FIXTURE_TEST_CASE( service_is_discoverable_by_default, request_with_reponse< nupsy_service > )
 {
-    l2cap_input( { 0x0C, 0x03, 0x00, 0x0A, 0x00 } );
-//     expected_result( {
-//         0x0D,
-//         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-//         0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
-//         0x30, 0x31
-//     } );
+    // Find By Type Value Request, 1, 0xffff, <<primary service>>, <<gap service>>
+    l2cap_input( { 0x06, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28, 0x11, 0x47 } );
+    expected_result( {
+        0x07,
+        0x04, 0x00, 0x08, 0x00
+    } );
+}
+
+typedef bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< decltype( nupsy ), &nupsy >,
+            bluetoe::no_write_access
+        >
+    >,
+    bluetoe::no_gap_service_for_gatt_servers
+> without_gap_service_service;
+
+BOOST_FIXTURE_TEST_CASE( no_service_no_cookies, request_with_reponse< without_gap_service_service > )
+{
+    // Find By Type Value Request, 1, 0xffff, <<primary service>>, <<gap service>>
+    check_error_response(
+        { 0x06, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28, 0x11, 0x47 },
+        0x06, 0x0001, 0x0a
+    );
 }
