@@ -826,3 +826,69 @@ BOOST_AUTO_TEST_SUITE( find_notification_data )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( fixed_value_tests )
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::fixed_value< std::uint16_t, 0x0815 >
+    > fixed_16bit;
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::fixed_value< std::int32_t, 0x08151213 >
+    > fixed_32bit;
+
+    BOOST_FIXTURE_TEST_CASE( find_char, access_attributes< fixed_16bit > )
+    {
+        attribute_by_type( 0xD0B1 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( properties_are_read_only, read_characteristic_properties< fixed_16bit > )
+    {
+        BOOST_CHECK_EQUAL( properties, 0x02 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_value, access_attributes< fixed_16bit > )
+    {
+        compare_characteristic( { 0x15, 0x08 }, 0xd0b1 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_only, access_attributes< fixed_32bit > )
+    {
+        const auto attr = attribute_by_type( 0xD0B1 );
+        std::uint8_t buffer[ 4 ];
+        auto write = bluetoe::details::attribute_access_arguments::write( buffer );
+
+        BOOST_CHECK( attr.access( write, 1 ) == bluetoe::details::attribute_access_result::write_not_permitted );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_with_offset, fixed_32bit )
+    {
+        const bluetoe::details::attribute char_declaration = attribute_at< 0 >( 1 );
+        std::uint8_t buffer[ 100 ];
+        auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
+
+        BOOST_CHECK( char_declaration.access( read, 1 ) == bluetoe::details::attribute_access_result::success );
+
+        static const std::uint8_t expect[] = { 0x12, 0x15, 0x08 };
+
+        BOOST_CHECK_EQUAL( read.buffer_size, 3u );
+        BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expect ), std::end( expect ), &buffer[ 0 ], &buffer[ 3 ] );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_truncated_with_offset, fixed_32bit )
+    {
+        const bluetoe::details::attribute char_declaration = attribute_at< 0 >( 1 );
+        std::uint8_t buffer[ 2 ];
+        auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
+
+        BOOST_CHECK( char_declaration.access( read, 1 ) == bluetoe::details::attribute_access_result::read_truncated );
+
+        static const std::uint8_t expect[] = { 0x12, 0x15 };
+
+        BOOST_CHECK_EQUAL( read.buffer_size, 2u );
+        BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expect ), std::end( expect ), &buffer[ 0 ], &buffer[ 2 ] );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

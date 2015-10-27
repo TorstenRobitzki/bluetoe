@@ -147,6 +147,55 @@ namespace bluetoe {
         struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
         /** @endcond */
     };
+
+    /**
+     * @brief provides a characteristic with a fixed, read-only value
+     *
+     * Implements a numeric, readable litte endian encoded integer value.
+     */
+    template < class T, T Value >
+    struct fixed_value {
+        /**
+         * @cond HIDDEN_SYMBOLS
+         */
+        template < typename ... Options >
+        class value_impl
+        {
+        public:
+            static constexpr bool has_read_access  = true;
+            static constexpr bool has_write_access = false;
+            static constexpr bool has_notifcation  = false;
+
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                if ( args.type != details::attribute_access_type::read )
+                    return details::attribute_access_result::write_not_permitted;
+
+                if ( args.buffer_offset > sizeof( T ) )
+                    return details::attribute_access_result::invalid_offset;
+
+                args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) - args.buffer_offset );
+
+                // copy data
+                std::uint8_t* output = args.buffer;
+                for ( int i = args.buffer_offset; i != args.buffer_offset + args.buffer_size; ++i, ++output )
+                    *output = ( Value >> ( 8 * i ) ) & 0xff;
+
+                return args.buffer_size == sizeof( T ) - args.buffer_offset
+                    ? details::attribute_access_result::success
+                    : details::attribute_access_result::read_truncated;
+            }
+
+            static bool is_this( const void* value )
+            {
+                return false;
+            }
+        };
+
+        struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        /** @endcond */
+    };
+
 }
 
 #endif
