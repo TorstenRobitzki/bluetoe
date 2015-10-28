@@ -162,12 +162,15 @@ namespace bluetoe {
         class value_impl
         {
         public:
-            static constexpr bool has_read_access  = true;
+            static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = false;
-            static constexpr bool has_notifcation  = false;
+            static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
 
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
+                if ( !has_read_access )
+                    return details::attribute_access_result::read_not_permitted;
+
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
 
@@ -218,6 +221,14 @@ namespace bluetoe {
     template < std::uint32_t Value >
     using fixed_uint32_value = fixed_value< std::uint32_t, Value >;
 
+    /**
+     * @brief Easy value implementation for byte arrays.
+     *
+     * Can be used for utf8 text values for example.
+     */
+    template < std::size_t Size, std::uint8_t (*Data)[Size]>
+    struct bind_byte_array
+    {};
 }
 
 #endif

@@ -262,4 +262,30 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
             == bluetoe::details::attribute_access_result::read_truncated );
     }
 
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::fixed_value< std::int32_t, 0x08151213 >,
+        bluetoe::no_read_access
+    > fixed_without_read_access;
+
+    BOOST_FIXTURE_TEST_CASE( read_without_read_access, access_attributes< fixed_without_read_access > )
+    {
+        const auto attr = attribute_by_type( 0xD0B1 );
+        std::uint8_t buffer[ 4 ];
+        auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
+
+        BOOST_CHECK( attr.access( read, 1 ) == bluetoe::details::attribute_access_result::read_not_permitted );
+    }
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::fixed_value< std::int32_t, 0x08151213 >,
+        bluetoe::notify
+    > fixed_notifiable;
+
+    BOOST_FIXTURE_TEST_CASE( fixed_notifiable_must_have_a_client_characteristic_configuration, access_attributes< fixed_notifiable > )
+    {
+        attribute_by_type( 0x2902 );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
