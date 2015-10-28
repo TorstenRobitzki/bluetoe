@@ -196,6 +196,28 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief fixed size 8 bit unsigned int characteristic value
+     * @sa fixed_value
+     */
+    template < std::uint8_t Value >
+    using fixed_uint8_value = fixed_value< std::uint8_t, Value >;
+
+    /**
+     * @brief fixed size 16 bit unsigned int characteristic value
+     * @sa fixed_value
+     */
+    template < std::uint16_t Value >
+    using fixed_uint16_value = fixed_value< std::uint16_t, Value >;
+
+
+    /**
+     * @brief fixed size 32 bit unsigned int characteristic value
+     * @sa fixed_value
+     */
+    template < std::uint32_t Value >
+    using fixed_uint32_value = fixed_value< std::uint32_t, Value >;
+
 }
 
 #endif
