@@ -42,11 +42,11 @@ namespace bluetoe {
             service_uuid16< 0x4711 >,
             characteristic<
                 characteristic_uuid16< 0x2A00 >,
-                bind_characteristic_value< const std::uint16_t, &dummy >
+                fixed_uint16_value< 0 > // TODO resonable default
             >,
             characteristic<
                 characteristic_uuid16< 0x2A01 >,
-                bind_characteristic_value< const std::uint16_t, &dummy >
+                fixed_uint16_value< 0 > // TODO resonable default
             >
         > gap_service;
 

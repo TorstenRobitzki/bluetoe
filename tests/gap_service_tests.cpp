@@ -51,3 +51,27 @@ BOOST_FIXTURE_TEST_CASE( no_service_no_cookies, request_with_reponse< without_ga
         0x06, 0x0001, 0x0a
     );
 }
+
+BOOST_FIXTURE_TEST_CASE( appearance_is_mandatory, request_with_reponse< nupsy_service > )
+{
+    // Read by Type Request, 0x0001, 0xffff, 0x2A01
+    l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x01, 0x2A } );
+    expected_result( {
+        0x09,
+        0x04, 0x08, 0x00, 0x00, 0x00
+    } );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_service_no_appearance, request_with_reponse< without_gap_service_service > )
+{
+    // Read by Type Request, 0x0001, 0xffff, 0x2A01
+    check_error_response(
+        { 0x08, 0x01, 0x00, 0xff, 0xff, 0x01, 0x2A },
+        0x08, 0x0001, 0x0a
+    );
+}
+
+// BOOST_FIXTURE_TEST_CASE( device_name_is_mandatory, request_with_reponse< nupsy_service > )
+// {
+
+// }
