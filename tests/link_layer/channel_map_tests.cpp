@@ -183,6 +183,19 @@ BOOST_FIXTURE_TEST_CASE( stores_the_right_hop, all_channel_5 )
 {
     BOOST_CHECK( reset( only_two_channels_map ) );
 
-    BOOST_CHECK_EQUAL( data_channel( 0  ), 36 );
-    BOOST_CHECK_EQUAL( data_channel( 1  ), 0 );
+    BOOST_CHECK_EQUAL( data_channel( 0 ), 36 );
+    BOOST_CHECK_EQUAL( data_channel( 1 ), 0 );
+}
+
+static const std::uint8_t all_but_25_map[] = { 0xff, 0xff, 0xff, 0xfd, 0x1f };
+
+using all_channels_but_25 = all_channel< 6 >;
+
+BOOST_FIXTURE_TEST_CASE( real_life_example, all_channels_but_25 )
+{
+    BOOST_CHECK( reset( all_but_25_map ) );
+    BOOST_CHECK_EQUAL( data_channel( 28 ), 26 );
+    BOOST_CHECK_EQUAL( data_channel( 29 ), 32 );
+    BOOST_CHECK_EQUAL( data_channel( 30 ), 1 );
+    BOOST_CHECK_EQUAL( data_channel( 35 ), 31 );
 }
