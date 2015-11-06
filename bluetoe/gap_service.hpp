@@ -17,25 +17,36 @@ namespace bluetoe {
         };
     };
 
-    struct preferred_connection_parameters;
-
     /**
-     * @brief if used a parameter to a server, the GATT server will not include a GAP service for GATT servers.
+     * @brief Used as a parameter to a server, to define that the GATT server will _not_ include a GAP service for GATT servers.
      *
      * According to BLE 4.2 it's mandatory to have a GAP service for GATT service.
      * @sa server
+     * @sa gap_service_for_gatt_servers
      */
     struct no_gap_service_for_gatt_servers {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::gap_service_definition_meta_type meta_type;
 
         template < typename Services, typename ... ServerOptions >
         struct add_service {
             typedef Services type;
         };
+        /** @endcond */
     };
 
+    /**
+     * @brief Used as a parameter to a server, to define that the GATT server will include a GAP service for GATT servers.
+     *
+     * This is the default. The GAP Service for GATT Servers is configured directly by passing arguments to the server definition.
+     *
+     * @sa server
+     * @sa appearance
+     * @sa no_gap_service_for_gatt_servers
+     */
     struct gap_service_for_gatt_servers
     {
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::gap_service_definition_meta_type meta_type;
 
         template < typename Appearance >
@@ -62,6 +73,7 @@ namespace bluetoe {
 
             typedef typename details::add_type< Services, gap_service< device_appearance > >::type type;
         };
+        /** @endcond */
     };
 }
 
