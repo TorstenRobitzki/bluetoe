@@ -23,7 +23,7 @@ set(CXX_DISABLED_WARNINGS "${CXX_DISABLED_WARNINGS} -Wno-unused-local-typedefs")
 set(LINK_DEFAULT_FLAGS "${LINK_DEFAULT_FLAGS} -Wl,--gc-sections -L ${CMAKE_SOURCE_DIR}/examples -nostdlib")
 
 # debugging
-set(CXX_BUILD_TYPE_FLAGS "-g -Os")
+set(CXX_BUILD_TYPE_FLAGS "-g -O3")
 set(LINK_BUILD_TYPE_FLAGS "-g")
 
 project(bluetoe_nrf51_examples CXX ASM C)
@@ -37,10 +37,15 @@ add_definitions(-D_LITTLE_ENDIAN=1 -DNRF51 -DNDEBUG -D__HEAP_SIZE=0)
 set(DEFAULT_JLINK_DEVICE_NAME nRF51422_xxAA)
 set(BLUETOE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
-include_directories(${NRF51_SDK_ROOT}/nrf51422/Include)
-include_directories(${NRF51_SDK_ROOT}/nrf51422/Include/gcc)
+include_directories(${NRF51_SDK_ROOT}/components/device)
+include_directories(${NRF51_SDK_ROOT}/components/toolchain/gcc)
 include_directories(${BLUETOE_ROOT})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+if (DEFINED JLINK_DEVICE)
+    message( WARNING "JLink ${JLINK_DEVICE} selected")
+    set(SELECT_JLINK_DEVICE "usb ${JLINK_DEVICE}")
+endif()
 
 function(add_example TARGETNAME)
     add_executable(${TARGETNAME}.elf
@@ -69,12 +74,13 @@ function(add_example TARGETNAME)
     add_custom_target(
        ${TARGETNAME}.jlink
        COMMAND
-           echo "halt" > ${TARGETNAME}.jlink &&
-           echo "exec device = ${DEFAULT_JLINK_DEVICE_NAME}" >> ${TARGETNAME}.jlink &&
-           echo "loadbin ${TARGETNAME}.bin, 0" >> ${TARGETNAME}.jlink &&
-           echo "r" >> ${TARGETNAME}.jlink &&
-           echo "g" >> ${TARGETNAME}.jlink &&
-           echo "q" >> ${TARGETNAME}.jlink)
+            echo "${SELECT_JLINK_DEVICE}" > ${TARGETNAME}.jlink &&
+            echo "halt" >> ${TARGETNAME}.jlink &&
+            echo "exec device = ${DEFAULT_JLINK_DEVICE_NAME}" >> ${TARGETNAME}.jlink &&
+            echo "loadbin ${TARGETNAME}.bin, 0" >> ${TARGETNAME}.jlink &&
+            echo "r" >> ${TARGETNAME}.jlink &&
+            echo "g" >> ${TARGETNAME}.jlink &&
+            echo "q" >> ${TARGETNAME}.jlink)
 
     add_custom_target(${TARGETNAME}.flash
         COMMAND JLinkExe ${TARGETNAME}.jlink
@@ -87,7 +93,8 @@ endfunction()
 add_custom_target(
     erase.jlink
     COMMAND
-        echo "halt" > erase.jlink &&
+        echo "${SELECT_JLINK_DEVICE}" > erase.jlink &&
+        echo "halt" >> erase.jlink &&
         echo "exec device = ${DEFAULT_JLINK_DEVICE_NAME}" >> erase.jlink  &&
         echo "w4 4001E504, 2" >> erase.jlink  &&
         echo "w4 4001e50C, 1" >> erase.jlink  &&
