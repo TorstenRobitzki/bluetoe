@@ -54,11 +54,16 @@ namespace {
     template < class Server, std::size_t ResponseBufferSize = 23 >
     struct request_with_reponse : Server
     {
+        enum {
+            fill_pattern = 0x55,
+            guard_size = 16
+        };
+
         request_with_reponse()
-            : response_size( ResponseBufferSize )
+            : response( &guarded_buffer[ guard_size ] )
+            , response_size( ResponseBufferSize )
             , connection( ResponseBufferSize )
         {
-            std::fill( std::begin( response ), std::end( response ), 0x55 );
             connection.client_mtu( ResponseBufferSize );
 
             notification = bluetoe::details::notification_data();
@@ -69,8 +74,9 @@ namespace {
         void l2cap_input( const std::uint8_t(&input)[PDU_Size] )
         {
             response_size = ResponseBufferSize;
+            std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
             Server::l2cap_input( input, PDU_Size, response, response_size, connection );
-            BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
+            check_response();
         }
 
         void l2cap_input( const std::initializer_list< std::uint8_t >& input, typename Server::connection_data& con )
@@ -78,8 +84,9 @@ namespace {
             const std::vector< std::uint8_t > values( input );
 
             response_size = ResponseBufferSize;
+            std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
             Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
-            BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
+            check_response();
         }
 
         void l2cap_input( const std::initializer_list< std::uint8_t >& input )
@@ -108,6 +115,11 @@ namespace {
         void dump()
         {
             hex_dump( std::cout, &response[ 0 ], &response[ response_size ] );
+        }
+
+        void dump_all()
+        {
+            hex_dump( std::cout, std::begin( response ), std::end( response ) );
         }
 
         void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
@@ -139,17 +151,37 @@ namespace {
             expected_output( find_notification_data( &value ), expected, connection );
         }
 
+        const std::uint8_t* begin() const
+        {
+            return &guarded_buffer[ guard_size ];
+        }
+
+        const std::uint8_t* end() const
+        {
+            return &guarded_buffer[ ResponseBufferSize + guard_size ];
+        }
+
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
         using Server::find_notification_data;
 
-        std::uint8_t                                response[ ResponseBufferSize ];
+        std::uint8_t                                guarded_buffer[ ResponseBufferSize + 2 * guard_size ];
+        std::uint8_t* const                         response;
         std::size_t                                 response_size;
         static constexpr std::size_t                mtu_size = ResponseBufferSize;
         typename Server::connection_data            connection;
         static bluetoe::details::notification_data  notification;
 
     private:
+        void check_response() const
+        {
+            BOOST_REQUIRE_LE( response_size, ResponseBufferSize );
+            BOOST_CHECK( std::find_if( std::begin( guarded_buffer ), begin(),
+                []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == begin() );
+            BOOST_CHECK( std::find_if( end(), std::end( guarded_buffer ),
+                []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
+        }
+
         static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item )
         {
             notification = item;
@@ -179,7 +211,7 @@ namespace {
 
         bool check_error_response_impl( std::uint8_t const * input, std::size_t input_size, std::uint8_t expected_request_opcode, std::uint16_t expected_attribute_handle, std::uint8_t expected_error_code )
         {
-            response_size = sizeof( response );
+            response_size = ResponseBufferSize;
 
             Server::l2cap_input( input, input_size, response, response_size, connection );
 

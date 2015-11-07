@@ -8,6 +8,7 @@
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
 #include <bluetoe/gap_service.hpp>
+#include <bluetoe/appearance.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -43,6 +44,7 @@ namespace bluetoe {
      * @sa shared_write_queue
      * @sa extend_server
      * @sa server_name
+     * @sa appearance
      */
     template < typename ... Options >
     class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >
@@ -397,6 +399,15 @@ namespace bluetoe {
         typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
 
         begin = details::copy_name< name::name != nullptr >::impl( begin, end, name::name );
+
+        // add aditional empty AD to be visible to Nordic sniffer
+        if ( end - begin >= 2u )
+        {
+            *begin = 0;
+            ++begin;
+            *begin = 0;
+            ++begin;
+        }
 
         return buffer_size - ( end - begin );
     }
@@ -797,7 +808,7 @@ namespace bluetoe {
         std::uint16_t starting_handle, ending_handle;
 
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
-            return;
+             return;
 
         details::collect_attributes iterator( output + 2, output + out_size, connection.client_configurations() );
 
