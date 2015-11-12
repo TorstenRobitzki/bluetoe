@@ -10,46 +10,43 @@ typedef bluetoe::extend_server<
     bluetoe::server_name< name >
 > named_temperature_service;
 
-BOOST_AUTO_TEST_CASE( named_server )
+BOOST_FIXTURE_TEST_CASE( named_server, named_temperature_service )
 {
     std::uint8_t buffer[ 100 ];
-    named_temperature_service service;
 
     static const std::uint8_t expected_advertising[] = {
         0x02, 0x01, 0x06,
-        0x0A, 0x09, 'T', 'e', 's', 't', ' ', 'N', 'a', 'm', 'e'
+        0x0A, 0x09, 'T', 'e', 's', 't', ' ', 'N', 'a', 'm', 'e',
+        0x00, 0x00
     };
 
-    const std::size_t size = service.advertising_data( buffer, sizeof( buffer ) );
+    const std::size_t size = advertising_data( buffer, sizeof( buffer ) );
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + size, std::begin( expected_advertising ), std::end( expected_advertising ) );
 }
 
-BOOST_AUTO_TEST_CASE( short_named_server )
+BOOST_FIXTURE_TEST_CASE( short_named_server, named_temperature_service )
 {
     std::uint8_t buffer[ 10 ];
-    named_temperature_service service;
 
     static const std::uint8_t expected_advertising[] = {
         0x02, 0x01, 0x06,
         0x06, 0x08, 'T', 'e', 's', 't', ' '
     };
 
-    const std::size_t size = service.advertising_data( buffer, sizeof( buffer ) );
-
+    const std::size_t size = advertising_data( buffer, sizeof( buffer ) );
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + size, std::begin( expected_advertising ), std::end( expected_advertising ) );
 }
 
-BOOST_AUTO_TEST_CASE( unnamed_server )
+BOOST_FIXTURE_TEST_CASE( unnamed_server, small_temperature_service )
 {
     std::uint8_t buffer[ 31 ];
-    small_temperature_service service;
 
     static const std::uint8_t expected_advertising[] = {
-        0x02, 0x01, 0x06
+        0x02, 0x01, 0x06, 0x00, 0x00
     };
 
-    const std::size_t size = service.advertising_data( buffer, sizeof( buffer ) );
+    const std::size_t size = advertising_data( buffer, sizeof( buffer ) );
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + size, std::begin( expected_advertising ), std::end( expected_advertising ) );
 }
