@@ -1,6 +1,5 @@
 add_test(ll_advertising_tests)
 add_test(address_tests)
-add_test(ll_connecting_tests)
 add_test(channel_map_tests)
 add_test(delta_time_tests)
 add_test(buffer_tests)
