@@ -17,6 +17,11 @@ BOOST_FIXTURE_TEST_CASE( newly_constructed_is_empty, small_ring )
     BOOST_CHECK_EQUAL( next_end().size, 0 );
 }
 
+BOOST_FIXTURE_TEST_CASE( newly_contructed_contains_not_more_than_one, small_ring )
+{
+    BOOST_CHECK( !more_than_one() );
+}
+
 BOOST_FIXTURE_TEST_CASE( allocating_from_empty, small_ring )
 {
     BOOST_CHECK_EQUAL( alloc_front( buffer, 30 ).size, 30 );
@@ -95,6 +100,11 @@ BOOST_FIXTURE_TEST_CASE( after_freeing_at_the_end_of_a_full_ring_there_is_room_a
     BOOST_CHECK_EQUAL( alloc_front( buffer, 17 ).buffer, buffer );
 }
 
+BOOST_FIXTURE_TEST_CASE( full_ring_contains_more_than_one, full_ring )
+{
+    BOOST_CHECK( more_than_one() );
+}
+
 /*
  * Ring is splitted at pos 36 and empty
  */
@@ -116,6 +126,11 @@ BOOST_FIXTURE_TEST_CASE( when_splitted_full_allocation_not_possible, empty_split
 {
     BOOST_CHECK_EQUAL( alloc_front( buffer, 36 ).size, 0 );
     BOOST_CHECK_EQUAL( alloc_front( buffer, 35 ).size, 35 );
+}
+
+BOOST_FIXTURE_TEST_CASE( empty_split_ring_contains_not_more_than_one, empty_split_ring )
+{
+    BOOST_CHECK( !more_than_one() );
 }
 
 /*
@@ -142,6 +157,11 @@ BOOST_FIXTURE_TEST_CASE( access_to_allocated_block_at_the_beginning, one_block_a
 {
     BOOST_CHECK_EQUAL( next_end().size, 35 );
     BOOST_CHECK_EQUAL( next_end().buffer - &buffer[ 0 ], 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( one_block_at_the_end_contains_not_more_than_one, one_block_at_the_end )
+{
+    BOOST_CHECK( !more_than_one() );
 }
 
 /*

@@ -79,6 +79,11 @@ namespace link_layer {
          */
         void pop_end( std::uint8_t* buffer );
 
+        /**
+         * @brief returns true, if the buffer contains at least 2 elements
+         */
+        bool more_than_one() const;
+
     private:
         static constexpr std::size_t  ll_header_size = 2;
         static constexpr std::uint8_t wrap_mark = 0;
@@ -190,6 +195,13 @@ namespace link_layer {
     {
         return pdu.buffer[ 1 ] + ll_header_size;
     }
+
+    template < std::size_t Size, typename Buffer >
+    bool pdu_ring_buffer< Size, Buffer >::more_than_one() const
+    {
+        return end_ != front_ && ( end_ + end_[ 1 ] + ll_header_size ) != front_;
+    }
+
 }
 }
 
