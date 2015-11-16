@@ -19,7 +19,7 @@ namespace link_layer {
      * Elements are inserted at the front and removed from the end. When the ring buffer is empty
      * it is quarantied that the buffer can store one elemente of at least ( Size / 2 ) - 1 in size.
      */
-    template < std::size_t Size >
+    template < std::size_t Size, typename Buffer = read_buffer >
     class pdu_ring_buffer
     {
     public:
@@ -51,7 +51,7 @@ namespace link_layer {
          * @pre size > 2
          * @pre buffer must point to an array of at least Size bytes
          */
-        read_buffer alloc_front( std::uint8_t* buffer, std::size_t size ) const;
+        Buffer alloc_front( std::uint8_t* buffer, std::size_t size ) const;
 
         /**
          * @brief stores the allocated PDU in the ring.
@@ -63,14 +63,14 @@ namespace link_layer {
          * @pre pdu.buffer[ 1 ] != 0
          * @post next_end().size != 0
          */
-        void push_front( std::uint8_t* buffer, const read_buffer& pdu );
+        void push_front( std::uint8_t* buffer, const Buffer& pdu );
 
         /**
          * @brief returns the next PDU from the ring.
          *
          * If no PDU is stored in the ring, the function will return an empty write_buffer.
          */
-        write_buffer next_end() const;
+        Buffer next_end() const;
 
         /**
          * @brief frees the last PDU at the end of the ring
@@ -96,14 +96,14 @@ namespace link_layer {
         std::uint8_t* front_;
     };
 
-    template < std::size_t Size >
-    pdu_ring_buffer< Size >::pdu_ring_buffer( std::uint8_t* buffer )
+    template < std::size_t Size, typename Buffer >
+    pdu_ring_buffer< Size, Buffer >::pdu_ring_buffer( std::uint8_t* buffer )
     {
         reset( buffer );
     }
 
-    template < std::size_t Size >
-    void pdu_ring_buffer< Size >::reset( std::uint8_t* buffer )
+    template < std::size_t Size, typename Buffer >
+    void pdu_ring_buffer< Size, Buffer >::reset( std::uint8_t* buffer )
     {
         assert( buffer );
         front_ = buffer;
@@ -111,8 +111,8 @@ namespace link_layer {
         end_   = buffer;
     }
 
-    template < std::size_t Size >
-    read_buffer pdu_ring_buffer< Size >::alloc_front( std::uint8_t* buffer, std::size_t size ) const
+    template < std::size_t Size, typename Buffer >
+    Buffer pdu_ring_buffer< Size, Buffer >::alloc_front( std::uint8_t* buffer, std::size_t size ) const
     {
         assert( buffer );
         assert( size > ll_header_size );
@@ -120,7 +120,7 @@ namespace link_layer {
         // buffer splited? There must be one byte left to not overflow the ring.
         if ( end_ > front_ && size < end_ - front_ )
         {
-            return read_buffer{ front_, size };
+            return Buffer{ front_, size };
         }
 
         if ( front_ >= end_ )
@@ -130,21 +130,21 @@ namespace link_layer {
             // allocate at the end?
             if ( size <= end_of_buffer - front_ )
             {
-                return read_buffer{ front_, size };
+                return Buffer{ front_, size };
             }
 
             // allocate at the begining? Again, there must be one byte left between the end front_ and the end_
             if ( size < end_ - buffer )
             {
-                return read_buffer{ buffer, size };
+                return Buffer{ buffer, size };
             }
         }
 
-        return read_buffer{ 0, 0 };
+        return Buffer{ 0, 0 };
     }
 
-    template < std::size_t Size >
-    void pdu_ring_buffer< Size >::push_front( std::uint8_t* buffer, const read_buffer& pdu )
+    template < std::size_t Size, typename Buffer >
+    void pdu_ring_buffer< Size, Buffer >::push_front( std::uint8_t* buffer, const Buffer& pdu )
     {
         assert( pdu.size >= pdu_length( pdu ) );
         assert( pdu_length( pdu ) != 0 );
@@ -164,16 +164,16 @@ namespace link_layer {
             end_ = pdu.buffer;
     }
 
-    template < std::size_t Size >
-    write_buffer pdu_ring_buffer< Size >::next_end() const
+    template < std::size_t Size, typename Buffer >
+    Buffer pdu_ring_buffer< Size, Buffer >::next_end() const
     {
         return front_ == end_
-            ? write_buffer{ 0, 0 }
-            : write_buffer{ end_, end_[ 1 ] + ll_header_size };
+            ? Buffer{ 0, 0 }
+            : Buffer{ end_, end_[ 1 ] + ll_header_size };
     }
 
-    template < std::size_t Size >
-    void pdu_ring_buffer< Size >::pop_end( std::uint8_t* buffer )
+    template < std::size_t Size, typename Buffer >
+    void pdu_ring_buffer< Size, Buffer >::pop_end( std::uint8_t* buffer )
     {
         end_ += end_[ 1 ] + ll_header_size;
 
@@ -184,9 +184,9 @@ namespace link_layer {
             end_ = buffer;
     }
 
-    template < std::size_t Size >
+    template < std::size_t Size, typename Buffer >
     template < class P >
-    std::uint8_t pdu_ring_buffer< Size >::pdu_length( const P& pdu )
+    std::uint8_t pdu_ring_buffer< Size, Buffer >::pdu_length( const P& pdu )
     {
         return pdu.buffer[ 1 ] + ll_header_size;
     }
