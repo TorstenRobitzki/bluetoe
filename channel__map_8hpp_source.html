@@ -103,26 +103,29 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160;</div>
 <div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;        <span class="keywordtype">bool</span> <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2">reset</a>( <span class="keyword">const</span> std::uint8_t* map, <span class="keyword">const</span> <span class="keywordtype">unsigned</span> hop );</div>
 <div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;</div>
-<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;        <span class="keywordtype">unsigned</span> <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09">data_channel</a>( <span class="keywordtype">unsigned</span> index ) <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;        <span class="keywordtype">bool</span> <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2">reset</a>( <span class="keyword">const</span> std::uint8_t* map );</div>
 <div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;</div>
-<div class="line"><a name="l00036"></a><span class="lineno"><a class="line" href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">   36</a></span>&#160;        <span class="keyword">static</span> constexpr <span class="keywordtype">unsigned</span> <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">max_number_of_data_channels</a> = 37;</div>
-<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;    <span class="keyword">private</span>:</div>
-<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;        <span class="keywordtype">unsigned</span> build_used_channel_map( <span class="keyword">const</span> std::uint8_t* map, std::uint8_t* used ) <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;        <span class="keywordtype">unsigned</span> <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09">data_channel</a>( <span class="keywordtype">unsigned</span> index ) <span class="keyword">const</span>;</div>
 <div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;</div>
-<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;        std::uint8_t map_[ <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">max_number_of_data_channels</a> ];</div>
-<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;    };</div>
-<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;}</div>
-<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;}</div>
-<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;<span class="preprocessor">#endif // include guard</span></div>
+<div class="line"><a name="l00043"></a><span class="lineno"><a class="line" href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">   43</a></span>&#160;        <span class="keyword">static</span> constexpr <span class="keywordtype">unsigned</span> <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">max_number_of_data_channels</a> = 37;</div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;    <span class="keyword">private</span>:</div>
+<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;        <span class="keywordtype">unsigned</span> build_used_channel_map( <span class="keyword">const</span> std::uint8_t* map, std::uint8_t* used ) <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;</div>
+<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;        std::uint8_t map_[ <a class="code" href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">max_number_of_data_channels</a> ];</div>
+<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;        std::uint8_t hop_;</div>
+<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;    };</div>
+<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;}</div>
+<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;}</div>
+<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;<span class="preprocessor">#endif // include guard</span></div>
 <div class="ttc" id="classbluetoe_1_1link__layer_1_1channel__map_html_a64e0c85aed9fc79125df5826bc7f8c09"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09">bluetoe::link_layer::channel_map::data_channel</a></div><div class="ttdeci">unsigned data_channel(unsigned index) const </div></div>
-<div class="ttc" id="namespacebluetoe_html"><div class="ttname"><a href="namespacebluetoe.html">bluetoe</a></div><div class="ttdef"><b>Definition:</b> attribute.hpp:10</div></div>
-<div class="ttc" id="classbluetoe_1_1link__layer_1_1channel__map_html_aedac36c682df8f5150ce07100cc092bd"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">bluetoe::link_layer::channel_map::max_number_of_data_channels</a></div><div class="ttdeci">static constexpr unsigned max_number_of_data_channels</div><div class="ttdef"><b>Definition:</b> channel_map.hpp:36</div></div>
+<div class="ttc" id="namespacebluetoe_html"><div class="ttname"><a href="namespacebluetoe.html">bluetoe</a></div><div class="ttdef"><b>Definition:</b> appearance.hpp:4</div></div>
+<div class="ttc" id="classbluetoe_1_1link__layer_1_1channel__map_html_aedac36c682df8f5150ce07100cc092bd"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1channel__map.html#aedac36c682df8f5150ce07100cc092bd">bluetoe::link_layer::channel_map::max_number_of_data_channels</a></div><div class="ttdeci">static constexpr unsigned max_number_of_data_channels</div><div class="ttdef"><b>Definition:</b> channel_map.hpp:43</div></div>
 <div class="ttc" id="classbluetoe_1_1link__layer_1_1channel__map_html"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1channel__map.html">bluetoe::link_layer::channel_map</a></div><div class="ttdoc">map that keeps track of the list of used channels and calculates the next channel based on the last u...</div><div class="ttdef"><b>Definition:</b> channel_map.hpp:12</div></div>
-<div class="ttc" id="classbluetoe_1_1link__layer_1_1channel__map_html_a0b70a6b62616663d1e810eeb956ab1c2"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2">bluetoe::link_layer::channel_map::reset</a></div><div class="ttdeci">bool reset(const std::uint8_t *map, const unsigned hop)</div></div>
+<div class="ttc" id="classbluetoe_1_1link__layer_1_1channel__map_html_a0b70a6b62616663d1e810eeb956ab1c2"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2">bluetoe::link_layer::channel_map::reset</a></div><div class="ttdeci">bool reset(const std::uint8_t *map, const unsigned hop)</div><div class="ttdoc">sets a new list of used channels and a new hop value. </div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Aug 7 2015 17:00:34 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Nov 16 2015 12:30:17 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

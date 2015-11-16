@@ -96,10 +96,10 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!--header-->
 <div class="contents">
 
-<p>ring buffer for ingoing and outgoing LL Data PDUs  
+<p>ring buffers for ingoing and outgoing LL Data PDUs  
  <a href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#details">More...</a></p>
 
-<p><code>#include &lt;<a class="el" href="buffer_8hpp_source.html">bluetoe/link_layer/buffer.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="ll__data__pdu__buffer_8hpp_source.html">bluetoe/link_layer/ll_data_pdu_buffer.hpp</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -134,9 +134,6 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a5590ce333bb446d38ed3ae49600ffb48"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a5590ce333bb446d38ed3ae49600ffb48">reset</a> ()</td></tr>
 <tr class="memdesc:a5590ce333bb446d38ed3ae49600ffb48"><td class="mdescLeft">&#160;</td><td class="mdescRight">places the buffer in running mode.  <a href="#a5590ce333bb446d38ed3ae49600ffb48">More...</a><br /></td></tr>
 <tr class="separator:a5590ce333bb446d38ed3ae49600ffb48"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a868f678d027214aec8a1b51a7570f45a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a868f678d027214aec8a1b51a7570f45a"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>schedule_next_connection_event</b> ()</td></tr>
-<tr class="separator:a868f678d027214aec8a1b51a7570f45a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr><td colspan="2"><div class="groupHeader">Interface to access the transmit buffers from the link layer</div></td></tr>
 <tr class="memitem:a02afffdc3c6fafc155fc2cfffa71fa28"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a02afffdc3c6fafc155fc2cfffa71fa28">allocate_transmit_buffer</a> (std::size_t <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a875552bde9322f3d07ad9e9a9dc90a30">size</a>)</td></tr>
 <tr class="memdesc:a02afffdc3c6fafc155fc2cfffa71fa28"><td class="mdescLeft">&#160;</td><td class="mdescRight">allocates a certain amount of memory to place a PDU to be transmitted.  <a href="#a02afffdc3c6fafc155fc2cfffa71fa28">More...</a><br /></td></tr>
@@ -163,7 +160,7 @@ static constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom">
 <tr class="memdesc:a875552bde9322f3d07ad9e9a9dc90a30"><td class="mdescLeft">&#160;</td><td class="mdescRight">the size of memory in bytes that are return by <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#ad0e5d9f398c4e59f8a33db42fd927fdd" title="returns the underlying raw buffer with a size of at least ll_data_pdu_buffer::size ...">raw()</a> <br /></td></tr>
 <tr class="separator:a875552bde9322f3d07ad9e9a9dc90a30"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a94a15afdc2b6e3e24e7ac6b290f7aa9e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a94a15afdc2b6e3e24e7ac6b290f7aa9e"></a>
-static constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a94a15afdc2b6e3e24e7ac6b290f7aa9e">min_buffer_size</a> = 27</td></tr>
+static constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a94a15afdc2b6e3e24e7ac6b290f7aa9e">min_buffer_size</a> = 29</td></tr>
 <tr class="memdesc:a94a15afdc2b6e3e24e7ac6b290f7aa9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">the minimum size an element in the buffer can have <br /></td></tr>
 <tr class="separator:a94a15afdc2b6e3e24e7ac6b290f7aa9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a887d0f88c0023077cf456fd0fc5722e2"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a887d0f88c0023077cf456fd0fc5722e2"></a>
@@ -174,9 +171,9 @@ static constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
 <tr><td colspan="2"><div class="groupHeader">Interface to the radio hardware</div></td></tr>
-<tr class="memitem:aa2f97f3b604244603a57509b8a568e9d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aa2f97f3b604244603a57509b8a568e9d">allocate_receive_buffer</a> ()</td></tr>
-<tr class="memdesc:aa2f97f3b604244603a57509b8a568e9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">allocates a buffer for the next PDU to be received.  <a href="#aa2f97f3b604244603a57509b8a568e9d">More...</a><br /></td></tr>
-<tr class="separator:aa2f97f3b604244603a57509b8a568e9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a72ecb16ef40a301e019b922b3a7639b7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a72ecb16ef40a301e019b922b3a7639b7">allocate_receive_buffer</a> () const </td></tr>
+<tr class="memdesc:a72ecb16ef40a301e019b922b3a7639b7"><td class="mdescLeft">&#160;</td><td class="mdescRight">allocates a buffer for the next PDU to be received.  <a href="#a72ecb16ef40a301e019b922b3a7639b7">More...</a><br /></td></tr>
+<tr class="separator:a72ecb16ef40a301e019b922b3a7639b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abb04733d8c033531f8d1b62f8da0db14"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structbluetoe_1_1link__layer_1_1write__buffer.html">write_buffer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14">received</a> (<a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a>)</td></tr>
 <tr class="memdesc:abb04733d8c033531f8d1b62f8da0db14"><td class="mdescLeft">&#160;</td><td class="mdescRight">This function will be called by the scheduled radio when a PDU was received without error.  <a href="#abb04733d8c033531f8d1b62f8da0db14">More...</a><br /></td></tr>
 <tr class="separator:abb04733d8c033531f8d1b62f8da0db14"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -196,7 +193,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <div class="textblock"><h3>template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio&gt;<br />
 class bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</h3>
 
-<p>ring buffer for ingoing and outgoing LL Data PDUs </p>
+<p>ring buffers for ingoing and outgoing LL Data PDUs </p>
 <p>The buffer has two modes:</p><ul>
 <li>Stopped mode: In this mode, the internal buffer can be accessed</li>
 <li>running mode: The buffer is used a to communicate between the link layer and the scheduled radio</li>
@@ -206,7 +203,7 @@ class bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Rad
 <li>one to access the receive buffer from the link layer</li>
 <li>one to access the both buffers from the radio hardware</li>
 </ul>
-<p>This type is intendet to be inherited by the scheduled radio so that the <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html" title="ring buffer for ingoing and outgoing LL Data PDUs ">ll_data_pdu_buffer</a> can access the nessary radio interface by casting this to Radio* and to allow Radio to access the protected interface. </p>
+<p>This type is intendet to be inherited by the scheduled radio so that the <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html" title="ring buffers for ingoing and outgoing LL Data PDUs ">ll_data_pdu_buffer</a> can access the nessary radio interface by casting this to Radio* and to allow Radio to access the protected interface. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a class="anchor" id="a58a5626d5702e9ee528f15d854df6556"></a>
 <div class="memitem">
@@ -227,7 +224,7 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a class="anchor" id="aa2f97f3b604244603a57509b8a568e9d"></a>
+<a class="anchor" id="a72ecb16ef40a301e019b922b3a7639b7"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
@@ -240,7 +237,7 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
           <td class="memname"><a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a> <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html">bluetoe::link_layer::ll_data_pdu_buffer</a>&lt; TransmitSize, ReceiveSize, Radio &gt;::allocate_receive_buffer </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
   </td>
@@ -251,7 +248,7 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 </div><div class="memdoc">
 
 <p>allocates a buffer for the next PDU to be received. </p>
-<p>Once a buffer was allocated to the radio hardware is will be released by the hardware by calling on of <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14" title="This function will be called by the scheduled radio when a PDU was received without error...">received()</a>, <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeac9550100eccf2852ad80ed9161d8e7" title="This function will be called by the scheduled radio when a PDU was received with CRC error...">crc_error()</a> or <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a749be6af0664bc5483dd757e033c7eee" title="This function will be called by the scheduled radio when a timeout occured. ">timeout()</a>.</p>
+<p>Once a buffer was allocated to the radio hardware is will be released by the hardware by calling one of <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14" title="This function will be called by the scheduled radio when a PDU was received without error...">received()</a>, <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeac9550100eccf2852ad80ed9161d8e7" title="This function will be called by the scheduled radio when a PDU was received with CRC error...">crc_error()</a> or <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a749be6af0664bc5483dd757e033c7eee" title="This function will be called by the scheduled radio when a timeout occured. ">timeout()</a>.</p>
 <p>This function can return an empty buffer if the receive buffers are all still allocated. The radio is than required to ignore all incoming trafic.</p>
 <dl class="section attention"><dt>Attention</dt><dd>there should be a maximum of one allocated but jet not released buffer. </dd></dl>
 
@@ -402,7 +399,7 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 </div><div class="memdoc">
 
 <p>the current maximum receive size </p>
-<p>No PDU with larger size can be receive. This will always return at least 27. </p>
+<p>No PDU with larger size can be receive. This will always return at least 29. </p>
 
 </div>
 </div>
@@ -423,8 +420,8 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 </div><div class="memdoc">
 
 <p>set the maximum receive size </p>
-<p>The used size must be smaller or equal to ReceiveSize / <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a041abe27fc525b9a765a2798b0ec1f67" title="returns the maximum value that can be used as maximum receive size. ">max_max_rx_size()</a>, smaller than 252 and larger or equal to 27. The memory is best used, when ReceiveSize divided by max_size results in an integer. That integer is then the number of PDUs that can be buffered on the receivin side.</p>
-<p>By default the function will return 27.</p>
+<p>The used size must be smaller or equal to ReceiveSize / <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a041abe27fc525b9a765a2798b0ec1f67" title="returns the maximum value that can be used as maximum receive size. ">max_max_rx_size()</a>, smaller than 251 and larger or equal to 29. The memory is best used, when ReceiveSize divided by max_size results in an integer. That integer is then the number of PDUs that can be buffered on the receivin side.</p>
+<p>By default the function will return 29.</p>
 <dl class="section post"><dt>Postcondition</dt><dd><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aa7ca45bde58d7501cec92dbf81516cb0" title="the current maximum receive size ">max_rx_size()</a> == max_size </dd></dl>
 
 </div>
@@ -445,7 +442,7 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 </div><div class="memdoc">
 
 <p>the current maximum transmit size </p>
-<p>No PDU with larger size can be transmitted. This will always return at least 27. </p>
+<p>No PDU with larger size can be transmitted. This will always return at least 29. </p>
 
 </div>
 </div>
@@ -466,8 +463,8 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 </div><div class="memdoc">
 
 <p>set the maximum transmit size </p>
-<p>The used size must be smaller or equal to TransmitSize / <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#accdb4d86651be60ec50b86c175b2f0c4" title="returns the maximum value that can be used as maximum receive size. ">max_max_tx_size()</a>, smaller than 252 and larger or equal to 27. The memory is best used, when TransmitSize divided by max_size results in an integer. That integer is then the number of PDUs that can be buffered on the transmitting side.</p>
-<p>By default the function will return 27.</p>
+<p>The used size must be smaller or equal to TransmitSize / <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#accdb4d86651be60ec50b86c175b2f0c4" title="returns the maximum value that can be used as maximum receive size. ">max_max_tx_size()</a>, smaller than 251 and larger or equal to 29. The memory is best used, when TransmitSize divided by max_size results in an integer. That integer is then the number of PDUs that can be buffered on the transmitting side.</p>
+<p>By default the function will return 29.</p>
 <dl class="section post"><dt>Postcondition</dt><dd><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a3b7bc781e76ce637eb127fc059d78f94" title="the current maximum transmit size ">max_tx_size()</a> == max_size </dd></dl>
 
 </div>
@@ -589,7 +586,7 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio &g
 <p>Receive and transmit buffers are empty. Sequence numbers are reseted. <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aa7ca45bde58d7501cec92dbf81516cb0" title="the current maximum receive size ">max_rx_size()</a> is set to default</p>
 <dl class="section post"><dt>Postcondition</dt><dd><a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a8ebb2dd134b653ca19a37c4c6a3ed719" title="returns the oldest PDU out of the receive buffer. ">next_received()</a>.empty() </dd>
 <dd>
-<a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aa7ca45bde58d7501cec92dbf81516cb0" title="the current maximum receive size ">max_rx_size()</a> == 27u </dd></dl>
+<a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aa7ca45bde58d7501cec92dbf81516cb0" title="the current maximum receive size ">max_rx_size()</a> == 29u </dd></dl>
 
 </div>
 </div>
@@ -614,12 +611,12 @@ template&lt;std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio&gt
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li>bluetoe/link_layer/<a class="el" href="buffer_8hpp_source.html">buffer.hpp</a></li>
+<li>bluetoe/link_layer/<a class="el" href="ll__data__pdu__buffer_8hpp_source.html">ll_data_pdu_buffer.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Aug 7 2015 17:00:34 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Nov 16 2015 12:30:17 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

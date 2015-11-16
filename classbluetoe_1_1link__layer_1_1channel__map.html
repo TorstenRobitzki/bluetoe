@@ -104,7 +104,11 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a0b70a6b62616663d1e810eeb956ab1c2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2">reset</a> (const std::uint8_t *map, const unsigned hop)</td></tr>
+<tr class="memdesc:a0b70a6b62616663d1e810eeb956ab1c2"><td class="mdescLeft">&#160;</td><td class="mdescRight">sets a new list of used channels and a new hop value.  <a href="#a0b70a6b62616663d1e810eeb956ab1c2">More...</a><br /></td></tr>
 <tr class="separator:a0b70a6b62616663d1e810eeb956ab1c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a209adee53de8bf067c6cdb39ffc9c2bf"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html#a209adee53de8bf067c6cdb39ffc9c2bf">reset</a> (const std::uint8_t *map)</td></tr>
+<tr class="memdesc:a209adee53de8bf067c6cdb39ffc9c2bf"><td class="mdescLeft">&#160;</td><td class="mdescRight">sets a new list of used channels and keeps the old hop value.  <a href="#a209adee53de8bf067c6cdb39ffc9c2bf">More...</a><br /></td></tr>
+<tr class="separator:a209adee53de8bf067c6cdb39ffc9c2bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a64e0c85aed9fc79125df5826bc7f8c09"><td class="memItemLeft" align="right" valign="top">unsigned&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09">data_channel</a> (unsigned index) const </td></tr>
 <tr class="separator:a64e0c85aed9fc79125df5826bc7f8c09"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -156,8 +160,28 @@ Static Public Attributes</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>sets a new list of used channels and a new hop value.</p>
+
+<p>sets a new list of used channels and a new hop value. </p>
 <p>The function returns true, if the given parameters are valid. A valid map contains at least 2 channel. A hop increment shall have a value in the range of 5 to 16. </p>
+
+</div>
+</div>
+<a class="anchor" id="a209adee53de8bf067c6cdb39ffc9c2bf"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool bluetoe::link_layer::channel_map::reset </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>map</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>sets a new list of used channels and keeps the old hop value. </p>
+<dl class="section pre"><dt>Precondition</dt><dd><a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2" title="sets a new list of used channels and a new hop value. ">reset( const std::uint8_t* map, const unsigned hop )</a> must have been called before, to have an old hop value </dd></dl>
 
 </div>
 </div>
@@ -189,7 +213,7 @@ Static Public Attributes</h2></td></tr>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Aug 7 2015 17:00:34 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Nov 16 2015 12:30:17 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

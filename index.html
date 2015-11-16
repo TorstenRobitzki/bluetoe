@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.9.1"/>
-<title>BlueToe: Main Page</title>
+<title>BlueToe: bluetoe</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -76,13 +76,37 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 
 <div class="header">
   <div class="headertitle">
-<div class="title">BlueToe Documentation</div>  </div>
+<div class="title">bluetoe </div>  </div>
 </div><!--header-->
 <div class="contents">
-</div><!-- contents -->
+<div class="textblock"><h1><a class="anchor" id="intro_sec"></a>
+Introduction</h1>
+<p>Bluetoe is an attempt to simplify the implementation of firmware for Bluetooth Low Energy devices. Bluetooth Low Energy devices / peripherals usally implement a so called GATT Server. GATT is a protocol that alows a computer (desktop, phone etc.) to discover a devices capabilities and to interact with a device in a unified manner.</p>
+<p>A lot of possible device capabilities are specified by the Bluetooth Special Interest Group. Others capabilities are user defined and make sense only to the implemeter of a device and the used client. Those capabilities and the means how to access them are called profiles.</p>
+<p>&lt;add links to bluetooth.org&gt;</p>
+<h1><a class="anchor" id="gatt_basics"></a>
+GATT Basics</h1>
+<h2><a class="anchor" id="Characteristics"></a>
+Characteristics</h2>
+<p>The basic building blocks of GATT are characteristics. A characteristic can be thinked of as a piece of information / a variable that resides inside of a device, which clients can interact with. To identify a characteristic, an identifier, called a UUID is used. Beside some very basic properties like "readable" or "writeable", a characteristic can have additional properties like a name or structure informations (e.g. this is a structure containing 1 float followed by 2 integers).</p>
+<h2><a class="anchor" id="Services"></a>
+Services</h2>
+<h2><a class="anchor" id="Profiles"></a>
+Profiles</h2>
+<h2><a class="anchor" id="UUIDs"></a>
+UUIDs</h2>
+<p>A set of characteristics that are usually implemented together to</p>
+<h1><a class="anchor" id="start_bluetoe"></a>
+Bluetoes Implementation of GATT</h1>
+<h1><a class="anchor" id="define_gap"></a>
+And what's with GAP?</h1>
+<p>GAP is an other important protocol that allows a GATT client to discover devices, connect to them and to gather basic informations about a device. In Bluetooth all possible options related to GAP are passed as options to the server type definition.</p>
+<h1><a class="anchor" id="design_goals"></a>
+Design Goals</h1>
+</div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Aug 7 2015 17:00:34 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Nov 16 2015 12:30:18 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

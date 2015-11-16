@@ -424,84 +424,85 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00441"></a><span class="lineno">  441</span>&#160;            <span class="keyword">static</span> <span class="keyword">const</span> attribute attribute_at( std::size_t index )</div>
 <div class="line"><a name="l00442"></a><span class="lineno">  442</span>&#160;            {</div>
 <div class="line"><a name="l00443"></a><span class="lineno">  443</span>&#160;                assert( !<span class="stringliteral">&quot;should not happen&quot;</span> );</div>
-<div class="line"><a name="l00444"></a><span class="lineno">  444</span>&#160;            }</div>
-<div class="line"><a name="l00445"></a><span class="lineno">  445</span>&#160;        };</div>
-<div class="line"><a name="l00446"></a><span class="lineno">  446</span>&#160;</div>
-<div class="line"><a name="l00447"></a><span class="lineno">  447</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Attributes, std::size_t ClientCharacteristicIndex, <span class="keyword">typename</span> ... Options &gt;</div>
-<div class="line"><a name="l00448"></a><span class="lineno">  448</span>&#160;        <span class="keyword">struct </span>generate_attribute_list&lt; std::tuple&lt; Attributes... &gt;, ClientCharacteristicIndex, Options... &gt;</div>
-<div class="line"><a name="l00449"></a><span class="lineno">  449</span>&#160;        {</div>
-<div class="line"><a name="l00450"></a><span class="lineno">  450</span>&#160;            <span class="keyword">static</span> <span class="keyword">const</span> attribute attribute_at( std::size_t index )</div>
-<div class="line"><a name="l00451"></a><span class="lineno">  451</span>&#160;            {</div>
-<div class="line"><a name="l00452"></a><span class="lineno">  452</span>&#160;                <span class="keywordflow">return</span> attributes[ index ];</div>
-<div class="line"><a name="l00453"></a><span class="lineno">  453</span>&#160;            }</div>
-<div class="line"><a name="l00454"></a><span class="lineno">  454</span>&#160;</div>
-<div class="line"><a name="l00455"></a><span class="lineno">  455</span>&#160;            <span class="keyword">static</span> attribute attributes[ <span class="keyword">sizeof</span> ...(Attributes) ];</div>
-<div class="line"><a name="l00456"></a><span class="lineno">  456</span>&#160;        };</div>
-<div class="line"><a name="l00457"></a><span class="lineno">  457</span>&#160;</div>
-<div class="line"><a name="l00458"></a><span class="lineno">  458</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Attributes, std::size_t ClientCharacteristicIndex, <span class="keyword">typename</span> ... Options &gt;</div>
-<div class="line"><a name="l00459"></a><span class="lineno">  459</span>&#160;        attribute generate_attribute_list&lt; std::tuple&lt; Attributes... &gt;, ClientCharacteristicIndex, Options... &gt;::attributes[ <span class="keyword">sizeof</span> ...(Attributes) ] =</div>
-<div class="line"><a name="l00460"></a><span class="lineno">  460</span>&#160;        {</div>
-<div class="line"><a name="l00461"></a><span class="lineno">  461</span>&#160;            generate_attribute&lt; Attributes, ClientCharacteristicIndex, Options... &gt;::attr...</div>
-<div class="line"><a name="l00462"></a><span class="lineno">  462</span>&#160;        };</div>
-<div class="line"><a name="l00463"></a><span class="lineno">  463</span>&#160;</div>
-<div class="line"><a name="l00464"></a><span class="lineno">  464</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Parmeters &gt;</div>
-<div class="line"><a name="l00465"></a><span class="lineno">  465</span>&#160;        <span class="keyword">struct </span>are_client_characteristic_configuration_parameter : std::false_type {};</div>
-<div class="line"><a name="l00466"></a><span class="lineno">  466</span>&#160;</div>
-<div class="line"><a name="l00467"></a><span class="lineno">  467</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Ts &gt;</div>
-<div class="line"><a name="l00468"></a><span class="lineno">  468</span>&#160;        <span class="keyword">struct </span>are_client_characteristic_configuration_parameter&lt; std::tuple&lt; client_characteristic_configuration_parameter, Ts... &gt; &gt; : std::true_type {};</div>
-<div class="line"><a name="l00469"></a><span class="lineno">  469</span>&#160;</div>
-<div class="line"><a name="l00470"></a><span class="lineno">  470</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
-<div class="line"><a name="l00471"></a><span class="lineno">  471</span>&#160;        <span class="keyword">struct </span>generate_attributes</div>
-<div class="line"><a name="l00472"></a><span class="lineno">  472</span>&#160;        {</div>
-<div class="line"><a name="l00473"></a><span class="lineno">  473</span>&#160;            <span class="comment">// this constructs groups all Options by there meta type. Empty groups are removed from the result set.</span></div>
-<div class="line"><a name="l00474"></a><span class="lineno">  474</span>&#160;            <span class="keyword">typedef</span> <span class="keyword">typename</span> group_by_meta_types_without_empty_groups&lt;</div>
-<div class="line"><a name="l00475"></a><span class="lineno">  475</span>&#160;                std::tuple&lt;</div>
-<div class="line"><a name="l00476"></a><span class="lineno">  476</span>&#160;                    Options...,</div>
-<div class="line"><a name="l00477"></a><span class="lineno">  477</span>&#160;                    empty_meta_type&lt; characteristic_declaration_parameter &gt; <span class="comment">// force the existens of an characteristic declaration, even without Options with this meta_type</span></div>
-<div class="line"><a name="l00478"></a><span class="lineno">  478</span>&#160;                &gt;,</div>
-<div class="line"><a name="l00479"></a><span class="lineno">  479</span>&#160;                <span class="comment">// List of meta types. The order of this meta types defines the order in the attribute list.</span></div>
-<div class="line"><a name="l00480"></a><span class="lineno">  480</span>&#160;                characteristic_declaration_parameter,</div>
-<div class="line"><a name="l00481"></a><span class="lineno">  481</span>&#160;                characteristic_value_declaration_parameter,</div>
-<div class="line"><a name="l00482"></a><span class="lineno">  482</span>&#160;                characteristic_user_description_parameter,</div>
-<div class="line"><a name="l00483"></a><span class="lineno">  483</span>&#160;                client_characteristic_configuration_parameter</div>
-<div class="line"><a name="l00484"></a><span class="lineno">  484</span>&#160;            &gt;::type declaraction_parameters;</div>
-<div class="line"><a name="l00485"></a><span class="lineno">  485</span>&#160;</div>
-<div class="line"><a name="l00486"></a><span class="lineno">  486</span>&#160;            <span class="keyword">enum</span> { number_of_attributes     = std::tuple_size&lt; declaraction_parameters &gt;::value };</div>
-<div class="line"><a name="l00487"></a><span class="lineno">  487</span>&#160;            <span class="keyword">enum</span> { number_of_client_configs = count_if&lt; declaraction_parameters, are_client_characteristic_configuration_parameter &gt;::value };</div>
-<div class="line"><a name="l00488"></a><span class="lineno">  488</span>&#160;            <span class="keyword">enum</span> { number_of_server_configs = 0 };</div>
-<div class="line"><a name="l00489"></a><span class="lineno">  489</span>&#160;</div>
-<div class="line"><a name="l00490"></a><span class="lineno">  490</span>&#160;            <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceUUID &gt;</div>
-<div class="line"><a name="l00491"></a><span class="lineno">  491</span>&#160;            <span class="keyword">static</span> <span class="keyword">const</span> attribute attribute_at( std::size_t index )</div>
-<div class="line"><a name="l00492"></a><span class="lineno">  492</span>&#160;            {</div>
-<div class="line"><a name="l00493"></a><span class="lineno">  493</span>&#160;                <span class="keywordflow">return</span> generate_attribute_list&lt; declaraction_parameters, ClientCharacteristicIndex, Options..., ServiceUUID &gt;::attribute_at( index );</div>
-<div class="line"><a name="l00494"></a><span class="lineno">  494</span>&#160;            }</div>
-<div class="line"><a name="l00495"></a><span class="lineno">  495</span>&#160;        };</div>
-<div class="line"><a name="l00496"></a><span class="lineno">  496</span>&#160;</div>
-<div class="line"><a name="l00497"></a><span class="lineno">  497</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic &gt;</div>
-<div class="line"><a name="l00498"></a><span class="lineno">  498</span>&#160;        <span class="keyword">struct </span>sum_by_attributes</div>
-<div class="line"><a name="l00499"></a><span class="lineno">  499</span>&#160;        {</div>
-<div class="line"><a name="l00500"></a><span class="lineno">  500</span>&#160;            <span class="keyword">enum</span> { value = Characteristic::number_of_attributes };</div>
-<div class="line"><a name="l00501"></a><span class="lineno">  501</span>&#160;        };</div>
-<div class="line"><a name="l00502"></a><span class="lineno">  502</span>&#160;</div>
-<div class="line"><a name="l00503"></a><span class="lineno">  503</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic &gt;</div>
-<div class="line"><a name="l00504"></a><span class="lineno">  504</span>&#160;        <span class="keyword">struct </span>sum_by_client_configs</div>
-<div class="line"><a name="l00505"></a><span class="lineno">  505</span>&#160;        {</div>
-<div class="line"><a name="l00506"></a><span class="lineno">  506</span>&#160;            <span class="keyword">enum</span> { value = Characteristic::number_of_client_configs };</div>
-<div class="line"><a name="l00507"></a><span class="lineno">  507</span>&#160;        };</div>
-<div class="line"><a name="l00508"></a><span class="lineno">  508</span>&#160;</div>
-<div class="line"><a name="l00510"></a><span class="lineno">  510</span>&#160;    }</div>
-<div class="line"><a name="l00511"></a><span class="lineno">  511</span>&#160;}</div>
-<div class="line"><a name="l00512"></a><span class="lineno">  512</span>&#160;</div>
-<div class="line"><a name="l00513"></a><span class="lineno">  513</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00444"></a><span class="lineno">  444</span>&#160;                <span class="keywordflow">return</span> attribute();</div>
+<div class="line"><a name="l00445"></a><span class="lineno">  445</span>&#160;            }</div>
+<div class="line"><a name="l00446"></a><span class="lineno">  446</span>&#160;        };</div>
+<div class="line"><a name="l00447"></a><span class="lineno">  447</span>&#160;</div>
+<div class="line"><a name="l00448"></a><span class="lineno">  448</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Attributes, std::size_t ClientCharacteristicIndex, <span class="keyword">typename</span> ... Options &gt;</div>
+<div class="line"><a name="l00449"></a><span class="lineno">  449</span>&#160;        <span class="keyword">struct </span>generate_attribute_list&lt; std::tuple&lt; Attributes... &gt;, ClientCharacteristicIndex, Options... &gt;</div>
+<div class="line"><a name="l00450"></a><span class="lineno">  450</span>&#160;        {</div>
+<div class="line"><a name="l00451"></a><span class="lineno">  451</span>&#160;            <span class="keyword">static</span> <span class="keyword">const</span> attribute attribute_at( std::size_t index )</div>
+<div class="line"><a name="l00452"></a><span class="lineno">  452</span>&#160;            {</div>
+<div class="line"><a name="l00453"></a><span class="lineno">  453</span>&#160;                <span class="keywordflow">return</span> attributes[ index ];</div>
+<div class="line"><a name="l00454"></a><span class="lineno">  454</span>&#160;            }</div>
+<div class="line"><a name="l00455"></a><span class="lineno">  455</span>&#160;</div>
+<div class="line"><a name="l00456"></a><span class="lineno">  456</span>&#160;            <span class="keyword">static</span> attribute attributes[ <span class="keyword">sizeof</span> ...(Attributes) ];</div>
+<div class="line"><a name="l00457"></a><span class="lineno">  457</span>&#160;        };</div>
+<div class="line"><a name="l00458"></a><span class="lineno">  458</span>&#160;</div>
+<div class="line"><a name="l00459"></a><span class="lineno">  459</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Attributes, std::size_t ClientCharacteristicIndex, <span class="keyword">typename</span> ... Options &gt;</div>
+<div class="line"><a name="l00460"></a><span class="lineno">  460</span>&#160;        attribute generate_attribute_list&lt; std::tuple&lt; Attributes... &gt;, ClientCharacteristicIndex, Options... &gt;::attributes[ <span class="keyword">sizeof</span> ...(Attributes) ] =</div>
+<div class="line"><a name="l00461"></a><span class="lineno">  461</span>&#160;        {</div>
+<div class="line"><a name="l00462"></a><span class="lineno">  462</span>&#160;            generate_attribute&lt; Attributes, ClientCharacteristicIndex, Options... &gt;::attr...</div>
+<div class="line"><a name="l00463"></a><span class="lineno">  463</span>&#160;        };</div>
+<div class="line"><a name="l00464"></a><span class="lineno">  464</span>&#160;</div>
+<div class="line"><a name="l00465"></a><span class="lineno">  465</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Parmeters &gt;</div>
+<div class="line"><a name="l00466"></a><span class="lineno">  466</span>&#160;        <span class="keyword">struct </span>are_client_characteristic_configuration_parameter : std::false_type {};</div>
+<div class="line"><a name="l00467"></a><span class="lineno">  467</span>&#160;</div>
+<div class="line"><a name="l00468"></a><span class="lineno">  468</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Ts &gt;</div>
+<div class="line"><a name="l00469"></a><span class="lineno">  469</span>&#160;        <span class="keyword">struct </span>are_client_characteristic_configuration_parameter&lt; std::tuple&lt; client_characteristic_configuration_parameter, Ts... &gt; &gt; : std::true_type {};</div>
+<div class="line"><a name="l00470"></a><span class="lineno">  470</span>&#160;</div>
+<div class="line"><a name="l00471"></a><span class="lineno">  471</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
+<div class="line"><a name="l00472"></a><span class="lineno">  472</span>&#160;        <span class="keyword">struct </span>generate_attributes</div>
+<div class="line"><a name="l00473"></a><span class="lineno">  473</span>&#160;        {</div>
+<div class="line"><a name="l00474"></a><span class="lineno">  474</span>&#160;            <span class="comment">// this constructs groups all Options by there meta type. Empty groups are removed from the result set.</span></div>
+<div class="line"><a name="l00475"></a><span class="lineno">  475</span>&#160;            <span class="keyword">typedef</span> <span class="keyword">typename</span> group_by_meta_types_without_empty_groups&lt;</div>
+<div class="line"><a name="l00476"></a><span class="lineno">  476</span>&#160;                std::tuple&lt;</div>
+<div class="line"><a name="l00477"></a><span class="lineno">  477</span>&#160;                    Options...,</div>
+<div class="line"><a name="l00478"></a><span class="lineno">  478</span>&#160;                    empty_meta_type&lt; characteristic_declaration_parameter &gt; <span class="comment">// force the existens of an characteristic declaration, even without Options with this meta_type</span></div>
+<div class="line"><a name="l00479"></a><span class="lineno">  479</span>&#160;                &gt;,</div>
+<div class="line"><a name="l00480"></a><span class="lineno">  480</span>&#160;                <span class="comment">// List of meta types. The order of this meta types defines the order in the attribute list.</span></div>
+<div class="line"><a name="l00481"></a><span class="lineno">  481</span>&#160;                characteristic_declaration_parameter,</div>
+<div class="line"><a name="l00482"></a><span class="lineno">  482</span>&#160;                characteristic_value_declaration_parameter,</div>
+<div class="line"><a name="l00483"></a><span class="lineno">  483</span>&#160;                characteristic_user_description_parameter,</div>
+<div class="line"><a name="l00484"></a><span class="lineno">  484</span>&#160;                client_characteristic_configuration_parameter</div>
+<div class="line"><a name="l00485"></a><span class="lineno">  485</span>&#160;            &gt;::type declaraction_parameters;</div>
+<div class="line"><a name="l00486"></a><span class="lineno">  486</span>&#160;</div>
+<div class="line"><a name="l00487"></a><span class="lineno">  487</span>&#160;            <span class="keyword">enum</span> { number_of_attributes     = std::tuple_size&lt; declaraction_parameters &gt;::value };</div>
+<div class="line"><a name="l00488"></a><span class="lineno">  488</span>&#160;            <span class="keyword">enum</span> { number_of_client_configs = count_if&lt; declaraction_parameters, are_client_characteristic_configuration_parameter &gt;::value };</div>
+<div class="line"><a name="l00489"></a><span class="lineno">  489</span>&#160;            <span class="keyword">enum</span> { number_of_server_configs = 0 };</div>
+<div class="line"><a name="l00490"></a><span class="lineno">  490</span>&#160;</div>
+<div class="line"><a name="l00491"></a><span class="lineno">  491</span>&#160;            <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceUUID &gt;</div>
+<div class="line"><a name="l00492"></a><span class="lineno">  492</span>&#160;            <span class="keyword">static</span> <span class="keyword">const</span> attribute attribute_at( std::size_t index )</div>
+<div class="line"><a name="l00493"></a><span class="lineno">  493</span>&#160;            {</div>
+<div class="line"><a name="l00494"></a><span class="lineno">  494</span>&#160;                <span class="keywordflow">return</span> generate_attribute_list&lt; declaraction_parameters, ClientCharacteristicIndex, Options..., ServiceUUID &gt;::attribute_at( index );</div>
+<div class="line"><a name="l00495"></a><span class="lineno">  495</span>&#160;            }</div>
+<div class="line"><a name="l00496"></a><span class="lineno">  496</span>&#160;        };</div>
+<div class="line"><a name="l00497"></a><span class="lineno">  497</span>&#160;</div>
+<div class="line"><a name="l00498"></a><span class="lineno">  498</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic &gt;</div>
+<div class="line"><a name="l00499"></a><span class="lineno">  499</span>&#160;        <span class="keyword">struct </span>sum_by_attributes</div>
+<div class="line"><a name="l00500"></a><span class="lineno">  500</span>&#160;        {</div>
+<div class="line"><a name="l00501"></a><span class="lineno">  501</span>&#160;            <span class="keyword">enum</span> { value = Characteristic::number_of_attributes };</div>
+<div class="line"><a name="l00502"></a><span class="lineno">  502</span>&#160;        };</div>
+<div class="line"><a name="l00503"></a><span class="lineno">  503</span>&#160;</div>
+<div class="line"><a name="l00504"></a><span class="lineno">  504</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic &gt;</div>
+<div class="line"><a name="l00505"></a><span class="lineno">  505</span>&#160;        <span class="keyword">struct </span>sum_by_client_configs</div>
+<div class="line"><a name="l00506"></a><span class="lineno">  506</span>&#160;        {</div>
+<div class="line"><a name="l00507"></a><span class="lineno">  507</span>&#160;            <span class="keyword">enum</span> { value = Characteristic::number_of_client_configs };</div>
+<div class="line"><a name="l00508"></a><span class="lineno">  508</span>&#160;        };</div>
+<div class="line"><a name="l00509"></a><span class="lineno">  509</span>&#160;</div>
+<div class="line"><a name="l00511"></a><span class="lineno">  511</span>&#160;    }</div>
+<div class="line"><a name="l00512"></a><span class="lineno">  512</span>&#160;}</div>
+<div class="line"><a name="l00513"></a><span class="lineno">  513</span>&#160;</div>
+<div class="line"><a name="l00514"></a><span class="lineno">  514</span>&#160;<span class="preprocessor">#endif</span></div>
 <div class="ttc" id="structbluetoe_1_1characteristic__uuid_html"><div class="ttname"><a href="structbluetoe_1_1characteristic__uuid.html">bluetoe::characteristic_uuid</a></div><div class="ttdoc">a 128-Bit UUID used to identify a characteristic. </div><div class="ttdef"><b>Definition:</b> characteristic.hpp:53</div></div>
 <div class="ttc" id="structbluetoe_1_1characteristic__name_html"><div class="ttname"><a href="structbluetoe_1_1characteristic__name.html">bluetoe::characteristic_name</a></div><div class="ttdoc">adds a name to characteristic </div><div class="ttdef"><b>Definition:</b> characteristic.hpp:183</div></div>
 <div class="ttc" id="structbluetoe_1_1characteristic__uuid16_html"><div class="ttname"><a href="structbluetoe_1_1characteristic__uuid16.html">bluetoe::characteristic_uuid16</a></div><div class="ttdoc">a 16-Bit UUID used to identify a characteristic. </div><div class="ttdef"><b>Definition:</b> characteristic.hpp:66</div></div>
-<div class="ttc" id="namespacebluetoe_html"><div class="ttname"><a href="namespacebluetoe.html">bluetoe</a></div><div class="ttdef"><b>Definition:</b> attribute.hpp:10</div></div>
+<div class="ttc" id="namespacebluetoe_html"><div class="ttname"><a href="namespacebluetoe.html">bluetoe</a></div><div class="ttdef"><b>Definition:</b> appearance.hpp:4</div></div>
 <div class="ttc" id="classbluetoe_1_1characteristic_html"><div class="ttname"><a href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a></div><div class="ttdoc">A characteristic is an attribute that is accessable by a GATT client. </div><div class="ttdef"><b>Definition:</b> characteristic.hpp:122</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Aug 7 2015 17:00:34 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Nov 16 2015 12:30:17 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>
