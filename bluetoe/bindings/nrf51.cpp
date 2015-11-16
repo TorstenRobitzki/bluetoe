@@ -13,8 +13,8 @@ namespace nrf51_details {
     static constexpr NRF_TIMER_Type*    nrf_timer            = NRF_TIMER0;
     static constexpr NVIC_Type*         nvic                 = NVIC;
     static scheduled_radio_base*        instance             = nullptr;
-    // the timeout timer will be canceled when the address is received; that's after T_IFS (150µs +- 2) 5 Bytes and some addition 20µs
-    static constexpr std::uint32_t      reponse_timeout_us   = 152 + 5 * 8 + 20;
+    // the timeout timer will be canceled when the address is received; that's after T_IFS (150µs +- 2) 5 Bytes and some addition 120µs
+    static constexpr std::uint32_t      adv_reponse_timeout_us   = 152 + 5 * 8 + 120;
     static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
 
     static constexpr std::size_t        radio_address_capture2_ppi_channel = 26;
@@ -326,7 +326,7 @@ toggle_debug_pin1();
                 NRF_RADIO->TASKS_RXEN          = 1;
 
                 nrf_timer->TASKS_CAPTURE[ 0 ]  = 1;
-                nrf_timer->CC[0]              += reponse_timeout_us;
+                nrf_timer->CC[0]              += adv_reponse_timeout_us;
                 nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
                 nrf_timer->INTENSET            = TIMER_INTENSET_COMPARE0_Msk;
             }
@@ -401,7 +401,6 @@ toggle_debug_pin2();
                 state_ = state::idle;
                 end_evt_ = true;
             }
-toggle_debug_pin1();
         }
 
         if ( NRF_RADIO->EVENTS_ADDRESS )
