@@ -5,6 +5,7 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
+#include <bluetoe/server_name.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
 #include <bluetoe/gap_service.hpp>
@@ -16,10 +17,6 @@
 #include <cassert>
 
 namespace bluetoe {
-
-    namespace details {
-        struct server_name_meta_type;
-    }
 
     /**
      * @brief Root of the declaration of a GATT server.
@@ -263,18 +260,6 @@ namespace bluetoe {
     template < typename ... ServerOptions, typename ... Options >
     struct extend_server< server< ServerOptions... >, Options... > : server< ServerOptions..., Options... >
     {
-    };
-
-    /**
-     * @brief adds a discoverable device name
-     */
-    template < const char* const Name >
-    struct server_name {
-        /** @cond HIDDEN_SYMBOLS */
-        typedef details::server_name_meta_type meta_type;
-
-        static constexpr char const* name = Name;
-        /** @endcond */
     };
 
     /*

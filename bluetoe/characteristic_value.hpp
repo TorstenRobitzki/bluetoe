@@ -221,14 +221,51 @@ namespace bluetoe {
     template < std::uint32_t Value >
     using fixed_uint32_value = fixed_value< std::uint32_t, Value >;
 
-    /**
-     * @brief Easy value implementation for byte arrays.
-     *
-     * Can be used for utf8 text values for example.
-     */
-    template < std::size_t Size, std::uint8_t (*Data)[Size]>
-    struct bind_byte_array
-    {};
+    template < class Text >
+    struct cstring_wrapper
+    {
+        /**
+         * @cond HIDDEN_SYMBOLS
+         */
+        template < typename ... Options >
+        class value_impl
+        {
+        public:
+            static constexpr bool has_read_access  = true;
+            static constexpr bool has_write_access = false;
+            static constexpr bool has_notifcation  = false;
+
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                if ( args.type != details::attribute_access_type::read )
+                    return details::attribute_access_result::write_not_permitted;
+
+                const char*       value  = Text::value();
+                const std::size_t length = strlen( value );
+
+                if ( args.buffer_offset > length )
+                    return details::attribute_access_result::invalid_offset;
+
+                args.buffer_size = std::min< std::size_t >( args.buffer_size, length - args.buffer_offset );
+
+                // copy data
+                std::copy( value + args.buffer_offset, value + args.buffer_offset + args.buffer_size, args.buffer );
+
+                return args.buffer_size == length - args.buffer_offset
+                    ? details::attribute_access_result::success
+                    : details::attribute_access_result::read_truncated;
+            }
+
+            static bool is_this( const void* value )
+            {
+                return false;
+            }
+
+        };
+
+        struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        /** @endcond */
+   };
 }
 
 #endif

@@ -8,8 +8,10 @@
 
 
 std::uint16_t nupsy = 0x0104;
+static const char nupsy_name[] = "Nupsy-Server";
 
 typedef bluetoe::server<
+    bluetoe::server_name< nupsy_name >,
     bluetoe::service<
         bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
         bluetoe::characteristic<
@@ -93,7 +95,37 @@ BOOST_FIXTURE_TEST_CASE( configured_appearance_is_used, request_with_reponse< lo
     } );
 }
 
-// BOOST_FIXTURE_TEST_CASE( device_name_is_mandatory, request_with_reponse< nupsy_service > )
-// {
+BOOST_FIXTURE_TEST_CASE( device_name_is_mandatory, request_with_reponse< nupsy_service > )
+{
+    // Read by Type Request, 0x0001, 0xffff, 0x2A00
+    l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x00, 0x2A } );
+    expected_result( {
+        0x09,
+        0x0e, 0x06, 0x00, // length + handle
+        // "Nupsy-Server"
+        'N', 'u', 'p', 's', 'y', '-', 'S', 'e', 'r', 'v', 'e', 'r'
+    } );
+}
 
-// }
+typedef bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< decltype( nupsy ), &nupsy >,
+            bluetoe::no_write_access
+        >
+    >
+> no_name_service;
+
+BOOST_FIXTURE_TEST_CASE( default_name, request_with_reponse< no_name_service > )
+{
+    // Read by Type Request, 0x0001, 0xffff, 0x2A00
+    l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x00, 0x2A } );
+    expected_result( {
+        0x09,
+        0x10, 0x06, 0x00, // length + handle
+        // "Bluetoe-Server"
+        'B', 'l', 'u', 'e', 't', 'o', 'e', '-', 'S', 'e', 'r', 'v', 'e', 'r'
+    } );
+}

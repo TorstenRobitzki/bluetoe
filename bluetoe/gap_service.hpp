@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <bluetoe/service.hpp>
 #include <bluetoe/appearance.hpp>
+#include <bluetoe/server_name.hpp>
 
 namespace bluetoe {
 
@@ -49,13 +50,13 @@ namespace bluetoe {
         /** @cond HIDDEN_SYMBOLS */
         typedef details::gap_service_definition_meta_type meta_type;
 
-        template < typename Appearance >
+        template < typename Appearance, typename Name >
         using gap_service =
             service<
                 service_uuid16< 0x1800 >,
                 characteristic<
                     characteristic_uuid16< 0x2A00 >,
-                    fixed_uint16_value< 0 > // TODO resonable default
+                    cstring_wrapper< Name >
                 >,
                 characteristic<
                     characteristic_uuid16< 0x2A01 >,
@@ -71,10 +72,26 @@ namespace bluetoe {
                 appearance::unknown
             >::type device_appearance;
 
-            typedef typename details::add_type< Services, gap_service< device_appearance > >::type type;
+            static const char default_server_name[ 15 ];
+
+            typedef typename details::find_by_meta_type<
+                details::server_name_meta_type,
+                ServerOptions...,
+                server_name< default_server_name >
+            >::type device_name;
+
+            typedef typename details::add_type<
+                Services,
+                gap_service< device_appearance, device_name >
+            >::type type;
         };
+
         /** @endcond */
     };
+
+    template < typename Services, typename ... ServerOptions >
+    const char gap_service_for_gatt_servers::add_service< Services, ServerOptions... >::default_server_name[ 15 ] = "Bluetoe-Server";
+
 }
 
 #endif
