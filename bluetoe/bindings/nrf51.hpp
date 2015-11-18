@@ -3,7 +3,7 @@
 
 #include <bluetoe/link_layer/link_layer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
-#include <bluetoe/link_layer/buffer.hpp>
+#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);
@@ -68,6 +68,10 @@ namespace bluetoe
             friend void ::RADIO_IRQHandler(void);
             friend void ::TIMER0_IRQHandler(void);
 
+            void adv_radio_interrupt();
+            void adv_timer_interrupt();
+            void evt_radio_interrupt();
+            void evt_timer_interrupt();
             void radio_interrupt();
             void timer_interrupt();
 
@@ -79,17 +83,16 @@ namespace bluetoe
             volatile bool evt_timeout_;
             volatile bool end_evt_;
 
+            static constexpr unsigned connection_event_type_base = 100;
 
             enum class state {
                 idle,
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
                 adv_timeout_stopping,
                 adv_transmitting,
-                // wait until the right time to transmit
-                adv_transmitting_pending,
                 adv_receiving,
                 // connection event
-                evt_wait_connect,
+                evt_wait_connect    = connection_event_type_base,
                 evt_transmiting,
                 evt_transmiting_closing,
                 evt_receiving
@@ -99,6 +102,7 @@ namespace bluetoe
 
             bluetoe::link_layer::delta_time anchor_offset_;
             bool                            more_data_;
+            bool                            receiving_data_;
 
             link_layer::read_buffer         receive_buffer_;
 
