@@ -240,8 +240,10 @@ namespace bluetoe {
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
 
-                const char*       value  = Text::value();
-                const std::size_t length = strlen( value );
+                const char* value  = Text::value();
+                std::size_t length = 0;
+                for ( const char* v = value; *v; ++v, ++length )
+                    ;
 
                 if ( args.buffer_offset > length )
                     return details::attribute_access_result::invalid_offset;
