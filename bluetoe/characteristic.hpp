@@ -84,7 +84,7 @@ namespace bluetoe {
      * For example to define a user defined type to a characteristic:
      * @code
      * typedef bluetoe::characteristic<
-     *    bluetue::characteristic_uuid16< 0xF0E6EBE6, 0x3749, 0x41A6, 0xB190, 0x591B262AC20A >
+     *    bluetoe::characteristic_uuid< 0xF0E6EBE6, 0x3749, 0x41A6, 0xB190, 0x591B262AC20A >
      * > speed_over_ground_characteristic;
      * @endcode
      *
