@@ -140,7 +140,7 @@ namespace link_layer
     /**
      * @brief defines link layer transmit and receive buffer sizes
      */
-    template < std::size_t TransmitSize = 57, std::size_t ReceiveSize = 57 >
+    template < std::size_t TransmitSize = 59, std::size_t ReceiveSize = 59 >
     struct buffer_sizes
     {
         /** @cond HIDDEN_SYMBOLS */
