@@ -12,6 +12,10 @@
 #include <cassert>
 
 namespace bluetoe {
+    namespace details {
+        class notification_data;
+    }
+
 namespace link_layer {
 
     namespace details {
@@ -99,6 +103,7 @@ namespace link_layer {
         bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
         void start_advertising();
         void wait_for_connection_event();
+        static void lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg );
 
         std::uint8_t* advertising_buffer();
         std::uint8_t* advertising_response_buffer();
@@ -171,6 +176,8 @@ namespace link_layer {
         unsigned                        timeouts_til_connection_lost_;
         unsigned                        max_timeouts_til_connection_lost_;
         Server*                         server_;
+        typename Server::connection_data
+                                        connection_details_;
 
         enum class state
         {
@@ -206,6 +213,7 @@ namespace link_layer {
         , address_( device_address::address( *this ) )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
+        , connection_details_( 23 )
         , state_( state::initial )
     {
     }
@@ -372,6 +380,12 @@ namespace link_layer {
             window_start,
             window_end,
             connection_interval_ );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg )
+    {
+        static_cast< radio_t* >( usr_arg )->queue_notification( item );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -680,8 +694,7 @@ namespace link_layer {
 
             std::size_t gap_size = write.size - all_header_size;
 
-            typename Server::connection_data connection( 23 );
-            server_->l2cap_input( &pdu.buffer[ all_header_size ], l2cap_size, &write.buffer[ all_header_size ], gap_size, connection );
+            server_->l2cap_input( &pdu.buffer[ all_header_size ], l2cap_size, &write.buffer[ all_header_size ], gap_size, connection_details_ );
 
             write.buffer[ 0 ] = lld_data_pdu_code;
             write.buffer[ 1 ] = static_cast< std::uint8_t >( gap_size + l2cap_header_size );

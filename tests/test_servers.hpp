@@ -67,7 +67,7 @@ namespace {
             connection.client_mtu( ResponseBufferSize );
 
             notification = bluetoe::details::notification_data();
-            this->notification_callback( &l2cap_layer_notify_cb );
+            this->notification_callback( &l2cap_layer_notify_cb, this );
         }
 
         template < std::size_t PDU_Size >
@@ -182,7 +182,7 @@ namespace {
                 []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
         }
 
-        static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item )
+        static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void* )
         {
             notification = item;
         }

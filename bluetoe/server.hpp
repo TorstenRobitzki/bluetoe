@@ -156,15 +156,16 @@ namespace bluetoe {
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
 
-        typedef void (*lcap_notification_callback_t)( const details::notification_data& item );
+        typedef void (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg );
 
         /**
          * @brief sets the callback for the l2cap layer to receive notifications and indications
          *
          * The server will inform the l2cap layer about that fact, that there are outstanding notifications for all connection for the
-         * characteristic given by the item pointer. It's up to the l2cap layer to call notification_output
+         * characteristic given by the item pointer. It's up to the l2cap layer to call notification_output.
+         * The usr_arg is stored and passed to the given callback, when the callback is called.
          */
-        void notification_callback( lcap_notification_callback_t );
+        void notification_callback( lcap_notification_callback_t, void* usr_arg );
 
         void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
 
@@ -227,6 +228,7 @@ namespace bluetoe {
 
         // data
         lcap_notification_callback_t l2cap_cb_;
+        void*                        l2cap_arg_;
 
     protected: // for testing
         /** @cond HIDDEN_SYMBOLS */
@@ -407,13 +409,14 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( data );
+            l2cap_cb_( data, l2cap_arg_ );
     }
 
     template < typename ... Options >
-    void server< Options... >::notification_callback( lcap_notification_callback_t cb )
+    void server< Options... >::notification_callback( lcap_notification_callback_t cb, void* usr_arg )
     {
-        l2cap_cb_ = cb;
+        l2cap_cb_  = cb;
+        l2cap_arg_ = usr_arg;
     }
 
     template < typename ... Options >
