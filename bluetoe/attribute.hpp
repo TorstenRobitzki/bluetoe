@@ -219,7 +219,7 @@ namespace details {
     };
 
     /**
-     * @brief data needed to send an indication or notification the l2cap layer
+     * @brief data needed to send an indication or notification to the l2cap layer
      */
     class notification_data
     {
