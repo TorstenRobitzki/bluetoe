@@ -160,6 +160,7 @@ namespace nrf51_details {
 
         instance = this;
 
+        NVIC_SetPriority( RADIO_IRQn, 0 );
         NVIC_ClearPendingIRQ( RADIO_IRQn );
         NVIC_EnableIRQ( RADIO_IRQn );
         NVIC_ClearPendingIRQ( TIMER0_IRQn );
@@ -322,6 +323,7 @@ namespace nrf51_details {
         receive_buffer_         = receive_buffer;
 
         crc_reveice_failure_    = 0;
+        receiving_data_         = false;
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
@@ -385,7 +387,8 @@ namespace nrf51_details {
 
             if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
             {
-                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+                NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel );
 
                 if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
                 {
@@ -415,16 +418,23 @@ namespace nrf51_details {
                     const std::size_t total_pdu_length = receive_buffer_.buffer[ 1 ] + ll_pdu_overhead;
                     anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] - total_pdu_length * 8 );
                 }
+                else
+                {
+                    toggle_debug_pin1();
+                }
 
                 state_ = state::evt_transmiting_closing;
-
-                NRF_RADIO->SHORTS =
-                    RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
             }
             else if ( state_ == state::evt_transmiting_closing )
             {
                 state_   = state::idle;
-                end_evt_ = true;
+
+                evt_timeout_ = !receiving_data_;
+                end_evt_     = receiving_data_;
+            }
+            else
+            {
+                assert( !"unrecognized radio state!" );
             }
         }
     }

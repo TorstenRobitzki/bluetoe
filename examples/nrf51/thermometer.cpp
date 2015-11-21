@@ -33,6 +33,7 @@ bluetoe::nrf51<
 
 int main()
 {
+    NVIC_SetPriority( TEMP_IRQn, 3 );
     NVIC_ClearPendingIRQ( TEMP_IRQn );
     NVIC_EnableIRQ( TEMP_IRQn );
     NRF_TEMP->INTENSET    = TEMP_INTENSET_DATARDY_Set;
