@@ -143,7 +143,6 @@ namespace nrf51_details {
         , evt_timeout_( false )
         , end_evt_( false )
         , state_( state::idle )
-        , crc_reveice_failure_( 0 )
     {
         // start high freuquence clock source if not done yet
         if ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
@@ -318,12 +317,10 @@ namespace nrf51_details {
         assert( receive_buffer.buffer && receive_buffer.size >= 2u || receive_buffer.empty() );
         assert( start_receive < end_receive );
 
-        state_ = state::evt_wait_connect;
-
-        receive_buffer_         = receive_buffer;
-
-        crc_reveice_failure_    = 0;
-        receiving_data_         = false;
+        state_                  = state::evt_wait_connect;
+        receive_buffer_         = receive_buffer.empty()
+            ? link_layer::read_buffer{ &empty_receive_[ 0 ], sizeof( empty_receive_ ) }
+            : receive_buffer;
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
@@ -338,17 +335,18 @@ namespace nrf51_details {
         NRF_RADIO->EVENTS_READY     = 0;
         NRF_RADIO->EVENTS_ADDRESS   = 0;
 
+        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 2 ] = 0;
+
         // the hardware is wired to:
         // - start the receiving part of the radio, when the timer is equal to CC[ 0 ] (compare0_rxen_ppi_channel)
         // - when the radio ramped up for receiving, the receiving starts              (RADIO_SHORTS_READY_START_Msk)
         // - when the PDU was receieved, the timer value is captured in CC[ 2 ]        (radio_address_capture1_ppi_channel)
         // - when a PDU is received, the radio is stopped                              (RADIO_SHORTS_END_DISABLE_Msk)
-        // - when the radio is disabled, it ramps up for transmission                  (RADIO_SHORTS_DISABLED_TXEN_Msk)
         // - if no PDU is received, and the timer reaches CC[ 1 ], the radio is stopped(compare1_disable_ppi_channel)
-        NRF_RADIO->SHORTS      =
-            RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
-        // NRF_PPI->CHENCLR       = ( 1 << compare0_txen_ppi_channel );
         NRF_PPI->CHENCLR =
               ( 1 << compare0_txen_ppi_channel )
             | ( 1 << compare0_rxen_ppi_channel )
@@ -359,7 +357,7 @@ namespace nrf51_details {
             | ( 1 << compare1_disable_ppi_channel )
             | ( 1 << radio_end_capture2_ppi_channel );
 
-        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk | RADIO_INTENSET_PAYLOAD_Msk;
+        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
         nrf_timer->CC[ 0 ] = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
         nrf_timer->CC[ 1 ] = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
@@ -367,75 +365,65 @@ namespace nrf51_details {
 
     void scheduled_radio_base::evt_radio_interrupt()
     {
-        if ( NRF_RADIO->EVENTS_PAYLOAD )
-        {
-            NRF_RADIO->EVENTS_PAYLOAD = 0;
-
-            // reception from the master has been started
-            if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
-            {
-                // no need to disable the radio via the timer anymore:
-                NRF_PPI->CHENCLR = ( 1 << compare1_disable_ppi_channel );
-
-                receiving_data_ = true;
-            }
-        }
-
         if ( NRF_RADIO->EVENTS_DISABLED )
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
 
-            if ( state_ == state::evt_wait_connect || state_ == state::evt_receiving )
+            if ( state_ == state::evt_wait_connect )
             {
-                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
-                NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel );
+                // no need to disable the radio via the timer anymore:
+                NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
 
-                if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk )
+                const bool timeout   = nrf_timer->EVENTS_COMPARE[ 1 ];
+                const bool crc_error = !timeout && ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
+                const bool error     = timeout || crc_error;
+
+                if ( !error )
                 {
-                    if ( !receive_buffer_.empty() )
-                        callbacks_.received_data( receive_buffer_ );
+                    NRF_RADIO->TASKS_TXEN  = 1;
+                    const auto trans = receive_buffer_.buffer == &empty_receive_[ 0 ]
+                        ? callbacks_.next_transmit()
+                        : callbacks_.received_data( receive_buffer_ );
 
-                    crc_reveice_failure_ = 0;
-                }
-                else
-                {
-                    ++crc_reveice_failure_;
-                }
-
-                // TODO: Implement "more data"
-                const auto trans = callbacks_.next_transmit();
-                if ( !trans.empty() )
                     const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
 
-                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
-                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
+                    NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
+                    NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
 
-                if ( state_ == state::evt_wait_connect && receiving_data_ )
-                {
-                    // the timer was captured with the end event; the anchor is the start of the receiving, to the ll PDU length
-                    // there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc
+                    state_   = state::evt_transmiting_closing;
+
+                    // the timer was captured with the end event; the anchor is the start of the receiving.
+                    // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc
                     static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
                     const std::size_t total_pdu_length = receive_buffer_.buffer[ 1 ] + ll_pdu_overhead;
                     anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] - total_pdu_length * 8 );
                 }
                 else
                 {
-                    toggle_debug_pin1();
+                    state_       = state::idle;
+                    evt_timeout_ = true;
                 }
 
-                state_ = state::evt_transmiting_closing;
+                if ( timeout )
+                    toggle_debug_pin1();
+
+                if ( crc_error )
+                    toggle_debug_pin2();
+
             }
             else if ( state_ == state::evt_transmiting_closing )
             {
                 state_   = state::idle;
-
-                evt_timeout_ = !receiving_data_;
-                end_evt_     = receiving_data_;
+                end_evt_ = true;
             }
             else
             {
                 assert( !"unrecognized radio state!" );
             }
+        }
+        else
+        {
+            assert( !"Unexpected Event source!" );
         }
     }
 

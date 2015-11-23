@@ -22,7 +22,7 @@ namespace bluetoe
             virtual void timeout() = 0;
             virtual void end_event() = 0;
 
-            virtual void received_data( const link_layer::read_buffer& ) = 0;
+            virtual link_layer::write_buffer received_data( const link_layer::read_buffer& ) = 0;
             virtual link_layer::write_buffer next_transmit() = 0;
             virtual link_layer::read_buffer allocate_receive_buffer() = 0;
 
@@ -93,22 +93,15 @@ namespace bluetoe
                 adv_receiving,
                 // connection event
                 evt_wait_connect    = connection_event_type_base,
-                evt_transmiting,
                 evt_transmiting_closing,
-                evt_receiving
             };
 
             volatile state                  state_;
 
             bluetoe::link_layer::delta_time anchor_offset_;
-            bool                            more_data_;
-            bool                            receiving_data_;
 
             link_layer::read_buffer         receive_buffer_;
-
-            // number of consecutive crc reveice errors
-            volatile unsigned               crc_reveice_failure_;
-            volatile bool                   received_data_during_connection_event_;
+            std::uint8_t                    empty_receive_[ 2 ];
         };
 
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
@@ -151,10 +144,10 @@ namespace bluetoe
                 static_cast< CallBack* >( this )->end_event();
             }
 
-            void received_data( const link_layer::read_buffer& b ) override
+            link_layer::write_buffer received_data( const link_layer::read_buffer& b ) override
             {
                 // this function is called within an ISR context, so no need to disable interrupts
-                this->received( b );
+                return this->received( b );
             }
 
             link_layer::write_buffer next_transmit() override
