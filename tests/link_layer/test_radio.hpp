@@ -31,6 +31,7 @@ namespace test {
     };
 
     std::ostream& operator<<( std::ostream& out, const advertising_data& data );
+    std::ostream& operator<<( std::ostream& out, const std::vector< advertising_data >& data );
 
     using pdu_t = std::vector< std::uint8_t >;
     using pdu_list_t = std::vector< pdu_t >;
@@ -53,6 +54,7 @@ namespace test {
     };
 
     std::ostream& operator<<( std::ostream& out, const connection_event& );
+    std::ostream& operator<<( std::ostream& out, const std::vector< connection_event >& list );
 
     struct connection_event_response
     {

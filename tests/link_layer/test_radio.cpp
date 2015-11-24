@@ -13,6 +13,14 @@ namespace test {
         return out;
     }
 
+    std::ostream& operator<<( std::ostream& out, const std::vector< advertising_data >& data )
+    {
+        for ( const auto& a : data )
+            out << a << "\n";
+
+        return out;
+    }
+
     std::ostream& operator<<( std::ostream& out, const connection_event_response& rsp )
     {
         if ( rsp.timeout )
@@ -48,6 +56,14 @@ namespace test {
         {
             hex_dump( out, pdu.begin(), pdu.end() );
         }
+
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const std::vector< connection_event >& list )
+    {
+        for ( const auto& c : list )
+            out << c << "\n";
 
         return out;
     }
