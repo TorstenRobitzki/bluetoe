@@ -145,6 +145,7 @@ namespace link_layer {
 
         static constexpr std::uint8_t   LL_CONNECTION_UPDATE_REQ    = 0x00;
         static constexpr std::uint8_t   LL_CHANNEL_MAP_REQ          = 0x01;
+        static constexpr std::uint8_t   LL_TERMINATE_IND            = 0x02;
         static constexpr std::uint8_t   LL_UNKNOWN_RSP              = 0x07;
         static constexpr std::uint8_t   LL_FEATURE_REQ              = 0x08;
         static constexpr std::uint8_t   LL_FEATURE_RSP              = 0x09;
@@ -619,6 +620,11 @@ namespace link_layer {
                 {
                     defered_ll_control_pdu_ = pdu;
                 }
+            }
+            else if ( opcode == LL_TERMINATE_IND && size == 2 )
+            {
+                commit = false;
+                result = ll_result::disconnect;
             }
             else if ( opcode == LL_VERSION_IND && size == 6 )
             {
