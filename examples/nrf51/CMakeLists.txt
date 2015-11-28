@@ -109,3 +109,4 @@ add_custom_target(erase.flash
 add_dependencies(erase.flash erase.jlink)
 
 add_example(thermometer)
+add_example(cycling_speed_and_cadence)

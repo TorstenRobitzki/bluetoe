@@ -38,7 +38,7 @@ http://torstenrobitzki.github.io/bluetoe/
 
 ## L2CAP
 
-Bluetoe ships with its own link layer. Currently a link layer based on the nrf51422 is under construction. The link layer implementation will be based and tested on an abstract device, called a scheduled radio and should be easily ported to similar hardware. As Bluetoe is a GATT server implementation, only that parts of the link layer are implemented, that are nessary. Bluetoe can easily adapted to any other existing L2CAP implementation (based on HCI for example).
+Bluetoe ships with its own link layer. Currently a link layer based on the nrf51422 is under construction and is already usable. The link layer implementation will be based and tested on an abstract device, called a scheduled radio and should be easily ported to similar hardware. As Bluetoe is a GATT server implementation, only that parts of the link layer are implemented, that are nessary. Bluetoe can easily adapted to any other existing L2CAP implementation (based on HCI for example).
 
 ## Current State
 
