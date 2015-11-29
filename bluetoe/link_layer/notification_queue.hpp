@@ -18,15 +18,17 @@ namespace link_layer {
      * All operations on the queue must be reentrent / atomic!
      *
      * @param Size Number of characteristics that have notifications and / or indications enabled
+     * @param Mixin a class to be mixed in, to allow empty base class optimizations
      *
      * For all function, index is an index into a list of all the characterstics with notifications / indications
      * enable. The queue is implemented by an array that contains
      */
-    template < std::size_t Size >
-    class notification_queue
+    template < std::size_t Size, class Mixin >
+    class notification_queue : public Mixin
     {
     public:
-        notification_queue();
+        template < class ... Args >
+        notification_queue( Args... mixin_arguments );
 
         /**
          * @brief queue the indexed characteristic for notification
@@ -103,29 +105,63 @@ namespace link_layer {
 
     };
 
+    /*
+     * Specialisation for zero characteritics with notification or indication enabled
+     */
+    template < class Mixin >
+    class notification_queue< 0, Mixin > : public Mixin
+    {
+    public:
+        template < class ... Args >
+        notification_queue( Args... mixin_arguments )
+            : Mixin( mixin_arguments... )
+        {
+        }
+
+        void queue_notification( std::size_t index ) {}
+        void queue_indication( std::size_t index ) {}
+        void indication_confirmed( std::size_t index ) {}
+
+        enum entry_type {
+            empty,
+            notification,
+            indication
+        };
+
+        std::pair< entry_type, std::size_t > dequeue_indication_or_confirmation()
+        {
+            return { empty, 0 };
+        }
+
+        void clear_indications_and_confirmations() {}
+    };
+
+
     // implementation
-    template < std::size_t Size >
-    notification_queue< Size >::notification_queue()
+    template < std::size_t Size, class Mixin >
+    template < class ... Args >
+    notification_queue< Size, Mixin >::notification_queue( Args... mixin_arguments )
+        : Mixin( mixin_arguments... )
     {
         clear_indications_and_confirmations();
     }
 
-    template < std::size_t Size >
-    void notification_queue< Size >::queue_notification( std::size_t index )
+    template < std::size_t Size, class Mixin >
+    void notification_queue< Size, Mixin >::queue_notification( std::size_t index )
     {
         assert( index < Size );
         add( index, notification_bit );
     }
 
-    template < std::size_t Size >
-    void notification_queue< Size >::queue_indication( std::size_t index )
+    template < std::size_t Size, class Mixin >
+    void notification_queue< Size, Mixin >::queue_indication( std::size_t index )
     {
         assert( index < Size );
         add( index, indication_bit );
     }
 
-    template < std::size_t Size >
-    void notification_queue< Size >::indication_confirmed( std::size_t index )
+    template < std::size_t Size, class Mixin >
+    void notification_queue< Size, Mixin >::indication_confirmed( std::size_t index )
     {
         if ( index < Size && outstanding_confirmation_ != Size && index == outstanding_confirmation_ )
         {
@@ -133,8 +169,8 @@ namespace link_layer {
         }
     }
 
-    template < std::size_t Size >
-    std::pair< typename notification_queue< Size >::entry_type, std::size_t > notification_queue< Size >::dequeue_indication_or_confirmation()
+    template < std::size_t Size, class Mixin >
+    std::pair< typename notification_queue< Size, Mixin >::entry_type, std::size_t > notification_queue< Size, Mixin >::dequeue_indication_or_confirmation()
     {
         bool ignore_first = true;
 
@@ -163,16 +199,16 @@ namespace link_layer {
         return { empty, 0 };
     }
 
-    template < std::size_t Size >
-    void notification_queue< Size >::clear_indications_and_confirmations()
+    template < std::size_t Size, class Mixin >
+    void notification_queue< Size, Mixin >::clear_indications_and_confirmations()
     {
         next_ = 0;
         outstanding_confirmation_ = Size;
         std::fill( std::begin( queue_ ), std::end( queue_ ), 0 );
     }
 
-    template < std::size_t Size >
-    int notification_queue< Size >::at( std::size_t index )
+    template < std::size_t Size, class Mixin >
+    int notification_queue< Size, Mixin >::at( std::size_t index )
     {
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;
         const auto byte_offset = index * bits_per_characteristc / 8;
@@ -181,8 +217,8 @@ namespace link_layer {
         return ( queue_[ byte_offset ] >> bit_offset ) & 0x03;
     }
 
-    template < std::size_t Size >
-    void notification_queue< Size >::add( std::size_t index, int bits )
+    template < std::size_t Size, class Mixin >
+    void notification_queue< Size, Mixin >::add( std::size_t index, int bits )
     {
         assert( bits & ( ( 1 << bits_per_characteristc ) -1 ) );
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;
@@ -192,8 +228,8 @@ namespace link_layer {
         queue_[ byte_offset ] |= bits << bit_offset;
     }
 
-    template < std::size_t Size >
-    void notification_queue< Size >::remove( std::size_t index, int bits )
+    template < std::size_t Size, class Mixin >
+    void notification_queue< Size, Mixin >::remove( std::size_t index, int bits )
     {
         assert( bits & ( ( 1 << bits_per_characteristc ) -1 ) );
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;

@@ -6,6 +6,8 @@
 #include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/link_layer/channel_map.hpp>
+#include <bluetoe/link_layer/notification_queue.hpp>
+#include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
 
 #include <algorithm>
@@ -90,6 +92,10 @@ namespace link_layer {
             details::buffer_sizes< Options... >::rx_size,
             link_layer< Server, ScheduledRadio, Options... > > radio_t;
 
+        typedef notification_queue<
+            Server::number_of_client_configs,
+            typename Server::connection_data > notification_queue_t;
+
         // calculates the time point for the next advertising event
         delta_time next_adv_event();
 
@@ -103,6 +109,7 @@ namespace link_layer {
         bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
         void start_advertising();
         void wait_for_connection_event();
+        void transmit_notifications();
         static void lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg );
 
         std::uint8_t* advertising_buffer();
@@ -155,6 +162,10 @@ namespace link_layer {
 
         static constexpr std::uint8_t   LL_VERSION_NR               = 0x08;
 
+        static constexpr std::uint16_t  l2cap_gap_channel           = 4;
+        static constexpr std::size_t    l2cap_header_size           = 4;
+        static constexpr std::size_t    all_header_size             = 6;
+
 
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
         static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ) + maximum_adv_request_size, "buffer to small" );
@@ -177,8 +188,7 @@ namespace link_layer {
         unsigned                        timeouts_til_connection_lost_;
         unsigned                        max_timeouts_til_connection_lost_;
         Server*                         server_;
-        typename Server::connection_data
-                                        connection_details_;
+        notification_queue_t            connection_details_;
 
         enum class state
         {
@@ -227,9 +237,14 @@ namespace link_layer {
         {
             server_ = &server;
             start_advertising();
+
+            server.notification_callback( lcap_notification_callback, this );
         }
 
         radio_t::run();
+
+        if ( state_ == state::connected )
+            transmit_notifications();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -384,9 +399,45 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::transmit_notifications()
+    {
+        // first check if we have memory to transmit the message, or otherwise notifications would get lost
+        auto out_buffer = this->allocate_transmit_buffer();
+
+        if ( out_buffer.empty() )
+            return;
+
+        const auto notification = connection_details_.dequeue_indication_or_confirmation();
+
+        if ( notification.first != notification_queue_t::empty )
+        {
+            std::size_t out_size = out_buffer.size - all_header_size;
+
+            server_->notification_output(
+                &out_buffer.buffer[ all_header_size ],
+                out_size,
+                connection_details_,
+                notification.second
+            );
+
+            if ( out_size )
+            {
+                out_buffer.buffer[ 0 ] = lld_data_pdu_code;
+                out_buffer.buffer[ 1 ] = static_cast< std::uint8_t >( out_size + l2cap_header_size );
+                out_buffer.buffer[ 2 ] = static_cast< std::uint8_t >( out_size );
+                out_buffer.buffer[ 3 ] = 0;
+                out_buffer.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_gap_channel );
+                out_buffer.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_gap_channel >> 8 );
+
+                this->commit_transmit_buffer( out_buffer );
+            }
+        }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg )
     {
-        static_cast< radio_t* >( usr_arg )->queue_notification( item );
+        static_cast< link_layer< Server, ScheduledRadio, Options... >* >( usr_arg )->connection_details_.queue_notification( item.client_characteristic_configuration_index() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -677,13 +728,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& pdu )
     {
-        static constexpr std::uint16_t l2cap_gap_channel       = 4;
 //        static constexpr std::uint16_t l2cap_signaling_channel = 5;
-
-        static constexpr std::size_t   l2cap_header_size = 4;
-        static constexpr std::size_t   all_header_size   = 6;
-
-
         const std::uint8_t  pdu_size      = pdu.buffer[ 1 ];
         const std::uint16_t l2cap_size    = read_16( &pdu.buffer[ 2 ] );
         const std::uint16_t l2cap_channel = read_16( &pdu.buffer[ 4 ] );

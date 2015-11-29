@@ -4,9 +4,13 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-using queue17 = bluetoe::link_layer::notification_queue< 17u >;
-using queue3 = bluetoe::link_layer::notification_queue< 3u >;
-using queue8 = bluetoe::link_layer::notification_queue< 8u >;
+namespace {
+    struct empty {};
+}
+
+using queue17 = bluetoe::link_layer::notification_queue< 17u, empty >;
+using queue3 = bluetoe::link_layer::notification_queue< 3u, empty >;
+using queue8 = bluetoe::link_layer::notification_queue< 8u, empty >;
 
 BOOST_AUTO_TEST_SUITE( notifications )
 

@@ -168,6 +168,7 @@ namespace bluetoe {
         void notification_callback( lcap_notification_callback_t, void* usr_arg );
 
         void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
+        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
 
         /**
          * @attention this function must be called with every client that got disconnected.
@@ -234,6 +235,8 @@ namespace bluetoe {
         /** @cond HIDDEN_SYMBOLS */
 
         details::notification_data find_notification_data( const void* ) const;
+        details::notification_data find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const;
+
         /** @endcond */
     };
 
@@ -442,6 +445,12 @@ namespace bluetoe {
         {
             out_size = 0;
         }
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
+    {
+        notification_output( output, out_size, connection, find_notification_data_by_index( client_characteristic_configuration_index ) );
     }
 
     template < typename ... Options >
@@ -1167,6 +1176,12 @@ namespace bluetoe {
     details::notification_data server< Options... >::find_notification_data( const void* value ) const
     {
         return details::find_notification_data_in_list< services >::template find_notification_data< 1, 0 >( value );
+    }
+
+    template < typename ... Options >
+    details::notification_data server< Options... >::find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const
+    {
+        return details::find_notification_data_in_list< services >::template find_notification_data_by_index< 1, 0 >( client_characteristic_configuration_index );
     }
 
     template < typename ... Options >
