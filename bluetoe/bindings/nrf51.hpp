@@ -55,6 +55,8 @@ namespace bluetoe
 
             void run();
 
+            void wake_up();
+
             std::uint32_t static_random_address_seed() const;
 
         protected:
@@ -82,6 +84,7 @@ namespace bluetoe
             volatile bool received_;
             volatile bool evt_timeout_;
             volatile bool end_evt_;
+            volatile int  wake_up_;
 
             static constexpr unsigned connection_event_type_base = 100;
 

@@ -142,6 +142,7 @@ namespace nrf51_details {
         , received_( false )
         , evt_timeout_( false )
         , end_evt_( false )
+        , wake_up_( 0 )
         , state_( state::idle )
     {
         // start high freuquence clock source if not done yet
@@ -466,7 +467,7 @@ namespace nrf51_details {
     void scheduled_radio_base::run()
     {
         // TODO send cpu to sleep
-        while ( !received_ && !timeout_ && !evt_timeout_ && !end_evt_ )
+        while ( !received_ && !timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
             ;
 
         // when either received_ or timeout_ is true, no timer should be scheduled and the radio should be idle
@@ -500,6 +501,16 @@ namespace nrf51_details {
             end_evt_ = false;
             callbacks_.end_event();
         }
+
+        if ( wake_up_ )
+        {
+            --wake_up_;
+        }
+    }
+
+    void scheduled_radio_base::wake_up()
+    {
+        ++wake_up_;
     }
 
     std::uint32_t scheduled_radio_base::static_random_address_seed() const
