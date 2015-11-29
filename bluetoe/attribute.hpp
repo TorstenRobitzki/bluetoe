@@ -279,6 +279,12 @@ namespace details {
         {
             return notification_data();
         }
+
+        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+        static notification_data find_notification_data_by_index( std::size_t index )
+        {
+            return notification_data();
+        }
     };
 
     template <
@@ -302,7 +308,24 @@ namespace details {
 
             return result;
         }
+
+        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+        static notification_data find_notification_data_by_index( std::size_t index )
+        {
+            notification_data result = T::template find_notification_data_by_index< FirstAttributesHandle, ClientCharacteristicIndex >( index );
+
+            if ( !result.valid() )
+            {
+                typedef find_notification_data_in_list< std::tuple< Ts... > > next;
+                result = next::template find_notification_data_by_index<
+                    FirstAttributesHandle + T::number_of_attributes,
+                    ClientCharacteristicIndex + T::number_of_client_configs >( index );
+            }
+
+            return result;
+        }
     };
+
 }
 }
 

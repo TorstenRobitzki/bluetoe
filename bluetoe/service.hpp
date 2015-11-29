@@ -163,6 +163,13 @@ namespace bluetoe {
          */
         template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
         static details::notification_data find_notification_data( const void* value );
+
+        /**
+         * returns a correctly filled notification_data() object, if this characteristc was configured for notification or indication
+         * and the given value identifies the characteristic value. If not found find_notification_data( value ).valid() is false.
+         */
+        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+        static details::notification_data find_notification_data_by_index( std::size_t index );
         /** @endcond */
     };
 
@@ -250,6 +257,14 @@ namespace bluetoe {
     {
         return details::find_notification_data_in_list< characteristics >::
             template find_notification_data< number_of_service_attributes + FirstAttributesHandle, ClientCharacteristicIndex >( value );
+    }
+
+    template < typename ... Options >
+    template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+    details::notification_data service< Options... >::find_notification_data_by_index( std::size_t index )
+    {
+        return details::find_notification_data_in_list< characteristics >::
+            template find_notification_data_by_index< number_of_service_attributes + FirstAttributesHandle, ClientCharacteristicIndex >( index );
     }
     /** @endcond */
 

@@ -250,4 +250,29 @@ BOOST_FIXTURE_TEST_CASE( characteristic_without_notification_cant_be_found, serv
     BOOST_CHECK( !( find_notification_data< 1, 0 >( &v2 ).valid() ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( out_of_range_by_index, service_with_2_notifications )
+{
+    BOOST_CHECK( ( !find_notification_data_by_index< 1, 0 >( 2 ).valid() ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( find_fist_by_index, service_with_2_notifications )
+{
+    const auto result1 = find_notification_data_by_index< 1, 0 >( 0 );
+
+    BOOST_REQUIRE( result1.valid() );
+    BOOST_CHECK_EQUAL( result1.handle(), 3 );
+    BOOST_CHECK_EQUAL( result1.value_attribute().uuid, 0x8C8B );
+    BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( find_second_by_index, service_with_2_notifications )
+{
+    const auto result1 = find_notification_data_by_index< 1, 0 >( 1 );
+
+    BOOST_REQUIRE( result1.valid() );
+    BOOST_CHECK_EQUAL( result1.handle(), 8 );
+    BOOST_CHECK_EQUAL( result1.value_attribute().uuid, 0x8C8D );
+    BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 1 );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
