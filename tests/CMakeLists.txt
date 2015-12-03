@@ -42,3 +42,4 @@ add_test(gap_service_tests)
 
 add_subdirectory(att)
 add_subdirectory(link_layer)
+add_subdirectory(services)

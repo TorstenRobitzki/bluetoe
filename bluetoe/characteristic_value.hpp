@@ -95,6 +95,9 @@ namespace bluetoe {
                 return details::attribute_access_result::write_not_permitted;
             }
 
+            /*
+             * Used to find this characteristic for notification
+             */
             static bool is_this( const void* value )
             {
                 return value == Ptr;
