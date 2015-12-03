@@ -38,6 +38,13 @@ struct discover_primary_service : request_with_reponse< csc_server, 100u >
     {
         return ( h >> 8 ) & 0xff;
     }
+
+    static std::uint16_t uint16( const std::uint8_t* p )
+    {
+        return *p | ( *( p + 1 ) << 8 );
+    }
+
+
 };
 
 struct discover_secondary_service {};
@@ -90,6 +97,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration )
     BOOST_FIXTURE_TEST_CASE( csc_measuremen, discover_all_characteristics )
     {
         BOOST_CHECK_EQUAL( response[ 2 + 2 + 0 * 7 ], 0x10 );
+        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 0 * 7 ] ), 0x2A5B );
     }
 
     /*
@@ -98,6 +106,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration )
     BOOST_FIXTURE_TEST_CASE( csc_feature, discover_all_characteristics )
     {
         BOOST_CHECK_EQUAL( response[ 2 + 2 + 1 * 7 ], 0x02 );
+        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 1 * 7 ] ), 0x2A5C );
     }
 
     /*
@@ -106,6 +115,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration )
     BOOST_FIXTURE_TEST_CASE( sensor_location, discover_all_characteristics )
     {
         BOOST_CHECK_EQUAL( response[ 2 + 2 + 2 * 7 ], 0x02 );
+        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 2 * 7 ] ), 0x2A5D );
     }
 
     /*
@@ -115,6 +125,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration )
     {
         /// TODO Fix, when indications are implemeted
         //BOOST_CHECK_EQUAL( response[ 2 + 2 + 3 * 7 ], 0x28 );
+        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 3 * 7 ] ), 0x2A55 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
