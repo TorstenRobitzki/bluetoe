@@ -70,6 +70,14 @@ BOOST_AUTO_TEST_SUITE( service_definition )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+struct characteristic_declaration
+{
+    std::uint16_t   handle;
+    std::uint8_t    properties;
+    std::uint16_t   value_attribute_handle;
+    std::uint16_t   uuid;
+};
+
 struct discover_all_characteristics : discover_primary_service
 {
     discover_all_characteristics()
@@ -85,48 +93,67 @@ struct discover_all_characteristics : discover_primary_service
         BOOST_REQUIRE_EQUAL( response_size, 2 + 4 * 7 );
         BOOST_REQUIRE_EQUAL( response[ 0 ], 0x09 ); // response opcode
         BOOST_REQUIRE_EQUAL( response[ 1 ], 7 );    // handle + value length
+
+        csc_measurement  = parse_characteristic_declaration( &response[ 2 + 0 * 7 ] );
+        csc_feature      = parse_characteristic_declaration( &response[ 2 + 1 * 7 ] );
+        sensor_location  = parse_characteristic_declaration( &response[ 2 + 2 * 7 ] );
+        cs_control_point = parse_characteristic_declaration( &response[ 2 + 3 * 7 ] );
     }
+
+    static characteristic_declaration parse_characteristic_declaration( const std::uint8_t* pos )
+    {
+        return characteristic_declaration{ uint16( pos ), *( pos + 2 ), uint16( pos + 3 ), uint16( pos + 5 ) };
+    }
+
+    characteristic_declaration csc_measurement;
+    characteristic_declaration csc_feature;
+    characteristic_declaration sensor_location;
+    characteristic_declaration cs_control_point;
 };
 
-BOOST_AUTO_TEST_SUITE( characteristic_declaration )
+BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
 
 
     /*
      * TP/DEC/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_measuremen, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_test, discover_all_characteristics )
     {
-        BOOST_CHECK_EQUAL( response[ 2 + 2 + 0 * 7 ], 0x10 );
-        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 0 * 7 ] ), 0x2A5B );
+        BOOST_CHECK_EQUAL( csc_measurement.properties, 0x10 );
+        BOOST_CHECK_EQUAL( csc_measurement.uuid, 0x2A5B );
     }
 
     /*
      * TP/DEC/BV-02-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_feature, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( csc_feature_test, discover_all_characteristics )
     {
-        BOOST_CHECK_EQUAL( response[ 2 + 2 + 1 * 7 ], 0x02 );
-        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 1 * 7 ] ), 0x2A5C );
+        BOOST_CHECK_EQUAL( csc_feature.properties, 0x02 );
+        BOOST_CHECK_EQUAL( csc_feature.uuid, 0x2A5C );
     }
 
     /*
      * TP/DEC/BV-03-C
      */
-    BOOST_FIXTURE_TEST_CASE( sensor_location, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_characteristics )
     {
-        BOOST_CHECK_EQUAL( response[ 2 + 2 + 2 * 7 ], 0x02 );
-        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 2 * 7 ] ), 0x2A5D );
+        BOOST_CHECK_EQUAL( sensor_location.properties, 0x02 );
+        BOOST_CHECK_EQUAL( sensor_location.uuid, 0x2A5D );
     }
 
     /*
      * TP/DEC/BV-04-C
      */
-    BOOST_FIXTURE_TEST_CASE( sc_control_point, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_characteristics )
     {
         /// TODO Fix, when indications are implemeted
-        //BOOST_CHECK_EQUAL( response[ 2 + 2 + 3 * 7 ], 0x28 );
-        BOOST_CHECK_EQUAL( uint16( &response[ 2 + 5 + 3 * 7 ] ), 0x2A55 );
+        //BOOST_CHECK_EQUAL( cs_control_point.properties, 0x28 );
+        BOOST_CHECK_EQUAL( cs_control_point.uuid, 0x2A55 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( characteristic_descriptors )
+
+
+BOOST_AUTO_TEST_SUITE_END()
