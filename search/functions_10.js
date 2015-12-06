@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['usec',['usec',['../classbluetoe_1_1link__layer_1_1delta__time.html#a018843f011d53a5484066382e82c9cbc',1,'bluetoe::link_layer::delta_time::usec(std::uint32_t usec)'],['../classbluetoe_1_1link__layer_1_1delta__time.html#aa879a03fe92c20c75c6f2f356af9909b',1,'bluetoe::link_layer::delta_time::usec() const ']]]
+  ['timeout',['timeout',['../classbluetoe_1_1link__layer_1_1link__layer.html#a6f84a2cf93df0ab7b18fae87193726f2',1,'bluetoe::link_layer::link_layer::timeout()'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a749be6af0664bc5483dd757e033c7eee',1,'bluetoe::link_layer::ll_data_pdu_buffer::timeout()']]]
 ];

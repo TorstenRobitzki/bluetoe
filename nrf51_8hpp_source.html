@@ -41,6 +41,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
       <li><a href="index.html"><span>Main&#160;Page</span></a></li>
       <li><a href="annotated.html"><span>Classes</span></a></li>
       <li class="current"><a href="files.html"><span>Files</span></a></li>
+      <li><a href="examples.html"><span>Examples</span></a></li>
       <li>
         <div id="MSearchBox" class="MSearchBoxInactive">
         <span class="left">
@@ -112,7 +113,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00022"></a><span class="lineno">   22</span>&#160;            <span class="keyword">virtual</span> <span class="keywordtype">void</span> timeout() = 0;</div>
 <div class="line"><a name="l00023"></a><span class="lineno">   23</span>&#160;            <span class="keyword">virtual</span> <span class="keywordtype">void</span> end_event() = 0;</div>
 <div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;</div>
-<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;            <span class="keyword">virtual</span> <span class="keywordtype">void</span> received_data( <span class="keyword">const</span> link_layer::read_buffer&amp; ) = 0;</div>
+<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;            <span class="keyword">virtual</span> link_layer::write_buffer received_data( <span class="keyword">const</span> link_layer::read_buffer&amp; ) = 0;</div>
 <div class="line"><a name="l00026"></a><span class="lineno">   26</span>&#160;            <span class="keyword">virtual</span> link_layer::write_buffer next_transmit() = 0;</div>
 <div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;            <span class="keyword">virtual</span> link_layer::read_buffer allocate_receive_buffer() = 0;</div>
 <div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;</div>
@@ -145,56 +146,56 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;</div>
 <div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;            <span class="keywordtype">void</span> run();</div>
 <div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;</div>
-<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;            std::uint32_t static_random_address_seed() <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;            <span class="keywordtype">void</span> wake_up();</div>
 <div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;</div>
-<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;        <span class="keyword">protected</span>:</div>
-<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;            <span class="keywordtype">void</span> start_connection_event(</div>
-<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;                <span class="keywordtype">unsigned</span>                        channel,</div>
-<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;                <a class="code" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a> start_receive,</div>
-<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;                <a class="code" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a> end_receive,</div>
-<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;                <span class="keyword">const</span> link_layer::read_buffer&amp;  receive_buffer );</div>
-<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;        <span class="keyword">private</span>:</div>
-<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;</div>
-<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;            <span class="keyword">friend</span> void ::RADIO_IRQHandler(<span class="keywordtype">void</span>);</div>
-<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;            <span class="keyword">friend</span> void ::TIMER0_IRQHandler(<span class="keywordtype">void</span>);</div>
-<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;</div>
-<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;            <span class="keywordtype">void</span> radio_interrupt();</div>
-<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;            <span class="keywordtype">void</span> timer_interrupt();</div>
-<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;</div>
-<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;            <span class="keywordtype">unsigned</span> frequency_from_channel( <span class="keywordtype">unsigned</span> channel ) <span class="keyword">const</span>;</div>
-<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;</div>
-<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;            adv_callbacks&amp; callbacks_;</div>
-<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> timeout_;</div>
-<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> received_;</div>
-<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> evt_timeout_;</div>
-<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> end_evt_;</div>
+<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;            std::uint32_t static_random_address_seed() <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;</div>
+<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;        <span class="keyword">protected</span>:</div>
+<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;            <span class="keywordtype">void</span> start_connection_event(</div>
+<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;                <span class="keywordtype">unsigned</span>                        channel,</div>
+<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;                <a class="code" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a> start_receive,</div>
+<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;                <a class="code" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a> end_receive,</div>
+<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;                <span class="keyword">const</span> link_layer::read_buffer&amp;  receive_buffer );</div>
+<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;        <span class="keyword">private</span>:</div>
+<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;</div>
+<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;            <span class="keyword">friend</span> void ::RADIO_IRQHandler(<span class="keywordtype">void</span>);</div>
+<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;            <span class="keyword">friend</span> void ::TIMER0_IRQHandler(<span class="keywordtype">void</span>);</div>
+<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;</div>
+<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;            <span class="keywordtype">void</span> adv_radio_interrupt();</div>
+<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;            <span class="keywordtype">void</span> adv_timer_interrupt();</div>
+<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;            <span class="keywordtype">void</span> evt_radio_interrupt();</div>
+<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;            <span class="keywordtype">void</span> evt_timer_interrupt();</div>
+<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;            <span class="keywordtype">void</span> radio_interrupt();</div>
+<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;            <span class="keywordtype">void</span> timer_interrupt();</div>
+<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;</div>
+<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;            <span class="keywordtype">unsigned</span> frequency_from_channel( <span class="keywordtype">unsigned</span> channel ) <span class="keyword">const</span>;</div>
 <div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;</div>
-<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;</div>
-<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;            <span class="keyword">enum class</span> state {</div>
-<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160;                idle,</div>
-<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;                <span class="comment">// timeout while receiving, stopping the radio, waiting for the radio to become disabled</span></div>
-<div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;                adv_timeout_stopping,</div>
-<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;                adv_transmitting,</div>
-<div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;                <span class="comment">// wait until the right time to transmit</span></div>
-<div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;                adv_transmitting_pending,</div>
-<div class="line"><a name="l00090"></a><span class="lineno">   90</span>&#160;                adv_receiving,</div>
-<div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;                <span class="comment">// connection event</span></div>
-<div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;                evt_wait_connect,</div>
-<div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;                evt_transmiting,</div>
-<div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;                evt_transmiting_closing,</div>
-<div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;                evt_receiving</div>
-<div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;            };</div>
-<div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;</div>
-<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;            <span class="keyword">volatile</span> state                  state_;</div>
-<div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;</div>
-<div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;            <a class="code" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a> anchor_offset_;</div>
-<div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;            <span class="keywordtype">bool</span>                            more_data_;</div>
-<div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;</div>
-<div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;            link_layer::read_buffer         receive_buffer_;</div>
-<div class="line"><a name="l00104"></a><span class="lineno">  104</span>&#160;</div>
-<div class="line"><a name="l00105"></a><span class="lineno">  105</span>&#160;            <span class="comment">// number of consecutive crc reveice errors</span></div>
-<div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">unsigned</span>               crc_reveice_failure_;</div>
-<div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span>                   received_data_during_connection_event_;</div>
+<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;            adv_callbacks&amp; callbacks_;</div>
+<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> timeout_;</div>
+<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> received_;</div>
+<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> evt_timeout_;</div>
+<div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">bool</span> end_evt_;</div>
+<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;            <span class="keyword">volatile</span> <span class="keywordtype">int</span>  wake_up_;</div>
+<div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;</div>
+<div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;            <span class="keyword">static</span> constexpr <span class="keywordtype">unsigned</span> connection_event_type_base = 100;</div>
+<div class="line"><a name="l00090"></a><span class="lineno">   90</span>&#160;</div>
+<div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;            <span class="keyword">enum class</span> state {</div>
+<div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;                idle,</div>
+<div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;                <span class="comment">// timeout while receiving, stopping the radio, waiting for the radio to become disabled</span></div>
+<div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;                adv_timeout_stopping,</div>
+<div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;                adv_transmitting,</div>
+<div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;                adv_receiving,</div>
+<div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;                <span class="comment">// connection event</span></div>
+<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;                evt_wait_connect    = connection_event_type_base,</div>
+<div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;                evt_transmiting_closing,</div>
+<div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;            };</div>
+<div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;</div>
+<div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;            <span class="keyword">volatile</span> state                  state_;</div>
+<div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;</div>
+<div class="line"><a name="l00104"></a><span class="lineno">  104</span>&#160;            <a class="code" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a> anchor_offset_;</div>
+<div class="line"><a name="l00105"></a><span class="lineno">  105</span>&#160;</div>
+<div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160;            link_layer::read_buffer         receive_buffer_;</div>
+<div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;            std::uint8_t                    empty_receive_[ 2 ];</div>
 <div class="line"><a name="l00108"></a><span class="lineno">  108</span>&#160;        };</div>
 <div class="line"><a name="l00109"></a><span class="lineno">  109</span>&#160;</div>
 <div class="line"><a name="l00110"></a><span class="lineno">  110</span>&#160;        <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> TransmitSize, std::<span class="keywordtype">size_t</span> ReceiveSize, <span class="keyword">typename</span> CallBack &gt;</div>
@@ -237,10 +238,10 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00147"></a><span class="lineno">  147</span>&#160;                <span class="keyword">static_cast&lt;</span> CallBack* <span class="keyword">&gt;</span>( this )-&gt;end_event();</div>
 <div class="line"><a name="l00148"></a><span class="lineno">  148</span>&#160;            }</div>
 <div class="line"><a name="l00149"></a><span class="lineno">  149</span>&#160;</div>
-<div class="line"><a name="l00150"></a><span class="lineno">  150</span>&#160;            <span class="keywordtype">void</span> received_data( <span class="keyword">const</span> link_layer::read_buffer&amp; b )<span class="keyword"> override</span></div>
+<div class="line"><a name="l00150"></a><span class="lineno">  150</span>&#160;            link_layer::write_buffer received_data( <span class="keyword">const</span> link_layer::read_buffer&amp; b )<span class="keyword"> override</span></div>
 <div class="line"><a name="l00151"></a><span class="lineno">  151</span>&#160;<span class="keyword">            </span>{</div>
 <div class="line"><a name="l00152"></a><span class="lineno">  152</span>&#160;                <span class="comment">// this function is called within an ISR context, so no need to disable interrupts</span></div>
-<div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160;                this-&gt;<a class="code" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14">received</a>( b );</div>
+<div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160;                <span class="keywordflow">return</span> this-&gt;<a class="code" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14">received</a>( b );</div>
 <div class="line"><a name="l00154"></a><span class="lineno">  154</span>&#160;            }</div>
 <div class="line"><a name="l00155"></a><span class="lineno">  155</span>&#160;</div>
 <div class="line"><a name="l00156"></a><span class="lineno">  156</span>&#160;            link_layer::write_buffer <a class="code" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a88ee4e7e38d80c613d53cfdd1c58b37c">next_transmit</a>()<span class="keyword"> override</span></div>
@@ -288,7 +289,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Mon Nov 16 2015 12:30:17 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sun Dec 6 2015 16:02:54 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

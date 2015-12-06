@@ -41,6 +41,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
       <li><a href="index.html"><span>Main&#160;Page</span></a></li>
       <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
       <li><a href="files.html"><span>Files</span></a></li>
+      <li><a href="examples.html"><span>Examples</span></a></li>
       <li>
         <div id="MSearchBox" class="MSearchBoxInactive">
         <span class="left">
@@ -106,7 +107,7 @@ class bluetoe::characteristic&lt; Options &gt;</h3>
 <p>A characteristics type (not it terms of C++ data type) is defined by a UUID. Characteristics with the same UUID should represent attributes with the same type / characteristic. Usually a GATT client referes an attribute by its UUID.</p>
 <p>To define the UUID of a characteristic add an instanciated characteristic_uuid&lt;&gt; or characteristic_uuid16&lt;&gt; type as option to the characteristic.</p>
 <p>For example to define a user defined type to a characteristic: </p><div class="fragment"><div class="line"><span class="keyword">typedef</span> <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div>
-<div class="line">   bluetue::characteristic_uuid16&lt; 0xF0E6EBE6, 0x3749, 0x41A6, 0xB190, 0x591B262AC20A &gt;</div>
+<div class="line">   <a class="code" href="structbluetoe_1_1characteristic__uuid.html">bluetoe::characteristic_uuid&lt; 0xF0E6EBE6, 0x3749, 0x41A6, 0xB190, 0x591B262AC20A &gt;</a></div>
 <div class="line">&gt; speed_over_ground_characteristic;</div>
 </div><!-- fragment --><p>If no UUID is given, bluetoe derives a 128bit UUID from the UUID of the service in which this characteric is placed in. The first characteristic gets an UUID, where the last bytes are xored with 1, the second characteristic will get an UUID, where the last bytes are xored with 2 and so on...</p>
 <p>The following examples show a service with the UUID 48B7F909-B039-4550-97AF-336228C45CED and two characteristics, without an explicit UUID. In this case, the first characteristic becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEC (0x336228C45CED ^ 1 ) and the second UUID becomes the UUID 48B7F909-B039-4550-97AF-336228C45CEF (0x336228C45CED ^ 2 )</p>
@@ -134,13 +135,14 @@ class bluetoe::characteristic&lt; Options &gt;</h3>
 <a class="el" href="classbluetoe_1_1bind__characteristic__value.html" title="a very simple device to bind a characteristic to a global variable to provide access to the character...">bind_characteristic_value</a> </dd>
 <dd>
 <a class="el" href="structbluetoe_1_1characteristic__name.html" title="adds a name to characteristic ">characteristic_name</a> </dd></dl>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="server_8cpp-example.html#_a3">server.cpp</a>.</dd>
+</dl></div><hr/>The documentation for this class was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="characteristic_8hpp_source.html">characteristic.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Mon Nov 16 2015 12:30:17 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sun Dec 6 2015 16:02:54 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

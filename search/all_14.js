@@ -1,7 +1,5 @@
 var searchData=
 [
-  ['watch',['watch',['../structbluetoe_1_1appearance.html#ae2f66171ab3a70a9325a2b3e82b1231d',1,'bluetoe::appearance']]],
-  ['weight_5fscale',['weight_scale',['../structbluetoe_1_1appearance.html#af342e84751e89a0a3476368c914d6619',1,'bluetoe::appearance']]],
-  ['wrist_5fworn_5fpulse_5foximeter',['wrist_worn_pulse_oximeter',['../structbluetoe_1_1appearance.html#afdb9050a8348217070e7ecaec0532e09',1,'bluetoe::appearance']]],
-  ['write_5fbuffer',['write_buffer',['../structbluetoe_1_1link__layer_1_1write__buffer.html',1,'bluetoe::link_layer']]]
+  ['unknown',['unknown',['../structbluetoe_1_1appearance.html#abeb24bed600e595bd7919ad5553319db',1,'bluetoe::appearance']]],
+  ['usec',['usec',['../classbluetoe_1_1link__layer_1_1delta__time.html#a018843f011d53a5484066382e82c9cbc',1,'bluetoe::link_layer::delta_time::usec(std::uint32_t usec)'],['../classbluetoe_1_1link__layer_1_1delta__time.html#aa879a03fe92c20c75c6f2f356af9909b',1,'bluetoe::link_layer::delta_time::usec() const ']]]
 ];
