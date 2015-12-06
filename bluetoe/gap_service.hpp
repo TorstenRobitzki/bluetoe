@@ -89,8 +89,10 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /** @cond HIDDEN_SYMBOLS */
     template < typename Services, typename ... ServerOptions >
     const char gap_service_for_gatt_servers::add_service< Services, ServerOptions... >::default_server_name[ 15 ] = "Bluetoe-Server";
+    /** @endcond */
 
 }
 

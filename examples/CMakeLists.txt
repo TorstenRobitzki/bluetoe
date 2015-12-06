@@ -8,3 +8,5 @@ target_link_libraries(btstack_example ${LIBUSB_1_LIBRARY} btstack_libusb)
 
 add_executable(clock clock.cpp)
 target_link_libraries(clock ${LIBUSB_1_LIBRARY} btstack_libusb)
+
+add_subdirectory(doxygen)

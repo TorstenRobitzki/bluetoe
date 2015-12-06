@@ -68,17 +68,26 @@ namespace link_layer {
             return buffer == nullptr && size == 0;
         }
 
+        /**
+         * @brief constructs a ready-only buffer from a writable buffer
+         */
         explicit write_buffer( const read_buffer& rhs )
             : buffer( rhs.buffer )
             , size( rhs.size )
         {}
 
+        /**
+         * @brief constructs an empty buffer
+         */
         write_buffer()
             : buffer( nullptr )
             , size( 0 )
         {
         }
 
+        /**
+         * @brief constructs a buffer pointing to the given location, with the given size
+         */
         write_buffer( const std::uint8_t* b, std::size_t s )
             : buffer( b )
             , size( s )

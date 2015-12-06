@@ -241,6 +241,11 @@ namespace bluetoe {
     };
 
     /**
+     * @example server.cpp
+     * This is a very small sample showing, how to define a very small GATT server.
+     */
+
+    /**
      * @brief adds additional options to a given server definition
      *
      * example:

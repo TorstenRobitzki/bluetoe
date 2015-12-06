@@ -27,6 +27,11 @@ namespace link_layer {
     class notification_queue : public Mixin
     {
     public:
+        /**
+         * @brief constructs an empty notification_queue
+         *
+         * All constructor arguments are ment to be passed to the derviced Mixin
+         */
         template < class ... Args >
         notification_queue( Args... mixin_arguments );
 
@@ -67,9 +72,15 @@ namespace link_layer {
          */
         void indication_confirmed( std::size_t index );
 
+        /**
+         * @brief type of entry
+         */
         enum entry_type {
+            /** returned if there no entry */
             empty,
+            /** returned if the entry is a notification */
             notification,
+            /** returned if the entry is an indication */
             indication
         };
 
@@ -105,13 +116,15 @@ namespace link_layer {
 
     };
 
-    /*
-     * Specialisation for zero characteritics with notification or indication enabled
+    /**
+     * @brief Specialisation for zero characteritics with notification or indication enabled
      */
     template < class Mixin >
     class notification_queue< 0, Mixin > : public Mixin
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
+
         template < class ... Args >
         notification_queue( Args... mixin_arguments )
             : Mixin( mixin_arguments... )
@@ -134,6 +147,7 @@ namespace link_layer {
         }
 
         void clear_indications_and_confirmations() {}
+        /** @endcond */
     };
 
 

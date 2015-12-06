@@ -23,6 +23,9 @@ namespace link_layer {
     class pdu_ring_buffer
     {
     public:
+        /**
+         * @brief the size of the buffer in bytes
+         */
         static constexpr std::size_t size = Size;
 
         /**
