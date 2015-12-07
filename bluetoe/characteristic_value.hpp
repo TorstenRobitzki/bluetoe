@@ -63,6 +63,19 @@ namespace bluetoe {
     };
 
     /**
+     * @brief adds the ability to indicate this characteristic.
+     *
+     * When a characteristic gets notified, the current value of the characteristic will be send to all
+     * connected clients that have subscribed for indications.
+     * The difference to notify is, that indication needs to be confirmed by the GATT client.
+     */
+    struct indicate {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
+        /** @endcond */
+    };
+
+    /**
      * @brief a very simple device to bind a characteristic to a global variable to provide access to the characteristic value
      */
     template < typename T, T* Ptr >
@@ -80,6 +93,7 @@ namespace bluetoe {
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = !std::is_const< T >::value && !details::has_option< no_write_access, Options... >::value;
             static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
+            static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
@@ -168,6 +182,7 @@ namespace bluetoe {
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = false;
             static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
+            static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
@@ -237,6 +252,7 @@ namespace bluetoe {
             static constexpr bool has_read_access  = true;
             static constexpr bool has_write_access = false;
             static constexpr bool has_notifcation  = false;
+            static constexpr bool has_indication   = false;
 
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {

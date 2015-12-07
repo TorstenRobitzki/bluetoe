@@ -115,9 +115,12 @@ namespace bluetoe {
          * @brief notifies all connected clients about this value
          *
          * There is no check whether there was actual a change to the value or not. It's safe to call this function from a different
-         * thread or from an interrupt service routine.
+         * thread or from an interrupt service routine. But there is a check whether or not clients enabled notifications.
          *
          * The characteristic<> must have been given the notify parameter.
+         *
+         * @sa notify
+         * @sa characteristic
          *
          * Example:
          @code
@@ -143,6 +146,14 @@ namespace bluetoe {
         template < class T >
         void notify( const T& value );
 
+        /**
+         * @brief sends indications to all connceted clients.
+         *
+         * The function is mostly similar to notify(). Instead of a ATT notification, an ATT indication is send.
+         */
+        template < class T >
+        void indicate( const T& value );
+
         /** @cond HIDDEN_SYMBOLS */
         // function relevant only for l2cap layers
         /**
@@ -156,7 +167,12 @@ namespace bluetoe {
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
 
-        typedef void (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg );
+        enum notification_type {
+            notification,
+            indication
+        };
+
+        typedef void (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, notification_type type );
 
         /**
          * @brief sets the callback for the l2cap layer to receive notifications and indications
@@ -417,7 +433,20 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( data, l2cap_arg_ );
+            l2cap_cb_( data, l2cap_arg_, notification );
+    }
+
+    template < typename ... Options >
+    template < class T >
+    void server< Options... >::indicate( const T& value )
+    {
+        static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
+
+        const details::notification_data data = find_notification_data( &value );
+        assert( data.valid() );
+
+        if ( l2cap_cb_ )
+            l2cap_cb_( data, l2cap_arg_, indication );
     }
 
     template < typename ... Options >

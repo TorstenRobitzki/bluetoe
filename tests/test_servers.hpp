@@ -67,6 +67,8 @@ namespace {
             connection.client_mtu( ResponseBufferSize );
 
             notification = bluetoe::details::notification_data();
+            notification_type = Server::notification;
+
             this->notification_callback( &l2cap_layer_notify_cb, this );
         }
 
@@ -171,6 +173,7 @@ namespace {
         static constexpr std::size_t                mtu_size = ResponseBufferSize;
         typename Server::connection_data            connection;
         static bluetoe::details::notification_data  notification;
+        static typename Server::notification_type   notification_type;
 
     private:
         void check_response() const
@@ -182,9 +185,10 @@ namespace {
                 []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
         }
 
-        static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void* )
+        static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename Server::notification_type type )
         {
             notification = item;
+            notification_type = type;
         }
 
         template < typename T >
@@ -237,6 +241,9 @@ namespace {
 
     template < typename Server, std::size_t ResponseBufferSize >
     bluetoe::details::notification_data request_with_reponse< Server, ResponseBufferSize >::notification;
+
+    template < typename Server, std::size_t ResponseBufferSize >
+    typename Server::notification_type request_with_reponse< Server, ResponseBufferSize >::notification_type;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;

@@ -115,6 +115,7 @@ namespace bluetoe {
      * @sa no_read_access
      * @sa no_write_access
      * @sa notify
+     * @sa indicate
      * @sa bind_characteristic_value
      * @sa characteristic_name
      */
@@ -210,7 +211,7 @@ namespace bluetoe {
     {
         static_assert( FirstAttributesHandle != 0, "FirstAttributesHandle is invalid" );
 
-        if ( !value_type::is_this( value ) || !value_type::has_notifcation )
+        if ( !value_type::is_this( value ) || !( value_type::has_notifcation || value_type::has_indication ) )
             return details::notification_data();
 
         return

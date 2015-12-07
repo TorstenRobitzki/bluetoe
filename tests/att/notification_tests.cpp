@@ -25,6 +25,7 @@ BOOST_AUTO_TEST_SUITE( notifications )
 
         BOOST_CHECK( notification.valid() );
         BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x8C8B );
+        BOOST_CHECK_EQUAL( notification_type, simple_server::notification );
     }
 
     BOOST_FIXTURE_TEST_CASE( no_output_when_notification_not_enabled, request_with_reponse< simple_server > )

@@ -110,7 +110,7 @@ namespace link_layer {
         void start_advertising();
         void wait_for_connection_event();
         void transmit_notifications();
-        static void lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg );
+        static void lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
 
         std::uint8_t* advertising_buffer();
         std::uint8_t* advertising_response_buffer();
@@ -435,7 +435,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg )
+    void link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type )
     {
         static_cast< link_layer< Server, ScheduledRadio, Options... >* >( usr_arg )->connection_details_.queue_notification( item.client_characteristic_configuration_index() );
     }
