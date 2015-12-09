@@ -276,3 +276,33 @@ BOOST_FIXTURE_TEST_CASE( find_second_by_index, service_with_2_notifications )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( secondary_service )
+
+std::int32_t temperature;
+
+using sensor_position_uuid = bluetoe::service_uuid< 0xD9473E00, 0xE7D3, 0x4D90, 0x9366, 0x282AC4F44FEB >;
+
+typedef bluetoe::service<
+    bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+    bluetoe::include_service< sensor_position_uuid >,
+    bluetoe::characteristic<
+        bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
+        bluetoe::no_read_access
+    >
+> temperature_service;
+
+typedef bluetoe::secondary_service<
+    sensor_position_uuid,
+    bluetoe::characteristic<
+        bluetoe::fixed_uint8_value< 0x42 >
+    >
+> sensor_position_service;
+
+
+BOOST_FIXTURE_TEST_CASE( find_secondary_service_definition, sensor_position_service )
+{
+    BOOST_CHECK_EQUAL( 0x2801, attribute_at< 0 >( 0 ).uuid );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -19,6 +19,8 @@ namespace bluetoe {
             static constexpr char sensor_location_name[] = "Sensor Location";
             static constexpr char control_point_name[] = "SC Control Point";
         }
+
+        using service_uuid = service_uuid16< 0x1816 >;
     }
 
 
@@ -27,7 +29,7 @@ namespace bluetoe {
     template < typename ... Options >
     struct cycling_speed_and_cadence :
         service<
-            service_uuid16< 0x1816 >,
+            csc::service_uuid,
             service_name< csc::details::service_name >,
             characteristic<
                 characteristic_uuid16< 0x2A5B >,

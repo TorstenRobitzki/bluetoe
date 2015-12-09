@@ -81,6 +81,7 @@ namespace details {
 
     enum class gatt_uuids : std::uint16_t {
         primary_service                     = 0x2800,
+        secondary_service                   = 0x2801,
         characteristic                      = 0x2803,
         characteristic_user_description     = 0x2901,
         client_characteristic_configuration = 0x2902,

@@ -28,6 +28,7 @@ namespace bluetoe {
             static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
         };
 
+        struct is_secondary_service_meta_type {};
     }
 
     /**
@@ -113,6 +114,8 @@ namespace bluetoe {
      * A0C271BF-BD17-4627-B5DF-5E26AA194920 to find the position service of the quadcopter.
      *
      * @sa server
+     * @sa secondary_service
+     * @sa is_secondary_service
      * @sa characteristic
      * @sa service_uuid
      * @sa service_uuid16
@@ -173,6 +176,66 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief modifier that defines a service to be a secondary service.
+     *
+     * @sa secondary_service
+     * @sa service
+     */
+    struct is_secondary_service {
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::is_secondary_service_meta_type meta_type;
+        /** @endcond */
+    };
+
+    /**
+     * @brief definition of a secondary service
+     *
+     * Quote from the Core Spec: A secondary service is a service that is only intended to be
+     * referenced from a primary service or another secondary service or other higher layer
+     * specification. A secondary service is only relevant in the context of the entity that
+     * references it.
+     *
+     * @sa service
+     * @sa include_service
+     */
+    template < typename ... Options >
+    struct secondary_service : service< Options..., is_secondary_service > {};
+
+    /**
+     * @brief includes an other service into the defined service
+     *
+     * The service to be included is defined by it's UUID (16-bit or 128-bit).
+     * The included service must be defined within the very same server definition.
+     * UUID is either a service_uuid<> or service_uuid16<>
+     *
+     * @sa service_uuid16
+     * @sa service_uuid
+     * @sa secondary_service
+     */
+    template < typename UUID >
+    struct include_service;
+
+    template <
+        std::uint32_t A,
+        std::uint16_t B,
+        std::uint16_t C,
+        std::uint16_t D,
+        std::uint64_t E >
+    struct include_service< service_uuid< A, B, C, D, E > > {
+
+    };
+
+    template < std::uint64_t UUID >
+    struct include_service< service_uuid16< UUID > > {
+
+    };
+
+    /**
+     * @example include_example.cpp
+     * This examples shows, how to define a secondary service and how to include it in an other service.
+     */
+
     // service_uuid implementation
     /** @cond HIDDEN_SYMBOLS */
     template < class UUID >
@@ -219,7 +282,19 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute service< Options... >::characteristic_declaration_attribute()
     {
-        return details::attribute{ bits( details::gatt_uuids::primary_service ), &uuid::attribute_access };
+        using has_secondary_service_flag = typename details::find_by_meta_type< details::is_secondary_service_meta_type, Options... >::type;
+
+        struct select {
+            static details::attribute characteristic_declaration_attribute( const details::no_such_type& ) {
+                return details::attribute{ bits( details::gatt_uuids::primary_service ), &uuid::attribute_access };
+            }
+
+            static details::attribute characteristic_declaration_attribute( const is_secondary_service& ) {
+                return details::attribute{ bits( details::gatt_uuids::secondary_service ), &uuid::attribute_access };
+            }
+        };
+
+        return select::characteristic_declaration_attribute( has_secondary_service_flag() );
     }
 
     template < typename ... Options >
