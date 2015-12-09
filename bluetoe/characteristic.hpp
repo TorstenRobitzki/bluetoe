@@ -9,6 +9,7 @@
 #include <bluetoe/bits.hpp>
 #include <bluetoe/scattered_access.hpp>
 #include <bluetoe/service_uuid.hpp>
+#include <bluetoe/attribute_generator.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -26,7 +27,7 @@ namespace bluetoe {
         struct characteristic_user_description_parameter {};
 
         template < typename ... Options >
-        struct generate_attributes;
+        struct generate_characteristic_attributes;
 
         template < typename Characteristic >
         struct sum_by_attributes;
@@ -125,7 +126,7 @@ namespace bluetoe {
     public:
         /** @cond HIDDEN_SYMBOLS */
 
-        typedef typename details::generate_attributes< Options... > characteristic_descriptor_declarations;
+        typedef typename details::generate_characteristic_attributes< Options... > characteristic_descriptor_declarations;
 
         /**
          * a characteristic is a list of attributes
@@ -248,9 +249,6 @@ namespace bluetoe {
 
             static constexpr bool auto_generated_uuid = std::is_same< char_uuid, no_such_type >::value;
         };
-
-        template < typename, std::size_t, typename ... Options >
-        struct generate_attribute;
 
         /*
          * Characteristic declaration
@@ -440,45 +438,6 @@ namespace bluetoe {
             &generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >::access
         };
 
-        /**
-         * generate a const static array of attributes out of a list of tuples, containing the parameter to generate a attribute
-         *
-         *  Attributes: A std::tuple, containing a tuple for every attribute to generate.
-         *
-         *  ClientCharacteristicIndex: The index of the characteristic to be generate in the containing service
-         *
-         *  Options: All options that where given to the characteristic
-         */
-        template < typename Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute_list;
-
-        template < std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute_list< std::tuple<>, ClientCharacteristicIndex, Options... >
-        {
-            static const attribute attribute_at( std::size_t index )
-            {
-                assert( !"should not happen" );
-                return attribute();
-            }
-        };
-
-        template < typename ... Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute_list< std::tuple< Attributes... >, ClientCharacteristicIndex, Options... >
-        {
-            static const attribute attribute_at( std::size_t index )
-            {
-                return attributes[ index ];
-            }
-
-            static attribute attributes[ sizeof ...(Attributes) ];
-        };
-
-        template < typename ... Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
-        attribute generate_attribute_list< std::tuple< Attributes... >, ClientCharacteristicIndex, Options... >::attributes[ sizeof ...(Attributes) ] =
-        {
-            generate_attribute< Attributes, ClientCharacteristicIndex, Options... >::attr...
-        };
-
         template < typename Parmeters >
         struct are_client_characteristic_configuration_parameter : std::false_type {};
 
@@ -486,30 +445,25 @@ namespace bluetoe {
         struct are_client_characteristic_configuration_parameter< std::tuple< client_characteristic_configuration_parameter, Ts... > > : std::true_type {};
 
         template < typename ... Options >
-        struct generate_attributes
-        {
-            // this constructs groups all Options by there meta type. Empty groups are removed from the result set.
-            typedef typename group_by_meta_types_without_empty_groups<
+        using generate_characteristic_attributes_base = generate_attributes<
+                std::tuple< Options... >,
                 std::tuple<
-                    Options...,
-                    empty_meta_type< characteristic_declaration_parameter > // force the existens of an characteristic declaration, even without Options with this meta_type
+                    characteristic_declaration_parameter,
+                    characteristic_value_declaration_parameter,
+                    characteristic_user_description_parameter,
+                    client_characteristic_configuration_parameter
                 >,
-                // List of meta types. The order of this meta types defines the order in the attribute list.
-                characteristic_declaration_parameter,
-                characteristic_value_declaration_parameter,
-                characteristic_user_description_parameter,
-                client_characteristic_configuration_parameter
-            >::type declaraction_parameters;
+                // force the existens of an characteristic declaration, even without Options with this meta_type
+                std::tuple< empty_meta_type< characteristic_declaration_parameter > >
+            >;
 
-            enum { number_of_attributes     = std::tuple_size< declaraction_parameters >::value };
-            enum { number_of_client_configs = count_if< declaraction_parameters, are_client_characteristic_configuration_parameter >::value };
+        template < typename ... Options >
+        struct generate_characteristic_attributes : generate_characteristic_attributes_base< Options... >
+        {
+            enum { number_of_client_configs = count_if<
+                typename generate_characteristic_attributes_base< Options... >::attribute_generation_parameters,
+                are_client_characteristic_configuration_parameter >::value };
             enum { number_of_server_configs = 0 };
-
-            template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
-            static const attribute attribute_at( std::size_t index )
-            {
-                return generate_attribute_list< declaraction_parameters, ClientCharacteristicIndex, Options..., ServiceUUID >::attribute_at( index );
-            }
         };
 
         template < typename Characteristic >
