@@ -94,9 +94,10 @@ namespace details {
     }
 
     enum class gatt_characteristic_properties : std::uint8_t {
-        read    = 0x02,
-        write   = 0x08,
-        notify  = 0x10
+        read        = 0x02,
+        write       = 0x08,
+        notify      = 0x10,
+        indicate    = 0x20
     };
 
     inline std::uint8_t bits( gatt_characteristic_properties c )

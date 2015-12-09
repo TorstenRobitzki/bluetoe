@@ -290,7 +290,8 @@ namespace bluetoe {
                     static_cast< std::uint8_t >(
                         ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
                         ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 ) |
-                        ( value_type::has_notifcation  ? bits( details::gatt_characteristic_properties::notify ) : 0 ) )
+                        ( value_type::has_notifcation  ? bits( details::gatt_characteristic_properties::notify ) : 0 ) |
+                        ( value_type::has_indication   ? bits( details::gatt_characteristic_properties::indicate ) : 0 ) )
                 };
 
                 // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
