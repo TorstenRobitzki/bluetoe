@@ -152,8 +152,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
      */
     BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_characteristics )
     {
-        /// TODO Fix, when indications are implemeted
-        //BOOST_CHECK_EQUAL( cs_control_point.properties, 0x28 );
+        BOOST_CHECK_EQUAL( cs_control_point.properties, 0x28 );
         BOOST_CHECK_EQUAL( cs_control_point.uuid, 0x2A55 );
     }
 
@@ -221,6 +220,9 @@ struct disconver_all_descriptors : discover_all_characteristics
 
 BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
 
+    /*
+     * TP/DES/BV-01-C
+     */
     BOOST_FIXTURE_TEST_CASE( csc_measurement_client_characteristic_configuration_descriptor, disconver_all_descriptors )
     {
         const auto value = att_read( csc_measurement_client_configuration.handle );
@@ -231,6 +233,9 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
         BOOST_CHECK( config_value == 0x0000 || config_value == 0x0001 );
     }
 
+    /*
+     * TP/DES/BV-02-C
+     */
     BOOST_FIXTURE_TEST_CASE( sc_control_point_client_characteristic_configuration_descriptor, disconver_all_descriptors )
     {
         const auto value = att_read( sc_control_point_client_configuration.handle );

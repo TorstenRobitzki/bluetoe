@@ -52,7 +52,7 @@ namespace bluetoe {
                 characteristic_uuid16< 0x2A55 >,
                 characteristic_name< csc::details::control_point_name >,
                 bluetoe::no_read_access,
-                bluetoe::notify, //bluetoe::indicate,
+                bluetoe::indicate,
                 bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
             >
         >
