@@ -50,7 +50,7 @@ Server Configuration|Exchange MTU|implemented
 Primary Service Discovery|Discover All Primary Services|implemented
  |Discover Primary Service By Service UUID|implemented
 Relationship Discovery|Find Included Services|implemented
-|Declare Secondary Services|planned
+ |Declare Secondary Services|planned
 Characteristic Discovery|Discover All Characteristic of a Service|implemented
  |Discover Characteristic by UUID|implemented
 Characteristic Descriptor Discovery|Discover All Characteristic Descriptors|implemented
