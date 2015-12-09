@@ -100,19 +100,8 @@ BOOST_AUTO_TEST_SUITE( indications )
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 12u } ) );
         BOOST_CHECK( dequeue_indication_or_confirmation().first == empty );
 
-        indication_confirmed( 2u );
+        indication_confirmed();
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 16u } ) );
-    }
-
-    BOOST_FIXTURE_TEST_CASE( confirming_the_wrong_index, queue8 )
-    {
-        queue_indication( 7u );
-        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 7u } ) );
-
-        indication_confirmed( 42u );
-
-        queue_indication( 2u );
-        BOOST_CHECK( dequeue_indication_or_confirmation().first == empty );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

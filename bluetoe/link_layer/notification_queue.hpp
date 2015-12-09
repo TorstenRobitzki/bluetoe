@@ -67,10 +67,10 @@ namespace link_layer {
         /**
          * @brief to be called, when a ATT Handle Value Confirmation was received.
          *
-         * If not outstanding confirmation for the given index is registered, the
+         * If not outstanding confirmation is registered, the
          * function has not side effect.
          */
-        void indication_confirmed( std::size_t index );
+        void indication_confirmed();
 
         /**
          * @brief type of entry
@@ -133,7 +133,7 @@ namespace link_layer {
 
         void queue_notification( std::size_t index ) {}
         void queue_indication( std::size_t index ) {}
-        void indication_confirmed( std::size_t index ) {}
+        void indication_confirmed() {}
 
         enum entry_type {
             empty,
@@ -175,9 +175,9 @@ namespace link_layer {
     }
 
     template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::indication_confirmed( std::size_t index )
+    void notification_queue< Size, Mixin >::indication_confirmed()
     {
-        if ( index < Size && outstanding_confirmation_ != Size && index == outstanding_confirmation_ )
+        if ( outstanding_confirmation_ != Size )
         {
             outstanding_confirmation_ = Size;
         }
