@@ -131,9 +131,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ac3332bae2ffe997c556b990e4ec12e84"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#ac3332bae2ffe997c556b990e4ec12e84">queue_indication</a> (std::size_t index)</td></tr>
 <tr class="memdesc:ac3332bae2ffe997c556b990e4ec12e84"><td class="mdescLeft">&#160;</td><td class="mdescRight">queue the indexed characteristic for indication  <a href="#ac3332bae2ffe997c556b990e4ec12e84">More...</a><br /></td></tr>
 <tr class="separator:ac3332bae2ffe997c556b990e4ec12e84"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa5541697a5829a35d2160b13e3d35be8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#aa5541697a5829a35d2160b13e3d35be8">indication_confirmed</a> (std::size_t index)</td></tr>
-<tr class="memdesc:aa5541697a5829a35d2160b13e3d35be8"><td class="mdescLeft">&#160;</td><td class="mdescRight">to be called, when a ATT Handle Value Confirmation was received.  <a href="#aa5541697a5829a35d2160b13e3d35be8">More...</a><br /></td></tr>
-<tr class="separator:aa5541697a5829a35d2160b13e3d35be8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a07085c0980463789078a583a8ef66b00"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a07085c0980463789078a583a8ef66b00">indication_confirmed</a> ()</td></tr>
+<tr class="memdesc:a07085c0980463789078a583a8ef66b00"><td class="mdescLeft">&#160;</td><td class="mdescRight">to be called, when a ATT Handle Value Confirmation was received.  <a href="#a07085c0980463789078a583a8ef66b00">More...</a><br /></td></tr>
+<tr class="separator:a07085c0980463789078a583a8ef66b00"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a55d71b7bbd7a1e12dafb0863fc399be6"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#aa4a63b71c17a23fd5d4517031b33f313">entry_type</a>, std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a55d71b7bbd7a1e12dafb0863fc399be6">dequeue_indication_or_confirmation</a> ()</td></tr>
 <tr class="memdesc:a55d71b7bbd7a1e12dafb0863fc399be6"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a next notification or indication to be send.  <a href="#a55d71b7bbd7a1e12dafb0863fc399be6">More...</a><br /></td></tr>
 <tr class="separator:a55d71b7bbd7a1e12dafb0863fc399be6"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -225,11 +225,11 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
 </div><div class="memdoc">
 
 <p>return a next notification or indication to be send. </p>
-<p>For a returned notification, the function will remove the returned entry. For a returned indication, the function will change the entry to 'unconfirmed' and will not return any indications until <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#aa5541697a5829a35d2160b13e3d35be8" title="to be called, when a ATT Handle Value Confirmation was received. ">indication_confirmed()</a> is called for the returned index. </p>
+<p>For a returned notification, the function will remove the returned entry. For a returned indication, the function will change the entry to 'unconfirmed' and will not return any indications until <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a07085c0980463789078a583a8ef66b00" title="to be called, when a ATT Handle Value Confirmation was received. ">indication_confirmed()</a> is called for the returned index. </p>
 
 </div>
 </div>
-<a class="anchor" id="aa5541697a5829a35d2160b13e3d35be8"></a>
+<a class="anchor" id="a07085c0980463789078a583a8ef66b00"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
@@ -238,15 +238,14 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
         <tr>
           <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html">bluetoe::link_layer::notification_queue</a>&lt; Size, Mixin &gt;::indication_confirmed </td>
           <td>(</td>
-          <td class="paramtype">std::size_t&#160;</td>
-          <td class="paramname"><em>index</em></td><td>)</td>
+          <td class="paramname"></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 
 <p>to be called, when a ATT Handle Value Confirmation was received. </p>
-<p>If not outstanding confirmation for the given index is registered, the function has not side effect. </p>
+<p>If not outstanding confirmation is registered, the function has not side effect. </p>
 
 </div>
 </div>
@@ -302,7 +301,7 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sun Dec 6 2015 16:02:54 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Dec 9 2015 22:03:05 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

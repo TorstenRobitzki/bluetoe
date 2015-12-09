@@ -121,19 +121,23 @@ class bluetoe::service&lt; Options &gt;</h3>
 </div><!-- fragment --><p>To identify a service, every service have to have a unique UUID. 128 bit UUIDs are used for custiom services, while the shorter 16 bit UUIDs are used to identify services that have a special meaning the is documented in <a href="https://developer.bluetooth.org/gatt/services/Pages/ServicesHome.aspx?_ga=1.140855218.1800461708.1407160742">specifications</a> writen by the bluetooth special interrest group. So every service must have either a <a class="el" href="classbluetoe_1_1service__uuid.html" title="a 128-Bit UUID used to identify a service. ">service_uuid</a> or a <a class="el" href="classbluetoe_1_1service__uuid16.html" title="a 16-Bit UUID used to identify a service ">service_uuid16</a> as template parameter. The position of the UUID parameter is irelevant. A GATT client can use this UUID to identify the service; in the example above, a GATT client would look for a service with the UUID A0C271BF-BD17-4627-B5DF-5E26AA194920 to find the position service of the quadcopter.</p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="classbluetoe_1_1server.html" title="Root of the declaration of a GATT server. ">server</a> </dd>
 <dd>
+<a class="el" href="structbluetoe_1_1secondary__service.html" title="definition of a secondary service ">secondary_service</a> </dd>
+<dd>
+<a class="el" href="structbluetoe_1_1is__secondary__service.html" title="modifier that defines a service to be a secondary service. ">is_secondary_service</a> </dd>
+<dd>
 <a class="el" href="classbluetoe_1_1characteristic.html" title="A characteristic is an attribute that is accessable by a GATT client. ">characteristic</a> </dd>
 <dd>
 <a class="el" href="classbluetoe_1_1service__uuid.html" title="a 128-Bit UUID used to identify a service. ">service_uuid</a> </dd>
 <dd>
 <a class="el" href="classbluetoe_1_1service__uuid16.html" title="a 16-Bit UUID used to identify a service ">service_uuid16</a> </dd></dl>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="server_8cpp-example.html#_a1">server.cpp</a>.</dd>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="include_example_8cpp-example.html#_a5">include_example.cpp</a>, and <a class="el" href="server_8cpp-example.html#_a1">server.cpp</a>.</dd>
 </dl></div><hr/>The documentation for this class was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="service_8hpp_source.html">service.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sun Dec 6 2015 16:02:54 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Dec 9 2015 22:03:05 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

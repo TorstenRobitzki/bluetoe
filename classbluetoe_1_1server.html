@@ -126,6 +126,10 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ac92676e3f7e27b66f67cd164cb810abf"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server.html#ac92676e3f7e27b66f67cd164cb810abf">notify</a> (const T &amp;value)</td></tr>
 <tr class="memdesc:ac92676e3f7e27b66f67cd164cb810abf"><td class="mdescLeft">&#160;</td><td class="mdescRight">notifies all connected clients about this value  <a href="#ac92676e3f7e27b66f67cd164cb810abf">More...</a><br /></td></tr>
 <tr class="separator:ac92676e3f7e27b66f67cd164cb810abf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad9b6a8b5f91d28840432a9f91afba3af"><td class="memTemplParams" colspan="2">template&lt;class T &gt; </td></tr>
+<tr class="memitem:ad9b6a8b5f91d28840432a9f91afba3af"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server.html#ad9b6a8b5f91d28840432a9f91afba3af">indicate</a> (const T &amp;value)</td></tr>
+<tr class="memdesc:ad9b6a8b5f91d28840432a9f91afba3af"><td class="mdescLeft">&#160;</td><td class="mdescRight">sends indications to all connceted clients.  <a href="#ad9b6a8b5f91d28840432a9f91afba3af">More...</a><br /></td></tr>
+<tr class="separator:ad9b6a8b5f91d28840432a9f91afba3af"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><h3>template&lt;typename... Options&gt;<br />
@@ -153,8 +157,31 @@ class bluetoe::server&lt; Options &gt;</h3>
 <a class="el" href="structbluetoe_1_1server__name.html" title="adds a discoverable device name ">server_name</a> </dd>
 <dd>
 <a class="el" href="structbluetoe_1_1appearance.html" title="enumeration of appearances (org.bluetooth.characteristic.gap.appearance) ">appearance</a> </dd></dl>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="server_8cpp-example.html#_a0">server.cpp</a>.</dd>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="include_example_8cpp-example.html#_a1">include_example.cpp</a>, and <a class="el" href="server_8cpp-example.html#_a0">server.cpp</a>.</dd>
 </dl></div><h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="ad9b6a8b5f91d28840432a9f91afba3af"></a>
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename... Options&gt; </div>
+<div class="memtemplate">
+template&lt;class T &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt; Options &gt;::<a class="el" href="structbluetoe_1_1indicate.html">indicate</a> </td>
+          <td>(</td>
+          <td class="paramtype">const T &amp;&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>sends indications to all connceted clients. </p>
+<p>The function is mostly similar to <a class="el" href="classbluetoe_1_1server.html#ac92676e3f7e27b66f67cd164cb810abf" title="notifies all connected clients about this value ">notify()</a>. Instead of a ATT notification, an ATT indication is send. </p>
+
+</div>
+</div>
 <a class="anchor" id="ac92676e3f7e27b66f67cd164cb810abf"></a>
 <div class="memitem">
 <div class="memproto">
@@ -174,8 +201,11 @@ template&lt;class T &gt; </div>
 </div><div class="memdoc">
 
 <p>notifies all connected clients about this value </p>
-<p>There is no check whether there was actual a change to the value or not. It's safe to call this function from a different thread or from an interrupt service routine.</p>
+<p>There is no check whether there was actual a change to the value or not. It's safe to call this function from a different thread or from an interrupt service routine. But there is a check whether or not clients enabled notifications.</p>
 <p>The characteristic&lt;&gt; must have been given the notify parameter.</p>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="structbluetoe_1_1notify.html" title="adds the ability to notify this characteristic. ">notify</a> </dd>
+<dd>
+<a class="el" href="classbluetoe_1_1characteristic.html" title="A characteristic is an attribute that is accessable by a GATT client. ">characteristic</a></dd></dl>
 <p>Example: </p><div class="fragment"><div class="line">std::int32_t temperature;</div>
 <div class="line"></div>
 <div class="line"><span class="keyword">typedef</span> <a class="code" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt;</div>
@@ -201,7 +231,7 @@ template&lt;class T &gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sun Dec 6 2015 16:02:54 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Dec 9 2015 22:03:05 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>
