@@ -158,6 +158,11 @@ namespace {
             return &guarded_buffer[ guard_size ];
         }
 
+        std::uint8_t* begin()
+        {
+            return &guarded_buffer[ guard_size ];
+        }
+
         const std::uint8_t* end() const
         {
             return &guarded_buffer[ ResponseBufferSize + guard_size ];

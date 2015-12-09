@@ -33,7 +33,9 @@ namespace details {
         execute_write_request       = 0x18,
         execute_write_response      = 0x19,
         write_command               = 0x52,
-        notification                = 0x1B
+        notification                = 0x1B,
+        indication                  = 0x1D,
+        confirmation                = 0x1E
 
     };
 
@@ -114,7 +116,8 @@ namespace details {
     }
 
     enum {
-        client_characteristic_configuration_notification_enabled = 1
+        client_characteristic_configuration_notification_enabled = 1,
+        client_characteristic_configuration_indication_enabled   = 2
     };
 
 }

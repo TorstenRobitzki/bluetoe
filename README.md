@@ -63,7 +63,7 @@ Characteristic Value Write| Write Without Response|implemented
  |Write Long Characteristic Values|implemented
  |Characteristic Value Reliable Writes|implemented
 Characteristic Value Notification|Notifications|implemented
-Characteristic Value Indication|Indications|planned
+Characteristic Value Indication|Indications|implemented
 Characteristic Descriptor Value Read|Read Characteristic Descriptors|implemented
  |Read Long Characteristic Descriptors|implemented
 Characteristic Descriptor Value Write|Write Characteristic Descriptors|implemented

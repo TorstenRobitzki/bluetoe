@@ -169,7 +169,8 @@ namespace bluetoe {
 
         enum notification_type {
             notification,
-            indication
+            indication,
+            confirmation
         };
 
         typedef void (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, notification_type type );
@@ -185,6 +186,8 @@ namespace bluetoe {
 
         void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
         void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
+
+        void indication_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
 
         /**
          * @attention this function must be called with every client that got disconnected.
@@ -232,6 +235,7 @@ namespace bluetoe {
         void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
         template < typename WriteQueue >
         void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
+        void handle_value_confirmation( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
@@ -347,6 +351,9 @@ namespace bluetoe {
             break;
         case details::att_opcodes::execute_write_request:
             handle_execute_write_request( input, in_size, output, out_size, connection, write_queue_type() );
+            break;
+        case details::att_opcodes::confirmation:
+            handle_value_confirmation( input, in_size, output, out_size, connection );
             break;
         default:
             error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
@@ -485,6 +492,32 @@ namespace bluetoe {
     void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
     {
         notification_output( output, out_size, connection, find_notification_data_by_index( client_characteristic_configuration_index ) );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::indication_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
+    {
+        const auto details = find_notification_data_by_index( client_characteristic_configuration_index );
+        assert( details.valid() );
+
+        if ( connection.client_configurations().flags( details.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled &&
+             out_size >= 3 )
+        {
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
+            auto rc   = details.value_attribute().access( read, details.handle() );
+
+            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            {
+                *output = bits( details::att_opcodes::indication );
+                details::write_handle( output +1, details.handle() );
+            }
+
+            out_size = 3 + read.buffer_size;
+        }
+        else
+        {
+            out_size = 0;
+        }
     }
 
     template < typename ... Options >
@@ -1091,6 +1124,18 @@ namespace bluetoe {
 
         *output  = bits( details::att_opcodes::execute_write_response );
         out_size = 1;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_value_confirmation( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    {
+        if ( in_size != 1 )
+            return error_response( *input, static_cast< details::att_error_codes >( 0x04 ), output, out_size );
+
+        out_size = 0;
+
+        if ( l2cap_cb_ )
+            l2cap_cb_( details::notification_data(), l2cap_arg_, confirmation );
     }
 
     template < typename ... Options >
