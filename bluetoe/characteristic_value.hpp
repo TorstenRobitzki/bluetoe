@@ -120,17 +120,7 @@ namespace bluetoe {
         private:
             static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments& args, const std::true_type& )
             {
-                if ( args.buffer_offset > sizeof( T ) )
-                    return details::attribute_access_result::invalid_offset;
-
-                args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) - args.buffer_offset );
-                const std::uint8_t* const ptr = static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) ) + args.buffer_offset;
-
-                std::copy( ptr, ptr + args.buffer_size, args.buffer );
-
-                return args.buffer_size == sizeof( T ) - args.buffer_offset
-                    ? details::attribute_access_result::success
-                    : details::attribute_access_result::read_truncated;
+                return details::attribute_value_read_access( args, static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) ), sizeof( T ) );
             }
 
             static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& )
@@ -286,7 +276,7 @@ namespace bluetoe {
 
         struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
         /** @endcond */
-   };
+    };
 }
 
 #endif

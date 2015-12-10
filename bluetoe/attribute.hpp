@@ -326,6 +326,29 @@ namespace details {
         }
     };
 
+    attribute_access_result attribute_value_read_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
+    {
+        if ( args.buffer_offset > size )
+            return details::attribute_access_result::invalid_offset;
+
+        args.buffer_size = std::min< std::size_t >( args.buffer_size, size - args.buffer_offset );
+        const std::uint8_t* const ptr = memory + args.buffer_offset;
+
+        std::copy( ptr, ptr + args.buffer_size, args.buffer );
+
+        return args.buffer_size == size - args.buffer_offset
+            ? details::attribute_access_result::success
+            : details::attribute_access_result::read_truncated;
+    }
+
+    attribute_access_result attribute_value_read_only_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
+    {
+        if ( args.type != attribute_access_type::read )
+            return attribute_access_result::write_not_permitted;
+
+        return attribute_value_read_access( args, memory, size );
+    }
+
 }
 }
 

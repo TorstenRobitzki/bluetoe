@@ -277,8 +277,6 @@ BOOST_FIXTURE_TEST_CASE( find_second_by_index, service_with_2_notifications )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( secondary_service )
-
 std::int32_t temperature;
 
 using sensor_position_uuid = bluetoe::service_uuid< 0xD9473E00, 0xE7D3, 0x4D90, 0x9366, 0x282AC4F44FEB >;
@@ -299,10 +297,36 @@ typedef bluetoe::secondary_service<
     >
 > sensor_position_service;
 
+BOOST_AUTO_TEST_SUITE( secondary_service )
 
 BOOST_FIXTURE_TEST_CASE( find_secondary_service_definition, sensor_position_service )
 {
     BOOST_CHECK_EQUAL( 0x2801, attribute_at< 0 >( 0 ).uuid );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( include_service )
+
+BOOST_FIXTURE_TEST_CASE( correct_number_of_attributes, temperature_service )
+{
+    BOOST_CHECK_EQUAL( int( number_of_attributes ), 4 );
+    BOOST_CHECK_EQUAL( int( number_of_service_attributes ), 2 );
+}
+
+BOOST_FIXTURE_TEST_CASE( find_include_definition, temperature_service )
+{
+    BOOST_CHECK_EQUAL( 0x2802, attribute_at< 0 >( 1 ).uuid );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_include_definition, temperature_service )
+{
+    std::uint8_t buffer[ 100 ];
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
+    const auto access_result = attribute_at< 0 >( 1 ).access( read, 1 );
+
+    BOOST_CHECK_EQUAL( read.buffer_size, 4 );
+    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

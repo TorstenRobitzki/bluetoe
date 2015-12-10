@@ -21,14 +21,12 @@ namespace bluetoe {
     namespace details {
         struct service_meta_type {};
 
-        template < class UUID >
-        struct attribute_access_impl
-        {
-            typedef UUID uuid;
-            static details::attribute_access_result attribute_access( details::attribute_access_arguments&, std::uint16_t attribute_handle );
-        };
-
         struct is_secondary_service_meta_type {};
+        struct include_service_meta_type {};
+        struct service_defintion_tag {};
+
+        template < typename ... Options >
+        struct generate_service_attributes;
     }
 
     /**
@@ -49,7 +47,7 @@ namespace bluetoe {
         std::uint64_t E >
     class service_uuid
         /** @cond HIDDEN_SYMBOLS */
-            : public details::uuid< A, B, C, D, E >, public details::attribute_access_impl< details::uuid< A, B, C, D, E > >
+            : public details::uuid< A, B, C, D, E >
         /** @endcond */
     {
     public:
@@ -70,7 +68,7 @@ namespace bluetoe {
     template < std::uint64_t UUID >
     class service_uuid16
         /** @cond HIDDEN_SYMBOLS */
-            : public details::uuid16< UUID >, public details::attribute_access_impl< details::uuid16< UUID > >
+            : public details::uuid16< UUID >
         /** @endcond */
     {
     public:
@@ -131,7 +129,9 @@ namespace bluetoe {
 
         static_assert( !std::is_same< uuid, details::no_such_type >::value, "Please provide a UUID to the service (service_uuid or service_uuid16 for example)." );
 
-        static constexpr std::size_t number_of_service_attributes        = 1;
+        typedef details::generate_service_attributes< Options... >                                              attribute_generator;
+
+        static constexpr std::size_t number_of_service_attributes        = attribute_generator::number_of_attributes;
         static constexpr std::size_t number_of_characteristic_attributes = details::sum_by< characteristics, details::sum_by_attributes >::value;
         static constexpr std::size_t number_of_client_configs            = details::sum_by< characteristics, details::sum_by_client_configs >::value;
 
@@ -149,11 +149,6 @@ namespace bluetoe {
          */
         template < std::size_t ClientCharacteristicIndex >
         static details::attribute attribute_at( std::size_t index );
-
-        /**
-         * returns the Characteristic Declaration attribute
-         */
-        static details::attribute characteristic_declaration_attribute();
 
         /**
          * @brief assembles one data packet for a "Read by Group Type Response"
@@ -222,13 +217,19 @@ namespace bluetoe {
         std::uint16_t C,
         std::uint16_t D,
         std::uint64_t E >
-    struct include_service< service_uuid< A, B, C, D, E > > {
-
+    struct include_service< service_uuid< A, B, C, D, E > >
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::include_service_meta_type meta_type;
+        /** @endcond */
     };
 
     template < std::uint64_t UUID >
-    struct include_service< service_uuid16< UUID > > {
-
+    struct include_service< service_uuid16< UUID > >
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::include_service_meta_type meta_type;
+        /** @endcond */
     };
 
     /**
@@ -236,35 +237,7 @@ namespace bluetoe {
      * This examples shows, how to define a secondary service and how to include it in an other service.
      */
 
-    // service_uuid implementation
     /** @cond HIDDEN_SYMBOLS */
-    template < class UUID >
-    details::attribute_access_result details::attribute_access_impl< UUID >::attribute_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
-    {
-        if ( args.type == details::attribute_access_type::read )
-        {
-            if ( args.buffer_offset > sizeof( uuid::bytes ) )
-                return details::attribute_access_result::invalid_offset;
-
-            args.buffer_size = std::min< std::size_t >( sizeof( uuid::bytes ) - args.buffer_offset, args.buffer_size );
-
-            std::copy( std::begin( uuid::bytes ) + args.buffer_offset , std::begin( uuid::bytes ) + args.buffer_offset + args.buffer_size, args.buffer );
-
-            return args.buffer_size == sizeof( uuid::bytes ) - args.buffer_offset
-                ? details::attribute_access_result::success
-                : details::attribute_access_result::read_truncated;
-        }
-        else if ( args.type == details::attribute_access_type::compare_value )
-        {
-            if ( sizeof( uuid::bytes ) == args.buffer_size
-              && std::equal( std::begin( uuid::bytes ), std::end( uuid::bytes ), &args.buffer[ 0 ] ) )
-            {
-                return details::attribute_access_result::value_equal;
-            }
-        }
-
-        return details::attribute_access_result::write_not_permitted;
-    }
 
     // service implementation
     template < typename ... Options >
@@ -273,28 +246,10 @@ namespace bluetoe {
     {
         assert( index < number_of_attributes );
 
-        if ( index == 0 )
-            return characteristic_declaration_attribute();
+        if ( index < number_of_service_attributes )
+            return attribute_generator::attribute_at( index );
 
-        return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid >::attribute_at( index -1 );
-    }
-
-    template < typename ... Options >
-    details::attribute service< Options... >::characteristic_declaration_attribute()
-    {
-        using has_secondary_service_flag = typename details::find_by_meta_type< details::is_secondary_service_meta_type, Options... >::type;
-
-        struct select {
-            static details::attribute characteristic_declaration_attribute( const details::no_such_type& ) {
-                return details::attribute{ bits( details::gatt_uuids::primary_service ), &uuid::attribute_access };
-            }
-
-            static details::attribute characteristic_declaration_attribute( const is_secondary_service& ) {
-                return details::attribute{ bits( details::gatt_uuids::secondary_service ), &uuid::attribute_access };
-            }
-        };
-
-        return select::characteristic_declaration_attribute( has_secondary_service_flag() );
+        return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid >::attribute_at( index - number_of_service_attributes );
     }
 
     template < typename ... Options >
@@ -309,7 +264,7 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            const details::attribute primary_service = characteristic_declaration_attribute();
+            const details::attribute primary_service = attribute_at< 0 >( 0 );
 
             auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );
 
@@ -341,8 +296,115 @@ namespace bluetoe {
         return details::find_notification_data_in_list< characteristics >::
             template find_notification_data_by_index< number_of_service_attributes + FirstAttributesHandle, ClientCharacteristicIndex >( index );
     }
-    /** @endcond */
 
+    namespace details {
+
+        /*
+         * service declaration
+         */
+        template < std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >
+        {
+            static attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                typedef typename find_by_meta_type< service_uuid_meta_type, Options... >::type uuid;
+
+                if ( args.type == attribute_access_type::read )
+                {
+                    if ( args.buffer_offset > sizeof( uuid::bytes ) )
+                        return attribute_access_result::invalid_offset;
+
+                    args.buffer_size = std::min< std::size_t >( sizeof( uuid::bytes ) - args.buffer_offset, args.buffer_size );
+
+                    std::copy( std::begin( uuid::bytes ) + args.buffer_offset , std::begin( uuid::bytes ) + args.buffer_offset + args.buffer_size, args.buffer );
+
+                    return args.buffer_size == sizeof( uuid::bytes ) - args.buffer_offset
+                        ? attribute_access_result::success
+                        : attribute_access_result::read_truncated;
+                }
+                else if ( args.type == attribute_access_type::compare_value )
+                {
+                    if ( sizeof( uuid::bytes ) == args.buffer_size
+                      && std::equal( std::begin( uuid::bytes ), std::end( uuid::bytes ), &args.buffer[ 0 ] ) )
+                    {
+                        return attribute_access_result::value_equal;
+                    }
+                }
+
+                return attribute_access_result::write_not_permitted;
+            }
+
+            static const attribute attr;
+        };
+
+        template < std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >::attr =
+        {
+            bits( has_option< is_secondary_service, Options... >::value
+                ? gatt_uuids::secondary_service
+                : gatt_uuids::primary_service ),
+            &generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >::access
+        };
+
+        /*
+         * include attribute for 128-bit includes
+         */
+        template <
+            std::uint32_t A,
+            std::uint16_t B,
+            std::uint16_t C,
+            std::uint16_t D,
+            std::uint64_t E,
+            std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >
+        {
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                static const std::uint8_t value[] = {
+                    0x00, 0x00, 0x00, 0x00
+                };
+
+                return attribute_value_read_only_access( args, &value[ 0 ], sizeof( value ) );
+            }
+
+            static const attribute attr;
+        };
+
+        template <
+            std::uint32_t A,
+            std::uint16_t B,
+            std::uint16_t C,
+            std::uint16_t D,
+            std::uint64_t E,
+            std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >::attr =
+        {
+            bits( details::gatt_uuids::include ),
+            &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >::access
+        };
+
+        template < typename ... Options >
+        struct generate_service_attributes
+        {
+            typedef typename
+                add_type<
+                    service_defintion_tag, // force generation of service generation attribute
+                    typename find_all_by_meta_type<
+                        include_service_meta_type,
+                        Options...
+                    >::type
+                >::type attribute_generation_parameters;
+
+            enum { number_of_attributes = std::tuple_size< attribute_generation_parameters >::value };
+
+            static const attribute attribute_at( std::size_t index )
+            {
+                return generate_attribute_list< attribute_generation_parameters, 0, std::tuple< Options... > >::attribute_at( index );
+            }
+        };
+
+    }
+    /** @endcond */
 }
 
 #endif

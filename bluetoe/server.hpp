@@ -1171,7 +1171,7 @@ namespace bluetoe {
             {
                 if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
                 {
-                    const details::attribute& attr = Service::characteristic_declaration_attribute();
+                    const details::attribute& attr = Service::template attribute_at< 0 >( 0 );
 
                     if ( filter_( index_, attr ) )
                     {
