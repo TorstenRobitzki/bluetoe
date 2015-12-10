@@ -467,6 +467,51 @@ namespace details {
         }
     };
 
+
+    /**
+     * @brief finds the first element in the list, for which Func< O >::value is true. With O beeing one of List
+     */
+    template <
+        typename List,
+        template < typename > class Func
+    >
+    struct find_if;
+
+    template <
+        template < typename > class Func
+    >
+    struct find_if< std::tuple<>, Func > {
+        typedef no_such_type type;
+    };
+
+    template <
+        typename T,
+        typename ... Ts,
+        template < typename > class Func
+    >
+    struct find_if< std::tuple< T, Ts...>, Func > {
+        typedef typename select_type<
+            Func< T >::value,
+            T,
+            typename find_if< std::tuple< Ts... >, Func >::type >::type type;
+    };
+
+
+    template < typename ... Ts >
+    struct last_from_pack;
+
+    template < typename T >
+    struct last_from_pack< T > {
+        typedef T type;
+    };
+
+    template <
+        typename T,
+        typename ... Ts >
+    struct last_from_pack< T, Ts... > {
+        typedef typename last_from_pack< Ts... >::type type;
+    };
+
     // defines an empty type with the given meta_type
     template < typename MetaType >
     struct empty_meta_type {

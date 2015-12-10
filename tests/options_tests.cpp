@@ -459,3 +459,58 @@ BOOST_AUTO_TEST_CASE( sum_by )
             >, by_value >::value ),
         5 );
 }
+
+BOOST_AUTO_TEST_CASE( find_if )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< float, char, int >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< int, float, char >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< float, int, char >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< int >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple<>, is_int >::type,
+            bluetoe::details::no_such_type >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< float, bool >, is_int >::type,
+            bluetoe::details::no_such_type >::value
+    ) );
+}
+
+BOOST_AUTO_TEST_CASE( last_from_pack )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_from_pack< int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_from_pack< float, int >::type,
+            int >::value
+    ) );
+
+};
