@@ -1,5 +1,6 @@
 #include <iostream>
 #include "test_services.hpp"
+#include "hexdump.hpp"
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
@@ -14,7 +15,7 @@ BOOST_AUTO_TEST_CASE( service_without_any_characteristic_results_in_one_attribut
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
     BOOST_CHECK_EQUAL( 0x2800, attr.uuid );
 }
 
@@ -27,7 +28,7 @@ static void check_service_uuid( const bluetoe::details::attribute_access_argumen
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
     BOOST_REQUIRE( attr.access );
 
     std::uint8_t buffer[ 16 ];
@@ -40,7 +41,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read )
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -52,7 +53,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger_with_offset )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
@@ -65,7 +66,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_larger_with_offset_16 )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
 
     std::uint8_t buffer[ 20 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 16 );
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_to_small )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
 
     std::uint8_t buffer[ 15 ];
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -89,7 +90,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
 
 BOOST_AUTO_TEST_CASE( write_to_primary_service )
 {
-    const auto attr = empty_service::attribute_at< 0 >( 0 );
+    const auto attr = empty_service::attribute_at< 0, std::tuple< empty_service > >( 0 );
 
     std::uint8_t buffer[] = { 1, 2, 3 };
     auto write = bluetoe::details::attribute_access_arguments::write( buffer );
@@ -103,13 +104,13 @@ BOOST_FIXTURE_TEST_CASE( accessing_all_attributes, service_with_3_characteristic
     static constexpr std::size_t expected_number_of_attributes = 7u;
     BOOST_REQUIRE_EQUAL( unsigned( number_of_attributes ), expected_number_of_attributes );
 
-    BOOST_CHECK_EQUAL( 0x2800, attribute_at< 0 >( 0 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 1 ).uuid );
-    BOOST_CHECK_EQUAL( 0x0001, attribute_at< 0 >( 2 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 3 ).uuid );
-    BOOST_CHECK_EQUAL( 0x0001, attribute_at< 0 >( 4 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 5 ).uuid );
-    BOOST_CHECK_EQUAL( 0x0815, attribute_at< 0 >( 6 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2800, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 0 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x2803, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 1 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x0001, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 2 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x2803, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 3 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x0001, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 4 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x2803, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 5 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x0815, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 6 ).uuid ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, service_with_3_characteristics )
@@ -164,7 +165,7 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_spe
 BOOST_FIXTURE_TEST_CASE( primary_service_value_compare_128bit, global_temperature_service )
 {
     auto compare = bluetoe::details::attribute_access_arguments::compare_value( &global_temperature_service_uuid[ 0 ], &global_temperature_service_uuid[ sizeof global_temperature_service_uuid ]);
-    BOOST_CHECK( attribute_at< 0 >( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal );
+    BOOST_CHECK( ( attribute_at< 0, std::tuple< global_temperature_service > >( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal ) );
 }
 
 BOOST_AUTO_TEST_SUITE( number_of_client_configs )
@@ -206,18 +207,18 @@ BOOST_AUTO_TEST_CASE( service_with_2_notifications_has_2_client_configurations )
 // just to be sure
 BOOST_FIXTURE_TEST_CASE( check_service_with_2_notifications_attribute_layout, service_with_2_notifications )
 {
-    BOOST_CHECK_EQUAL( 0x2800, attribute_at< 0 >( 0 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2800, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 0 ).uuid ) );
 
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 1 ).uuid );
-    BOOST_CHECK_EQUAL( 0x8C8B, attribute_at< 0 >( 2 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2902, attribute_at< 0 >( 3 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 1 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x8C8B, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 2 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x2902, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 3 ).uuid ) );
 
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 4 ).uuid );
-    BOOST_CHECK_EQUAL( 0x8C8C, attribute_at< 0 >( 5 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 4 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x8C8C, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 5 ).uuid ) );
 
-    BOOST_CHECK_EQUAL( 0x2803, attribute_at< 0 >( 6 ).uuid );
-    BOOST_CHECK_EQUAL( 0x8C8D, attribute_at< 0 >( 7 ).uuid );
-    BOOST_CHECK_EQUAL( 0x2902, attribute_at< 0 >( 8 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2803, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 6 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x8C8D, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 7 ).uuid ) );
+    BOOST_CHECK_EQUAL( 0x2902, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 8 ).uuid ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( notification_data_not_found, service_with_2_notifications )
@@ -297,11 +298,14 @@ typedef bluetoe::secondary_service<
     >
 > sensor_position_service;
 
+typedef std::tuple< temperature_service, sensor_position_service > temperature_and_sensor_position_service;
+typedef std::tuple< sensor_position_service, temperature_service > sensor_position_and_temperature_service;
+
 BOOST_AUTO_TEST_SUITE( secondary_service )
 
 BOOST_FIXTURE_TEST_CASE( find_secondary_service_definition, sensor_position_service )
 {
-    BOOST_CHECK_EQUAL( 0x2801, attribute_at< 0 >( 0 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2801, ( attribute_at< 0, temperature_and_sensor_position_service >( 0 ).uuid ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -314,18 +318,60 @@ BOOST_FIXTURE_TEST_CASE( correct_number_of_attributes, temperature_service )
     BOOST_CHECK_EQUAL( int( number_of_service_attributes ), 2 );
 }
 
-BOOST_FIXTURE_TEST_CASE( find_include_definition, temperature_service )
+BOOST_FIXTURE_TEST_CASE( find_include_definition_in_first_service, temperature_service )
 {
-    BOOST_CHECK_EQUAL( 0x2802, attribute_at< 0 >( 1 ).uuid );
+    BOOST_CHECK_EQUAL( 0x2802, ( attribute_at< 0, sensor_position_and_temperature_service >( 1 ).uuid ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( read_include_definition, temperature_service )
+BOOST_FIXTURE_TEST_CASE( find_include_definition_in_second_service, temperature_service )
 {
-    std::uint8_t buffer[ 100 ];
-    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
-    const auto access_result = attribute_at< 0 >( 1 ).access( read, 1 );
+    BOOST_CHECK_EQUAL( 0x2802, ( attribute_at< 0, temperature_and_sensor_position_service >( 1 ).uuid ) );
+}
 
-    BOOST_CHECK_EQUAL( read.buffer_size, 4 );
+BOOST_FIXTURE_TEST_CASE( read_include_definition_from_second_service_128_bit_uuid, temperature_service )
+{
+    std::uint8_t buffer[ 10 ];
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
+    const auto access_result = attribute_at< 0, temperature_and_sensor_position_service >( 1 ).access( read, 1 );
+
+    static const auto first_service_size = temperature_service::number_of_attributes;
+    static const auto second_service_size = sensor_position_service::number_of_attributes;
+
+    static const std::uint16_t service_attribute_handle = 1 + first_service_size;
+    static const std::uint16_t end_group_handle         = service_attribute_handle + second_service_size - 1;
+
+    static const std::uint8_t expected_result[] = {
+        service_attribute_handle & 0xff,
+        service_attribute_handle >> 8,
+        end_group_handle & 0xff,
+        end_group_handle >> 8
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + read.buffer_size,
+        std::begin( expected_result ), std::end( expected_result ) );
+    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_include_definition_from_first_service_128_bit_uuid, temperature_service )
+{
+    std::uint8_t buffer[ 10 ];
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
+    const auto access_result = attribute_at< 0, sensor_position_and_temperature_service >( 1 ).access( read, 1 );
+
+    static const auto first_service_size = sensor_position_service::number_of_attributes;
+
+    static const std::uint16_t service_attribute_handle = 1;
+    static const std::uint16_t end_group_handle         = first_service_size;
+
+    static const std::uint8_t expected_result[] = {
+        service_attribute_handle & 0xff,
+        service_attribute_handle >> 8,
+        end_group_handle & 0xff,
+        end_group_handle >> 8
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + read.buffer_size,
+        std::begin( expected_result ), std::end( expected_result ) );
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
 }
 

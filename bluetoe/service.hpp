@@ -147,7 +147,7 @@ namespace bluetoe {
         /**
          * ClientCharacteristicIndex is the number of characteristics with a Client Characteristic Configuration attribute
          */
-        template < std::size_t ClientCharacteristicIndex >
+        template < std::size_t ClientCharacteristicIndex, typename ServiceList >
         static details::attribute attribute_at( std::size_t index );
 
         /**
@@ -241,13 +241,13 @@ namespace bluetoe {
 
     // service implementation
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceList >
     details::attribute service< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
 
         if ( index < number_of_service_attributes )
-            return attribute_generator::attribute_at( index );
+            return attribute_generator::template attribute_at< ServiceList >( index );
 
         return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid >::attribute_at( index - number_of_service_attributes );
     }
@@ -264,7 +264,7 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            const details::attribute primary_service = attribute_at< 0 >( 0 );
+            const details::attribute primary_service = attribute_at< 0, std::tuple< service< Options... > > >( 0 );
 
             auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );
 
@@ -299,6 +299,33 @@ namespace bluetoe {
 
     namespace details {
 
+        template < typename ServiceList, typename UUID >
+        struct find_service_by_uuid
+        {
+            template < class T >
+            struct equal_uuid : std::is_same< typename T::uuid, UUID > {};
+
+            typedef typename find_if< ServiceList, equal_uuid >::type type;
+        };
+
+        template < typename ServiceList, typename Service, std::uint16_t Handle = 1 >
+        struct service_handles;
+
+        template < typename Service, typename ... Ss, std::uint16_t Handle >
+        struct service_handles< std::tuple< Service, Ss... >, Service, Handle >
+        {
+            static constexpr std::uint16_t service_attribute_handle = Handle;
+            static constexpr std::uint16_t end_service_handle       = Handle + Service::number_of_attributes - 1;
+        };
+
+        template < typename Service, typename S, typename ... Ss, std::uint16_t Handle >
+        struct service_handles< std::tuple< S, Ss... >, Service, Handle >
+        {
+            typedef service_handles< std::tuple< Ss... >, Service, Handle + S::number_of_attributes > next;
+
+            static constexpr std::uint16_t service_attribute_handle = next::service_attribute_handle;
+            static constexpr std::uint16_t end_service_handle       = next::end_service_handle;
+        };
         /*
          * service declaration
          */
@@ -355,13 +382,24 @@ namespace bluetoe {
             std::uint16_t C,
             std::uint16_t D,
             std::uint64_t E,
-            std::size_t ClientCharacteristicIndex, typename ... Options >
+            std::size_t ClientCharacteristicIndex,
+            typename ... Options >
         struct generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >
         {
+            typedef typename last_from_pack< Options... >::type service_list;
+            typedef typename find_service_by_uuid< service_list, service_uuid< A, B, C, D, E > >::type included_service;
+
+            static_assert( !std::is_same< included_service, no_such_type >::value, "The included service is was not found by UUID, please add the references service." );
+
+            typedef service_handles< service_list, included_service > handles;
+
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
                 static const std::uint8_t value[] = {
-                    0x00, 0x00, 0x00, 0x00
+                    handles::service_attribute_handle & 0xff,
+                    handles::service_attribute_handle >> 8,
+                    handles::end_service_handle & 0xff,
+                    handles::end_service_handle >> 8,
                 };
 
                 return attribute_value_read_only_access( args, &value[ 0 ], sizeof( value ) );
@@ -376,7 +414,8 @@ namespace bluetoe {
             std::uint16_t C,
             std::uint16_t D,
             std::uint64_t E,
-            std::size_t ClientCharacteristicIndex, typename ... Options >
+            std::size_t ClientCharacteristicIndex,
+            typename ... Options >
         const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >::attr =
         {
             bits( details::gatt_uuids::include ),
@@ -397,9 +436,10 @@ namespace bluetoe {
 
             enum { number_of_attributes = std::tuple_size< attribute_generation_parameters >::value };
 
+            template < typename ServiceList >
             static const attribute attribute_at( std::size_t index )
             {
-                return generate_attribute_list< attribute_generation_parameters, 0, std::tuple< Options... > >::attribute_at( index );
+                return generate_attribute_list< attribute_generation_parameters, 0, std::tuple< Options..., ServiceList > >::attribute_at( index );
             }
         };
 

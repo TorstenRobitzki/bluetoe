@@ -188,11 +188,11 @@ namespace details {
     /*
      * Iterating the list of services is the same, but needs less parameters
      */
-    template < typename Serives, std::size_t ClientCharacteristicIndex = 0 >
+    template < typename Services, std::size_t ClientCharacteristicIndex = 0, typename AllServices = Services >
     struct attribute_from_service_list;
 
-    template < std::size_t ClientCharacteristicIndex >
-    struct attribute_from_service_list< std::tuple<>, ClientCharacteristicIndex >
+    template < std::size_t ClientCharacteristicIndex, typename AllServices >
+    struct attribute_from_service_list< std::tuple<>, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t index )
         {
@@ -204,13 +204,14 @@ namespace details {
     template <
         typename T,
         typename ...Ts,
-        std::size_t ClientCharacteristicIndex >
-    struct attribute_from_service_list< std::tuple< T, Ts... >, ClientCharacteristicIndex >
+        std::size_t ClientCharacteristicIndex,
+        typename AllServices >
+    struct attribute_from_service_list< std::tuple< T, Ts... >, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
-                return T::template attribute_at< ClientCharacteristicIndex >( index );
+                return T::template attribute_at< ClientCharacteristicIndex, AllServices >( index );
 
             typedef details::attribute_from_service_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs > remaining_characteristics;
 
