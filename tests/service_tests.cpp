@@ -281,6 +281,7 @@ BOOST_AUTO_TEST_SUITE_END()
 std::int32_t temperature;
 
 using sensor_position_uuid = bluetoe::service_uuid< 0xD9473E00, 0xE7D3, 0x4D90, 0x9366, 0x282AC4F44FEB >;
+using pizza_service_uuid   = bluetoe::service_uuid16< 0x3523 >;
 
 typedef bluetoe::service<
     bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
@@ -374,5 +375,60 @@ BOOST_FIXTURE_TEST_CASE( read_include_definition_from_first_service_128_bit_uuid
         std::begin( expected_result ), std::end( expected_result ) );
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
 }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( include_service_16_bit )
+
+typedef bluetoe::service_uuid16< 0x1234 > pizza_service_uuid;
+typedef bluetoe::service_uuid16< 0xabcd > beverages_service_uuid;
+
+using pizza_service = bluetoe::service<
+    pizza_service_uuid,
+    bluetoe::include_service< beverages_service_uuid >,
+    bluetoe::characteristic<
+        bluetoe::fixed_uint8_value< 0x42 >
+    >
+>;
+
+using beverages_service = bluetoe::service<
+    beverages_service_uuid,
+    bluetoe::characteristic<
+        bluetoe::fixed_uint8_value< 0x42 >
+    >
+>;
+
+using pizza_and_drinks_service = std::tuple< pizza_service, beverages_service >;
+
+BOOST_FIXTURE_TEST_CASE( find_include_definition, pizza_service )
+{
+    BOOST_CHECK_EQUAL( 0x2802, ( attribute_at< 0, pizza_and_drinks_service >( 1 ).uuid ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_include_definition_from_service, pizza_service )
+{
+    std::uint8_t buffer[ 10 ];
+    auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
+    const auto access_result = attribute_at< 0, pizza_and_drinks_service >( 1 ).access( read, 1 );
+
+    static const auto first_service_size  = pizza_service::number_of_attributes;
+    static const auto second_service_size = beverages_service::number_of_attributes;
+
+    static const std::uint16_t service_attribute_handle = 1 + first_service_size;
+    static const std::uint16_t end_group_handle         = service_attribute_handle + second_service_size - 1;
+
+    static const std::uint8_t expected_result[] = {
+        service_attribute_handle & 0xff,
+        service_attribute_handle >> 8,
+        end_group_handle & 0xff,
+        end_group_handle >> 8,
+        0xcd, 0xab
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + read.buffer_size,
+        std::begin( expected_result ), std::end( expected_result ) );
+    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

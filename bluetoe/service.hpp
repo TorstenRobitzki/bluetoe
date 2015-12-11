@@ -374,6 +374,49 @@ namespace bluetoe {
         };
 
         /*
+         * include attribute for 16-bit includes
+         */
+        template <
+            std::uint64_t UUID,
+            std::size_t ClientCharacteristicIndex,
+            typename ... Options >
+        struct generate_attribute< include_service< service_uuid16< UUID > >, ClientCharacteristicIndex, Options... >
+        {
+            typedef typename last_from_pack< Options... >::type service_list;
+            typedef typename find_service_by_uuid< service_list, service_uuid16< UUID > >::type included_service;
+
+            static_assert( !std::is_same< included_service, no_such_type >::value, "The included service is was not found by UUID, please add the references service." );
+
+            typedef service_handles< service_list, included_service > handles;
+
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            {
+                static const std::uint8_t value[] = {
+                    handles::service_attribute_handle & 0xff,
+                    handles::service_attribute_handle >> 8,
+                    handles::end_service_handle & 0xff,
+                    handles::end_service_handle >> 8,
+                    UUID & 0xff,
+                    UUID >> 8
+                };
+
+                return attribute_value_read_only_access( args, &value[ 0 ], sizeof( value ) );
+            }
+
+            static const attribute attr;
+        };
+
+        template <
+            std::uint64_t UUID,
+            std::size_t ClientCharacteristicIndex,
+            typename ... Options >
+        const attribute generate_attribute< include_service< service_uuid16< UUID > >, ClientCharacteristicIndex, Options... >::attr =
+        {
+            bits( details::gatt_uuids::include ),
+            &generate_attribute< include_service< service_uuid16< UUID > >, ClientCharacteristicIndex, Options... >::access
+        };
+
+        /*
          * include attribute for 128-bit includes
          */
         template <
