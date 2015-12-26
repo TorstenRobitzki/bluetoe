@@ -27,7 +27,7 @@ namespace bluetoe {
     uint32_t dummy;
 
     template < typename ... Options >
-    struct cycling_speed_and_cadence :
+    using cycling_speed_and_cadence =
         service<
             csc::service_uuid,
             service_name< csc::details::service_name >,
@@ -56,10 +56,9 @@ namespace bluetoe {
                 bluetoe::no_read_access,
                 bluetoe::indicate,
                 bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
-            >
-        >
-    {
-    };
+            >,
+            Options...
+        >;
 }
 
 #endif // include guard

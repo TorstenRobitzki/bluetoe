@@ -213,7 +213,10 @@ namespace details {
             if ( index < T::number_of_attributes )
                 return T::template attribute_at< ClientCharacteristicIndex, AllServices >( index );
 
-            typedef details::attribute_from_service_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs > remaining_characteristics;
+            typedef details::attribute_from_service_list<
+                std::tuple< Ts... >,
+                ClientCharacteristicIndex + T::number_of_client_configs,
+                AllServices > remaining_characteristics;
 
             return remaining_characteristics::attribute_at( index - T::number_of_attributes );
         }
@@ -329,6 +332,13 @@ namespace details {
 
     attribute_access_result attribute_value_read_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
     {
+        if ( args.type == attribute_access_type::compare_value )
+        {
+            return size == args.buffer_size && std::equal( memory, memory + size, args.buffer )
+                ? attribute_access_result::value_equal
+                : attribute_access_result::read_not_permitted;
+        }
+
         if ( args.buffer_offset > size )
             return details::attribute_access_result::invalid_offset;
 
@@ -344,7 +354,7 @@ namespace details {
 
     attribute_access_result attribute_value_read_only_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
     {
-        if ( args.type != attribute_access_type::read )
+        if ( args.type != attribute_access_type::read && args.type != attribute_access_type::compare_value )
             return attribute_access_result::write_not_permitted;
 
         return attribute_value_read_access( args, memory, size );

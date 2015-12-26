@@ -117,6 +117,7 @@ namespace bluetoe {
      * @sa characteristic
      * @sa service_uuid
      * @sa service_uuid16
+     * @sa include_service
      */
     template < typename ... Options >
     class service
@@ -153,6 +154,7 @@ namespace bluetoe {
         /**
          * @brief assembles one data packet for a "Read by Group Type Response"
          */
+        template < std::size_t ClientCharacteristicIndex, typename ServiceList >
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter );
 
         /**
@@ -253,6 +255,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceList >
     std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter )
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
@@ -264,7 +267,7 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            const details::attribute primary_service = attribute_at< 0, std::tuple< service< Options... > > >( 0 );
+            const details::attribute primary_service = attribute_at< ClientCharacteristicIndex, ServiceList >( 0 );
 
             auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );
 
@@ -385,7 +388,7 @@ namespace bluetoe {
             typedef typename last_from_pack< Options... >::type service_list;
             typedef typename find_service_by_uuid< service_list, service_uuid16< UUID > >::type included_service;
 
-            static_assert( !std::is_same< included_service, no_such_type >::value, "The included service is was not found by UUID, please add the references service." );
+            static_assert( !std::is_same< included_service, no_such_type >::value, "The included service is was not found by UUID, please add the referenced service." );
 
             typedef service_handles< service_list, included_service > handles;
 

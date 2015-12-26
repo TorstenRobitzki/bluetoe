@@ -113,11 +113,13 @@ BOOST_FIXTURE_TEST_CASE( accessing_all_attributes, service_with_3_characteristic
     BOOST_CHECK_EQUAL( 0x0815, ( attribute_at< 0, std::tuple< service_with_3_characteristics > >( 6 ).uuid ) );
 }
 
+typedef std::tuple< service_with_3_characteristics > service_with_3_characteristics_list;
+
 BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, service_with_3_characteristics )
 {
     std::uint8_t    buffer[ 100 ];
 
-    std::uint8_t* const end = read_primary_service_response( std::begin( buffer ), std::end( buffer ), 12, true );
+    std::uint8_t* const end = read_primary_service_response< 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), 12, true );
 
     BOOST_CHECK_EQUAL( end - std::begin( buffer ), 20u );
 
@@ -139,16 +141,18 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_buffer_to_small, service_wi
     std::uint8_t    buffer[ 19 ];
     std::uint16_t   index = 1;
 
-    std::uint8_t* const end = read_primary_service_response( std::begin( buffer ), std::end( buffer ), index, true );
+    std::uint8_t* const end = read_primary_service_response< 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), index, true );
 
     BOOST_CHECK( end == std::begin( buffer ) );
 }
+
+typedef std::tuple< cycling_speed_and_cadence_service > cycling_speed_and_cadence_service_list;
 
 BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_speed_and_cadence_service )
 {
     std::uint8_t    buffer[ 100 ];
 
-    std::uint8_t* const end = read_primary_service_response( std::begin( buffer ), std::end( buffer ), 1, false );
+    std::uint8_t* const end = read_primary_service_response< 0, cycling_speed_and_cadence_service_list >( std::begin( buffer ), std::end( buffer ), 1, false );
 
     BOOST_CHECK_EQUAL( end - std::begin( buffer ), 6u );
 

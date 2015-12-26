@@ -815,6 +815,7 @@ namespace bluetoe {
 
                     if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated && read.buffer_size == maximum_pdu_size )
                     {
+
                         assert( read.buffer_size <= maximum_pdu_size );
 
                         if ( first_ )
@@ -891,6 +892,7 @@ namespace bluetoe {
     }
 
     namespace details {
+        template < typename ServiceList >
         struct collect_primary_services
         {
             collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size )
@@ -917,7 +919,9 @@ namespace bluetoe {
                         attribute_data_size_    = is_128bit_uuid_ ? 16 + 4 : 2 + 4;
                     }
 
-                    output_ = Service::read_primary_service_response( output_, end_, index_, is_128bit_uuid_ );
+                    /// TODO: ClientCharacteristicIndex is derivable from Service and ServiceList, if 0 is used,
+                    /// some templates are most likely more than once instanciated
+                    output_ = Service::template read_primary_service_response< 0, ServiceList >( output_, end_, index_, is_128bit_uuid_ );
                 }
 
                 index_ += Service::number_of_attributes;
@@ -952,7 +956,7 @@ namespace bluetoe {
         ++begin; // gap for the size
 
         std::uint8_t* const data_begin = begin;
-        details::for_< services >::each( details::collect_primary_services( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
+        details::for_< services >::each( details::collect_primary_services< services >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
 
         if ( begin == data_begin )
         {

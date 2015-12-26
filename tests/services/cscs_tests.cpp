@@ -10,22 +10,7 @@ typedef bluetoe::server<
     bluetoe::cycling_speed_and_cadence<>
 > csc_server;
 
-struct discover_primary_service : request_with_reponse< csc_server, 100u >
-{
-    discover_primary_service()
-    {
-        // TheLowerTestersendsanATT_Find_By_Type_Value_Request(0x0001, 0xFFFF)
-        // to the IUT, with type set to «Primary Service» and Value set to «Cycling Speed and Cadence Service».
-        l2cap_input( {
-            0x06, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28, 0x16, 0x18
-        });
-
-        BOOST_REQUIRE_EQUAL( response_size, 5u );
-
-        service_starting_handle = response[ 1 ] | ( response[ 2 ] << 8 );
-        service_ending_handle   = response[ 3 ] | ( response[ 4 ] << 8 );
-    }
-
+struct service_discover_base {
     std::uint16_t service_starting_handle;
     std::uint16_t service_ending_handle;
 
@@ -43,11 +28,24 @@ struct discover_primary_service : request_with_reponse< csc_server, 100u >
     {
         return *p | ( *( p + 1 ) << 8 );
     }
-
-
 };
 
-struct discover_secondary_service {};
+struct discover_primary_service : request_with_reponse< csc_server, 100u >, service_discover_base
+{
+    discover_primary_service()
+    {
+        // TheLowerTestersendsanATT_Find_By_Type_Value_Request(0x0001, 0xFFFF)
+        // to the IUT, with type set to «Primary Service» and Value set to «Cycling Speed and Cadence Service».
+        l2cap_input( {
+            0x06, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28, 0x16, 0x18
+        });
+
+        BOOST_REQUIRE_EQUAL( response_size, 5u );
+
+        service_starting_handle = response[ 1 ] | ( response[ 2 ] << 8 );
+        service_ending_handle   = response[ 3 ] | ( response[ 4 ] << 8 );
+    }
+};
 
 BOOST_AUTO_TEST_SUITE( service_definition )
 
@@ -60,12 +58,44 @@ BOOST_AUTO_TEST_SUITE( service_definition )
         BOOST_CHECK_LT( service_starting_handle, service_ending_handle );
     }
 
+    typedef bluetoe::server<
+        bluetoe::no_gap_service_for_gatt_servers,
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x1234 >,
+            bluetoe::include_service< bluetoe::csc::service_uuid >
+        >,
+        bluetoe::cycling_speed_and_cadence<
+            bluetoe::is_secondary_service
+        >
+    > csc_secondary_server;
+
+    struct discover_secondary_service : request_with_reponse< csc_secondary_server, 100u >, service_discover_base
+    {
+        discover_secondary_service()
+        {
+            // If no instances of Cycling Speed and Cadence Service as a primary service are found, the Lower Tester
+            // performs the included services procedure by sending an ATT_Read_By_Type_ Request
+            // (0x0001, 0xFFFF) to the IUT, with type set to «Include».
+            l2cap_input( {
+                0x08, 0x01, 0x00, 0xff, 0xff, 0x02, 0x28
+            });
+
+            BOOST_REQUIRE_EQUAL( response_size, 10u );
+            BOOST_REQUIRE_EQUAL( response[ 0 ], 0x09 ); // opcode
+            BOOST_REQUIRE_EQUAL( response[ 1 ], 0x08 ); // length
+
+            service_starting_handle = response[ 4 ] | ( response[ 5 ] << 8 );
+            service_ending_handle   = response[ 6 ] | ( response[ 7 ] << 8 );
+        }
+    };
+
     /*
      * TP/SD/BV-01-C
      */
     BOOST_FIXTURE_TEST_CASE( service_definition_over_le_as_secondary_service, discover_secondary_service )
     {
-        /// TODO: Implement when "include" is implemented
+        BOOST_CHECK_EQUAL( response[ 0 ], 0x09 );
+        BOOST_CHECK_LT( service_starting_handle, service_ending_handle );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
