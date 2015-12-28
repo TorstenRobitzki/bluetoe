@@ -188,10 +188,10 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct disconver_all_descriptors : discover_all_characteristics
+struct discover_all_descriptors : discover_all_characteristics
 {
 
-    disconver_all_descriptors()
+    discover_all_descriptors()
     {
         csc_measurement_client_configuration = find_client_characteristic_configuration(
             csc_measurement.value_attribute_handle + 1, csc_feature.handle - 1);
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
     /*
      * TP/DES/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_measurement_client_characteristic_configuration_descriptor, disconver_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_client_characteristic_configuration_descriptor, discover_all_descriptors )
     {
         const auto value = att_read( csc_measurement_client_configuration.handle );
 
@@ -266,7 +266,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
     /*
      * TP/DES/BV-02-C
      */
-    BOOST_FIXTURE_TEST_CASE( sc_control_point_client_characteristic_configuration_descriptor, disconver_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( sc_control_point_client_characteristic_configuration_descriptor, discover_all_descriptors )
     {
         const auto value = att_read( sc_control_point_client_configuration.handle );
 
@@ -275,5 +275,38 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
 
         BOOST_CHECK( config_value == 0x0000 || config_value == 0x0002 );
     }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
+
+    /*
+     * TP/CR/BV-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( csc_feature_test, discover_all_descriptors )
+    {
+        l2cap_input({
+            0x0A, low( csc_feature.value_attribute_handle ), high( csc_feature.value_attribute_handle )
+        });
+
+        BOOST_CHECK_EQUAL( response[ 0 ], 0x0b ); // response opcode
+
+        // 2 octets with RFU bits set to 0.
+        BOOST_CHECK_EQUAL( response_size, 3 );
+        std::uint16_t value = uint16( &response[ 1 ] );
+        BOOST_CHECK_EQUAL( value & 0xFFF8, 0 );
+    }
+
+    // BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_descriptors )
+    // {
+    //     l2cap_input({
+    //         0x0A, low( sensor_location.value_attribute_handle ), high( sensor_location.value_attribute_handle )
+    //     });
+
+    //     BOOST_CHECK_EQUAL( response[ 0 ], 0x0b ); // response opcode
+
+    //     // 1 octet with value other than RFU range.
+    //     BOOST_CHECK_EQUAL( response_size, 2 );
+    // }
 
 BOOST_AUTO_TEST_SUITE_END()
