@@ -7,8 +7,14 @@
 namespace bluetoe {
 
     namespace details {
+        // type defines the value of a characteristic
         struct characteristic_value_meta_type {};
+        // type is a valid parameter to a characteristic
         struct characteristic_parameter_meta_type {};
+        // type is a characteristic read handler
+        struct characteristic_value_read_handler_meta_type {};
+        // type is a characteristic write handler
+        struct characteristic_value_write_handler_meta_type {};
         struct characteristic_value_declaration_parameter {};
         struct client_characteristic_configuration_parameter {};
     }
@@ -276,6 +282,52 @@ namespace bluetoe {
 
         struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
         /** @endcond */
+    };
+
+    namespace details {
+        struct value_handler_base {
+
+            template < typename ... Options >
+            class value_impl
+            {
+            public:
+                static constexpr bool has_read_access  = true;
+                static constexpr bool has_write_access = false;
+                static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
+                static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
+
+                static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+                {
+                    return details::attribute_access_result::success;
+                }
+            };
+
+            struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        };
+    }
+
+    /**
+     * @brief binds a free function as a read handler for the given characteristic
+     */
+    template < std::uint8_t (*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct free_read_handler : details::value_handler_base
+    {
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+    };
+
+    template < std::uint8_t (*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
+    struct free_write_handler
+    {
+    };
+
+    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct read_handler
+    {
+    };
+
+    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
+    struct write_handler
+    {
     };
 }
 
