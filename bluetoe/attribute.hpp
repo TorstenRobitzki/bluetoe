@@ -23,6 +23,8 @@ namespace details {
         write_not_permitted             = 0x03,
         read_not_permitted              = 0x02,
         invalid_attribute_value_length  = 0x0d,
+        attribute_not_long              = 0x0b,
+        request_not_supported           = 0x06,
 
         // returned when access type is compare_128bit_uuid and the attribute contains a 128bit uuid and
         // the buffer in attribute_access_arguments is equal to the contained uuid.
@@ -46,7 +48,7 @@ namespace details {
         client_characteristic_configuration client_config;
 
         template < std::size_t N >
-        static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset , const client_characteristic_configuration& cc = client_characteristic_configuration())
+        static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration())
         {
             return attribute_access_arguments{
                 attribute_access_type::read,

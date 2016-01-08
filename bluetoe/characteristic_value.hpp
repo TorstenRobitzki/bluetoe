@@ -3,6 +3,7 @@
 
 #include <bluetoe/options.hpp>
 #include <bluetoe/attribute.hpp>
+#include <bluetoe/codes.hpp>
 
 namespace bluetoe {
 
@@ -282,6 +283,38 @@ namespace bluetoe {
     };
 
     namespace details {
+        template < class T >
+        struct invoke_read_handler {
+            static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+            {
+                return T::call_read_handler( offset, read_size, out_buffer, out_size );
+            }
+        };
+
+        template <>
+        struct invoke_read_handler< no_such_type > {
+            static std::uint8_t call_read_handler( std::size_t, std::size_t, std::uint8_t*, std::size_t& )
+            {
+                return error_codes::read_not_permitted;
+            }
+        };
+
+        template < class T >
+        struct invoke_write_handler {
+            static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+            {
+                return T::call_write_handler( offset, write_size, value );
+            }
+        };
+
+        template <>
+        struct invoke_write_handler< no_such_type > {
+            static std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t* )
+            {
+                return error_codes::write_not_permitted;
+            }
+        };
+
         struct value_handler_base {
 
             template < typename ... Options >
@@ -289,8 +322,9 @@ namespace bluetoe {
             {
             public:
                 using read_handler_type = typename find_by_meta_type< characteristic_value_read_handler_meta_type, Options... >::type;
+                using write_handler_type = typename find_by_meta_type< characteristic_value_write_handler_meta_type, Options... >::type;
                 static constexpr bool has_read_access  = !std::is_same< read_handler_type, no_such_type >::value;
-                static constexpr bool has_write_access = false;
+                static constexpr bool has_write_access = !std::is_same< write_handler_type, no_such_type >::value;
                 static constexpr bool has_notifcation  = has_option< notify, Options... >::value;
                 static constexpr bool has_indication   = has_option< indicate, Options... >::value;
 
@@ -299,11 +333,16 @@ namespace bluetoe {
                     if ( args.type == attribute_access_type::read )
                     {
                         return static_cast< attribute_access_result >(
-                            read_handler_type::call_handler( args.buffer_offset, args.buffer_size, args.buffer, args.buffer_size ) );
+                            invoke_read_handler< read_handler_type >::call_read_handler( args.buffer_offset, args.buffer_size, args.buffer, args.buffer_size ) );
+                    }
+                    else if ( args.type == attribute_access_type::write )
+                    {
+                        return static_cast< attribute_access_result >(
+                            invoke_write_handler< write_handler_type >::call_write_handler( args.buffer_offset, args.buffer_size, args.buffer ) );
                     }
                     else
                     {
-                        return attribute_access_result::write_not_permitted;
+                        return attribute_access_result::request_not_supported;
                     }
                 }
             };
@@ -318,7 +357,7 @@ namespace bluetoe {
     template < std::uint8_t (*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
     struct free_read_blob_handler : details::value_handler_base
     {
-        static std::uint8_t call_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
         {
             return F( offset, read_size, out_buffer, out_size );
         }
@@ -329,17 +368,38 @@ namespace bluetoe {
     template < std::uint8_t (*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
     struct free_read_handler : details::value_handler_base
     {
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return offset == 0
+                ? F( read_size, out_buffer, out_size )
+                : error_codes::attribute_not_long;
+        }
+
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
     };
 
     template < std::uint8_t (*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
-    struct free_write_blob_handler
+    struct free_write_blob_handler : details::value_handler_base
     {
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+        {
+            return F( offset, write_size, value );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
     };
 
     template < std::uint8_t (*F)( std::size_t write_size, const std::uint8_t* value ) >
-    struct free_write_handler
+    struct free_write_handler : details::value_handler_base
     {
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+        {
+            return offset == 0
+                ? F( write_size, value )
+                : error_codes::attribute_not_long;
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
     };
 
     template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
