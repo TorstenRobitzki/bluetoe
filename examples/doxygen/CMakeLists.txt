@@ -5,5 +5,6 @@ endfunction()
 
 add_custom_target(build_examples)
 
-add_doxygen_example(server server.cpp)
-add_doxygen_example(include_example include_example.cpp)
+add_doxygen_example(server_example)
+add_doxygen_example(include_example)
+add_doxygen_example(read_write_handler_example)

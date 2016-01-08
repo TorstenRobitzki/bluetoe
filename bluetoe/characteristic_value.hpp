@@ -15,6 +15,7 @@ namespace bluetoe {
         struct characteristic_value_read_handler_meta_type {};
         // type is a characteristic write handler
         struct characteristic_value_write_handler_meta_type {};
+
         struct characteristic_value_declaration_parameter {};
         struct client_characteristic_configuration_parameter {};
     }
@@ -287,18 +288,27 @@ namespace bluetoe {
             class value_impl
             {
             public:
-                static constexpr bool has_read_access  = true;
+                using read_handler_type = typename find_by_meta_type< characteristic_value_read_handler_meta_type, Options... >::type;
+                static constexpr bool has_read_access  = !std::is_same< read_handler_type, no_such_type >::value;
                 static constexpr bool has_write_access = false;
-                static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
-                static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
+                static constexpr bool has_notifcation  = has_option< notify, Options... >::value;
+                static constexpr bool has_indication   = has_option< indicate, Options... >::value;
 
-                static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+                static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )
                 {
-                    return details::attribute_access_result::success;
+                    if ( args.type == attribute_access_type::read )
+                    {
+                        return static_cast< attribute_access_result >(
+                            read_handler_type::call_handler( args.buffer_offset, args.buffer_size, args.buffer, args.buffer_size ) );
+                    }
+                    else
+                    {
+                        return attribute_access_result::write_not_permitted;
+                    }
                 }
             };
 
-            struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+            struct meta_type : characteristic_value_meta_type, characteristic_value_declaration_parameter {};
         };
     }
 
@@ -306,22 +316,48 @@ namespace bluetoe {
      * @brief binds a free function as a read handler for the given characteristic
      */
     template < std::uint8_t (*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct free_read_blob_handler : details::value_handler_base
+    {
+        static std::uint8_t call_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return F( offset, read_size, out_buffer, out_size );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+    };
+
+    template < std::uint8_t (*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
     struct free_read_handler : details::value_handler_base
     {
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
     };
 
     template < std::uint8_t (*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
+    struct free_write_blob_handler
+    {
+    };
+
+    template < std::uint8_t (*F)( std::size_t write_size, const std::uint8_t* value ) >
     struct free_write_handler
     {
     };
 
     template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct read_blob_handler
+    {
+    };
+
+    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
     struct read_handler
     {
     };
 
     template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
+    struct write_blob_handler
+    {
+    };
+
+    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t write_size, const std::uint8_t* value ) >
     struct write_handler
     {
     };
