@@ -123,6 +123,129 @@ namespace details {
         client_characteristic_configuration_indication_enabled   = 2
     };
 
+    namespace error_codes {
+        enum error_codes : std::uint8_t {
+            /**
+             * read or write request could be fulfilled without an error
+             */
+            success                             = 0x00,
+
+            /**
+             * The attribute handle given was not valid on this server.
+             */
+            invalid_handle                      = 0x01,
+
+            /**
+             * The attribute cannot be read.
+             */
+            read_not_permitted,
+
+            /**
+             * The attribute cannot be written.
+             */
+            write_not_permitted,
+
+            /**
+             * The attribute PDU was invalid.
+             */
+            invalid_pdu,
+
+            /**
+             * The attribute requires authentication before it can be read or written.
+             */
+            insufficient_authentication,
+
+            /**
+             * Attribute server does not support the request received from the client.
+             */
+            request_not_supported,
+
+            /**
+             * Offset specified was past the end of the attribute.
+             */
+            invalid_offset,
+
+            /**
+             * The attribute requires authorization before it can be read or written.
+             */
+            insufficient_authorization,
+
+            /**
+             * Too many prepare writes have been queued.
+             */
+            prepare_queue_full,
+
+            /**
+             * No attribute found within the given attri- bute handle range.
+             */
+            attribute_not_found,
+
+            /**
+             * The attribute cannot be read or written using the Read Blob Request.
+             */
+            attribute_not_long,
+
+            /**
+             * The Encryption Key Size used for encrypting this link is insufficient.
+             */
+            insufficient_encryption_key_size,
+
+            /**
+             * The attribute value length is invalid for the operation.
+             */
+            invalid_attribute_value_length,
+
+            /**
+             * The attribute request that was requested has encountered an error that was unlikely,
+             * and therefore could not be completed as requested.
+             */
+            unlikely_error,
+
+            /**
+             * The attribute requires encryption before it can be read or written.
+             */
+            insufficient_encryption,
+
+            /**
+             * The attribute type is not a supported grouping attribute as defined by a higher layer specification.
+             */
+            unsupported_group_type,
+
+            /**
+             * Insufficient Resources to complete the request.
+             */
+            insufficient_resources,
+
+            /**
+             * Start of range for application specific error codes
+             */
+            application_error_start             = 0x80,
+
+            /**
+             * Last code of the range for application specific error codes
+             */
+            application_error_end               = 0x9f,
+
+            /**
+             * The Out of Range error code is used when an attribute value is out of range as defined by
+             * a profile or service specification.
+             */
+            out_of_range                        = 0xff,
+
+            /**
+             * The Procedure Already in Progress error code is used when a profile or service request cannot
+             * be serviced because an operation that has been previously triggered is still in progress.
+             */
+            procedure_already_in_progress       = 0xfe,
+
+            /**
+             * The Client Characteristic Configuration Descriptor Improperly Configured error code is used
+             * when a Client Characteristic Configuration descriptor is not configured according to the
+             * requirements of the profile or service.
+             */
+            cccd_improperly_configured          = 0xfd
+        };
+    };
 }
 }
 #endif
