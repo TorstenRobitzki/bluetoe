@@ -1029,7 +1029,7 @@ namespace bluetoe {
             *output  = bits( details::att_opcodes::write_response );
             out_size = 1;
         }
-        else if ( rc == details::attribute_access_result::write_overflow )
+        else if ( rc == details::attribute_access_result::invalid_attribute_value_length )
         {
             error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
         }
@@ -1117,7 +1117,7 @@ namespace bluetoe {
 
                 if ( rc != details::attribute_access_result::success )
                 {
-                    if ( rc == details::attribute_access_result::write_overflow )
+                    if ( rc == details::attribute_access_result::invalid_attribute_value_length )
                         return error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
 
                     return error_response( *input, details::att_error_codes::invalid_offset, handle, output, out_size );

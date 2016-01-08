@@ -465,7 +465,7 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         auto write = bluetoe::details::attribute_access_arguments::write( bytes_to_write, 0, client_configurations() );
         auto rc    = attribute_by_type( 0x2902 ).access( write, 0 );
 
-        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::write_overflow );
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::invalid_attribute_value_length );
     }
 
     BOOST_FIXTURE_TEST_CASE( and_be_read, access_attributes< notified_char > )
@@ -550,7 +550,7 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         static const std::uint8_t byte = 0;
 
         auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 2, client_configurations() );
-        BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::write_overflow );
+        BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::invalid_attribute_value_length );
     }
 
     BOOST_FIXTURE_TEST_CASE( write_behind_the_end, access_attributes< notified_char > )

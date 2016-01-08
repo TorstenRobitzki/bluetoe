@@ -414,7 +414,7 @@ namespace bluetoe {
                 else if ( args.type == attribute_access_type::write )
                 {
                     if ( args.buffer_size + args.buffer_offset > flags_size )
-                        return details::attribute_access_result::write_overflow;
+                        return details::attribute_access_result::invalid_attribute_value_length;
 
                     if ( args.buffer_offset == 0 )
                         args.client_config.flags( ClientCharacteristicIndex, read_16bit( &args.buffer[ 0 ] ) );

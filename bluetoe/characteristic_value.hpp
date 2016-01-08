@@ -140,7 +140,7 @@ namespace bluetoe {
                     return details::attribute_access_result::invalid_offset;
 
                 if ( args.buffer_size + args.buffer_offset > sizeof( T ) )
-                    return details::attribute_access_result::write_overflow;
+                    return details::attribute_access_result::invalid_attribute_value_length;
 
                 args.buffer_size = std::min< std::size_t >( args.buffer_size, sizeof( T ) - args.buffer_offset );
 

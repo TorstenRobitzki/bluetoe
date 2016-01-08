@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
 
         auto write = bluetoe::details::attribute_access_arguments::write( new_value );
 
-        BOOST_REQUIRE( bluetoe::details::attribute_access_result::write_overflow == characteristic.attribute_at< 0 >( 1 ).access( write, 1 ) );
+        BOOST_REQUIRE( bluetoe::details::attribute_access_result::invalid_attribute_value_length == characteristic.attribute_at< 0 >( 1 ).access( write, 1 ) );
         BOOST_CHECK_EQUAL( write_to_large_value, 15 );
     }
 
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
         auto write = bluetoe::details::attribute_access_arguments::write( new_value, 3 );
         auto rc    = attribute_at< 0 >( 1 ).access( write, 1 );
 
-        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::write_overflow );
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::invalid_attribute_value_length );
         static const std::uint8_t expected_value[] = { 0x01, 0x02, 0x03, 0x04 };
         BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( writable_value ), std::end( writable_value ), std::begin( expected_value ), std::end( expected_value ) );
     }

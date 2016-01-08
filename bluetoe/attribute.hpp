@@ -14,27 +14,19 @@ namespace details {
      * Attribute and accessing an attribute
      */
 
-    enum class attribute_access_result {
+    enum class attribute_access_result : std::int_fast16_t {
         // Accessing the attribute was successfully
-        success = 0,
+        success                         = 0x00,
 
         // here goes the ATT return codes
-
-        // the data to be written was larger than the attribute can store
-        // server< Options... >::handle_write_request
-        // server< Options... >::handle_execute_write_request
-        write_overflow = 256,
-        // the read/write offset is greater than attributes data size
-        // directly maps to ATT invalid offset
-        invalid_offset,
-        // directly maps to ATT write_not_permitted
-        write_not_permitted,
-        // directly maps to ATT read_not_permitted
-        read_not_permitted,
+        invalid_offset                  = 0x07,
+        write_not_permitted             = 0x03,
+        read_not_permitted              = 0x02,
+        invalid_attribute_value_length  = 0x0d,
 
         // returned when access type is compare_128bit_uuid and the attribute contains a 128bit uuid and
         // the buffer in attribute_access_arguments is equal to the contained uuid.
-        uuid_equal,
+        uuid_equal                      = 0x100,
         value_equal
     };
 
