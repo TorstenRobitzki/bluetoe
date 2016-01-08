@@ -474,7 +474,7 @@ namespace bluetoe {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
             auto rc   = data.value_attribute().access( read, data.handle() );
 
-            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::notification );
                 details::write_handle( output +1, data.handle() );
@@ -506,7 +506,7 @@ namespace bluetoe {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
             auto rc   = details.value_attribute().access( read, details.handle() );
 
-            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::indication );
                 details::write_handle( output +1, details.handle() );
@@ -759,7 +759,7 @@ namespace bluetoe {
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations() );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
-        if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+        if ( rc == details::attribute_access_result::success )
         {
             *output  = bits( details::att_opcodes::read_response );
             out_size = 1 + read.buffer_size;
@@ -783,7 +783,7 @@ namespace bluetoe {
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations() );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
-        if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+        if ( rc == details::attribute_access_result::success )
         {
             *output  = bits( details::att_opcodes::read_blob_response );
             out_size = 1 + read.buffer_size;
@@ -813,9 +813,8 @@ namespace bluetoe {
                     auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_ );
                     auto rc   = attr.access( read, handle );
 
-                    if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated && read.buffer_size == maximum_pdu_size )
+                    if ( rc == details::attribute_access_result::success )
                     {
-
                         assert( read.buffer_size <= maximum_pdu_size );
 
                         if ( first_ )
@@ -997,7 +996,7 @@ namespace bluetoe {
             auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations() );
             auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
-            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            if ( rc == details::attribute_access_result::success )
             {
                 out_ptr += read.buffer_size;
                 assert( out_ptr <= end_output );

@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
     auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
     const auto access_result = attr.access( read, 1 );
 
-    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::read_truncated );
+    BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
     check_service_uuid( read, sizeof( buffer ) );
 }
 

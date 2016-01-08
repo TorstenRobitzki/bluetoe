@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
     BOOST_FIXTURE_TEST_CASE( read_truncated_with_offset, access_attributes< fixed_32bit > )
     {
         BOOST_CHECK( read_characteristic_at( { 0x12, 0x15 }, 1, 1, 2 )
-            == bluetoe::details::attribute_access_result::read_truncated );
+            == bluetoe::details::attribute_access_result::success );
     }
 
     typedef bluetoe::characteristic<

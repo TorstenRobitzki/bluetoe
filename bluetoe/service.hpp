@@ -348,9 +348,7 @@ namespace bluetoe {
 
                     std::copy( std::begin( uuid::bytes ) + args.buffer_offset , std::begin( uuid::bytes ) + args.buffer_offset + args.buffer_size, args.buffer );
 
-                    return args.buffer_size == sizeof( uuid::bytes ) - args.buffer_offset
-                        ? attribute_access_result::success
-                        : attribute_access_result::read_truncated;
+                    return attribute_access_result::success;
                 }
                 else if ( args.type == attribute_access_type::compare_value )
                 {

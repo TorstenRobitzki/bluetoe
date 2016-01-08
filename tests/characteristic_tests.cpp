@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         std::uint8_t buffer[ 17 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
-        BOOST_CHECK( bluetoe::details::attribute_access_result::read_truncated == char_declaration.access( read, 1 ) );
+        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 1 ) );
         BOOST_CHECK_EQUAL( read.buffer_size, 17u );
         static const std::uint8_t expected_uuid[] = { 0x6B, 0x95, 0x8C, 0xB7, 0x09, 0xA0, 0xCA, 0x89, 0x59, 0x4B, 0xDD, 0x6D, 0x74, 0x06 };
         BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_uuid ), std::end( expected_uuid ), &buffer[ 3 ], &buffer[ 17 ] );
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         std::uint8_t buffer[ 17 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
 
-        BOOST_CHECK( bluetoe::details::attribute_access_result::read_truncated == char_declaration.access( read, 1 ) );
+        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 1 ) );
         BOOST_CHECK_EQUAL( read.buffer_size, 17u );
         static const std::uint8_t expected_uuid[] = { 0x6B, 0x95, 0x8C, 0xB7, 0x09, 0xA0, 0xCA, 0x89, 0x59, 0x4B, 0xDD, 0x6D, 0x74, 0x06, 0xB1 };
         BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_uuid ), std::end( expected_uuid ), &buffer[ 2 ], &buffer[ 17 ] );
@@ -216,7 +216,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer, 0, bluetoe::details::client_characteristic_configuration() );
         auto rc   = char_declaration.access( read, 1 );
 
-        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
         BOOST_CHECK( read.buffer_size == 0 );
     }
 
@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer + 1, 0, bluetoe::details::client_characteristic_configuration() );
         auto rc   = char_declaration.access( read, 1 );
 
-        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
         BOOST_CHECK( read.buffer_size == 1 );
         BOOST_CHECK( buffer == 0x0A ); // property == read + write
     }
@@ -241,7 +241,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
         auto rc   = char_declaration.access( read, 1 );
 
-        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
         BOOST_CHECK( read.buffer_size == 2 );
         BOOST_CHECK( buffer[ 0 ] == 0x00 ); // hi byte char value handle
         BOOST_CHECK( buffer[ 1 ] == 0x6B ); // first byte of the uuid
@@ -255,7 +255,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
         auto rc   = char_declaration.access( read, 1 );
 
-        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::read_truncated );
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
         BOOST_CHECK( read.buffer_size == 1 );
         BOOST_CHECK( buffer[ 0 ] == 0x95 );
     }

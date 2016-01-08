@@ -15,15 +15,21 @@ namespace details {
      */
 
     enum class attribute_access_result {
-        success,
-        // read just as much as was possible to write into the output buffer
-        read_truncated,
-        // the data to be written was larger than the attribute can store
-        write_overflow,
-        // the read/write offset is greater than attributes data size
-        invalid_offset,
+        // Accessing the attribute was successfully
+        success = 0,
 
+        // here goes the ATT return codes
+
+        // the data to be written was larger than the attribute can store
+        // server< Options... >::handle_write_request
+        // server< Options... >::handle_execute_write_request
+        write_overflow = 256,
+        // the read/write offset is greater than attributes data size
+        // directly maps to ATT invalid offset
+        invalid_offset,
+        // directly maps to ATT write_not_permitted
         write_not_permitted,
+        // directly maps to ATT read_not_permitted
         read_not_permitted,
 
         // returned when access type is compare_128bit_uuid and the attribute contains a 128bit uuid and
@@ -347,9 +353,7 @@ namespace details {
 
         std::copy( ptr, ptr + args.buffer_size, args.buffer );
 
-        return args.buffer_size == size - args.buffer_offset
-            ? details::attribute_access_result::success
-            : details::attribute_access_result::read_truncated;
+        return details::attribute_access_result::success;
     }
 
     attribute_access_result attribute_value_read_only_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )

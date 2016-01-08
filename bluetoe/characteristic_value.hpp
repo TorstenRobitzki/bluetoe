@@ -198,9 +198,7 @@ namespace bluetoe {
                 for ( int i = args.buffer_offset; i != args.buffer_offset + args.buffer_size; ++i, ++output )
                     *output = ( Value >> ( 8 * i ) ) & 0xff;
 
-                return args.buffer_size == sizeof( T ) - args.buffer_offset
-                    ? details::attribute_access_result::success
-                    : details::attribute_access_result::read_truncated;
+                return details::attribute_access_result::success;
             }
 
             static bool is_this( const void* value )
@@ -268,9 +266,7 @@ namespace bluetoe {
                 // copy data
                 std::copy( value + args.buffer_offset, value + args.buffer_offset + args.buffer_size, args.buffer );
 
-                return args.buffer_size == length - args.buffer_offset
-                    ? details::attribute_access_result::success
-                    : details::attribute_access_result::read_truncated;
+                return details::attribute_access_result::success;
             }
 
             static bool is_this( const void* value )

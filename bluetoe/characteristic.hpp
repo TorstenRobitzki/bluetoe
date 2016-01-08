@@ -310,9 +310,7 @@ namespace bluetoe {
 
                 args.buffer_size = std::min< std::size_t >( data_size - args.buffer_offset, args.buffer_size );
 
-                return args.buffer_size == data_size - args.buffer_offset
-                    ? details::attribute_access_result::success
-                    : details::attribute_access_result::read_truncated;
+                return details::attribute_access_result::success;
             }
 
             static const attribute attr;
@@ -367,9 +365,7 @@ namespace bluetoe {
 
                     std::copy( Name + args.buffer_offset, Name + args.buffer_offset + read_size, args.buffer );
 
-                    result = str_len - args.buffer_offset > args.buffer_size
-                        ? attribute_access_result::read_truncated
-                        : attribute_access_result::success;
+                    result = attribute_access_result::success;
 
                     args.buffer_size = read_size;
                 }
@@ -411,9 +407,7 @@ namespace bluetoe {
 
                     std::copy( &buffer[ args.buffer_offset ], &buffer[ args.buffer_offset + read_size ], args.buffer );
 
-                    result = flags_size - args.buffer_offset > args.buffer_size
-                        ? attribute_access_result::read_truncated
-                        : attribute_access_result::success;
+                    result = attribute_access_result::success;
 
                     args.buffer_size = read_size;
                 }
