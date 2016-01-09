@@ -91,6 +91,52 @@ struct read_handler_class {
 
 } read_handler_instance;
 
+struct write_blob_handler_class {
+    std::uint8_t write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+    {
+        return write_blob_test_value_handler( offset, write_size, value );
+    }
+
+    std::uint8_t write_handler_c( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) const
+    {
+        return write_blob_test_value_handler( offset, write_size, value );
+    }
+
+    std::uint8_t write_handler_v( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) volatile
+    {
+        return write_blob_test_value_handler( offset, write_size, value );
+    }
+
+    std::uint8_t write_handler_cv( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) const volatile
+    {
+        return write_blob_test_value_handler( offset, write_size, value );
+    }
+
+} write_blob_handler_instance;
+
+struct write_handler_class {
+    std::uint8_t write_handler( std::size_t write_size, const std::uint8_t* value )
+    {
+        return write_test_value_handler( write_size, value );
+    }
+
+    std::uint8_t write_handler_c( std::size_t write_size, const std::uint8_t* value ) const
+    {
+        return write_test_value_handler( write_size, value );
+    }
+
+    std::uint8_t write_handler_v( std::size_t write_size, const std::uint8_t* value ) volatile
+    {
+        return write_test_value_handler( write_size, value );
+    }
+
+    std::uint8_t write_handler_cv( std::size_t write_size, const std::uint8_t* value ) const volatile
+    {
+        return write_test_value_handler( write_size, value );
+    }
+
+} write_handler_instance;
+
 typedef boost::mpl::list<
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
@@ -119,6 +165,11 @@ typedef boost::mpl::list<
             bluetoe::characteristic_uuid16< 0x1212 >,
             bluetoe::free_read_blob_handler< &read_blob_test_value_handler >,
             bluetoe::free_write_blob_handler< &write_blob_test_value_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_blob_handler_v< read_blob_handler_class, read_blob_handler_instance, &read_blob_handler_class::read_handler_v >,
+            bluetoe::write_blob_handler< write_blob_handler_class, write_blob_handler_instance, &write_blob_handler_class::write_handler >
         >
     > read_write_blob_handler_tests;
 
@@ -149,6 +200,22 @@ typedef boost::mpl::list<
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
             bluetoe::free_write_blob_handler< &write_blob_test_value_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_blob_handler< write_blob_handler_class, write_blob_handler_instance, &write_blob_handler_class::write_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_blob_handler_c< write_blob_handler_class, write_blob_handler_instance, &write_blob_handler_class::write_handler_c >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_blob_handler_v< write_blob_handler_class, write_blob_handler_instance, &write_blob_handler_class::write_handler_v >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_blob_handler_cv< write_blob_handler_class, write_blob_handler_instance, &write_blob_handler_class::write_handler_cv >
         >
     > write_blob_handler_tests;
 
@@ -156,6 +223,22 @@ typedef boost::mpl::list<
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
             bluetoe::free_write_handler< &write_test_value_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_handler< write_handler_class, write_handler_instance, &write_handler_class::write_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_handler_c< write_handler_class, write_handler_instance, &write_handler_class::write_handler_c >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_handler_v< write_handler_class, write_handler_instance, &write_handler_class::write_handler_v >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::write_handler_cv< write_handler_class, write_handler_instance, &write_handler_class::write_handler_cv >
         >
     > write_handler_tests;
 
