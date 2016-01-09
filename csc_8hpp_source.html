@@ -39,6 +39,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <div id="navrow1" class="tabs">
     <ul class="tablist">
       <li><a href="index.html"><span>Main&#160;Page</span></a></li>
+      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
       <li><a href="annotated.html"><span>Classes</span></a></li>
       <li class="current"><a href="files.html"><span>Files</span></a></li>
       <li><a href="examples.html"><span>Examples</span></a></li>
@@ -118,17 +119,17 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;    uint32_t dummy;</div>
 <div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;</div>
 <div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;    <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
-<div class="line"><a name="l00030"></a><span class="lineno"><a class="line" href="structbluetoe_1_1cycling__speed__and__cadence.html">   30</a></span>&#160;    <span class="keyword">struct </span><a class="code" href="structbluetoe_1_1cycling__speed__and__cadence.html">cycling_speed_and_cadence</a> :</div>
-<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;        <a class="code" href="classbluetoe_1_1service.html">service</a>&lt;</div>
+<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;    <span class="keyword">using</span> cycling_speed_and_cadence =</div>
+<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;        service&lt;</div>
 <div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;            csc::service_uuid,</div>
 <div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;            service_name&lt; csc::details::service_name &gt;,</div>
 <div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;            characteristic&lt;</div>
 <div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;                characteristic_uuid16&lt; 0x2A5B &gt;,</div>
 <div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;                characteristic_name&lt; csc::details::measurement_name &gt;,</div>
-<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;                bluetoe::no_read_access,</div>
-<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;                bluetoe::no_write_access,</div>
-<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;                bluetoe::notify,</div>
-<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;                bluetoe::bind_characteristic_value&lt; decltype( dummy ), &amp;dummy &gt;</div>
+<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;                <a class="code" href="classbluetoe_1_1no__read__access.html">bluetoe::no_read_access</a>,</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;                <a class="code" href="classbluetoe_1_1no__write__access.html">bluetoe::no_write_access</a>,</div>
+<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;                <a class="code" href="structbluetoe_1_1notify.html">bluetoe::notify</a>,</div>
+<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;                <a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; decltype( dummy ), &amp;dummy &gt;</a></div>
 <div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;            &gt;,</div>
 <div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;            characteristic&lt;</div>
 <div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;                characteristic_uuid16&lt; 0x2A5C &gt;,</div>
@@ -145,28 +146,30 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;                characteristic_uuid16&lt; 0x2A55 &gt;,</div>
 <div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;                characteristic_name&lt; csc::details::control_point_name &gt;,</div>
 <div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;                bluetoe::no_read_access,</div>
-<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;                bluetoe::indicate,</div>
+<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;                <a class="code" href="structbluetoe_1_1indicate.html">bluetoe::indicate</a>,</div>
 <div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;                bluetoe::bind_characteristic_value&lt; decltype( dummy ), &amp;dummy &gt;</div>
-<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;            &gt;</div>
-<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;        &gt;</div>
-<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;    {</div>
-<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;    };</div>
-<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;}</div>
-<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;</div>
-<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;<span class="preprocessor">#endif // include guard</span></div>
-<div class="ttc" id="structbluetoe_1_1cycling__speed__and__cadence_html"><div class="ttname"><a href="structbluetoe_1_1cycling__speed__and__cadence.html">bluetoe::cycling_speed_and_cadence</a></div><div class="ttdef"><b>Definition:</b> csc.hpp:30</div></div>
+<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;            &gt;,</div>
+<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;            Options...</div>
+<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;        &gt;;</div>
+<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;}</div>
+<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;</div>
+<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;<span class="preprocessor">#endif // include guard</span></div>
+<div class="ttc" id="structbluetoe_1_1indicate_html"><div class="ttname"><a href="structbluetoe_1_1indicate.html">bluetoe::indicate</a></div><div class="ttdoc">adds the ability to indicate this characteristic. </div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:80</div></div>
 <div class="ttc" id="structbluetoe_1_1csc_1_1crank__revolution__data__supported_html"><div class="ttname"><a href="structbluetoe_1_1csc_1_1crank__revolution__data__supported.html">bluetoe::csc::crank_revolution_data_supported</a></div><div class="ttdef"><b>Definition:</b> csc.hpp:12</div></div>
 <div class="ttc" id="classbluetoe_1_1service__name_html"><div class="ttname"><a href="classbluetoe_1_1service__name.html">bluetoe::service_name</a></div><div class="ttdef"><b>Definition:</b> service.hpp:19</div></div>
-<div class="ttc" id="classbluetoe_1_1service_html"><div class="ttname"><a href="classbluetoe_1_1service.html">bluetoe::service</a></div><div class="ttdoc">a service with zero or more characteristics </div><div class="ttdef"><b>Definition:</b> service.hpp:128</div></div>
 <div class="ttc" id="structbluetoe_1_1csc_1_1multiple__sensor__locations__supported_html"><div class="ttname"><a href="structbluetoe_1_1csc_1_1multiple__sensor__locations__supported.html">bluetoe::csc::multiple_sensor_locations_supported</a></div><div class="ttdef"><b>Definition:</b> csc.hpp:13</div></div>
-<div class="ttc" id="classbluetoe_1_1service__uuid_html"><div class="ttname"><a href="classbluetoe_1_1service__uuid.html">bluetoe::service_uuid</a></div><div class="ttdoc">a 128-Bit UUID used to identify a service. </div><div class="ttdef"><b>Definition:</b> service.hpp:54</div></div>
+<div class="ttc" id="structbluetoe_1_1notify_html"><div class="ttname"><a href="structbluetoe_1_1notify.html">bluetoe::notify</a></div><div class="ttdoc">adds the ability to notify this characteristic. </div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:67</div></div>
+<div class="ttc" id="classbluetoe_1_1service__uuid_html"><div class="ttname"><a href="classbluetoe_1_1service__uuid.html">bluetoe::service_uuid</a></div><div class="ttdoc">a 128-Bit UUID used to identify a service. </div><div class="ttdef"><b>Definition:</b> service.hpp:48</div></div>
 <div class="ttc" id="structbluetoe_1_1csc_1_1wheel__revolution__data__supported_html"><div class="ttname"><a href="structbluetoe_1_1csc_1_1wheel__revolution__data__supported.html">bluetoe::csc::wheel_revolution_data_supported</a></div><div class="ttdef"><b>Definition:</b> csc.hpp:11</div></div>
-<div class="ttc" id="classbluetoe_1_1service__uuid16_html"><div class="ttname"><a href="classbluetoe_1_1service__uuid16.html">bluetoe::service_uuid16</a></div><div class="ttdoc">a 16-Bit UUID used to identify a service </div><div class="ttdef"><b>Definition:</b> service.hpp:75</div></div>
+<div class="ttc" id="classbluetoe_1_1service__uuid16_html"><div class="ttname"><a href="classbluetoe_1_1service__uuid16.html">bluetoe::service_uuid16</a></div><div class="ttdoc">a 16-Bit UUID used to identify a service </div><div class="ttdef"><b>Definition:</b> service.hpp:69</div></div>
+<div class="ttc" id="classbluetoe_1_1no__write__access_html"><div class="ttname"><a href="classbluetoe_1_1no__write__access.html">bluetoe::no_write_access</a></div><div class="ttdoc">if added as option to a characteristic, write access is removed from the characteristic ...</div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:58</div></div>
 <div class="ttc" id="namespacebluetoe_html"><div class="ttname"><a href="namespacebluetoe.html">bluetoe</a></div><div class="ttdef"><b>Definition:</b> appearance.hpp:4</div></div>
+<div class="ttc" id="classbluetoe_1_1no__read__access_html"><div class="ttname"><a href="classbluetoe_1_1no__read__access.html">bluetoe::no_read_access</a></div><div class="ttdoc">if added as option to a characteristic, read access is removed from the characteristic ...</div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:40</div></div>
+<div class="ttc" id="classbluetoe_1_1bind__characteristic__value_html"><div class="ttname"><a href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value</a></div><div class="ttdoc">a very simple device to bind a characteristic to a global variable to provide access to the character...</div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:90</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Dec 9 2015 22:03:05 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sat Jan 9 2016 13:16:47 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

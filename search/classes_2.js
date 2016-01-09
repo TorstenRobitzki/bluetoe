@@ -7,6 +7,5 @@ var searchData=
   ['characteristic_5fuuid16',['characteristic_uuid16',['../structbluetoe_1_1characteristic__uuid16.html',1,'bluetoe']]],
   ['connection_5fdata',['connection_data',['../classbluetoe_1_1server_1_1connection__data.html',1,'bluetoe::server']]],
   ['crank_5frevolution_5fdata_5fsupported',['crank_revolution_data_supported',['../structbluetoe_1_1csc_1_1crank__revolution__data__supported.html',1,'bluetoe::csc']]],
-  ['cstring_5fwrapper',['cstring_wrapper',['../structbluetoe_1_1cstring__wrapper.html',1,'bluetoe']]],
-  ['cycling_5fspeed_5fand_5fcadence',['cycling_speed_and_cadence',['../structbluetoe_1_1cycling__speed__and__cadence.html',1,'bluetoe']]]
+  ['cstring_5fwrapper',['cstring_wrapper',['../structbluetoe_1_1cstring__wrapper.html',1,'bluetoe']]]
 ];

@@ -16,5 +16,6 @@ var searchData=
   ['operator_3d_3d',['operator==',['../classbluetoe_1_1link__layer_1_1address.html#ac41c35777c760c5831c33a5f2029fa34',1,'bluetoe::link_layer::address::operator==()'],['../classbluetoe_1_1link__layer_1_1delta__time.html#ad51da7848cd9e2a43f96159fd7308a7c',1,'bluetoe::link_layer::delta_time::operator==()']]],
   ['operator_3e',['operator&gt;',['../classbluetoe_1_1link__layer_1_1delta__time.html#ac71e872173fcb5ce2beee65fb32d58d7',1,'bluetoe::link_layer::delta_time']]],
   ['operator_3e_3d',['operator&gt;=',['../classbluetoe_1_1link__layer_1_1delta__time.html#aae1f5b98432593798c42621baba2a6f4',1,'bluetoe::link_layer::delta_time']]],
+  ['out_5fof_5frange',['out_of_range',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2',1,'bluetoe::error_codes']]],
   ['outdoor_5fsports_5factivity',['outdoor_sports_activity',['../structbluetoe_1_1appearance.html#a490be0a19f4cd8d2b70013f009057182',1,'bluetoe::appearance']]]
 ];

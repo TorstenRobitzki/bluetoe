@@ -9,5 +9,9 @@ var searchData=
   ['alloc_5ffront',['alloc_front',['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a8d51dbcc13872b305850365c45f0a6df',1,'bluetoe::link_layer::pdu_ring_buffer']]],
   ['allocate_5freceive_5fbuffer',['allocate_receive_buffer',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a72ecb16ef40a301e019b922b3a7639b7',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
   ['allocate_5ftransmit_5fbuffer',['allocate_transmit_buffer',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a02afffdc3c6fafc155fc2cfffa71fa28',1,'bluetoe::link_layer::ll_data_pdu_buffer::allocate_transmit_buffer(std::size_t size)'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeddf12541649a13a98724c36c4672b7b',1,'bluetoe::link_layer::ll_data_pdu_buffer::allocate_transmit_buffer()']]],
-  ['appearance',['appearance',['../structbluetoe_1_1appearance.html',1,'bluetoe']]]
+  ['appearance',['appearance',['../structbluetoe_1_1appearance.html',1,'bluetoe']]],
+  ['application_5ferror_5fend',['application_error_end',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f',1,'bluetoe::error_codes']]],
+  ['application_5ferror_5fstart',['application_error_start',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522',1,'bluetoe::error_codes']]],
+  ['attribute_5fnot_5ffound',['attribute_not_found',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1',1,'bluetoe::error_codes']]],
+  ['attribute_5fnot_5flong',['attribute_not_long',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f',1,'bluetoe::error_codes']]]
 ];

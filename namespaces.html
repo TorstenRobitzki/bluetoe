@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.9.1"/>
-<title>BlueToe: server.cpp</title>
+<title>BlueToe: Namespace List</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -39,6 +39,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <div id="navrow1" class="tabs">
     <ul class="tablist">
       <li><a href="index.html"><span>Main&#160;Page</span></a></li>
+      <li class="current"><a href="namespaces.html"><span>Namespaces</span></a></li>
       <li><a href="annotated.html"><span>Classes</span></a></li>
       <li><a href="files.html"><span>Files</span></a></li>
       <li><a href="examples.html"><span>Examples</span></a></li>
@@ -60,6 +61,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
       </li>
     </ul>
   </div>
+  <div id="navrow2" class="tabs2">
+    <ul class="tablist">
+      <li class="current"><a href="namespaces.html"><span>Namespace&#160;List</span></a></li>
+      <li><a href="namespacemembers.html"><span>Namespace&#160;Members</span></a></li>
+    </ul>
+  </div>
 </div><!-- top -->
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
@@ -77,34 +84,19 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 
 <div class="header">
   <div class="headertitle">
-<div class="title">server.cpp</div>  </div>
+<div class="title">Namespace List</div>  </div>
 </div><!--header-->
 <div class="contents">
-<p>This is a very small sample showing, how to define a very small GATT server.</p>
-<div class="fragment"><div class="line"></div>
-<div class="line"><span class="preprocessor">#include &lt;bluetoe/server.hpp&gt;</span></div>
-<div class="line"><span class="preprocessor">#include &lt;bluetoe/service.hpp&gt;</span></div>
-<div class="line"><span class="preprocessor">#include &lt;bluetoe/characteristic.hpp&gt;</span></div>
-<div class="line"><span class="preprocessor">#include &lt;cstdint&gt;</span></div>
-<div class="line"></div>
-<div class="line">std::int32_t temperature;</div>
-<div class="line"></div>
-<div class="line"><span class="keyword">typedef</span> <a name="_a0"></a><a class="code" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt;</div>
-<div class="line">    <span class="comment">/*</span></div>
-<div class="line"><span class="comment">     * A server consists of at least one service</span></div>
-<div class="line"><span class="comment">     */</span></div>
-<div class="line">    <a name="_a1"></a><a class="code" href="classbluetoe_1_1service.html">bluetoe::service</a>&lt;</div>
-<div class="line">        <a name="_a2"></a><a class="code" href="classbluetoe_1_1service__uuid.html">bluetoe::service_uuid&lt; 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 &gt;</a>,</div>
-<div class="line">        <a name="_a3"></a><a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div>
-<div class="line">            <a name="_a4"></a><a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; decltype( temperature ), &amp;temperature &gt;</a>,</div>
-<div class="line">            <a name="_a5"></a><a class="code" href="classbluetoe_1_1no__read__access.html">bluetoe::no_read_access</a></div>
-<div class="line">        &gt;</div>
-<div class="line">    &gt;</div>
-<div class="line">&gt; temperature_service;</div>
-</div><!-- fragment --> </div><!-- contents -->
+<div class="textblock">Here is a list of all documented namespaces with brief descriptions:</div><div class="directory">
+<div class="levels">[detail level <span onclick="javascript:toggleLevel(1);">1</span><span onclick="javascript:toggleLevel(2);">2</span>]</div><table class="directory">
+<tr id="row_0_" class="even"><td class="entry"><span style="width:0px;display:inline-block;">&#160;</span><span id="arr_0_" class="arrow" onclick="toggleFolder('0_')">&#9660;</span><span class="icona"><span class="icon">N</span></span><b>bluetoe</b></td><td class="desc"></td></tr>
+<tr id="row_0_0_"><td class="entry"><span style="width:32px;display:inline-block;">&#160;</span><span class="icona"><span class="icon">N</span></span><a class="el" href="namespacebluetoe_1_1error__codes.html" target="_self">error_codes</a></td><td class="desc"></td></tr>
+</table>
+</div><!-- directory -->
+</div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Dec 9 2015 22:03:05 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sat Jan 9 2016 13:16:48 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

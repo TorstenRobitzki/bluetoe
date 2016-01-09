@@ -1,4 +1,7 @@
 var searchData=
 [
-  ['empty',['empty',['../classbluetoe_1_1link__layer_1_1notification__queue.html#aa4a63b71c17a23fd5d4517031b33f313afa107bb84180e89c18b281c724fd36af',1,'bluetoe::link_layer::notification_queue']]]
+  ['application_5ferror_5fend',['application_error_end',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f',1,'bluetoe::error_codes']]],
+  ['application_5ferror_5fstart',['application_error_start',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522',1,'bluetoe::error_codes']]],
+  ['attribute_5fnot_5ffound',['attribute_not_found',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1',1,'bluetoe::error_codes']]],
+  ['attribute_5fnot_5flong',['attribute_not_long',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f',1,'bluetoe::error_codes']]]
 ];
