@@ -353,21 +353,80 @@ namespace bluetoe {
 
     /**
      * @brief binds a free function as a read handler for the given characteristic
+     *
+     * The handler can be used to handle blobs. The handler can be used with a
+     * bluetoe::no_read_access parameter in conjunction with bluetoe::indicate or bluetoe::notify to provide the
+     * data to a notification or indication without the charactertic beeing able to be read.
+     * If only a read handler is passed to the bluetoe::characteristic, the characteristic will be read only.
+     * If the characteristic value will always be smaller than 20 octets, using a bluetoe::free_read_handler will save
+     * you from coping with an offset.
+     *
+     * @tparam F pointer to function to handle a read request
+     * @param offset offset in octets into the characteristic beeing read. If the offset is larger than the characteristic,
+     *        the handler should return bluetoe::error_codes::invalid_offset
+     * @param read_size the maximum size, a client is able to read from the characteristic. This is the maximum, that can be
+     *                  copied to the out_buffer, without overflowing it. Reading just a part of the characteristic (because
+     *                  of the limited out_buffer size) is fine and not an error.
+     * @param out_buffer Output buffer to copy the data, that is read.
+     * @param out_size The actual number of octets copied to out_buffer. out_size must be smaller or equal to read_size.
+     *
+     * @retval If the characteristic value could be read successfully (even when the out_buffer was to small, to read the whole value),
+     *         the function should return luetoe::error_codes::success. In all other cases, Bluetoe will generate an error response to
+     *         a read request and directly use the return value as error code. For usefull error codes, have a look at
+     *         bluetoe::error_codes::error_codes.
+     *
+     * @sa characteristic
+     * @sa free_read_handler
+     * @sa free_write_blob_handler
+     * @sa free_write_handler
+     * @sa bluetoe::error_codes::error_codes
      */
     template < std::uint8_t (*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
     struct free_read_blob_handler : details::value_handler_base
     {
+        /** @cond HIDDEN_SYMBOLS */
         static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
         {
             return F( offset, read_size, out_buffer, out_size );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
     };
 
+    /**
+     * @brief binds a free function as a read handler for the given characteristic
+     *
+     * This handler is functional similar to free_read_blob_handler, but can not be used for handling requests to
+     * large characteristics. To be on the safe side, this type of handler should not be used for characteristic values
+     * larger than 20 octets.
+     * The handler can be used with a
+     * bluetoe::no_read_access parameter in conjunction with bluetoe::indicate or bluetoe::notify to provide the
+     * data to a notification or indication without the charactertic beeing able to be read.
+     * If only a read handler is passed to the bluetoe::characteristic, the characteristic will be read only.
+     *
+     * @tparam F pointer to function to handle a read request
+     * @param read_size the maximum size, a client is able to read from the characteristic. This is the maximum, that can be
+     *                  copied to the out_buffer, without overflowing it. Reading just a part of the characteristic (because
+     *                  of the limited out_buffer size) is fine and not an error.
+     * @param out_buffer Output buffer to copy the data, that is read.
+     * @param out_size The actual number of octets copied to out_buffer. out_size must be smaller or equal to read_size.
+     *
+     * @retval If the characteristic value could be read successfully (even when the out_buffer was to small, to read the whole value),
+     *         the function should return luetoe::error_codes::success. In all other cases, Bluetoe will generate an error response to
+     *         a read request and directly use the return value as error code. For usefull error codes, have a look at
+     *         bluetoe::error_codes::error_codes.
+     *
+     * @sa characteristic
+     * @sa free_read_blob_handler
+     * @sa free_write_blob_handler
+     * @sa free_write_handler
+     * @sa bluetoe::error_codes::error_codes
+     */
     template < std::uint8_t (*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
     struct free_read_handler : details::value_handler_base
     {
+        /** @cond HIDDEN_SYMBOLS */
         static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
         {
             return offset == 0
@@ -376,22 +435,76 @@ namespace bluetoe {
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
     };
 
+    /**
+     * @brief binds a free function as a write handler for the given characteristic
+     *
+     * The handler can be used to handle blobs.
+     * If only a write handler is passed to the bluetoe::characteristic, the characteristic will be write only.
+     * If the characteristic value will always be smaller than 20 octets, using a bluetoe::free_write_handler will save
+     * you from coping with an offset.
+     *
+     * @tparam F pointer to function to handle a write request
+     *
+     * @param offset offset in octets into the characteristic beeing written. If the offset is larger than the characteristic,
+     *        the handler should return bluetoe::error_codes::invalid_offset
+     * @param write_size The size of the data that should be written to the characteristic value. If the size given is to
+     *            large, the handler should return bluetoe::error_codes::invalid_attribute_value_length.
+     * @param value Input buffer containing the desired characteristic value.
+     *
+     * @retval If the characteristic value could be read successfully (even when the out_buffer was to small, to read the whole value),
+     *         the function should return luetoe::error_codes::success. In all other cases, Bluetoe will generate an error response to
+     *         a read request and directly use the return value as error code. For usefull error codes, have a look at
+     *         bluetoe::error_codes::error_codes.
+     *
+     * @sa characteristic
+     * @sa free_read_blob_handler
+     * @sa free_read_handler
+     * @sa free_write_handler
+     * @sa bluetoe::error_codes::error_codes
+     */
     template < std::uint8_t (*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
     struct free_write_blob_handler : details::value_handler_base
     {
+        /** @cond HIDDEN_SYMBOLS */
         static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
         {
             return F( offset, write_size, value );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
     };
 
+    /**
+     * @brief binds a free function as a write handler for the given characteristic
+     *
+     * If only a write handler is passed to the bluetoe::characteristic, the characteristic will be write only.
+     * To handle characteristic value sizes larger than 20 octets, a free_write_blob_handler should be used.
+     *
+     * @tparam F pointer to function to handle a write request
+     *
+     * @param write_size The size of the data that should be written to the characteristic value. If the size given is to
+     *            large, the handler should return bluetoe::error_codes::invalid_attribute_value_length.
+     * @param value Input buffer containing the desired characteristic value.
+     *
+     * @retval If the characteristic value could be read successfully (even when the out_buffer was to small, to read the whole value),
+     *         the function should return luetoe::error_codes::success. In all other cases, Bluetoe will generate an error response to
+     *         a read request and directly use the return value as error code. For usefull error codes, have a look at
+     *         bluetoe::error_codes::error_codes.
+     *
+     * @sa characteristic
+     * @sa free_read_blob_handler
+     * @sa free_read_handler
+     * @sa free_write_blob_handler
+     * @sa bluetoe::error_codes::error_codes
+     */
     template < std::uint8_t (*F)( std::size_t write_size, const std::uint8_t* value ) >
     struct free_write_handler : details::value_handler_base
     {
+        /** @cond HIDDEN_SYMBOLS */
         static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
         {
             return offset == 0
@@ -400,6 +513,7 @@ namespace bluetoe {
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
     };
 
     template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
@@ -421,6 +535,12 @@ namespace bluetoe {
     struct write_handler
     {
     };
+
+    /**
+     * @example read_write_handler_example.cpp
+     * Example, showing all possible alternatives to bind functions as read or write handler to a bluetooth characteristic.
+     */
+
 }
 
 #endif

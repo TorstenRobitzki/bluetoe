@@ -119,6 +119,10 @@ namespace bluetoe {
      * @sa indicate
      * @sa bind_characteristic_value
      * @sa characteristic_name
+     * @sa free_read_blob_handler
+     * @sa free_read_handler
+     * @sa free_write_blob_handler
+     * @sa free_write_handler
      */
     template < typename ... Options >
     class characteristic

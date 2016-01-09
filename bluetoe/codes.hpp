@@ -126,7 +126,15 @@ namespace details {
 
 }
 
+
+/**
+ * namespace for error codes, that should be convertable to int
+ */
 namespace error_codes {
+
+    /**
+     * @brief Error codes to be returned by read and write handlers for characteristic values
+     */
     enum error_codes : std::uint8_t {
         /**
          * read or write request could be fulfilled without an error
