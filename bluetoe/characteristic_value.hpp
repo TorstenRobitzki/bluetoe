@@ -516,22 +516,124 @@ namespace bluetoe {
         /** @endcond */
     };
 
-    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
-    struct read_blob_handler
+    template < class Obj, Obj& O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct read_blob_handler : details::value_handler_base
     {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return (O.*F)( offset, read_size, out_buffer, out_size );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
     };
 
-    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
-    struct read_handler
+    template < class Obj, const Obj& O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const >
+    struct read_blob_handler_c : details::value_handler_base
     {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return (O.*F)( offset, read_size, out_buffer, out_size );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
     };
 
-    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
+    template < class Obj, volatile Obj& O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) volatile >
+    struct read_blob_handler_v : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return (O.*F)( offset, read_size, out_buffer, out_size );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Obj, const volatile Obj& O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const volatile >
+    struct read_blob_handler_cv : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return (O.*F)( offset, read_size, out_buffer, out_size );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Obj, Obj& O, std::uint8_t (Obj::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct read_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return offset == 0
+                ? (O.*F)( read_size, out_buffer, out_size )
+                : error_codes::attribute_not_long;
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Obj, const Obj& O, std::uint8_t (Obj::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const >
+    struct read_handler_c : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return offset == 0
+                ? (O.*F)( read_size, out_buffer, out_size )
+                : error_codes::attribute_not_long;
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Obj, volatile Obj& O, std::uint8_t (Obj::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) volatile >
+    struct read_handler_v : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return offset == 0
+                ? (O.*F)( read_size, out_buffer, out_size )
+                : error_codes::attribute_not_long;
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Obj, const volatile Obj& O, std::uint8_t (Obj::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const volatile >
+    struct read_handler_cv : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return offset == 0
+                ? (O.*F)( read_size, out_buffer, out_size )
+                : error_codes::attribute_not_long;
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Obj, Obj& O, std::uint8_t (Obj::*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
     struct write_blob_handler
     {
     };
 
-    template < class Obj, Obj* O, std::uint8_t (Obj::*F)( std::size_t write_size, const std::uint8_t* value ) >
+    template < class Obj, Obj& O, std::uint8_t (Obj::*F)( std::size_t write_size, const std::uint8_t* value ) >
     struct write_handler
     {
     };

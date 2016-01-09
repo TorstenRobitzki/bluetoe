@@ -43,10 +43,74 @@ std::uint8_t write_test_value_handler( std::size_t write_size, const std::uint8_
     return write_blob_test_value_handler( 0, write_size, value );
 }
 
+struct read_blob_handler_class {
+
+    std::uint8_t read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    {
+        return read_blob_test_value_handler( offset, read_size, out_buffer, out_size );
+    }
+
+    std::uint8_t read_handler_c( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const
+    {
+        return read_blob_test_value_handler( offset, read_size, out_buffer, out_size );
+    }
+
+    std::uint8_t read_handler_v( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) volatile
+    {
+        return read_blob_test_value_handler( offset, read_size, out_buffer, out_size );
+    }
+
+    std::uint8_t read_handler_cv( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const volatile
+    {
+        return read_blob_test_value_handler( offset, read_size, out_buffer, out_size );
+    }
+
+} read_blob_handler_instance;
+
+struct read_handler_class {
+
+    std::uint8_t read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    {
+        return read_test_value_handler( read_size, out_buffer, out_size );
+    }
+
+    std::uint8_t read_handler_c( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const
+    {
+        return read_test_value_handler( read_size, out_buffer, out_size );
+    }
+
+    std::uint8_t read_handler_v( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) volatile
+    {
+        return read_test_value_handler( read_size, out_buffer, out_size );
+    }
+
+    std::uint8_t read_handler_cv( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) const volatile
+    {
+        return read_test_value_handler( read_size, out_buffer, out_size );
+    }
+
+} read_handler_instance;
+
 typedef boost::mpl::list<
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
             bluetoe::free_read_blob_handler< &read_blob_test_value_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_blob_handler< read_blob_handler_class, read_blob_handler_instance, &read_blob_handler_class::read_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_blob_handler_c< read_blob_handler_class, read_blob_handler_instance, &read_blob_handler_class::read_handler_c >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_blob_handler_v< read_blob_handler_class, read_blob_handler_instance, &read_blob_handler_class::read_handler_v >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_blob_handler_cv< read_blob_handler_class, read_blob_handler_instance, &read_blob_handler_class::read_handler_cv >
         >
     > read_blob_handler_tests;
 
@@ -62,6 +126,22 @@ typedef boost::mpl::list<
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
             bluetoe::free_read_handler< &read_test_value_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_handler< read_handler_class, read_handler_instance, &read_handler_class::read_handler >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_handler_c< read_handler_class, read_handler_instance, &read_handler_class::read_handler_c >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_handler_v< read_handler_class, read_handler_instance, &read_handler_class::read_handler_v >
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1212 >,
+            bluetoe::read_handler_cv< read_handler_class, read_handler_instance, &read_handler_class::read_handler_cv >
         >
     > read_handler_tests;
 
