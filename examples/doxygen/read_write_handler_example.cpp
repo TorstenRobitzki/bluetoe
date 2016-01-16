@@ -86,8 +86,8 @@ bluetoe::server<
             bluetoe::free_write_blob_handler< &static_handler::write >
         >,
         bluetoe::characteristic<
-            bluetoe::read_blob_handler< handler, &handler_instance, &handler::read_blob >,
-            bluetoe::write_blob_handler< handler, &handler_instance, &handler::write_blob >
+            bluetoe::read_blob_handler< handler, handler_instance, &handler::read_blob >,
+            bluetoe::write_blob_handler< handler, handler_instance, &handler::write_blob >
         >
     >
 > gatt_server;
