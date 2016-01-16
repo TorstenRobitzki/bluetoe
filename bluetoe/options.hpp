@@ -518,6 +518,47 @@ namespace details {
         typedef MetaType meta_type;
     };
 
+    template < typename ... Ts >
+    struct derive_from_impl;
+
+    template <>
+    struct derive_from_impl<> {};
+
+    template < typename T, typename ... Ts >
+    struct derive_from_impl< T, Ts... > : T, derive_from_impl< Ts... > {};
+
+    // derives from all types within the given typelist List
+    template < typename List >
+    struct derive_from;
+
+    template < typename ... Ts >
+    struct derive_from< std::tuple< Ts... > > : derive_from_impl< Ts... > {};
+
+    // fold a list with an operation
+    template <
+        typename List,
+        template < typename ListP, typename ElementP > class Operation,
+        typename Start = std::tuple<> >
+    struct fold;
+
+    template <
+        template < typename List, typename Element > class Operation,
+        typename Start >
+    struct fold< std::tuple<>, Operation, Start >
+    {
+        typedef Start type;
+    };
+
+    template <
+        typename T,
+        typename ... Ts,
+        template < typename List, typename Element > class Operation,
+        typename Start >
+    struct fold< std::tuple< T, Ts... >, Operation, Start >
+    {
+        typedef typename Operation< typename fold< std::tuple< Ts... >, Operation, Start >::type, T >::type type;
+    };
+
 }
 }
 

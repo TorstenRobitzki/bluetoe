@@ -1,4 +1,5 @@
 #include <bluetoe/options.hpp>
+#include <string>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
@@ -514,3 +515,71 @@ BOOST_AUTO_TEST_CASE( last_from_pack )
     ) );
 
 };
+
+namespace {
+    std::string ctor_order;
+
+    template < char C >
+    struct tag
+    {
+        tag()
+        {
+            ctor_order += C;
+        }
+    };
+
+    template < typename List >
+    static void test_derive_from( const std::string& expected )
+    {
+        ctor_order = "";
+        bluetoe::details::derive_from< List > instance;
+        static_cast< void >( instance );
+
+        BOOST_CHECK_EQUAL( ctor_order, expected );
+    }
+}
+
+BOOST_AUTO_TEST_CASE( derive_from )
+{
+    test_derive_from< std::tuple<> >( "" );
+    test_derive_from< std::tuple< tag<'A'> > >( "A" );
+    test_derive_from< std::tuple< tag<'A'>, tag<'B'> > >( "AB" );
+    test_derive_from< std::tuple< tag<'A'>, tag<'B'>, tag<'C'> > >( "ABC" );
+}
+
+namespace {
+
+    template <
+        typename List,
+        typename E >
+    struct add_only_tags;
+
+    template <
+        char C,
+        typename ... Es >
+    struct add_only_tags< std::tuple< Es... >, tag< C > >
+    {
+        typedef std::tuple< tag< C >, Es... > type;
+    };
+
+    template < typename ... Ms, typename T >
+    struct add_only_tags< std::tuple< Ms... >, T >
+    {
+        typedef std::tuple< Ms... > type;
+    };
+}
+
+BOOST_AUTO_TEST_CASE( fold )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::fold< std::tuple<>, add_only_tags >::type,
+            std::tuple<> >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::fold< std::tuple< int, tag<'A'>, float, tag<'B'> >, add_only_tags >::type,
+            std::tuple< tag<'A'>, tag<'B'> > >::value
+    ) );
+}

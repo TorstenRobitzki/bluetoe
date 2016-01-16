@@ -10,6 +10,7 @@
 #include <bluetoe/write_queue.hpp>
 #include <bluetoe/gap_service.hpp>
 #include <bluetoe/appearance.hpp>
+#include <bluetoe/mixin.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -44,7 +45,8 @@ namespace bluetoe {
      * @sa appearance
      */
     template < typename ... Options >
-    class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >
+    class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >,
+        public details::derive_from< typename details::collect_mixins< Options... >::type >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
