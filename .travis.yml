@@ -42,7 +42,7 @@ matrix:
       env: COMPILER=clang++-3.7
 
 script:
-- mkdir
+- mkdir build
 - cd build
 - cmake -DCMAKE_CXX_COMPILER=$COMPILER ..
 - make all_tests.run
