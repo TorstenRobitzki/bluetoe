@@ -1,11 +1,53 @@
+# based on an article
+# Use new trusty images, should yield newer compilers and packages
+sudo: required
+dist: precise
 language: cpp
-compiler:
-- clang
+
+matrix:
+  include:
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
+      env: COMPILER=g++-4.9
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+      env: COMPILER=g++-5
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.6
+          packages:
+            - clang-3.6
+      env: COMPILER=clang++-3.6
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.7
+          packages:
+            - clang-3.7
+      env: COMPILER=clang++-3.7
+
 script:
 - echo "Success! ;-)"
+
 after_success:
 - sudo apt-get install --yes doxygen graphviz
 - ./publish-doxygen
+
 before_install:
 - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv
   -in config/travisci_rsa.enc -out config/travisci_rsa -d
