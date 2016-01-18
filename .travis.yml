@@ -13,7 +13,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
-            - libboost1.55-all-dev
       env: COMPILER=g++-4.9
     - compiler: gcc
       addons:
@@ -22,7 +21,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
-            - libboost1.55-all-dev
       env: COMPILER=g++-5
     - compiler: clang
       addons:
@@ -32,7 +30,6 @@ matrix:
             - llvm-toolchain-precise-3.6
           packages:
             - clang-3.6
-            - libboost1.55-all-dev
       env: COMPILER=clang++-3.6
     - compiler: clang
       addons:
@@ -42,7 +39,6 @@ matrix:
             - llvm-toolchain-precise-3.7
           packages:
             - clang-3.7
-            - libboost1.55-all-dev
       env: COMPILER=clang++-3.7
 
 script:
