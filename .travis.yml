@@ -57,7 +57,7 @@ after_success:
   - ./publish-doxygen
 
 before_install:
-  - sudo add-apt-repository ppa:boost-latest/ppa
+  - sudo add-apt-repository ppa:boost-latest/ppa --yes
   - sudo apt-get install libboost1.58-dev
   - sudo apt-get update -qq
 #   - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv -in config/travisci_rsa.enc -out config/travisci_rsa -d
