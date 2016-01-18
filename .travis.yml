@@ -41,6 +41,10 @@ matrix:
             - clang-3.7
       env: COMPILER=clang++-3.7
 
+env:
+    global:
+        BUILD_ON_TRAVIS=1
+
 script:
   - $COMPILER -v
   - mkdir build
