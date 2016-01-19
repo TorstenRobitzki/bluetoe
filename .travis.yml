@@ -57,6 +57,6 @@ after_success:
   - ./publish-doxygen
 
 before_install:
-  - dpkg https://launchpad.net/%7Eboost-latest/+archive/ubuntu/ppa/+files/libboost1.55-dev_1.55.0-1ppa1%7Esaucy1_amd64.deb
+  - dpkg --install https://launchpad.net/%7Eboost-latest/+archive/ubuntu/ppa/+files/libboost1.55-dev_1.55.0-1ppa1%7Esaucy1_amd64.deb
   - sudo apt-get update -qq
 #   - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv -in config/travisci_rsa.enc -out config/travisci_rsa -d
