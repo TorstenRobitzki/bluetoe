@@ -3,7 +3,7 @@
 
 #include "test_servers.hpp"
 
-static const char name[] = "Test Name";
+static constexpr char name[] = "Test Name";
 
 typedef bluetoe::extend_server<
     small_temperature_service,
