@@ -578,11 +578,11 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( find_notification_data )
 
-    char value = 0xff;
+    char std::uint8_t = 0xff;
 
     typedef bluetoe::characteristic<
         bluetoe::characteristic_uuid16< 0xD0B1 >,
-        bluetoe::bind_characteristic_value< char, &value >,
+        bluetoe::bind_characteristic_value< std::uint8_t, &value >,
         bluetoe::notify
     > notifiable_char;
 

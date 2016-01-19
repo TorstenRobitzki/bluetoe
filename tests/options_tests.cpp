@@ -439,7 +439,7 @@ BOOST_AUTO_TEST_CASE( count_if )
 namespace {
     template < class T >
     struct by_value : T {};
-};
+}
 
 BOOST_AUTO_TEST_CASE( sum_by )
 {
@@ -514,7 +514,7 @@ BOOST_AUTO_TEST_CASE( last_from_pack )
             int >::value
     ) );
 
-};
+}
 
 namespace {
     std::string ctor_order;
