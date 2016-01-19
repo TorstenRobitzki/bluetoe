@@ -1,5 +1,5 @@
 # leave the script if we build on travis-ci and this is not the clang++-3.7 build
-if [[ $BUILD_ON_TRAVIS ]] && [[ "$COMPILER" != "clang++-3.7" ]]; then
+if [[ $BUILD_ON_TRAVIS ]] && [[ "$COMPILER" != "$BUILD_DOXYGEN_COMPILE" ]]; then
     exit
 fi
 
