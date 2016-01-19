@@ -10,6 +10,7 @@ if [[ $BUILD_ON_TRAVIS ]]; then
     cd build
     cmake -G "Unix Makefiles" ..
     make
+    cd ..
 fi
 
 # see for the idea behin this script http://blog.gockelhut.com/2014/09/automatic-documentation-publishing-with.html
