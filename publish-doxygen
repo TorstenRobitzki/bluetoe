@@ -1,3 +1,8 @@
+# leave the script if we build on travis-ci and this is not the clang++-3.7 build
+if [[ $BUILD_ON_TRAVIS ]] && [[ "$COMPILER" != "clang++-3.7" ]]; then
+    exit
+fi
+
 # see for the idea behin this script http://blog.gockelhut.com/2014/09/automatic-documentation-publishing-with.html
 REPO_PATH=git@github.com:TorstenRobitzki/bluetoe.git
 HTML_PATH=documentation/html

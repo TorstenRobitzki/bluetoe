@@ -53,6 +53,7 @@ script:
   - make all_tests.run
 
 after_success:
+  - cd ~
   - sudo apt-get install --yes doxygen graphviz
   - ls -la
   - pwd
