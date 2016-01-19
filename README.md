@@ -1,4 +1,4 @@
-# Bluetoe
+# Bluetoe [![Build Status](https://travis-ci.org/TorstenRobitzki/bluetoe.svg?branch=master)](https://travis-ci.org/TorstenRobitzki/bluetoe)
 
 ## Overview
 
