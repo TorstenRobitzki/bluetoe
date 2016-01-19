@@ -8,7 +8,7 @@
 
 
 std::uint16_t nupsy = 0x0104;
-static const char nupsy_name[] = "Nupsy-Server";
+static constexpr char nupsy_name[] = "Nupsy-Server";
 
 typedef bluetoe::server<
     bluetoe::server_name< nupsy_name >,
