@@ -19,7 +19,7 @@ public:
             }
         }
 
-        return std::pair< bool, bluetoe::details::attribute >( false, bluetoe::details::attribute{} );
+        return std::pair< bool, bluetoe::details::attribute >( false, bluetoe::details::attribute{ 0, nullptr } );
     }
 
     bluetoe::details::attribute attribute_by_type( std::uint16_t type )
