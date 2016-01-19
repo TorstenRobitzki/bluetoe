@@ -122,7 +122,7 @@ namespace {
 
         void dump_all()
         {
-            hex_dump( std::cout, std::begin( response ), std::end( response ) );
+            hex_dump( std::cout, std::begin( guarded_buffer ), std::end( guarded_buffer ) );
         }
 
         void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
