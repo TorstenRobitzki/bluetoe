@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdint>
 
 #include <bluetoe/characteristic.hpp>
 #include <bluetoe/service.hpp>
@@ -341,7 +342,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( characteristic_user_description )
 
     char simple_value = 0;
-    const char name[] = "Die ist der Name";
+    static constexpr char name[] = "Die ist der Name";
 
     typedef bluetoe::characteristic<
         bluetoe::characteristic_name< name >,
@@ -578,7 +579,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( find_notification_data )
 
-    char std::uint8_t = 0xff;
+    std::uint8_t value = 0xff;
 
     typedef bluetoe::characteristic<
         bluetoe::characteristic_uuid16< 0xD0B1 >,
