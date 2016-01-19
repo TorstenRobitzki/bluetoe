@@ -47,20 +47,19 @@ env:
         BUILD_DOXYGEN_COMPILE=g++-4.9
 
 script:
-  - echo "Success!"
-  # - $COMPILER -v
-  # - mkdir build
-  # - cd build
-  # - cmake -DCMAKE_CXX_COMPILER=$COMPILER ..
-  # - make all_tests.run
+  - $COMPILER -v
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_CXX_COMPILER=$COMPILER ..
+  - make all_tests.run
 
 after_success:
   - cd $TRAVIS_BUILD_DIR
-  - sudo apt-get install --yes doxygen graphviz
-  - ls -la
-  - pwd
-  - doxygen -v
-  - ./publish-doxygen
+  # - sudo apt-get install --yes graphviz
+  # - ls -la
+  # - pwd
+  # - doxygen -v
+  # - ./publish-doxygen
 
 before_install:
   - wget https://launchpad.net/%7Eboost-latest/+archive/ubuntu/ppa/+files/libboost1.55-dev_1.55.0-1ppa1%7Esaucy1_amd64.deb
