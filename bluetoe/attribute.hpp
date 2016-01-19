@@ -330,7 +330,7 @@ namespace details {
         }
     };
 
-    attribute_access_result attribute_value_read_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
+    inline attribute_access_result attribute_value_read_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
     {
         if ( args.type == attribute_access_type::compare_value )
         {
@@ -350,7 +350,7 @@ namespace details {
         return details::attribute_access_result::success;
     }
 
-    attribute_access_result attribute_value_read_only_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
+    inline attribute_access_result attribute_value_read_only_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
     {
         if ( args.type != attribute_access_type::read && args.type != attribute_access_type::compare_value )
             return attribute_access_result::write_not_permitted;

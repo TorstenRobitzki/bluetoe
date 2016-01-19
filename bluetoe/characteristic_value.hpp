@@ -431,7 +431,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? F( read_size, out_buffer, out_size )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
@@ -509,7 +509,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? F( write_size, value )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
@@ -576,7 +576,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
@@ -591,7 +591,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
@@ -606,7 +606,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
@@ -621,7 +621,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
@@ -688,7 +688,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
@@ -703,7 +703,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
@@ -718,7 +718,7 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
@@ -733,7 +733,38 @@ namespace bluetoe {
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
-                : error_codes::attribute_not_long;
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Mixin, std::uint8_t (Mixin::*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct mixin_read_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+        {
+            return /*offset == 0
+                ? (O.*F)( read_size, out_buffer, out_size )
+                : */ static_cast< std::uint8_t >( error_codes::attribute_not_long );
+
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Mixin, std::uint8_t (Mixin::*F)( std::size_t write_size, const std::uint8_t* value ) >
+    struct mixin_write_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+        {
+            return /* offset == 0
+                ? (O.*F)( write_size, value )
+                : */ static_cast< std::uint8_t >( error_codes::attribute_not_long );
         }
 
         struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};

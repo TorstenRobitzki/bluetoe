@@ -11,9 +11,15 @@ typedef bluetoe::server<
     >
 > bicycle;
 
+bicycle gatt;
+
+void callback()
+{
+    gatt.csc_wheel_revolution( 42,43 );
+}
+
 int main()
 {
-    bicycle                   gatt;
     bluetoe::nrf51< bicycle > server;
 
     for ( ;; )

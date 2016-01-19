@@ -15,6 +15,7 @@ namespace bluetoe {
         using service_uuid = service_uuid16< 0x1816 >;
 
         namespace details {
+            /** @cond HIDDEN_SYMBOLS */
             static constexpr char service_name[] = "Cycling Speed and Cadence";
             static constexpr char measurement_name[] = "CSC Measurement";
             static constexpr char feature_name[] = "CSC Feature";
@@ -29,12 +30,40 @@ namespace bluetoe {
                 typedef service< Ts... > type;
             };
 
-            uint32_t dummy;
+            class implementation
+            {
+            public:
+                void csc_wheel_revolution( std::uint32_t resolution, std::uint32_t time )
+                {
+                }
+
+                std::uint8_t csc_mesurement( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    return 0;
+                }
+
+                std::uint8_t csc_sensor_location( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    return 0;
+                }
+
+                std::uint8_t csc_write_control_point( std::size_t write_size, const std::uint8_t* value )
+                {
+                    return 0;
+                }
+
+                std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    return 0;
+                }
+            private:
+            };
 
             template < typename ... Options >
             struct calculate_service {
 
                 typedef std::tuple<
+                    mixin< implementation >,
                     service_uuid,
                     bluetoe::service_name< service_name >,
                     characteristic<
@@ -43,7 +72,7 @@ namespace bluetoe {
                         bluetoe::no_read_access,
                         bluetoe::no_write_access,
                         bluetoe::notify,
-                        bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
+                        bluetoe::mixin_read_handler< implementation, &implementation::csc_mesurement >
                     >,
                     characteristic<
                         characteristic_uuid16< 0x2A5C >,
@@ -54,19 +83,21 @@ namespace bluetoe {
                         characteristic_uuid16< 0x2A5D >,
                         characteristic_name< sensor_location_name >,
                         bluetoe::no_write_access,
-                        bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
+                        bluetoe::mixin_read_handler< implementation, &implementation::csc_sensor_location >
                     >,
                     characteristic<
                         characteristic_uuid16< 0x2A55 >,
                         characteristic_name< control_point_name >,
                         bluetoe::no_read_access,
                         bluetoe::indicate,
-                        bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
+                        bluetoe::mixin_write_handler< implementation, &implementation::csc_write_control_point >,
+                        bluetoe::mixin_read_handler< implementation, &implementation::csc_read_control_point >
                     >,
                     Options... > service_parameters;
 
                 typedef typename service_from_parameters< service_parameters >::type type;
             };
+            /** @endcond */
         }
 
     }

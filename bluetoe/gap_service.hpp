@@ -16,7 +16,7 @@ namespace bluetoe {
         {
 
         };
-    };
+    }
 
     /**
      * @brief Used as a parameter to a server, to define that the GATT server will _not_ include a GAP service for GATT servers.
