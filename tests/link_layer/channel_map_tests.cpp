@@ -3,8 +3,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-static const std::uint8_t all_channel_map[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
-static const std::uint8_t all_but_one_map[] = { 0xff, 0xff, 0xff, 0xff, 0xf };
+static constexpr std::uint8_t all_channel_map[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
+static constexpr std::uint8_t all_but_one_map[] = { 0xff, 0xff, 0xff, 0xff, 0xf };
 
 template < unsigned Hop, const std::uint8_t*  Map >
 struct fixture : bluetoe::link_layer::channel_map

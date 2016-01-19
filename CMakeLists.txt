@@ -2,7 +2,15 @@ cmake_minimum_required(VERSION 2.8.7)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wno-unused-parameter -Wno-sign-compare -Wno-logical-op-parentheses")
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wno-unused-parameter -Wno-sign-compare")
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    # using Clang
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-logical-op-parentheses")
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    # using GCC
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wparentheses")
+endif()
 
 add_subdirectory(bluetoe)
 add_subdirectory(tests)
