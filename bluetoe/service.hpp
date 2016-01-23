@@ -155,7 +155,7 @@ namespace bluetoe {
          * @brief assembles one data packet for a "Read by Group Type Response"
          */
         template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
-        static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter );
+        static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server );
 
         /**
          * returns a correctly filled notification_data() object, if this characteristc was configured for notification or indication
@@ -256,7 +256,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
-    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter )
+    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& sever )
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
 
@@ -269,7 +269,7 @@ namespace bluetoe {
 
             const details::attribute primary_service = attribute_at< ClientCharacteristicIndex, ServiceList, Server >( 0 );
 
-            auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );
+            auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration(), &sever );
 
             if ( primary_service.access( read, 1 ) == details::attribute_access_result::success )
             {

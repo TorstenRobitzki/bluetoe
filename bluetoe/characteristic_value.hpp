@@ -791,10 +791,12 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* s )
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* server )
         {
+            assert( server );
             static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the write_handler into the server." );
-            Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( s ) );
+
+            Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
 
             return offset == 0
                 ? (mixin.*F)( write_size, value )

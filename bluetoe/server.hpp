@@ -475,7 +475,7 @@ namespace bluetoe {
         if ( connection.client_configurations().flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled &&
              out_size >= 3 )
         {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
             auto rc   = data.value_attribute().access( read, data.handle() );
 
             if ( rc == details::attribute_access_result::success )
@@ -507,7 +507,7 @@ namespace bluetoe {
         if ( connection.client_configurations().flags( details.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled &&
              out_size >= 3 )
         {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
             auto rc   = details.value_attribute().access( read, details.handle() );
 
             if ( rc == details::attribute_access_result::success )
@@ -674,22 +674,25 @@ namespace bluetoe {
     }
 
     namespace details {
+        template < class Server >
         struct value_filter
         {
-            value_filter( const std::uint8_t* begin, const std::uint8_t* end )
+            value_filter( const std::uint8_t* begin, const std::uint8_t* end, Server& s )
                 : begin_( begin )
                 , end_( end )
+                , server_( s )
             {
             }
 
             bool operator()( std::uint16_t, const details::attribute& attr ) const
             {
-                auto read = details::attribute_access_arguments::compare_value( begin_, end_ );
+                auto read = details::attribute_access_arguments::compare_value( begin_, end_, &server_ );
                 return attr.access( read, 1 ) == details::attribute_access_result::value_equal;
             }
 
             const std::uint8_t* const begin_;
             const std::uint8_t* const end_;
+            Server&                   server_;
         };
 
         struct collect_find_by_type_groups
@@ -740,7 +743,7 @@ namespace bluetoe {
 
         details::collect_find_by_type_groups iterator( output + 1 , output + out_size );
 
-        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter( &input[ 7 ], input + in_size ) ) )
+        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter< server< Options... > >( &input[ 7 ], input + in_size, *this ) ) )
         {
             *output  = bits( details::att_opcodes::find_by_type_value_response );
             out_size = iterator.size() + 1;
@@ -760,7 +763,7 @@ namespace bluetoe {
         if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
             return;
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations() );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), this );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -784,7 +787,7 @@ namespace bluetoe {
 
         const std::uint16_t offset = details::read_16bit( input + 3 );
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations() );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations(), this );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -803,6 +806,7 @@ namespace bluetoe {
      }
 
     namespace details {
+        template < typename Server >
         struct collect_attributes
         {
             void operator()( std::uint16_t handle, const details::attribute& attr )
@@ -814,7 +818,7 @@ namespace bluetoe {
                 {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
-                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_ );
+                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_, &server_ );
                     auto rc   = attr.access( read, handle );
 
                     if ( rc == details::attribute_access_result::success )
@@ -836,13 +840,14 @@ namespace bluetoe {
                 }
             }
 
-            collect_attributes( std::uint8_t* begin, std::uint8_t* end, const details::client_characteristic_configuration& config )
+            collect_attributes( std::uint8_t* begin, std::uint8_t* end, const details::client_characteristic_configuration& config, Server& server )
                 : begin_( begin )
                 , current_( begin )
                 , end_( end )
                 , size_( 0 )
                 , first_( true )
                 , config_( config )
+                , server_( server )
             {
             }
 
@@ -867,6 +872,7 @@ namespace bluetoe {
             std::uint8_t    size_;
             bool            first_;
             details::client_characteristic_configuration config_;
+            Server&         server_;
         };
     }
 
@@ -878,7 +884,7 @@ namespace bluetoe {
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
              return;
 
-        details::collect_attributes iterator( output + 2, output + out_size, connection.client_configurations() );
+        details::collect_attributes< server< Options... > > iterator( output + 2, output + out_size, connection.client_configurations(), *this );
 
         all_attributes( starting_handle, ending_handle, iterator, details::uuid_filter( input + 5, in_size == 5 + 16 ) );
 
@@ -898,7 +904,7 @@ namespace bluetoe {
         template < typename ServiceList, typename Server >
         struct collect_primary_services
         {
-            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size )
+            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size, Server& server )
                 : output_( output )
                 , end_( end )
                 , index_( starting_index )
@@ -907,6 +913,7 @@ namespace bluetoe {
                 , first_( true )
                 , is_128bit_uuid_( true )
                 , attribute_data_size_( attribute_data_size )
+                , server_( server )
             {
             }
 
@@ -924,7 +931,7 @@ namespace bluetoe {
 
                     /// TODO: ClientCharacteristicIndex is derivable from Service and ServiceList, if 0 is used,
                     /// some templates are most likely more than once instanciated
-                    output_ = Service::template read_primary_service_response< 0, ServiceList, Server >( output_, end_, index_, is_128bit_uuid_ );
+                    output_ = Service::template read_primary_service_response< 0, ServiceList, Server >( output_, end_, index_, is_128bit_uuid_, server_ );
                 }
 
                 index_ += Service::number_of_attributes;
@@ -938,6 +945,7 @@ namespace bluetoe {
                   bool            first_;
                   bool            is_128bit_uuid_;
                   std::uint8_t&   attribute_data_size_;
+                  Server&         server_;
         };
     }
 
@@ -959,7 +967,7 @@ namespace bluetoe {
         ++begin; // gap for the size
 
         std::uint8_t* const data_begin = begin;
-        details::for_< services >::each( details::collect_primary_services< services, server< Options... > >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
+        details::for_< services >::each( details::collect_primary_services< services, server< Options... > >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ), *this ) );
 
         if ( begin == data_begin )
         {
@@ -997,7 +1005,7 @@ namespace bluetoe {
             if ( handle > number_of_attributes )
                 return error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
 
-            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations() );
+            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations(), this );
             auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
             if ( rc == details::attribute_access_result::success )
@@ -1025,7 +1033,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations() );
+        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations(), this );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -1071,7 +1079,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::check_write();
+        auto write = details::attribute_access_arguments::check_write( this );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::write_not_permitted )
@@ -1116,7 +1124,7 @@ namespace bluetoe {
                 const uint16_t handle = details::read_handle( queue.first );
                 const uint16_t offset = details::read_16bit( queue.first + 2 );
 
-                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second, offset, client.client_configurations() );
+                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second, offset, client.client_configurations(), this );
                 auto rc    = attribute_at( handle -1 ).access( write, handle );
 
                 if ( rc != details::attribute_access_result::success )

@@ -69,7 +69,7 @@ private:
         const std::vector< std::uint8_t > values( input );
 
         std::uint8_t buffer[ 1000 ];
-        auto read = bluetoe::details::attribute_access_arguments::read( &buffer[ 0 ], &buffer[ buffer_size ], offset, this->client_configurations() );
+        auto read = bluetoe::details::attribute_access_arguments::read( &buffer[ 0 ], &buffer[ buffer_size ], offset, this->client_configurations(), nullptr );
 
         auto result = value_attribute.access( read, 1 );
         BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );

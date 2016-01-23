@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
     BOOST_FIXTURE_TEST_CASE( can_write_zero_bytes_at_the_end, writable_value_char )
     {
         std::uint8_t c;
-        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c, 4, bluetoe::details::client_characteristic_configuration() );
+        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c, 4, bluetoe::details::client_characteristic_configuration(), nullptr );
         auto rc    = attribute_at< 0 >( 1 ).access( write, 1 );
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
     }
@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
     BOOST_FIXTURE_TEST_CASE( can_write_last_byte, writable_value_char )
     {
         std::uint8_t c = 0xff;
-        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c + 1, 3, bluetoe::details::client_characteristic_configuration() );
+        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c + 1, 3, bluetoe::details::client_characteristic_configuration(), nullptr );
         auto rc    = attribute_at< 0 >( 1 ).access( write, 1 );
 
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );

@@ -61,7 +61,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc )
+        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc, void* server )
         {
             assert( end >= begin );
 
@@ -71,7 +71,7 @@ namespace details {
                 static_cast< std::size_t >( end - begin ),
                 offset,
                 cc,
-                nullptr
+                server
             };
         }
 
@@ -88,7 +88,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc )
+        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc, void* server )
         {
             assert( end >= begin );
 
@@ -98,11 +98,11 @@ namespace details {
                 static_cast< std::size_t >( end - begin ),
                 offset,
                 cc,
-                nullptr
+                server
             };
         }
 
-        static attribute_access_arguments check_write()
+        static attribute_access_arguments check_write( void* server )
         {
             return attribute_access_arguments{
                 attribute_access_type::write,
@@ -110,7 +110,7 @@ namespace details {
                 0,
                 0,
                 client_characteristic_configuration(),
-                nullptr
+                server
             };
         }
 
@@ -126,7 +126,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments compare_value( const std::uint8_t* begin, const std::uint8_t* end )
+        static attribute_access_arguments compare_value( const std::uint8_t* begin, const std::uint8_t* end, void* server )
         {
             assert( end >= begin );
 

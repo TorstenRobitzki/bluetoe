@@ -119,7 +119,7 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, service_with_3_characteris
 {
     std::uint8_t    buffer[ 100 ];
 
-    std::uint8_t* const end = read_primary_service_response< 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), 12, true );
+    std::uint8_t* const end = read_primary_service_response< 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), 12, true, *this );
 
     BOOST_CHECK_EQUAL( end - std::begin( buffer ), 20u );
 
@@ -141,7 +141,7 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_buffer_to_small, service_wi
     std::uint8_t    buffer[ 19 ];
     std::uint16_t   index = 1;
 
-    std::uint8_t* const end = read_primary_service_response< 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), index, true );
+    std::uint8_t* const end = read_primary_service_response< 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), index, true, *this );
 
     BOOST_CHECK( end == std::begin( buffer ) );
 }
@@ -152,7 +152,7 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_spe
 {
     std::uint8_t    buffer[ 100 ];
 
-    std::uint8_t* const end = read_primary_service_response< 0, cycling_speed_and_cadence_service_list >( std::begin( buffer ), std::end( buffer ), 1, false );
+    std::uint8_t* const end = read_primary_service_response< 0, cycling_speed_and_cadence_service_list >( std::begin( buffer ), std::end( buffer ), 1, false, *this );
 
     BOOST_CHECK_EQUAL( end - std::begin( buffer ), 6u );
 
@@ -168,7 +168,7 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, cycling_spe
 
 BOOST_FIXTURE_TEST_CASE( primary_service_value_compare_128bit, global_temperature_service )
 {
-    auto compare = bluetoe::details::attribute_access_arguments::compare_value( &global_temperature_service_uuid[ 0 ], &global_temperature_service_uuid[ sizeof global_temperature_service_uuid ]);
+    auto compare = bluetoe::details::attribute_access_arguments::compare_value( &global_temperature_service_uuid[ 0 ], &global_temperature_service_uuid[ sizeof global_temperature_service_uuid ], nullptr );
     BOOST_CHECK( ( attribute_at< 0, std::tuple< global_temperature_service > >( 0 ).access( compare, 1 ) == bluetoe::details::attribute_access_result::value_equal ) );
 }
 
