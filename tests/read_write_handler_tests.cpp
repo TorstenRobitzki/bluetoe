@@ -1,5 +1,7 @@
 #include <bluetoe/characteristic_value.hpp>
 #include <bluetoe/characteristic.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/server.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
@@ -362,6 +364,56 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_with_offset, Attribute, write_handler_
     auto access = bluetoe::details::attribute_access_arguments::write( fixture, 2 );
 
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::attribute_not_long );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( mixin_handlers )
+
+struct write_mixin
+{
+    write_mixin()
+        : write_size( 0 )
+        , value( nullptr )
+    {
+    }
+
+    std::uint8_t write_handler( std::size_t w, const std::uint8_t* v )
+    {
+        write_size = w;
+        value      = v;
+
+        return 42;
+    }
+
+    std::size_t         write_size;
+    const std::uint8_t* value;
+};
+
+using writeable_char = bluetoe::characteristic<
+    bluetoe::characteristic_uuid16< 0x1234 >,
+    bluetoe::mixin_write_handler< write_mixin, &write_mixin::write_handler >
+>;
+
+using write_mixin_server = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid< 0xF8C90690, 0x3BFE, 0x4303, 0x8CE9, 0xC30C024987C8 >,
+        writeable_char,
+        bluetoe::mixin< write_mixin >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( read_from_mixin, write_mixin_server )
+{
+    static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
+
+    const auto attr = writeable_char::attribute_at< 0, bluetoe::characteristic_uuid16< 0x1234 >, write_mixin_server >( 1 );
+    auto access = bluetoe::details::attribute_access_arguments::write( fixture );
+    access.server = static_cast< write_mixin_server* >( this );
+
+    BOOST_CHECK_EQUAL( static_cast< std::int_fast16_t >( attr.access( access, 0 ) ), 42 );
+    BOOST_CHECK_EQUAL( write_size, sizeof(fixture) );
+    BOOST_CHECK( value == &fixture[ 0 ] );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

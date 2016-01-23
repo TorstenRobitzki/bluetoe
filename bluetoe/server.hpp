@@ -6,6 +6,7 @@
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
 #include <bluetoe/server_name.hpp>
+#include <bluetoe/server_meta_type.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
 #include <bluetoe/gap_service.hpp>
@@ -196,6 +197,7 @@ namespace bluetoe {
          */
         void client_disconnected( connection_data& );
 
+        typedef details::server_meta_type meta_type;
         /** @endcond */
 
     private:
@@ -531,7 +533,7 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute server< Options... >::attribute_at( std::size_t index )
     {
-        return details::attribute_from_service_list< services, 0 >::attribute_at( index );
+        return details::attribute_from_service_list< services, server< Options... > >::attribute_at( index );
     }
 
     template < typename ... Options >
@@ -893,7 +895,7 @@ namespace bluetoe {
     }
 
     namespace details {
-        template < typename ServiceList >
+        template < typename ServiceList, typename Server >
         struct collect_primary_services
         {
             collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size )
@@ -922,7 +924,7 @@ namespace bluetoe {
 
                     /// TODO: ClientCharacteristicIndex is derivable from Service and ServiceList, if 0 is used,
                     /// some templates are most likely more than once instanciated
-                    output_ = Service::template read_primary_service_response< 0, ServiceList >( output_, end_, index_, is_128bit_uuid_ );
+                    output_ = Service::template read_primary_service_response< 0, ServiceList, Server >( output_, end_, index_, is_128bit_uuid_ );
                 }
 
                 index_ += Service::number_of_attributes;
@@ -957,7 +959,7 @@ namespace bluetoe {
         ++begin; // gap for the size
 
         std::uint8_t* const data_begin = begin;
-        details::for_< services >::each( details::collect_primary_services< services >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
+        details::for_< services >::each( details::collect_primary_services< services, server< Options... > >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
 
         if ( begin == data_begin )
         {
@@ -1157,7 +1159,7 @@ namespace bluetoe {
     }
 
     namespace details {
-        template < class Iterator, class Filter, class AllServices >
+        template < class Iterator, class Filter, class AllServices, class Server >
         struct services_by_group
         {
             services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter, bool& found )
@@ -1176,7 +1178,7 @@ namespace bluetoe {
             {
                 if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
                 {
-                    const details::attribute& attr = Service::template attribute_at< 0, AllServices >( 0 );
+                    const details::attribute& attr = Service::template attribute_at< 0, AllServices, Server >( 0 );
 
                     if ( filter_( index_, attr ) )
                     {
@@ -1201,7 +1203,7 @@ namespace bluetoe {
     bool server< Options... >::all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter )
     {
         bool result = false;
-        details::for_< services >::each( details::services_by_group< Iterator, Filter, services >( starting_handle, ending_handle, iterator, filter, result ) );
+        details::for_< services >::each( details::services_by_group< Iterator, Filter, services, server< Options... > >( starting_handle, ending_handle, iterator, filter, result ) );
 
         return result;
     }

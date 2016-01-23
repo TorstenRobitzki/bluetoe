@@ -46,6 +46,7 @@ namespace details {
         std::size_t                         buffer_size;
         std::size_t                         buffer_offset;
         client_characteristic_configuration client_config;
+        void*                               server;
 
         template < std::size_t N >
         static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration())
@@ -55,7 +56,8 @@ namespace details {
                 &buffer[ 0 ],
                 N,
                 offset,
-                cc
+                cc,
+                nullptr
             };
         }
 
@@ -68,7 +70,8 @@ namespace details {
                 begin,
                 static_cast< std::size_t >( end - begin ),
                 offset,
-                cc
+                cc,
+                nullptr
             };
         }
 
@@ -80,7 +83,8 @@ namespace details {
                 const_cast< std::uint8_t* >( &buffer[ 0 ] ),
                 N,
                 offset,
-                cc
+                cc,
+                nullptr
             };
         }
 
@@ -93,7 +97,8 @@ namespace details {
                 const_cast< std::uint8_t* >( begin ),
                 static_cast< std::size_t >( end - begin ),
                 offset,
-                cc
+                cc,
+                nullptr
             };
         }
 
@@ -104,7 +109,8 @@ namespace details {
                 0,
                 0,
                 0,
-                client_characteristic_configuration()
+                client_characteristic_configuration(),
+                nullptr
             };
         }
 
@@ -115,7 +121,8 @@ namespace details {
                 const_cast< std::uint8_t* >( uuid ),
                 16u,
                 0,
-                client_characteristic_configuration()
+                client_characteristic_configuration(),
+                nullptr
             };
         }
 
@@ -128,7 +135,8 @@ namespace details {
                 const_cast< std::uint8_t* >( begin ),
                 static_cast< std::size_t >( end - begin ),
                 0,
-                client_characteristic_configuration()
+                client_characteristic_configuration(),
+                nullptr
             };
         }
     };
@@ -154,11 +162,11 @@ namespace details {
      * Given that T is a tuple with elements that implement attribute_at< std::size_t, ServiceUUID >() and number_of_attributes, the type implements
      * attribute_at() for a list of attribute lists.
      */
-    template < typename T, std::size_t ClientCharacteristicIndex, typename ServiceUUID >
+    template < typename T, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
     struct attribute_at_list;
 
-    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
-    struct attribute_at_list< std::tuple<>, ClientCharacteristicIndex, ServiceUUID >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
+    struct attribute_at_list< std::tuple<>, ClientCharacteristicIndex, ServiceUUID, Server >
     {
         static details::attribute attribute_at( std::size_t index )
         {
@@ -171,15 +179,16 @@ namespace details {
         typename T,
         typename ...Ts,
         std::size_t ClientCharacteristicIndex,
-        typename ServiceUUID >
-    struct attribute_at_list< std::tuple< T, Ts... >, ClientCharacteristicIndex, ServiceUUID >
+        typename ServiceUUID,
+        typename Server >
+    struct attribute_at_list< std::tuple< T, Ts... >, ClientCharacteristicIndex, ServiceUUID, Server >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
-                return T::template attribute_at< ClientCharacteristicIndex, ServiceUUID >( index );
+                return T::template attribute_at< ClientCharacteristicIndex, ServiceUUID, Server >( index );
 
-            typedef details::attribute_at_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs, ServiceUUID > remaining_characteristics;
+            typedef details::attribute_at_list< std::tuple< Ts... >, ClientCharacteristicIndex + T::number_of_client_configs, ServiceUUID, Server > remaining_characteristics;
 
             return remaining_characteristics::attribute_at( index - T::number_of_attributes );
         }
@@ -188,11 +197,11 @@ namespace details {
     /*
      * Iterating the list of services is the same, but needs less parameters
      */
-    template < typename Services, std::size_t ClientCharacteristicIndex = 0, typename AllServices = Services >
+    template < typename Services, typename Server, std::size_t ClientCharacteristicIndex = 0, typename AllServices = Services >
     struct attribute_from_service_list;
 
-    template < std::size_t ClientCharacteristicIndex, typename AllServices >
-    struct attribute_from_service_list< std::tuple<>, ClientCharacteristicIndex, AllServices >
+    template < typename Server, std::size_t ClientCharacteristicIndex, typename AllServices >
+    struct attribute_from_service_list< std::tuple<>, Server, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t index )
         {
@@ -204,17 +213,19 @@ namespace details {
     template <
         typename T,
         typename ...Ts,
+        typename Server,
         std::size_t ClientCharacteristicIndex,
         typename AllServices >
-    struct attribute_from_service_list< std::tuple< T, Ts... >, ClientCharacteristicIndex, AllServices >
+    struct attribute_from_service_list< std::tuple< T, Ts... >, Server, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
-                return T::template attribute_at< ClientCharacteristicIndex, AllServices >( index );
+                return T::template attribute_at< ClientCharacteristicIndex, AllServices, Server >( index );
 
             typedef details::attribute_from_service_list<
                 std::tuple< Ts... >,
+                Server,
                 ClientCharacteristicIndex + T::number_of_client_configs,
                 AllServices > remaining_characteristics;
 

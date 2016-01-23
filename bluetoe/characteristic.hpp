@@ -10,6 +10,7 @@
 #include <bluetoe/scattered_access.hpp>
 #include <bluetoe/service_uuid.hpp>
 #include <bluetoe/attribute_generator.hpp>
+#include <bluetoe/server_meta_type.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -144,7 +145,7 @@ namespace bluetoe {
         /**
          * @brief gives access to all attributes of the characteristic
          */
-        template < std::size_t ClientCharacteristicIndex, typename ServiceUUID = void >
+        template < std::size_t ClientCharacteristicIndex, typename ServiceUUID = void, typename Server = void >
         static details::attribute attribute_at( std::size_t index );
 
         /**
@@ -202,12 +203,12 @@ namespace bluetoe {
     /** @cond HIDDEN_SYMBOLS */
 
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
 
-        return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex, ServiceUUID >( index );
+        return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex, ServiceUUID, Server >( index );
     }
 
     template < typename ... Options >
@@ -333,7 +334,8 @@ namespace bluetoe {
         struct generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, ClientCharacteristicIndex, Options... >
         {
             // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
-            typedef typename characteristic_or_service_uuid< Options... >::uuid uuid;
+            typedef typename characteristic_or_service_uuid< Options... >::uuid      uuid;
+            typedef typename find_by_meta_type< server_meta_type, Options... >::type server;
 
             static const attribute attr;
         };
@@ -343,7 +345,7 @@ namespace bluetoe {
             uuid::is_128bit
                 ? bits( details::gatt_uuids::internal_128bit_uuid )
                 : uuid::as_16bit(),
-            &characteristic< Options... >::value_type::characteristic_value_access
+            &characteristic< Options... >::value_type::template characteristic_value_access< server >
         };
 
         /*

@@ -64,10 +64,14 @@ namespace details {
 
         enum { number_of_attributes     = std::tuple_size< attribute_generation_parameters >::value };
 
-        template < std::size_t ClientCharacteristicIndex, typename ServiceUUID >
+        template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
         static const attribute attribute_at( std::size_t index )
         {
-            return generate_attribute_list< attribute_generation_parameters, ClientCharacteristicIndex, typename add_type< OptionsList, ServiceUUID >::type >::attribute_at( index );
+            return generate_attribute_list<
+                attribute_generation_parameters,
+                ClientCharacteristicIndex,
+                typename add_type< OptionsList, std::tuple< ServiceUUID, Server > >::type
+            >::attribute_at( index );
         }
     };
 

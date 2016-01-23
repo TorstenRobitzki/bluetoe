@@ -148,13 +148,13 @@ namespace bluetoe {
         /**
          * ClientCharacteristicIndex is the number of characteristics with a Client Characteristic Configuration attribute
          */
-        template < std::size_t ClientCharacteristicIndex, typename ServiceList >
+        template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
         static details::attribute attribute_at( std::size_t index );
 
         /**
          * @brief assembles one data packet for a "Read by Group Type Response"
          */
-        template < std::size_t ClientCharacteristicIndex, typename ServiceList >
+        template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter );
 
         /**
@@ -243,7 +243,7 @@ namespace bluetoe {
 
     // service implementation
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex, typename ServiceList >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
     details::attribute service< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
@@ -251,11 +251,11 @@ namespace bluetoe {
         if ( index < number_of_service_attributes )
             return attribute_generator::template attribute_at< ServiceList >( index );
 
-        return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid >::attribute_at( index - number_of_service_attributes );
+        return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid, Server >::attribute_at( index - number_of_service_attributes );
     }
 
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex, typename ServiceList >
+    template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
     std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter )
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
@@ -267,7 +267,7 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            const details::attribute primary_service = attribute_at< ClientCharacteristicIndex, ServiceList >( 0 );
+            const details::attribute primary_service = attribute_at< ClientCharacteristicIndex, ServiceList, Server >( 0 );
 
             auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );
 
