@@ -331,10 +331,20 @@ namespace bluetoe {
             public:
                 using read_handler_type = typename find_by_meta_type< characteristic_value_read_handler_meta_type, Options... >::type;
                 using write_handler_type = typename find_by_meta_type< characteristic_value_write_handler_meta_type, Options... >::type;
-                static constexpr bool has_read_access  = !std::is_same< read_handler_type, no_such_type >::value;
+                static constexpr bool no_read          = has_option< no_read_access, Options... >::value;
+                static constexpr bool no_write         = has_option< no_write_access, Options... >::value;
+                static constexpr bool has_read_handler = !std::is_same< read_handler_type, no_such_type >::value;
+                static constexpr bool has_read_access  = has_read_handler && !no_read;
                 static constexpr bool has_write_access = !std::is_same< write_handler_type, no_such_type >::value;
                 static constexpr bool has_notifcation  = has_option< notify, Options... >::value;
                 static constexpr bool has_indication   = has_option< indicate, Options... >::value;
+
+                static_assert( !( no_write && has_write_access ), "There is no point in providing a write_handler and disabling write by using no_write_access" );
+
+                static_assert( !has_notifcation || has_notifcation && has_read_handler, "When enabling notification, the characteristic needs a read_handler" );
+                static_assert( !has_indication || has_indication && has_read_handler, "When enabling notification, the characteristic needs a read_handler" );
+
+                static_assert( has_read_access || has_write_access || has_notifcation || has_indication, "Ups!");
 
                 template < class Server >
                 static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )

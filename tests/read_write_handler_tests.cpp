@@ -9,6 +9,10 @@
 #include <boost/mpl/list.hpp>
 #include <boost/mpl/insert_range.hpp>
 
+#include "hexdump.hpp"
+#include "test_attribute_access.hpp"
+#include <iostream>
+
 static const std::uint8_t test_read_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
 std::uint8_t read_blob_test_value_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
@@ -315,6 +319,64 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_with_offset, Attribute, read_handler_te
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::attribute_not_long );
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_handler_characteristic_declaration_uuid, Attribute, read_handler_tests )
+{
+    const auto attr = Attribute::template attribute_at< 0 >( 0 );
+
+    BOOST_CHECK_EQUAL( attr.uuid, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_handler_characteristic_declaration_value, Attribute, read_handler_tests )
+{
+    access_attributes< Attribute >().compare_characteristic( { 0x02, 0x02, 0x00, 0x12, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_read_handler_characteristic_declaration_value_for_notifyable )
+{
+    using read_handler_with_notification = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::notify,
+        bluetoe::free_read_handler< &read_test_value_handler >
+    >;
+
+    access_attributes< read_handler_with_notification >().compare_characteristic( { 0x12, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_read_handler_characteristic_declaration_value_for_indication )
+{
+    using read_handler_with_notification = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::indicate,
+        bluetoe::free_read_handler< &read_test_value_handler >
+    >;
+
+    access_attributes< read_handler_with_notification >().compare_characteristic( { 0x22, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_read_handler_characteristic_declaration_value_for_indication_and_notification )
+{
+    using read_handler_with_notification = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::notify,
+        bluetoe::indicate,
+        bluetoe::free_read_handler< &read_test_value_handler >
+    >;
+
+    access_attributes< read_handler_with_notification >().compare_characteristic( { 0x32, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_not_readable_read_handler_characteristic_declaration_value_for_notification )
+{
+    using read_handler_with_notification = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::notify,
+        bluetoe::no_read_access,
+        bluetoe::free_read_handler< &read_test_value_handler >
+    >;
+
+    access_attributes< read_handler_with_notification >().compare_characteristic( { 0x10, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
 struct reset_test_write_value {
     reset_test_write_value()
     {
@@ -364,6 +426,67 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_with_offset, Attribute, write_handler_
     auto access = bluetoe::details::attribute_access_arguments::write( fixture, 2 );
 
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::attribute_not_long );
+}
+
+BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value )
+{
+    using write_handler = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::free_write_handler< &write_test_value_handler >
+    >;
+
+    access_attributes< write_handler >().compare_characteristic( { 0x08, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value_for_notifyable )
+{
+    using write_handler = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::notify,
+        bluetoe::free_read_handler< &read_test_value_handler >,
+        bluetoe::free_write_handler< &write_test_value_handler >
+    >;
+
+    access_attributes< write_handler >().compare_characteristic( { 0x1a, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value_for_indication )
+{
+    using write_handler = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::indicate,
+        bluetoe::free_write_handler< &write_test_value_handler >,
+        bluetoe::free_read_handler< &read_test_value_handler >
+    >;
+
+    access_attributes< write_handler >().compare_characteristic( { 0x2a, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value_for_indication_and_notification )
+{
+    using write_handler = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::notify,
+        bluetoe::indicate,
+        bluetoe::free_write_handler< &write_test_value_handler >,
+        bluetoe::free_read_handler< &read_test_value_handler >
+    >;
+
+    access_attributes< write_handler >().compare_characteristic( { 0x3a, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
+}
+
+BOOST_AUTO_TEST_CASE( test_not_readable_write_handler_characteristic_declaration_value_for_notification )
+{
+    using write_handler = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1215 >,
+        bluetoe::notify,
+        bluetoe::indicate,
+        bluetoe::no_read_access,
+        bluetoe::free_read_handler< &read_test_value_handler >,
+        bluetoe::free_write_handler< &write_test_value_handler >
+    >;
+
+    access_attributes< write_handler >().compare_characteristic( { 0x38, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
