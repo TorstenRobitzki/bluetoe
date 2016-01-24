@@ -7,7 +7,9 @@
 
 
 typedef bluetoe::server<
-    bluetoe::cycling_speed_and_cadence<>
+    bluetoe::cycling_speed_and_cadence<
+        bluetoe::sensor_location::top_of_shoe
+    >
 > csc_server;
 
 struct service_discover_base {
@@ -182,7 +184,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
      */
     BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_characteristics )
     {
-//        BOOST_CHECK_EQUAL( cs_control_point.properties, 0x28 );
+        BOOST_CHECK_EQUAL( cs_control_point.properties, 0x28 );
         BOOST_CHECK_EQUAL( cs_control_point.uuid, 0x2A55 );
     }
 
@@ -297,16 +299,20 @@ BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
         BOOST_CHECK_EQUAL( value & 0xFFF8, 0 );
     }
 
-    // BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_descriptors )
-    // {
-    //     l2cap_input({
-    //         0x0A, low( sensor_location.value_attribute_handle ), high( sensor_location.value_attribute_handle )
-    //     });
+    /*
+     * TP/CR/BV-02-C
+     */
+    BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_descriptors )
+    {
+        l2cap_input({
+            0x0A, low( sensor_location.value_attribute_handle ), high( sensor_location.value_attribute_handle )
+        });
 
-    //     BOOST_CHECK_EQUAL( response[ 0 ], 0x0b ); // response opcode
+        BOOST_CHECK_EQUAL( response[ 0 ], 0x0b ); // response opcode
 
-    //     // 1 octet with value other than RFU range.
-    //     BOOST_CHECK_EQUAL( response_size, 2 );
-    // }
+        // 1 octet with value other than RFU range.
+        BOOST_CHECK_EQUAL( response_size, 2 );
+        BOOST_CHECK_LT( response[ 1 ], 15 );
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -20,7 +20,7 @@ namespace bluetoe {
     };
 
     /**
-         * @brief enumeration of appearances (org.bluetooth.characteristic.gap.appearance)
+     * @brief enumeration of appearances (org.bluetooth.characteristic.gap.appearance)
      *
      * The class contains a lot of alias-declarations for known, assigned device appearances.
      * Pass one of the types to the server definition, to define the appearance to the GATT client.

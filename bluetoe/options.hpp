@@ -5,6 +5,10 @@
 #include <type_traits>
 #include <tuple>
 
+/**
+ * @file bluetoe/options.hpp
+ * This file contains all the generic meta template functions that are required by bluetoe
+ */
 namespace bluetoe {
 namespace details {
 
