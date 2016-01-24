@@ -316,3 +316,71 @@ BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
+
+    template < typename Fixture >
+    void reset_handle( Fixture& fixture, uint16_t handle )
+    {
+        fixture.l2cap_input({
+            0x12,
+            fixture.low( handle ), fixture.high( handle ),
+            0x00, 0x00
+        });
+
+        BOOST_CHECK_EQUAL( fixture.response[ 0 ], 0x13 ); // response opcode
+    }
+
+    /*
+     * TP/CON/BV-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_test, discover_all_descriptors )
+    {
+        reset_handle( *this, csc_measurement_client_configuration.handle );
+
+        l2cap_input({
+            0x12,
+            low( csc_measurement_client_configuration.handle ), high( csc_measurement_client_configuration.handle ),
+            0x01, 0x00
+        });
+
+        // The Lower Tester reads the value of the client characteristic configuration descriptor.
+        expected_result({ 0x13 });
+
+        l2cap_input({
+            0x0a,
+            low( csc_measurement_client_configuration.handle ), high( csc_measurement_client_configuration.handle ),
+        });
+
+        expected_result({
+            0x0b, 0x01, 0x00
+        });
+    }
+
+    /*
+     * TP/CON/BV-02-C
+     */
+    BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_descriptors )
+    {
+        reset_handle( *this, sc_control_point_client_configuration.handle );
+
+        l2cap_input({
+            0x12,
+            low( sc_control_point_client_configuration.handle ), high( sc_control_point_client_configuration.handle ),
+            0x02, 0x00
+        });
+
+        // The Lower Tester reads the value of the client characteristic configuration descriptor.
+        expected_result({ 0x13 });
+
+        l2cap_input({
+            0x0a,
+            low( sc_control_point_client_configuration.handle ), high( sc_control_point_client_configuration.handle ),
+        });
+
+        expected_result({
+            0x0b, 0x02, 0x00
+        });
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
