@@ -150,6 +150,39 @@ namespace bluetoe {
         void notify( const T& value );
 
         /**
+         * Notify a characteristic, by giving the characteristic UUID.
+         *
+         * The charactieristic to be notify, must have been configured for notificaton.
+         *
+         * @sa notify
+         * @sa characteristic
+         *
+         * Example:
+         @code
+        std::int32_t temperature;
+
+        typedef bluetoe::server<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x0815 >,
+                bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
+                bluetoe::notify
+            >
+        > temperature_service;
+
+        int main()
+        {
+            temperature_service server;
+
+            server.notify< bluetoe::characteristic_uuid16< 0x0815 > >();
+        }
+        @endcode
+
+         */
+        template < class CharacteristicUUID >
+        void notify();
+
+        /**
          * @brief sends indications to all connceted clients.
          *
          * The function is mostly similar to notify(). Instead of a ATT notification, an ATT indication is send.
@@ -445,6 +478,20 @@ namespace bluetoe {
 
         if ( l2cap_cb_ )
             l2cap_cb_( data, l2cap_arg_, notification );
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    void server< Options... >::notify()
+    {
+        static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
+
+        typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
+
+        static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Notified characteristic not found by UUID." );
+
+        if ( l2cap_cb_ )
+            l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, notification );
     }
 
     template < typename ... Options >

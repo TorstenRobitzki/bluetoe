@@ -341,6 +341,82 @@ namespace details {
         }
     };
 
+    /*
+     * Given a list of characteristics, find the data required for notification
+     */
+    template < typename CharacteristicList, typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_characteristic_list;
+
+    template < typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    {
+        typedef details::no_such_type type;
+    };
+
+    template <
+        typename Characteristic,
+        typename ... Characteristics,
+        typename UUID,
+        std::size_t FirstAttributesHandle,
+        std::size_t ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple< Characteristic, Characteristics...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    {
+        using found = std::is_same< typename Characteristic::configured_uuid, UUID >;
+
+        using next = typename find_characteristic_data_by_uuid_in_characteristic_list<
+            std::tuple< Characteristics... >,
+            UUID,
+            FirstAttributesHandle + Characteristic::number_of_attributes,
+            ClientCharacteristicIndex + Characteristic::number_of_client_configs >::type;
+
+        struct result
+        {
+            static details::notification_data get_notification_data() {
+                return Characteristic::template find_notification_data_by_index< FirstAttributesHandle, ClientCharacteristicIndex >( ClientCharacteristicIndex );
+            }
+        };
+
+        typedef typename details::select_type<
+            found::value,
+            result,
+            next
+        >::type type;
+    };
+
+    /*
+     * Given a list of services and a UUID, find the data required for notification
+     */
+    template < typename ServiceList, typename UUID, std::size_t FirstAttributesHandle = 1, std::size_t ClientCharacteristicIndex = 0 >
+    struct find_characteristic_data_by_uuid_in_service_list;
+
+    template < typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_service_list< std::tuple<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    {
+        typedef details::no_such_type type;
+    };
+
+    template <
+        typename Service,
+        typename ... Services,
+        typename UUID,
+        std::size_t FirstAttributesHandle,
+        std::size_t ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_service_list< std::tuple< Service, Services...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    {
+        typedef typename find_characteristic_data_by_uuid_in_characteristic_list<
+            typename Service::characteristics, UUID, FirstAttributesHandle, ClientCharacteristicIndex >::type c_type;
+
+        typedef typename find_characteristic_data_by_uuid_in_service_list<
+            std::tuple< Services... >, UUID, FirstAttributesHandle + Service::number_of_attributes, ClientCharacteristicIndex + Service::number_of_client_configs >::type l_type;
+
+        typedef typename details::or_type<
+            details::no_such_type,
+            c_type,
+            l_type
+        >::type type;
+    };
+
+
     inline attribute_access_result attribute_value_read_access( attribute_access_arguments& args, const std::uint8_t* memory, std::size_t size )
     {
         if ( args.type == attribute_access_type::compare_value )

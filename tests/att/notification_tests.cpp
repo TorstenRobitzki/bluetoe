@@ -4,7 +4,7 @@
 #include "test_servers.hpp"
 #include <array>
 
-BOOST_AUTO_TEST_SUITE( notifications )
+BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
     std::uint8_t value = 0;
 
@@ -144,6 +144,77 @@ BOOST_AUTO_TEST_SUITE( notifications )
         expected_output( value_b1, {}, con2 );
 
     }
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
+
+    static const std::uint16_t value1 = 0x1111;
+    static const std::uint16_t value2 = 0x2222;
+    static const std::uint16_t value3 = 0x3333;
+    static const std::uint16_t dummy  = 0x4444;
+
+    typedef bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x8C8B >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x1111 >,
+                bluetoe::bind_characteristic_value< decltype( value1 ), &value1 >,
+                bluetoe::notify
+            >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0xffff >,
+                bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
+            >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x2222 >,
+                bluetoe::bind_characteristic_value< decltype( value2 ), &value2 >,
+                bluetoe::notify
+            >
+        >,
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x8C8C >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0xffff >,
+                bluetoe::bind_characteristic_value< decltype( dummy ), &dummy >
+            >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x3333 >,
+                bluetoe::bind_characteristic_value< decltype( value3 ), &value3 >,
+                bluetoe::notify
+            >
+        >
+    > server;
+
+    BOOST_FIXTURE_TEST_CASE( notify_first_16bit_uuid, request_with_reponse< server > )
+    {
+        notify< bluetoe::characteristic_uuid16< 0x1111 > >();
+
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x1111 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 0 );
+        BOOST_CHECK_EQUAL( notification_type, server::notification );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, request_with_reponse< server > )
+    {
+        notify< bluetoe::characteristic_uuid16< 0x2222 > >();
+
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x2222 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1 );
+        BOOST_CHECK_EQUAL( notification_type, server::notification );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( notify_third_16bit_uuid, request_with_reponse< server > )
+    {
+        notify< bluetoe::characteristic_uuid16< 0x3333 > >();
+
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x3333 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 2 );
+        BOOST_CHECK_EQUAL( notification_type, server::notification );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( access_client_characteristic_configuration )

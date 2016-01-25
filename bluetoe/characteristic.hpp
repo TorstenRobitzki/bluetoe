@@ -142,6 +142,9 @@ namespace bluetoe {
 
         typedef details::characteristic_meta_type meta_type;
 
+        // this is just the configured UUID, if auto uuids are used, this will be no_such_type
+        typedef typename details::find_by_meta_type< details::characteristic_uuid_meta_type, Options... >::type configured_uuid;
+
         /**
          * @brief gives access to all attributes of the characteristic
          */
