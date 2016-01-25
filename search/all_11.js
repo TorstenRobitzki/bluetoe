@@ -12,11 +12,16 @@ var searchData=
   ['read_5fhandler_5fcv',['read_handler_cv',['../structbluetoe_1_1read__handler__cv.html',1,'bluetoe']]],
   ['read_5fhandler_5fv',['read_handler_v',['../structbluetoe_1_1read__handler__v.html',1,'bluetoe']]],
   ['read_5fnot_5fpermitted',['read_not_permitted',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6',1,'bluetoe::error_codes']]],
+  ['rear_5fdropout',['rear_dropout',['../structbluetoe_1_1sensor__location.html#a96ad69ef34d214aa806a81d8ce6e6a1b',1,'bluetoe::sensor_location']]],
+  ['rear_5fhub',['rear_hub',['../structbluetoe_1_1sensor__location.html#a346076e520f0836d21a7ca0456efb16e',1,'bluetoe::sensor_location']]],
+  ['rear_5fwheel',['rear_wheel',['../structbluetoe_1_1sensor__location.html#a583e9bb59bfd8eaf3a02a70cfb8b9fa8',1,'bluetoe::sensor_location']]],
   ['receive_5fbuffer_5fsize',['receive_buffer_size',['../structbluetoe_1_1link__layer_1_1buffer__sizes.html#ac44df9e5e10467bc8dc721db8ee7290b',1,'bluetoe::link_layer::buffer_sizes']]],
   ['received',['received',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
   ['remote_5fcontrol',['remote_control',['../structbluetoe_1_1appearance.html#a0ad197eb779a879234569a49fab3b4e9',1,'bluetoe::appearance']]],
   ['request_5fnot_5fsupported',['request_not_supported',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e',1,'bluetoe::error_codes']]],
   ['reset',['reset',['../classbluetoe_1_1link__layer_1_1channel__map.html#a0b70a6b62616663d1e810eeb956ab1c2',1,'bluetoe::link_layer::channel_map::reset(const std::uint8_t *map, const unsigned hop)'],['../classbluetoe_1_1link__layer_1_1channel__map.html#a209adee53de8bf067c6cdb39ffc9c2bf',1,'bluetoe::link_layer::channel_map::reset(const std::uint8_t *map)'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a5590ce333bb446d38ed3ae49600ffb48',1,'bluetoe::link_layer::ll_data_pdu_buffer::reset()'],['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a3f42a55e0e3e3ab224eb0e63258b04b9',1,'bluetoe::link_layer::pdu_ring_buffer::reset()']]],
+  ['right_5fcrank',['right_crank',['../structbluetoe_1_1sensor__location.html#a681c0833808c28f632a6ea59562b803e',1,'bluetoe::sensor_location']]],
+  ['right_5fpedal',['right_pedal',['../structbluetoe_1_1sensor__location.html#a230346a39ba7c1b82dfd7d5cb2dfcaa4',1,'bluetoe::sensor_location']]],
   ['run',['run',['../classbluetoe_1_1binding_1_1btstack__libusb__device.html#a3e2ce3665f0506ab637b220b70d70cb9',1,'bluetoe::binding::btstack_libusb_device::run()'],['../classbluetoe_1_1link__layer_1_1link__layer.html#a73a711903022c39039c9ffaa0c0553fe',1,'bluetoe::link_layer::link_layer::run()']]],
   ['running_5fwalking_5fsensor',['running_walking_sensor',['../structbluetoe_1_1appearance.html#a6b369c77d745d484d916307cf420c43c',1,'bluetoe::appearance']]]
 ];

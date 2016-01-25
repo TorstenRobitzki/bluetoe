@@ -14,6 +14,5 @@ var searchData=
   ['more_5fthan_5fone',['more_than_one',['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#afecc0b3979ce606729484d4bb178aee0',1,'bluetoe::link_layer::pdu_ring_buffer']]],
   ['mouse',['mouse',['../structbluetoe_1_1appearance.html#aba681db050f173abe49411799b5b6d19',1,'bluetoe::appearance']]],
   ['msb',['msb',['../classbluetoe_1_1link__layer_1_1address.html#a14aa3727dc0170735a87e1c7e3a75b2e',1,'bluetoe::link_layer::address']]],
-  ['msec',['msec',['../classbluetoe_1_1link__layer_1_1delta__time.html#a29f6ee40f3379dadf3e73acd1bdb9c32',1,'bluetoe::link_layer::delta_time']]],
-  ['multiple_5fsensor_5flocations_5fsupported',['multiple_sensor_locations_supported',['../structbluetoe_1_1csc_1_1multiple__sensor__locations__supported.html',1,'bluetoe::csc']]]
+  ['msec',['msec',['../classbluetoe_1_1link__layer_1_1delta__time.html#a29f6ee40f3379dadf3e73acd1bdb9c32',1,'bluetoe::link_layer::delta_time']]]
 ];

@@ -1,6 +1,8 @@
 var searchData=
 [
   ['card_5freader',['card_reader',['../structbluetoe_1_1appearance.html#af279a12b8ee6add6887cd4cba95de98e',1,'bluetoe::appearance']]],
+  ['chainstay',['chainstay',['../structbluetoe_1_1sensor__location.html#a8492a28d73dd8cff518e87c133cb49f3',1,'bluetoe::sensor_location']]],
+  ['chest',['chest',['../structbluetoe_1_1sensor__location.html#a281361aa2b1b75d81bc0c12c68cd74e4',1,'bluetoe::sensor_location']]],
   ['clock',['clock',['../structbluetoe_1_1appearance.html#a1fa07556b23e1214ccee79a0f415b313',1,'bluetoe::appearance']]],
   ['computer',['computer',['../structbluetoe_1_1appearance.html#ab1ec423458e8d182d59b18d784962b84',1,'bluetoe::appearance']]],
   ['const_5fiterator',['const_iterator',['../classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4',1,'bluetoe::link_layer::address']]],

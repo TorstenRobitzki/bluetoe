@@ -96,7 +96,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00004"></a><span class="lineno">    4</span>&#160;<span class="preprocessor">#include &lt;bluetoe/service_uuid.hpp&gt;</span></div>
 <div class="line"><a name="l00005"></a><span class="lineno">    5</span>&#160;<span class="preprocessor">#include &lt;bluetoe/attribute.hpp&gt;</span></div>
 <div class="line"><a name="l00006"></a><span class="lineno">    6</span>&#160;<span class="preprocessor">#include &lt;bluetoe/codes.hpp&gt;</span></div>
-<div class="line"><a name="l00007"></a><span class="lineno">    7</span>&#160;<span class="preprocessor">#include &lt;bluetoe/options.hpp&gt;</span></div>
+<div class="line"><a name="l00007"></a><span class="lineno">    7</span>&#160;<span class="preprocessor">#include &lt;<a class="code" href="options_8hpp.html">bluetoe/options.hpp</a>&gt;</span></div>
 <div class="line"><a name="l00008"></a><span class="lineno">    8</span>&#160;<span class="preprocessor">#include &lt;bluetoe/uuid.hpp&gt;</span></div>
 <div class="line"><a name="l00009"></a><span class="lineno">    9</span>&#160;<span class="preprocessor">#include &lt;bluetoe/characteristic.hpp&gt;</span></div>
 <div class="line"><a name="l00010"></a><span class="lineno">   10</span>&#160;<span class="preprocessor">#include &lt;bluetoe/bits.hpp&gt;</span></div>
@@ -164,11 +164,11 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00145"></a><span class="lineno">  145</span>&#160;</div>
 <div class="line"><a name="l00146"></a><span class="lineno">  146</span>&#160;        <span class="keyword">typedef</span> details::service_meta_type meta_type;</div>
 <div class="line"><a name="l00147"></a><span class="lineno">  147</span>&#160;</div>
-<div class="line"><a name="l00151"></a><span class="lineno">  151</span>&#160;        <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList &gt;</div>
+<div class="line"><a name="l00151"></a><span class="lineno">  151</span>&#160;        <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList, <span class="keyword">typename</span> Server = <span class="keywordtype">void</span> &gt;</div>
 <div class="line"><a name="l00152"></a><span class="lineno">  152</span>&#160;        <span class="keyword">static</span> details::attribute attribute_at( std::size_t index );</div>
 <div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160;</div>
-<div class="line"><a name="l00157"></a><span class="lineno">  157</span>&#160;        <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList &gt;</div>
-<div class="line"><a name="l00158"></a><span class="lineno">  158</span>&#160;        <span class="keyword">static</span> std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, <span class="keywordtype">bool</span> is_128bit_filter );</div>
+<div class="line"><a name="l00157"></a><span class="lineno">  157</span>&#160;        <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList, <span class="keyword">typename</span> Server = <span class="keywordtype">void</span> &gt;</div>
+<div class="line"><a name="l00158"></a><span class="lineno">  158</span>&#160;        <span class="keyword">static</span> std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, <span class="keywordtype">bool</span> is_128bit_filter, Server&amp; <a class="code" href="classbluetoe_1_1server.html">server</a> );</div>
 <div class="line"><a name="l00159"></a><span class="lineno">  159</span>&#160;</div>
 <div class="line"><a name="l00164"></a><span class="lineno">  164</span>&#160;        <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> FirstAttributesHandle, std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex &gt;</div>
 <div class="line"><a name="l00165"></a><span class="lineno">  165</span>&#160;        <span class="keyword">static</span> details::notification_data find_notification_data( <span class="keyword">const</span> <span class="keywordtype">void</span>* value );</div>
@@ -206,7 +206,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00236"></a><span class="lineno">  236</span>&#160;</div>
 <div class="line"><a name="l00244"></a><span class="lineno">  244</span>&#160;    <span class="comment">// service implementation</span></div>
 <div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;    <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
-<div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;    <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList &gt;</div>
+<div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;    <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList, <span class="keyword">typename</span> Server &gt;</div>
 <div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;    details::attribute <a class="code" href="classbluetoe_1_1service.html">service&lt; Options... &gt;::attribute_at</a>( std::size_t index )</div>
 <div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160;    {</div>
 <div class="line"><a name="l00249"></a><span class="lineno">  249</span>&#160;        assert( index &lt; number_of_attributes );</div>
@@ -214,12 +214,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00251"></a><span class="lineno">  251</span>&#160;        <span class="keywordflow">if</span> ( index &lt; number_of_service_attributes )</div>
 <div class="line"><a name="l00252"></a><span class="lineno">  252</span>&#160;            <span class="keywordflow">return</span> attribute_generator::template attribute_at&lt; ServiceList &gt;( index );</div>
 <div class="line"><a name="l00253"></a><span class="lineno">  253</span>&#160;</div>
-<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;        <span class="keywordflow">return</span> details::attribute_at_list&lt; characteristics, ClientCharacteristicIndex, uuid &gt;::attribute_at( index - number_of_service_attributes );</div>
+<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;        <span class="keywordflow">return</span> details::attribute_at_list&lt; characteristics, ClientCharacteristicIndex, uuid, Server &gt;::attribute_at( index - number_of_service_attributes );</div>
 <div class="line"><a name="l00255"></a><span class="lineno">  255</span>&#160;    }</div>
 <div class="line"><a name="l00256"></a><span class="lineno">  256</span>&#160;</div>
 <div class="line"><a name="l00257"></a><span class="lineno">  257</span>&#160;    <span class="keyword">template</span> &lt; <span class="keyword">typename</span> ... Options &gt;</div>
-<div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;    <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList &gt;</div>
-<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;    std::uint8_t* service&lt; Options... &gt;::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, <span class="keywordtype">bool</span> is_128bit_filter )</div>
+<div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;    <span class="keyword">template</span> &lt; std::<span class="keywordtype">size_t</span> ClientCharacteristicIndex, <span class="keyword">typename</span> ServiceList, <span class="keyword">typename</span> Server &gt;</div>
+<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;    std::uint8_t* service&lt; Options... &gt;::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, <span class="keywordtype">bool</span> is_128bit_filter, Server&amp; sever )</div>
 <div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;    {</div>
 <div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160;        <span class="keyword">const</span> std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;</div>
 <div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160;</div>
@@ -230,9 +230,9 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;            output = details::write_handle( output, starting_index );</div>
 <div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160;            output = details::write_handle( output, starting_index + number_of_attributes -1 );</div>
 <div class="line"><a name="l00269"></a><span class="lineno">  269</span>&#160;</div>
-<div class="line"><a name="l00270"></a><span class="lineno">  270</span>&#160;            <span class="keyword">const</span> details::attribute primary_service = attribute_at&lt; ClientCharacteristicIndex, ServiceList &gt;( 0 );</div>
+<div class="line"><a name="l00270"></a><span class="lineno">  270</span>&#160;            <span class="keyword">const</span> details::attribute primary_service = attribute_at&lt; ClientCharacteristicIndex, ServiceList, Server &gt;( 0 );</div>
 <div class="line"><a name="l00271"></a><span class="lineno">  271</span>&#160;</div>
-<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;            <span class="keyword">auto</span> read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration() );</div>
+<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;            <span class="keyword">auto</span> read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration(), &amp;sever );</div>
 <div class="line"><a name="l00273"></a><span class="lineno">  273</span>&#160;</div>
 <div class="line"><a name="l00274"></a><span class="lineno">  274</span>&#160;            <span class="keywordflow">if</span> ( primary_service.access( read, 1 ) == details::attribute_access_result::success )</div>
 <div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160;            {</div>
@@ -461,11 +461,13 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="ttc" id="namespacebluetoe_html"><div class="ttname"><a href="namespacebluetoe.html">bluetoe</a></div><div class="ttdef"><b>Definition:</b> appearance.hpp:4</div></div>
 <div class="ttc" id="structbluetoe_1_1is__secondary__service_html"><div class="ttname"><a href="structbluetoe_1_1is__secondary__service.html">bluetoe::is_secondary_service</a></div><div class="ttdoc">modifier that defines a service to be a secondary service. </div><div class="ttdef"><b>Definition:</b> service.hpp:182</div></div>
 <div class="ttc" id="structbluetoe_1_1secondary__service_html"><div class="ttname"><a href="structbluetoe_1_1secondary__service.html">bluetoe::secondary_service</a></div><div class="ttdoc">definition of a secondary service </div><div class="ttdef"><b>Definition:</b> service.hpp:200</div></div>
+<div class="ttc" id="classbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server. </div><div class="ttdef"><b>Definition:</b> mixin.hpp:11</div></div>
+<div class="ttc" id="options_8hpp_html"><div class="ttname"><a href="options_8hpp.html">options.hpp</a></div></div>
 <div class="ttc" id="structbluetoe_1_1include__service_html"><div class="ttname"><a href="structbluetoe_1_1include__service.html">bluetoe::include_service</a></div><div class="ttdoc">includes an other service into the defined service </div><div class="ttdef"><b>Definition:</b> service.hpp:214</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue Jan 19 2016 15:08:35 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Jan 25 2016 09:27:35 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>
