@@ -101,7 +101,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = !std::is_const< T >::value && !details::has_option< no_write_access, Options... >::value;
-            static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
+            static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             template < class Server >
@@ -181,7 +181,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = false;
-            static constexpr bool has_notifcation  = details::has_option< notify, Options... >::value;
+            static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             template < class Server >
@@ -250,7 +250,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = true;
             static constexpr bool has_write_access = false;
-            static constexpr bool has_notifcation  = false;
+            static constexpr bool has_notification = false;
             static constexpr bool has_indication   = false;
 
             template < class Server >
@@ -336,15 +336,15 @@ namespace bluetoe {
                 static constexpr bool has_read_handler = !std::is_same< read_handler_type, no_such_type >::value;
                 static constexpr bool has_read_access  = has_read_handler && !no_read;
                 static constexpr bool has_write_access = !std::is_same< write_handler_type, no_such_type >::value;
-                static constexpr bool has_notifcation  = has_option< notify, Options... >::value;
+                static constexpr bool has_notification = has_option< notify, Options... >::value;
                 static constexpr bool has_indication   = has_option< indicate, Options... >::value;
 
                 static_assert( !( no_write && has_write_access ), "There is no point in providing a write_handler and disabling write by using no_write_access" );
 
-                static_assert( !has_notifcation || has_notifcation && has_read_handler, "When enabling notification, the characteristic needs a read_handler" );
+                static_assert( !has_notification || has_notification && has_read_handler, "When enabling notification, the characteristic needs a read_handler" );
                 static_assert( !has_indication || has_indication && has_read_handler, "When enabling notification, the characteristic needs a read_handler" );
 
-                static_assert( has_read_access || has_write_access || has_notifcation || has_indication, "Ups!");
+                static_assert( has_read_access || has_write_access || has_notification || has_indication, "Ups!");
 
                 template < class Server >
                 static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )

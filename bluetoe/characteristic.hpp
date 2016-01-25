@@ -220,7 +220,7 @@ namespace bluetoe {
     {
         static_assert( FirstAttributesHandle != 0, "FirstAttributesHandle is invalid" );
 
-        if ( !value_type::is_this( value ) || !( value_type::has_notifcation || value_type::has_indication ) )
+        if ( !value_type::is_this( value ) || !( value_type::has_notification || value_type::has_indication ) )
             return details::notification_data();
 
         return
@@ -296,7 +296,7 @@ namespace bluetoe {
                     static_cast< std::uint8_t >(
                         ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
                         ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 ) |
-                        ( value_type::has_notifcation  ? bits( details::gatt_characteristic_properties::notify ) : 0 ) |
+                        ( value_type::has_notification ? bits( details::gatt_characteristic_properties::notify ) : 0 ) |
                         ( value_type::has_indication   ? bits( details::gatt_characteristic_properties::indicate ) : 0 ) )
                 };
 

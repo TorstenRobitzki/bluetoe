@@ -153,6 +153,7 @@ namespace bluetoe {
          * Notify a characteristic, by giving the characteristic UUID.
          *
          * The charactieristic to be notify, must have been configured for notificaton.
+         * If multiple characteristics exists with the given UUID, the first characteristic will be notified.
          *
          * @sa notify
          * @sa characteristic
@@ -185,10 +186,18 @@ namespace bluetoe {
         /**
          * @brief sends indications to all connceted clients.
          *
-         * The function is mostly similar to notify(). Instead of a ATT notification, an ATT indication is send.
+         * The function is mostly similar to notify(). Instead of an ATT notification, an ATT indication is send.
          */
         template < class T >
         void indicate( const T& value );
+
+        /**
+         * @brief sends indications to all connceted clients.
+         *
+         * The function is mostly similar to notify(). Instead of aa ATT notification, an ATT indication is send.
+         */
+        template < class CharacteristicUUID >
+        void indicate();
 
         /** @cond HIDDEN_SYMBOLS */
         // function relevant only for l2cap layers
@@ -489,6 +498,7 @@ namespace bluetoe {
         typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
 
         static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Notified characteristic not found by UUID." );
+        static_assert( characteristic::has_notification, "Characteristic must be configured for notification!" );
 
         if ( l2cap_cb_ )
             l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, notification );
@@ -505,6 +515,21 @@ namespace bluetoe {
 
         if ( l2cap_cb_ )
             l2cap_cb_( data, l2cap_arg_, indication );
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    void server< Options... >::indicate()
+    {
+        static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
+
+        typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
+
+        static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Indicated characteristic not found by UUID." );
+        static_assert( characteristic::has_indication, "Characteristic must be configured for indication!" );
+
+        if ( l2cap_cb_ )
+            l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, indication );
     }
 
     template < typename ... Options >
