@@ -52,6 +52,7 @@ script:
   - cd build
   - cmake -DCMAKE_CXX_COMPILER=$COMPILER ..
   - make all_tests.run
+  - make build_examples
 
 after_success:
   - cd $TRAVIS_BUILD_DIR
