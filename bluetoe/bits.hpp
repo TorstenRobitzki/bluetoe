@@ -40,6 +40,11 @@ namespace details {
         return write_handle( out, bits16 );
     }
 
+    inline std::uint8_t* write_32bit( std::uint8_t* out, std::uint32_t bits32 )
+    {
+        return write_16bit( write_16bit( out, bits32 & 0xffff ), bits32 >> 16 );
+    }
+
     inline std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )
     {
         *out = bits( opcode );
