@@ -6,9 +6,38 @@
 #include "../test_servers.hpp"
 
 
+class data_handler
+{
+public:
+    void next_time( std::uint16_t time, std::uint32_t wheel, std::uint16_t crank )
+    {
+        time_  = time;
+        wheel_ = wheel;
+        crank_ = crank;
+    }
+
+    std::pair< std::uint32_t, std::uint16_t > cumulative_wheel_revolutions()
+    {
+        return std::pair< std::uint32_t, std::uint16_t >( wheel_, time_ );
+    }
+
+    std::pair< std::uint16_t, std::uint16_t > cumulative_crank_revolutions()
+    {
+        return std::pair< std::uint16_t, std::uint16_t >( crank_, time_ );
+    }
+
+private:
+    std::uint16_t time_;
+    std::uint32_t wheel_;
+    std::uint16_t crank_;
+};
+
 typedef bluetoe::server<
     bluetoe::cycling_speed_and_cadence<
-        bluetoe::sensor_location::top_of_shoe
+        bluetoe::sensor_location::top_of_shoe,
+        bluetoe::csc::wheel_revolution_data_supported,
+        bluetoe::csc::crank_revolution_data_supported,
+        bluetoe::csc::handler< data_handler >
     >
 > csc_server;
 
@@ -67,7 +96,8 @@ BOOST_AUTO_TEST_SUITE( service_definition )
             bluetoe::include_service< bluetoe::csc::service_uuid >
         >,
         bluetoe::cycling_speed_and_cadence<
-            bluetoe::is_secondary_service
+            bluetoe::is_secondary_service,
+            bluetoe::csc::handler< data_handler >
         >
     > csc_secondary_server;
 
@@ -344,9 +374,9 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
             0x01, 0x00
         });
 
-        // The Lower Tester reads the value of the client characteristic configuration descriptor.
         expected_result({ 0x13 });
 
+        // The Lower Tester reads the value of the client characteristic configuration descriptor.
         l2cap_input({
             0x0a,
             low( csc_measurement_client_configuration.handle ), high( csc_measurement_client_configuration.handle ),
@@ -370,9 +400,9 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
             0x02, 0x00
         });
 
-        // The Lower Tester reads the value of the client characteristic configuration descriptor.
         expected_result({ 0x13 });
 
+        // The Lower Tester reads the value of the client characteristic configuration descriptor.
         l2cap_input({
             0x0a,
             low( sc_control_point_client_configuration.handle ), high( sc_control_point_client_configuration.handle ),
@@ -380,6 +410,52 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
 
         expected_result({
             0x0b, 0x02, 0x00
+        });
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+struct discover_and_configure_all_descriptor : discover_all_descriptors
+{
+    discover_and_configure_all_descriptor()
+    {
+        l2cap_input({
+            0x12,
+            low( csc_measurement_client_configuration.handle ), high( csc_measurement_client_configuration.handle ),
+            0x01, 0x00
+        });
+        expected_result({ 0x13 });
+
+        l2cap_input({
+            0x12,
+            low( sc_control_point_client_configuration.handle ), high( sc_control_point_client_configuration.handle ),
+            0x02, 0x00
+        });
+        expected_result({ 0x13 });
+    }
+};
+
+BOOST_AUTO_TEST_SUITE( characteristic_notification )
+
+    /*
+     * TP/CN/BV-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_notifications__wheel_revolution_data, discover_and_configure_all_descriptor )
+    {
+        // update values
+        next_time( 0x1234, 0x23456789, 0x3456 );
+        notify_timed_update( *static_cast< csc_server* >( this ) );
+
+        // notification?
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification_type, csc_server::notification );
+
+        // lets generate a notification pdu
+        expected_output( notification, {
+            0x1b, 0x03, 0x00,                   // indication < handle >
+            0x03,                               // flags
+            0x89, 0x67, 0x45, 0x23, 0x34, 0x12, // wheel and time
+            0x56, 0x34, 0x34, 0x12              // crank and time
         });
     }
 

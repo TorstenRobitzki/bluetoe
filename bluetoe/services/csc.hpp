@@ -10,18 +10,74 @@ namespace bluetoe {
 
     namespace csc {
 
-        struct wheel_revolution_data_supported {};
-        struct crank_revolution_data_supported {};
-
+        /**
+         * The assigned 16 bit UUID for the Cycling Speed and Cadence service
+         */
         using service_uuid = service_uuid16< 0x1816 >;
 
         namespace details {
+            struct handler_tag;
+
+            struct wheel_revolution_data_handler_tag {};
+            struct crank_revolution_data_handler_tag {};
+        }
+
+        /**
+         * @brief parameter that adds, how the CSC service implementation gets the data needed.
+         *
+         * For further details on the requirement that Handler have to fulfile see cycling_speed_and_cadence_handler_prototype
+         */
+        template < typename Handler >
+        struct handler
+        {
+            typedef details::handler_tag meta_type;
+
+            typedef Handler user_handler;
+        };
+
+        struct wheel_revolution_data_supported {
             /** @cond HIDDEN_SYMBOLS */
-            static constexpr char service_name[] = "Cycling Speed and Cadence";
-            static constexpr char measurement_name[] = "CSC Measurement";
-            static constexpr char feature_name[] = "CSC Feature";
-            static constexpr char sensor_location_name[] = "Sensor Location";
-            static constexpr char control_point_name[] = "SC Control Point";
+            typedef details::wheel_revolution_data_handler_tag meta_type;
+
+            template < class T >
+            void add_wheel_mesurement( std::uint8_t& flags, std::uint8_t*& out_buffer, T& handler )
+            {
+                flags |= 0x01;
+
+                const std::pair< std::uint32_t, std::uint16_t > revolutions = handler.cumulative_wheel_revolutions();
+                out_buffer = bluetoe::details::write_32bit( out_buffer, revolutions.first );
+                out_buffer = bluetoe::details::write_16bit( out_buffer, revolutions.second );
+            }
+
+            static constexpr std::uint16_t features = 0x0001;
+            /** @endcond */
+        };
+
+        struct crank_revolution_data_supported {
+            /** @cond HIDDEN_SYMBOLS */
+            typedef details::crank_revolution_data_handler_tag meta_type;
+
+            template < class T >
+            void add_crank_mesurement( std::uint8_t& flags, std::uint8_t*& out_buffer, T& handler )
+            {
+                flags |= 0x02;
+
+                const std::pair< std::uint16_t, std::uint16_t > revolutions = handler.cumulative_crank_revolutions();
+                out_buffer = bluetoe::details::write_16bit( out_buffer, revolutions.first );
+                out_buffer = bluetoe::details::write_16bit( out_buffer, revolutions.second );
+            }
+
+            static constexpr std::uint16_t features = 0x0002;
+            /** @endcond */
+        };
+
+        namespace details {
+            /** @cond HIDDEN_SYMBOLS */
+            static constexpr char service_name[]            = "Cycling Speed and Cadence";
+            static constexpr char measurement_name[]        = "CSC Measurement";
+            static constexpr char feature_name[]            = "CSC Feature";
+            static constexpr char sensor_location_name[]    = "Sensor Location";
+            static constexpr char control_point_name[]      = "SC Control Point";
 
             template < typename T >
             struct service_from_parameters;
@@ -31,16 +87,51 @@ namespace bluetoe {
                 typedef service< Ts... > type;
             };
 
-            class implementation
+            struct no_wheel_revolution_data_supported {
+                /** @cond HIDDEN_SYMBOLS */
+                typedef details::wheel_revolution_data_handler_tag meta_type;
+
+                template < class T >
+                void add_wheel_mesurement( std::uint8_t&, std::uint8_t*&, T& ) {}
+
+                static constexpr std::uint16_t features = 0;
+                /** @endcond */
+            };
+
+            struct no_crank_revolution_data_supported {
+                /** @cond HIDDEN_SYMBOLS */
+                typedef details::crank_revolution_data_handler_tag meta_type;
+
+                template < class T >
+                void add_crank_mesurement( std::uint8_t&, std::uint8_t*&, T& ) {}
+
+                static constexpr std::uint16_t features = 0;
+                /** @endcond */
+            };
+
+            template < typename Base, typename WheelHandler, typename CrankHandler >
+            class implementation : public Base, WheelHandler, CrankHandler
             {
             public:
+                static constexpr std::size_t max_response_size = 1 + 4 + 2 + 2 + 2;
+
                 void csc_wheel_revolution( std::uint32_t resolution, std::uint32_t time )
                 {
                 }
 
                 std::uint8_t csc_mesurement( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
-                    return 0;
+                    assert( read_size >= max_response_size );
+
+                    std::uint8_t* out_ptr = out_buffer + 1;
+
+                    *out_buffer = 0;
+                    this->add_wheel_mesurement( *out_buffer, out_ptr, *this );
+                    this->add_crank_mesurement( *out_buffer, out_ptr, *this );
+
+                    out_size = out_ptr - out_buffer;
+
+                    return error_codes::success;;
                 }
 
                 std::uint8_t csc_sensor_location( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
@@ -57,6 +148,12 @@ namespace bluetoe {
                 {
                     return 0;
                 }
+
+                template < class Server >
+                void notify_timed_update( Server& server )
+                {
+                    server.template notify< characteristic_uuid16< 0x2A5B > >();
+                }
             private:
             };
 
@@ -68,12 +165,27 @@ namespace bluetoe {
             >;
 
             template < typename ... Options >
-            struct calculate_service {
-
+            struct calculate_service
+            {
                 using sensor_locations = typename bluetoe::details::find_all_by_meta_type<
                     bluetoe::details::sensor_location_meta_type, Options... >::type;
 
+                using wheel_handler    = typename bluetoe::details::find_by_meta_type< wheel_revolution_data_handler_tag, Options..., no_wheel_revolution_data_supported >::type;
+                using crank_handler    = typename bluetoe::details::find_by_meta_type< crank_revolution_data_handler_tag, Options..., no_crank_revolution_data_supported >::type;
+
+                static_assert( !std::is_same< wheel_handler, bluetoe::details::no_such_type >::value, "" );
+                static_assert( !std::is_same< crank_handler, bluetoe::details::no_such_type >::value, "" );
+
+                using service_handler = typename bluetoe::details::find_by_meta_type< handler_tag, Options ... >::type;
+
+                static_assert( !std::is_same< service_handler, bluetoe::details::no_such_type >::value,
+                    "You need to provide a bluetoe::crc::handler<> to define how the protocol can access the messured values." );
+
+                using service_implementation = implementation< typename service_handler::user_handler, wheel_handler, crank_handler >;
+
                 static constexpr bool has_static_sensorlocation = std::tuple_size< sensor_locations >::value == 1u;
+
+                static constexpr std::uint16_t feature_bits = wheel_handler::features | crank_handler::features;
 
                 using mandatory_characteristics = std::tuple<
                     characteristic<
@@ -82,12 +194,12 @@ namespace bluetoe {
                         bluetoe::no_read_access,
                         bluetoe::no_write_access,
                         bluetoe::notify,
-                        bluetoe::mixin_read_handler< implementation, &implementation::csc_mesurement >
+                        bluetoe::mixin_read_handler< service_implementation, &service_implementation::csc_mesurement >
                     >,
                     characteristic<
                         characteristic_uuid16< 0x2A5C >,
                         characteristic_name< feature_name >,
-                        fixed_uint16_value< 0x0000 >
+                        fixed_uint16_value< feature_bits >
                     >
                 >;
 
@@ -108,14 +220,14 @@ namespace bluetoe {
                         characteristic_name< control_point_name >,
                         bluetoe::no_read_access,
                         bluetoe::indicate,
-                        bluetoe::mixin_write_handler< implementation, &implementation::csc_write_control_point >,
-                        bluetoe::mixin_read_handler< implementation, &implementation::csc_read_control_point >
+                        bluetoe::mixin_write_handler< service_implementation, &service_implementation::csc_write_control_point >,
+                        bluetoe::mixin_read_handler< service_implementation, &service_implementation::csc_read_control_point >
                     > >::type;
 
                 using all_characteristics = characteristics_with_control_point;
 
                 using default_parameter = std::tuple<
-                    mixin< implementation >,
+                    mixin< service_implementation >,
                     service_uuid,
                     bluetoe::service_name< service_name >,
                     Options... >;
@@ -136,9 +248,9 @@ namespace bluetoe {
     /**
      * @brief Prototype for an interface type
      */
-    class cycling_speed_and_cadence_interface_prototype
+    class cycling_speed_and_cadence_handler_prototype
     {
-    protected:
+    public:
         /**
          * Either this function must be provided, or cumulative_crank_revolutions(), or both.
          *
