@@ -41,40 +41,41 @@ typedef bluetoe::server<
     >
 > csc_server;
 
+static std::uint8_t low( std::uint16_t h )
+{
+    return h & 0xff;
+}
+
+static std::uint8_t high( std::uint16_t h )
+{
+    return ( h >> 8 ) & 0xff;
+}
+
+static std::uint16_t uint16( const std::uint8_t* p )
+{
+    return *p | ( *( p + 1 ) << 8 );
+}
+
 struct service_discover_base {
     std::uint16_t service_starting_handle;
     std::uint16_t service_ending_handle;
-
-    static std::uint8_t low( std::uint16_t h )
-    {
-        return h & 0xff;
-    }
-
-    static std::uint8_t high( std::uint16_t h )
-    {
-        return ( h >> 8 ) & 0xff;
-    }
-
-    static std::uint16_t uint16( const std::uint8_t* p )
-    {
-        return *p | ( *( p + 1 ) << 8 );
-    }
 };
 
-struct discover_primary_service : request_with_reponse< csc_server, 100u >, service_discover_base
+template < class Server >
+struct discover_primary_service : request_with_reponse< Server, 100u >, service_discover_base
 {
     discover_primary_service()
     {
         // TheLowerTestersendsanATT_Find_By_Type_Value_Request(0x0001, 0xFFFF)
         // to the IUT, with type set to «Primary Service» and Value set to «Cycling Speed and Cadence Service».
-        l2cap_input( {
+        this->l2cap_input( {
             0x06, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28, 0x16, 0x18
         });
 
-        BOOST_REQUIRE_EQUAL( response_size, 5u );
+        BOOST_REQUIRE_EQUAL( this->response_size, 5u );
 
-        service_starting_handle = response[ 1 ] | ( response[ 2 ] << 8 );
-        service_ending_handle   = response[ 3 ] | ( response[ 4 ] << 8 );
+        service_starting_handle = this->response[ 1 ] | ( this->response[ 2 ] << 8 );
+        service_ending_handle   = this->response[ 3 ] | ( this->response[ 4 ] << 8 );
     }
 };
 
@@ -83,7 +84,7 @@ BOOST_AUTO_TEST_SUITE( service_definition )
     /*
      * TP/SD/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( service_definition_over_le_as_primary_service, discover_primary_service )
+    BOOST_FIXTURE_TEST_CASE( service_definition_over_le_as_primary_service, discover_primary_service< csc_server > )
     {
         BOOST_CHECK_EQUAL( response[ 0 ], 0x07 );
         BOOST_CHECK_LT( service_starting_handle, service_ending_handle );
@@ -146,26 +147,27 @@ struct handle_uuid_pair
     std::uint16_t uuid;
 };
 
-struct discover_all_characteristics : discover_primary_service
+template < class Server >
+struct discover_all_characteristics : discover_primary_service< Server >
 {
     discover_all_characteristics()
     {
         // read by type request
-        l2cap_input( {
+        this->l2cap_input( {
             0x08,
-            low( service_starting_handle ), high( service_starting_handle ),
-            low( service_ending_handle ), high( service_ending_handle ),
+            low( this->service_starting_handle ), high( this->service_starting_handle ),
+            low( this->service_ending_handle ), high( this->service_ending_handle ),
             0x03, 0x28 // <<characteristic>>
         });
 
-        BOOST_REQUIRE_EQUAL( response_size, 2 + 4 * 7 );
-        BOOST_REQUIRE_EQUAL( response[ 0 ], 0x09 ); // response opcode
-        BOOST_REQUIRE_EQUAL( response[ 1 ], 7 );    // handle + value length
+        BOOST_REQUIRE_EQUAL( this->response_size, 2 + 4 * 7 );
+        BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x09 ); // response opcode
+        BOOST_REQUIRE_EQUAL( this->response[ 1 ], 7 );    // handle + value length
 
-        csc_measurement  = parse_characteristic_declaration( &response[ 2 + 0 * 7 ] );
-        csc_feature      = parse_characteristic_declaration( &response[ 2 + 1 * 7 ] );
-        sensor_location  = parse_characteristic_declaration( &response[ 2 + 2 * 7 ] );
-        cs_control_point = parse_characteristic_declaration( &response[ 2 + 3 * 7 ] );
+        csc_measurement  = parse_characteristic_declaration( &this->response[ 2 + 0 * 7 ] );
+        csc_feature      = parse_characteristic_declaration( &this->response[ 2 + 1 * 7 ] );
+        sensor_location  = parse_characteristic_declaration( &this->response[ 2 + 2 * 7 ] );
+        cs_control_point = parse_characteristic_declaration( &this->response[ 2 + 3 * 7 ] );
     }
 
     static characteristic_declaration parse_characteristic_declaration( const std::uint8_t* pos )
@@ -185,7 +187,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
     /*
      * TP/DEC/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_measurement_test, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_test, discover_all_characteristics< csc_server > )
     {
         BOOST_CHECK_EQUAL( csc_measurement.properties, 0x10 );
         BOOST_CHECK_EQUAL( csc_measurement.uuid, 0x2A5B );
@@ -194,7 +196,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
     /*
      * TP/DEC/BV-02-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_feature_test, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( csc_feature_test, discover_all_characteristics< csc_server > )
     {
         BOOST_CHECK_EQUAL( csc_feature.properties, 0x02 );
         BOOST_CHECK_EQUAL( csc_feature.uuid, 0x2A5C );
@@ -203,7 +205,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
     /*
      * TP/DEC/BV-03-C
      */
-    BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_characteristics< csc_server > )
     {
         BOOST_CHECK_EQUAL( sensor_location.properties, 0x02 );
         BOOST_CHECK_EQUAL( sensor_location.uuid, 0x2A5D );
@@ -212,7 +214,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
     /*
      * TP/DEC/BV-04-C
      */
-    BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_characteristics )
+    BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_characteristics< csc_server > )
     {
         BOOST_CHECK_EQUAL( cs_control_point.properties, 0x28 );
         BOOST_CHECK_EQUAL( cs_control_point.uuid, 0x2A55 );
@@ -220,30 +222,35 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_tests )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct discover_all_descriptors : discover_all_characteristics
+template < class Server >
+struct discover_all_descriptors : discover_all_characteristics< Server >
 {
 
     discover_all_descriptors()
     {
         csc_measurement_client_configuration = find_client_characteristic_configuration(
-            csc_measurement.value_attribute_handle + 1, csc_feature.handle - 1);
+            this->csc_measurement.value_attribute_handle + 1, this->csc_feature.handle - 1);
         sc_control_point_client_configuration = find_client_characteristic_configuration(
-            cs_control_point.value_attribute_handle + 1, service_ending_handle );
+            this->cs_control_point.value_attribute_handle + 1, this->service_ending_handle );
     }
 
     std::vector< handle_uuid_pair > find_information_request( std::uint16_t start_handle, std::uint16_t end_handle )
     {
-        l2cap_input({
+        this->l2cap_input({
             // Find information request
-            0x04, low( start_handle ), high( start_handle ), low( end_handle ), high( end_handle )
+            0x04,
+            low( start_handle ),
+            high( start_handle ),
+            low( end_handle ),
+            high( end_handle )
         });
 
-        BOOST_REQUIRE_EQUAL( response[ 0 ], 0x05 ); // response opcode
-        BOOST_REQUIRE_EQUAL( response[ 1 ], 0x01 ); // Format
-        BOOST_REQUIRE_EQUAL( ( response_size - 2 ) % 4, 0 );
+        BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x05 ); // response opcode
+        BOOST_REQUIRE_EQUAL( this->response[ 1 ], 0x01 ); // Format
+        BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % 4, 0 );
 
         std::vector< handle_uuid_pair > result;
-        for ( const std::uint8_t* p = &response[ 2 ]; p != begin() + response_size; p += 4 )
+        for ( const std::uint8_t* p = &this->response[ 2 ]; p != this->begin() + this->response_size; p += 4 )
         {
             result.push_back( handle_uuid_pair{ uint16( p ), uint16( p + 2 ) } );
         }
@@ -253,7 +260,7 @@ struct discover_all_descriptors : discover_all_characteristics
 
     handle_uuid_pair find_client_characteristic_configuration( std::uint16_t start_handle, std::uint16_t end_handle )
     {
-        const auto descriptors = find_information_request( start_handle, end_handle );
+        const auto descriptors = this->find_information_request( start_handle, end_handle );
 
         const auto pos = std::find_if( descriptors.begin(), descriptors.end(),
             []( handle_uuid_pair b ) -> bool {
@@ -266,14 +273,14 @@ struct discover_all_descriptors : discover_all_characteristics
 
     std::vector< std::uint8_t > att_read( std::uint16_t handle )
     {
-        l2cap_input({
+        this->l2cap_input({
             0x0a, low( handle ), high( handle )
         });
 
-        BOOST_REQUIRE_EQUAL( response[ 0 ], 0x0b ); // response opcode
-        BOOST_REQUIRE_GT( response_size, 1 );
+        BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x0b ); // response opcode
+        BOOST_REQUIRE_GT( this->response_size, 1 );
 
-        return std::vector< std::uint8_t >( begin() + 1, begin() + response_size );
+        return std::vector< std::uint8_t >( this->begin() + 1, this->begin() + this->response_size );
     }
 
     handle_uuid_pair csc_measurement_client_configuration;
@@ -285,7 +292,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
     /*
      * TP/DES/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_measurement_client_characteristic_configuration_descriptor, discover_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_client_characteristic_configuration_descriptor, discover_all_descriptors< csc_server > )
     {
         const auto value = att_read( csc_measurement_client_configuration.handle );
 
@@ -298,7 +305,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
     /*
      * TP/DES/BV-02-C
      */
-    BOOST_FIXTURE_TEST_CASE( sc_control_point_client_characteristic_configuration_descriptor, discover_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( sc_control_point_client_characteristic_configuration_descriptor, discover_all_descriptors< csc_server > )
     {
         const auto value = att_read( sc_control_point_client_configuration.handle );
 
@@ -315,7 +322,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
     /*
      * TP/CR/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_feature_test, discover_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( csc_feature_test, discover_all_descriptors< csc_server > )
     {
         l2cap_input({
             0x0A, low( csc_feature.value_attribute_handle ), high( csc_feature.value_attribute_handle )
@@ -332,7 +339,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
     /*
      * TP/CR/BV-02-C
      */
-    BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( sensor_location_test, discover_all_descriptors< csc_server > )
     {
         l2cap_input({
             0x0A, low( sensor_location.value_attribute_handle ), high( sensor_location.value_attribute_handle )
@@ -354,7 +361,7 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
     {
         fixture.l2cap_input({
             0x12,
-            fixture.low( handle ), fixture.high( handle ),
+            low( handle ), high( handle ),
             0x00, 0x00
         });
 
@@ -364,7 +371,7 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
     /*
      * TP/CON/BV-01-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_measurement_test, discover_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_test, discover_all_descriptors< csc_server > )
     {
         reset_handle( *this, csc_measurement_client_configuration.handle );
 
@@ -390,7 +397,7 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
     /*
      * TP/CON/BV-02-C
      */
-    BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_descriptors )
+    BOOST_FIXTURE_TEST_CASE( sc_control_point_test, discover_all_descriptors< csc_server > )
     {
         reset_handle( *this, sc_control_point_client_configuration.handle );
 
@@ -415,23 +422,26 @@ BOOST_AUTO_TEST_SUITE( configure_indication_and_notification )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct discover_and_configure_all_descriptor : discover_all_descriptors
+template < class Server >
+struct discover_and_configure_all_descriptor : discover_all_descriptors< Server >
 {
     discover_and_configure_all_descriptor()
     {
-        l2cap_input({
+        this->l2cap_input({
             0x12,
-            low( csc_measurement_client_configuration.handle ), high( csc_measurement_client_configuration.handle ),
+            low( this->csc_measurement_client_configuration.handle ),
+            high( this->csc_measurement_client_configuration.handle ),
             0x01, 0x00
         });
-        expected_result({ 0x13 });
+        this->expected_result({ 0x13 });
 
-        l2cap_input({
+        this->l2cap_input({
             0x12,
-            low( sc_control_point_client_configuration.handle ), high( sc_control_point_client_configuration.handle ),
+            low( this->sc_control_point_client_configuration.handle ),
+            high( this->sc_control_point_client_configuration.handle ),
             0x02, 0x00
         });
-        expected_result({ 0x13 });
+        this->expected_result({ 0x13 });
     }
 };
 
@@ -439,8 +449,11 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
 
     /*
      * TP/CN/BV-01-C
+     * TP/CN/BV-02-C
+     * TP/CN/BV-03-C
+     * TP/CN/BV-04-C
      */
-    BOOST_FIXTURE_TEST_CASE( csc_measurement_notifications__wheel_revolution_data, discover_and_configure_all_descriptor )
+    BOOST_FIXTURE_TEST_CASE( csc_measurement_notifications__wheel_revolution_data, discover_and_configure_all_descriptor< csc_server > )
     {
         // update values
         next_time( 0x1234, 0x23456789, 0x3456 );
@@ -458,5 +471,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
             0x56, 0x34, 0x34, 0x12              // crank and time
         });
     }
+
+    // BOOST_FIXTURE_TEST_CASE( only_crank_mesurement, )
 
 BOOST_AUTO_TEST_SUITE_END()
