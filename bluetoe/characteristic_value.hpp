@@ -784,11 +784,16 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* server )
         {
-            return /*offset == 0
-                ? (O.*F)( read_size, out_buffer, out_size )
-                : */ static_cast< std::uint8_t >( error_codes::attribute_not_long );
+            assert( server );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_read_handler into the server." );
+
+            Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
+
+            return offset == 0
+                ? (mixin.*F)( read_size, out_buffer, out_size )
+                : static_cast< std::uint8_t >( error_codes::attribute_not_long );
 
         }
 
@@ -804,7 +809,7 @@ namespace bluetoe {
         static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* server )
         {
             assert( server );
-            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the write_handler into the server." );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
 
             Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
 

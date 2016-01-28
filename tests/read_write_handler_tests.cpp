@@ -12,6 +12,7 @@
 #include "hexdump.hpp"
 #include "test_attribute_access.hpp"
 #include <iostream>
+#include <iterator>
 
 static const std::uint8_t test_read_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
@@ -526,7 +527,7 @@ using write_mixin_server = bluetoe::server<
     >
 >;
 
-BOOST_FIXTURE_TEST_CASE( read_from_mixin, write_mixin_server )
+BOOST_FIXTURE_TEST_CASE( write_to_mixin, write_mixin_server )
 {
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
 
@@ -537,6 +538,46 @@ BOOST_FIXTURE_TEST_CASE( read_from_mixin, write_mixin_server )
     BOOST_CHECK_EQUAL( static_cast< std::int_fast16_t >( attr.access( access, 0 ) ), 42 );
     BOOST_CHECK_EQUAL( write_size, sizeof(fixture) );
     BOOST_CHECK( value == &fixture[ 0 ] );
+}
+
+struct read_mixin
+{
+    std::uint8_t read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    {
+        static constexpr std::uint8_t output[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+        std::copy( std::begin( output ), std::end( output ), out_buffer );
+        out_size = std::distance( std::begin( output ), std::end( output ) );
+
+        return 33;
+    }
+};
+
+using readable_char = bluetoe::characteristic<
+    bluetoe::characteristic_uuid16< 0x1234 >,
+    bluetoe::mixin_read_handler< read_mixin, &read_mixin::read_handler >
+>;
+
+using read_mixin_server = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid< 0xF8C90690, 0x3BFE, 0x4303, 0x8CE9, 0xC30C024987C8 >,
+        readable_char,
+        bluetoe::mixin< read_mixin >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( read_from_mixin, read_mixin_server )
+{
+    std::uint8_t buffer[ 100 ];
+
+    const auto attr = readable_char::attribute_at< 0, bluetoe::characteristic_uuid16< 0x1234 >, read_mixin_server >( 1 );
+    auto read       = bluetoe::details::attribute_access_arguments::read( std::begin( buffer ), std::end( buffer ), 0, bluetoe::details::client_characteristic_configuration(), static_cast< read_mixin_server* >( this ) );
+
+    static constexpr std::uint8_t expected[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+    BOOST_CHECK_EQUAL( static_cast< std::int_fast16_t >( attr.access( read, 0 ) ), 33 );
+    BOOST_CHECK_EQUAL( read.buffer_size, sizeof(expected) );
+    BOOST_CHECK_EQUAL_COLLECTIONS( &buffer[ 0 ], &buffer[ read.buffer_size ], std::begin( expected ), std::end( expected ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
