@@ -599,7 +599,6 @@ BOOST_AUTO_TEST_SUITE( find_notification_data )
 
         BOOST_REQUIRE( result.valid() );
         BOOST_CHECK_EQUAL( result.handle(), 2 );
-        BOOST_CHECK_EQUAL( result.value_attribute().uuid, 0xD0B1 );
         BOOST_CHECK_EQUAL( result.client_characteristic_configuration_index(), 0 );
     }
 

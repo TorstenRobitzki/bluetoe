@@ -236,7 +236,6 @@ BOOST_FIXTURE_TEST_CASE( notification_data_found_first_char, service_with_2_noti
 
     BOOST_REQUIRE( result1.valid() );
     BOOST_CHECK_EQUAL( result1.handle(), 3 );
-    BOOST_CHECK_EQUAL( result1.value_attribute().uuid, 0x8C8B );
     BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 0 );
 }
 
@@ -246,7 +245,6 @@ BOOST_FIXTURE_TEST_CASE( notification_data_found_second_char, service_with_2_not
 
     BOOST_REQUIRE( result2.valid() );
     BOOST_CHECK_EQUAL( result2.handle(), 8 );
-    BOOST_CHECK_EQUAL( result2.value_attribute().uuid, 0x8C8D );
     BOOST_CHECK_EQUAL( result2.client_characteristic_configuration_index(), 1 );
 }
 
@@ -266,7 +264,6 @@ BOOST_FIXTURE_TEST_CASE( find_fist_by_index, service_with_2_notifications )
 
     BOOST_REQUIRE( result1.valid() );
     BOOST_CHECK_EQUAL( result1.handle(), 3 );
-    BOOST_CHECK_EQUAL( result1.value_attribute().uuid, 0x8C8B );
     BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 0 );
 }
 
@@ -276,7 +273,6 @@ BOOST_FIXTURE_TEST_CASE( find_second_by_index, service_with_2_notifications )
 
     BOOST_REQUIRE( result1.valid() );
     BOOST_CHECK_EQUAL( result1.handle(), 8 );
-    BOOST_CHECK_EQUAL( result1.value_attribute().uuid, 0x8C8D );
     BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 1 );
 }
 

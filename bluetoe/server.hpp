@@ -548,7 +548,8 @@ namespace bluetoe {
              out_size >= 3 )
         {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
-            auto rc   = data.value_attribute().access( read, data.handle() );
+            auto attr = attribute_at( data.handle() - 1 );
+            auto rc   = attr.access( read, data.handle() );
 
             if ( rc == details::attribute_access_result::success )
             {
@@ -580,7 +581,8 @@ namespace bluetoe {
              out_size >= 3 )
         {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
-            auto rc   = details.value_attribute().access( read, details.handle() );
+            auto attr = attribute_at( details.handle() - 1 );
+            auto rc   = attr.access( read, details.handle() );
 
             if ( rc == details::attribute_access_result::success )
             {

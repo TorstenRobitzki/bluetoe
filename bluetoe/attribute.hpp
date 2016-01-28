@@ -241,15 +241,13 @@ namespace details {
     public:
         notification_data()
             : att_handle_( 0 )
-            , characteristic_value_attribute_{ 0, nullptr }
             , client_characteristic_configuration_index_( 0 )
         {
             assert( !valid() );
         }
 
-        notification_data( std::uint16_t value_attribute_handle, const attribute& value_attribute, std::size_t client_characteristic_configuration_index )
+        notification_data( std::uint16_t value_attribute_handle, std::size_t client_characteristic_configuration_index )
             : att_handle_( value_attribute_handle )
-            , characteristic_value_attribute_( value_attribute )
             , client_characteristic_configuration_index_( client_characteristic_configuration_index )
         {
             assert( valid() );
@@ -265,18 +263,12 @@ namespace details {
             return att_handle_;
         }
 
-        const attribute& value_attribute() const
-        {
-            return characteristic_value_attribute_;
-        }
-
         std::size_t client_characteristic_configuration_index() const
         {
             return client_characteristic_configuration_index_;
         }
     private:
         std::uint16_t   att_handle_;
-        attribute       characteristic_value_attribute_;
         std::size_t     client_characteristic_configuration_index_;
     };
 
@@ -407,7 +399,7 @@ namespace details {
     struct find_characteristic_data_by_uuid_in_service_list< std::tuple< Service, Services...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
     {
         typedef typename find_characteristic_data_by_uuid_in_characteristic_list<
-            typename Service::characteristics, UUID, FirstAttributesHandle, ClientCharacteristicIndex >::type c_type;
+            typename Service::characteristics, UUID, FirstAttributesHandle + Service::number_of_service_attributes, ClientCharacteristicIndex >::type c_type;
 
         typedef typename find_characteristic_data_by_uuid_in_service_list<
             std::tuple< Services... >, UUID, FirstAttributesHandle + Service::number_of_attributes, ClientCharacteristicIndex + Service::number_of_client_configs >::type l_type;

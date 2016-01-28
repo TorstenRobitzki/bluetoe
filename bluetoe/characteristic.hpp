@@ -226,7 +226,6 @@ namespace bluetoe {
         return
             details::notification_data(
                 FirstAttributesHandle + 1,
-                attribute_at< ClientCharacteristicIndex >( characteristic_value_index ),
                 ClientCharacteristicIndex
             );
     }
@@ -238,7 +237,6 @@ namespace bluetoe {
         return index == ClientCharacteristicIndex && number_of_client_configs != 0
             ? details::notification_data(
                 FirstAttributesHandle + 1,
-                attribute_at< ClientCharacteristicIndex >( characteristic_value_index ),
                 ClientCharacteristicIndex )
             : details::notification_data();
     }

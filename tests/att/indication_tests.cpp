@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
         indicate( value );
 
         BOOST_CHECK( notification.valid() );
-        BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x8C8B );
+        BOOST_CHECK_EQUAL( notification.handle(), 3 );
         BOOST_CHECK_EQUAL( notification_type, simple_server::indication );
     }
 
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
         indicate< bluetoe::characteristic_uuid16< 0x2222 > >();
 
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x2222 );
+        BOOST_CHECK_EQUAL( notification.handle(), 8 );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1 );
         BOOST_CHECK_EQUAL( notification_type, server::indication );
     }
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
         indicate< bluetoe::characteristic_uuid16< 0x3333 > >();
 
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification.value_attribute().uuid, 0x3333 );
+        BOOST_CHECK_EQUAL( notification.handle(), 14 );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 2 );
         BOOST_CHECK_EQUAL( notification_type, server::indication );
     }
