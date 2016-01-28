@@ -41,6 +41,22 @@ typedef bluetoe::server<
     >
 > csc_server;
 
+typedef bluetoe::server<
+    bluetoe::cycling_speed_and_cadence<
+        bluetoe::sensor_location::top_of_shoe,
+        bluetoe::csc::crank_revolution_data_supported,
+        bluetoe::csc::handler< data_handler >
+    >
+> csc_crank_only_server;
+
+typedef bluetoe::server<
+    bluetoe::cycling_speed_and_cadence<
+        bluetoe::sensor_location::top_of_shoe,
+        bluetoe::csc::wheel_revolution_data_supported,
+        bluetoe::csc::handler< data_handler >
+    >
+> csc_wheel_only_server;
+
 static std::uint8_t low( std::uint16_t h )
 {
     return h & 0xff;
@@ -472,6 +488,41 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
         });
     }
 
-    // BOOST_FIXTURE_TEST_CASE( only_crank_mesurement, )
+    BOOST_FIXTURE_TEST_CASE( only_crank_mesurement, discover_and_configure_all_descriptor< csc_crank_only_server > )
+    {
+        // update values
+        next_time( 0x1234, 0x23456789, 0x3456 );
+        notify_timed_update( *static_cast< csc_crank_only_server* >( this ) );
+
+        // notification?
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification_type, csc_server::notification );
+
+        // lets generate a notification pdu
+        expected_output( notification, {
+            0x1b, 0x03, 0x00,                   // indication < handle >
+            0x02,                               // flags
+            0x56, 0x34, 0x34, 0x12              // crank and time
+        });
+    }
+
+    BOOST_FIXTURE_TEST_CASE( only_wheel_mesurement, discover_and_configure_all_descriptor< csc_wheel_only_server > )
+    {
+        // update values
+        next_time( 0x1234, 0x23456789, 0x3456 );
+        notify_timed_update( *this );
+
+        // notification?
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification_type, csc_server::notification );
+
+        // lets generate a notification pdu
+        expected_output( notification, {
+            0x1b, 0x03, 0x00,                   // indication < handle >
+            0x01,                               // flags
+            0x89, 0x67, 0x45, 0x23, 0x34, 0x12  // wheel and time
+        });
+    }
+
 
 BOOST_AUTO_TEST_SUITE_END()
