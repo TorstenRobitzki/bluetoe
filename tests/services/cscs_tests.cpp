@@ -16,14 +16,27 @@ public:
         crank_ = crank;
     }
 
-    std::pair< std::uint32_t, std::uint16_t > cumulative_wheel_revolutions()
+    /*
+     * cycling_speed_and_cadence_handler_prototype implementation
+     */
+    std::pair< std::uint32_t, std::uint16_t > cumulative_wheel_revolutions_and_time()
     {
         return std::pair< std::uint32_t, std::uint16_t >( wheel_, time_ );
     }
 
-    std::pair< std::uint16_t, std::uint16_t > cumulative_crank_revolutions()
+    std::pair< std::uint16_t, std::uint16_t > cumulative_crank_revolutions_and_time()
     {
         return std::pair< std::uint16_t, std::uint16_t >( crank_, time_ );
+    }
+
+    void set_cumulative_wheel_revolutions( std::uint32_t new_value )
+    {
+        wheel_ = new_value;
+    }
+
+    std::uint32_t cumulative_wheel_revolutions() const
+    {
+        return wheel_;
     }
 
 private:
@@ -43,7 +56,9 @@ typedef bluetoe::server<
 
 typedef bluetoe::server<
     bluetoe::cycling_speed_and_cadence<
+        // two sensor locations, to force the existence of the control point
         bluetoe::sensor_location::top_of_shoe,
+        bluetoe::sensor_location::left_crank,
         bluetoe::csc::crank_revolution_data_supported,
         bluetoe::csc::handler< data_handler >
     >
@@ -522,6 +537,67 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
             0x01,                               // flags
             0x89, 0x67, 0x45, 0x23, 0x34, 0x12  // wheel and time
         });
+    }
+
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( service_procedures )
+
+    /*
+     * TP/SPS/BV-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( set_cumulative_value__set_to_zero, discover_and_configure_all_descriptor< csc_server > )
+    {
+        // update values
+        next_time( 0x1234, 0x23456789, 0x3456 );
+        notify_timed_update( *this );
+
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x01,                           // resquest opcode (Set Cumulative Value)
+            0x00, 0x00, 0x00, 0x00, 0x00    // 32 bit wheel value
+        });
+        expected_result({ 0x13 });
+
+        // check that callback was called
+        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0 );
+
+        // trigger indication
+        confirm_cumulative_wheel_revolutions( *this );
+
+// TODO
+        // expected_output( notification, {
+        //     0x1d,
+        //     low( cs_control_point.value_attribute_handle ),
+        //     high( cs_control_point.value_attribute_handle ),
+        //     0x10,  // response opcode
+        //     0x01,  // resquest opcode (Set Cumulative Value)
+        //     0x01   // success
+        // });
+    }
+
+    BOOST_FIXTURE_TEST_CASE( invalid_opcode, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( invalid_paramter, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( not_configured_cp, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( operation_failed, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( multiple_control_point_procedures, discover_and_configure_all_descriptor< csc_server > )
+    {
     }
 
 
