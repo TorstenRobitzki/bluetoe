@@ -822,6 +822,37 @@ namespace bluetoe {
         /** @endcond */
     };
 
+
+    template < class Mixin, std::pair< std::uint8_t, bool > (Mixin::*F)( std::size_t write_size, const std::uint8_t* value ), typename IndicationUUID >
+    struct mixin_write_indication_control_point_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < class Server >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* server_ptr )
+        {
+            assert( server_ptr );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
+
+            if ( offset != 0 )
+                return static_cast< std::uint8_t >( error_codes::attribute_not_long );
+
+            // we have a void pointer, the type of the server and the server is derived from the mixin
+            Server& server = *static_cast< Server* >( server_ptr );
+            Mixin&  mixin  = static_cast< Mixin& >( server );
+
+            const std::pair< std::uint8_t, bool > result = (mixin.*F)( write_size, value );
+
+            if ( result.second )
+                server.template indicate< IndicationUUID >();
+
+            return static_cast< std::uint8_t >( result.first );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
+    };
+
+
     /**
      * @example read_write_handler_example.cpp
      * Example, showing all possible alternatives to bind functions as read or write handler to a bluetooth characteristic.
