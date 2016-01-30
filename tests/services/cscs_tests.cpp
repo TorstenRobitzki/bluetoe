@@ -16,6 +16,11 @@ public:
         crank_ = crank;
     }
 
+    std::uint32_t cumulative_wheel_revolutions() const
+    {
+        return wheel_;
+    }
+
     /*
      * cycling_speed_and_cadence_handler_prototype implementation
      */
@@ -34,10 +39,6 @@ public:
         wheel_ = new_value;
     }
 
-    std::uint32_t cumulative_wheel_revolutions() const
-    {
-        return wheel_;
-    }
 
 private:
     std::uint16_t time_;
@@ -569,15 +570,17 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
         // trigger indication
         confirm_cumulative_wheel_revolutions( *this );
 
-// TODO
-        // expected_output( notification, {
-        //     0x1d,
-        //     low( cs_control_point.value_attribute_handle ),
-        //     high( cs_control_point.value_attribute_handle ),
-        //     0x10,  // response opcode
-        //     0x01,  // resquest opcode (Set Cumulative Value)
-        //     0x01   // success
-        // });
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification_type, csc_server::indication );
+
+        expected_output( notification, {
+            0x1d,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x10,  // response opcode
+            0x01,  // resquest opcode (Set Cumulative Value)
+            0x01   // success
+        });
     }
 
     BOOST_FIXTURE_TEST_CASE( invalid_opcode, discover_and_configure_all_descriptor< csc_server > )
@@ -588,7 +591,7 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
     {
     }
 
-    BOOST_FIXTURE_TEST_CASE( not_configured_cp, discover_and_configure_all_descriptor< csc_server > )
+    BOOST_FIXTURE_TEST_CASE( not_configured_control_point, discover_and_configure_all_descriptor< csc_server > )
     {
     }
 
@@ -600,5 +603,12 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
     {
     }
 
+    BOOST_FIXTURE_TEST_CASE( writing_control_point_results_in_error, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( writing_to_conrol_point_when_procedure_in_active, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

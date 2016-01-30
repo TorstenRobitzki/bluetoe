@@ -49,14 +49,6 @@ namespace bluetoe {
                 out_buffer = bluetoe::details::write_16bit( out_buffer, revolutions.second );
             }
 
-            template < class T >
-            std::uint8_t set_wheel_mesurement( std::uint32_t value, T& handler )
-            {
-                handler.set_cumulative_wheel_revolutions( value );
-
-                return error_codes::success;
-            }
-
             static constexpr std::uint16_t features = 0x0001;
             /** @endcond */
         };
@@ -104,11 +96,6 @@ namespace bluetoe {
                 template < class T >
                 void add_wheel_mesurement( std::uint8_t&, std::uint8_t*&, T& ) {}
 
-                template < class T >
-                std::uint8_t set_wheel_mesurement( std::uint32_t, T& ) {
-                    return error_codes::request_not_supported;
-                }
-
                 static constexpr std::uint16_t features = 0;
                 /** @endcond */
             };
@@ -124,16 +111,81 @@ namespace bluetoe {
                 /** @endcond */
             };
 
-            enum {
-                set_cumulative_value_opcode                 = 1,
-                start_sensor_calibration_opcode,
-                update_sensor_location_opcode,
-                request_supported_sensor_locations_opcode,
-                response_code_opcode                        = 16
+            class control_point_handler
+            {
+            public:
+                std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    switch ( current_opcode_ )
+                    {
+                    case set_cumulative_value_opcode:
+                        {
+                            static const std::size_t response_size = 3;
+                            if ( read_size < response_size )
+                                return error_codes::invalid_attribute_value_length;
+
+                            out_buffer[ 0 ] = response_code_opcode;
+                            out_buffer[ 1 ] = set_cumulative_value_opcode;
+                            out_buffer[ 2 ] = rc_success;
+
+                            out_size = response_size;
+                        }
+                        break;
+                        default:
+                            assert( !"confirmed a control point procedure that was not running." );
+                    }
+
+                    return error_codes::success;
+                }
+
+                template < class Handler >
+                std::uint8_t csc_write_control_point( std::size_t write_size, const std::uint8_t* value, Handler& handler )
+                {
+                    if ( write_size < 1 )
+                        return error_codes::invalid_handle;
+
+                    current_opcode_ = *value;
+
+                    switch ( current_opcode_ )
+                    {
+                    case set_cumulative_value_opcode:
+                        {
+                            handler.set_cumulative_wheel_revolutions( 0 );
+                            return error_codes::success;
+                        }
+                    }
+
+                    return error_codes::request_not_supported;
+                }
+            private:
+                enum {
+                    set_cumulative_value_opcode                 = 1,
+                    start_sensor_calibration_opcode,
+                    update_sensor_location_opcode,
+                    request_supported_sensor_locations_opcode,
+                    response_code_opcode                        = 16
+                };
+
+                enum {
+                    rc_success = 1
+                };
+
+                std::uint8_t current_opcode_;
             };
 
-            template < typename Base, typename WheelHandler, typename CrankHandler >
-            class implementation : public Base, WheelHandler, CrankHandler
+            struct no_control_point_handler {
+                std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) {
+                    return 0;
+                }
+
+                template < class Handler >
+                std::uint8_t csc_write_control_point( std::size_t write_size, const std::uint8_t* value, Handler& handler ) {
+                    return 0;
+                }
+            };
+
+            template < typename Base, typename WheelHandler, typename CrankHandler, typename ControlPointHandler >
+            class implementation : public Base, WheelHandler, CrankHandler, public ControlPointHandler
             {
             public:
                 static constexpr std::size_t max_response_size = 1 + 4 + 2 + 2 + 2;
@@ -164,25 +216,12 @@ namespace bluetoe {
 
                 std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
-                    return 0;
+                    return ControlPointHandler::csc_read_control_point( read_size, out_buffer, out_size );
                 }
 
                 std::uint8_t csc_write_control_point( std::size_t write_size, const std::uint8_t* value )
                 {
-                    if ( write_size < 1 )
-                        return error_codes::invalid_handle;
-
-                    const std::uint8_t opcode = *value;
-
-                    switch ( opcode )
-                    {
-                        case set_cumulative_value_opcode:
-                        {
-                            return this->set_wheel_mesurement( 0, *this );
-                        }
-                    }
-
-                    return error_codes::request_not_supported;
+                    return ControlPointHandler::csc_write_control_point( write_size, value, *this );
                 }
 
                 template < class Server >
@@ -232,7 +271,8 @@ namespace bluetoe {
                 static constexpr bool has_control_point           = has_set_cumulative_value | has_multiple_sensorlocation;
 
                 using service_implementation = implementation<
-                    typename service_handler::user_handler, wheel_handler, crank_handler >;
+                    typename service_handler::user_handler, wheel_handler, crank_handler,
+                    typename bluetoe::details::select_type< has_control_point, control_point_handler, no_control_point_handler >::type >;
 
                 using mandatory_characteristics = std::tuple<
                     characteristic<

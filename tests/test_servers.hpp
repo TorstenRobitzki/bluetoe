@@ -133,7 +133,15 @@ namespace {
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;
 
-            this->notification_output( &buffer[ 0 ], size, con, value );
+            if ( notification_type == Server::indication )
+            {
+                this->indication_output( &buffer[ 0 ], size, con, value.client_characteristic_configuration_index() );
+            }
+            else
+            {
+                this->notification_output( &buffer[ 0 ], size, con, value );
+            }
+
             BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
         }
 
