@@ -125,11 +125,12 @@ namespace {
             hex_dump( std::cout, std::begin( guarded_buffer ), std::end( guarded_buffer ) );
         }
 
-        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        template < class Iter >
+        void expected_output( const bluetoe::details::notification_data& value, Iter begin, Iter end, typename Server::connection_data& con )
         {
             assert( value.valid() );
 
-            const std::vector< std::uint8_t > values( expected );
+            const std::vector< std::uint8_t > values( begin, end );
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;
 
@@ -143,6 +144,11 @@ namespace {
             }
 
             BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
+        }
+
+        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        {
+            expected_output( value, expected.begin(), expected.end(), con );
         }
 
         void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected )

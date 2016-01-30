@@ -57,6 +57,17 @@ typedef bluetoe::server<
 
 typedef bluetoe::server<
     bluetoe::cycling_speed_and_cadence<
+        bluetoe::sensor_location::top_of_shoe,
+        bluetoe::sensor_location::in_shoe,
+        bluetoe::sensor_location::hip,
+        bluetoe::csc::wheel_revolution_data_supported,
+        bluetoe::csc::crank_revolution_data_supported,
+        bluetoe::csc::handler< data_handler >
+    >
+> csc_server_with_multiple_sensor_locations;
+
+typedef bluetoe::server<
+    bluetoe::cycling_speed_and_cadence<
         // two sensor locations, to force the existence of the control point
         bluetoe::sensor_location::top_of_shoe,
         bluetoe::sensor_location::left_crank,
@@ -545,6 +556,22 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( service_procedures )
 
+    template < class Server >
+    void check_cp_response( Server& server, std::initializer_list< std::uint8_t > response )
+    {
+        BOOST_REQUIRE( server.notification.valid() );
+        BOOST_CHECK_EQUAL( server.notification_type, csc_server::indication );
+
+        std::vector< std::uint8_t > expected = {
+            0x1d,
+            low( server.cs_control_point.value_attribute_handle ),
+            high( server.cs_control_point.value_attribute_handle ) };
+
+        expected.insert( expected.end(), response );
+
+        server.expected_output( server.notification, expected.begin(), expected.end(), server.connection );
+    }
+
     /*
      * TP/SPS/BV-01-C
      */
@@ -559,8 +586,8 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
             0x12,
             low( cs_control_point.value_attribute_handle ),
             high( cs_control_point.value_attribute_handle ),
-            0x01,                           // resquest opcode (Set Cumulative Value)
-            0x00, 0x00, 0x00, 0x00, 0x00    // 32 bit wheel value
+            0x01,                    // resquest opcode (Set Cumulative Value)
+            0x00, 0x00, 0x00, 0x00   // 32 bit wheel value
         });
         expected_result({ 0x13 });
 
@@ -570,25 +597,114 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
         // trigger indication
         confirm_cumulative_wheel_revolutions( *this );
 
-        BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification_type, csc_server::indication );
-
-        expected_output( notification, {
-            0x1d,
-            low( cs_control_point.value_attribute_handle ),
-            high( cs_control_point.value_attribute_handle ),
+        check_cp_response( *this, {
             0x10,  // response opcode
             0x01,  // resquest opcode (Set Cumulative Value)
             0x01   // success
         });
     }
 
-    BOOST_FIXTURE_TEST_CASE( invalid_opcode, discover_and_configure_all_descriptor< csc_server > )
+    /*
+     * TP/SPS/BV-02-C
+     */
+    BOOST_FIXTURE_TEST_CASE( set_cumulative_value__set_to_non_zero, discover_and_configure_all_descriptor< csc_server > )
     {
+        // update values
+        next_time( 0x1234, 0x23456789, 0x3456 );
+        notify_timed_update( *this );
+
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x01,                    // resquest opcode (Set Cumulative Value)
+            0x01, 0x20, 0x30, 0x04   // 32 bit wheel value
+        });
+        expected_result({ 0x13 });
+
+        // check that callback was called
+        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0x04302001 );
+
+        // trigger indication
+        confirm_cumulative_wheel_revolutions( *this );
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x01,  // resquest opcode (Set Cumulative Value)
+            0x01   // success
+        });
     }
 
-    BOOST_FIXTURE_TEST_CASE( invalid_paramter, discover_and_configure_all_descriptor< csc_server > )
+    BOOST_FIXTURE_TEST_CASE( set_cumulative_value__invalid_paramter__to_large, discover_and_configure_all_descriptor< csc_server > )
     {
+        // write to control point
+        check_error_response(
+            {
+                0x12,
+                low( cs_control_point.value_attribute_handle ),
+                high( cs_control_point.value_attribute_handle ),
+                0x01,                    // resquest opcode (Set Cumulative Value)
+                0x01, 0x20, 0x30, 0x04, 0x05
+            },
+            0x12, cs_control_point.value_attribute_handle, 0x04 // invalid PDU
+        );
+    }
+
+
+    BOOST_FIXTURE_TEST_CASE( set_cumulative_value__invalid_paramter__to_small, discover_and_configure_all_descriptor< csc_server > )
+    {
+        // write to control point
+        check_error_response(
+            {
+                0x12,
+                low( cs_control_point.value_attribute_handle ),
+                high( cs_control_point.value_attribute_handle ),
+                0x01,                    // resquest opcode (Set Cumulative Value)
+                0x01, 0x20, 0x30
+            },
+            0x12, cs_control_point.value_attribute_handle, 0x04 // invalid PDU
+        );
+    }
+
+    /*
+     * TP/SPL/BV-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( request_supported_sensor_locations, discover_and_configure_all_descriptor< csc_server_with_multiple_sensor_locations > )
+    {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x04,     // resquest opcode (Request Supported Sensor Locations)
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x04,  // resquest opcode (Request Supported Sensor Locations)
+            0x01,  // success
+            0x01, 0x02, 0x03 // top_of_shoe, in_shoe, hip
+        });
+    }
+
+    BOOST_FIXTURE_TEST_CASE( request_supported_sensor_locations__no_multiple_sensor_locations, discover_and_configure_all_descriptor< csc_server > )
+    {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x04,     // resquest opcode (Request Supported Sensor Locations)
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x04,  // resquest opcode (Request Supported Sensor Locations)
+            0x02   // Op Code not supported
+        });
     }
 
     BOOST_FIXTURE_TEST_CASE( not_configured_control_point, discover_and_configure_all_descriptor< csc_server > )
@@ -610,5 +726,10 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
     BOOST_FIXTURE_TEST_CASE( writing_to_conrol_point_when_procedure_in_active, discover_and_configure_all_descriptor< csc_server > )
     {
     }
+
+    BOOST_FIXTURE_TEST_CASE( invalid_opcode, discover_and_configure_all_descriptor< csc_server > )
+    {
+    }
+
 
 BOOST_AUTO_TEST_SUITE_END()
