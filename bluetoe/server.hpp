@@ -252,6 +252,8 @@ namespace bluetoe {
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
 
+        static details::att_error_codes access_result_to_att_code( details::attribute_access_result, details::att_error_codes default_att_code );
+
         /**
          * for a PDU what starts with an opcode, followed by a pair of handles, the function checks the size of the PDU (must be A or B) and checks the handles.
          * The starting handle must not be 0, must be greate than ending_handle and must be with in the range of attributes available.
@@ -632,6 +634,18 @@ namespace bluetoe {
     void server< Options... >::error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size )
     {
         error_response( opcode, error_code, 0, output, out_size );
+    }
+
+
+    template < typename ... Options >
+    details::att_error_codes server< Options... >::access_result_to_att_code( details::attribute_access_result access_code, details::att_error_codes default_att_code )
+    {
+        // if it can be copied lossles into a att_error_codes, it is a att_error_codes
+        const details::att_error_codes result = static_cast< details::att_error_codes >( access_code );
+
+        return static_cast< details::attribute_access_result >( result ) == access_code
+            ? result
+            : default_att_code;
     }
 
     template < typename ... Options >
@@ -1121,7 +1135,7 @@ namespace bluetoe {
         }
         else
         {
-            error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
+            error_response( *input, access_result_to_att_code( rc, details::att_error_codes::write_not_permitted ), handle, output, out_size );
         }
     }
 
