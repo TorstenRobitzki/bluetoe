@@ -26,6 +26,24 @@ namespace details {
     };
 
     /*
+     * Selects a template according to the given Select parameter. If select is true,
+     * the result will be A; B otherwise
+     *
+     * The result is named type, but it is a template.
+     */
+    template < bool Select, template < typename > class A, template < typename > class B >
+    struct select_template_t1 {
+        template < typename T1 >
+        using type = A< T1 >;
+    };
+
+    template < template < typename > class A, template < typename > class B >
+    struct select_template_t1< false, A, B > {
+        template < typename T1 >
+        using type = B< T1 >;
+    };
+
+    /*
      * return A if A is not Null, otherwise return B if B is not Null, otherwise Null
      */
     template < typename Null, typename A, typename B >

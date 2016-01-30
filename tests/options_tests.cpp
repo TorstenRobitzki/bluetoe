@@ -6,10 +6,32 @@
 
 #include <type_traits>
 
+template < typename >
+struct template_a {};
+
+template < typename >
+struct template_b {};
+
 BOOST_AUTO_TEST_CASE( select_type )
 {
     BOOST_CHECK( ( std::is_same< typename bluetoe::details::select_type< true, int, bool >::type, int >::value ) );
     BOOST_CHECK( ( std::is_same< typename bluetoe::details::select_type< false, int, bool >::type, bool >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( select_template_t1 )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            bluetoe::details::select_template_t1< true, template_a, template_b >::template type< int >,
+            template_a< int > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            bluetoe::details::select_template_t1< false, template_a, template_b >::template type< int >,
+            template_b< int > >::value
+    ) );
+
 }
 
 BOOST_AUTO_TEST_CASE( or_type )
