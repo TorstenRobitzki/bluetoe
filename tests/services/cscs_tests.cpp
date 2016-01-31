@@ -55,6 +55,16 @@ typedef bluetoe::server<
     >
 > csc_server;
 
+template < typename SensorPosition >
+using csc_server_with_sensorposition = bluetoe::server<
+    bluetoe::cycling_speed_and_cadence<
+        SensorPosition,
+        bluetoe::csc::wheel_revolution_data_supported,
+        bluetoe::csc::crank_revolution_data_supported,
+        bluetoe::csc::handler< data_handler >
+    >
+>;
+
 typedef bluetoe::server<
     bluetoe::cycling_speed_and_cadence<
         bluetoe::sensor_location::top_of_shoe,
@@ -707,6 +717,36 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
         });
     }
 
+    /*
+     * TP/SPU/BV-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( update_sensor_location__multiple_sensor_locations, discover_and_configure_all_descriptor< csc_server_with_multiple_sensor_locations > )
+    {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x03,     // resquest opcode (Update Sensor Locations)
+            0x03      // hip
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x03,  // resquest opcode (Update Sensor Locations)
+            0x01   // success
+        });
+
+        // check the position characteristic
+        l2cap_input({
+            0x0a,
+            low( sensor_location.value_attribute_handle ),
+            high( sensor_location.value_attribute_handle )
+        });
+        expected_result({ 0x0b, 0x03 });
+    }
+
     BOOST_FIXTURE_TEST_CASE( not_configured_control_point, discover_and_configure_all_descriptor< csc_server > )
     {
     }
@@ -731,5 +771,29 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
     {
     }
 
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( sensor_location )
+
+    BOOST_FIXTURE_TEST_CASE( sensor_position__hip, discover_and_configure_all_descriptor< csc_server_with_sensorposition< bluetoe::sensor_location::hip > > )
+    {
+        l2cap_input({
+            0x0a,
+            low( sensor_location.value_attribute_handle ),
+            high( sensor_location.value_attribute_handle )
+        });
+        expected_result({ 0x0b, 0x03 });
+    }
+
+    BOOST_FIXTURE_TEST_CASE( sensor_position__rear_dropout, discover_and_configure_all_descriptor< csc_server_with_sensorposition< bluetoe::sensor_location::rear_dropout > > )
+    {
+        l2cap_input({
+            0x0a,
+            low( sensor_location.value_attribute_handle ),
+            high( sensor_location.value_attribute_handle )
+        });
+        expected_result({ 0x0b, 0x0a });
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

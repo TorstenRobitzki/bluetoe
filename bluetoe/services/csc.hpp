@@ -110,6 +110,7 @@ namespace bluetoe {
                 static constexpr std::uint16_t features = 0;
                 /** @endcond */
             };
+
             enum {
                 set_cumulative_value_opcode                 = 1,
                 start_sensor_calibration_opcode,
@@ -120,14 +121,23 @@ namespace bluetoe {
 
             enum {
                 rc_success                  = 1,
-                rc_op_code_not_supported    = 2
+                rc_op_code_not_supported    = 2,
+                rc_invalid_parameter        = 3
             };
 
             template < typename SensorLocations >
-            struct sensor_position_handler;
+            class sensor_position_handler;
 
             template < typename ... SensorLocations >
-            struct sensor_position_handler< std::tuple< SensorLocations... > > {
+            class sensor_position_handler< std::tuple< SensorLocations... > >
+            {
+            public:
+                sensor_position_handler()
+                    : current_position_( positions_[ 0 ] )
+                    , requested_position_( current_position_ )
+                {
+                }
+
                 std::uint8_t request_supported_sensor_locations_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
                     static const std::size_t response_size = 3;
@@ -139,19 +149,65 @@ namespace bluetoe {
 
                     std::size_t max_copy = std::min( read_size - response_size, sizeof ...(SensorLocations) );
 
-                    std::copy( &values[ 0 ], &values[ max_copy ], &out_buffer[ response_size ] );
+                    std::copy( &positions_[ 0 ], &positions_[ max_copy ], &out_buffer[ response_size ] );
                     out_size = response_size + max_copy;
 
                     return error_codes::success;
                 }
 
-                static const std::uint8_t values[sizeof ...(SensorLocations)];
+                std::uint8_t update_sensor_location_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    static const std::size_t response_size = 3;
+                    assert( read_size >= response_size );
+
+                    out_buffer[ 0 ] = response_code_opcode;
+                    out_buffer[ 1 ] = update_sensor_location_opcode;
+
+                    const auto loc = std::find( std::begin( positions_ ), std::end( positions_ ), requested_position_ );
+
+                    if ( loc != std::end( positions_ ) )
+                    {
+                        out_buffer[ 2 ] = rc_success;
+                        current_position_ = *loc;
+                    }
+                    else
+                    {
+                        out_buffer[ 2 ] = rc_invalid_parameter;
+                    }
+
+                    out_size = response_size;
+
+                    return error_codes::success;
+                }
+
+                void set_sensor_position( std::uint8_t new_sensor_position )
+                {
+                    requested_position_ = new_sensor_position;
+                }
+
+                std::uint8_t csc_sensor_location( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    assert( read_size > 0 );
+
+                    *out_buffer = current_position_;
+                    out_size    = 1;
+
+                    return error_codes::success;
+                }
+
+
+            private:
+                std::uint8_t current_position_;
+                std::uint8_t requested_position_;
+                static const std::uint8_t positions_[sizeof ...(SensorLocations)];
             };
 
             template < typename ... SensorLocations >
-            const std::uint8_t sensor_position_handler< std::tuple< SensorLocations... > >::values[sizeof ...(SensorLocations)] = { SensorLocations::value... };
+            const std::uint8_t sensor_position_handler< std::tuple< SensorLocations... > >::positions_[sizeof ...(SensorLocations)] = { SensorLocations::value... };
 
-            struct no_sensor_position_handler {
+            class no_sensor_position_handler
+            {
+            public:
                 std::uint8_t request_supported_sensor_locations_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
                     static const std::size_t response_size = 3;
@@ -164,10 +220,25 @@ namespace bluetoe {
 
                     return error_codes::success;
                 }
+
+                std::uint8_t update_sensor_location_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    static const std::size_t response_size = 3;
+                    assert( read_size >= response_size );
+
+                    out_buffer[ 0 ] = response_code_opcode;
+                    out_buffer[ 1 ] = update_sensor_location_opcode;
+                    out_buffer[ 2 ] = rc_op_code_not_supported;
+                    out_size = response_size;
+
+                    return error_codes::success;
+                }
+
+                void set_sensor_position( std::uint8_t ) {}
             };
 
             template < class SensorPositionHandler >
-            class control_point_handler : private SensorPositionHandler
+            class control_point_handler : public SensorPositionHandler
             {
             public:
                 std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
@@ -189,6 +260,11 @@ namespace bluetoe {
                     case request_supported_sensor_locations_opcode:
                         {
                             return this->request_supported_sensor_locations_opcode_response( read_size, out_buffer, out_size );
+                        }
+                        break;
+                    case update_sensor_location_opcode:
+                        {
+                            return this->update_sensor_location_opcode_response( read_size, out_buffer, out_size );
                         }
                         break;
                     default:
@@ -219,11 +295,23 @@ namespace bluetoe {
                         }
                     case request_supported_sensor_locations_opcode:
                         {
+                            if ( write_size != 1 )
+                                return std::make_pair( error_codes::invalid_pdu, false );
+
+                            return std::make_pair( error_codes::success, true );
+                        }
+                    case update_sensor_location_opcode:
+                        {
+                            if ( write_size != 1 + 1 )
+                                return std::make_pair( error_codes::invalid_pdu, false );
+
+                            this->set_sensor_position( *value);
+
                             return std::make_pair( error_codes::success, true );
                         }
                     }
 
-                    return std::make_pair( error_codes::request_not_supported, true );
+                    return std::make_pair( error_codes::request_not_supported, false );
                 }
             private:
                 std::uint8_t current_opcode_;
@@ -265,11 +353,6 @@ namespace bluetoe {
                     return error_codes::success;;
                 }
 
-                std::uint8_t csc_sensor_location( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
-                {
-                    return 0;
-                }
-
                 std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
                     return ControlPointHandler::csc_read_control_point( read_size, out_buffer, out_size );
@@ -294,12 +377,37 @@ namespace bluetoe {
             private:
             };
 
+            template < bool HasSensorlocation, bool HasMultipleSensorlocations, typename SensorList >
+            struct select_sensorlocation_implementation;
+
             template < typename SensorList >
-            using static_sensorlocation = characteristic<
-                characteristic_uuid16< 0x2A5D >,
-                characteristic_name< sensor_location_name >,
-                fixed_uint8_value< 0x00 > /// TODO: Fill in the used sensor position
-            >;
+            struct select_sensorlocation_implementation< false, false, SensorList >
+            {
+                using type = std::tuple<>;
+            };
+
+            template < typename SensorPosition >
+            struct select_sensorlocation_implementation< true, false, std::tuple< SensorPosition > >
+            {
+                using type = characteristic<
+                    characteristic_uuid16< 0x2A5D >,
+                    characteristic_name< sensor_location_name >,
+                    fixed_uint8_value< SensorPosition::value >
+                >;
+            };
+
+            template < typename SensorList >
+            struct select_sensorlocation_implementation< true, true, SensorList >
+            {
+                using type = characteristic<
+                    characteristic_uuid16< 0x2A5D >,
+                    characteristic_name< sensor_location_name >,
+                    bluetoe::mixin_read_handler<
+                        sensor_position_handler< SensorList >,
+                        &sensor_position_handler< SensorList >::csc_sensor_location
+                    >
+                >;
+            };
 
             template < typename ... Options >
             struct calculate_service
@@ -355,15 +463,14 @@ namespace bluetoe {
                     >
                 >;
 
-                using sensor_location_characteristics = typename bluetoe::details::select_type<
-                    has_sensorlocation,                         // todo multiple sensor locations
-                    static_sensorlocation< sensor_locations >,
-                    std::tuple<>
-                >::type;
-
                 using characteristics_with_sensorlocation = typename bluetoe::details::add_type<
                     mandatory_characteristics,
-                    sensor_location_characteristics >::type;
+                    typename select_sensorlocation_implementation<
+                        has_sensorlocation,
+                        has_multiple_sensorlocation,
+                        sensor_locations
+                    >::type
+                >::type;
 
                 using characteristics_with_control_point =
                     typename bluetoe::details::select_type<
@@ -399,7 +506,6 @@ namespace bluetoe {
             };
             /** @endcond */
         }
-
     }
 
     /**
