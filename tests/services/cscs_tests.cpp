@@ -564,23 +564,23 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+template < class Server >
+void check_cp_response( Server& server, std::initializer_list< std::uint8_t > response )
+{
+    BOOST_REQUIRE( server.notification.valid() );
+    BOOST_CHECK_EQUAL( server.notification_type, csc_server::indication );
+
+    std::vector< std::uint8_t > expected = {
+        0x1d,
+        low( server.cs_control_point.value_attribute_handle ),
+        high( server.cs_control_point.value_attribute_handle ) };
+
+    expected.insert( expected.end(), response );
+
+    server.expected_output( server.notification, expected.begin(), expected.end(), server.connection );
+}
+
 BOOST_AUTO_TEST_SUITE( service_procedures )
-
-    template < class Server >
-    void check_cp_response( Server& server, std::initializer_list< std::uint8_t > response )
-    {
-        BOOST_REQUIRE( server.notification.valid() );
-        BOOST_CHECK_EQUAL( server.notification_type, csc_server::indication );
-
-        std::vector< std::uint8_t > expected = {
-            0x1d,
-            low( server.cs_control_point.value_attribute_handle ),
-            high( server.cs_control_point.value_attribute_handle ) };
-
-        expected.insert( expected.end(), response );
-
-        server.expected_output( server.notification, expected.begin(), expected.end(), server.connection );
-    }
 
     /*
      * TP/SPS/BV-01-C
@@ -747,8 +747,86 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
         expected_result({ 0x0b, 0x03 });
     }
 
-    BOOST_FIXTURE_TEST_CASE( not_configured_control_point, discover_and_configure_all_descriptor< csc_server > )
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( service_procedures__general_error_handling )
+
+    /*
+     * TP/SPE/BI-01-C
+     */
+    BOOST_FIXTURE_TEST_CASE( op_code_not_supported_1, discover_and_configure_all_descriptor< csc_server > )
     {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x00     // resquest opcode (invalid)
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x00,  // resquest opcode (invalid)
+            0x02   // Op Code not supported
+        });
+    }
+
+    BOOST_FIXTURE_TEST_CASE( op_code_not_supported_2, discover_and_configure_all_descriptor< csc_server > )
+    {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x42     // resquest opcode (invalid)
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x42,  // resquest opcode (invalid)
+            0x02   // Op Code not supported
+        });
+    }
+
+    /*
+     * TP/SPE/BI-02-C
+     */
+    BOOST_FIXTURE_TEST_CASE( invalid_parameter, discover_and_configure_all_descriptor< csc_server_with_multiple_sensor_locations > )
+    {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x03,     // resquest opcode (UpdateSensorLocation)
+            0x42      // sensor location from the RFU range
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x03,  // resquest opcode (UpdateSensorLocation)
+            0x03   // Invalid Parameter
+        });
+    }
+
+    /*
+     * TP/SPE/BI-03-C
+     */
+    BOOST_FIXTURE_TEST_CASE( client_characteristic_configuration_descriptor_improperly_configured, discover_all_descriptors< csc_server > )
+    {
+        // valid command to set the cumulative wheel
+        check_error_response({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x01,                    // resquest opcode (Set Cumulative Value)
+            0x00, 0x00, 0x00, 0x00   // 32 bit wheel value
+        },
+        // according to the TS/spec, 0x81 should be returned. But there is already an error code defined in Supplement to the Bluetooth Core Specification
+        0x12, cs_control_point.value_attribute_handle, 0xfd );
     }
 
     BOOST_FIXTURE_TEST_CASE( operation_failed, discover_and_configure_all_descriptor< csc_server > )
@@ -767,9 +845,6 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
     {
     }
 
-    BOOST_FIXTURE_TEST_CASE( invalid_opcode, discover_and_configure_all_descriptor< csc_server > )
-    {
-    }
 
 
 BOOST_AUTO_TEST_SUITE_END()

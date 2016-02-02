@@ -285,7 +285,16 @@ namespace bluetoe {
                         }
                         break;
                     default:
-                        assert( !"confirmed a control point procedure that was not running." );
+                        {
+                            static const std::size_t response_size = 3;
+                            assert( read_size >= response_size );
+
+                            out_buffer[ 0 ] = response_code_opcode;
+                            out_buffer[ 1 ] = current_opcode_;
+                            out_buffer[ 2 ] = rc_op_code_not_supported;
+
+                            out_size = response_size;
+                        }
                     }
 
                     return error_codes::success;
@@ -326,9 +335,11 @@ namespace bluetoe {
 
                             return std::make_pair( error_codes::success, true );
                         }
+                    default:
+                        // according to the spec with have to response with success and then indicate an error
+                        return std::make_pair( error_codes::success, true );
                     }
 
-                    return std::make_pair( error_codes::request_not_supported, false );
                 }
             private:
                 std::uint8_t current_opcode_;
