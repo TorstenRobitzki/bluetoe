@@ -346,7 +346,7 @@ namespace bluetoe {
             uuid::is_128bit
                 ? bits( details::gatt_uuids::internal_128bit_uuid )
                 : uuid::as_16bit(),
-            &characteristic< Options... >::value_type::template characteristic_value_access< server >
+            &characteristic< Options... >::value_type::template characteristic_value_access< server, ClientCharacteristicIndex >
         };
 
         /*

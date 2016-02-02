@@ -104,7 +104,7 @@ namespace bluetoe {
             static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
-            template < class Server >
+            template < class Server, std::size_t ClientCharacteristicIndex >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
                 if ( args.type == details::attribute_access_type::read )
@@ -184,7 +184,7 @@ namespace bluetoe {
             static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
-            template < class Server >
+            template < class Server, std::size_t ClientCharacteristicIndex  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
                 if ( !has_read_access )
@@ -253,7 +253,7 @@ namespace bluetoe {
             static constexpr bool has_notification = false;
             static constexpr bool has_indication   = false;
 
-            template < class Server >
+            template < class Server, std::size_t ClientCharacteristicIndex  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
                 if ( args.type != details::attribute_access_type::read )
@@ -307,17 +307,17 @@ namespace bluetoe {
 
         template < class T >
         struct invoke_write_handler {
-            template < class Server >
-            static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* server )
+            template < class Server, std::size_t ClientCharacteristicIndex >
+            static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server )
             {
-                return T::template call_write_handler< Server >( offset, write_size, value, server );
+                return T::template call_write_handler< Server, ClientCharacteristicIndex >( offset, write_size, value, config, server );
             }
         };
 
         template <>
         struct invoke_write_handler< no_such_type > {
-            template < class Server >
-            static std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t*, void* server )
+            template < class Server, std::size_t ClientCharacteristicIndex >
+            static std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t*, const details::client_characteristic_configuration&, void* server )
             {
                 return error_codes::write_not_permitted;
             }
@@ -346,7 +346,7 @@ namespace bluetoe {
 
                 static_assert( has_read_access || has_write_access || has_notification || has_indication, "Ups!");
 
-                template < class Server >
+                template < class Server, std::size_t ClientCharacteristicIndex >
                 static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )
                 {
                     if ( args.type == attribute_access_type::read )
@@ -357,7 +357,7 @@ namespace bluetoe {
                     else if ( args.type == attribute_access_type::write )
                     {
                         return static_cast< attribute_access_result >(
-                            invoke_write_handler< write_handler_type >::template call_write_handler< Server >( args.buffer_offset, args.buffer_size, args.buffer, args.server ) );
+                            invoke_write_handler< write_handler_type >::template call_write_handler< Server, ClientCharacteristicIndex >( args.buffer_offset, args.buffer_size, args.buffer, args.client_config, args.server ) );
                     }
                     else
                     {
@@ -490,8 +490,8 @@ namespace bluetoe {
     struct free_write_blob_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return F( offset, write_size, value );
         }
@@ -527,8 +527,8 @@ namespace bluetoe {
     struct free_write_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? F( write_size, value )
@@ -663,8 +663,8 @@ namespace bluetoe {
     struct write_blob_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -677,8 +677,8 @@ namespace bluetoe {
     struct write_blob_handler_c : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -691,8 +691,8 @@ namespace bluetoe {
     struct write_blob_handler_v : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -705,8 +705,8 @@ namespace bluetoe {
     struct write_blob_handler_cv : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -719,8 +719,8 @@ namespace bluetoe {
     struct write_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
@@ -735,8 +735,8 @@ namespace bluetoe {
     struct write_handler_c : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
@@ -751,8 +751,8 @@ namespace bluetoe {
     struct write_handler_v : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
@@ -767,8 +767,8 @@ namespace bluetoe {
     struct write_handler_cv : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
@@ -805,8 +805,8 @@ namespace bluetoe {
     struct mixin_write_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* server )
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* server )
         {
             assert( server );
             static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
@@ -827,14 +827,18 @@ namespace bluetoe {
     struct mixin_write_indication_control_point_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Server >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, void* server_ptr )
+        template < class Server, std::size_t ClientCharacteristicIndex  >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server_ptr )
         {
             assert( server_ptr );
             static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
 
             if ( offset != 0 )
                 return static_cast< std::uint8_t >( error_codes::attribute_not_long );
+
+            // as this is a indication control point, this thingy must be configured for indications
+            if ( ( config.flags( ClientCharacteristicIndex ) & details::client_characteristic_configuration_indication_enabled ) == 0 )
+                return error_codes::cccd_improperly_configured;
 
             // we have a void pointer, the type of the server and the server is derived from the mixin
             Server& server = *static_cast< Server* >( server_ptr );
