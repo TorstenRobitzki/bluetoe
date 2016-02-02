@@ -6,6 +6,7 @@
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
 #include <bluetoe/server_name.hpp>
+#include <bluetoe/adv_service_list.hpp>
 #include <bluetoe/server_meta_type.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
@@ -465,6 +466,14 @@ namespace bluetoe {
         typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
 
         begin = details::copy_name< name::name != nullptr >::impl( begin, end, name::name );
+
+        typedef typename details::find_by_meta_type<
+            details::list_of_16_bit_service_uuids_tag,
+            Options...,
+            no_list_of_service_uuids
+        >::type service_list_uuid16;
+
+        begin = service_list_uuid16::advertising_data( begin, end );
 
         // add aditional empty AD to be visible to Nordic sniffer
         if ( end - begin >= 2u )

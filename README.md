@@ -78,8 +78,8 @@ Advertising Data|Format|Status
 ----------------|------|------
 Service UUID|Incomplete List of 16-bit Service UUIDs|planned
  |Complete List of 16-bit Service UUIDs|planned
- |Incomplete List of 32-bit Service UUIDs|planned
- |Complete List of 32-bit Service UUIDs|planned
+ |Incomplete List of 32-bit Service UUIDs|not planned
+ |Complete List of 32-bit Service UUIDs|not planned
  |Incomplete List of 128-bit Service UUIDs|planned
  |Complete List of 128-bit Service UUIDs|planned
 Local Name|Shortened Local Name|implemented

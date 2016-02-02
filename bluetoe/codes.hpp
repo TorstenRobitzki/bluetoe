@@ -108,9 +108,13 @@ namespace details {
     }
 
     enum class gap_types : std::uint8_t {
-        flags                   = 0x01,
-        complete_local_name     = 0x09,
-        shortened_local_name    = 0x08,
+        flags                           = 0x01,
+        incomplete_service_uuids_16     = 0x02,
+        complete_service_uuids_16       = 0x03,
+        incomplete_service_uuids_128    = 0x06,
+        complete_service_uuids_128      = 0x07,
+        complete_local_name             = 0x09,
+        shortened_local_name            = 0x08,
     };
 
     inline std::uint8_t bits( gap_types c )
