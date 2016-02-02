@@ -14,6 +14,7 @@ var searchData=
   ['service_5fname',['service_name',['../classbluetoe_1_1service__name.html',1,'bluetoe']]],
   ['service_5fuuid',['service_uuid',['../classbluetoe_1_1service__uuid.html',1,'bluetoe']]],
   ['service_5fuuid16',['service_uuid16',['../classbluetoe_1_1service__uuid16.html',1,'bluetoe']]],
+  ['set_5fcumulative_5fwheel_5frevolutions',['set_cumulative_wheel_revolutions',['../classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html#a9007f38fe66ea045274dcc9baa33d91a',1,'bluetoe::cycling_speed_and_cadence_handler_prototype']]],
   ['shared_5fwrite_5fqueue',['shared_write_queue',['../structbluetoe_1_1shared__write__queue.html',1,'bluetoe']]],
   ['size',['size',['../structbluetoe_1_1link__layer_1_1read__buffer.html#a45f731f6cc61ddb3702049a9d6880086',1,'bluetoe::link_layer::read_buffer::size()'],['../structbluetoe_1_1link__layer_1_1write__buffer.html#ae2f0fe94eebbd629bae528352fb32df5',1,'bluetoe::link_layer::write_buffer::size()'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a875552bde9322f3d07ad9e9a9dc90a30',1,'bluetoe::link_layer::ll_data_pdu_buffer::size()'],['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a01153c11ee28b458c2541c7cc00e01df',1,'bluetoe::link_layer::pdu_ring_buffer::size()']]],
   ['sleep_5fclock_5faccuracy_5fppm',['sleep_clock_accuracy_ppm',['../structbluetoe_1_1link__layer_1_1sleep__clock__accuracy__ppm.html',1,'bluetoe::link_layer']]],

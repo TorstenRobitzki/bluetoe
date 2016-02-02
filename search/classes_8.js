@@ -1,6 +1,8 @@
 var searchData=
 [
-  ['link_5flayer',['link_layer',['../classbluetoe_1_1link__layer_1_1link__layer.html',1,'bluetoe::link_layer']]],
-  ['ll_5fdata_5fpdu_5fbuffer',['ll_data_pdu_buffer',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html',1,'bluetoe::link_layer']]],
-  ['ll_5fdata_5fpdu_5fbuffer_3c_20transmitsize_2c_20receivesize_2c_20scheduled_5fradio_3c_20transmitsize_2c_20receivesize_2c_20callback_20_3e_20_3e',['ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, scheduled_radio&lt; TransmitSize, ReceiveSize, CallBack &gt; &gt;',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html',1,'bluetoe::link_layer']]]
+  ['include_5fservice',['include_service',['../structbluetoe_1_1include__service.html',1,'bluetoe']]],
+  ['include_5fservice_3c_20service_5fuuid16_3c_20uuid_20_3e_20_3e',['include_service&lt; service_uuid16&lt; UUID &gt; &gt;',['../structbluetoe_1_1include__service_3_01service__uuid16_3_01_u_u_i_d_01_4_01_4.html',1,'bluetoe']]],
+  ['include_5fservice_3c_20service_5fuuid_3c_20a_2c_20b_2c_20c_2c_20d_2c_20e_20_3e_20_3e',['include_service&lt; service_uuid&lt; A, B, C, D, E &gt; &gt;',['../structbluetoe_1_1include__service_3_01service__uuid_3_01_a_00_01_b_00_01_c_00_01_d_00_01_e_01_4_01_4.html',1,'bluetoe']]],
+  ['indicate',['indicate',['../structbluetoe_1_1indicate.html',1,'bluetoe']]],
+  ['is_5fsecondary_5fservice',['is_secondary_service',['../structbluetoe_1_1is__secondary__service.html',1,'bluetoe']]]
 ];

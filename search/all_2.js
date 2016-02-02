@@ -20,13 +20,13 @@ var searchData=
   ['crank_5frevolution_5fdata_5fsupported',['crank_revolution_data_supported',['../structbluetoe_1_1csc_1_1crank__revolution__data__supported.html',1,'bluetoe::csc']]],
   ['crc_5ferror',['crc_error',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeac9550100eccf2852ad80ed9161d8e7',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
   ['cstring_5fwrapper',['cstring_wrapper',['../structbluetoe_1_1cstring__wrapper.html',1,'bluetoe']]],
-  ['cumulative_5fcrank_5frevolutions',['cumulative_crank_revolutions',['../classbluetoe_1_1cycling__speed__and__cadence__interface__prototype.html#a819f3b5fc130032b94c09f5ca9f56d03',1,'bluetoe::cycling_speed_and_cadence_interface_prototype']]],
-  ['cumulative_5fwheel_5frevolutions',['cumulative_wheel_revolutions',['../classbluetoe_1_1cycling__speed__and__cadence__interface__prototype.html#a4ad73678b50c2e3efcc61964178240d0',1,'bluetoe::cycling_speed_and_cadence_interface_prototype']]],
+  ['cumulative_5fcrank_5frevolutions_5fand_5ftime',['cumulative_crank_revolutions_and_time',['../classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html#ad59f1dc1a77ceb6059253e8d8d14b99d',1,'bluetoe::cycling_speed_and_cadence_handler_prototype']]],
+  ['cumulative_5fwheel_5frevolutions_5fand_5ftime',['cumulative_wheel_revolutions_and_time',['../classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html#a2f957feb47f10a27bff9e8ecb3c446cc',1,'bluetoe::cycling_speed_and_cadence_handler_prototype']]],
   ['cycling',['cycling',['../structbluetoe_1_1appearance.html#a8088a7ffed680bd36d69996dee68e8f7',1,'bluetoe::appearance']]],
   ['cycling_5fcadence_5fsensor',['cycling_cadence_sensor',['../structbluetoe_1_1appearance.html#a42a0562d3d031beda236d14dd256bf10',1,'bluetoe::appearance']]],
   ['cycling_5fcomputer',['cycling_computer',['../structbluetoe_1_1appearance.html#a03a5941af36ddd1f30286584b4a8be15',1,'bluetoe::appearance']]],
   ['cycling_5fpower_5fsensor',['cycling_power_sensor',['../structbluetoe_1_1appearance.html#af7c556cbe7a15dcaf1cc357959a419d9',1,'bluetoe::appearance']]],
-  ['cycling_5fspeed_5fand_5fcadence_5finterface_5fprototype',['cycling_speed_and_cadence_interface_prototype',['../classbluetoe_1_1cycling__speed__and__cadence__interface__prototype.html',1,'bluetoe']]],
+  ['cycling_5fspeed_5fand_5fcadence_5fhandler_5fprototype',['cycling_speed_and_cadence_handler_prototype',['../classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html',1,'bluetoe']]],
   ['cycling_5fspeed_5fand_5fcadence_5fsensor',['cycling_speed_and_cadence_sensor',['../structbluetoe_1_1appearance.html#a89ee5f18ccd301de74af07a0420d56db',1,'bluetoe::appearance']]],
   ['cycling_5fspeed_5fsensor',['cycling_speed_sensor',['../structbluetoe_1_1appearance.html#ad0f5965394f2dde61e72e87e49fc10f8',1,'bluetoe::appearance']]]
 ];

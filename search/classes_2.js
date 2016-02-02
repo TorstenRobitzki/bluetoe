@@ -8,5 +8,5 @@ var searchData=
   ['connection_5fdata',['connection_data',['../classbluetoe_1_1server_1_1connection__data.html',1,'bluetoe::server']]],
   ['crank_5frevolution_5fdata_5fsupported',['crank_revolution_data_supported',['../structbluetoe_1_1csc_1_1crank__revolution__data__supported.html',1,'bluetoe::csc']]],
   ['cstring_5fwrapper',['cstring_wrapper',['../structbluetoe_1_1cstring__wrapper.html',1,'bluetoe']]],
-  ['cycling_5fspeed_5fand_5fcadence_5finterface_5fprototype',['cycling_speed_and_cadence_interface_prototype',['../classbluetoe_1_1cycling__speed__and__cadence__interface__prototype.html',1,'bluetoe']]]
+  ['cycling_5fspeed_5fand_5fcadence_5fhandler_5fprototype',['cycling_speed_and_cadence_handler_prototype',['../classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html',1,'bluetoe']]]
 ];
