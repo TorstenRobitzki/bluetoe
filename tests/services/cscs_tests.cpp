@@ -829,23 +829,81 @@ BOOST_AUTO_TEST_SUITE( service_procedures__general_error_handling )
         0x12, cs_control_point.value_attribute_handle, 0xfd );
     }
 
-    BOOST_FIXTURE_TEST_CASE( operation_failed, discover_and_configure_all_descriptor< csc_server > )
+    /*
+     * TP/SPE/BI-04-C
+     *
+     * This one is hard to test, because it requires the implementation to be asynchronous somewhere.
+     * Currently the only asynchronous procedure is
+     */
+    BOOST_FIXTURE_TEST_CASE( procedure_already_in_progress, discover_and_configure_all_descriptor< csc_server > )
     {
+        // write to control point
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x01,                    // resquest opcode (Set Cumulative Value)
+            0x01, 0x20, 0x30, 0x04   // 32 bit wheel value
+        });
+        expected_result({ 0x13 });
+
+        // write to control point
+        check_error_response({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x01,                    // resquest opcode (Set Cumulative Value)
+            0x01, 0x20, 0x30, 0x04   // 32 bit wheel value
+        },
+        // according to the TS/spec, 0x80 should be returned. But there is already an error code defined in Supplement to the Bluetooth Core Specification
+        0x12, cs_control_point.value_attribute_handle, 0xfe );
     }
 
-    BOOST_FIXTURE_TEST_CASE( multiple_control_point_procedures, discover_and_configure_all_descriptor< csc_server > )
+    /*
+     * TP/SPE/BI-05-C [SC Control Point Procedure Timeout]
+     *
+     * Not implemented
+     */
+
+    BOOST_FIXTURE_TEST_CASE( multiple_control_point_procedures, discover_and_configure_all_descriptor< csc_server_with_multiple_sensor_locations > )
     {
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x01,                    // resquest opcode (Set Cumulative Value)
+            0x01, 0x20, 0x30, 0x04   // 32 bit wheel value
+        });
+        expected_result({ 0x13 });
+
+        // check that callback was called
+        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0x04302001 );
+
+        // trigger indication
+        confirm_cumulative_wheel_revolutions( *this );
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x01,  // resquest opcode (UpdateSensorLocation)
+            0x01   // success
+        });
+
+        // set sensor location
+        l2cap_input({
+            0x12,
+            low( cs_control_point.value_attribute_handle ),
+            high( cs_control_point.value_attribute_handle ),
+            0x03,     // resquest opcode (UpdateSensorLocation)
+            0x02      // sensor location (in shoe)
+        });
+        expected_result({ 0x13 });
+
+        check_cp_response( *this, {
+            0x10,  // response opcode
+            0x03,  // resquest opcode (UpdateSensorLocation)
+            0x01   // success
+        });
     }
-
-    BOOST_FIXTURE_TEST_CASE( writing_control_point_results_in_error, discover_and_configure_all_descriptor< csc_server > )
-    {
-    }
-
-    BOOST_FIXTURE_TEST_CASE( writing_to_conrol_point_when_procedure_in_active, discover_and_configure_all_descriptor< csc_server > )
-    {
-    }
-
-
 
 BOOST_AUTO_TEST_SUITE_END()
 

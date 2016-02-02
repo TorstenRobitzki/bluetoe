@@ -258,8 +258,15 @@ namespace bluetoe {
             class control_point_handler : public SensorPositionHandler
             {
             public:
+                control_point_handler()
+                    : procedure_in_progress_( false )
+                {
+                }
+
                 std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    procedure_in_progress_  = false;
+
                     switch ( current_opcode_ )
                     {
                     case set_cumulative_value_opcode:
@@ -306,7 +313,11 @@ namespace bluetoe {
                     if ( write_size < 1 )
                         return std::make_pair( error_codes::invalid_handle, false );
 
-                    current_opcode_ = *value;
+                    if ( procedure_in_progress_ )
+                        return std::make_pair( error_codes::procedure_already_in_progress, false );
+
+                    procedure_in_progress_  = true;
+                    current_opcode_         = *value;
                     ++value;
 
                     switch ( current_opcode_ )
@@ -343,6 +354,7 @@ namespace bluetoe {
                 }
             private:
                 std::uint8_t current_opcode_;
+                bool         procedure_in_progress_;
             };
 
             struct no_control_point_handler {
@@ -579,6 +591,10 @@ namespace bluetoe {
 
         /**
          * Function will be called, when the cumlative wheel revolution have to be changed.
+         *
+         * The update of the value have to be confirmed by calling confirm_cumulative_wheel_revolutions().
+         * Calling confirm_cumulative_wheel_revolutions() can be done synchronous, or asynchroiunous.
+         * It's save to call confirm_cumulative_wheel_revolutions() from an ISR.
          */
         void set_cumulative_wheel_revolutions( std::uint32_t new_value );
 
