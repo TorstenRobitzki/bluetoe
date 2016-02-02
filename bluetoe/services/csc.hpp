@@ -16,10 +16,12 @@ namespace bluetoe {
         using service_uuid = service_uuid16< 0x1816 >;
 
         namespace details {
+            /** @cond HIDDEN_SYMBOLS */
             struct handler_tag;
 
             struct wheel_revolution_data_handler_tag {};
             struct crank_revolution_data_handler_tag {};
+            /** @endcond */
         }
 
         /**
@@ -30,11 +32,30 @@ namespace bluetoe {
         template < typename Handler >
         struct handler
         {
+            /** @cond HIDDEN_SYMBOLS */
             typedef details::handler_tag meta_type;
 
             typedef Handler user_handler;
+            /** @endcond */
         };
 
+        /**
+         * @brief Denotes, that the csc service provides wheel revolution data.
+         *
+         * If added to bluetoe::cycling_speed_and_cadence, the user handler have to have the following two functions:
+         * - std::pair< std::uint32_t, std::uint16_t > cumulative_wheel_revolutions_and_time()
+         * - void set_cumulative_wheel_revolutions( std::uint32_t new_value )
+         *
+         * The first is a callback that gives the service the information about the last time, a wheel revolution
+         * value was measured and the coresponding wheel revolution value.
+         * The second function will be called by the service, to set the current wheel revolution value.
+         *
+         * A service must provide wheel_revolution_data_supported, or crank_revolution_data_supported.
+         *
+         * @sa crank_revolution_data_supported
+         * @sa handler
+         * @sa cycling_speed_and_cadence
+         */
         struct wheel_revolution_data_supported {
             /** @cond HIDDEN_SYMBOLS */
             typedef details::wheel_revolution_data_handler_tag meta_type;
@@ -90,25 +111,21 @@ namespace bluetoe {
             };
 
             struct no_wheel_revolution_data_supported {
-                /** @cond HIDDEN_SYMBOLS */
                 typedef details::wheel_revolution_data_handler_tag meta_type;
 
                 template < class T >
                 void add_wheel_mesurement( std::uint8_t&, std::uint8_t*&, T& ) {}
 
                 static constexpr std::uint16_t features = 0;
-                /** @endcond */
             };
 
             struct no_crank_revolution_data_supported {
-                /** @cond HIDDEN_SYMBOLS */
                 typedef details::crank_revolution_data_handler_tag meta_type;
 
                 template < class T >
                 void add_crank_mesurement( std::uint8_t&, std::uint8_t*&, T& ) {}
 
                 static constexpr std::uint16_t features = 0;
-                /** @endcond */
             };
 
             enum {
@@ -489,8 +506,6 @@ namespace bluetoe {
                         characteristics_with_sensorlocation
                     >::type;
 
-
-
                 using all_characteristics = characteristics_with_control_point;
 
                 using default_parameter = std::tuple<
@@ -498,7 +513,6 @@ namespace bluetoe {
                     service_uuid,
                     bluetoe::service_name< service_name >,
                     Options... >;
-
 
                 typedef typename service_from_parameters<
                     typename bluetoe::details::add_type< default_parameter, all_characteristics >::type
@@ -509,6 +523,9 @@ namespace bluetoe {
     }
 
     /**
+     * @typedef cycling_speed_and_cadence
+     *
+     * Implementation of the Cycling Speed and Cadence Service (CSCS) 1.0
      *
      * @sa bluetoe::csc::wheel_revolution_data_supported
      * @sa bluetoe::csc::crank_revolution_data_supported
