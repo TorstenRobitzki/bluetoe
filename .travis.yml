@@ -4,6 +4,11 @@ sudo: required
 dist: precise
 language: cpp
 
+notifications:
+  email:
+    on_success: change
+    on_failure: change
+
 matrix:
   include:
     - compiler: gcc
