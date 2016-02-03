@@ -4,8 +4,6 @@
 #include <bluetoe/sensor_location.hpp>
 #include <nrf.h>
 
-static constexpr char server_name[] = "Gruener Blitz";
-
 struct handler {
 
     /*
@@ -30,8 +28,11 @@ struct handler {
     volatile std::uint16_t last_crank_event_time_;
 };
 
+static constexpr char server_name[] = "Gruener Blitz";
+
 using bicycle = bluetoe::server<
     bluetoe::server_name< server_name >,
+    bluetoe::appearance::cycling_speed_and_cadence_sensor,
     bluetoe::cycling_speed_and_cadence<
         bluetoe::sensor_location::hip,
         bluetoe::csc::wheel_revolution_data_supported,
