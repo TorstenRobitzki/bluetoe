@@ -251,6 +251,11 @@ namespace details {
             typename find_all_by_meta_type< MetaType, Types... >::type >::type type;
     };
 
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct find_all_by_meta_type< MetaType, std::tuple< Types... > > : find_all_by_meta_type< MetaType, Types... > {};
+
     /*
      * groups a list of types by there meta types
      *
@@ -397,6 +402,34 @@ namespace details {
     struct sum_by< std::tuple< T, Ts... >, Predicate > : std::integral_constant< int,
         sum_by< std::tuple< T >, Predicate >::value
       + sum_by< std::tuple< Ts... >, Predicate >::value > {};
+
+    /*
+     * transform a list into an other list of the same length
+     */
+    template <
+        typename List,
+        template < typename > class Transform
+    >
+    struct transform_list;
+
+    template <
+        template < typename > class Transform
+    >
+    struct transform_list< std::tuple<>, Transform > {
+        typedef std::tuple<> type;
+    };
+
+    template <
+        typename E,
+        typename ... Es,
+        template < typename > class Transform
+    >
+    struct transform_list< std::tuple< E, Es... >, Transform > {
+        typedef typename add_type<
+            typename Transform< E >::type,
+            typename transform_list< std::tuple< Es... >, Transform >::type
+        >::type type;
+    };
 
     /**
      * @brief returns true, if Option is given in Options

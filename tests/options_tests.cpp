@@ -605,3 +605,39 @@ BOOST_AUTO_TEST_CASE( fold )
             std::tuple< tag<'A'>, tag<'B'> > >::value
     ) );
 }
+
+BOOST_AUTO_TEST_CASE( transform_list )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list< std::tuple<>, bluetoe::details::extract_meta_type >::type,
+            std::tuple<> >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list<
+                std::tuple< type1 >,
+                bluetoe::details::extract_meta_type
+            >::type,
+            std::tuple< meta1 > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list<
+                std::tuple< type1, type2 >,
+                bluetoe::details::extract_meta_type
+            >::type,
+            std::tuple< meta1, meta2 > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list<
+                std::tuple< type1, type2, type3 >,
+                bluetoe::details::extract_meta_type
+            >::type,
+            std::tuple< meta1, meta2, meta3 > >::value
+    ) );
+}
