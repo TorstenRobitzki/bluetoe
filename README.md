@@ -76,15 +76,15 @@ This is the current state of implemented Advertising Data:
 
 Advertising Data|Format|Status
 ----------------|------|------
-Service UUID|Incomplete List of 16-bit Service UUIDs|planned
- |Complete List of 16-bit Service UUIDs|planned
+Service UUID|Incomplete List of 16-bit Service UUIDs|implemented
+ |Complete List of 16-bit Service UUIDs|implemented
  |Incomplete List of 32-bit Service UUIDs|not planned
  |Complete List of 32-bit Service UUIDs|not planned
  |Incomplete List of 128-bit Service UUIDs|planned
  |Complete List of 128-bit Service UUIDs|planned
 Local Name|Shortened Local Name|implemented
  |Complete Local Name|implemented
-Flags|Flags|planned
+Flags|Flags|implemented
 Manufacturer Specific Data|Manufacturer Specific Data|planned
 TX Power Level|TX Power Level|planned
 Secure Simple Pairing Out of Band||not planned

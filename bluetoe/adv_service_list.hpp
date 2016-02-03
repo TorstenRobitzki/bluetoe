@@ -3,6 +3,8 @@
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/bits.hpp>
+#include <bluetoe/options.hpp>
+#include <bluetoe/service_uuid.hpp>
 
 namespace bluetoe {
 
@@ -52,17 +54,20 @@ namespace bluetoe {
     constexpr std::uint16_t list_of_16_bit_service_uuids< UUID16... >::values_[ sizeof ...(UUID16) ];
     /** @endcond */
 
+    /** @cond HIDDEN_SYMBOLS */
     template <>
     struct list_of_16_bit_service_uuids<> {
-        /** @cond HIDDEN_SYMBOLS */
         using meta_type = details::list_of_16_bit_service_uuids_tag;
 
         static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
         {
             return begin;
         }
-        /** @endcond */
     };
+
+    template < typename ... UUID16 >
+    struct list_of_16_bit_service_uuids< std::tuple< UUID16... > > : list_of_16_bit_service_uuids< UUID16... > {};
+    /** @endcond */
 
     struct no_list_of_service_uuids {
         /** @cond HIDDEN_SYMBOLS */
@@ -76,7 +81,26 @@ namespace bluetoe {
     };
 
     namespace details {
+        template < typename T >
+        struct extract_uuid {
+            using type = typename T::uuid;
+        };
 
+        template < typename ... Services >
+        struct create_list_of_16_bit_service_uuids
+        {
+            typedef typename bluetoe::details::transform_list<
+                std::tuple< Services... >,
+                extract_uuid >::type uuids;
+
+            typedef typename find_all_by_meta_type< bluetoe::details::service_uuid_16_meta_type, uuids >::type type;
+        };
+
+        template < typename ServiceList >
+        struct default_list_of_16_bit_service_uuids;
+
+        template < typename ... Services >
+        struct default_list_of_16_bit_service_uuids< std::tuple< Services... > > : list_of_16_bit_service_uuids< typename create_list_of_16_bit_service_uuids< Services... >::type > {};
     }
 }
 

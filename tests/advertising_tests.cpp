@@ -134,5 +134,20 @@ BOOST_FIXTURE_TEST_CASE( no_space_left_for_a_single_uuid, three_uuid_server )
     }, *this, 6 );
 }
 
+using server_with_multiple_services = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x1122 >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( implicit_service_list, server_with_multiple_services )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x05, 0x03, 0x22, 0x11, 0x00, 0x18,
+        0x00, 0x00
+    }, *this );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 

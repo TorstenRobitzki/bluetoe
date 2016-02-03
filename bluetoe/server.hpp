@@ -446,6 +446,7 @@ namespace bluetoe {
                 return begin;
             }
         };
+
     }
 
     template < typename ... Options >
@@ -470,7 +471,7 @@ namespace bluetoe {
         typedef typename details::find_by_meta_type<
             details::list_of_16_bit_service_uuids_tag,
             Options...,
-            no_list_of_service_uuids
+            details::default_list_of_16_bit_service_uuids< services >
         >::type service_list_uuid16;
 
         begin = service_list_uuid16::advertising_data( begin, end );

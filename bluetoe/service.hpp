@@ -52,7 +52,7 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::service_uuid_meta_type meta_type;
+        typedef details::service_uuid_128_meta_type meta_type;
         /** @endcond */
     };
 
@@ -73,7 +73,7 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::service_uuid_meta_type meta_type;
+        typedef details::service_uuid_16_meta_type meta_type;
         /** @endcond */
     };
 
