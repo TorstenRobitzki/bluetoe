@@ -110,3 +110,4 @@ add_dependencies(erase.flash erase.jlink)
 
 add_example(thermometer)
 add_example(cycling_speed_and_cadence)
+add_example(blinky)
