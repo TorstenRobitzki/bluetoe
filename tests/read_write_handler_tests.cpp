@@ -229,7 +229,7 @@ typedef boost::mpl::list<
 typedef boost::mpl::list<
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
-            bluetoe::free_write_handler< &write_test_value_handler >
+            bluetoe::free_raw_write_handler< &write_test_value_handler >
         >,
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1212 >,
@@ -433,7 +433,7 @@ BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value )
 {
     using write_handler = bluetoe::characteristic<
         bluetoe::characteristic_uuid16< 0x1215 >,
-        bluetoe::free_write_handler< &write_test_value_handler >
+        bluetoe::free_raw_write_handler< &write_test_value_handler >
     >;
 
     access_attributes< write_handler >().compare_characteristic( { 0x08, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
@@ -445,7 +445,7 @@ BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value_for_no
         bluetoe::characteristic_uuid16< 0x1215 >,
         bluetoe::notify,
         bluetoe::free_read_handler< &read_test_value_handler >,
-        bluetoe::free_write_handler< &write_test_value_handler >
+        bluetoe::free_raw_write_handler< &write_test_value_handler >
     >;
 
     access_attributes< write_handler >().compare_characteristic( { 0x1a, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );
@@ -456,7 +456,7 @@ BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value_for_in
     using write_handler = bluetoe::characteristic<
         bluetoe::characteristic_uuid16< 0x1215 >,
         bluetoe::indicate,
-        bluetoe::free_write_handler< &write_test_value_handler >,
+        bluetoe::free_raw_write_handler< &write_test_value_handler >,
         bluetoe::free_read_handler< &read_test_value_handler >
     >;
 
@@ -469,7 +469,7 @@ BOOST_AUTO_TEST_CASE( test_write_handler_characteristic_declaration_value_for_in
         bluetoe::characteristic_uuid16< 0x1215 >,
         bluetoe::notify,
         bluetoe::indicate,
-        bluetoe::free_write_handler< &write_test_value_handler >,
+        bluetoe::free_raw_write_handler< &write_test_value_handler >,
         bluetoe::free_read_handler< &read_test_value_handler >
     >;
 
@@ -484,7 +484,7 @@ BOOST_AUTO_TEST_CASE( test_not_readable_write_handler_characteristic_declaration
         bluetoe::indicate,
         bluetoe::no_read_access,
         bluetoe::free_read_handler< &read_test_value_handler >,
-        bluetoe::free_write_handler< &write_test_value_handler >
+        bluetoe::free_raw_write_handler< &write_test_value_handler >
     >;
 
     access_attributes< write_handler >().compare_characteristic( { 0x38, 0x02, 0x00, 0x15, 0x12 }, 0x2803 );

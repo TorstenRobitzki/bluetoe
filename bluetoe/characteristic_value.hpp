@@ -397,7 +397,7 @@ namespace bluetoe {
      * @sa characteristic
      * @sa free_read_handler
      * @sa free_write_blob_handler
-     * @sa free_write_handler
+     * @sa free_raw_write_handler
      * @sa bluetoe::error_codes::error_codes
      */
     template < std::uint8_t (*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
@@ -440,7 +440,7 @@ namespace bluetoe {
      * @sa characteristic
      * @sa free_read_blob_handler
      * @sa free_write_blob_handler
-     * @sa free_write_handler
+     * @sa free_raw_write_handler
      * @sa bluetoe::error_codes::error_codes
      */
     template < std::uint8_t (*F)( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
@@ -464,7 +464,7 @@ namespace bluetoe {
      *
      * The handler can be used to handle blobs.
      * If only a write handler is passed to the bluetoe::characteristic, the characteristic will be write only.
-     * If the characteristic value will always be smaller than 20 octets, using a bluetoe::free_write_handler will save
+     * If the characteristic value will always be smaller than 20 octets, using a bluetoe::free_raw_write_handler will save
      * you from coping with an offset.
      *
      * @tparam F pointer to function to handle a write request
@@ -483,7 +483,7 @@ namespace bluetoe {
      * @sa characteristic
      * @sa free_read_blob_handler
      * @sa free_read_handler
-     * @sa free_write_handler
+     * @sa free_raw_write_handler
      * @sa bluetoe::error_codes::error_codes
      */
     template < std::uint8_t (*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
@@ -524,7 +524,7 @@ namespace bluetoe {
      * @sa bluetoe::error_codes::error_codes
      */
     template < std::uint8_t (*F)( std::size_t write_size, const std::uint8_t* value ) >
-    struct free_write_handler : details::value_handler_base
+    struct free_raw_write_handler : details::value_handler_base
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >

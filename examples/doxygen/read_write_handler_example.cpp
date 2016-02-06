@@ -79,7 +79,7 @@ bluetoe::server<
         >,
         bluetoe::characteristic<
             bluetoe::free_read_handler< &read_handler >,
-            bluetoe::free_write_handler< &write_handler >
+            bluetoe::free_raw_write_handler< &write_handler >
         >,
         bluetoe::characteristic<
             bluetoe::free_read_blob_handler< &static_handler::read >,
