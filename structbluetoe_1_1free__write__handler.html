@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
-<title>BlueToe: bluetoe::free_write_handler&lt; F &gt; Struct Template Reference</title>
+<title>BlueToe: bluetoe::free_write_handler&lt; T, F &gt; Struct Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -90,7 +90,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!-- top -->
 <div class="header">
   <div class="headertitle">
-<div class="title">bluetoe::free_write_handler&lt; F &gt; Struct Template Reference</div>  </div>
+<div class="title">bluetoe::free_write_handler&lt; T, F &gt; Struct Template Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 
@@ -99,35 +99,29 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 
 <p><code>#include &lt;<a class="el" href="characteristic__value_8hpp_source.html">bluetoe/characteristic_value.hpp</a>&gt;</code></p>
 <div class="dynheader">
-Inheritance diagram for bluetoe::free_write_handler&lt; F &gt;:</div>
+Inheritance diagram for bluetoe::free_write_handler&lt; T, F &gt;:</div>
 <div class="dyncontent">
  <div class="center">
-  <img src="structbluetoe_1_1free__write__handler.png" usemap="#bluetoe::free_5Fwrite_5Fhandler_3C_20F_20_3E_map" alt=""/>
-  <map id="bluetoe::free_5Fwrite_5Fhandler_3C_20F_20_3E_map" name="bluetoe::free_write_handler&lt; F &gt;_map">
+  <img src="structbluetoe_1_1free__write__handler.png" usemap="#bluetoe::free_5Fwrite_5Fhandler_3C_20T_2C_20F_20_3E_map" alt=""/>
+  <map id="bluetoe::free_5Fwrite_5Fhandler_3C_20T_2C_20F_20_3E_map" name="bluetoe::free_write_handler&lt; T, F &gt;_map">
 </map>
  </div></div>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><h3>template&lt;std::uint8_t(*)(std::size_t write_size, const std::uint8_t *value) F&gt;<br />
-struct bluetoe::free_write_handler&lt; F &gt;</h3>
+<div class="textblock"><h3>template&lt;typename T, std::uint8_t(*)(T) F&gt;<br />
+struct bluetoe::free_write_handler&lt; T, F &gt;</h3>
 
 <p>binds a free function as a write handler for the given characteristic </p>
-<p>If only a write handler is passed to the <a class="el" href="classbluetoe_1_1characteristic.html" title="A characteristic is an attribute that is accessable by a GATT client. ">bluetoe::characteristic</a>, the characteristic will be write only. To handle characteristic value sizes larger than 20 octets, a <a class="el" href="structbluetoe_1_1free__write__blob__handler.html" title="binds a free function as a write handler for the given characteristic ">free_write_blob_handler</a> should be used.</p>
+<p>This handler handle write to characteristics with a specific size. The size if derived from the first template paramter. A std::uint32_t for example would result in a characteristic with a size of 4 octets. If only a write handler is passed to the <a class="el" href="classbluetoe_1_1characteristic.html" title="A characteristic is an attribute that is accessable by a GATT client. ">bluetoe::characteristic</a>, the characteristic will be write only.</p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">F</td><td>pointer to function to handle a write request</td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">write_size</td><td>The size of the data that should be written to the characteristic value. If the size given is to large, the handler should return <a class="el" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">bluetoe::error_codes::invalid_attribute_value_length</a>. </td></tr>
-    <tr><td class="paramname">value</td><td>Input buffer containing the desired characteristic value.</td></tr>
+    <tr><td class="paramname">T</td><td>type of characteristic. Possible values are bool, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t and there signed counterpart.</td></tr>
+    <tr><td class="paramname">F</td><td>pointer to function to handle a write request.</td></tr>
   </table>
   </dd>
 </dl>
 <dl class="retval"><dt>Return values</dt><dd>
   <table class="retval">
-    <tr><td class="paramname">If</td><td>the characteristic value could be read successfully (even when the out_buffer was to small, to read the whole value), the function should return luetoe::error_codes::success. In all other cases, Bluetoe will generate an error response to a read request and directly use the return value as error code. For usefull error codes, have a look at <a class="el" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41" title="Error codes to be returned by read and write handlers for characteristic values. ">bluetoe::error_codes::error_codes</a>.</td></tr>
+    <tr><td class="paramname">If</td><td>the characteristic value could be written successfully the function should return luetoe::error_codes::success. For usefull error codes, have a look at <a class="el" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41" title="Error codes to be returned by read and write handlers for characteristic values. ">bluetoe::error_codes::error_codes</a>.</td></tr>
   </table>
   </dd>
 </dl>
@@ -140,14 +134,13 @@ struct bluetoe::free_write_handler&lt; F &gt;</h3>
 <a class="el" href="structbluetoe_1_1free__write__blob__handler.html" title="binds a free function as a write handler for the given characteristic ">free_write_blob_handler</a> </dd>
 <dd>
 <a class="el" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41" title="Error codes to be returned by read and write handlers for characteristic values. ">bluetoe::error_codes::error_codes</a> </dd></dl>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="read_write_handler_example_8cpp-example.html#_a10">read_write_handler_example.cpp</a>.</dd>
-</dl></div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="characteristic__value_8hpp_source.html">characteristic_value.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue Feb 2 2016 16:34:47 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sun Feb 7 2016 19:26:04 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>
