@@ -1,3 +1,6 @@
+#include <iostream>
+#include <iterator>
+
 #include <bluetoe/characteristic_value.hpp>
 #include <bluetoe/characteristic.hpp>
 #include <bluetoe/service.hpp>
@@ -11,8 +14,7 @@
 
 #include "hexdump.hpp"
 #include "test_attribute_access.hpp"
-#include <iostream>
-#include <iterator>
+#include "test_tuple.hpp"
 
 static const std::uint8_t test_read_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
@@ -579,5 +581,324 @@ BOOST_FIXTURE_TEST_CASE( read_from_mixin, read_mixin_server )
     BOOST_CHECK_EQUAL( read.buffer_size, sizeof(expected) );
     BOOST_CHECK_EQUAL_COLLECTIONS( &buffer[ 0 ], &buffer[ read.buffer_size ], std::begin( expected ), std::end( expected ) );
 }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( free_write_handler_bool )
+
+    bool written_bool = false;
+    bool free_write_bool_handler_called = false;
+    std::uint8_t free_write_result = 0;
+
+    std::uint8_t free_write_bool_handler( bool b )
+    {
+        BOOST_REQUIRE( !free_write_bool_handler_called );
+
+        written_bool = b;
+        free_write_bool_handler_called = true;
+        return free_write_result;
+    }
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1245 >,
+        bluetoe::free_write_handler< bool, &free_write_bool_handler >
+    > free_write_bool_char;
+
+    template < class Attr >
+    struct reset_bool : access_attributes< Attr >
+    {
+        reset_bool()
+        {
+            written_bool                    = false;
+            free_write_bool_handler_called  = false;
+            free_write_result               = 0;
+        }
+    };
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_with_offset, reset_bool< free_write_bool_char > )
+    {
+        BOOST_CHECK( write_attribute_at( { 0x00, 0x00, 0x00, 0x00 }, 1, 1 ) == bluetoe::details::attribute_access_result::attribute_not_long );
+        BOOST_CHECK( !free_write_bool_handler_called );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_false, reset_bool< free_write_bool_char > )
+    {
+        BOOST_CHECK( write_attribute_at( { 0x00 } ) == bluetoe::details::attribute_access_result::success );
+        BOOST_CHECK( written_bool == false );
+        BOOST_CHECK( free_write_bool_handler_called );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_true, reset_bool< free_write_bool_char > )
+    {
+        BOOST_CHECK( write_attribute_at( { 0x01 } ) == bluetoe::details::attribute_access_result::success );
+        BOOST_CHECK( written_bool == true );
+        BOOST_CHECK( free_write_bool_handler_called );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_invalid, reset_bool< free_write_bool_char > )
+    {
+        BOOST_CHECK( static_cast< bluetoe::error_codes::error_codes >( write_attribute_at( { 0x06 } ) ) == bluetoe::error_codes::out_of_range );
+        BOOST_CHECK( !free_write_bool_handler_called );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_to_small, reset_bool< free_write_bool_char > )
+    {
+        BOOST_CHECK( static_cast< bluetoe::error_codes::error_codes >( write_attribute_at( {} ) ) == bluetoe::error_codes::invalid_attribute_value_length );
+        BOOST_CHECK( !free_write_bool_handler_called );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_to_large, reset_bool< free_write_bool_char > )
+    {
+        BOOST_CHECK( static_cast< bluetoe::error_codes::error_codes >( write_attribute_at( { 0x00, 0x00 } ) ) == bluetoe::error_codes::invalid_attribute_value_length );
+        BOOST_CHECK( !free_write_bool_handler_called );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_bool_passing_return_value, reset_bool< free_write_bool_char > )
+    {
+        free_write_result = 32;
+        BOOST_CHECK( write_attribute_at( { 0x00 } ) == static_cast< bluetoe::details::attribute_access_result >( 32 ) );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( free_write_handler )
+
+
+    // that's how JSON looks in C++ ;-)
+    using supported_types = boost::mpl::list<
+        std::tuple< std::uint8_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0x22 >, std::integral_constant< std::uint8_t, 34 > >,
+                std::tuple< test_tuple< 0x00 >, std::integral_constant< std::uint8_t, 0 > >,
+                std::tuple< test_tuple< 0xff >, std::integral_constant< std::uint8_t, 255 > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple<>, test_tuple< 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::int8_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0x22 >, std::integral_constant< std::int8_t, 34 > >,
+                std::tuple< test_tuple< 0x00 >, std::integral_constant< std::int8_t, 0 > >,
+                std::tuple< test_tuple< 0x80 >, std::integral_constant< std::int8_t, -128 > >,
+                std::tuple< test_tuple< 0xff >, std::integral_constant< std::int8_t, -1 > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple<>, test_tuple< 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::uint16_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0x22, 0x44 >, std::integral_constant< std::uint16_t, 0x4422 > >,
+                std::tuple< test_tuple< 0x00, 0x00 >, std::integral_constant< std::uint16_t, 0x0000 > >,
+                std::tuple< test_tuple< 0xff, 0xff >, std::integral_constant< std::uint16_t, 0xffff > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple< 0x00 >, test_tuple< 0x00, 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::int16_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0x22, 0x44 >, std::integral_constant< std::int16_t, 0x4422 > >,
+                std::tuple< test_tuple< 0x00, 0x00 >, std::integral_constant< std::int16_t, 0x0000 > >,
+                std::tuple< test_tuple< 0xff, 0xff >, std::integral_constant< std::int16_t, -1 > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple< 0x00 >, test_tuple< 0x00, 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::uint32_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::uint32_t, 0x44221AF0 > >,
+                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint32_t, 0x00000000 > >,
+                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint32_t, 0xFFFFFFFF > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple< 0x00, 0x00, 0x00 >,
+                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::int32_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::int32_t, 0x44221AF0 > >,
+                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int32_t, 0x00000000 > >,
+                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int32_t, -1 > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple< 0x00, 0x00, 0x00 >,
+                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::uint64_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::uint64_t, 0x0403020144221AF0 > >,
+                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint64_t, 0x0000000000000000 > >,
+                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint64_t, 0xFFFFFFFFFFFFFFFF > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
+                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
+            >
+        >,
+        std::tuple< std::int64_t,
+            // valid pairs
+            std::tuple<
+                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::int64_t, 0x0403020144221AF0 > >,
+                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int64_t, 0x0000000000000000 > >,
+                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int64_t, -1 > >
+            >,
+            // wrong size examples
+            std::tuple<
+                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
+                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
+            >
+        >
+    >;
+
+    template < typename T >
+    struct free_write_handler
+    {
+        static void init()
+        {
+            result          = 0;
+            written_value   = T{};
+            handler_called  = false;
+        }
+
+        free_write_handler()
+        {
+            init();
+        };
+
+        static std::uint8_t result;
+        static T            written_value;
+        static bool         handler_called;
+
+        static std::uint8_t handler( T v )
+        {
+            BOOST_REQUIRE( !handler_called );
+            written_value  = v;
+            handler_called = true;
+
+            return result;
+        }
+    };
+
+    template < typename T >
+    std::uint8_t free_write_handler< T >::result;
+
+    template < typename T >
+    T            free_write_handler< T >::written_value;
+
+    template < typename T >
+    bool         free_write_handler< T >::handler_called;
+
+
+    template < class T >
+    struct fixture :
+        free_write_handler< T >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1245 >,
+            bluetoe::free_write_handler<
+                T, &free_write_handler< T >::handler
+            >
+        >
+    {
+    };
+
+    template < typename World >
+    struct test_valid_value : access_attributes< World >
+    {
+        template< typename Pair >
+        void each()
+        {
+            this->init();
+
+            using Input          = typename std::tuple_element< 0, Pair >::type;
+            using ExpectedOutput = typename std::tuple_element< 1, Pair >::type;
+
+            const std::vector< std::uint8_t > data = Input::values();
+
+            BOOST_CHECK( this->write_attribute_at( &data[ 0 ], &data[ data.size() ] ) == bluetoe::details::attribute_access_result::success );
+            BOOST_CHECK_EQUAL( ExpectedOutput::value, this->written_value );
+            BOOST_CHECK( this->handler_called );
+        }
+    };
+
+    BOOST_AUTO_TEST_CASE_TEMPLATE( write_free_handlers_check_valid_values, Fixtures, supported_types )
+    {
+        using Type          = typename std::tuple_element< 0, Fixtures >::type;
+        using ValidValues   = typename std::tuple_element< 1, Fixtures >::type;
+
+        fixture< Type > world;
+
+        bluetoe::details::for_< ValidValues >::each( test_valid_value< fixture< Type > >() );
+    }
+
+    template < typename World >
+    struct test_wrong_size : access_attributes< World >
+    {
+        template< typename Input >
+        void each()
+        {
+            this->init();
+
+            const std::vector< std::uint8_t > data = Input::values();
+
+            BOOST_CHECK( this->write_attribute_at( &data[ 0 ], &data[ data.size() ] ) == bluetoe::details::attribute_access_result::invalid_attribute_value_length );
+            BOOST_CHECK( !this->handler_called );
+        }
+    };
+
+    BOOST_AUTO_TEST_CASE_TEMPLATE( write_free_handlers_wrong_size, Fixtures, supported_types )
+    {
+        using Type          = typename std::tuple_element< 0, Fixtures >::type;
+        using InValidValues = typename std::tuple_element< 2, Fixtures >::type;
+
+        fixture< Type > world;
+
+        bluetoe::details::for_< InValidValues >::each( test_wrong_size< fixture< Type > >() );
+    }
+
+    template < typename World >
+    struct test_return_value : access_attributes< World >
+    {
+        template< typename Pair >
+        void each()
+        {
+            this->init();
+            this->result = 42;
+
+            using Input          = typename std::tuple_element< 0, Pair >::type;
+
+            const std::vector< std::uint8_t > data = Input::values();
+
+            BOOST_CHECK( static_cast< int >( this->write_attribute_at( &data[ 0 ], &data[ data.size() ] ) ) == 42 );
+        }
+    };
+
+    BOOST_AUTO_TEST_CASE_TEMPLATE( write_free_handlers_check_return_value, Fixtures, supported_types )
+    {
+        using Type          = typename std::tuple_element< 0, Fixtures >::type;
+        using ValidValues   = typename std::tuple_element< 1, Fixtures >::type;
+
+        fixture< Type > world;
+
+        bluetoe::details::for_< ValidValues >::each( test_return_value< fixture< Type > >() );
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

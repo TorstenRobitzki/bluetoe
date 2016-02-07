@@ -5,6 +5,7 @@
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <type_traits>
+#include <climits>
 
 namespace bluetoe {
 
@@ -368,6 +369,42 @@ namespace bluetoe {
 
             struct meta_type : characteristic_value_meta_type, characteristic_value_declaration_parameter {};
         };
+
+        template < typename T >
+        std::pair< std::uint8_t, T > deserialize( std::size_t write_size, const std::uint8_t* value )
+        {
+            static_assert( CHAR_BIT == 8, "needs porting!" );
+
+            if ( write_size != sizeof( T ) )
+                return std::pair< std::uint8_t, T >{ error_codes::invalid_attribute_value_length, 0 };
+
+            T result = 0;
+
+            for ( const std::uint8_t* v = value + sizeof( T ); v != value; --v )
+            {
+                result = ( result << 8 ) | *( v - 1 );
+            }
+
+            return std::pair< std::uint8_t, T >{ error_codes::success, result };
+        }
+
+        template <>
+        std::pair< std::uint8_t, bool > deserialize( std::size_t write_size, const std::uint8_t* value )
+        {
+            if ( write_size != 1 )
+                return std::make_pair( error_codes::invalid_attribute_value_length, false );
+
+            if ( *value == 0 )
+            {
+                return std::pair< std::uint8_t, bool >{ error_codes::success, false };
+            }
+            else if ( *value == 1 )
+            {
+                return std::pair< std::uint8_t, bool >{ error_codes::success, true };
+            }
+
+            return std::pair< std::uint8_t, bool >{ error_codes::out_of_range, false };
+        }
     }
 
     /**
@@ -856,6 +893,50 @@ namespace bluetoe {
         /** @endcond */
     };
 
+
+    /**
+     * @brief binds a free function as a write handler for the given characteristic
+     *
+     * This handler handle write to characteristics with a specific size. The size if derived from the first
+     * template paramter. A std::uint32_t for example would result in a characteristic with a size of 4
+     * octets.
+     * If only a write handler is passed to the bluetoe::characteristic, the characteristic will be write only.
+     *
+     * @tparam T type of characteristic. Possible values are bool, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t and there
+     *          signed counterpart.
+     *
+     * @tparam F pointer to function to handle a write request.
+     *
+     * @retval If the characteristic value could be written successfully the function should return luetoe::error_codes::success.
+     *         For usefull error codes, have a look at bluetoe::error_codes::error_codes.
+     *
+     * @sa characteristic
+     * @sa free_read_blob_handler
+     * @sa free_read_handler
+     * @sa free_write_blob_handler
+     * @sa bluetoe::error_codes::error_codes
+     */
+    template < typename T, std::uint8_t (*F)( T ) >
+    struct free_write_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        {
+            if ( offset != 0 )
+                return static_cast< std::uint8_t >( error_codes::attribute_not_long );
+
+            const std::pair< std::uint8_t, T > deserialized_value = details::deserialize< T >( write_size, value );
+
+            if ( deserialized_value.first != error_codes::success )
+                return deserialized_value.first;
+
+            return (*F)( deserialized_value.second );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
+    };
 
     /**
      * @example read_write_handler_example.cpp

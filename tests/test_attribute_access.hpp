@@ -53,10 +53,24 @@ public:
                 == read_characteristic_impl( input, attribute_by_type( type ) ) );
     }
 
+    // @TODO: proper name would be "read_attribute_at"
     bluetoe::details::attribute_access_result read_characteristic_at( const std::initializer_list< std::uint8_t >& input,
         std::size_t index, std::size_t offset, std::size_t buffer_size )
     {
         return read_characteristic_impl( input, this->template attribute_at< 0 >( index ), offset, buffer_size );
+    }
+
+    bluetoe::details::attribute_access_result write_attribute_at( const std::uint8_t* begin, const std::uint8_t* end, std::size_t index = 1, std::size_t offset = 0 )
+    {
+        auto write = bluetoe::details::attribute_access_arguments::write(
+            begin, end, offset, bluetoe::details::client_characteristic_configuration(), nullptr );
+
+        return this->template attribute_at< 0 >( index ).access( write, index );
+    }
+
+    bluetoe::details::attribute_access_result write_attribute_at( const std::initializer_list< std::uint8_t >& input, std::size_t index = 1, std::size_t offset = 0 )
+    {
+        return write_attribute_at( input.begin(), input.end(), index, offset );
     }
 
 private:
