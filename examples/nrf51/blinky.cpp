@@ -1,40 +1,33 @@
-/*
- * Very simple example to expose an IO pin via BLE
- */
 #include <bluetoe/server.hpp>
 #include <bluetoe/bindings/nrf51.hpp>
 #include <nrf.h>
 
+using namespace bluetoe;
+
 static constexpr int io_pin = 19;
 
-static std::uint8_t characteristic_write_handler(std::size_t write_size, const std::uint8_t *value)
+static std::uint8_t io_pin_write_handler( bool state )
 {
-    if ( write_size != 1 )
-        return bluetoe::error_codes::invalid_attribute_value_length;
-
-    if ( *value != 1 && *value != 0 )
-        return bluetoe::error_codes::out_of_range;
-
     // the GPIO pin according to the received value: 0 = off, 1 = on
-    NRF_GPIO->OUT = *value
+    NRF_GPIO->OUT = state
         ? NRF_GPIO->OUT | ( 1 << io_pin )
         : NRF_GPIO->OUT & ~( 1 << io_pin );
 
-    return bluetoe::error_codes::success;
+    return error_codes::success;
 }
 
-typedef bluetoe::server<
-    bluetoe::service<
-        bluetoe::service_uuid< 0xC11169E1, 0x6252, 0x4450, 0x931C, 0x1B43A318783B >,
-        bluetoe::characteristic<
-            bluetoe::free_write_handler< characteristic_write_handler >
+typedef server<
+    service<
+        service_uuid< 0xC11169E1, 0x6252, 0x4450, 0x931C, 0x1B43A318783B >,
+        characteristic<
+            free_write_handler< bool, io_pin_write_handler >
         >
     >
 > blinky_server;
 
 blinky_server gatt;
 
-bluetoe::nrf51< blinky_server > server;
+nrf51< blinky_server > gatt_srv;
 
 int main()
 {
@@ -44,5 +37,5 @@ int main()
         ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
 
     for ( ;; )
-        server.run( gatt );
+        gatt_srv.run( gatt );
 }
