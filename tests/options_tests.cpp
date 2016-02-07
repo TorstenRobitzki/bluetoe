@@ -272,6 +272,21 @@ namespace {
 
         string_list& list;
     };
+
+    struct count_calls
+    {
+        explicit count_calls( int& c ) : counts( c )
+        {
+        }
+
+        template< typename O >
+        void each()
+        {
+            ++counts;
+        }
+
+        int& counts;
+    };
 }
 
 BOOST_AUTO_TEST_CASE( for_each_empty )
@@ -314,6 +329,31 @@ BOOST_AUTO_TEST_CASE( for_each_feed_by_an_tuple )
     const string_list expected_result = { "type1", "type1", "type2", "type3" };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
+}
+
+BOOST_AUTO_TEST_CASE( for_each_over_tuple_of_empty_tuple )
+{
+    int count = 0;
+
+    bluetoe::details::for_<
+        std::tuple<
+            std::tuple<>
+        > >::each( count_calls( count ) );
+
+    BOOST_CHECK_EQUAL( count, 1 );
+}
+
+BOOST_AUTO_TEST_CASE( for_each_over_tuple_of_tuples )
+{
+    int count = 0;
+
+    bluetoe::details::for_<
+        std::tuple<
+            std::tuple< int, char >,
+            std::tuple< bool, double >
+        > >::each( count_calls( count ) );
+
+    BOOST_CHECK_EQUAL( count, 2 );
 }
 
 BOOST_AUTO_TEST_CASE( group_by_meta_type_empty )

@@ -477,10 +477,10 @@ namespace details {
      */
     template <
         typename ... Options >
-    struct for_;
+    struct for_impl;
 
     template <>
-    struct for_<>
+    struct for_impl<>
     {
         template < typename Function >
         static void each( Function )
@@ -488,40 +488,29 @@ namespace details {
     };
 
     template <
-        typename Option >
-    struct for_< Option >
-    {
-        template < typename Function >
-        static void each( Function f )
-        {
-            f.template each< Option >();
-        }
-    };
-
-    template <
         typename Option,
         typename ... Options >
-    struct for_< Option, Options... >
+    struct for_impl< Option, Options... >
     {
         template < typename Function >
         static void each( Function f )
         {
             f.template each< Option >();
-            for_< Options... >::each( f );
+            for_impl< Options... >::each( f );
         }
     };
 
     template <
         typename ... Options >
-    struct for_< std::tuple< Options... > >
+    struct for_ : for_impl< Options... >
     {
-        template < typename Function >
-        static void each( Function f )
-        {
-            for_< Options... >::each( f );
-        }
     };
 
+    template <
+        typename ... Options >
+    struct for_< std::tuple< Options... > > : for_impl< Options... >
+    {
+    };
 
     /**
      * @brief finds the first element in the list, for which Func< O >::value is true. With O beeing one of List
