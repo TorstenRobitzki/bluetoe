@@ -80,8 +80,8 @@ Service UUID|Incomplete List of 16-bit Service UUIDs|implemented
  |Complete List of 16-bit Service UUIDs|implemented
  |Incomplete List of 32-bit Service UUIDs|not planned
  |Complete List of 32-bit Service UUIDs|not planned
- |Incomplete List of 128-bit Service UUIDs|planned
- |Complete List of 128-bit Service UUIDs|planned
+ |Incomplete List of 128-bit Service UUIDs|implemented
+ |Complete List of 128-bit Service UUIDs|implemented
 Local Name|Shortened Local Name|implemented
  |Complete Local Name|implemented
 Flags|Flags|implemented
@@ -93,7 +93,7 @@ Security Manager TK Value||not planned
 Slave Connection Interval Range||not planned
 Service Solicitation||not planned
 Service Data||not planned
-Appearance|Appearance|planned
+Appearance|Appearance|implemented
 LE Role|LE Role|planned
 
 This is the current state of the Link Layer implementation:

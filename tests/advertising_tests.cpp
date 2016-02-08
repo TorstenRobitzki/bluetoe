@@ -19,6 +19,7 @@ static constexpr char name[] = "Test Name";
 
 typedef bluetoe::extend_server<
     small_temperature_service,
+    bluetoe::no_list_of_service_uuids,
     bluetoe::server_name< name >
 > named_temperature_service;
 
@@ -39,7 +40,12 @@ BOOST_FIXTURE_TEST_CASE( short_named_server, named_temperature_service )
     }, *this, 10 );
 }
 
-BOOST_FIXTURE_TEST_CASE( unnamed_server, small_temperature_service )
+typedef bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::no_list_of_service_uuids
+> unnamed_temperature_service;
+
+BOOST_FIXTURE_TEST_CASE( unnamed_server, unnamed_temperature_service )
 {
     expected_advertising( {
         0x02, 0x01, 0x06, 0x00, 0x00
@@ -50,8 +56,10 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( service_list )
 
-using no_uuids_server = bluetoe::extend_server<
-    small_temperature_service,
+using no_uuids_server = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x1212 >
+    >,
     bluetoe::no_list_of_service_uuids
 >;
 
@@ -62,8 +70,10 @@ BOOST_FIXTURE_TEST_CASE( no_uuid_list, no_uuids_server )
     }, *this );
 }
 
-using one_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+using one_uuid_server = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x1234 >
+    >,
     bluetoe::list_of_16_bit_service_uuids<
         bluetoe::service_uuid16< 0x1234 >
     >
@@ -78,8 +88,13 @@ BOOST_FIXTURE_TEST_CASE( uuid_with_one_element, one_uuid_server )
     }, *this );
 }
 
-using two_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+using two_uuid_server = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x1234 >
+    >,
+    bluetoe::service<
+        bluetoe::service_uuid16< 0xabcd >
+    >,
     bluetoe::list_of_16_bit_service_uuids<
         bluetoe::service_uuid16< 0x1234 >,
         bluetoe::service_uuid16< 0xabcd >
@@ -95,13 +110,16 @@ BOOST_FIXTURE_TEST_CASE( uuid_with_two_element, two_uuid_server )
     }, *this );
 }
 
-using no_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+using no_element_server = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x1212 >
+    >,
     bluetoe::list_of_16_bit_service_uuids<
     >
 >;
 
-BOOST_FIXTURE_TEST_CASE( uuid_with_no_element, no_uuid_server )
+
+BOOST_FIXTURE_TEST_CASE( uuid_with_no_element, no_element_server )
 {
     expected_advertising( {
         0x02, 0x01, 0x06,
@@ -145,6 +163,125 @@ BOOST_FIXTURE_TEST_CASE( implicit_service_list, server_with_multiple_services )
     expected_advertising( {
         0x02, 0x01, 0x06,
         0x05, 0x03, 0x22, 0x11, 0x00, 0x18,
+        0x00, 0x00
+    }, *this );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( service_list_128 )
+
+using no_uuids_server = bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::no_list_of_service_uuids
+>;
+
+BOOST_FIXTURE_TEST_CASE( no_uuid_list, no_uuids_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06, 0x00, 0x00
+    }, *this );
+}
+
+using one_uuid_server = bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::list_of_128_bit_service_uuids<
+        bluetoe::service_uuid< 0x111393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1191 >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( uuid_with_one_element, one_uuid_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x11, 0x07,
+        0x91, 0x11, 0x6A, 0xA5,
+        0xB1, 0xE9, 0xA0, 0xA0,
+        0xD6, 0x40, 0xD2, 0x01,
+        0xDD, 0x93, 0x13, 0x11,
+        0x00, 0x00
+    }, *this );
+}
+
+using two_uuid_server = bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::list_of_128_bit_service_uuids<
+        bluetoe::service_uuid< 0x111393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1191 >,
+        bluetoe::service_uuid< 0x221393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1177 >
+    >
+>;
+
+/*
+ * This is more or less a theoretical test, as there will never fit two 16 byte UUIDs into the advertising data
+ */
+BOOST_FIXTURE_TEST_CASE( uuid_with_two_element, two_uuid_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x21, 0x07,
+        0x91, 0x11, 0x6A, 0xA5,
+        0xB1, 0xE9, 0xA0, 0xA0,
+        0xD6, 0x40, 0xD2, 0x01,
+        0xDD, 0x93, 0x13, 0x11,
+        0x77, 0x11, 0x6A, 0xA5,
+        0xB1, 0xE9, 0xA0, 0xA0,
+        0xD6, 0x40, 0xD2, 0x01,
+        0xDD, 0x93, 0x13, 0x22,
+        0x00, 0x00
+    }, *this, 100 );
+}
+
+using no_uuid_server = bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::list_of_128_bit_service_uuids<
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( uuid_with_no_element, no_uuid_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x00, 0x00
+    }, *this );
+}
+
+BOOST_FIXTURE_TEST_CASE( shortened_list, two_uuid_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x11, 0x06,
+        0x91, 0x11, 0x6A, 0xA5,
+        0xB1, 0xE9, 0xA0, 0xA0,
+        0xD6, 0x40, 0xD2, 0x01,
+        0xDD, 0x93, 0x13, 0x11,
+        0x00, 0x00
+    }, *this );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_space_left_for_a_single_uuid, two_uuid_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x00, 0x00
+    }, *this, 6 );
+}
+
+using server_with_multiple_services = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid< 0x111393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1191 >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( implicit_service_list, server_with_multiple_services )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x03, 0x03, 0x00, 0x18,
+        0x11, 0x07,
+        0x91, 0x11, 0x6A, 0xA5,
+        0xB1, 0xE9, 0xA0, 0xA0,
+        0xD6, 0x40, 0xD2, 0x01,
+        0xDD, 0x93, 0x13, 0x11,
         0x00, 0x00
     }, *this );
 }

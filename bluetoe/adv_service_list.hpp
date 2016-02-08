@@ -10,10 +10,16 @@ namespace bluetoe {
 
     namespace details {
         struct list_of_16_bit_service_uuids_tag {};
+        struct list_of_128_bit_service_uuids_tag {};
     }
 
     /**
-     * @brief complete list of 16 bit service UUIDs to be added to the advertising data
+     * @brief complete / incomplete list of 16 bit service UUIDs to be added to the advertising data
+     *
+     * If there is enough room to add all given UUIDs to the advertising data, a complete list AD type
+     * is added. If there is not enough room, the list will be incomplete. UUIDs from the beginning
+     * of the list are added as long as there is room. If there is no room for a single UUID, no
+     * advertising data is added.
      */
     template < typename ... UUID16 >
     struct list_of_16_bit_service_uuids {
@@ -71,7 +77,10 @@ namespace bluetoe {
 
     struct no_list_of_service_uuids {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::list_of_16_bit_service_uuids_tag;
+        struct meta_type
+            : details::list_of_16_bit_service_uuids_tag
+            , details::list_of_128_bit_service_uuids_tag
+        {};
 
         static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
         {
@@ -81,26 +90,103 @@ namespace bluetoe {
     };
 
     namespace details {
+
+        struct uuid_128_writer
+        {
+            uuid_128_writer( std::uint8_t*& b, std::uint8_t* e )
+                : begin( b )
+                , end( e )
+            {
+            }
+
+            template< typename UUID >
+            void each()
+            {
+                if ( begin + sizeof( UUID::bytes ) <= end )
+                {
+                    std::copy( std::begin( UUID::bytes ), std::end( UUID::bytes ), begin );
+                    begin += sizeof( UUID::bytes );
+                }
+            }
+
+            std::uint8_t*&      begin;
+            std::uint8_t* const end;
+        };
+    }
+
+    template < typename ... UUID128 >
+    struct list_of_128_bit_service_uuids {
+        /** @cond HIDDEN_SYMBOLS */
+        using meta_type = details::list_of_128_bit_service_uuids_tag;
+
+        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* end )
+        {
+            static constexpr std::size_t uuid_size = 16;
+            const std::size_t buffer_size = end - begin;
+
+            if ( buffer_size < 2 + uuid_size )
+                return begin;
+
+            const std::size_t max_uuids = std::min( (buffer_size - 2) / uuid_size, sizeof ...(UUID128));
+
+            *begin = 1 + uuid_size * max_uuids;
+            ++begin;
+
+            *begin = max_uuids == sizeof ...(UUID128)
+                ? bits( details::gap_types::complete_service_uuids_128 )
+                : bits( details::gap_types::incomplete_service_uuids_128 );
+            ++begin;
+
+            details::for_< UUID128... >::each( details::uuid_128_writer( begin, end ) );
+
+            return begin;
+        }
+        /** @endcond */
+    };
+
+    /** @cond HIDDEN_SYMBOLS */
+    template < typename ... UUID16 >
+    struct list_of_128_bit_service_uuids< std::tuple< UUID16... > > : list_of_128_bit_service_uuids< UUID16... > {};
+
+    template <>
+    struct list_of_128_bit_service_uuids<> {
+        using meta_type = details::list_of_128_bit_service_uuids_tag;
+
+        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* ) {
+            return begin;
+        }
+    };
+    /** @endcond */
+
+    namespace details {
         template < typename T >
         struct extract_uuid {
             using type = typename T::uuid;
         };
 
-        template < typename ... Services >
-        struct create_list_of_16_bit_service_uuids
+        template < typename Filter, typename ... Services >
+        struct create_list_of_service_uuids
         {
             typedef typename bluetoe::details::transform_list<
                 std::tuple< Services... >,
                 extract_uuid >::type uuids;
 
-            typedef typename find_all_by_meta_type< bluetoe::details::service_uuid_16_meta_type, uuids >::type type;
+            typedef typename find_all_by_meta_type< Filter, uuids >::type type;
         };
 
         template < typename ServiceList >
         struct default_list_of_16_bit_service_uuids;
 
         template < typename ... Services >
-        struct default_list_of_16_bit_service_uuids< std::tuple< Services... > > : list_of_16_bit_service_uuids< typename create_list_of_16_bit_service_uuids< Services... >::type > {};
+        struct default_list_of_16_bit_service_uuids< std::tuple< Services... > > : list_of_16_bit_service_uuids<
+            typename create_list_of_service_uuids< bluetoe::details::service_uuid_16_meta_type, Services... >::type > {};
+
+        template < typename ServiceList >
+        struct default_list_of_128_bit_service_uuids;
+
+        template < typename ... Services >
+        struct default_list_of_128_bit_service_uuids< std::tuple< Services... > > : list_of_128_bit_service_uuids<
+            typename create_list_of_service_uuids< bluetoe::details::service_uuid_128_meta_type, Services... >::type > {};
     }
 }
 

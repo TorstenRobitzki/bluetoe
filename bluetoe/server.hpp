@@ -476,6 +476,14 @@ namespace bluetoe {
 
         begin = service_list_uuid16::advertising_data( begin, end );
 
+        typedef typename details::find_by_meta_type<
+            details::list_of_128_bit_service_uuids_tag,
+            Options...,
+            details::default_list_of_128_bit_service_uuids< services >
+        >::type service_list_uuid128;
+
+        begin = service_list_uuid128::advertising_data( begin, end );
+
         // add aditional empty AD to be visible to Nordic sniffer
         if ( end - begin >= 2u )
         {
