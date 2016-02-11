@@ -82,14 +82,18 @@ namespace {
             check_response();
         }
 
-        void l2cap_input( const std::initializer_list< std::uint8_t >& input, typename Server::connection_data& con )
+        void l2cap_input( const std::vector< std::uint8_t >& values, typename Server::connection_data& con = Server::connection_data() )
         {
-            const std::vector< std::uint8_t > values( input );
-
             response_size = ResponseBufferSize;
             std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
             Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
             check_response();
+        }
+
+        void l2cap_input( const std::initializer_list< std::uint8_t >& input, typename Server::connection_data& con )
+        {
+            const std::vector< std::uint8_t > values( input );
+            l2cap_input( values, con );
         }
 
         void l2cap_input( const std::initializer_list< std::uint8_t >& input )

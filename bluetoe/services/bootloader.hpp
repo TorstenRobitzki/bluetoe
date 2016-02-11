@@ -6,10 +6,27 @@
 namespace bluetoe
 {
     namespace bootloader {
+        namespace details {
+        };
+
+        template < std::size_t PageSize >
+        struct page_size {};
+
+        template < std::size_t PageAlign >
+        struct page_align {};
+
         using service_uuid       = bluetoe::service_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8A9 >;
         using control_point_uuid = bluetoe::characteristic_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8A9 >;
+        using data_uuid          = bluetoe::characteristic_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8AA >;
 
         namespace details {
+
+            enum opcode : std::uint8_t
+            {
+                get_version,
+                get_address_size,
+                set_address,
+            };
 
             template < typename UserHandler >
             struct handler : UserHandler
@@ -20,6 +37,16 @@ namespace bluetoe
                 }
 
                 std::uint8_t bootloader_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    return 0;
+                }
+
+                std::uint8_t bootloader_write_data( std::size_t write_size, const std::uint8_t* value )
+                {
+                    return 0;
+                }
+
+                std::uint8_t bootloader_read_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
                     return 0;
                 }
@@ -41,7 +68,19 @@ namespace bluetoe
                         >,
                         bluetoe::no_read_access,
                         bluetoe::notify
-                    >
+                    >,
+                    bluetoe::characteristic<
+                        bluetoe::bootloader::data_uuid,
+                        bluetoe::mixin_write_handler<
+                            implementation, &implementation::bootloader_write_data
+                        >,
+                        bluetoe::mixin_read_handler<
+                            implementation, &implementation::bootloader_read_data
+                        >,
+                        bluetoe::no_read_access,
+                        bluetoe::notify
+                    >,
+                    bluetoe::mixin< handler< bluetoe::details::no_such_type > >
                 >;
             };
         }
@@ -50,7 +89,7 @@ namespace bluetoe
     }
 
     template < typename ... Options >
-    struct bootloader_service : bootloader::details::calculate_service< Options... >::type {};
+    using bootloader_service = typename bootloader::details::calculate_service< Options... >::type;
 
     /**
      * @brief Prototype for a handler, that adapts the bootloader service to the actual hardware
@@ -64,9 +103,9 @@ namespace bluetoe
         bootloader::error_codes start_flash( const std::uint8_t* target, std::uint8_t* destination, std::size_t size );
         bootloader::error_codes start_copy( const std::uint8_t* target, std::uint8_t* destination, std::size_t size );
 
-        bootloader::error_codes reset();
-
         bootloader::error_codes run( const std::uint8_t* start_addr );
+
+        std::pair< const std::uint8_t*, std::size_t > get_version();
     };
 }
 
