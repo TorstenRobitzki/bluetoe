@@ -371,7 +371,7 @@ namespace bluetoe {
         };
 
         template < typename T >
-        std::pair< std::uint8_t, T > deserialize( std::size_t write_size, const std::uint8_t* value )
+        inline std::pair< std::uint8_t, T > deserialize( std::size_t write_size, const std::uint8_t* value )
         {
             static_assert( CHAR_BIT == 8, "needs porting!" );
 
@@ -389,7 +389,7 @@ namespace bluetoe {
         }
 
         template <>
-        std::pair< std::uint8_t, bool > deserialize( std::size_t write_size, const std::uint8_t* value )
+        inline std::pair< std::uint8_t, bool > deserialize( std::size_t write_size, const std::uint8_t* value )
         {
             if ( write_size != 1 )
                 return std::make_pair( error_codes::invalid_attribute_value_length, false );
@@ -901,7 +901,7 @@ namespace bluetoe {
         static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server_ptr )
         {
             assert( server_ptr );
-            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use bluetoe::mixin<> to mixin an instance of the mixin_write_handler into the server." );
 
             if ( offset != 0 )
                 return static_cast< std::uint8_t >( error_codes::attribute_not_long );
