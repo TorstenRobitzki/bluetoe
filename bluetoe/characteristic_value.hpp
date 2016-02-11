@@ -893,6 +893,38 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    template < class Mixin, std::pair< std::uint8_t, bool > (Mixin::*F)( std::size_t write_size, const std::uint8_t* value ), typename NotificationUUID >
+    struct mixin_write_notification_control_point_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < class Server, std::size_t ClientCharacteristicIndex  >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server_ptr )
+        {
+            assert( server_ptr );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
+
+            if ( offset != 0 )
+                return static_cast< std::uint8_t >( error_codes::attribute_not_long );
+
+            // as this is a indication control point, this thingy must be configured for indications
+            if ( ( config.flags( ClientCharacteristicIndex ) & details::client_characteristic_configuration_indication_enabled ) == 0 )
+                return error_codes::cccd_improperly_configured;
+
+            // we have a void pointer, the type of the server and the server is derived from the mixin
+            Server& server = *static_cast< Server* >( server_ptr );
+            Mixin&  mixin  = static_cast< Mixin& >( server );
+
+            const std::pair< std::uint8_t, bool > result = (mixin.*F)( write_size, value );
+
+            if ( result.second )
+                server.template notify< NotificationUUID >();
+
+            return static_cast< std::uint8_t >( result.first );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
+    };
 
     /**
      * @brief binds a free function as a write handler for the given characteristic
