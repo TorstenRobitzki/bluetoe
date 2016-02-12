@@ -1,6 +1,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "test_gatt.hpp"
+#include "../hexdump.hpp"
 #include <iomanip>
 
 namespace test {
@@ -27,9 +28,11 @@ namespace test {
         return out << std::hex << "{ 0x" << service.starting_handle << ", 0x" << service.ending_handle << " }";
     }
 
-    discovered_characteristic::discovered_characteristic( std::uint16_t decl, std::uint16_t value )
+    discovered_characteristic::discovered_characteristic( std::uint16_t decl, std::uint16_t value, const dynamic_uuid& u )
         : declaration_handle( decl )
+        , end_handle( invalid_handle )
         , value_handle( value )
+        , uuid( u )
     {
 
     }
@@ -44,12 +47,73 @@ namespace test {
     bool discovered_characteristic::operator==( const discovered_characteristic& rhs ) const
     {
         return declaration_handle == rhs.declaration_handle
-            && value_handle == rhs.value_handle;
+            && end_handle == rhs.end_handle;
     }
 
     std::ostream& operator<<( std::ostream& out, const discovered_characteristic& characteristic )
     {
-        return out << std::hex << "{ 0x" << characteristic.declaration_handle << ", 0x" << characteristic.value_handle << " }";
+        return out
+            << std::hex << "{ 0x" << characteristic.declaration_handle << ":0x" << characteristic.end_handle
+            << ", 0x" << characteristic.value_handle << ", " << characteristic.uuid << " }";
+    }
+
+    discovered_characteristic_descriptor::discovered_characteristic_descriptor( std::uint16_t h, std::uint16_t u )
+        : handle( h )
+        , uuid( u )
+    {
+    }
+
+    discovered_characteristic_descriptor::discovered_characteristic_descriptor()
+        : handle( invalid_handle )
+        , uuid( invalid_handle )
+    {
+    }
+
+    bool discovered_characteristic_descriptor::operator==( const discovered_characteristic_descriptor& rhs ) const
+    {
+        return handle == rhs.handle
+            && uuid == rhs.uuid;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const discovered_characteristic_descriptor& desc )
+    {
+        return out << std::hex << "{ 0x" << desc.handle << ", 0x" << desc.uuid << " }";
+    }
+
+    dynamic_uuid::dynamic_uuid()
+    {
+    }
+
+    dynamic_uuid::dynamic_uuid( const std::uint8_t* p, std::size_t s )
+        : uuid_( p, p + s )
+    {
+        assert( s == 2 || s == 16 );
+    }
+
+    bool dynamic_uuid::operator==( const dynamic_uuid& rhs ) const
+    {
+        return uuid_.size() == rhs.uuid_.size()
+            && std::equal( uuid_.begin(), uuid_.end(), rhs.uuid_.begin() );
+    }
+
+    void dynamic_uuid::print( std::ostream& o ) const
+    {
+        for ( auto c = uuid_.begin(); c != uuid_.end(); ++c )
+        {
+            print_hex( o, *c );
+
+            if ( c + 1 != uuid_.end() )
+                o << ':';
+        }
+    }
+
+    std::ostream& operator<<( std::ostream& out, const dynamic_uuid& uuid )
+    {
+        out << "[";
+        uuid.print( out );
+        out << "]";
+
+        return out;
     }
 
 }

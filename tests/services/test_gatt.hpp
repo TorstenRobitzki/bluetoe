@@ -4,6 +4,7 @@
 #include "../test_servers.hpp"
 #include "../hexdump.hpp"
 #include <ostream>
+#include <vector>
 
 namespace test {
 
@@ -22,18 +23,55 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const discovered_service& );
 
+    class dynamic_uuid
+    {
+    public:
+        dynamic_uuid();
+
+        dynamic_uuid( const std::uint8_t*, std::size_t );
+
+        template < class UUID >
+        dynamic_uuid( const UUID* )
+            : uuid_( std::begin( UUID::bytes ), std::end( UUID::bytes ) )
+        {
+        }
+
+        bool operator==( const dynamic_uuid& rhs ) const;
+        void print( std::ostream& ) const;
+
+    private:
+        std::vector< std::uint8_t > uuid_;
+    };
+
+    std::ostream& operator<<( std::ostream& out, const dynamic_uuid& );
+
     struct discovered_characteristic
     {
         std::uint16_t declaration_handle;
+        std::uint16_t end_handle;
         std::uint16_t value_handle;
+        dynamic_uuid  uuid;
 
-        discovered_characteristic( std::uint16_t decl, std::uint16_t value );
+        discovered_characteristic( std::uint16_t decl, std::uint16_t value, const dynamic_uuid& uuid );
         discovered_characteristic();
 
         bool operator==( const discovered_characteristic& rhs ) const;
     };
 
     std::ostream& operator<<( std::ostream& out, const discovered_characteristic& );
+
+    struct discovered_characteristic_descriptor
+    {
+        std::uint16_t   handle;
+        std::uint16_t   uuid;
+
+        discovered_characteristic_descriptor( std::uint16_t handle, std::uint16_t uuid );
+        discovered_characteristic_descriptor();
+
+        bool operator==( const discovered_characteristic_descriptor& rhs ) const;
+    };
+
+    std::ostream& operator<<( std::ostream& out, const discovered_characteristic_descriptor& );
 
     template < typename Server >
     struct gatt_procedures : request_with_reponse< Server >
@@ -91,9 +129,10 @@ namespace test {
             return discovered_service();
         }
 
-        template < class UUID >
-        discovered_characteristic discover_characteristic_by_uuid( const discovered_service& service )
+        std::vector< discovered_characteristic > discover_all_characteristics_of_a_service( const discovered_service& service )
         {
+            std::vector< discovered_characteristic > result;
+
             std::uint8_t last_response_code = 0x09;
 
             for ( std::uint16_t start_handle = service.starting_handle; last_response_code == 0x09;  )
@@ -111,22 +150,95 @@ namespace test {
                     BOOST_REQUIRE_GT( this->response_size, 1 );
                     const std::size_t length = this->response[ 1 ];
 
-                    BOOST_REQUIRE( length == 2 + 3 + sizeof( UUID::bytes ) );
+                    BOOST_REQUIRE( length == 2 + 3 + 2 || length == 2 + 3 + 16 );
                     BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % length, 0 );
                     BOOST_REQUIRE_GT( ( this->response_size - 2 ) / length, 0 );
 
                     for ( std::size_t ptr = 2; ptr != this->response_size; ptr += length )
                     {
                         start_handle = handle_at( ptr + 3 ) + 1;
-                        if ( std::equal( std::begin( UUID::bytes ), std::end( UUID::bytes ), &this->response[ ptr + 2 + 3 ]) )
-                        {
-                            return discovered_characteristic( handle_at( ptr ), handle_at( ptr + 3 ) );
-                        }
+                        dynamic_uuid uuid( &this->response[ ptr + 5 ], length - 5 );
+
+                        result.push_back(
+                            discovered_characteristic( handle_at( ptr ), handle_at( ptr + 3 ), uuid ) );
                     }
                 }
             }
 
-            return discovered_characteristic();
+            for ( std::vector< discovered_characteristic >::iterator uuid = result.begin(); uuid != result.end(); ++uuid )
+            {
+                const auto next = uuid +1;
+                uuid->end_handle = next != result.end()
+                    ? next->declaration_handle - 1
+                    : service.ending_handle;
+            }
+
+            return result;
+        }
+
+        template < class UUID >
+        discovered_characteristic discover_characteristic_by_uuid( const discovered_service& service )
+        {
+            const std::vector< discovered_characteristic > all = discover_all_characteristics_of_a_service( service );
+            const dynamic_uuid service_uuid( static_cast< const UUID* >( nullptr ) );
+
+            auto result = std::find_if( all.begin(), all.end(),
+                [ &service_uuid ]( const discovered_characteristic& c ){ return c.uuid == service_uuid ; } );
+
+            return result != all.end()
+                ? *result
+                : discovered_characteristic();
+        }
+
+        std::vector< discovered_characteristic_descriptor > discover_all_characteristic_descriptors( const discovered_characteristic& characteristic )
+        {
+            std::vector< discovered_characteristic_descriptor > result;
+
+            std::uint8_t last_response_code = 0x05;
+
+            for ( std::uint16_t start_handle = characteristic.value_handle +1; last_response_code == 0x05;  )
+            {
+                std::vector< std::uint8_t > request = { 0x04 };
+                add_handle( request, start_handle, characteristic.end_handle );
+
+                this->l2cap_input( request, this->connection );
+                BOOST_REQUIRE_GT( this->response_size, 0 );
+
+                last_response_code = this->response[ 0 ];
+                if ( last_response_code == 0x05 )
+                {
+                    BOOST_REQUIRE_GT( this->response_size, 1 );
+                    const std::size_t format = this->response[ 1 ];
+
+                    // 16 bit uuid
+                    BOOST_REQUIRE( format == 0x01 );
+                    static constexpr std::size_t length = 4;
+                    BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % length, 0 );
+                    BOOST_REQUIRE_GT( ( this->response_size - 2 ) / length, 0 );
+
+                    for ( std::size_t ptr = 2; ptr != this->response_size; ptr += length )
+                    {
+                        start_handle = handle_at( ptr ) + 1;
+
+                        result.push_back(
+                            discovered_characteristic_descriptor( handle_at( ptr ), handle_at( ptr + 2 ) ) );
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        discovered_characteristic_descriptor discover_cccd( const discovered_characteristic& characteristic )
+        {
+            const std::vector< discovered_characteristic_descriptor > descriptors = discover_all_characteristic_descriptors( characteristic );
+
+            const auto result = std::find_if( descriptors.begin(), descriptors.end(),
+                []( const discovered_characteristic_descriptor& d ){ return d.uuid == 0x2902; } );
+
+            return result != descriptors.end()
+                ? *result
+                : discovered_characteristic_descriptor();
         }
     };
 }

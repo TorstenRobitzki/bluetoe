@@ -907,7 +907,7 @@ namespace bluetoe {
                 return static_cast< std::uint8_t >( error_codes::attribute_not_long );
 
             // as this is a indication control point, this thingy must be configured for indications
-            if ( ( config.flags( ClientCharacteristicIndex ) & details::client_characteristic_configuration_indication_enabled ) == 0 )
+            if ( ( config.flags( ClientCharacteristicIndex ) & details::client_characteristic_configuration_notification_enabled ) == 0 )
                 return error_codes::cccd_improperly_configured;
 
             // we have a void pointer, the type of the server and the server is derived from the mixin
