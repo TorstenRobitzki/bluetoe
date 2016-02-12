@@ -21,7 +21,10 @@ using bootloader_server = bluetoe::server<
     bluetoe::bootloader_service<
         bluetoe::bootloader::page_size< 1024 >,
         bluetoe::bootloader::page_align< 1024 >,
-        bluetoe::bootloader::handler< handler >
+        bluetoe::bootloader::handler< handler >,
+        bluetoe::bootloader::white_list<
+            bluetoe::bootloader::memory_region< 0x1000, 0x2000 >
+        >
     >
 >;
 
@@ -114,6 +117,15 @@ struct all_discovered_and_subscribed : all_discovered< Server >
 
     }
 
+    void add_ptr( std::vector< std::uint8_t >& v, std::uintptr_t p )
+    {
+        for ( int i = 0; i != sizeof( p ); ++i )
+        {
+            v.push_back( p & 0xff );
+            p = p >> 8;
+        }
+    }
+
     const discovered_characteristic_descriptor    cp_cccd;
     const discovered_characteristic_descriptor    data_cccd;
 };
@@ -139,3 +151,52 @@ BOOST_FIXTURE_TEST_CASE( get_version, all_discovered_and_subscribed< bootloader_
         0x47, 0x11                                                          // version as given by handler::get_version()
     } );
 }
+
+BOOST_FIXTURE_TEST_CASE( flash_address_wrong_ptr_size, all_discovered_and_subscribed< bootloader_server > )
+{
+    l2cap_input( {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x01, 0x12 }, connection );
+
+    expected_result( {
+        0x01, 0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x82 } ); // start_address_invalid
+
+    // no notification expected
+    BOOST_CHECK( !notification.valid() );
+}
+
+BOOST_FIXTURE_TEST_CASE( flash_address_outside_of_white_list, all_discovered_and_subscribed< bootloader_server > )
+{
+    std::vector< std::uint8_t > input = {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x01 };
+
+    add_ptr( input, 0x2212 );
+
+    l2cap_input( input, connection );
+
+    expected_result( {
+        0x01, 0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x83 } ); // start_address_not_accaptable
+
+    // no notification expected
+    BOOST_CHECK( !notification.valid() );
+}
+
+BOOST_FIXTURE_TEST_CASE( flash_address, all_discovered_and_subscribed< bootloader_server > )
+{
+    std::vector< std::uint8_t > input = {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x01 };
+
+    add_ptr( input, 0x1212 );
+
+    l2cap_input( input, connection );
+
+    expected_result( { 0x13 } );
+
+    // no notification expected
+    BOOST_CHECK( !notification.valid() );
+}
+
