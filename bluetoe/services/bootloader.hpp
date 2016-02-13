@@ -2,27 +2,55 @@
 #define BLUETOE_SERVICES_BOOTLOADER_HPP
 
 #include <bluetoe/service.hpp>
+#include <algorithm>
 
+/**
+ * @file services/bootloader.hpp
+ *
+ * This is the implementation of a bootloader as a Bluetooth LE service.
+ * The service contains two characteristics. A control point to inquire informations and to control the flash process.
+ * One data characteristic to upload and download larger amounts of data.
+ *
+ * @todo document the protocol here...
+ */
 namespace bluetoe
 {
     namespace bootloader {
+
+        /** @cond HIDDEN_SYMBOLS */
         namespace details {
             struct handler_meta_type {};
             struct memory_region_meta_type {};
+            struct page_size_meta_type {};
+        };
+        /** @endcond */
+
+        /**
+         * @brief required parameter to define the size of a page
+         */
+        template < std::size_t PageSize >
+        struct page_size
+        {
+            typedef details::page_size_meta_type meta_type;
+            static constexpr std::size_t value = PageSize;
         };
 
-        template < std::size_t PageSize >
-        struct page_size {};
-
-        template < std::size_t PageAlign >
-        struct page_align {};
-
+        /**
+         * @brief denoting a memory range with it's start address and endaddress (exklusive)
+         *
+         * So memory_region< 0x1000, 0x2000 > means all bytes with the address from 0x1000
+         * to 0x2000 but _not_ 0x2000.
+         */
         template < std::uintptr_t Start, std::uintptr_t End >
         struct memory_region {};
 
+        /**
+         * @brief a list of all memory regions that are flashable by the bootloader
+         */
         template < typename ... Regions >
         struct white_list;
 
+        /** @cond HIDDEN_SYMBOLS */
         template < std::uintptr_t Start, std::uintptr_t End, typename ... Regions >
         struct white_list< memory_region< Start, End >, Regions ... >
         {
@@ -45,15 +73,30 @@ namespace bluetoe
 
             typedef details::memory_region_meta_type meta_type;
         };
+        /** @endcond */
 
+        /**
+         * @brief requireded parameter to define, how the bootloader can access memory and flash
+         */
         template < typename UserHandler >
         struct handler {
             typedef UserHandler                 user_handler;
             typedef details::handler_meta_type  meta_type;
         };
 
+        /**
+         * @brief the UUID of the bootloader service is 7D295F4D-2850-4F57-B595-837F5753F8A9
+         */
         using service_uuid       = bluetoe::service_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8A9 >;
+
+        /**
+         * @brief the UUID of the control point charateristic is 7D295F4D-2850-4F57-B595-837F5753F8A9
+         */
         using control_point_uuid = bluetoe::characteristic_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8A9 >;
+
+        /**
+         * @brief the UUID of the data charateristic is 7D295F4D-2850-4F57-B595-837F5753F8AA
+         */
         using data_uuid          = bluetoe::characteristic_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8AA >;
 
         enum att_error_codes : std::uint8_t {
@@ -63,14 +106,88 @@ namespace bluetoe
             start_address_not_accaptable
         };
 
-        enum error_codes : std::uint8_t {};
+        enum class error_codes : std::uint8_t {
+            success
+        };
 
+        /** @cond HIDDEN_SYMBOLS */
         namespace details {
+
+            /**
+             * Buffer to take at max a page full of data
+             * Responsible to make sure, that full pages are flashed.
+             */
+            template < std::size_t PageSize >
+            class flash_buffer
+            {
+            public:
+                flash_buffer()
+                    : state_( idle )
+                    , ptr_( 0 )
+                {
+                }
+
+                std::uint32_t free_size() const
+                {
+                    return PageSize - ptr_;
+                }
+
+                template < class Handler >
+                void set_start_address( std::uintptr_t address, Handler& h )
+                {
+                    assert( state_ == idle );
+                    state_ = filling;
+                    ptr_   = address % PageSize;
+                    addr_  = address - ptr_;
+
+                    h.read_mem( addr_, ptr_, &buffer_[ 0 ] );
+                }
+
+                template < class Handler >
+                std::size_t write_data( std::size_t write_size, const std::uint8_t* value, Handler& h )
+                {
+                    assert( state_ == filling );
+                    assert( ptr_ != PageSize );
+
+                    const std::size_t copy_size = std::min( PageSize - ptr_, write_size );
+                    std::copy( value, value + copy_size, &buffer_[ ptr_ ] );
+
+                    ptr_ += copy_size;
+
+                    if ( ptr_ == PageSize )
+                        flush( h );
+
+                    return free_size();
+                }
+
+                template < class Handler >
+                void flush( Handler& h )
+                {
+                    assert( state_ == filling );
+                    state_ = flashing;
+
+                    if ( ptr_ != PageSize )
+                        h.read_mem( addr_ + ptr_, PageSize - ptr_, &buffer_[ ptr_ ] );
+
+                    h.start_flash( addr_, &buffer_[ 0 ], PageSize );
+                }
+            private:
+                enum {
+                    idle,
+                    filling,
+                    flashing
+                } state_;
+
+                std::uintptr_t  addr_;
+                std::size_t     ptr_;
+                std::uint8_t    buffer_[ PageSize ];
+            };
 
             enum opcode : std::uint8_t
             {
                 get_version,
                 flash_address,
+                flash_flush,
                 undefined_opcode = 0xff
             };
 
@@ -80,12 +197,22 @@ namespace bluetoe
                 address_accepted
             };
 
-            template < typename UserHandler, typename MemRegions >
-            struct handler : UserHandler
+            enum data_code : std::uint8_t
             {
+                success         = 1,
+                /** a complete page was received, no flush necessary */
+                success_page
+            };
+
+            template < typename UserHandler, typename MemRegions, std::size_t PageSize >
+            class handler : public UserHandler
+            {
+            public:
                 handler()
                     : opcode( undefined_opcode )
                     , start_address( 0 )
+                    , check_sum( 0 )
+                    , next_buffer_( 0 )
                 {
                 }
 
@@ -115,12 +242,21 @@ namespace bluetoe
                                 start_address |= *( rbegin -1 );
                             }
 
+                            check_sum = this->checksum32( value +1, write_size -1, 0 );
+
                             if ( !MemRegions::acceptable( start_address ) )
                             {
                                 opcode = undefined_opcode;
                                 return std::pair< std::uint8_t, bool >{ start_address_not_accaptable, false };
                             }
 
+                            buffers_[next_buffer_].set_start_address( start_address, *this );
+
+                            return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
+                        }
+                    case flash_flush:
+                        {
+                            buffers_[next_buffer_].flush( *this );
                             return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
                         }
                     }
@@ -147,22 +283,63 @@ namespace bluetoe
                     return bluetoe::error_codes::success;
                 }
 
-                std::uint8_t bootloader_write_data( std::size_t write_size, const std::uint8_t* value )
+                std::pair< std::uint8_t, bool > bootloader_write_data( std::size_t write_size, const std::uint8_t* value )
                 {
-                    return no_operation_in_progress;
+                    if ( opcode == undefined_opcode )
+                        return std::pair< std::uint8_t, bool >( no_operation_in_progress, false );
+
+                    check_sum = this->checksum32( value, write_size, check_sum );
+
+                    buffers_[next_buffer_].write_data( write_size, value, *this );
+
+                    return std::pair< std::uint8_t, bool >( bluetoe::error_codes::success, true );
                 }
 
                 std::uint8_t bootloader_read_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
-                    return 0;
+                    static constexpr std::size_t pdu_size = 10;
+
+                    assert( read_size >= pdu_size );
+
+                    out_buffer[ 0 ] = success;
+                    out_buffer[ 1 ] = 23; /// @todo how to get the current MTU size here?
+                    out_buffer += 2;
+
+                    out_buffer = bluetoe::details::write_32bit( out_buffer, free_size() );
+                    out_buffer = bluetoe::details::write_32bit( out_buffer, check_sum );
+
+                    out_size = pdu_size;
+
+                    return bluetoe::error_codes::success;
                 }
 
-                std::uint8_t    opcode;
-                std::uintptr_t  start_address;
+            private:
+                std::uint32_t free_size() const
+                {
+                    std::uint32_t result = 0;
+
+                    for ( const auto& b : buffers_ )
+                        result += b.free_size();
+
+                    return result;
+                }
+
+                std::uint8_t                    opcode;
+                std::uintptr_t                  start_address;
+                std::uint32_t                   check_sum;
+
+                static constexpr std::size_t    number_of_concurrent_flashs = 2;
+                unsigned                        next_buffer_;
+                flash_buffer< PageSize >        buffers_[number_of_concurrent_flashs];
             };
 
             template < typename ... Options >
             struct calculate_service {
+                using page_size    = typename bluetoe::details::find_by_meta_type< page_size_meta_type, Options... >::type;
+
+                static_assert( !std::is_same< bluetoe::details::no_such_type, page_size >::value,
+                    "Please use page_size<> to define the block size of the flash." );
+
                 using mem_regions  = typename bluetoe::details::find_by_meta_type< memory_region_meta_type, Options... >::type;
 
                 static_assert( !std::is_same< bluetoe::details::no_such_type, mem_regions >::value,
@@ -173,7 +350,7 @@ namespace bluetoe
                 static_assert( !std::is_same< bluetoe::details::no_such_type, user_handler >::value,
                     "To use the bootloader, please provide a handler<> that fullfiles the requirements documented with bootloader_handler_prototype." );
 
-                using implementation = handler< typename user_handler::user_handler, mem_regions >;
+                using implementation = handler< typename user_handler::user_handler, mem_regions, page_size::value >;
 
                 using type = bluetoe::service<
                     bluetoe::bootloader::service_uuid,
@@ -190,8 +367,8 @@ namespace bluetoe
                     >,
                     bluetoe::characteristic<
                         bluetoe::bootloader::data_uuid,
-                        bluetoe::mixin_write_handler<
-                            implementation, &implementation::bootloader_write_data
+                        bluetoe::mixin_write_notification_control_point_handler<
+                            implementation, &implementation::bootloader_write_data, bluetoe::bootloader::data_uuid
                         >,
                         bluetoe::mixin_read_handler<
                             implementation, &implementation::bootloader_read_data
@@ -203,29 +380,38 @@ namespace bluetoe
                 >;
             };
         }
+        /** @endcond */
 
+        /**
+         * @brief Prototype for a handler, that adapts the bootloader service to the actual hardware
+         */
+        class bootloader_handler_prototype
+        {
+        public:
+            /**
+             * Start to flash
+             */
+            bootloader::error_codes start_flash( std::uintptr_t address, const std::uint8_t* values, std::size_t size );
+
+            bootloader::error_codes run( std::uintptr_t start_addr );
+
+            std::pair< const std::uint8_t*, std::size_t > get_version();
+
+            /*
+             * this is very handy, when it comes to testing...
+             */
+            void read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
+
+            std::uint32_t checksum32( const std::uint8_t* values, std::size_t size, std::uint32_t init );
+        };
     }
 
+    /**
+     * @brief Implementation of a bootloader service
+     */
     template < typename ... Options >
     using bootloader_service = typename bootloader::details::calculate_service< Options... >::type;
 
-    /**
-     * @brief Prototype for a handler, that adapts the bootloader service to the actual hardware
-     */
-    class bootloader_handler_prototype
-    {
-    public:
-        /*
-         * Start to flash
-         */
-        bootloader::error_codes start_flash( const std::uint8_t* target, std::uint8_t* destination, std::size_t size );
-        bootloader::error_codes start_copy( const std::uint8_t* target, std::uint8_t* destination, std::size_t size );
-        std::uint32_t start_checksum( const std::uint8_t* target, std::uint8_t* destination, std::size_t size );
-
-        bootloader::error_codes run( const std::uint8_t* start_addr );
-
-        std::pair< const std::uint8_t*, std::size_t > get_version();
-    };
 }
 
 #endif
