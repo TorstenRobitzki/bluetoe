@@ -55,7 +55,7 @@ namespace bluetoe {
         typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services_without_gap;
 
         // append gap serivce for gatt servers
-        typedef typename details::find_by_meta_type< details::gap_service_definition_meta_type  ,
+        typedef typename details::find_by_meta_type< details::gap_service_definition_meta_type,
             Options..., gap_service_for_gatt_servers >::type gap_service_definition;
         typedef typename gap_service_definition::template add_service< services_without_gap, Options... >::type services;
 
