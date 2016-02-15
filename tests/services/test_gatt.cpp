@@ -28,10 +28,11 @@ namespace test {
         return out << std::hex << "{ 0x" << service.starting_handle << ", 0x" << service.ending_handle << " }";
     }
 
-    discovered_characteristic::discovered_characteristic( std::uint16_t decl, std::uint16_t value, const dynamic_uuid& u )
+    discovered_characteristic::discovered_characteristic( std::uint16_t decl, std::uint16_t value, std::uint8_t p, const dynamic_uuid& u )
         : declaration_handle( decl )
         , end_handle( invalid_handle )
         , value_handle( value )
+        , properties( p )
         , uuid( u )
     {
 
@@ -39,7 +40,9 @@ namespace test {
 
     discovered_characteristic::discovered_characteristic()
         : declaration_handle( invalid_handle )
+        , end_handle( invalid_handle )
         , value_handle( invalid_handle )
+        , uuid()
     {
 
     }
@@ -47,14 +50,19 @@ namespace test {
     bool discovered_characteristic::operator==( const discovered_characteristic& rhs ) const
     {
         return declaration_handle == rhs.declaration_handle
-            && end_handle == rhs.end_handle;
+            && end_handle == rhs.end_handle
+            && value_handle == rhs.value_handle
+            && properties == rhs.properties
+            && uuid == rhs.uuid;
     }
 
     std::ostream& operator<<( std::ostream& out, const discovered_characteristic& characteristic )
     {
         return out
             << std::hex << "{ 0x" << characteristic.declaration_handle << ":0x" << characteristic.end_handle
-            << ", 0x" << characteristic.value_handle << ", " << characteristic.uuid << " }";
+            << ", 0x" << characteristic.properties
+            << ", 0x" << characteristic.value_handle
+            << ", " << characteristic.uuid << " }";
     }
 
     discovered_characteristic_descriptor::discovered_characteristic_descriptor( std::uint16_t h, std::uint16_t u )

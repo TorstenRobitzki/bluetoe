@@ -50,9 +50,10 @@ namespace test {
         std::uint16_t declaration_handle;
         std::uint16_t end_handle;
         std::uint16_t value_handle;
+        std::uint8_t  properties;
         dynamic_uuid  uuid;
 
-        discovered_characteristic( std::uint16_t decl, std::uint16_t value, const dynamic_uuid& uuid );
+        discovered_characteristic( std::uint16_t decl, std::uint16_t value, std::uint8_t  properties, const dynamic_uuid& uuid );
         discovered_characteristic();
 
         bool operator==( const discovered_characteristic& rhs ) const;
@@ -160,7 +161,7 @@ namespace test {
                         dynamic_uuid uuid( &this->response[ ptr + 5 ], length - 5 );
 
                         result.push_back(
-                            discovered_characteristic( handle_at( ptr ), handle_at( ptr + 3 ), uuid ) );
+                            discovered_characteristic( handle_at( ptr ), handle_at( ptr + 3 ), this->response[ ptr + 2 ], uuid ) );
                     }
                 }
             }
