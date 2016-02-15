@@ -62,8 +62,24 @@ struct handler {
         return bluetoe::bootloader::error_codes::success;
     }
 
+    bluetoe::bootloader::error_codes run( std::uintptr_t start_addr )
+    {
+        start_program_called = start_addr;
+
+        return bluetoe::bootloader::error_codes::success;
+    }
+
+    bluetoe::bootloader::error_codes reset()
+    {
+        reset_called = true;
+
+        return bluetoe::bootloader::error_codes::success;
+    }
+
     handler()
         : start_flash_address( 0x1234 )
+        , start_program_called( 0 )
+        , reset_called( false )
     {
         for ( int b = 0; b != num_blocks; ++b )
         {
@@ -78,6 +94,8 @@ struct handler {
     std::vector< std::uint8_t > origianl_device_memory;
     std::uintptr_t              start_flash_address;
     std::vector< std::uint8_t > start_flash_content;
+    std::uintptr_t              start_program_called;
+    bool                        reset_called;
 };
 
 using bootloader_server = bluetoe::server<
@@ -442,16 +460,6 @@ BOOST_FIXTURE_TEST_CASE( stop_flash, all_discovered_and_subscribed< bootloader_s
         0x04 } );
 }
 
-BOOST_FIXTURE_TEST_CASE( stop_flash_while_in_flash_mode, all_discovered_and_subscribed< bootloader_server > )
-{
-    /// @TODO
-}
-
-BOOST_FIXTURE_TEST_CASE( stop_flash_while_having_flash_operations_pending, all_discovered_and_subscribed< bootloader_server > )
-{
-    /// @TODO
-}
-
 /*
  * Flush
  */
@@ -528,6 +536,45 @@ BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the
         0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
         0x05 } );
 }
+
+/*
+ * Start
+ */
+BOOST_FIXTURE_TEST_CASE( start_program, all_discovered_and_subscribed< bootloader_server > )
+{
+    std::vector< std::uint8_t > input = {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x06 };
+
+    add_ptr( input, 0xabcd1234 );
+    l2cap_input( input, connection );
+
+    BOOST_CHECK_EQUAL( start_program_called, 0xabcd1234 );
+}
+
+/*
+ * Reset
+ */
+BOOST_FIXTURE_TEST_CASE( reset_bootloader, all_discovered_and_subscribed< bootloader_server > )
+{
+    l2cap_input( {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x07
+    }, connection );
+
+    BOOST_CHECK( reset_called );
+}
+
+BOOST_FIXTURE_TEST_CASE( stop_flash_while_in_flash_mode, all_discovered_and_subscribed< bootloader_server > )
+{
+    /// @TODO
+}
+
+BOOST_FIXTURE_TEST_CASE( stop_flash_while_having_flash_operations_pending, all_discovered_and_subscribed< bootloader_server > )
+{
+    /// @TODO
+}
+
 
 #if 0
 BOOST_FIXTURE_TEST_CASE( write_page_without_command, all_discovered_and_subscribed< bootloader_server > )
