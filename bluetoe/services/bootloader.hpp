@@ -300,6 +300,12 @@ namespace bluetoe
                         {
                             if ( !in_flash_mode )
                                 return request_error( invalid_state );
+
+                            if ( !buffers_[next_buffer_].flush( *this ) )
+                                return request_error( invalid_state );
+
+                            // wait for the hardware to signal that the data was flashed
+                            return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
                         }
                         break;
                     default:
@@ -400,6 +406,12 @@ namespace bluetoe
                     return bluetoe::error_codes::success;
                 }
 
+                template < class Server >
+                void end_flash( Server& server )
+                {
+                    server.template notify< control_point_uuid >();
+                }
+
             private:
                 std::uint32_t free_size() const
                 {
@@ -489,6 +501,8 @@ namespace bluetoe
         public:
             /**
              * Start to flash
+             *
+             * When the hardware signals, that the memory is flashed, end_flash( server) have to be called on the server instance
              */
             bootloader::error_codes start_flash( std::uintptr_t address, const std::uint8_t* values, std::size_t size );
 
