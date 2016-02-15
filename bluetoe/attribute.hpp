@@ -267,6 +267,15 @@ namespace details {
         {
             return client_characteristic_configuration_index_;
         }
+
+        /*
+         * For testing
+         */
+        void clear()
+        {
+            att_handle_ = 0;
+            client_characteristic_configuration_index_ = 0;
+        }
     private:
         std::uint16_t   att_handle_;
         std::size_t     client_characteristic_configuration_index_;

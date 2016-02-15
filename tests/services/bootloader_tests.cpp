@@ -463,6 +463,72 @@ BOOST_FIXTURE_TEST_CASE( flush_when_not_in_flash_mode, all_discovered_and_subscr
         0x12, cp_char.value_handle, 0x82 );
 }
 
+template < class Server >
+struct start_flash : all_discovered_and_subscribed< Server >
+{
+    start_flash()
+    {
+        std::vector< std::uint8_t > input = {
+            0x12, this->low( this->cp_char.value_handle ), this->high( this->cp_char.value_handle ),
+            0x03 };
+
+        this->add_ptr( input, flash_start_addr );
+
+        this->l2cap_input( input, this->connection );
+
+        this->expected_result( { 0x13 } );
+
+        BOOST_REQUIRE( this->notification.valid() );
+        this->notification.clear();
+    }
+};
+
+template < class Server >
+struct write_3_bytes_at_the_beginning_of_the_flash : start_flash< Server >
+{
+    write_3_bytes_at_the_beginning_of_the_flash()
+    {
+        this->l2cap_input( {
+            0x12, this->low( this->data_char.value_handle ), this->high( this->data_char.value_handle ),
+            0x0a, 0x0b, 0x0c
+        }, this->connection );
+
+        this->expected_result( { 0x13 } );
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the_beginning_of_the_flash< bootloader_server > )
+{
+    l2cap_input( {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x05
+    }, connection );
+
+    expected_result( { 0x13 } );
+
+    BOOST_CHECK( !notification.valid() );
+
+    // the flashed memory should be a whole page and the content should be equal to the original content
+    // exept for the 3 bytes, written at the beginning
+    BOOST_CHECK_EQUAL( start_flash_address, flash_start_addr );
+
+    static constexpr std::uint8_t expected_flash_content[] = { 0x0a, 0x0b, 0x0c };
+
+    std::copy( std::begin( expected_flash_content ), std::end( expected_flash_content ),
+        origianl_device_memory.begin() );
+
+    BOOST_CHECK_EQUAL( start_flash_content.size(), block_size );
+    BOOST_CHECK_EQUAL_COLLECTIONS( origianl_device_memory.begin(), origianl_device_memory.begin() + start_flash_content.size(),
+        start_flash_content.begin(), start_flash_content.end() );
+
+    // now, when signaling the end of the flash process, we get a notification
+    end_flash( *this );
+
+    expected_output( notification, {
+        0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x05 } );
+}
+
 #if 0
 BOOST_FIXTURE_TEST_CASE( write_page_without_command, all_discovered_and_subscribed< bootloader_server > )
 {
@@ -472,22 +538,6 @@ BOOST_FIXTURE_TEST_CASE( write_page_without_command, all_discovered_and_subscrib
         0x12, data_char.value_handle, 0x80 );
 }
 
-template < class Server >
-struct start_flash : all_discovered_and_subscribed< Server >
-{
-    start_flash()
-    {
-        std::vector< std::uint8_t > input = {
-            0x12, this->low( this->cp_char.value_handle ), this->high( this->cp_char.value_handle ),
-            0x01 };
-
-        this->add_ptr( input, flash_start_addr );
-
-        this->l2cap_input( input, this->connection );
-
-        this->expected_result( { 0x13 } );
-    }
-};
 
 BOOST_FIXTURE_TEST_CASE( write_first_data, start_flash< bootloader_server > )
 {
@@ -507,27 +557,6 @@ BOOST_FIXTURE_TEST_CASE( write_first_data, start_flash< bootloader_server > )
     } );
 }
 
-template < class Server >
-struct write_3_bytes_at_the_beginning_of_the_flash : start_flash< Server >
-{
-    write_3_bytes_at_the_beginning_of_the_flash()
-    {
-        this->l2cap_input( {
-            0x12, this->low( this->data_char.value_handle ), this->high( this->data_char.value_handle ),
-            0x0a, 0x0b, 0x0c
-        }, this->connection );
-
-        this->expected_result( { 0x13 } );
-
-        const int expected_checksum = 3 + sizeof(std::uint8_t*);
-        this->expected_output( this->notification, {
-            0x1b, this->low( this->data_char.value_handle ), this->high( this->data_char.value_handle ),
-            0x01, 0x17,              // success; MTU size
-            0xfd, 0x01, 0x00, 0x00,  // buffer size
-            this->low(expected_checksum), this->high(expected_checksum), 0x00, 0x00   // crc
-        } );
-    }
-};
 
 
 BOOST_FIXTURE_TEST_CASE( flash_first_data, write_3_bytes_at_the_beginning_of_the_flash< bootloader_server > )
@@ -552,17 +581,6 @@ BOOST_FIXTURE_TEST_CASE( flash_first_data, write_3_bytes_at_the_beginning_of_the
 }
 
 BOOST_FIXTURE_TEST_CASE( flush_empty, start_flash< bootloader_server > )
-{
-    check_error_response( {
-        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x02
-    }, 0x12, cp_char.value_handle, 0x84 );
-
-    // no notification expected
-    BOOST_CHECK( !notification.valid() );
-}
-
-BOOST_FIXTURE_TEST_CASE( flush_idle, all_discovered_and_subscribed< bootloader_server > )
 {
     check_error_response( {
         0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
