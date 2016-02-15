@@ -11,7 +11,7 @@
  * The service contains two characteristics. A control point to inquire informations and to control the flash process.
  * One data characteristic to upload and download larger amounts of data.
  *
- * @todo document the protocol here...
+ * \ref Bootloader-Protocol
  */
 namespace bluetoe
 {
@@ -31,8 +31,10 @@ namespace bluetoe
         template < std::size_t PageSize >
         struct page_size
         {
+           /** @cond HIDDEN_SYMBOLS */
             typedef details::page_size_meta_type meta_type;
             static constexpr std::size_t value = PageSize;
+            /** @endcond */
         };
 
         /**
@@ -54,10 +56,10 @@ namespace bluetoe
         template < std::uintptr_t Start, std::uintptr_t End, typename ... Regions >
         struct white_list< memory_region< Start, End >, Regions ... >
         {
-            static bool acceptable( std::uintptr_t addr )
+            static bool acceptable( std::uintptr_t start, std::uintptr_t end )
             {
-                return Start <= addr && addr < End
-                    || white_list< Regions... >::acceptable( addr );
+                return start >= Start && end <= End
+                    || white_list< Regions... >::acceptable( start, end );
             }
 
             typedef details::memory_region_meta_type meta_type;
@@ -66,7 +68,7 @@ namespace bluetoe
         template <>
         struct white_list<>
         {
-            static bool acceptable( std::uintptr_t )
+            static bool acceptable( std::uintptr_t, std::uintptr_t )
             {
                 return false;
             }
@@ -80,8 +82,10 @@ namespace bluetoe
          */
         template < typename UserHandler >
         struct handler {
+            /** @cond HIDDEN_SYMBOLS */
             typedef UserHandler                 user_handler;
             typedef details::handler_meta_type  meta_type;
+            /** @endcond */
         };
 
         /**
@@ -99,13 +103,26 @@ namespace bluetoe
          */
         using data_uuid          = bluetoe::characteristic_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8AA >;
 
+        /**
+         * @brief the UUID of the data charateristic is 7D295F4D-2850-4F57-B595-837F5753F8AA
+         */
+        using progress_uuid      = bluetoe::characteristic_uuid< 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8AB >;
+
+        /**
+         * @brief error codes that are used by the bootloader on the ATT layer
+         */
         enum att_error_codes : std::uint8_t {
+            /*
+             * attempt to write or read data to or from the bootloader, while no operation is in progress
+             */
             no_operation_in_progress = bluetoe::error_codes::application_error_start,
             invalid_opcode,
-            start_address_invalid,
-            start_address_not_accaptable
+            invalid_state
         };
 
+        /**
+         * @brief range of error codes that can be used by the user handler to indicate the cause of an error
+         */
         enum class error_codes : std::uint8_t {
             success
         };
@@ -161,16 +178,21 @@ namespace bluetoe
                 }
 
                 template < class Handler >
-                void flush( Handler& h )
+                bool flush( Handler& h )
                 {
-                    assert( state_ == filling );
+                    if ( state_ != filling || ptr_ == 0 )
+                        return false;
+
                     state_ = flashing;
 
                     if ( ptr_ != PageSize )
                         h.read_mem( addr_ + ptr_, PageSize - ptr_, &buffer_[ ptr_ ] );
 
                     h.start_flash( addr_, &buffer_[ 0 ], PageSize );
+
+                    return true;
                 }
+
             private:
                 enum {
                     idle,
@@ -185,16 +207,15 @@ namespace bluetoe
 
             enum opcode : std::uint8_t
             {
-                get_version,
-                flash_address,
-                flash_flush,
+                opc_get_version,
+                opc_get_crc,
+                opc_get_sizes,
+                opc_start_flash,
+                opc_stop_flash,
+                opc_flush,
+                opc_start,
+                opc_reset,
                 undefined_opcode = 0xff
-            };
-
-            enum response_code : std::uint8_t
-            {
-                version_response = 1,
-                address_accepted
             };
 
             enum data_code : std::uint8_t
@@ -212,8 +233,21 @@ namespace bluetoe
                     : opcode( undefined_opcode )
                     , start_address( 0 )
                     , check_sum( 0 )
+                    , in_flash_mode( false )
                     , next_buffer_( 0 )
                 {
+                }
+
+                std::uintptr_t read_address( const std::uint8_t* rend )
+                {
+                    std::uintptr_t result = 0;
+                    for ( const std::uint8_t* rbegin = rend + sizeof( std::uint8_t* ); rbegin != rend; --rbegin )
+                    {
+                        result = result << 8;
+                        result |= *( rbegin -1 );
+                    }
+
+                    return result;
                 }
 
                 std::pair< std::uint8_t, bool > bootloader_write_control_point( std::size_t write_size, const std::uint8_t* value )
@@ -225,91 +259,144 @@ namespace bluetoe
 
                     switch ( opcode )
                     {
-                    case get_version:
-                        return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, true };
-                    case flash_address:
+                    case opc_get_version:
+                    case opc_get_sizes:
+                    case opc_stop_flash:
+                        {
+                            if ( write_size != 1 )
+                                return request_error( bluetoe::error_codes::invalid_attribute_value_length );
+                        }
+                        break;
+                    case opc_get_crc:
+                        {
+                            if ( write_size != 1 + 2 * sizeof( std::uint8_t* ) )
+                                return request_error( bluetoe::error_codes::invalid_attribute_value_length );
+
+                                                 start_address = read_address( value +1 );
+                            const std::uintptr_t end_address   = read_address( value +1 + sizeof( std::uint8_t* ) );
+
+                            if ( start_address > end_address || !MemRegions::acceptable( start_address,end_address ) )
+                                return request_error( bluetoe::error_codes::invalid_offset );
+
+                            check_sum = this->checksum32( start_address, end_address - start_address );
+                        }
+                        break;
+                    case opc_start_flash:
                         {
                             if ( write_size != 1 + sizeof( std::uint8_t* ) )
-                            {
-                                opcode = undefined_opcode;
-                                return std::pair< std::uint8_t, bool >{ start_address_invalid, false };
-                            }
+                                return request_error( bluetoe::error_codes::invalid_attribute_value_length );
 
-                            start_address = 0;
-                            for ( const std::uint8_t* rbegin = value + write_size, *rend = value +1; rbegin != rend; --rbegin )
-                            {
-                                start_address = start_address << 8;
-                                start_address |= *( rbegin -1 );
-                            }
+                            start_address = read_address( value +1 );
 
-                            check_sum = this->checksum32( value +1, write_size -1, 0 );
+                            if ( !MemRegions::acceptable( start_address, start_address ) )
+                                return request_error( bluetoe::error_codes::invalid_offset );
 
-                            if ( !MemRegions::acceptable( start_address ) )
-                            {
-                                opcode = undefined_opcode;
-                                return std::pair< std::uint8_t, bool >{ start_address_not_accaptable, false };
-                            }
-
+                            check_sum = this->checksum32( start_address );
                             buffers_[next_buffer_].set_start_address( start_address, *this );
-
-                            return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
+                            in_flash_mode = true;
                         }
-                    case flash_flush:
+                        break;
+                    case opc_flush:
                         {
-                            buffers_[next_buffer_].flush( *this );
-                            return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
+                            if ( !in_flash_mode )
+                                return request_error( invalid_state );
                         }
+                        break;
+                    default:
+                        return std::pair< std::uint8_t, bool >{ att_error_codes::invalid_opcode, false };
                     }
 
-                    return std::pair< std::uint8_t, bool >{ att_error_codes::invalid_opcode, false };
+                    return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, true };
                 }
 
                 std::uint8_t bootloader_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    assert( read_size >= 20 );
+                    *out_buffer = opcode;
+
                     switch ( opcode )
                     {
-                    case get_version:
+                    case opc_get_version:
                         {
                             const std::pair< const std::uint8_t*, std::size_t > version = this->get_version();
-                            out_size = std::min( out_size, version.second + 1 );
+                            out_size = std::min( read_size, version.second + 1 );
 
-                            assert( out_size > 0 );
-                            *out_buffer = version_response;
+                            *out_buffer = opc_get_version;
                             std::copy( version.first, version.first + out_size - 1, out_buffer + 1 );
                         }
+                        break;
+                    case opc_get_crc:
+                        {
+                            bluetoe::details::write_32bit( out_buffer + 1, check_sum );
+                            out_size = sizeof( std::uint8_t ) + sizeof( std::uint32_t );
+                        }
+                        break;
+                    case opc_get_sizes:
+                        {
+                            std::uint8_t* out = out_buffer;
+                            ++out;
+                            *out = sizeof( std::uint8_t* );
+                            ++out;
+                            out = bluetoe::details::write_32bit( out, PageSize );
+                            out = bluetoe::details::write_32bit( out, number_of_concurrent_flashs );
+
+                            out_size = out - out_buffer;
+                        }
+                        break;
+                    case opc_start_flash:
+                        {
+                            std::uint8_t* out = out_buffer;
+                            ++out;
+                            /// @todo get the connection MTU here
+                            *out = 23;
+                            ++out;
+                            out = bluetoe::details::write_32bit( out, free_size() );
+                            out = bluetoe::details::write_32bit( out, check_sum );
+
+                            out_size = out - out_buffer;
+                        }
+                        break;
+                    case opc_stop_flash:
+                    case opc_flush:
+                        out_size = 1;
                         break;
                     }
 
                     return bluetoe::error_codes::success;
                 }
 
-                std::pair< std::uint8_t, bool > bootloader_write_data( std::size_t write_size, const std::uint8_t* value )
+                std::uint8_t bootloader_write_data( std::size_t write_size, const std::uint8_t* value )
                 {
                     if ( opcode == undefined_opcode )
-                        return std::pair< std::uint8_t, bool >( no_operation_in_progress, false );
+                        return no_operation_in_progress;
 
-                    check_sum = this->checksum32( value, write_size, check_sum );
+//                    check_sum = this->checksum32( value, write_size, check_sum );
 
                     buffers_[next_buffer_].write_data( write_size, value, *this );
 
-                    return std::pair< std::uint8_t, bool >( bluetoe::error_codes::success, true );
+                    return bluetoe::error_codes::success;
                 }
 
-                std::uint8_t bootloader_read_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                // std::uint8_t bootloader_read_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                // {
+                //     static constexpr std::size_t pdu_size = 10;
+
+                //     assert( read_size >= pdu_size );
+
+                //     out_buffer[ 0 ] = success;
+                //     out_buffer[ 1 ] = 23; /// @todo how to get the current MTU size here?
+                //     out_buffer += 2;
+
+                //     out_buffer = bluetoe::details::write_32bit( out_buffer, free_size() );
+                //     out_buffer = bluetoe::details::write_32bit( out_buffer, check_sum );
+
+                //     out_size = pdu_size;
+
+                //     return bluetoe::error_codes::success;
+                // }
+
+                std::uint8_t bootloader_progress_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
-                    static constexpr std::size_t pdu_size = 10;
-
-                    assert( read_size >= pdu_size );
-
-                    out_buffer[ 0 ] = success;
-                    out_buffer[ 1 ] = 23; /// @todo how to get the current MTU size here?
-                    out_buffer += 2;
-
-                    out_buffer = bluetoe::details::write_32bit( out_buffer, free_size() );
-                    out_buffer = bluetoe::details::write_32bit( out_buffer, check_sum );
-
-                    out_size = pdu_size;
-
                     return bluetoe::error_codes::success;
                 }
 
@@ -324,9 +411,18 @@ namespace bluetoe
                     return result;
                 }
 
+                std::pair< std::uint8_t, bool > request_error( std::uint8_t code )
+                {
+                    opcode          = undefined_opcode;
+                    in_flash_mode   = false;
+
+                    return std::pair< std::uint8_t, bool >{ code, false };
+                }
+
                 std::uint8_t                    opcode;
                 std::uintptr_t                  start_address;
                 std::uint32_t                   check_sum;
+                bool                            in_flash_mode;
 
                 static constexpr std::size_t    number_of_concurrent_flashs = 2;
                 unsigned                        next_buffer_;
@@ -367,11 +463,14 @@ namespace bluetoe
                     >,
                     bluetoe::characteristic<
                         bluetoe::bootloader::data_uuid,
-                        bluetoe::mixin_write_notification_control_point_handler<
-                            implementation, &implementation::bootloader_write_data, bluetoe::bootloader::data_uuid
-                        >,
+                        bluetoe::mixin_write_handler<
+                            implementation, &implementation::bootloader_write_data
+                        >
+                    >,
+                    bluetoe::characteristic<
+                        bluetoe::bootloader::progress_uuid,
                         bluetoe::mixin_read_handler<
-                            implementation, &implementation::bootloader_read_data
+                            implementation, &implementation::bootloader_progress_data
                         >,
                         bluetoe::no_read_access,
                         bluetoe::notify
@@ -393,16 +492,31 @@ namespace bluetoe
              */
             bootloader::error_codes start_flash( std::uintptr_t address, const std::uint8_t* values, std::size_t size );
 
+            /**
+             * Run the program given at start_addr
+             */
             bootloader::error_codes run( std::uintptr_t start_addr );
 
+            /**
+             * Return a custom string a response to the Get Version procedure.
+             * Make sure, that the response is not longer than 20 bytes, or othere wise it could get truncated on the link layer.
+             */
             std::pair< const std::uint8_t*, std::size_t > get_version();
 
-            /*
+            /**
              * this is very handy, when it comes to testing...
              */
             void read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
 
-            std::uint32_t checksum32( const std::uint8_t* values, std::size_t size, std::uint32_t init );
+            /**
+             * calculate the checksum of the given range of memory.
+             */
+            std::uint32_t checksum32( std::uintptr_t start_addr, std::size_t size );
+
+            /**
+             * special overload to calculate the CRC over a start address
+             */
+            std::uint32_t checksum32( std::uintptr_t start_addr );
         };
     }
 
