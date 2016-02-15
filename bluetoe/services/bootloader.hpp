@@ -308,6 +308,23 @@ namespace bluetoe
                             return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
                         }
                         break;
+                    case opc_start:
+                        {
+                            if ( write_size != 1 + sizeof( std::uint8_t* ) )
+                                return request_error( bluetoe::error_codes::invalid_attribute_value_length );
+
+                            const std::uintptr_t start_address = read_address( value +1 );
+
+                            this->run( start_address );
+                        }
+                        break;
+                    case opc_reset:
+                        {
+                            if ( write_size != 1 )
+                                return request_error( bluetoe::error_codes::invalid_attribute_value_length );
+
+                            this->reset();
+                        }
                     default:
                         return std::pair< std::uint8_t, bool >{ att_error_codes::invalid_opcode, false };
                     }
@@ -512,6 +529,11 @@ namespace bluetoe
             bootloader::error_codes run( std::uintptr_t start_addr );
 
             /**
+             * reset bootloader
+             */
+            bootloader::error_codes reset();
+
+            /**
              * Return a custom string a response to the Get Version procedure.
              * Make sure, that the response is not longer than 20 bytes, or othere wise it could get truncated on the link layer.
              */
@@ -531,6 +553,7 @@ namespace bluetoe
              * special overload to calculate the CRC over a start address
              */
             std::uint32_t checksum32( std::uintptr_t start_addr );
+
         };
     }
 
