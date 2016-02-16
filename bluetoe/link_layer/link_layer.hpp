@@ -9,6 +9,7 @@
 #include <bluetoe/link_layer/notification_queue.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
+#include <bluetoe/sm/security_manager.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -33,6 +34,15 @@ namespace link_layer {
             static constexpr std::size_t tx_size = s_type::transmit_buffer_size;
             static constexpr std::size_t rx_size = s_type::receive_buffer_size;
         };
+
+        template < typename ... Options >
+        struct security_manager {
+            typedef typename bluetoe::details::find_by_meta_type<
+                bluetoe::details::security_manager_meta_type,
+                Options...,
+                no_security_manager >::type type;
+        };
+
     }
 
     /**
@@ -50,7 +60,8 @@ namespace link_layer {
         class ScheduledRadio,
         typename ... Options
     >
-    class link_layer : public ScheduledRadio< details::buffer_sizes< Options... >::tx_size, details::buffer_sizes< Options... >::rx_size, link_layer< Server, ScheduledRadio, Options... > >
+    class link_layer : public ScheduledRadio< details::buffer_sizes< Options... >::tx_size, details::buffer_sizes< Options... >::rx_size, link_layer< Server, ScheduledRadio, Options... > >,
+        public details::security_manager< Options... >::type
     {
     public:
         link_layer();
