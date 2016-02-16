@@ -194,7 +194,7 @@ The bootloader will send progress notifications to inform the client about buffe
 Notification Fields | Length | Value |
 --------------------|-------:|------:|
 Checksum            | 4      | Checksum over Start-Address and all data received since the last Start Flash procedure start |
-Consecutive         | 1      | Consecutive number, that is resetet to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic |
+Consecutive         | 1      | Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic |
 MTU                 | 1      | >= 23   |
 Receive Capacity    | 4      | number of byte that can be received |
 

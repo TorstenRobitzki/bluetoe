@@ -1,3 +1,6 @@
+#include <iostream>
+#include <iomanip>
+#include "../hexdump.hpp"
 
 #include <bluetoe/server.hpp>
 #include <bluetoe/services/bootloader.hpp>
@@ -36,6 +39,16 @@ struct handler {
         for ( std::uintptr_t i = start_addr; i != start_addr + size; ++i )
         {
             result += device_memory.at( i - flash_start_addr );
+        }
+
+        return result;
+    }
+
+    std::uint32_t checksum32( const std::uint8_t* start_addr, std::size_t size, std::uint32_t result )
+    {
+        for ( ; size; ++start_addr, --size )
+        {
+            result += *start_addr;
         }
 
         return result;
@@ -471,7 +484,7 @@ BOOST_FIXTURE_TEST_CASE( flush_when_not_in_flash_mode, all_discovered_and_subscr
         0x12, cp_char.value_handle, 0x82 );
 }
 
-template < class Server >
+template < class Server, std::size_t StartAddress = flash_start_addr >
 struct start_flash : all_discovered_and_subscribed< Server >
 {
     start_flash()
@@ -480,7 +493,7 @@ struct start_flash : all_discovered_and_subscribed< Server >
             0x12, this->low( this->cp_char.value_handle ), this->high( this->cp_char.value_handle ),
             0x03 };
 
-        this->add_ptr( input, flash_start_addr );
+        this->add_ptr( input, StartAddress );
 
         this->l2cap_input( input, this->connection );
 
@@ -564,6 +577,51 @@ BOOST_FIXTURE_TEST_CASE( reset_bootloader, all_discovered_and_subscribed< bootlo
 
     BOOST_CHECK( reset_called );
 }
+
+BOOST_AUTO_TEST_SUITE( flashing_data )
+
+    using write_at_250 = start_flash< bootloader_server, flash_start_addr + 250 >;
+    BOOST_FIXTURE_TEST_CASE( flash_data_at_end_of_block, write_at_250 )
+    {
+        l2cap_input( {
+            0x12, low( data_char.value_handle ), high( data_char.value_handle ),
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+        }, connection );
+
+        expected_result( { 0x13 } );
+
+        BOOST_CHECK( !notification.valid() );
+
+        BOOST_CHECK_EQUAL( start_flash_address, flash_start_addr );
+
+        static constexpr std::uint8_t expected_flash_content[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
+
+        std::copy( std::begin( expected_flash_content ), std::end( expected_flash_content ),
+            origianl_device_memory.begin() + 250 );
+
+        BOOST_CHECK_EQUAL( start_flash_content.size(), block_size );
+        BOOST_CHECK_EQUAL_COLLECTIONS( origianl_device_memory.begin(), origianl_device_memory.begin() + start_flash_content.size(),
+            start_flash_content.begin(), start_flash_content.end() );
+
+        // now, when signaling the end of the flash process, we get a notification
+        end_flash( *this );
+
+        const std::uint32_t expected_checksum = checksum32( flash_start_addr + 250 )
+            + 0x01 + 0x02 + 0x03 + 0x04 + 0x05 + 0x06;
+
+        expected_output( notification, {
+            0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+            static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+            static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+            0x00,                                   // consecutive number
+            0x17,                                   // MTU
+            0x00, 0x02, 0x00, 0x00                  // receive capacity
+       } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_FIXTURE_TEST_CASE( stop_flash_while_in_flash_mode, all_discovered_and_subscribed< bootloader_server > )
 {

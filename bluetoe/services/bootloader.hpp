@@ -156,6 +156,7 @@ namespace bluetoe
                     state_ = filling;
                     ptr_   = address % PageSize;
                     addr_  = address - ptr_;
+                    crc_   = h.checksum32( address );
 
                     h.read_mem( addr_, ptr_, &buffer_[ 0 ] );
                 }
@@ -168,13 +169,16 @@ namespace bluetoe
 
                     const std::size_t copy_size = std::min( PageSize - ptr_, write_size );
                     std::copy( value, value + copy_size, &buffer_[ ptr_ ] );
+                    crc_ = h.checksum32( &buffer_[ ptr_ ], copy_size, crc_ );
 
                     ptr_ += copy_size;
 
                     if ( ptr_ == PageSize )
-                        flush( h );
+                    {
+                        h.start_flash( addr_, &buffer_[ 0 ], PageSize );
+                    }
 
-                    return free_size();
+                    return copy_size;
                 }
 
                 template < class Handler >
@@ -193,6 +197,16 @@ namespace bluetoe
                     return true;
                 }
 
+                std::uint32_t crc() const
+                {
+                    return crc_;
+                }
+
+                void free()
+                {
+                    state_ = idle;
+                    ptr_   = 0;
+                }
             private:
                 enum {
                     idle,
@@ -202,6 +216,7 @@ namespace bluetoe
 
                 std::uintptr_t  addr_;
                 std::size_t     ptr_;
+                std::uint32_t   crc_;
                 std::uint8_t    buffer_[ PageSize ];
             };
 
@@ -221,8 +236,6 @@ namespace bluetoe
             enum data_code : std::uint8_t
             {
                 success         = 1,
-                /** a complete page was received, no flush necessary */
-                success_page
             };
 
             template < typename UserHandler, typename MemRegions, std::size_t PageSize >
@@ -291,7 +304,6 @@ namespace bluetoe
                             if ( !MemRegions::acceptable( start_address, start_address ) )
                                 return request_error( bluetoe::error_codes::invalid_offset );
 
-                            check_sum = this->checksum32( start_address );
                             buffers_[next_buffer_].set_start_address( start_address, *this );
                             in_flash_mode = true;
                         }
@@ -374,7 +386,7 @@ namespace bluetoe
                             *out = 23;
                             ++out;
                             out = bluetoe::details::write_32bit( out, free_size() );
-                            out = bluetoe::details::write_32bit( out, check_sum );
+                            out = bluetoe::details::write_32bit( out, buffers_[next_buffer_].crc() );
 
                             out_size = out - out_buffer;
                         }
@@ -390,43 +402,39 @@ namespace bluetoe
 
                 std::uint8_t bootloader_write_data( std::size_t write_size, const std::uint8_t* value )
                 {
-                    if ( opcode == undefined_opcode )
+                    if ( !in_flash_mode )
                         return no_operation_in_progress;
 
-//                    check_sum = this->checksum32( value, write_size, check_sum );
-
-                    buffers_[next_buffer_].write_data( write_size, value, *this );
+                    while ( write_size )
+                    {
+                        const std::size_t moved = buffers_[next_buffer_].write_data( write_size, value, *this );
+                        value       += moved;
+                        write_size  -= moved;
+                    }
 
                     return bluetoe::error_codes::success;
                 }
 
-                // std::uint8_t bootloader_read_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
-                // {
-                //     static constexpr std::size_t pdu_size = 10;
-
-                //     assert( read_size >= pdu_size );
-
-                //     out_buffer[ 0 ] = success;
-                //     out_buffer[ 1 ] = 23; /// @todo how to get the current MTU size here?
-                //     out_buffer += 2;
-
-                //     out_buffer = bluetoe::details::write_32bit( out_buffer, free_size() );
-                //     out_buffer = bluetoe::details::write_32bit( out_buffer, check_sum );
-
-                //     out_size = pdu_size;
-
-                //     return bluetoe::error_codes::success;
-                // }
-
                 std::uint8_t bootloader_progress_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    buffers_[next_buffer_].free();
+                    out_size = 10;
+                    assert( read_size >= out_size );
+
+                    out_buffer = bluetoe::details::write_32bit( out_buffer, buffers_[next_buffer_].crc() );
+                    *out_buffer = 0; // TODO consecutive number
+                    ++out_buffer;
+                    *out_buffer = 23; // TODO MTU
+                    ++out_buffer;
+                    bluetoe::details::write_32bit( out_buffer, free_size() );
+
                     return bluetoe::error_codes::success;
                 }
 
                 template < class Server >
                 void end_flash( Server& server )
                 {
-                    server.template notify< control_point_uuid >();
+                    server.template notify< progress_uuid >();
                 }
 
             private:
@@ -548,6 +556,11 @@ namespace bluetoe
              * calculate the checksum of the given range of memory.
              */
             std::uint32_t checksum32( std::uintptr_t start_addr, std::size_t size );
+
+            /**
+             * adds new data to the given crc
+             */
+            std::uint32_t checksum32( const std::uint8_t* start_addr, std::size_t size, std::uint32_t old_crc );
 
             /**
              * special overload to calculate the CRC over a start address
