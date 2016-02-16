@@ -24,10 +24,15 @@ struct link_layer : Manager
     }
 };
 
-BOOST_FIXTURE_TEST_CASE( no_response_from_the_no_security_manager_implementation, link_layer< bluetoe::no_security_manager > )
+BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, link_layer< bluetoe::no_security_manager > )
 {
     expected(
-        { 0x01, 0x03 },
-        {}
+        {
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        },
+        {
+            0x05, 0x05
+        }
     );
 }
+

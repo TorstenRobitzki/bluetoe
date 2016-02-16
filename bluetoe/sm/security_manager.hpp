@@ -34,7 +34,10 @@ namespace bluetoe {
 
     inline void no_security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
-        out_size = 0;
+        assert( out_size >= 2 );
+        out_size = 2;
+        output[ 0 ] = 0x05;
+        output[ 1 ] = 0x05;
     }
 }
 #endif
