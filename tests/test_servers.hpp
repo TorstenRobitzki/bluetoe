@@ -11,6 +11,8 @@
 #include <iostream>
 #include <iomanip>
 #include <iterator>
+#include <map>
+
 #include "hexdump.hpp"
 
 namespace {
@@ -160,6 +162,12 @@ namespace {
             expected_output( value, expected, connection );
         }
 
+        template < class CharacteristicUUID >
+        void expected_output( const std::initializer_list< std::uint8_t >& expected )
+        {
+            expected_output( notifications< CharacteristicUUID >(), expected );
+        }
+
         template < class T >
         void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
         {
@@ -199,6 +207,24 @@ namespace {
         static bluetoe::details::notification_data  notification;
         static typename Server::notification_type   notification_type;
 
+        template < class CharacteristicUUID >
+        bluetoe::details::notification_data notifications()
+        {
+            typedef typename bluetoe::details::find_characteristic_data_by_uuid_in_service_list< typename Server::services, CharacteristicUUID >::type characteristic;
+
+            static_assert( !std::is_same< characteristic, bluetoe::details::no_such_type >::value, "Indicated characteristic not found by UUID." );
+
+            const std::size_t config_index = characteristic::get_notification_data().client_characteristic_configuration_index();
+
+            const auto pos = open_notifications_.find( config_index );
+            BOOST_REQUIRE( pos != open_notifications_.end() );
+
+            --pos->second;
+            if ( pos->second == 0 )
+                open_notifications_.erase( pos );
+
+            return this->find_notification_data_by_index( config_index );
+        }
     private:
         void check_response() const
         {
@@ -213,6 +239,8 @@ namespace {
         {
             notification = item;
             notification_type = type;
+
+            ++open_notifications_[ item.client_characteristic_configuration_index() ];
         }
 
         template < typename T >
@@ -261,6 +289,8 @@ namespace {
                 && error_code == expected_error_code;
         }
 
+        typedef std::map< std::size_t, unsigned > notification_map_t;
+        static notification_map_t open_notifications_;
     };
 
     template < typename Server, std::size_t ResponseBufferSize >
@@ -268,6 +298,9 @@ namespace {
 
     template < typename Server, std::size_t ResponseBufferSize >
     typename Server::notification_type request_with_reponse< Server, ResponseBufferSize >::notification_type;
+
+    template < typename Server, std::size_t ResponseBufferSize >
+    typename request_with_reponse< Server, ResponseBufferSize >::notification_map_t request_with_reponse< Server, ResponseBufferSize >::open_notifications_;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;

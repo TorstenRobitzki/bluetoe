@@ -8,6 +8,7 @@ add_custom_target(all_tests)
 add_custom_target(all_tests.run)
 
 add_library(test_tools
+    ${CMAKE_SOURCE_DIR}/tests/test_uuid.cpp
     ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp
     ${CMAKE_SOURCE_DIR}/tests/link_layer/test_radio.cpp
     ${CMAKE_SOURCE_DIR}/tests/link_layer/buffer_io.cpp)

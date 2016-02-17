@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include "../hexdump.hpp"
+#include "../test_uuid.hpp"
 
 #include <bluetoe/server.hpp>
 #include <bluetoe/services/bootloader.hpp>
@@ -545,7 +546,7 @@ BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the
     // now, when signaling the end of the flash process, we get a notification
     end_flash( *this );
 
-    expected_output( notification, {
+    expected_output< bluetoe::bootloader::control_point_uuid >( {
         0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
         0x05 } );
 }
