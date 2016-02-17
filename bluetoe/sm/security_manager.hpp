@@ -8,26 +8,37 @@ namespace bluetoe {
         struct security_manager_meta_type {};
     }
 
+    /**
+     * @brief place holder for a security manager, that could be implemented
+     */
     class security_manager
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         typedef details::security_manager_meta_type meta_type;
+        /** @endcond */
     };
 
+    /**
+     * @brief current default implementation of the security manager, that actievly rejects every pairing attempt.
+     */
     class no_security_manager
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         typedef details::security_manager_meta_type meta_type;
+        /** @endcond */
     };
 
 
     /*
      * Implementation
      */
+    /** @cond HIDDEN_SYMBOLS */
     inline void security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         static const std::uint8_t response[] = {
@@ -55,5 +66,7 @@ namespace bluetoe {
         output[ 0 ] = 0x05;
         output[ 1 ] = 0x05;
     }
+
+    /** @endcond */
 }
 #endif
