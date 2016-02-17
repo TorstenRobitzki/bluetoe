@@ -11,7 +11,7 @@
 #include <iostream>
 #include <iomanip>
 #include <iterator>
-#include <map>
+#include <set>
 
 #include "hexdump.hpp"
 
@@ -219,9 +219,7 @@ namespace {
             const auto pos = open_notifications_.find( config_index );
             BOOST_REQUIRE( pos != open_notifications_.end() );
 
-            --pos->second;
-            if ( pos->second == 0 )
-                open_notifications_.erase( pos );
+            open_notifications_.erase( pos );
 
             return this->find_notification_data_by_index( config_index );
         }
@@ -240,7 +238,7 @@ namespace {
             notification = item;
             notification_type = type;
 
-            ++open_notifications_[ item.client_characteristic_configuration_index() ];
+            open_notifications_.insert( item.client_characteristic_configuration_index() );
         }
 
         template < typename T >
@@ -289,7 +287,7 @@ namespace {
                 && error_code == expected_error_code;
         }
 
-        typedef std::map< std::size_t, unsigned > notification_map_t;
+        typedef std::set< std::size_t > notification_map_t;
         static notification_map_t open_notifications_;
     };
 
