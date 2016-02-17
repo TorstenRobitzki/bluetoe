@@ -94,7 +94,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!--header-->
 <div class="contents">
 
-<p>complete list of 16 bit service UUIDs to be added to the advertising data  
+<p>complete / incomplete list of 16 bit service UUIDs to be added to the advertising data  
  <a href="structbluetoe_1_1list__of__16__bit__service__uuids.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="adv__service__list_8hpp_source.html">bluetoe/adv_service_list.hpp</a>&gt;</code></p>
@@ -102,14 +102,15 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="textblock"><h3>template&lt;typename... UUID16&gt;<br />
 struct bluetoe::list_of_16_bit_service_uuids&lt; UUID16 &gt;</h3>
 
-<p>complete list of 16 bit service UUIDs to be added to the advertising data </p>
+<p>complete / incomplete list of 16 bit service UUIDs to be added to the advertising data </p>
+<p>If there is enough room to add all given UUIDs to the advertising data, a complete list AD type is added. If there is not enough room, the list will be incomplete. UUIDs from the beginning of the list are added as long as there is room. If there is no room for a single UUID, no advertising data is added. </p>
 </div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="adv__service__list_8hpp_source.html">adv_service_list.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sun Feb 7 2016 19:26:04 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Feb 17 2016 09:47:56 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

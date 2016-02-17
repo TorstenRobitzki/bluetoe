@@ -1,6 +1,7 @@
 var searchData=
 [
   ['secondary_5fservice',['secondary_service',['../structbluetoe_1_1secondary__service.html',1,'bluetoe']]],
+  ['security_5fmanager',['security_manager',['../classbluetoe_1_1security__manager.html',1,'bluetoe']]],
   ['sensor_5flocation',['sensor_location',['../structbluetoe_1_1sensor__location.html',1,'bluetoe']]],
   ['sensor_5flocation_5ftag',['sensor_location_tag',['../structbluetoe_1_1sensor__location__tag.html',1,'bluetoe']]],
   ['server',['server',['../classbluetoe_1_1server.html',1,'bluetoe']]],
