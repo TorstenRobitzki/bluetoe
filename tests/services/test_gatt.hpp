@@ -53,8 +53,8 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const discovered_characteristic_descriptor& );
 
-    template < typename Server >
-    struct gatt_procedures : request_with_reponse< Server >
+    template < typename Server, std::size_t MTU = 23 >
+    struct gatt_procedures : request_with_reponse< Server, MTU >
     {
         static std::uint8_t low( std::uint16_t b )
         {
