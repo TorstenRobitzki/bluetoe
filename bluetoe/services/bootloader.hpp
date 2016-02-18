@@ -117,7 +117,8 @@ namespace bluetoe
              */
             no_operation_in_progress = bluetoe::error_codes::application_error_start,
             invalid_opcode,
-            invalid_state
+            invalid_state,
+            buffer_overrun_attempt
         };
 
         /**
@@ -206,6 +207,11 @@ namespace bluetoe
                 {
                     state_ = idle;
                     ptr_   = 0;
+                }
+
+                bool empty() const
+                {
+                    return state_ == idle;
                 }
             private:
                 enum {
@@ -316,8 +322,7 @@ namespace bluetoe
                             if ( !buffers_[next_buffer_].flush( *this ) )
                                 return request_error( invalid_state );
 
-                            // wait for the hardware to signal that the data was flashed
-                            return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
+                            return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, true };
                         }
                         break;
                     case opc_start:
@@ -407,9 +412,18 @@ namespace bluetoe
 
                     while ( write_size )
                     {
-                        const std::size_t moved = buffers_[next_buffer_].write_data( write_size, value, *this );
-                        value       += moved;
-                        write_size  -= moved;
+                        const std::size_t moved = buffers_[ next_buffer_ ].write_data( write_size, value, *this );
+                        value           += moved;
+                        write_size      -= moved;
+                        start_address   += moved;
+
+                        if ( write_size )
+                        {
+                            if ( !find_next_buffer() )
+                                return buffer_overrun_attempt;
+
+                            buffers_[ next_buffer_ ].set_start_address( start_address, *this );
+                        }
                     }
 
                     return bluetoe::error_codes::success;
@@ -446,6 +460,13 @@ namespace bluetoe
                         result += b.free_size();
 
                     return result;
+                }
+
+                bool find_next_buffer()
+                {
+                    next_buffer_ = ( next_buffer_ + 1 ) % number_of_concurrent_flashs;
+
+                    return buffers_[ next_buffer_ ].empty();
                 }
 
                 std::pair< std::uint8_t, bool > request_error( std::uint8_t code )
