@@ -151,13 +151,14 @@ namespace bluetoe
                 }
 
                 template < class Handler >
-                void set_start_address( std::uintptr_t address, Handler& h )
+                void set_start_address( std::uintptr_t address, Handler& h, std::uint32_t checksum, std::uint8_t cons )
                 {
                     assert( state_ == idle );
-                    state_ = filling;
-                    ptr_   = address % PageSize;
-                    addr_  = address - ptr_;
-                    crc_   = h.checksum32( address );
+                    state_          = filling;
+                    ptr_            = address % PageSize;
+                    addr_           = address - ptr_;
+                    crc_            = checksum;
+                    consecutive_    = cons;
 
                     h.read_mem( addr_, ptr_, &buffer_[ 0 ] );
                 }
@@ -176,7 +177,7 @@ namespace bluetoe
 
                     if ( ptr_ == PageSize )
                     {
-                        h.start_flash( addr_, &buffer_[ 0 ], PageSize );
+                        flush( h );
                     }
 
                     return copy_size;
@@ -190,7 +191,8 @@ namespace bluetoe
 
                     state_ = flashing;
 
-                    if ( ptr_ != PageSize )
+                    // no unnessary calls to user handler
+                    if ( PageSize !=  ptr_ )
                         h.read_mem( addr_ + ptr_, PageSize - ptr_, &buffer_[ ptr_ ] );
 
                     h.start_flash( addr_, &buffer_[ 0 ], PageSize );
@@ -213,6 +215,11 @@ namespace bluetoe
                 {
                     return state_ == idle;
                 }
+
+                std::uint8_t consecutive() const
+                {
+                    return consecutive_;
+                }
             private:
                 enum {
                     idle,
@@ -224,6 +231,7 @@ namespace bluetoe
                 std::size_t     ptr_;
                 std::uint32_t   crc_;
                 std::uint8_t    buffer_[ PageSize ];
+                std::uint8_t    consecutive_;
             };
 
             enum opcode : std::uint8_t
@@ -254,6 +262,8 @@ namespace bluetoe
                     , check_sum( 0 )
                     , in_flash_mode( false )
                     , next_buffer_( 0 )
+                    , used_buffer_( 0 )
+                    , consecutive_( 0 )
                 {
                 }
 
@@ -306,11 +316,13 @@ namespace bluetoe
                                 return request_error( bluetoe::error_codes::invalid_attribute_value_length );
 
                             start_address = read_address( value +1 );
+                            check_sum     = this->checksum32( start_address );
+                            consecutive_  = 0;
 
                             if ( !MemRegions::acceptable( start_address, start_address ) )
                                 return request_error( bluetoe::error_codes::invalid_offset );
 
-                            buffers_[next_buffer_].set_start_address( start_address, *this );
+                            buffers_[next_buffer_].set_start_address( start_address, *this, check_sum, consecutive_ );
                             in_flash_mode = true;
                         }
                         break;
@@ -410,20 +422,22 @@ namespace bluetoe
                     if ( !in_flash_mode )
                         return no_operation_in_progress;
 
+                    if ( write_size == 0 )
+                        return bluetoe::error_codes::success;
+
+                    if ( buffers_[ next_buffer_ ].free_size() == 0 && !find_next_buffer( start_address ) )
+                        return buffer_overrun_attempt;
+
                     while ( write_size )
                     {
                         const std::size_t moved = buffers_[ next_buffer_ ].write_data( write_size, value, *this );
+
                         value           += moved;
                         write_size      -= moved;
                         start_address   += moved;
 
-                        if ( write_size )
-                        {
-                            if ( !find_next_buffer() )
-                                return buffer_overrun_attempt;
-
-                            buffers_[ next_buffer_ ].set_start_address( start_address, *this );
-                        }
+                        if ( write_size &&  !find_next_buffer( start_address ) )
+                            return buffer_overrun_attempt;
                     }
 
                     return bluetoe::error_codes::success;
@@ -431,16 +445,18 @@ namespace bluetoe
 
                 std::uint8_t bootloader_progress_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
-                    buffers_[next_buffer_].free();
+                    buffers_[used_buffer_].free();
                     out_size = 10;
                     assert( read_size >= out_size );
 
-                    out_buffer = bluetoe::details::write_32bit( out_buffer, buffers_[next_buffer_].crc() );
-                    *out_buffer = 0; // TODO consecutive number
+                    out_buffer = bluetoe::details::write_32bit( out_buffer, buffers_[used_buffer_].crc() );
+                    *out_buffer = buffers_[used_buffer_].consecutive();
                     ++out_buffer;
                     *out_buffer = 23; // TODO MTU
                     ++out_buffer;
                     bluetoe::details::write_32bit( out_buffer, free_size() );
+
+                    used_buffer_ = ( used_buffer_ + 1 ) % number_of_concurrent_flashs;
 
                     return bluetoe::error_codes::success;
                 }
@@ -462,11 +478,19 @@ namespace bluetoe
                     return result;
                 }
 
-                bool find_next_buffer()
+                bool find_next_buffer( std::size_t start_address )
                 {
+                    check_sum    = buffers_[ next_buffer_ ].crc();
                     next_buffer_ = ( next_buffer_ + 1 ) % number_of_concurrent_flashs;
 
-                    return buffers_[ next_buffer_ ].empty();
+                    if ( buffers_[ next_buffer_ ].empty() )
+                    {
+                        ++consecutive_;
+                        buffers_[ next_buffer_ ].set_start_address( start_address, *this, check_sum, consecutive_ );
+                        return true;
+                    }
+
+                    return false;
                 }
 
                 std::pair< std::uint8_t, bool > request_error( std::uint8_t code )
@@ -484,6 +508,8 @@ namespace bluetoe
 
                 static constexpr std::size_t    number_of_concurrent_flashs = 2;
                 unsigned                        next_buffer_;
+                unsigned                        used_buffer_;
+                std::uint8_t                    consecutive_;
                 flash_buffer< PageSize >        buffers_[number_of_concurrent_flashs];
             };
 

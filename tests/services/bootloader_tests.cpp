@@ -75,6 +75,8 @@ struct handler {
         start_flash_address = address;
         start_flash_content.insert( start_flash_content.end(), values, values + size );
 
+        std::copy( values, values + size, &device_memory[ address - flash_start_addr ] );
+
         return bluetoe::bootloader::error_codes::success;
     }
 
@@ -675,10 +677,103 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
     using write_at_250 = start_flash< bootloader_server, flash_start_addr + 250 >;
     BOOST_FIXTURE_TEST_CASE( flash_data_over_the_end_of_a_block, write_at_250 )
     {
-        write_to_data_char( { 0x01, 0x02, 0x03, 0x04, 0x05 } );
+        write_to_data_char( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
         write_random_to_data_char( block_size );
 
-        // now there is only one byte missing to fill the second buffer
+        // now both buffers are filled
+        check_error_response( {
+            0x12, low( data_char.value_handle ), high( data_char.value_handle ),
+            0x07
+        }, 0x12, data_char.value_handle, 0x83 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( flash_data_after_a_filled_block, start_flash< bootloader_server > )
+    {
+        write_random_to_data_char( block_size );
+        write_random_to_data_char( block_size - 1 );
+
+        // now, there is only room for a single byte
+        check_error_response( {
+            0x12, low( data_char.value_handle ), high( data_char.value_handle ),
+            0x07, 0x08
+        }, 0x12, data_char.value_handle, 0x83 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_4_blocks, start_flash< bootloader_server > )
+    {
+        write_random_to_data_char( block_size );
+        write_random_to_data_char( block_size );
+
+        end_flash( *this );
+
+        const std::uint32_t expected_checksum =
+            checksum32( &written_memory[ 0 ], block_size, checksum32( flash_start_addr ) );
+
+        expected_output< bluetoe::bootloader::progress_uuid >( {
+            0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+            static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+            static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+            0x00,                                   // consecutive number
+            0x17,                                   // MTU
+            0x00, 0x01, 0x00, 0x00                  // receive capacity
+        } );
+
+        write_random_to_data_char( block_size );
+        end_flash( *this );
+
+        const std::uint32_t expected_checksum_block2 =
+            checksum32( &written_memory[ 1 * block_size ], block_size, expected_checksum );
+
+        expected_output< bluetoe::bootloader::progress_uuid >( {
+            0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+            static_cast< std::uint8_t >( expected_checksum_block2 & 0xff ),               // checksum
+            static_cast< std::uint8_t >( ( expected_checksum_block2 >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum_block2 >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum_block2 >> 24 ) & 0xff ),
+            0x01,                                   // consecutive number
+            0x17,                                   // MTU
+            0x00, 0x01, 0x00, 0x00                  // receive capacity
+        } );
+
+        // last block to write
+        write_random_to_data_char( block_size );
+        end_flash( *this );
+
+        const std::uint32_t expected_checksum_block3 =
+            checksum32( &written_memory[ 2 * block_size ], block_size, expected_checksum_block2 );
+
+        expected_output< bluetoe::bootloader::progress_uuid >( {
+            0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+            static_cast< std::uint8_t >( expected_checksum_block3 & 0xff ),               // checksum
+            static_cast< std::uint8_t >( ( expected_checksum_block3 >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum_block3 >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum_block3 >> 24 ) & 0xff ),
+            0x02,                                   // consecutive number
+            0x17,                                   // MTU
+            0x00, 0x01, 0x00, 0x00                  // receive capacity
+        } );
+
+        end_flash( *this );
+
+        const std::uint32_t expected_checksum_block4 =
+            checksum32( &written_memory[ 3 * block_size ], block_size, expected_checksum_block3 );
+
+        expected_output< bluetoe::bootloader::progress_uuid >( {
+            0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+            static_cast< std::uint8_t >( expected_checksum_block4 & 0xff ),               // checksum
+            static_cast< std::uint8_t >( ( expected_checksum_block4 >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum_block4 >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum_block4 >> 24 ) & 0xff ),
+            0x03,                                   // consecutive number
+            0x17,                                   // MTU
+            0x00, 0x02, 0x00, 0x00                  // receive capacity
+        } );
+
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            written_memory.begin(), written_memory.end(),
+            device_memory.begin(), device_memory.end() );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
