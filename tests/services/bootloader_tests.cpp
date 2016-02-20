@@ -463,22 +463,6 @@ BOOST_FIXTURE_TEST_CASE( flash_address, all_discovered_and_subscribed< bootloade
 }
 
 /*
- * Stop Flash
- */
-BOOST_FIXTURE_TEST_CASE( stop_flash, all_discovered_and_subscribed< bootloader_server > )
-{
-     l2cap_input( {
-        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x04 }, connection );
-
-    expected_result( { 0x13 } );
-
-    expected_output( notification, {
-        0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x04 } );
-}
-
-/*
  * Flush
  */
 BOOST_FIXTURE_TEST_CASE( flush_when_not_in_flash_mode, all_discovered_and_subscribed< bootloader_server > )
@@ -494,13 +478,18 @@ struct start_flash : all_discovered_and_subscribed< Server >
 {
     start_flash()
         : written_memory( this->original_device_memory )
-        , address( StartAddress )
     {
+        start_flash_procedure( StartAddress );
+    }
+
+    void start_flash_procedure( std::size_t start_address )
+    {
+        address = start_address;
         std::vector< std::uint8_t > input = {
             0x12, this->low( this->cp_char.value_handle ), this->high( this->cp_char.value_handle ),
             0x03 };
 
-        this->add_ptr( input, StartAddress );
+        this->add_ptr( input, start_address );
 
         this->l2cap_input( input, this->connection );
 
@@ -778,17 +767,66 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_FIXTURE_TEST_CASE( stop_flash_while_in_flash_mode, all_discovered_and_subscribed< bootloader_server > )
-{
-}
+BOOST_AUTO_TEST_SUITE( stop_flash )
 
-BOOST_FIXTURE_TEST_CASE( stop_flash_while_having_flash_operations_pending, all_discovered_and_subscribed< bootloader_server > )
-{
-    /// @TODO
-}
+    BOOST_FIXTURE_TEST_CASE( stop_flash, all_discovered_and_subscribed< bootloader_server > )
+    {
+         l2cap_input( {
+            0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x04 }, connection );
 
+        expected_result( { 0x13 } );
 
-#if 0
+        expected_output( notification, {
+            0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x04 } );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( stop_flash_while_in_flash_mode, start_flash< bootloader_server > )
+    {
+        l2cap_input( {
+            0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x04 }, connection );
+
+        expected_result( { 0x13 } );
+
+        expected_output( notification, {
+            0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x04 } );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( flashing_after_stopping, start_flash< bootloader_server > )
+    {
+        write_to_data_char( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+
+        l2cap_input( {
+            0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x04 }, connection );
+
+        expected_result( { 0x13 } );
+        written_memory = original_device_memory;
+
+        start_flash_procedure( flash_start_addr + block_size / 2 );
+        write_random_to_data_char( block_size / 2 );
+        end_flash( *this );
+
+        const std::uint32_t expected_checksum =
+            checksum32( &written_memory[ block_size / 2 ], block_size / 2, checksum32( flash_start_addr + block_size / 2 ) );
+
+        expected_output< bluetoe::bootloader::progress_uuid >( {
+            0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+            static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+            static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+            0x00,                                   // consecutive number
+            0x17,                                   // MTU
+            0x00, 0x02, 0x00, 0x00                  // receive capacity
+        } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_FIXTURE_TEST_CASE( write_page_without_command, all_discovered_and_subscribed< bootloader_server > )
 {
     check_error_response( {
@@ -796,93 +834,3 @@ BOOST_FIXTURE_TEST_CASE( write_page_without_command, all_discovered_and_subscrib
         0x00, 0x01, 0x02, 0x03 },
         0x12, data_char.value_handle, 0x80 );
 }
-
-
-BOOST_FIXTURE_TEST_CASE( write_first_data, start_flash< bootloader_server > )
-{
-    l2cap_input( {
-        0x12, low( data_char.value_handle ), high( data_char.value_handle ),
-        0x0a, 0x0b, 0x0c
-    }, connection );
-
-    expected_result( { 0x13 } );
-
-    const int expected_checksum = 3 + sizeof(std::uint8_t*);
-    expected_output( notification, {
-        0x1b, low( data_char.value_handle ), high( data_char.value_handle ),
-        0x01, 0x17,              // success; MTU size
-        0xfd, 0x01, 0x00, 0x00,  // buffer size
-        low(expected_checksum), high(expected_checksum), 0x00, 0x00   // crc
-    } );
-}
-
-
-
-BOOST_FIXTURE_TEST_CASE( flash_first_data, write_3_bytes_at_the_beginning_of_the_flash< bootloader_server > )
-{
-    l2cap_input( {
-        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x02
-    }, connection );
-
-    expected_result( { 0x13 } );
-
-    BOOST_CHECK_EQUAL( start_flash_address, flash_start_addr );
-    BOOST_CHECK_EQUAL( start_flash_content.size(), block_size );
-
-    std::vector< std::uint32_t > expected_flash( origianl_device_memory.begin(), original_device_memory.begin() + block_size );
-    static constexpr std::uint8_t flashed[] = {0x0a, 0x0b, 0x0c};
-    std::copy( std::begin( flashed ), std::end( flashed ), expected_flash.begin() );
-
-    BOOST_CHECK_EQUAL_COLLECTIONS(
-        start_flash_content.begin(), start_flash_content.end(),
-        expected_flash.begin(), expected_flash.end() );
-}
-
-BOOST_FIXTURE_TEST_CASE( flush_empty, start_flash< bootloader_server > )
-{
-    check_error_response( {
-        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x02
-    }, 0x12, cp_char.value_handle, 0x84 );
-
-    // no notification expected
-    BOOST_CHECK( !notification.valid() );
-}
-
-BOOST_FIXTURE_TEST_CASE( needs_address_after_flush, write_3_bytes_at_the_beginning_of_the_flash< bootloader_server > )
-{
-    // flush buffer
-    l2cap_input( {
-        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x02
-    }, connection );
-
-    expected_result( { 0x13 } );
-
-    // write next data
-    check_error_response( {
-        0x12, low( data_char.value_handle ), high( data_char.value_handle ),
-        0x0a, 0x0b, 0x0c
-    }, 0x12, data_char.value_handle, 0x80 ); // no operation in progress
-}
-
-BOOST_FIXTURE_TEST_CASE( correct_size_after_, start_flash< bootloader_server > )
-{
-
-}
-
-BOOST_FIXTURE_TEST_CASE( auto_flush, start_flash< bootloader_server > )
-{
-
-}
-
-BOOST_FIXTURE_TEST_CASE( buffer_overflow, start_flash< bootloader_server > )
-{
-}
-
-BOOST_FIXTURE_TEST_CASE( write_into_protected_area, start_flash< bootloader_server > )
-{
-
-}
-#endif
