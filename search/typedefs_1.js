@@ -6,6 +6,7 @@ var searchData=
   ['clock',['clock',['../structbluetoe_1_1appearance.html#a1fa07556b23e1214ccee79a0f415b313',1,'bluetoe::appearance']]],
   ['computer',['computer',['../structbluetoe_1_1appearance.html#ab1ec423458e8d182d59b18d784962b84',1,'bluetoe::appearance']]],
   ['const_5fiterator',['const_iterator',['../classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4',1,'bluetoe::link_layer::address']]],
+  ['control_5fpoint_5fuuid',['control_point_uuid',['../bootloader_8hpp.html#a36f00947ad8c652c008b473d6ccc8892',1,'bluetoe::bootloader']]],
   ['cycling',['cycling',['../structbluetoe_1_1appearance.html#a8088a7ffed680bd36d69996dee68e8f7',1,'bluetoe::appearance']]],
   ['cycling_5fcadence_5fsensor',['cycling_cadence_sensor',['../structbluetoe_1_1appearance.html#a42a0562d3d031beda236d14dd256bf10',1,'bluetoe::appearance']]],
   ['cycling_5fcomputer',['cycling_computer',['../structbluetoe_1_1appearance.html#a03a5941af36ddd1f30286584b4a8be15',1,'bluetoe::appearance']]],
