@@ -294,6 +294,13 @@ namespace bluetoe
                         {
                             if ( write_size != 1 )
                                 return request_error( bluetoe::error_codes::invalid_attribute_value_length );
+
+                            in_flash_mode = false;
+                            next_buffer_  = 0;
+                            used_buffer_  = 0;
+
+                            for ( auto& buffer : buffers_ )
+                                buffer.free();
                         }
                         break;
                     case opc_get_crc:
