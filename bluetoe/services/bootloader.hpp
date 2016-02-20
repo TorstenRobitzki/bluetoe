@@ -406,8 +406,7 @@ namespace bluetoe
                         {
                             std::uint8_t* out = out_buffer;
                             ++out;
-                            /// @todo get the connection MTU here
-                            *out = 23;
+                            *out = read_size + 3;
                             ++out;
                             out = bluetoe::details::write_32bit( out, free_size() );
                             out = bluetoe::details::write_32bit( out, buffers_[next_buffer_].crc() );
@@ -459,7 +458,7 @@ namespace bluetoe
                     out_buffer = bluetoe::details::write_32bit( out_buffer, buffers_[used_buffer_].crc() );
                     *out_buffer = buffers_[used_buffer_].consecutive();
                     ++out_buffer;
-                    *out_buffer = 23; // TODO MTU
+                    *out_buffer = read_size + 3;
                     ++out_buffer;
                     bluetoe::details::write_32bit( out_buffer, free_size() );
 
