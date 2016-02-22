@@ -90,14 +90,61 @@ connect_device = (peripheral, cb)->
                                 else
                                     cb(peripheral, null)
 
+parse_control_point_response = (response_code, data, cb)->
+    expected_size = (size)->
+        if data.length != size
+            throw "while parsing response (code=#{response_code}), the response expected to be #{size} in size, but was #{data.length}"
+
+    switch response_code
+        when OPC_GET_VERSION
+            cb(null, data.toString())
+        when OPC_GET_CRC
+            expected_size 4
+            cb(null, data.readUInt32LE(0))
+        when OPC_GET_SIZES
+            expected_size 9
+            cb(null, data.readUInt8(0), data.readUInt32LE(1), data.readUInt32LE(5))
+        when OPC_START_FLASH
+            expected_size 9
+            cb(null, data.readUInt8(0), data.readUInt32LE(1), data.readUInt32LE(5))
+        when OPC_STOP_FLASH, OPC_FLUSH
+            expected_size 0
+            cb(null)
+        else
+            cb("invalid response code #{response_code}; expected #{opcode}")
+
+PAD = '                                                                                                      '
+
+left = (text, width)->
+    text = "#{text}"
+
+    if text.length > width
+        text.slice(0, width)
+    else
+        text + PAD.slice 0, width - text.length
+
+right = (text, width)->
+    text = "#{text}"
+
+    if text.length > width
+        text.slice(0, width)
+    else
+        PAD.slice( 0, width - text.length ) + text
+
 execute = ( opcode, cb )->
     control_point_callback = (data)->
-        cb(data, null)
+        response_code = data.readUInt8()
+        data = data.slice 1
+
+        if response_code != opcode
+            cb("invalid response code #{response_code}; expected #{opcode}")
+        else
+            parse_control_point_response response_code, data, cb
 
     buffer = new Buffer( [ opcode ] )
     control_point_char.write buffer, false, (error)->
         if error
-            cb( null, error )
+            cb( error )
 
 if options.help
     console.log "usage: ble_flash [options] <input-file>"
@@ -110,32 +157,43 @@ if options.help
     process.exit 0
 
 if options.list
+    console.log " mac              | version              | addr. size | page size | buffers "
+    console.log "----------------------------------------------------------------------------"
+
+    print_line = (mac, version, address_size, page_size, page_buffer)->
+        console.log " #{left mac, 16} | #{left version, 20} | #{right address_size, 10} | #{right page_size, 9} | #{right page_buffer, 7}"
+
     scan_devices [], (devices)->
-        if Object.keys(devices).length == 0
+        number_of_devices = Object.keys(devices).length
+
+        if number_of_devices == 0
             console.log "no devices found."
             process.exit 0
 
-        wait_for = 0
+        wait_for = number_of_devices
         stop_waiting = ->
             wait_for = wait_for - 1
             process.exit 0 if wait_for == 0
 
         for id, device of devices
-            wait_for = wait_for + 1
 
             connect_device device, (peripheral, error)->
                 if error
                     console.log "#{device.address}: Error: #{error}"
                     stop_waiting()
                 else
-                    execute OPC_GET_VERSION, (version, error)->
+                    execute OPC_GET_VERSION, (error, version)->
                         if error
                             console.log "#{device.address} Error: #{error}"
                             stop_waiting()
                         else
-                            console.log "#{device.address} #{version}"
-                            peripheral.disconnect()
-                            stop_waiting()
+                            execute OPC_GET_SIZES, (error, address_size, page_size, page_buffer)->
+                                if error
+                                    console.log "#{device.address} #{version} Error: #{error}"
+                                else
+                                    print_line device.address, version, address_size, page_size, page_buffer
+                                    peripheral.disconnect()
+                                    stop_waiting()
 
 # if !options['address']
 #     console.log "device address reqired!"
