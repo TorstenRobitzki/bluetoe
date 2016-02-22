@@ -1,17 +1,19 @@
 noble   = require 'noble'
-util    = require('util');
+util    = require 'util'
+fs      = require 'fs'
 options = require('minimist')(
     process.argv.slice(2), {
         boolean: ['help', 'version', 'list'],
-        string: ['address', 'device'],
+        string: ['address', 'device', 'flash'],
         alias: {
             'help': ['h'],
             'address': ['a'],
             'device' : ['d'],
             'version': ['v'],
-            'list'   : ['l']
+            'list'   : ['l'],
+            'flash'  : ['f']
         }
-        unknown: ( field )-> throw "Unrecognizes argument \"#{field}\""
+        unknown: ( field )-> raise "Unrecognizes argument \"#{field}\""
     })
 
 BOOTLOADER_SERVICE_UUID     = '7d295f4d28504f57b595837f5753f8a9'
@@ -33,11 +35,15 @@ OPC_FLUSH       = 5
 OPC_START       = 6
 OPC_RESET       = 7
 
+raise = (text)->
+    console.log text
+    process.exit 1
+
 control_point_callback = (data, is_notification)->
-    throw "Unexpected control point notification"
+    raise "Unexpected control point notification"
 
 progress_callback      = (data, is_notification)->
-    throw "Unexpected progress notification"
+    raise "Unexpected progress notification"
 
 scan_devices = (mac, cb)->
     devices = {}
@@ -98,7 +104,7 @@ connect_device = (peripheral, cb)->
 parse_control_point_response = (response_code, data, cb)->
     expected_size = (size)->
         if data.length != size
-            throw "while parsing response (code=#{response_code}), the response expected to be #{size} in size, but was #{data.length}"
+            raise "while parsing response (code=#{response_code}), the response expected to be #{size} in size, but was #{data.length}"
 
     switch response_code
         when OPC_GET_VERSION
@@ -136,7 +142,10 @@ right = (text, width)->
     else
         PAD.slice( 0, width - text.length ) + text
 
-execute = ( opcode, cb )->
+execute = ( opcode, arg1, arg2 )->
+    cb     = if arguments.length == 2 then arg1 else arg2
+    params = if arguments.length == 2 then null else arg1
+
     control_point_callback = (data)->
         response_code = data.readUInt8()
         data = data.slice 1
@@ -147,7 +156,11 @@ execute = ( opcode, cb )->
             parse_control_point_response response_code, data, cb
 
     buffer = new Buffer( [ opcode ] )
-    control_point_char.write buffer, false, (error)->
+    buffer = Buffer.concat( [ buffer, params ] ) if params
+
+    console.log util.inspect buffer
+    console.log util.inspect params
+    control_point_char.write buffer, true, (error)->
         if error
             cb( error )
 
@@ -158,6 +171,23 @@ device_address = ->
 
     options['device']
 
+start_address = ->
+    if !options['address']
+        console.log "start address (--address) required!"
+        process.exit 1
+
+    result = Number.parseInt options['address']
+
+    if isNaN result
+        console.log "argument for start address (--address #{options['address']}) is not a number"
+        process.exit 1
+
+    if result < 0
+        console.log "argument for start address (--address #{options['address']}) is a negatic number"
+        process.exit 1
+
+    result
+
 print_usage = ->
     console.log "usage: ble_flash [options] <input-file>"
     console.log "options:"
@@ -166,74 +196,123 @@ print_usage = ->
     console.log "  --device <mac>, -d <mac>     48 bit MAC address of the device to be flashed"
     console.log "  --version, -v                request version string from device"
     console.log "  --list, -l                   scan for a list of bootloaders"
+    console.log "  --flash, -f <file>           flash the given file to the given address (--address)"
 
-if options.help
-    print_usage()
-    process.exit 0
+calc_crc = ( data, start_address, size )->
+    42
 
-if options.list
-    console.log " mac              | version              | addr. size | page size | buffers "
-    console.log "----------------------------------------------------------------------------"
+address_to_buffer = (address, address_size)->
+    result = new Buffer( address_size )
+    for pos in [0...address_size]
+        result[ pos ] = address & 0xff
+        address = address / 256
 
-    print_line = (mac, version, address_size, page_size, page_buffer)->
-        console.log " #{left mac, 16} | #{left version, 20} | #{right address_size, 10} | #{right page_size, 9} | #{right page_buffer, 7}"
+    result
 
-    scan_devices null, (devices)->
-        number_of_devices = Object.keys(devices).length
+write_block = ( start_address, data, address_size, page_size )->
+    params = new Buffer( address_size )
+    execute OPC_START_FLASH, address_to_buffer( start_address, address_size ), (error, mtu, capacity, crc)->
+        raise "write_block: error: #{error}" if error
 
-        if number_of_devices == 0
-            console.log "no devices found."
-            process.exit 0
+        console.log "write_block: #{mtu} #{capacity} #{crc}"
 
-        wait_for = number_of_devices
-        stop_waiting = ->
-            wait_for = wait_for - 1
-            process.exit 0 if wait_for == 0
+upload_file = ( peripheral, start_address, data, address_size, page_size, page_buffer, cb )->
+    buffers_used    = page_buffer
+    current_address = start_address
 
-        for id, device of devices
+    write_block start_address, data, address_size, page_size
+
+flash = ( file_name, start_address, peripheral, cb )->
+    execute OPC_GET_SIZES, (error, address_size, page_size, page_buffer)->
+        raise "#{device.address} #{version} Error: #{error}" if error
+
+        fs.readFile file_name, (error, data)->
+            raise "Error reading input file #{file_name}" if error
+
+            upload_file peripheral, start_address, data, address_size, page_size, page_buffer, cb
+
+try
+    if options.help
+        print_usage()
+        process.exit 0
+
+    if options.list
+        console.log " mac              | version              | addr. size | page size | buffers "
+        console.log "----------------------------------------------------------------------------"
+
+        print_line = (mac, version, address_size, page_size, page_buffer)->
+            console.log " #{left mac, 16} | #{left version, 20} | #{right address_size, 10} | #{right page_size, 9} | #{right page_buffer, 7}"
+
+        scan_devices null, (devices)->
+            number_of_devices = Object.keys(devices).length
+
+            if number_of_devices == 0
+                console.log "no devices found."
+                process.exit 0
+
+            wait_for = number_of_devices
+            stop_waiting = ->
+                wait_for = wait_for - 1
+                process.exit 0 if wait_for == 0
+
+            for id, device of devices
+
+                connect_device device, (peripheral, error)->
+                    if error
+                        console.log "#{device.address}: Error: #{error}"
+                        stop_waiting()
+                    else
+                        execute OPC_GET_VERSION, (error, version)->
+                            if error
+                                console.log "#{device.address} Error: #{error}"
+                                stop_waiting()
+                            else
+                                execute OPC_GET_SIZES, (error, address_size, page_size, page_buffer)->
+                                    if error
+                                        console.log "#{device.address} #{version} Error: #{error}"
+                                    else
+                                        print_line device.address, version, address_size, page_size, page_buffer
+                                        peripheral.disconnect()
+                                        stop_waiting()
+
+    else if options.version
+        scan_devices device_address(), (device)->
+            raise "device not found!" if !device
 
             connect_device device, (peripheral, error)->
-                if error
-                    console.log "#{device.address}: Error: #{error}"
-                    stop_waiting()
-                else
-                    execute OPC_GET_VERSION, (error, version)->
-                        if error
-                            console.log "#{device.address} Error: #{error}"
-                            stop_waiting()
-                        else
-                            execute OPC_GET_SIZES, (error, address_size, page_size, page_buffer)->
-                                if error
-                                    console.log "#{device.address} #{version} Error: #{error}"
-                                else
-                                    print_line device.address, version, address_size, page_size, page_buffer
-                                    peripheral.disconnect()
-                                    stop_waiting()
+                raise "#{device.address}: Error: #{error}" if error
 
-else if options.version
-    scan_devices device_address(), (device)->
-        if device
+                execute OPC_GET_VERSION, (error, version)->
+                    raise "error requesting version string: #{error}" if error
+
+                    console.log version
+                    process.exit 0
+
+    else if options.flash
+        console.log "start flashing #{options.flash} at 0x#{start_address().toString(16)} to device #{device_address()}"
+
+        scan_devices device_address(), (device)->
+            raise "device not found!" if !device
+
+            console.log "device found..."
+
             connect_device device, (peripheral, error)->
-                if error
-                    console.log "#{device.address}: Error: #{error}"
-                    process.exit 1
-                else
-                    execute OPC_GET_VERSION, (error, version)->
-                        if error
-                            console.log "error requesting version string: #{error}"
-                            process.exit 1
-                        else
-                            console.log version
-                            process.exit 0
-        else
-            console.log "device not found!"
-            process.exit 1
+                raise "connecting #{device.address}: Error: #{error}" if error
 
-else
-    console.log "Unrecognized command."
-    print_usage()
+                console.log "device connected..."
+
+                flash options.flash, start_address(), device, (error)->
+                    raise "flashing device: Error: #{error}" if error
+
+                    console.log "device successfully flashed"
+                    process.exit 0
+
+
+    else
+        console.log "Unrecognized command."
+        print_usage()
+        process.exit 1
+
+catch error
+    console.log error
     process.exit 1
-
-# if options.version
-#     connect ->
-
