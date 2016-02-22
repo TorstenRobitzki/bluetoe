@@ -2,6 +2,7 @@
 #define BLUETOE_SERVICES_BOOTLOADER_HPP
 
 #include <bluetoe/service.hpp>
+#include <bluetoe/mixin.hpp>
 #include <algorithm>
 
 /**
@@ -87,6 +88,15 @@ namespace bluetoe
             typedef details::handler_meta_type  meta_type;
             /** @endcond */
         };
+
+        /**
+         * @brief inform the bootloader, that an asynchrone flash operations is finished
+         */
+        template < class Server >
+        void end_flash( Server& srv )
+        {
+            srv.end_flash( srv );
+        }
 
         /**
          * @brief the UUID of the bootloader service is 7D295F4D-2850-4F57-B595-837F5753F8A9
