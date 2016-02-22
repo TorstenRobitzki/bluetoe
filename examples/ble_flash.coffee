@@ -45,14 +45,19 @@ scan_devices = (mac, cb)->
 
     noble.on 'discover', ( peripheral )->
         if BOOTLOADER_SERVICE_UUID in peripheral.advertisement.serviceUuids
-            devices[ peripheral.id ] = peripheral
+            if mac
+                if mac == peripheral.address
+                    clearTimeout timer
+                    cb(peripheral)
+            else
+                devices[ peripheral.id ] = peripheral
 
     noble.on 'stateChange', ( state )->
 
         if state == 'poweredOn'
             timer = setTimeout (()->
                     noble.stopScanning()
-                    cb(devices)
+                    if mac then cb(null) else cb(devices)
                 ), 3000
 
             noble.startScanning []
@@ -146,7 +151,14 @@ execute = ( opcode, cb )->
         if error
             cb( error )
 
-if options.help
+device_address = ->
+    if !options['device']
+        console.log "device address (--device) reqired!"
+        process.exit 1
+
+    options['device']
+
+print_usage = ->
     console.log "usage: ble_flash [options] <input-file>"
     console.log "options:"
     console.log "  --help, -h                   this help"
@@ -154,6 +166,9 @@ if options.help
     console.log "  --device <mac>, -d <mac>     48 bit MAC address of the device to be flashed"
     console.log "  --version, -v                request version string from device"
     console.log "  --list, -l                   scan for a list of bootloaders"
+
+if options.help
+    print_usage()
     process.exit 0
 
 if options.list
@@ -163,7 +178,7 @@ if options.list
     print_line = (mac, version, address_size, page_size, page_buffer)->
         console.log " #{left mac, 16} | #{left version, 20} | #{right address_size, 10} | #{right page_size, 9} | #{right page_buffer, 7}"
 
-    scan_devices [], (devices)->
+    scan_devices null, (devices)->
         number_of_devices = Object.keys(devices).length
 
         if number_of_devices == 0
@@ -195,9 +210,29 @@ if options.list
                                     peripheral.disconnect()
                                     stop_waiting()
 
-# if !options['address']
-#     console.log "device address reqired!"
-#     process.exit 1
+else if options.version
+    scan_devices device_address(), (device)->
+        if device
+            connect_device device, (peripheral, error)->
+                if error
+                    console.log "#{device.address}: Error: #{error}"
+                    process.exit 1
+                else
+                    execute OPC_GET_VERSION, (error, version)->
+                        if error
+                            console.log "error requesting version string: #{error}"
+                            process.exit 1
+                        else
+                            console.log version
+                            process.exit 0
+        else
+            console.log "device not found!"
+            process.exit 1
+
+else
+    console.log "Unrecognized command."
+    print_usage()
+    process.exit 1
 
 # if options.version
 #     connect ->
