@@ -53,10 +53,10 @@ env:
 
 script:
   - $COMPILER -v
+  - sudo apt-get update
+  - sudo apt-get upgrade --yes cmake
   - mkdir build
   - cd build
-  - apt-get update
-  - apt-get upgrade --yes cmake
   - cmake --version
   - cmake -DCMAKE_CXX_COMPILER=$COMPILER ..
   - make all_tests.run
