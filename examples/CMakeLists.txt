@@ -10,3 +10,4 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-gnu-zero-variadic-macro-arguments")
 # target_link_libraries(clock ${LIBUSB_1_LIBRARY} btstack_libusb)
 
 add_subdirectory(doxygen)
+add_subdirectory(ble_flash)
