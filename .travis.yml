@@ -53,8 +53,7 @@ env:
 
 script:
   - $COMPILER -v
-  - sudo apt-get update
-  - sudo apt-get upgrade --yes cmake
+  - sudo apt-get install --yes cmake
   - mkdir build
   - cd build
   - cmake --version
