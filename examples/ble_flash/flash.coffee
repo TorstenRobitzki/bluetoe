@@ -1,5 +1,4 @@
-
-class flash
+class FlashRange
     ###
      @peripheral ble abstraction expected to have following functions
        start_flash( start_address, callback(mtu, receive_capacity, checksum) )
@@ -13,6 +12,7 @@ class flash
      @cb callback to be called, when the flash is
     ###
     constructor: (@peripheral, @start_address, @data, @address_size, @page_size, @page_buffer, @cb)->
+        @peripheral.start_flash @start_address, (mtu, receive_capacity, checksum)->
 
 
-
+exports.FlashRange = FlashRange
