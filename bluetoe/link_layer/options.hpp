@@ -158,6 +158,19 @@ namespace link_layer
         static constexpr std::size_t receive_buffer_size  = ReceiveSize;
     };
 
+    /**
+     * @brief define the maximum L2CAP MTU size to be used by the link layer
+     *
+     * The default is the minimum of 23.
+     */
+    template < std::uint8_t MaxMTU >
+    struct max_mtu_size {
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::buffer_sizes_meta_type meta_type;
+
+        static constexpr std::size_t mtu = MaxMTU;
+        /** @endcond */
+    };
 }
 }
 

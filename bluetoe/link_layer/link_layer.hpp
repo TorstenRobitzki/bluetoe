@@ -43,6 +43,17 @@ namespace link_layer {
                 no_security_manager >::type type;
         };
 
+
+        template < typename ... Options >
+        struct mtu_size {
+            typedef typename bluetoe::details::find_by_meta_type<
+                buffer_sizes_meta_type,
+                Options...,
+                max_mtu_size< 23 > >::type type;
+
+            static constexpr std::size_t mtu = type::mtu;
+        };
+
     }
 
     /**
@@ -240,7 +251,7 @@ namespace link_layer {
         , address_( device_address::address( *this ) )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
-        , connection_details_( 23 )
+        , connection_details_( details::mtu_size< Options... >::mtu )
         , state_( state::initial )
     {
     }
