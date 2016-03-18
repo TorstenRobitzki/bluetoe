@@ -63,16 +63,42 @@ namespace nrf51_details {
         toggle_debug_pin2();
     }
 
+    /*
+     * Frequency correction if NRF_FICR_Type has a OVERRIDEEN field
+     */
+    template < typename F, typename R >
+    static auto override_correction(F* ficr, R* radio) -> decltype(F::OVERRIDEEN)
+    {
+#       ifndef FICR_OVERRIDEEN_BLE_1MBIT_Msk
+#           define FICR_OVERRIDEEN_BLE_1MBIT_Msk 1
+#       endif
+#       ifndef FICR_OVERRIDEEN_BLE_1MBIT_Override
+#           define FICR_OVERRIDEEN_BLE_1MBIT_Override 1
+#       endif
+#       ifndef FICR_OVERRIDEEN_BLE_1MBIT_Pos
+#           define FICR_OVERRIDEEN_BLE_1MBIT_Pos 1
+#       endif
+
+        if ( ( ficr->OVERRIDEEN & FICR_OVERRIDEEN_BLE_1MBIT_Msk ) == (FICR_OVERRIDEEN_BLE_1MBIT_Override << FICR_OVERRIDEEN_BLE_1MBIT_Pos) )
+        {
+            radio->OVERRIDE0 = ficr->BLE_1MBIT[0];
+            radio->OVERRIDE1 = ficr->BLE_1MBIT[1];
+            radio->OVERRIDE2 = ficr->BLE_1MBIT[2];
+            radio->OVERRIDE3 = ficr->BLE_1MBIT[3];
+            radio->OVERRIDE4 = ficr->BLE_1MBIT[4] | 0x80000000;
+        }
+
+        return ficr->OVERRIDEEN;
+    }
+
+    template < typename F >
+    static void override_correction(...)
+    {
+    }
+
     static void init_radio()
     {
-        if ( ( NRF_FICR->OVERRIDEEN & FICR_OVERRIDEEN_BLE_1MBIT_Msk ) == (FICR_OVERRIDEEN_BLE_1MBIT_Override << FICR_OVERRIDEEN_BLE_1MBIT_Pos) )
-        {
-            NRF_RADIO->OVERRIDE0 = NRF_FICR->BLE_1MBIT[0];
-            NRF_RADIO->OVERRIDE1 = NRF_FICR->BLE_1MBIT[1];
-            NRF_RADIO->OVERRIDE2 = NRF_FICR->BLE_1MBIT[2];
-            NRF_RADIO->OVERRIDE3 = NRF_FICR->BLE_1MBIT[3];
-            NRF_RADIO->OVERRIDE4 = NRF_FICR->BLE_1MBIT[4] | 0x80000000;
-        }
+        override_correction< NRF_FICR_Type >( NRF_FICR, NRF_RADIO );
 
         NRF_RADIO->MODE  = RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos;
 
