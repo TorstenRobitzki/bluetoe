@@ -183,7 +183,7 @@ namespace bluetoe {
      * Example
      * @code
     char simple_value = 0;
-    const char name[] = "Die ist der Name";
+    constexpr char name[] = "This is the name of the characteristic";
 
     typedef bluetoe::characteristic<
         bluetoe::characteristic_name< name >,
