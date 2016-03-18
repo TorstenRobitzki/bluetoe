@@ -13,6 +13,7 @@ namespace link_layer
         struct advertising_interval_meta_type {};
         struct device_address_meta_type {};
         struct buffer_sizes_meta_type {};
+        struct mtu_size_meta_type {};
 
         template < unsigned long long AdvertisingIntervalMilliSeconds >
         struct check_advertising_interval_parameter {
@@ -166,7 +167,7 @@ namespace link_layer
     template < std::uint8_t MaxMTU >
     struct max_mtu_size {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::buffer_sizes_meta_type meta_type;
+        typedef details::mtu_size_meta_type meta_type;
 
         static constexpr std::size_t mtu = MaxMTU;
         /** @endcond */

@@ -16,7 +16,7 @@ namespace test {
         dynamic_uuid( const std::uint8_t*, std::size_t );
 
         template < class UUID >
-        dynamic_uuid( const UUID* )
+        explicit dynamic_uuid( const UUID* )
             : uuid_( std::begin( UUID::bytes ), std::end( UUID::bytes ) )
         {
         }

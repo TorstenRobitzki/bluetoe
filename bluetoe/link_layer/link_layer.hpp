@@ -47,7 +47,7 @@ namespace link_layer {
         template < typename ... Options >
         struct mtu_size {
             typedef typename bluetoe::details::find_by_meta_type<
-                buffer_sizes_meta_type,
+                mtu_size_meta_type,
                 Options...,
                 max_mtu_size< 23 > >::type type;
 
