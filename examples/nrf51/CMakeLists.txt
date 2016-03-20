@@ -40,6 +40,7 @@ set(BLUETOE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 include_directories(${NRF51_SDK_ROOT}/components/device)
 include_directories(${NRF51_SDK_ROOT}/components/toolchain/gcc)
+include_directories(${NRF51_SDK_ROOT}/components/toolchain/CMSIS/include/)
 include_directories(${BLUETOE_ROOT})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
