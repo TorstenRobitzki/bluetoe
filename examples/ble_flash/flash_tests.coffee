@@ -14,6 +14,21 @@ create_network_mock = ->
         register_progress_callback: sinon.spy()
     }
 
+collect_data_send = ( network )->
+    send_data = network.send_data
+    result    = new Buffer(0)
+
+    for n in [ 0...send_data.callCount ]
+        result = Buffer.concat([result, send_data.getCall(n).args[0]])
+
+    result
+
+random_buffer = ( size )->
+    result = new Buffer size
+
+    result[n] = Math.floor(Math.random() * 255) for n in [0...size]
+    result
+
 last_data_being_send = ( network_mock )->
     network_mock.send_data.lastCall.args[ 0 ]
 
@@ -33,13 +48,15 @@ describe 'Network-Mock', ->
 describe 'FlashMemory', ->
 
     # c'tor parameters to FlashMemory
-    network         = null
-    start_address   = 0x12345678
-    data            = new Buffer( 3 * 1024 )
-    address_size    = 4
-    page_size       = 1024
-    page_buffers    = 3
-    error_callback  = null
+    network             = null
+    start_address       = 0x12345678
+    data                = random_buffer( 3 * 1024 )
+    address_size        = 4
+    page_size           = 1024
+    page_buffers        = 3
+    error_callback      = null
+    mtu                 = 42
+    receive_capacity    = page_size * page_buffers
 
     clock           = null
 
@@ -99,33 +116,57 @@ describe 'FlashMemory', ->
 
     describe 'after receiving the start_address procedure result', ->
 
-        mtu                 = 42
-        receive_capacity    = page_size * page_buffers
-        checksum            = adler32.buf [ 1, 2, 3, 4 ]
+        beforeEach ->
+            network         = create_network_mock()
+            start_address   = 0x12345678
+            address_size    = 4
+
+        checksum = adler32.buf [ 0x78, 0x56, 0x34, 0x12 ]
 
         beforeEach ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
             network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
 
         it 'starts sending data', ->
-            assert( network.send_data.calledOnce )
+            expect( network.send_data.callCount ).to.not.equal 0
 
         it 'data size is MTU -3 ', ->
             expect( network.send_data.firstCall.args[ 0 ].length ).to.equal( mtu - 3 )
 
     describe 'after receiving the start_address procedure result with a wrong crc', ->
 
-        it 'calls the error callback'
+        beforeEach ->
+            new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+            network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, 0xdeadbeef )
+
+        it 'calls the error callback', ->
+            assert( error_callback.calledOnce )
+            expect( error_callback.lastCall.args[ 0 ] ).to.equal 'checksum error'
 
     describe 'sending data', ->
+
+        beforeEach ->
+            data          = random_buffer( receive_capacity + page_size )
+            address_size  = 4
+            mtu           = 42
 
         describe 'start address equal to a page address', ->
 
             beforeEach ->
                 start_address = 3 * page_size
-                new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+                checksum      = adler32.buf [ 0x00, 0x0C, 0x00, 0x00 ]
 
-            it 'should send data up to the receive capacity'
+                new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+
+            it 'should not call the error_callback', ->
+                expect( error_callback.callCount ).to.equal 0
+
+            it 'should send data up to the receive capacity', ->
+                expect( collect_data_send( network ).length ).to.equal receive_capacity
+
+            it 'should send the first data', ->
+                expect( collect_data_send( network ) ).to.deep.equal( data.slice( 0, receive_capacity ) )
 
 
         describe 'start address not beeign equal to a page address', ->
