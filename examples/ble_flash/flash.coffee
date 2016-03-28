@@ -1,8 +1,6 @@
-adler32 = require 'adler-32'
+adler32 = require './adler32.js'
 
 TIMEOUT_MS       = 500
-PARALLEL_SENDS   = 10
-DATA_HEADER_SIZE = 3
 
 class FlashRange
     ###
@@ -19,18 +17,30 @@ class FlashRange
      @cb callback to be called, when the flashing is done or when an error occured
     ###
     constructor: (@peripheral, @start_address, @data, @address_size, @page_size, @page_buffer, @cb)->
-        timer       = null
-        address_crc = null
-        capacity    = 0
+        timer           = null
+        calc_checksum   = null
+        capacity        = 0
 
         send_data = ( that, mtu )->
             while that.data.length > 0 && that.capacity > 0
                 send_size = Math.min( mtu - 3, that.data.length, that.capacity )
+                send_data = that.data.slice( 0, send_size )
 
-                that.peripheral.send_data( that.data.slice( 0, send_size ) )
+                that.peripheral.send_data( send_data )
 
                 that.data     = that.data.slice send_size
                 that.capacity = that.capacity - send_size
+                calc_checksum = adler32.adler32_buf send_data, calc_checksum
+
+        progress_callback = (that)->
+            (checksum, consecutive, mtu, receive_capacity)->
+                if checksum != calc_checksum
+                    that.cb 'checksum error in progress'
+                else
+                    if that.data.length > 0
+                        send_data(that, mtu, receive_capacity)
+                    else
+                        @cb()
 
         start_flash_handler = (that)->
             (error, mtu, receive_capacity, checksum)->
@@ -40,7 +50,7 @@ class FlashRange
                 if error
                     that.cb( error )
                 else
-                    if checksum == address_crc
+                    if checksum == calc_checksum
                         send_data(that, mtu, receive_capacity)
                     else
                         that.cb 'checksum error'
@@ -50,7 +60,9 @@ class FlashRange
             address.push @start_address & 0xff
             @start_address = @start_address / 256
 
-        address_crc = adler32.buf address
+        calc_checksum = adler32.adler32_buf address
+
+        @peripheral.register_progress_callback progress_callback @
 
         @timer = setTimeout( ( (that) ->
             -> that.cb("Timeout waiting for flash progress")

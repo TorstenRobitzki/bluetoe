@@ -168,21 +168,46 @@ describe 'FlashMemory', ->
             it 'should send the first data', ->
                 expect( collect_data_send( network ) ).to.deep.equal( data.slice( 0, receive_capacity ) )
 
-
         describe 'start address not beeign equal to a page address', ->
 
-            it 'should send the remaining data up to the end of the page'
+            beforeEach ->
+                start_address   = 3 * page_size + 0x123
+                checksum        = adler32.buf [ 0x23, 0x0D, 0x00, 0x00 ]
+                receive_capacity= receive_capacity - ( page_size - 0x123 )
+
+                new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+
+            it 'should not call the error_callback', ->
+                expect( error_callback.callCount ).to.equal 0
+
+            it 'should send data up to the receive capacity', ->
+                expect( collect_data_send( network ).length ).to.equal receive_capacity
+
+            it 'should send the first data', ->
+                expect( collect_data_send( network ) ).to.deep.equal( data.slice( 0, receive_capacity ) )
 
         describe 'writeing just a part of a page', ->
 
+            checksum = 0
+
+            beforeEach ->
+                start_address   = 3 * page_size
+                checksum        = adler32.buf [ 0x00, 0x0C, 0x00, 0x00 ]
+                data            = random_buffer( 42 )
+
+                new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+
             describe 'start address equal to a page address', ->
 
-                it 'should send the data'
+                it 'should send the data', ->
+                    expect( collect_data_send( network ) ).to.deep.equal( data )
 
-            describe 'start address not beeign equal to a page address', ->
-
-                it 'should send the data'
-
+                it 'should wait for a handshake', ->
+                    expect( error_callback.called ).to.be.false
+                    network.register_progress_callback.lastCall.args[ 0 ](checksum, 0, mtu, receive_capacity)
+                    expect( error_callback.called ).to.be.true
 
     describe 'receiving progress', ->
 
