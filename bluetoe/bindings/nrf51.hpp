@@ -3,7 +3,7 @@
 
 #include <bluetoe/link_layer/link_layer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
-#include <bluetoe/link_layer/buffer.hpp>
+#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);
@@ -22,7 +22,7 @@ namespace bluetoe
             virtual void timeout() = 0;
             virtual void end_event() = 0;
 
-            virtual void received_data( const link_layer::read_buffer& ) = 0;
+            virtual link_layer::write_buffer received_data( const link_layer::read_buffer& ) = 0;
             virtual link_layer::write_buffer next_transmit() = 0;
             virtual link_layer::read_buffer allocate_receive_buffer() = 0;
 
@@ -55,6 +55,8 @@ namespace bluetoe
 
             void run();
 
+            void wake_up();
+
             std::uint32_t static_random_address_seed() const;
 
         protected:
@@ -68,6 +70,10 @@ namespace bluetoe
             friend void ::RADIO_IRQHandler(void);
             friend void ::TIMER0_IRQHandler(void);
 
+            void adv_radio_interrupt();
+            void adv_timer_interrupt();
+            void evt_radio_interrupt();
+            void evt_timer_interrupt();
             void radio_interrupt();
             void timer_interrupt();
 
@@ -78,33 +84,27 @@ namespace bluetoe
             volatile bool received_;
             volatile bool evt_timeout_;
             volatile bool end_evt_;
+            volatile int  wake_up_;
 
+            static constexpr unsigned connection_event_type_base = 100;
 
             enum class state {
                 idle,
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
                 adv_timeout_stopping,
                 adv_transmitting,
-                // wait until the right time to transmit
-                adv_transmitting_pending,
                 adv_receiving,
                 // connection event
-                evt_wait_connect,
-                evt_transmiting,
+                evt_wait_connect    = connection_event_type_base,
                 evt_transmiting_closing,
-                evt_receiving
             };
 
             volatile state                  state_;
 
             bluetoe::link_layer::delta_time anchor_offset_;
-            bool                            more_data_;
 
             link_layer::read_buffer         receive_buffer_;
-
-            // number of consecutive crc reveice errors
-            volatile unsigned               crc_reveice_failure_;
-            volatile bool                   received_data_during_connection_event_;
+            std::uint8_t                    empty_receive_[ 2 ];
         };
 
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
@@ -147,10 +147,10 @@ namespace bluetoe
                 static_cast< CallBack* >( this )->end_event();
             }
 
-            void received_data( const link_layer::read_buffer& b ) override
+            link_layer::write_buffer received_data( const link_layer::read_buffer& b ) override
             {
                 // this function is called within an ISR context, so no need to disable interrupts
-                this->received( b );
+                return this->received( b );
             }
 
             link_layer::write_buffer next_transmit() override

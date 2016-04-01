@@ -209,3 +209,33 @@ BOOST_FIXTURE_TEST_CASE( read_multiple_attributes_within_mixed_size, r_and_r_wit
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( read_by_type_seen_in_the_wild )
+
+std::uint32_t temperature_value = 0x12345678;
+static constexpr char server_name[] = "Temperature";
+static constexpr char char_name[] = "Temperature Value";
+
+typedef bluetoe::server<
+    bluetoe::server_name< server_name >,
+    bluetoe::service<
+        bluetoe::service_uuid< 0x8C8B4094, 0x0000, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_name< char_name >,
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0000, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >
+        >
+    >
+> small_temperature_service;
+
+BOOST_FIXTURE_TEST_CASE( should_find_the_device_name_characteristic, request_with_reponse< small_temperature_service > )
+{
+    l2cap_input( { 0x02, 0x68, 0x00 } );
+    expected_result( { 0x03, 0x17, 0x00 } );
+
+    l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x00, 0x2a } );
+    BOOST_REQUIRE( response_size > 0 );
+    BOOST_CHECK_EQUAL( response[ 0 ], 0x09 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_SUITE( implicit_characteristic_uuid )
             std::uint8_t uuid[ 16 ];
 
             auto read = blued::attribute_access_arguments::read( uuid, 3 );
-            auto attr = attribute_at< 0 >( handles[ handle_idx ] - 1 );
+            auto attr = attribute_at< 0, std::tuple< auto_uuid_service > >( handles[ handle_idx ] - 1 );
 
             auto result = attr.access( read, handles[ handle_idx ] );
             BOOST_CHECK( result == blued::attribute_access_result::success );

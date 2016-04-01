@@ -5,20 +5,22 @@ noble.on 'discover', (peripheral)->
 
     if peripheral.id == 'c57821f91dd84fee81bc3f839557fecf'
 
-        peripheral.on 'connect', ->
-            console.log 'peripheral connected'
-
         console.log 'connecting....'
         peripheral.connect (error)->
-            console.log "error connecting: #{error}"
+            if ( error )
+                console.log "error connecting: #{error}"
+            else
+                console.log "connected.."
+
+                peripheral.on 'disconnect', ->
+                    console.log "disconnected!"
+                    console.log "Scanning"
+                    noble.startScanning()
 
 noble.on 'stateChange', (state)->
     if state == 'poweredOn'
         console.log "Scanning"
         noble.startScanning()
-    else
-        console.log "Stop Scanning"
-        noble.stopScanning()
 
 
 

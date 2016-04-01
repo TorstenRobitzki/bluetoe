@@ -82,7 +82,7 @@ namespace details {
         static const std::uint8_t bytes[ 2 ];
         static constexpr bool is_128bit = false;
 
-        static std::uint16_t as_16bit() {
+        static constexpr std::uint16_t as_16bit() {
             return UUID & 0xffff;
         };
     };

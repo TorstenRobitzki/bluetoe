@@ -3,8 +3,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-static const std::uint8_t all_channel_map[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
-static const std::uint8_t all_but_one_map[] = { 0xff, 0xff, 0xff, 0xff, 0xf };
+static constexpr std::uint8_t all_channel_map[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
+static constexpr std::uint8_t all_but_one_map[] = { 0xff, 0xff, 0xff, 0xff, 0xf };
 
 template < unsigned Hop, const std::uint8_t*  Map >
 struct fixture : bluetoe::link_layer::channel_map
@@ -78,7 +78,7 @@ BOOST_FIXTURE_TEST_CASE( all_but_one_channels_hop_10, all_but_one_channel_10 )
     BOOST_CHECK_EQUAL( data_channel( 36 ), 0 );
 }
 
-static const std::uint8_t a_few_channels_map[] = { 0x17, 0x44, 0x00, 0xff, 0x05 };
+static constexpr std::uint8_t a_few_channels_map[] = { 0x17, 0x44, 0x00, 0xff, 0x05 };
 
 using only_a_few_channels_7 = fixture< 7, a_few_channels_map >;
 
@@ -131,7 +131,7 @@ BOOST_FIXTURE_TEST_CASE( only_a_few_channels_hop_7, only_a_few_channels_7 )
 /*
  * A map just containing channel 0 and channel 36
  */
-static const std::uint8_t only_two_channels_map[] = { 0x01, 0x00, 0x00, 0x00, 0x10 };
+static constexpr std::uint8_t only_two_channels_map[] = { 0x01, 0x00, 0x00, 0x00, 0x10 };
 
 using only_two_channels_8 = fixture< 8, only_two_channels_map >;
 
@@ -183,6 +183,19 @@ BOOST_FIXTURE_TEST_CASE( stores_the_right_hop, all_channel_5 )
 {
     BOOST_CHECK( reset( only_two_channels_map ) );
 
-    BOOST_CHECK_EQUAL( data_channel( 0  ), 36 );
-    BOOST_CHECK_EQUAL( data_channel( 1  ), 0 );
+    BOOST_CHECK_EQUAL( data_channel( 0 ), 36 );
+    BOOST_CHECK_EQUAL( data_channel( 1 ), 0 );
+}
+
+static constexpr std::uint8_t all_but_25_map[] = { 0xff, 0xff, 0xff, 0xfd, 0x1f };
+
+using all_channels_but_25 = all_channel< 6 >;
+
+BOOST_FIXTURE_TEST_CASE( real_life_example, all_channels_but_25 )
+{
+    BOOST_CHECK( reset( all_but_25_map ) );
+    BOOST_CHECK_EQUAL( data_channel( 28 ), 26 );
+    BOOST_CHECK_EQUAL( data_channel( 29 ), 32 );
+    BOOST_CHECK_EQUAL( data_channel( 30 ), 1 );
+    BOOST_CHECK_EQUAL( data_channel( 35 ), 31 );
 }

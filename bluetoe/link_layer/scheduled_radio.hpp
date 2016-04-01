@@ -92,6 +92,13 @@ namespace link_layer {
         void run();
 
         /**
+         * @brief forces the run() function to return at least once
+         *
+         * The function is intended to be used from interrupt handler to synchronize with the main thread.
+         */
+        void wake_up();
+
+        /**
          * @brief type to allow ll_data_pdu_buffer to synchronize the access to the buffer data structures.
          */
         class lock_guard;

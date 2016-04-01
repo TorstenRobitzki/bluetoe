@@ -33,7 +33,9 @@ namespace details {
         execute_write_request       = 0x18,
         execute_write_response      = 0x19,
         write_command               = 0x52,
-        notification                = 0x1B
+        notification                = 0x1B,
+        indication                  = 0x1D,
+        confirmation                = 0x1E
 
     };
 
@@ -79,6 +81,8 @@ namespace details {
 
     enum class gatt_uuids : std::uint16_t {
         primary_service                     = 0x2800,
+        secondary_service                   = 0x2801,
+        include                             = 0x2802,
         characteristic                      = 0x2803,
         characteristic_user_description     = 0x2901,
         client_characteristic_configuration = 0x2902,
@@ -92,9 +96,10 @@ namespace details {
     }
 
     enum class gatt_characteristic_properties : std::uint8_t {
-        read    = 0x02,
-        write   = 0x08,
-        notify  = 0x10
+        read        = 0x02,
+        write       = 0x08,
+        notify      = 0x10,
+        indicate    = 0x20
     };
 
     inline std::uint8_t bits( gatt_characteristic_properties c )
@@ -103,9 +108,13 @@ namespace details {
     }
 
     enum class gap_types : std::uint8_t {
-        flags                   = 0x01,
-        complete_local_name     = 0x09,
-        shortened_local_name    = 0x08,
+        flags                           = 0x01,
+        incomplete_service_uuids_16     = 0x02,
+        complete_service_uuids_16       = 0x03,
+        incomplete_service_uuids_128    = 0x06,
+        complete_service_uuids_128      = 0x07,
+        complete_local_name             = 0x09,
+        shortened_local_name            = 0x08,
     };
 
     inline std::uint8_t bits( gap_types c )
@@ -114,9 +123,143 @@ namespace details {
     }
 
     enum {
-        client_characteristic_configuration_notification_enabled = 1
+        client_characteristic_configuration_notification_enabled = 1,
+        client_characteristic_configuration_indication_enabled   = 2
     };
 
+
+}
+
+
+/**
+ * namespace for error codes, that should be convertable to int
+ */
+namespace error_codes {
+
+    /**
+     * @brief Error codes to be returned by read and write handlers for characteristic values
+     */
+    enum error_codes : std::uint8_t {
+        /**
+         * read or write request could be fulfilled without an error
+         */
+        success                             = 0x00,
+
+        /**
+         * The attribute handle given was not valid on this server.
+         */
+        invalid_handle                      = 0x01,
+
+        /**
+         * The attribute cannot be read.
+         */
+        read_not_permitted,
+
+        /**
+         * The attribute cannot be written.
+         */
+        write_not_permitted,
+
+        /**
+         * The attribute PDU was invalid.
+         */
+        invalid_pdu,
+
+        /**
+         * The attribute requires authentication before it can be read or written.
+         */
+        insufficient_authentication,
+
+        /**
+         * Attribute server does not support the request received from the client.
+         */
+        request_not_supported,
+
+        /**
+         * Offset specified was past the end of the attribute.
+         */
+        invalid_offset,
+
+        /**
+         * The attribute requires authorization before it can be read or written.
+         */
+        insufficient_authorization,
+
+        /**
+         * Too many prepare writes have been queued.
+         */
+        prepare_queue_full,
+
+        /**
+         * No attribute found within the given attri- bute handle range.
+         */
+        attribute_not_found,
+
+        /**
+         * The attribute cannot be read or written using the Read Blob Request.
+         */
+        attribute_not_long,
+
+        /**
+         * The Encryption Key Size used for encrypting this link is insufficient.
+         */
+        insufficient_encryption_key_size,
+
+        /**
+         * The attribute value length is invalid for the operation.
+         */
+        invalid_attribute_value_length,
+
+        /**
+         * The attribute request that was requested has encountered an error that was unlikely,
+         * and therefore could not be completed as requested.
+         */
+        unlikely_error,
+
+        /**
+         * The attribute requires encryption before it can be read or written.
+         */
+        insufficient_encryption,
+
+        /**
+         * The attribute type is not a supported grouping attribute as defined by a higher layer specification.
+         */
+        unsupported_group_type,
+
+        /**
+         * Insufficient Resources to complete the request.
+         */
+        insufficient_resources,
+
+        /**
+         * Start of range for application specific error codes
+         */
+        application_error_start             = 0x80,
+
+        /**
+         * Last code of the range for application specific error codes
+         */
+        application_error_end               = 0x9f,
+
+        /**
+         * The Out of Range error code is used when an attribute value is out of range as defined by
+         * a profile or service specification.
+         */
+        out_of_range                        = 0xff,
+
+        /**
+         * The Procedure Already in Progress error code is used when a profile or service request cannot
+         * be serviced because an operation that has been previously triggered is still in progress.
+         */
+        procedure_already_in_progress       = 0xfe,
+
+        /**
+         * The Client Characteristic Configuration Descriptor Improperly Configured error code is used
+         * when a Client Characteristic Configuration descriptor is not configured according to the
+         * requirements of the profile or service.
+         */
+        cccd_improperly_configured          = 0xfd
+    };
 }
 }
 #endif

@@ -55,6 +55,21 @@ BOOST_FIXTURE_TEST_CASE( respond_to_a_ping, unconnected )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( accept_termination, unconnected )
+BOOST_FIXTURE_TEST_CASE( starts_advertising_after_termination, unconnected )
 {
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_event_respond(
+        {
+            0x03, 0x02,
+            0x02, 0x12
+        } );
+
+    run();
+
+    // the second advertising PDU is the response to the terminate PDU
+    // and must happen much earlier than the supervision timeout
+    BOOST_REQUIRE_GT( advertisings().size(), 1 );
+    const auto& second_advertisment = advertisings()[ 1 ];
+
+    BOOST_CHECK_LT( second_advertisment.on_air_time, bluetoe::link_layer::delta_time::msec( 50 ) );
 }

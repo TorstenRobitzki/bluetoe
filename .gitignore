@@ -30,3 +30,5 @@ build*/
 documentation/
 .gdbinit
 node_modules/
+*.pcapng
+

@@ -13,6 +13,7 @@ namespace link_layer
         struct advertising_interval_meta_type {};
         struct device_address_meta_type {};
         struct buffer_sizes_meta_type {};
+        struct mtu_size_meta_type {};
 
         template < unsigned long long AdvertisingIntervalMilliSeconds >
         struct check_advertising_interval_parameter {
@@ -140,7 +141,7 @@ namespace link_layer
     /**
      * @brief defines link layer transmit and receive buffer sizes
      */
-    template < std::size_t TransmitSize = 57, std::size_t ReceiveSize = 57 >
+    template < std::size_t TransmitSize = 59, std::size_t ReceiveSize = 59 >
     struct buffer_sizes
     {
         /** @cond HIDDEN_SYMBOLS */
@@ -158,6 +159,19 @@ namespace link_layer
         static constexpr std::size_t receive_buffer_size  = ReceiveSize;
     };
 
+    /**
+     * @brief define the maximum L2CAP MTU size to be used by the link layer
+     *
+     * The default is the minimum of 23.
+     */
+    template < std::uint8_t MaxMTU >
+    struct max_mtu_size {
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::mtu_size_meta_type meta_type;
+
+        static constexpr std::size_t mtu = MaxMTU;
+        /** @endcond */
+    };
 }
 }
 
