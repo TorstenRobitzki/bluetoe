@@ -210,6 +210,10 @@ describe 'FlashMemory', ->
                     expect( error_callback.called ).to.be.true
 
     describe 'receiving progress', ->
+        describe 'fails when', ->
+
+            it 'checksum error is detected'
+            it 'unexpected consecutive number is detected'
 
     describe 'continously reveivin progress', ->
 
