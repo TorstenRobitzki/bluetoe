@@ -90,12 +90,14 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
 <a href="#typedef-members">Typedefs</a> &#124;
-<a href="#enum-members">Enumerations</a>  </div>
+<a href="#enum-members">Enumerations</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle">
 <div class="title">bootloader.hpp File Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><code>#include &lt;bluetoe/service.hpp&gt;</code><br />
+<code>#include &lt;bluetoe/mixin.hpp&gt;</code><br />
 <code>#include &lt;algorithm&gt;</code><br />
 </div>
 <p><a href="bootloader_8hpp_source.html">Go to the source code of this file.</a></p>
@@ -155,6 +157,14 @@ Enumerations</h2></td></tr>
  }<tr class="memdesc:a44e1659e83283ae103c81831cd721370"><td class="mdescLeft">&#160;</td><td class="mdescRight">range of error codes that can be used by the user handler to indicate the cause of an error <br /></td></tr>
 </td></tr>
 <tr class="separator:a44e1659e83283ae103c81831cd721370"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:a175ec75ac791a8103f338a0d8944dc7d"><td class="memTemplParams" colspan="2"><a class="anchor" id="a175ec75ac791a8103f338a0d8944dc7d"></a>
+template&lt;class Server &gt; </td></tr>
+<tr class="memitem:a175ec75ac791a8103f338a0d8944dc7d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="bootloader_8hpp.html#a175ec75ac791a8103f338a0d8944dc7d">bluetoe::bootloader::end_flash</a> (Server &amp;srv)</td></tr>
+<tr class="memdesc:a175ec75ac791a8103f338a0d8944dc7d"><td class="mdescLeft">&#160;</td><td class="mdescRight">inform the bootloader, that an asynchrone flash operations is finished <br /></td></tr>
+<tr class="separator:a175ec75ac791a8103f338a0d8944dc7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>This is the implementation of a bootloader as a Bluetooth LE service. The service contains two characteristics. A control point to inquire informations and to control the flash process. One data characteristic to upload and download larger amounts of data.</p>
@@ -162,7 +172,7 @@ Enumerations</h2></td></tr>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sat Feb 20 2016 17:48:10 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed May 4 2016 21:20:58 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

@@ -105,13 +105,13 @@ struct bluetoe::characteristic_name&lt; const  &gt;</h3>
 
 <p>adds a name to characteristic </p>
 <p>Adds a "Characteristic User Description" to the characteristic. So a GATT client can read the name of the characteristic.</p>
-<p>Example </p><div class="fragment"><div class="line"><span class="keywordtype">char</span> simple_value = 0;</div><div class="line"><span class="keyword">const</span> <span class="keywordtype">char</span> name[] = <span class="stringliteral">&quot;Die ist der Name&quot;</span>;</div><div class="line"></div><div class="line"><span class="keyword">typedef</span> <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div><div class="line">    <a class="code" href="structbluetoe_1_1characteristic__name.html">bluetoe::characteristic_name&lt; name &gt;</a>,</div><div class="line">    <a class="code" href="structbluetoe_1_1characteristic__uuid16.html">bluetoe::characteristic_uuid16&lt; 0x0815 &gt;</a>,</div><div class="line">    <a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; char, &amp;simple_value &gt;</a></div><div class="line">&gt; named_char;</div></div><!-- fragment --> </div><hr/>The documentation for this struct was generated from the following file:<ul>
+<p>Example </p><div class="fragment"><div class="line"><span class="keywordtype">char</span> simple_value = 0;</div><div class="line">constexpr <span class="keywordtype">char</span> name[] = <span class="stringliteral">&quot;This is the name of the characteristic&quot;</span>;</div><div class="line"></div><div class="line"><span class="keyword">typedef</span> <a class="code" href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a>&lt;</div><div class="line">    <a class="code" href="structbluetoe_1_1characteristic__name.html">bluetoe::characteristic_name&lt; name &gt;</a>,</div><div class="line">    <a class="code" href="structbluetoe_1_1characteristic__uuid16.html">bluetoe::characteristic_uuid16&lt; 0x0815 &gt;</a>,</div><div class="line">    <a class="code" href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value&lt; char, &amp;simple_value &gt;</a></div><div class="line">&gt; named_char;</div></div><!-- fragment --> </div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="characteristic_8hpp_source.html">characteristic.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sat Feb 20 2016 17:48:10 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed May 4 2016 21:20:58 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>
