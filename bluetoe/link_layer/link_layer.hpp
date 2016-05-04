@@ -440,12 +440,24 @@ namespace link_layer {
         {
             std::size_t out_size = out_buffer.size - all_header_size;
 
-            server_->notification_output(
-                &out_buffer.buffer[ all_header_size ],
-                out_size,
-                connection_details_,
-                notification.second
-            );
+            if ( notification.first == notification_queue_t::notification )
+            {
+                server_->notification_output(
+                    &out_buffer.buffer[ all_header_size ],
+                    out_size,
+                    connection_details_,
+                    notification.second
+                );
+            }
+            else
+            {
+                server_->indication_output(
+                    &out_buffer.buffer[ all_header_size ],
+                    out_size,
+                    connection_details_,
+                    notification.second
+                );
+            }
 
             if ( out_size )
             {
