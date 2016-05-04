@@ -268,29 +268,13 @@ BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_e
     /// @TODO implement
 }
 
-void add_connection_update_request(
-    unconnected& c, std::uint8_t win_size, std::uint16_t win_offset, std::uint16_t interval,
-    std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
-{
-    c.ll_control_pdu( {
-        0x00,                                                   // opcode
-        win_size,
-        static_cast< std::uint8_t >( win_offset ),  static_cast< std::uint8_t >( win_offset >> 8 ),
-        static_cast< std::uint8_t >( interval ),    static_cast< std::uint8_t >( interval >> 8 ),
-        static_cast< std::uint8_t >( latency ),     static_cast< std::uint8_t >( latency >> 8 ),
-        static_cast< std::uint8_t >( timeout ),     static_cast< std::uint8_t >( timeout >> 8 ),
-        static_cast< std::uint8_t >( instance ),    static_cast< std::uint8_t >( instance >> 8 )
-    } );
-
-}
-
 /*
  * connection update procedure with a "instance" in the past results in falling back to advertising
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_in_the_past, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( *this, 5, 5, 40, 1, 200, 0x8002 );
+    add_connection_update_request( 5, 5, 40, 1, 200, 0x8002 );
     add_empty_pdus( *this, 5 );
 
     run();
@@ -303,7 +287,7 @@ struct connected_and_valid_connection_update_request : unconnected
     connected_and_valid_connection_update_request()
     {
         respond_to( 37, valid_connection_request_pdu );
-        add_connection_update_request( *this, 5, 6, 40, 1, 200, 6 );
+        add_connection_update_request( 5, 6, 40, 1, 200, 6 );
         add_empty_pdus( *this, 20 );
 
         run();
@@ -350,7 +334,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used, connected_and_
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_timeout_used, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( *this, 5, 6, 40, 1, 25, 6 );
+    add_connection_update_request( 5, 6, 40, 1, 25, 6 );
     add_empty_pdus( *this, 6 );
     add_ll_timeouts( *this, 10 );
 
@@ -364,7 +348,7 @@ static void simulate_connection_update_request(
     std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
 {
     c.respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( c, win_size, win_offset, interval, latency, timeout, instance );
+    c.add_connection_update_request( win_size, win_offset, interval, latency, timeout, instance );
     add_empty_pdus( c, 10 );
 
     c.run();

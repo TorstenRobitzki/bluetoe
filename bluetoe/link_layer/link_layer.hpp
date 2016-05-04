@@ -54,6 +54,16 @@ namespace link_layer {
             static constexpr std::size_t mtu = type::mtu;
         };
 
+        template < typename Server, typename ... Options >
+        struct connection_callbacks
+        {
+            typedef typename bluetoe::details::find_by_meta_type<
+                connection_callbacks_meta_type,
+                Options...,
+                no_connection_callbacks >::type callbacks;
+
+            typedef typename callbacks::template impl< Server > type;
+        };
     }
 
     /**
@@ -71,8 +81,14 @@ namespace link_layer {
         class ScheduledRadio,
         typename ... Options
     >
-    class link_layer : public ScheduledRadio< details::buffer_sizes< Options... >::tx_size, details::buffer_sizes< Options... >::rx_size, link_layer< Server, ScheduledRadio, Options... > >,
-        public details::security_manager< Options... >::type
+    class link_layer :
+        public ScheduledRadio<
+            details::buffer_sizes< Options... >::tx_size,
+            details::buffer_sizes< Options... >::rx_size,
+            link_layer< Server, ScheduledRadio, Options... >
+        >,
+        public details::security_manager< Options... >::type,
+        private details::connection_callbacks< Server, Options... >::type
     {
     public:
         link_layer();
@@ -108,6 +124,7 @@ namespace link_layer {
          * @sa scheduled_radio::schedule_connection_event
          */
         void end_event();
+
     private:
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
@@ -131,6 +148,7 @@ namespace link_layer {
         bool check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const;
         bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
         bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
+        void disconnect();
         void start_advertising();
         void wait_for_connection_event();
         void transmit_notifications();
@@ -272,6 +290,8 @@ namespace link_layer {
 
         if ( state_ == state::connected )
             transmit_notifications();
+
+        this->handle_connection_events();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -352,7 +372,7 @@ namespace link_layer {
 
             if ( handle_pending_ll_control() == ll_result::disconnect )
             {
-                start_advertising();
+                disconnect();
             }
             else
             {
@@ -361,7 +381,7 @@ namespace link_layer {
         }
         else
         {
-            start_advertising();
+            disconnect();
         }
     }
 
@@ -370,6 +390,11 @@ namespace link_layer {
     {
         assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update );
 
+        if ( state_ == state::connecting )
+        {
+            this->connection_established( connection_details(), connection_details_, static_cast< radio_t& >( *this ) );
+        }
+
         state_                        = state::connected;
         current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
         timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
@@ -377,7 +402,7 @@ namespace link_layer {
 
         if( handle_received_data() == ll_result::disconnect )
         {
-            start_advertising();
+            disconnect();
         }
         else
         {
@@ -625,6 +650,14 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::disconnect()
+    {
+        this->connection_closed( connection_details_, static_cast< radio_t& >( *this ) );
+
+        start_advertising();
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::start_advertising()
     {
         state_ = state::advertising;
@@ -845,6 +878,8 @@ namespace link_layer {
                 {
                     timeouts_til_connection_lost_ = 0;
                     state_ = state::connection_update;
+
+                    this->connection_changed( connection_details(), connection_details_, static_cast< radio_t& >( *this ) );
                 }
                 else
                 {

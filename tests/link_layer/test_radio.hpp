@@ -9,6 +9,7 @@
 #include <functional>
 #include <iosfwd>
 #include <initializer_list>
+#include <iostream>
 
 namespace test {
 
@@ -234,10 +235,13 @@ namespace test {
             bluetoe::link_layer::delta_time             end_receive,
             bluetoe::link_layer::delta_time             connection_interval );
 
+        void wake_up();
+
         /**
          * @brief runs the simulation
          */
         void run();
+
     private:
         bluetoe::link_layer::delta_time now_;
 
@@ -247,6 +251,7 @@ namespace test {
         // make sure, there is only one action scheduled
         bool idle_;
         bool advertising_response_;
+        int  wake_ups_;
     };
 
     // implementation
@@ -263,6 +268,7 @@ namespace test {
     radio< TransmitSize, ReceiveSize, CallBack >::radio()
         : now_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
+        , wake_ups_( 0 )
     {
     }
 
@@ -317,6 +323,12 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::wake_up()
+    {
+        ++wake_ups_;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
         bool new_scheduling_added = false;
@@ -341,7 +353,10 @@ namespace test {
 
             new_scheduling_added = advertised_data_.size() + connection_events_.size() > count;
 
-        } while ( now_ < eos_ && new_scheduling_added );
+        } while ( now_ < eos_ && new_scheduling_added && wake_ups_ == 0 );
+
+        if ( wake_ups_ )
+            --wake_ups_;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
