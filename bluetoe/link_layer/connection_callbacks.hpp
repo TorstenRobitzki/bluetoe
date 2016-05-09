@@ -16,10 +16,15 @@ namespace link_layer {
      * functions:
      *
      * template < typename ConnectionData >
-     * void ll_connection_established( const bluetoe::link_layer::connection_details& details, const ConnectionData& connection );
+     * void ll_connection_established(
+     *          const bluetoe::link_layer::connection_details&   details,
+     *          const bluetoe::link_layer::connection_addresses& addresses,
+     *          const ConnectionData&                            connection );
      *
      * template < typename ConnectionData >
-     * void ll_connection_changed( const bluetoe::link_layer::connection_details& details, const ConnectionData& connection );
+     * void ll_connection_changed(
+     *          const bluetoe::link_layer::connection_details&  details,
+     *          const ConnectionData&                           connection );
      *
      * template < typename ConnectionData >
      * void ll_connection_closed( const ConnectionData& connection );
