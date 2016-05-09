@@ -839,14 +839,17 @@ namespace link_layer {
 
             server_->l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], gap_size, connection_details_ );
 
-            output.buffer[ 0 ] = lld_data_pdu_code;
-            output.buffer[ 1 ] = static_cast< std::uint8_t >( gap_size + l2cap_header_size );
-            output.buffer[ 2 ] = static_cast< std::uint8_t >( gap_size );
-            output.buffer[ 3 ] = 0;
-            output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_gap_channel );
-            output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_gap_channel >> 8 );
+            if ( gap_size )
+            {
+                output.buffer[ 0 ] = lld_data_pdu_code;
+                output.buffer[ 1 ] = static_cast< std::uint8_t >( gap_size + l2cap_header_size );
+                output.buffer[ 2 ] = static_cast< std::uint8_t >( gap_size );
+                output.buffer[ 3 ] = 0;
+                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_gap_channel );
+                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_gap_channel >> 8 );
 
-            this->commit_transmit_buffer( output );
+                this->commit_transmit_buffer( output );
+            }
         }
         else if ( l2cap_channel == l2cap_sm_channel )
         {
@@ -854,14 +857,17 @@ namespace link_layer {
 
             static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size );
 
-            output.buffer[ 0 ] = lld_data_pdu_code;
-            output.buffer[ 1 ] = static_cast< std::uint8_t >( sm_size + l2cap_header_size );
-            output.buffer[ 2 ] = static_cast< std::uint8_t >( sm_size );
-            output.buffer[ 3 ] = 0;
-            output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_sm_channel );
-            output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_sm_channel >> 8 );
+            if ( sm_size )
+            {
+                output.buffer[ 0 ] = lld_data_pdu_code;
+                output.buffer[ 1 ] = static_cast< std::uint8_t >( sm_size + l2cap_header_size );
+                output.buffer[ 2 ] = static_cast< std::uint8_t >( sm_size );
+                output.buffer[ 3 ] = 0;
+                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_sm_channel );
+                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_sm_channel >> 8 );
 
-            this->commit_transmit_buffer( output );
+                this->commit_transmit_buffer( output );
+            }
         }
 
         return ll_result::go_ahead;
