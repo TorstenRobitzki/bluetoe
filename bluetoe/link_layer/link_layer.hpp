@@ -337,6 +337,8 @@ namespace link_layer {
                 window_start,
                 window_end,
                 connection_interval_ );
+
+            this->connection_request( connection_addresses( address_, address( &receive.buffer[ 2 ] ) ) );
         }
         else
         {
@@ -397,7 +399,7 @@ namespace link_layer {
 
         if ( state_ == state::connecting )
         {
-            this->connection_established( details(), connection_addresses(), connection_details_, static_cast< radio_t& >( *this ) );
+            this->connection_established( details(), connection_details_, static_cast< radio_t& >( *this ) );
         }
 
         state_                        = state::connected;

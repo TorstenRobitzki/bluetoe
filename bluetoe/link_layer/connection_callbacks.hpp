@@ -38,19 +38,22 @@ namespace link_layer {
             {
             }
 
+            void connection_request( const connection_addresses& addresses )
+            {
+                addresses_  = addresses;
+            }
+
             // this functions are called from the interrupt handlers of the scheduled radio and just store the informations that
             // are provided.
             template < class Radio >
             void connection_established(
                 const connection_details&               details,
-                const connection_addresses&             addresses,
                 const typename Server::connection_data& connection,
                 Radio&                                  r )
             {
                 event_type_ = established;
                 connection_ = &connection;
                 details_    = details;
-                addresses_  = addresses;
 
                 r.wake_up();
             }
@@ -160,14 +163,13 @@ namespace link_layer {
 
             template < class Server >
             struct impl {
+                void connection_request( const connection_addresses& addresses ) {}
+
                 template < class Radio >
                 void connection_established(
                     const connection_details&               details,
-                    const connection_addresses&             addr,
                     const typename Server::connection_data& connection,
-                    Radio&                                  r )
-                {
-                }
+                    Radio&                                  r ) {}
 
                 template < class Radio >
                 void connection_changed(  const bluetoe::link_layer::connection_details& details, const typename Server::connection_data& connection, Radio& r ) {}

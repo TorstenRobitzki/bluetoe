@@ -21,10 +21,12 @@ struct only_connect_callback_t
     {
         connection_established_called = true;
         reported_details              = details;
+        reported_addresses            = addresses;
     }
 
-    bool                                    connection_established_called;
-    bluetoe::link_layer::connection_details reported_details;
+    bool                                        connection_established_called;
+    bluetoe::link_layer::connection_details     reported_details;
+    bluetoe::link_layer::connection_addresses   reported_addresses;
 
 } only_connect_callback;
 
@@ -80,7 +82,8 @@ struct mixin_reset_callbacks : private reset_callbacks, public LinkLayer {};
 using link_layer_only_connect_callback = mixin_reset_callbacks<
     unconnected_base<
         bluetoe::link_layer::connection_callbacks< only_connect_callback_t, only_connect_callback >,
-        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >,
+        bluetoe::link_layer::static_address< 0xc0, 0x0f, 0x15, 0x08, 0x11, 0x47 >
     >
 >;
 
@@ -178,6 +181,17 @@ BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_establis
     BOOST_CHECK_EQUAL( reported_details.latency(), 2 );
     BOOST_CHECK_EQUAL( reported_details.timeout(), 0x548 );
     BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), 50 + 100 );
+}
+
+BOOST_FIXTURE_TEST_CASE( addresses_reported_when_connection_established, link_layer_only_connect_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_event_respond( { 0, 1 } );
+    run();
+
+    const auto reported_addresses = only_connect_callback.reported_addresses;
+    BOOST_CHECK_EQUAL( reported_addresses.remote_address(), bluetoe::link_layer::address( { 0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48 } ) );
+    BOOST_CHECK_EQUAL( reported_addresses.local_address(),  bluetoe::link_layer::address( { 0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0 } ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_not_called_by_default, link_layer_only_changed_callback )
