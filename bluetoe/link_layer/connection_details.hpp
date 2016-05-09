@@ -23,23 +23,9 @@ namespace link_layer {
          * @brief construct the data object from its required parts.
          */
         connection_details(
-            const address& remote, const address& local, const channel_map& channels,
+            const channel_map& channels,
             std::uint16_t inter, std::uint16_t lat, std::uint16_t to,
             unsigned acc );
-
-        /**
-         * @brief remote device address
-         *
-         * The remote device address of the given connection.
-         */
-        const address& remote_address() const;
-
-        /**
-         * @brief local device address
-         *
-         * The local device address of the given connection.
-         */
-        const address& local_address() const;
 
         /**
          * @brief channels that a currently in use
@@ -78,14 +64,40 @@ namespace link_layer {
         unsigned cumulated_sleep_clock_accuracy_ppm() const;
 
     private:
-        address         local_addr_;
-        address         remote_addr_;
         channel_map     channels_;
 
         std::uint16_t   interval_;
         std::uint16_t   latency_;
         std::uint16_t   timeout_;
         unsigned        accuracy_;
+    };
+
+    /**
+     * @brief local and remote address of a connection
+     */
+    class connection_addresses
+    {
+    public:
+        connection_addresses() = default;
+
+        connection_addresses( const address& local, const address& remote );
+        /**
+         * @brief remote device address
+         *
+         * The remote device address of the given connection.
+         */
+        const address& remote_address() const;
+
+        /**
+         * @brief local device address
+         *
+         * The local device address of the given connection.
+         */
+        const address& local_address() const;
+
+    private:
+        address         local_addr_;
+        address         remote_addr_;
     };
 }
 }

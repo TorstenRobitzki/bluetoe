@@ -7,6 +7,7 @@
 #include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/link_layer/channel_map.hpp>
 #include <bluetoe/link_layer/notification_queue.hpp>
+#include <bluetoe/link_layer/connection_callbacks.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/sm/security_manager.hpp>
@@ -168,6 +169,8 @@ namespace link_layer {
         ll_result handle_l2cap( const write_buffer& pdu );
         ll_result handle_pending_ll_control();
 
+        connection_details details() const;
+
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
         static std::uint32_t read_32( const std::uint8_t* );
@@ -226,6 +229,8 @@ namespace link_layer {
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
+        std::uint16_t                   slave_latency_;
+        std::uint16_t                   timeout_value_;
         delta_time                      connection_interval_old_;
         std::uint16_t                   conn_event_counter_;
         std::uint16_t                   defered_conn_event_counter_;
@@ -392,7 +397,7 @@ namespace link_layer {
 
         if ( state_ == state::connecting )
         {
-            this->connection_established( connection_details(), connection_details_, static_cast< radio_t& >( *this ) );
+            this->connection_established( details(), connection_addresses(), connection_details_, static_cast< radio_t& >( *this ) );
         }
 
         state_                        = state::connected;
@@ -625,12 +630,13 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
-        auto slave_latency      = read_16( &valid_connect_request.buffer[ 26 ] );
-        delta_time timeout      = delta_time( read_16( &valid_connect_request.buffer[ 28 ] ) * 10000 );
+        slave_latency_          = read_16( &valid_connect_request.buffer[ 26 ] );
+        timeout_value_          = read_16( &valid_connect_request.buffer[ 28 ] );
+        delta_time timeout      = delta_time( timeout_value_ * 10000 );
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
-        return check_timing_paremeters( slave_latency, timeout );
+        return check_timing_paremeters( slave_latency_, timeout );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -641,12 +647,13 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_update_request.buffer[ 3 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_update_request.buffer[ 4 ] ) * us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_update_request.buffer[ 6 ] ) * us_per_digits );
-        auto slave_latency      = read_16( &valid_update_request.buffer[ 8 ] );
-        delta_time timeout      = delta_time( read_16( &valid_update_request.buffer[ 10 ] ) * 10000 );
+        slave_latency_          = read_16( &valid_update_request.buffer[ 8 ] );
+        timeout_value_          = read_16( &valid_update_request.buffer[ 10 ] );
+        delta_time timeout      = delta_time( timeout_value_ * 10000 );
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
-        return check_timing_paremeters( slave_latency, timeout );
+        return check_timing_paremeters( slave_latency_, timeout );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -879,7 +886,7 @@ namespace link_layer {
                     timeouts_til_connection_lost_ = 0;
                     state_ = state::connection_update;
 
-                    this->connection_changed( connection_details(), connection_details_, static_cast< radio_t& >( *this ) );
+                    this->connection_changed( details(), connection_details_, static_cast< radio_t& >( *this ) );
                 }
                 else
                 {
@@ -895,6 +902,17 @@ namespace link_layer {
         }
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    connection_details link_layer< Server, ScheduledRadio, Options... >::details() const
+    {
+        return connection_details(
+            channels_,
+            connection_interval_.usec() / 1250,
+            slave_latency_,
+            timeout_value_,
+            cumulated_sleep_clock_accuracy_ );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

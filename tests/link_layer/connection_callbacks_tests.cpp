@@ -14,12 +14,17 @@ struct only_connect_callback_t
     }
 
     template < typename ConnectionData >
-    void ll_connection_established( const bluetoe::link_layer::connection_details& details, const ConnectionData& connection )
+    void ll_connection_established(
+        const bluetoe::link_layer::connection_details&      details,
+        const bluetoe::link_layer::connection_addresses&    addresses,
+        const ConnectionData&                               connection )
     {
         connection_established_called = true;
+        reported_details              = details;
     }
 
-    bool connection_established_called;
+    bool                                    connection_established_called;
+    bluetoe::link_layer::connection_details reported_details;
 
 } only_connect_callback;
 
@@ -72,19 +77,22 @@ struct mixin_reset_callbacks : private reset_callbacks, public LinkLayer {};
 
 using link_layer_only_connect_callback = mixin_reset_callbacks<
     unconnected_base<
-        bluetoe::link_layer::connection_callbacks< only_connect_callback_t, only_connect_callback >
+        bluetoe::link_layer::connection_callbacks< only_connect_callback_t, only_connect_callback >,
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >
     >
 >;
 
 using link_layer_only_changed_callback = mixin_reset_callbacks<
     unconnected_base<
-        bluetoe::link_layer::connection_callbacks< only_changed_callback_t, only_changed_callback >
+        bluetoe::link_layer::connection_callbacks< only_changed_callback_t, only_changed_callback >,
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >
     >
 >;
 
 using link_layer_only_disconnect_callback = mixin_reset_callbacks<
     unconnected_base<
-        bluetoe::link_layer::connection_callbacks< only_disconnect_callback_t, only_disconnect_callback >
+        bluetoe::link_layer::connection_callbacks< only_disconnect_callback_t, only_disconnect_callback >,
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >
     >
 >;
 
@@ -123,6 +131,51 @@ BOOST_FIXTURE_TEST_CASE( connection_is_established_callback_called_only_once, li
 
     run();
     BOOST_CHECK( !only_connect_callback.connection_established_called );
+}
+
+namespace {
+    bool equal( const bluetoe::link_layer::channel_map& lhs, const bluetoe::link_layer::channel_map& rhs )
+    {
+        for ( unsigned i = 0; i != bluetoe::link_layer::channel_map::max_number_of_data_channels; ++i )
+        {
+            if ( lhs.data_channel( i ) != rhs.data_channel( i ) )
+                return false;
+        }
+
+        return true;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_established, link_layer_only_connect_callback )
+{
+    respond_to( 37, {
+        0xc5, 0x22,                         // header
+        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+        0x08, 0x81, 0xf6,                   // CRC Init
+        0x03,                               // transmit window size
+        0x0b, 0x00,                         // window offset
+        0x18, 0x00,                         // interval (30ms)
+        0x02, 0x00,                         // slave latency
+        0x48, 0x05,                         // connection timeout
+        0xf3, 0x5f, 0x1f, 0x7f, 0x1f,       // used channel map
+        0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
+    } );
+    add_connection_event_respond( { 0, 1 } );
+    run( 2 );
+
+    const auto reported_details = only_connect_callback.reported_details;
+
+    static const std::uint8_t map_data[] = { 0xf3, 0x5f, 0x1f, 0x7f, 0x1f };
+    bluetoe::link_layer::channel_map channels;
+    channels.reset( &map_data[ 0 ], 10 );
+
+    BOOST_CHECK( equal( reported_details.channels(), channels ) );
+    BOOST_CHECK_EQUAL( reported_details.interval(), 0x18 );
+    BOOST_CHECK_EQUAL( reported_details.latency(), 2 );
+    BOOST_CHECK_EQUAL( reported_details.timeout(), 0x548 );
+    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), 50 + 100 );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_not_called_by_default, link_layer_only_changed_callback )
