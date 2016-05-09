@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 2.8.7)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
+if (DEFINED NDEBUG)
+    add_definitions(-DNDEBUG=1)
+endif()
+
 set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wno-unused-parameter -Wno-sign-compare")
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
