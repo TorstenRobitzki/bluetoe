@@ -39,9 +39,11 @@ struct only_changed_callback_t
     void ll_connection_changed( const bluetoe::link_layer::connection_details& details, const ConnectionData& connection )
     {
         only_changed_called = true;
+        reported_details    = details;
     }
 
-    bool only_changed_called;
+    bool                                    only_changed_called;
+    bluetoe::link_layer::connection_details reported_details;
 
 } only_changed_callback;
 
@@ -201,6 +203,24 @@ BOOST_FIXTURE_TEST_CASE( connection_update, link_layer_only_changed_callback )
     BOOST_CHECK( only_changed_callback.only_changed_called );
 }
 
+BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_updates, link_layer_only_changed_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( 5, 6, 40, 1, 25, 2 );
+    ll_empty_pdus( 120 );
+    run( 3u );
+
+    static const std::uint8_t map_data[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
+    bluetoe::link_layer::channel_map channels;
+    channels.reset( &map_data[ 0 ], 10 );
+
+    const auto reported_details = only_changed_callback.reported_details;
+    BOOST_CHECK( equal( reported_details.channels(), channels ) );
+    BOOST_CHECK_EQUAL( reported_details.interval(), 40 );
+    BOOST_CHECK_EQUAL( reported_details.latency(), 1 );
+    BOOST_CHECK_EQUAL( reported_details.timeout(), 25 );
+    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), 50 + 100 );
+}
 
 BOOST_FIXTURE_TEST_CASE( never_connected, link_layer_only_disconnect_callback )
 {
