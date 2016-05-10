@@ -16,20 +16,24 @@ struct channel : bluetoe::l2cap::signaling_channel<>
         BOOST_REQUIRE_EQUAL_COLLECTIONS( expected.begin(), expected.end(), &buffer[ 0 ], &buffer[ out_size ] );
     }
 
+    void l2cap_output( std::initializer_list< std::uint8_t > expected )
+    {
+        signaling_channel::l2cap_output( buffer, out_size );
+        BOOST_REQUIRE_EQUAL_COLLECTIONS( expected.begin(), expected.end(), &buffer[ 0 ], &buffer[ out_size ] );
+    }
+
     std::size_t  out_size;
     std::uint8_t buffer[ 23 ];
 };
 
 BOOST_FIXTURE_TEST_CASE( creates_no_output_by_default, channel )
 {
-    l2cap_output( buffer, out_size );
-
-    BOOST_CHECK_EQUAL( out_size, 0 );
+    l2cap_output( {} );
 }
 
-BOOST_FIXTURE_TEST_CASE( empty_command_to_be_rejected, channel )
+BOOST_FIXTURE_TEST_CASE( empty_command_to_be_ignored, channel )
 {
-    l2cap_input( {}, { 0x01, 0x00, 0x02, 0x00, 0x00, 0x00 } );
+    l2cap_input( {}, {} );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_parameter_update_response_without_request, channel )
@@ -42,4 +46,95 @@ BOOST_FIXTURE_TEST_CASE( connection_parameter_update_response_without_request, c
             0x01, 0x01, 0x02, 0x00, 0x00, 0x00
         }
     );
+}
+
+BOOST_FIXTURE_TEST_CASE( command_with_invalid_identifier, channel )
+{
+    l2cap_input(
+        {
+            0x14, 0x00, 0x0A, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        },
+        {
+        }
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_parameter_update_request_rejected, channel )
+{
+    l2cap_input(
+        {
+            0x12, 0x03, 0x08, 0x00,
+            0x10, 0x00,
+            0x20, 0x00,
+            0x00, 0x00,
+            0x00, 0x01,
+        },
+        {
+            0x01, 0x03, 0x02, 0x00, 0x00, 0x00
+        }
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( creates_connection_parameter_update_request, channel )
+{
+    connection_parameter_update_request( 0x0020, 0x0100, 0x55, 0xC80 );
+
+    l2cap_output( {
+        0x12, 0x01, 0x08, 0x00,
+        0x20, 0x00, 0x00, 0x01,
+        0x55, 0x00, 0x80, 0x0c
+    });
+}
+
+BOOST_FIXTURE_TEST_CASE( second_connection_parameter_update_request_will_not_be_queued, channel )
+{
+    BOOST_CHECK( connection_parameter_update_request( 0x0020, 0x0100, 0x55, 0xC80 ) );
+    BOOST_CHECK( !connection_parameter_update_request( 0x0020, 0x0100, 0x55, 0xC80 ) );
+}
+
+struct connection_parameter_update_requested : channel
+{
+
+    connection_parameter_update_requested()
+    {
+        connection_parameter_update_request( 0x0020, 0x0100, 0x55, 0xC80 );
+
+        l2cap_output( {
+            0x12, 0x01, 0x08, 0x00,
+            0x20, 0x00, 0x00, 0x01,
+            0x55, 0x00, 0x80, 0x0c
+        });
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE( second_connection_parameter_update_request_will_not_be_queued_after_output, connection_parameter_update_requested )
+{
+    BOOST_CHECK( !connection_parameter_update_request( 0x0020, 0x0100, 0x55, 0xC80 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_response_to_connection_parameter_update_response, connection_parameter_update_requested )
+{
+    l2cap_input( {
+        0x13, 0x01, 0x02, 0x00,
+        0x00, 0x00
+    },
+    {} );
+}
+
+BOOST_FIXTURE_TEST_CASE( second_connection_parameter_update_request_will_be_queued_after_response, connection_parameter_update_requested )
+{
+    l2cap_input( {
+        0x13, 0x01, 0x02, 0x00,
+        0x00, 0x00
+    },
+    {} );
+
+    connection_parameter_update_request( 0x0020, 0x0100, 0x55, 0xC80 );
+
+    l2cap_output( {
+        0x12, 0x02, 0x08, 0x00,
+        0x20, 0x00, 0x00, 0x01,
+        0x55, 0x00, 0x80, 0x0c
+    });
 }
