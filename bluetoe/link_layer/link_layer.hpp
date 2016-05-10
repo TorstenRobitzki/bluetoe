@@ -8,6 +8,7 @@
 #include <bluetoe/link_layer/channel_map.hpp>
 #include <bluetoe/link_layer/notification_queue.hpp>
 #include <bluetoe/link_layer/connection_callbacks.hpp>
+#include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/sm/security_manager.hpp>
@@ -207,7 +208,7 @@ namespace link_layer {
 
         static constexpr std::uint8_t   LL_VERSION_NR               = 0x08;
 
-        static constexpr std::uint16_t  l2cap_gap_channel           = 4;
+        static constexpr std::uint16_t  l2cap_att_channel           = 4;
         static constexpr std::uint16_t  l2cap_signaling_channel     = 5;
         static constexpr std::uint16_t  l2cap_sm_channel            = 6;
 
@@ -490,6 +491,11 @@ namespace link_layer {
                     connection_details_,
                     notification.second
                 );
+
+                // if no output is generate, confirm the indication, or we will wait for ever
+                if ( out_size == 0 )
+                    connection_details_.indication_confirmed();
+
             }
 
             if ( out_size )
@@ -498,8 +504,8 @@ namespace link_layer {
                 out_buffer.buffer[ 1 ] = static_cast< std::uint8_t >( out_size + l2cap_header_size );
                 out_buffer.buffer[ 2 ] = static_cast< std::uint8_t >( out_size );
                 out_buffer.buffer[ 3 ] = 0;
-                out_buffer.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_gap_channel );
-                out_buffer.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_gap_channel >> 8 );
+                out_buffer.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_att_channel );
+                out_buffer.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_att_channel >> 8 );
 
                 this->commit_transmit_buffer( out_buffer );
             }
@@ -834,20 +840,20 @@ namespace link_layer {
         if ( output.empty() )
             return ll_result::go_ahead;
 
-        if ( l2cap_channel == l2cap_gap_channel )
+        if ( l2cap_channel == l2cap_att_channel )
         {
-            std::size_t gap_size = output.size - all_header_size;
+            std::size_t att_size = output.size - all_header_size;
 
-            server_->l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], gap_size, connection_details_ );
+            server_->l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], att_size, connection_details_ );
 
-            if ( gap_size )
+            if ( att_size )
             {
                 output.buffer[ 0 ] = lld_data_pdu_code;
-                output.buffer[ 1 ] = static_cast< std::uint8_t >( gap_size + l2cap_header_size );
-                output.buffer[ 2 ] = static_cast< std::uint8_t >( gap_size );
+                output.buffer[ 1 ] = static_cast< std::uint8_t >( att_size + l2cap_header_size );
+                output.buffer[ 2 ] = static_cast< std::uint8_t >( att_size );
                 output.buffer[ 3 ] = 0;
-                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_gap_channel );
-                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_gap_channel >> 8 );
+                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_att_channel );
+                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_att_channel >> 8 );
 
                 this->commit_transmit_buffer( output );
             }
