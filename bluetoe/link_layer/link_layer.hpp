@@ -45,6 +45,13 @@ namespace link_layer {
                 no_security_manager >::type type;
         };
 
+        template < typename ... Options >
+        struct signaling_channel {
+            typedef typename bluetoe::details::find_by_meta_type<
+                bluetoe::details::signaling_channel_meta_type,
+                Options...,
+                bluetoe::l2cap::no_signaling_channel >::type type;
+        };
 
         template < typename ... Options >
         struct mtu_size {
@@ -90,7 +97,8 @@ namespace link_layer {
             link_layer< Server, ScheduledRadio, Options... >
         >,
         public details::security_manager< Options... >::type,
-        private details::connection_callbacks< Server, Options... >::type
+        private details::connection_callbacks< Server, Options... >::type,
+        private details::signaling_channel< Options... >::type
     {
     public:
         link_layer();
@@ -127,6 +135,14 @@ namespace link_layer {
          */
         void end_event();
 
+        /**
+         * @brief initiating the change of communication parameters of an established connection
+         *
+         * If it was not possible to initiate the connection parameter update, the function returns false.
+         * @todo Add parameter that identifies the connection.
+         */
+        bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
+
     private:
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
@@ -138,6 +154,7 @@ namespace link_layer {
             typename Server::connection_data > notification_queue_t;
 
         typedef typename details::security_manager< Options... >::type security_manager_t;
+        typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
         // calculates the time point for the next advertising event
         delta_time next_adv_event();
@@ -154,6 +171,7 @@ namespace link_layer {
         void start_advertising();
         void wait_for_connection_event();
         void transmit_notifications();
+        void transmit_signaling_channel_output();
         static void lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
 
         std::uint8_t* advertising_buffer();
@@ -295,7 +313,10 @@ namespace link_layer {
         radio_t::run();
 
         if ( state_ == state::connected )
+        {
             transmit_notifications();
+            transmit_signaling_channel_output();
+        }
 
         this->handle_connection_events();
     }
@@ -420,6 +441,17 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
+    {
+        const bool result = static_cast< signaling_channel_t& >( *this ).connection_parameter_update_request( interval_min, interval_max, latency, timeout );
+
+        if ( result )
+            this->wake_up();
+
+        return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::wait_for_connection_event()
     {
         delta_time window_start;
@@ -509,6 +541,33 @@ namespace link_layer {
 
                 this->commit_transmit_buffer( out_buffer );
             }
+        }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::transmit_signaling_channel_output()
+    {
+        // first check if we have memory to transmit the message, or otherwise notifications would get lost
+        auto out_buffer = this->allocate_transmit_buffer();
+
+        if ( out_buffer.empty() )
+            return;
+
+        std::size_t out_size = out_buffer.size - all_header_size;
+        this->signaling_channel_output(
+            &out_buffer.buffer[ all_header_size ],
+            out_size );
+
+        if ( out_size )
+        {
+            out_buffer.buffer[ 0 ] = lld_data_pdu_code;
+            out_buffer.buffer[ 1 ] = static_cast< std::uint8_t >( out_size + l2cap_header_size );
+            out_buffer.buffer[ 2 ] = static_cast< std::uint8_t >( out_size );
+            out_buffer.buffer[ 3 ] = 0;
+            out_buffer.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_signaling_channel );
+            out_buffer.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 );
+
+            this->commit_transmit_buffer( out_buffer );
         }
     }
 
@@ -872,6 +931,25 @@ namespace link_layer {
                 output.buffer[ 3 ] = 0;
                 output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_sm_channel );
                 output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_sm_channel >> 8 );
+
+                this->commit_transmit_buffer( output );
+            }
+        }
+        else if ( l2cap_channel == l2cap_signaling_channel )
+        {
+            std::size_t signaling_size = output.size - all_header_size;
+
+            this->signaling_channel_input(
+                &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], signaling_size );
+
+            if ( signaling_size )
+            {
+                output.buffer[ 0 ] = lld_data_pdu_code;
+                output.buffer[ 1 ] = static_cast< std::uint8_t >( signaling_size + l2cap_header_size );
+                output.buffer[ 2 ] = static_cast< std::uint8_t >( signaling_size );
+                output.buffer[ 3 ] = 0;
+                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_signaling_channel );
+                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 );
 
                 this->commit_transmit_buffer( output );
             }

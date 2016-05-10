@@ -5,6 +5,11 @@
 #include <cstdint>
 
 namespace bluetoe {
+
+namespace details {
+    struct signaling_channel_meta_type {};
+}
+
 namespace l2cap {
 
     /**
@@ -21,12 +26,12 @@ namespace l2cap {
         /**
          * @brief input from the l2cap layer
          */
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
         /**
          * @brief output to the l2cap layer
          */
-        void l2cap_output( std::uint8_t* output, std::size_t& out_size );
+        void signaling_channel_output( std::uint8_t* output, std::size_t& out_size );
 
         /**
          * @brief queues a connection parameter update request.
@@ -36,6 +41,9 @@ namespace l2cap {
          */
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
 
+        /** @cond HIDDEN_SYMBOLS */
+        typedef bluetoe::details::signaling_channel_meta_type meta_type;
+        /** @endcond */
     private:
         void reject_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
 
@@ -58,6 +66,32 @@ namespace l2cap {
         std::uint8_t identifier_;
     };
 
+    /**
+     * @brief signaling channel implementations that does simply nothing
+     */
+    class no_signaling_channel
+    {
+    public:
+        void signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+        {
+            out_size = 0;
+        }
+
+        void signaling_channel_output( std::uint8_t* output, std::size_t& out_size )
+        {
+            out_size = 0;
+        }
+
+        bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
+        {
+            return false;
+        }
+
+        /** @cond HIDDEN_SYMBOLS */
+        typedef bluetoe::details::signaling_channel_meta_type meta_type;
+        /** @endcond */
+    };
+
     template < typename ... Options >
     signaling_channel< Options... >::signaling_channel()
         : pending_status_( idle )
@@ -66,7 +100,7 @@ namespace l2cap {
     }
 
     template < typename ... Options >
-    void signaling_channel< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    void signaling_channel< Options... >::signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         const std::uint8_t code = in_size > 0 ? input[ 0 ] : 0;
 
@@ -87,7 +121,7 @@ namespace l2cap {
     }
 
     template < typename ... Options >
-    void signaling_channel< Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size )
+    void signaling_channel< Options... >::signaling_channel_output( std::uint8_t* output, std::size_t& out_size )
     {
         static constexpr std::size_t    pdu_size = 8 + 4;
         assert( out_size >= pdu_size );
