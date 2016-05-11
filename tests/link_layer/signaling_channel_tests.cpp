@@ -11,6 +11,7 @@ struct channel : bluetoe::l2cap::signaling_channel<>
 
     void signaling_channel_input( std::initializer_list< std::uint8_t > pdu, std::initializer_list< std::uint8_t > expected )
     {
+        out_size = sizeof( buffer );
         signaling_channel::signaling_channel_input( pdu.begin(), pdu.size(), buffer, out_size );
 
         BOOST_REQUIRE_EQUAL_COLLECTIONS( expected.begin(), expected.end(), &buffer[ 0 ], &buffer[ out_size ] );
@@ -18,6 +19,7 @@ struct channel : bluetoe::l2cap::signaling_channel<>
 
     void signaling_channel_output( std::initializer_list< std::uint8_t > expected )
     {
+        out_size = sizeof( buffer );
         signaling_channel::signaling_channel_output( buffer, out_size );
         BOOST_REQUIRE_EQUAL_COLLECTIONS( expected.begin(), expected.end(), &buffer[ 0 ], &buffer[ out_size ] );
     }
