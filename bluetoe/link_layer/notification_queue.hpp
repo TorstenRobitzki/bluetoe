@@ -136,8 +136,8 @@ namespace link_layer {
         {
         }
 
-        void queue_notification( std::size_t index ) {}
-        void queue_indication( std::size_t index ) {}
+        bool queue_notification( std::size_t index ) { return false; }
+        bool queue_indication( std::size_t index ) { return false; }
         void indication_confirmed() {}
 
         enum entry_type {

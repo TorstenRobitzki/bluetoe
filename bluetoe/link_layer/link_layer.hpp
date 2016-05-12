@@ -588,6 +588,8 @@ namespace link_layer {
                 return true;
                 break;
         }
+
+        return true;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
