@@ -184,8 +184,8 @@ namespace link_layer {
         };
 
         ll_result handle_received_data();
-        ll_result handle_ll_control_data( const write_buffer& pdu );
-        ll_result handle_l2cap( const write_buffer& pdu );
+        ll_result handle_ll_control_data( const write_buffer& pdu, read_buffer output );
+        ll_result handle_l2cap( const write_buffer& pdu, const read_buffer& output );
         ll_result handle_pending_ll_control();
 
         connection_details details() const;
@@ -783,16 +783,28 @@ namespace link_layer {
 
         if ( defered_ll_control_pdu_.empty() )
         {
-            for ( auto pdu = this->next_received(); pdu.size != 0; this->free_received(), pdu = this->next_received() )
+            for ( auto pdu = this->next_received(); pdu.size != 0; )
             {
-                const auto llid = pdu.buffer[ 0 ] & 0x03;
-                if ( llid == ll_control_pdu_code )
+                auto output = this->allocate_transmit_buffer();
+
+                if ( output.size )
                 {
-                    result = handle_ll_control_data( pdu );
+                    const auto llid = pdu.buffer[ 0 ] & 0x03;
+                    if ( llid == ll_control_pdu_code )
+                    {
+                        result = handle_ll_control_data( pdu, output );
+                    }
+                    else if ( llid == lld_data_pdu_code )
+                    {
+                        result = handle_l2cap( pdu, output );
+                    }
+
+                    this->free_received();
+                    pdu = this->next_received();
                 }
-                else if ( llid == lld_data_pdu_code )
+                else
                 {
-                    result = handle_l2cap( pdu );
+                    pdu.size = 0;
                 }
             }
         }
@@ -801,15 +813,10 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_ll_control_data( const write_buffer& pdu )
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_ll_control_data( const write_buffer& pdu, read_buffer write )
     {
         ll_result result = ll_result::go_ahead;
         bool      commit = true;
-
-        // the allocated size could be optimized to the required size for the answer
-        auto write = this->allocate_transmit_buffer();
-        if ( write.size == 0 )
-            return result;
 
         assert( write.size >= radio_t::min_buffer_size );
 
@@ -888,7 +895,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& input )
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& input, const read_buffer& output )
     {
         const std::uint8_t  pdu_size      = input.buffer[ 1 ];
         const std::uint16_t l2cap_size    = read_16( &input.buffer[ 2 ] );
@@ -896,11 +903,6 @@ namespace link_layer {
 
         if ( pdu_size - l2cap_header_size != l2cap_size )
             return ll_result::disconnect;
-
-        auto output = this->allocate_transmit_buffer();
-
-        if ( output.empty() )
-            return ll_result::go_ahead;
 
         if ( l2cap_channel == l2cap_att_channel )
         {
