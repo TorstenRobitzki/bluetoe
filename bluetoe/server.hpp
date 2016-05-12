@@ -146,9 +146,11 @@ namespace bluetoe {
         }
         @endcode
 
+         * @return The function will return false, if the given notification was ignored, because the
+         *         characteristic is already queued for notification, but not yet send out.
          */
         template < class T >
-        void notify( const T& value );
+        bool notify( const T& value );
 
         /**
          * Notify a characteristic, by giving the characteristic UUID.
@@ -180,25 +182,35 @@ namespace bluetoe {
         }
         @endcode
 
+         * @return The function will return false, if the given notification was ignored, because the
+         *         characteristic is already queued for notification, but not yet send out.
          */
         template < class CharacteristicUUID >
-        void notify();
+        bool notify();
 
         /**
          * @brief sends indications to all connceted clients.
          *
          * The function is mostly similar to notify(). Instead of an ATT notification, an ATT indication is send.
+         *
+         * @return The function will return false, if the given indication was ignored, because the
+         *         characteristic is already queued for indication, but not yet send out or the confirmation
+         *         to a previous send out indication of this characteristic was not received yet.
          */
         template < class T >
-        void indicate( const T& value );
+        bool indicate( const T& value );
 
         /**
          * @brief sends indications to all connceted clients.
          *
          * The function is mostly similar to notify(). Instead of aa ATT notification, an ATT indication is send.
+         *
+         * @return The function will return false, if the given indication was ignored, because the
+         *         characteristic is already queued for indication, but not yet send out or the confirmation
+         *         to a previous send out indication of this characteristic was not received yet.
          */
         template < class CharacteristicUUID >
-        void indicate();
+        bool indicate();
 
         /** @cond HIDDEN_SYMBOLS */
         // function relevant only for l2cap layers
@@ -219,7 +231,7 @@ namespace bluetoe {
             confirmation
         };
 
-        typedef void (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, notification_type type );
+        typedef bool (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, notification_type type );
 
         /**
          * @brief sets the callback for the l2cap layer to receive notifications and indications
@@ -498,7 +510,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < class T >
-    void server< Options... >::notify( const T& value )
+    bool server< Options... >::notify( const T& value )
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
@@ -506,12 +518,14 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( data, l2cap_arg_, notification );
+            return l2cap_cb_( data, l2cap_arg_, notification );
+
+        return false;
     }
 
     template < typename ... Options >
     template < class CharacteristicUUID >
-    void server< Options... >::notify()
+    bool server< Options... >::notify()
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
@@ -521,12 +535,14 @@ namespace bluetoe {
         static_assert( characteristic::has_notification, "Characteristic must be configured for notification!" );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, notification );
+            return l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, notification );
+
+        return false;
     }
 
     template < typename ... Options >
     template < class T >
-    void server< Options... >::indicate( const T& value )
+    bool server< Options... >::indicate( const T& value )
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
@@ -534,12 +550,14 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( data, l2cap_arg_, indication );
+            return l2cap_cb_( data, l2cap_arg_, indication );
+
+        return false;
     }
 
     template < typename ... Options >
     template < class CharacteristicUUID >
-    void server< Options... >::indicate()
+    bool server< Options... >::indicate()
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
@@ -549,7 +567,9 @@ namespace bluetoe {
         static_assert( characteristic::has_indication, "Characteristic must be configured for indication!" );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, indication );
+            return l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, indication );
+
+        return false;
     }
 
     template < typename ... Options >

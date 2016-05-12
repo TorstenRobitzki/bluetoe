@@ -172,7 +172,7 @@ namespace link_layer {
         void wait_for_connection_event();
         void transmit_notifications();
         void transmit_signaling_channel_output();
-        static void lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
+        static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
 
         std::uint8_t* advertising_buffer();
         std::uint8_t* advertising_response_buffer();
@@ -572,19 +572,20 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type )
+    bool link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type )
     {
         auto& confirmation_queue = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( usr_arg )->connection_details_;
         switch ( type )
         {
             case Server::notification:
-                confirmation_queue.queue_notification( item.client_characteristic_configuration_index() );
+                return confirmation_queue.queue_notification( item.client_characteristic_configuration_index() );
                 break;
             case Server::indication:
-                confirmation_queue.queue_indication( item.client_characteristic_configuration_index() );
+                return confirmation_queue.queue_indication( item.client_characteristic_configuration_index() );
                 break;
             case Server::confirmation:
                 confirmation_queue.indication_confirmed();
+                return true;
                 break;
         }
     }

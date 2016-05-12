@@ -21,29 +21,29 @@ BOOST_AUTO_TEST_SUITE( notifications )
 
     BOOST_FIXTURE_TEST_CASE( adding_one_notification, queue17 )
     {
-        queue_notification( 12u );
+        BOOST_CHECK( queue_notification( 12u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 12u } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( dequed_elements_are_removed, queue17 )
     {
-        queue_notification( 12u );
+        BOOST_CHECK( queue_notification( 12u ) );
         dequeue_indication_or_confirmation();
         BOOST_CHECK( dequeue_indication_or_confirmation().first == empty );
     }
 
     BOOST_FIXTURE_TEST_CASE( adding_two_notification, queue17 )
     {
-        queue_notification( 12u );
-        queue_notification( 16u );
+        BOOST_CHECK( queue_notification( 12u ) );
+        BOOST_CHECK( queue_notification( 16u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 12u } ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 16u } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( adding_notification_twice, queue17 )
     {
-        queue_notification( 12u );
-        queue_notification( 12u );
+        BOOST_CHECK( queue_notification( 12u ) );
+        BOOST_CHECK( !queue_notification( 12u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 12u } ) );
         BOOST_CHECK( dequeue_indication_or_confirmation().first == empty );
     }
@@ -53,20 +53,20 @@ BOOST_AUTO_TEST_SUITE( notifications )
      */
     BOOST_FIXTURE_TEST_CASE( queue_like, queue17 )
     {
-        queue_notification( 12u );
-        queue_notification( 16u );
+        BOOST_CHECK( queue_notification( 12u ) );
+        BOOST_CHECK( queue_notification( 16u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 12u } ) );
 
-        queue_notification( 12u );
+        BOOST_CHECK( queue_notification( 12u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 16u } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( wrap_around, queue17 )
     {
-        queue_notification( 16u );
+        BOOST_CHECK( queue_notification( 16u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 16u } ) );
 
-        queue_notification( 0u );
+        BOOST_CHECK( queue_notification( 0u ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 0u } ) );
 
         BOOST_CHECK( dequeue_indication_or_confirmation().first == empty );
@@ -78,23 +78,23 @@ BOOST_AUTO_TEST_SUITE( indications )
 
     BOOST_FIXTURE_TEST_CASE( queue_an_indication, queue3 )
     {
-        queue_indication( 2 );
+        BOOST_CHECK( queue_indication( 2 ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 2u } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( mixed_notification_and_indications, queue3 )
     {
-        queue_notification( 2 );
-        queue_indication( 2 );
+        BOOST_CHECK( queue_notification( 2 ) );
+        BOOST_CHECK( queue_indication( 2 ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 2u } ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 2u } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( no_indication_until_confirmed, queue17 )
     {
-        queue_notification( 12u );
-        queue_indication( 2u );
-        queue_indication( 16u );
+        BOOST_CHECK( queue_notification( 12u ) );
+        BOOST_CHECK( queue_indication( 2u ) );
+        BOOST_CHECK( queue_indication( 16u ) );
 
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 2u } ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 12u } ) );
@@ -102,6 +102,19 @@ BOOST_AUTO_TEST_SUITE( indications )
 
         indication_confirmed();
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 16u } ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( double_indication_recognized, queue17 )
+    {
+        BOOST_CHECK( queue_indication( 16u ) );
+        BOOST_CHECK( !queue_indication( 16u ) );
+
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 16u } ) );
+
+        BOOST_CHECK( !queue_indication( 16u ) );
+        indication_confirmed();
+
+        BOOST_CHECK( queue_indication( 16u ) );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -116,8 +129,8 @@ BOOST_AUTO_TEST_SUITE( clearing )
 
     BOOST_FIXTURE_TEST_CASE( clear_all, queue3 )
     {
-        queue_notification( 2 );
-        queue_indication( 2 );
+        BOOST_CHECK( queue_notification( 2 ) );
+        BOOST_CHECK( queue_indication( 2 ) );
 
         clear_indications_and_confirmations();
         BOOST_CHECK( dequeue_indication_or_confirmation().first == empty );
@@ -125,12 +138,12 @@ BOOST_AUTO_TEST_SUITE( clearing )
 
     BOOST_FIXTURE_TEST_CASE( clear_outstanding_confirmation, queue3 )
     {
-        queue_indication( 2 );
+        BOOST_CHECK( queue_indication( 2 ) );
         BOOST_REQUIRE( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 2u } ) );
 
         clear_indications_and_confirmations();
 
-        queue_indication( 2 );
+        BOOST_CHECK( queue_indication( 2 ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 2u } ) );
     }
 
