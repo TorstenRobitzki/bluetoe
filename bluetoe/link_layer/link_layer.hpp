@@ -361,7 +361,7 @@ namespace link_layer {
                 connection_interval_ );
 
             this->connection_request( connection_addresses( address_, address( &receive.buffer[ 2 ] ) ) );
-            connection_details_.clear_indications_and_confirmations();
+            connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
         }
         else
         {
