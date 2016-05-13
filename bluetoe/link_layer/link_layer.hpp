@@ -143,6 +143,13 @@ namespace link_layer {
          */
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
 
+        /**
+         * @brief terminates the give connection
+         *
+         * @todo Add parameter that identifies the connection.
+         */
+        void disconnect();
+
     private:
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
@@ -167,7 +174,7 @@ namespace link_layer {
         bool check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const;
         bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
         bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
-        void disconnect();
+        void force_disconnect();
         void start_advertising();
         void wait_for_connection_event();
         void transmit_notifications();
@@ -184,6 +191,7 @@ namespace link_layer {
         };
 
         ll_result handle_received_data();
+        ll_result send_control_pdus();
         ll_result handle_ll_control_data( const write_buffer& pdu, read_buffer output );
         ll_result handle_l2cap( const write_buffer& pdu, const read_buffer& output );
         ll_result handle_pending_ll_control();
@@ -258,6 +266,7 @@ namespace link_layer {
         unsigned                        max_timeouts_til_connection_lost_;
         Server*                         server_;
         notification_queue_t            connection_details_;
+        bool                            termination_send_;
 
         enum class state
         {
@@ -265,7 +274,8 @@ namespace link_layer {
             advertising,
             connecting,
             connection_update,
-            connected
+            connected,
+            disconnecting
         }                               state_;
 
         // default configuration parameters
@@ -391,7 +401,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::timeout()
     {
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update);
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
 
         if ( timeouts_til_connection_lost_ )
         {
@@ -402,7 +412,7 @@ namespace link_layer {
 
             if ( handle_pending_ll_control() == ll_result::disconnect )
             {
-                disconnect();
+                force_disconnect();
             }
             else
             {
@@ -411,28 +421,32 @@ namespace link_layer {
         }
         else
         {
-            disconnect();
+            force_disconnect();
         }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::end_event()
     {
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
 
         if ( state_ == state::connecting )
         {
             this->connection_established( details(), connection_details_, static_cast< radio_t& >( *this ) );
         }
 
-        state_                        = state::connected;
+        if ( state_ != state::disconnecting )
+        {
+            state_                        = state::connected;
+            timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
+        }
+
         current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
-        timeouts_til_connection_lost_ = max_timeouts_til_connection_lost_;
         ++conn_event_counter_;
 
-        if( handle_received_data() == ll_result::disconnect )
+        if( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
         {
-            disconnect();
+            force_disconnect();
         }
         else
         {
@@ -449,6 +463,13 @@ namespace link_layer {
             this->wake_up();
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::disconnect()
+    {
+        state_            = state::disconnecting;
+        termination_send_ = false;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -728,7 +749,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::disconnect()
+    void link_layer< Server, ScheduledRadio, Options... >::force_disconnect()
     {
         this->connection_closed( connection_details_, static_cast< radio_t& >( *this ) );
 
@@ -794,7 +815,7 @@ namespace link_layer {
                     {
                         result = handle_ll_control_data( pdu, output );
                     }
-                    else if ( llid == lld_data_pdu_code )
+                    else if ( llid == lld_data_pdu_code && state_ != state::disconnecting )
                     {
                         result = handle_l2cap( pdu, output );
                     }
@@ -810,6 +831,30 @@ namespace link_layer {
         }
 
         return result;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::send_control_pdus()
+    {
+        static constexpr std::uint8_t connection_terminated_by_local_host = 0x16;
+
+        if ( state_ == state::disconnecting && !termination_send_ )
+        {
+            auto output = this->allocate_transmit_buffer();
+
+            if ( output.size )
+            {
+                output.fill( {
+                    ll_control_pdu_code, 2,
+                    LL_TERMINATE_IND, connection_terminated_by_local_host
+                } );
+
+                this->commit_transmit_buffer( output );
+                termination_send_ = true;
+            }
+        }
+
+        return ll_result::go_ahead;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

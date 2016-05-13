@@ -100,7 +100,7 @@ This is the current state of the Link Layer implementation:
 
 Aspect | Feature | Status
 -------|---------|--------
-Roles|Slave Role|under construction
+Roles|Slave Role|implemented
  |Master Role|not planned
 Advertising|connectable undirected advertising|implemented
  |connectable directed advertising|planned
