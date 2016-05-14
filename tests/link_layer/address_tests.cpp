@@ -111,3 +111,29 @@ BOOST_AUTO_TEST_CASE( a_random_address_is_an_address )
     BOOST_CHECK_EQUAL( addr, bluetoe::link_layer::address( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } ) );
 }
 
+BOOST_AUTO_TEST_CASE( random_and_public_address_are_not_equal )
+{
+    bluetoe::link_layer::random_device_address addr1( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+    bluetoe::link_layer::public_device_address addr2( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+
+    BOOST_CHECK_NE( addr1, addr2 );
+    BOOST_CHECK( !( addr1 == addr2 ) );
+}
+
+BOOST_AUTO_TEST_CASE( random_addresses_are_equal )
+{
+    bluetoe::link_layer::random_device_address addr1( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+    bluetoe::link_layer::random_device_address addr2( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+
+    BOOST_CHECK_EQUAL( addr1, addr2 );
+    BOOST_CHECK( !( addr1 != addr2 ) );
+}
+
+BOOST_AUTO_TEST_CASE( public_addresses_are_equal )
+{
+    bluetoe::link_layer::public_device_address addr1( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+    bluetoe::link_layer::public_device_address addr2( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+
+    BOOST_CHECK_EQUAL( addr1, addr2 );
+    BOOST_CHECK( !( addr1 != addr2 ) );
+}

@@ -109,7 +109,7 @@ namespace link_layer {
          *
          * Only if this value is not zero, the radio have to implement the white list related functions.
          */
-        static constexpr std::size_t white_list_entries = 4;
+        static constexpr std::size_t radio_maximum_white_list_entries = 4;
 
         /**
          * @brief add the given address to the white list.
@@ -119,7 +119,7 @@ namespace link_layer {
          * If there was not enough room to add the address to the white list, the function
          * returns false.
          */
-        bool add_to_white_list( const device_address& addr );
+        bool radio_add_to_white_list( const device_address& addr );
 
         /**
          * @brief remove the given address from the white list
@@ -127,18 +127,18 @@ namespace link_layer {
          * The function returns true, if the address was in the list.
          * @post addr is not in the white list.
          */
-        bool remove_from_white_list( const device_address& addr );
+        bool radio_remove_from_white_list( const device_address& addr );
 
         /**
          * @brief returns true, if the given address in within the white list
          */
-        bool is_in_white_list( const device_address& addr ) const;
+        bool radio_is_in_white_list( const device_address& addr ) const;
 
         /**
          * @brief returns the number of addresses that could be added to the
          *        white list before add_to_white_list() would return false.
          */
-        std::size_t white_list_free_size() const;
+        std::size_t radio_white_list_free_size() const;
 
         /**
          * @brief activate/deactivate the white list.
@@ -146,7 +146,7 @@ namespace link_layer {
          * If the white list is active, only scan request and connection requests with addresses in the white list
          * are supported. Make sure, the white list is only active, when waiting in advertising mode!
          */
-        void activate_white_list( bool white_list_is_active );
+        void radio_activate_white_list( bool white_list_is_active );
     };
 }
 

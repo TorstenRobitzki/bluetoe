@@ -116,6 +116,19 @@ namespace link_layer {
             return !is_random_;
         }
 
+        using address::operator==;
+        using address::operator!=;
+
+        /**
+         * @brief returns true, if this device address is the same as the rhs device address
+         */
+        bool operator==( const device_address& rhs ) const;
+
+        /**
+         * @brief returns false, if this device address is the same as the rhs device address
+         */
+        bool operator!=( const device_address& rhs ) const;
+
     protected:
         device_address( const std::initializer_list< std::uint8_t >& initial_values, bool is_random )
             : address( initial_values )

@@ -9,6 +9,7 @@
 #include <bluetoe/link_layer/notification_queue.hpp>
 #include <bluetoe/link_layer/connection_callbacks.hpp>
 #include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
+#include <bluetoe/link_layer/white_list.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/sm/security_manager.hpp>
@@ -73,6 +74,17 @@ namespace link_layer {
 
             typedef typename callbacks::template impl< Server > type;
         };
+
+        template < typename Radio, typename ... Options >
+        struct white_list
+        {
+            typedef typename bluetoe::details::find_by_meta_type<
+                white_list_meta_type,
+                Options...,
+                no_white_list >::type list;
+
+            typedef typename list::template impl< Radio > type;
+        };
     }
 
     /**
@@ -97,6 +109,13 @@ namespace link_layer {
             link_layer< Server, ScheduledRadio, Options... >
         >,
         public details::security_manager< Options... >::type,
+        public details::white_list<
+            ScheduledRadio<
+                details::buffer_sizes< Options... >::tx_size,
+                details::buffer_sizes< Options... >::rx_size,
+                link_layer< Server, ScheduledRadio, Options... >
+            >,
+            Options... >::type,
         private details::connection_callbacks< Server, Options... >::type,
         private details::signaling_channel< Options... >::type
     {
