@@ -68,3 +68,46 @@ BOOST_AUTO_TEST_CASE( implements_iterator_access )
 
     BOOST_CHECK_EQUAL_COLLECTIONS( a.begin(), a.end(), std::begin( exepect_values ), std::end( exepect_values ) );
 }
+
+BOOST_AUTO_TEST_CASE( a_default_contructed_public_address_is_public )
+{
+    bluetoe::link_layer::public_device_address addr;
+    BOOST_CHECK( addr.is_public() );
+    BOOST_CHECK( !addr.is_random() );
+}
+
+BOOST_AUTO_TEST_CASE( a_public_address_is_public )
+{
+    bluetoe::link_layer::public_device_address addr( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+    BOOST_CHECK( addr.is_public() );
+    BOOST_CHECK( !addr.is_random() );
+}
+
+BOOST_AUTO_TEST_CASE( a_public_address_is_an_address )
+{
+    bluetoe::link_layer::public_device_address addr( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+
+    BOOST_CHECK_EQUAL( addr, bluetoe::link_layer::address( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } ) );
+}
+
+BOOST_AUTO_TEST_CASE( a_default_contructed_random_address_is_random )
+{
+    bluetoe::link_layer::random_device_address addr;
+    BOOST_CHECK( !addr.is_public() );
+    BOOST_CHECK( addr.is_random() );
+}
+
+BOOST_AUTO_TEST_CASE( a_random_address_is_random )
+{
+    bluetoe::link_layer::random_device_address addr( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+    BOOST_CHECK( !addr.is_public() );
+    BOOST_CHECK( addr.is_random() );
+}
+
+BOOST_AUTO_TEST_CASE( a_random_address_is_an_address )
+{
+    bluetoe::link_layer::random_device_address addr( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
+
+    BOOST_CHECK_EQUAL( addr, bluetoe::link_layer::address( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } ) );
+}
+
