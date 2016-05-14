@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <bluetoe/link_layer/buffer.hpp>
+#include <bluetoe/link_layer/address.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -12,7 +13,7 @@ namespace link_layer {
     class read_buffer;
 
     /*
-     * @brief Type responsible for radio I/O and timeing
+     * @brief Type responsible for radio I/O and timing
      *
      * The API provides a set of scheduling functions, to schedule advertising or to schedule connection events. All scheduling functions take a point in time
      * to switch on the receiver / transmitter and to transmit and to receive. This points are defined as relative offsets to a previous point in time T0. The
@@ -33,7 +34,7 @@ namespace link_layer {
          *
          * The function will return immediately. Depending on whether a response is received or the receiving times out,
          * CallBack::adv_received() or CallBack::adv_timeout() is called. In both cases, every following call to a scheduling
-         * function is based on the time, the tranmision was scheduled. So the new T0 = T0 + when. In case of a CRC error,
+         * function is based on the time, the transmission was scheduled. So the new T0 = T0 + when. In case of a CRC error,
          * CallBack::adv_timeout() will be called immediately .
          *
          * This function is intended to be used for sending advertising PDUs. If the given receive buffer is empty, the timeout callback
@@ -56,7 +57,7 @@ namespace link_layer {
          * The function will return immediately and schedule the receiver to start at start_receive.
          * CallBack::timeout() is called when between start_receive and end_receive no valid pdu is received. The new T0 is then the old T0.
          * CallBack::end_event() is called when the connection event is over. The new T0 is the time point where the first PDU was
-         * reveived from the Master.
+         * received from the Master.
          *
          * In any case is one (and only one) of the callbacks called (timeout(), end_event()). The context of the callback call is run().
          *
@@ -77,7 +78,7 @@ namespace link_layer {
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
         /**
-         * @brief function to return a device specific value that is persistant and unique for the device (CPU id or such)
+         * @brief function to return a device specific value that is persistent and unique for the device (CPU id or such)
          */
         std::uint32_t static_random_address_seed() const;
 
@@ -85,7 +86,7 @@ namespace link_layer {
          * @brief allocates the CPU to the scheduled_radio
          *
          * All callbacks given by the CallBack parameter are called from within this CPU context.
-         * The function will return from time to time, when an external event happend. It's up to concrete
+         * The function will return from time to time, when an external event happed. It's up to concrete
          * implementations to identify and to define situations where the CPU should be released back to the
          * calling application.
          */
@@ -102,6 +103,50 @@ namespace link_layer {
          * @brief type to allow ll_data_pdu_buffer to synchronize the access to the buffer data structures.
          */
         class lock_guard;
+
+        /**
+         * @brief giving the maximum number of white list entries, the scheduled radio supports by hardware
+         *
+         * Only if this value is not zero, the radio have to implement the white list related functions.
+         */
+        static constexpr std::size_t white_list_entries = 4;
+
+        /**
+         * @brief add the given address to the white list.
+         *
+         * Function will return true, if it was possible to add the address to the white list
+         * or if the address was already in the white list.
+         * If there was not enough room to add the address to the white list, the function
+         * returns false.
+         */
+        bool add_to_white_list( const device_address& addr );
+
+        /**
+         * @brief remove the given address from the white list
+         *
+         * The function returns true, if the address was in the list.
+         * @post addr is not in the white list.
+         */
+        bool remove_from_white_list( const device_address& addr );
+
+        /**
+         * @brief returns true, if the given address in within the white list
+         */
+        bool is_in_white_list( const device_address& addr ) const;
+
+        /**
+         * @brief returns the number of addresses that could be added to the
+         *        white list before add_to_white_list() would return false.
+         */
+        std::size_t white_list_free_size() const;
+
+        /**
+         * @brief activate/deactivate the white list.
+         *
+         * If the white list is active, only scan request and connection requests with addresses in the white list
+         * are supported. Make sure, the white list is only active, when waiting in advertising mode!
+         */
+        void activate_white_list( bool white_list_is_active );
     };
 }
 
