@@ -61,8 +61,34 @@ public:
         return std::find( list_.begin(), end, addr ) != end;
     }
 
-    void radio_activate_white_list( bool white_list_is_active )
+    void radio_connection_request_filter( bool b )
     {
+        connection_request_filter_ = b;
+    }
+
+    bool radio_connection_request_filter() const
+    {
+        return connection_request_filter_;
+    }
+
+    void radio_scan_request_filter( bool b )
+    {
+        scan_request_filter_ = b;
+    }
+
+    bool radio_scan_request_filter() const
+    {
+        return scan_request_filter_;
+    }
+
+    bool radio_is_connection_request_in_filter( const bluetoe::link_layer::device_address& addr ) const
+    {
+        return !connection_request_filter_ || radio_is_in_white_list( addr );
+    }
+
+    bool radio_is_scan_request_in_filter( const bluetoe::link_layer::device_address& addr ) const
+    {
+        return !scan_request_filter_ || radio_is_in_white_list( addr );
     }
 
 private:
@@ -73,6 +99,8 @@ private:
 
     std::array< bluetoe::link_layer::device_address, Size > list_;
     std::size_t                                             free_size_;
+    bool                                                    connection_request_filter_;
+    bool                                                    scan_request_filter_;
 };
 
 /*
@@ -191,23 +219,58 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( remove_from_list, T, test_types )
 BOOST_AUTO_TEST_CASE_TEMPLATE( activate_white_list_function_exists, T, test_types )
 {
     T white_list;
-    white_list.activate_white_list( true );
+    white_list.connection_request_filter( true );
+    white_list.scan_request_filter( true );
 }
 
-BOOST_FIXTURE_TEST_CASE( filtered_, only_software )
+BOOST_FIXTURE_TEST_CASE( all_connection_requests_are_in_filter_by_default, only_software )
 {
-    BOOST_CHECK( filtered( addr1 ) );
+    BOOST_CHECK( !connection_request_filter() );
+    BOOST_CHECK( is_connection_request_in_filter( addr1 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( filtered_activated_not_in_list, only_software )
+BOOST_FIXTURE_TEST_CASE( activation_connection_request_filter, only_software )
 {
-    activate_white_list( true );
-    BOOST_CHECK( !filtered( addr1 ) );
+    connection_request_filter( true );
+    BOOST_CHECK( !is_connection_request_in_filter( addr1 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( filtered_activated, only_software )
+BOOST_FIXTURE_TEST_CASE( deactivation_connection_request_filter, only_software )
 {
-    activate_white_list( true );
+    connection_request_filter( true );
+    connection_request_filter( false );
+    BOOST_CHECK( is_connection_request_in_filter( addr1 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( address_in_activated_connection_filter, only_software )
+{
+    connection_request_filter( true );
     add_to_white_list( addr1 );
-    BOOST_CHECK( filtered( addr1 ) );
+    BOOST_CHECK( is_connection_request_in_filter( addr1 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( all_scan_requests_are_in_filter_by_default, only_software )
+{
+    BOOST_CHECK( !scan_request_filter() );
+    BOOST_CHECK( is_scan_request_in_filter( addr1 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( activation_scan_request_filter, only_software )
+{
+    scan_request_filter( true );
+    BOOST_CHECK( !is_scan_request_in_filter( addr1 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( deactivation_scan_request_filter, only_software )
+{
+    scan_request_filter( true );
+    scan_request_filter( false );
+    BOOST_CHECK( is_scan_request_in_filter( addr1 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( address_in_activated_scan_filter, only_software )
+{
+    scan_request_filter( true );
+    add_to_white_list( addr1 );
+    BOOST_CHECK( is_scan_request_in_filter( addr1 ) );
 }

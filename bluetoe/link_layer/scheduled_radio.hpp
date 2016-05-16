@@ -141,12 +141,50 @@ namespace link_layer {
         std::size_t radio_white_list_free_size() const;
 
         /**
-         * @brief activate/deactivate the white list.
+         * @brief Accept connection requests only from devices within the white list.
          *
-         * If the white list is active, only scan request and connection requests with addresses in the white list
-         * are supported. Make sure, the white list is only active, when waiting in advertising mode!
+         * If the property is set to true, only connection requests from from devices
+         * that are in the white list, should be answered.
+         * If the property is set to false, all connection requests should be answered.
+         *
+         * The default value of the is property is false.
+         *
+         * @post connection_request_filter() == b
+         * @sa connection_request_filter()
          */
-        void radio_activate_white_list( bool white_list_is_active );
+        void connection_request_filter( bool b );
+
+        /**
+         * @brief current value of the property.
+         */
+        bool connection_request_filter() const;
+
+        /**
+         * @brief Accept scan requests only from devices within the white list.
+         *
+         * If the property is set to true, only scan requests from from devices
+         * that are in the white list, should be answered.
+         * If the property is set to false, all scan requests should be answered.
+         *
+         * @post radio_scan_request_filter() == b
+         * @sa radio_scan_request_filter()
+         */
+        void radio_scan_request_filter( bool b );
+
+        /**
+         * @brief current value of the property.
+         */
+        bool radio_scan_request_filter() const;
+
+        /**
+         * @brief returns true, if a connection request from the given address should be answered.
+         */
+        bool radio_is_connection_request_in_filter( const device_address& addr ) const;
+
+        /**
+         * @brief returns true, if a scan request from the given address should be answered.
+         */
+        bool radio_is_scan_request_in_filter( const device_address& addr ) const;
     };
 }
 

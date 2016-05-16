@@ -19,6 +19,10 @@ namespace link_layer {
      * @brief adds a white list to the link layer with white list related functions.
      *
      * @tparam Size the maximum number of device addresses, the white list will contain.
+     *
+     * @note the functions is_connection_request_in_filter() and is_scan_request_in_filter() might
+     *       return always true, for a hardware implementation and the hardware would then not
+     *       call the receive callback for devices that are not within the white list.
      */
     template < std::size_t Size = 8 >
     class white_list
@@ -63,17 +67,52 @@ namespace link_layer {
         std::size_t white_list_free_size() const;
 
         /**
-         * @brief activate/deactivate the white list.
+         * @brief Accept connection requests only from devices within the white list.
          *
-         * If the white list is active, only scan request and connection requests with addresses in the white list
-         * are supported. Make sure, the white list is only active, when waiting in advertising mode!
+         * If the property is set to true, only connection requests from from devices
+         * that are in the white list, should be answered.
+         * If the property is set to false, all connection requests should be answered.
+         *
+         * The default value of the is property is false.
+         *
+         * @post connection_request_filter() == b
+         * @sa connection_request_filter()
          */
-        void activate_white_list( bool white_list_is_active );
+        void connection_request_filter( bool b );
 
         /**
-         * @brief returns true, if the white list is active and the addr is in the list, or if the white list is not active
+         * @brief current value of the property.
          */
-        bool filtered( const device_address& addr ) const;
+        bool connection_request_filter() const;
+
+        /**
+         * @brief Accept scan requests only from devices within the white list.
+         *
+         * If the property is set to true, only scan requests from from devices
+         * that are in the white list, should be answered.
+         * If the property is set to false, all scan requests should be answered.
+         *
+         * The default value of the is property is false.
+         *
+         * @post scan_request_filter() == b
+         * @sa scan_request_filter()
+         */
+        void scan_request_filter( bool b );
+
+        /**
+         * @brief current value of the property.
+         */
+        bool scan_request_filter() const;
+
+        /**
+         * @brief returns true, if a connection request from the given address should be answered.
+         */
+        bool is_connection_request_in_filter( const device_address& addr ) const;
+
+        /**
+         * @brief returns true, if a scan request from the given address should be answered.
+         */
+        bool is_scan_request_in_filter( const device_address& addr ) const;
 
         /** @cond HIDDEN_SYMBOLS */
         typedef details::white_list_meta_type meta_type;
@@ -120,6 +159,8 @@ namespace link_layer {
             white_list_implementation()
                 : active_( false )
                 , free_size_( Size )
+                , connection_filter_( false )
+                , scan_filter_( false )
             {
             }
 
@@ -161,20 +202,42 @@ namespace link_layer {
                 return true;
             }
 
-            void activate_white_list( bool white_list_is_active )
+            void connection_request_filter( bool b )
             {
-                active_ = true;
+                connection_filter_ = b;
             }
 
-            bool filtered( const device_address& addr ) const
+            bool connection_request_filter() const
             {
-                return !active_ || is_in_white_list( addr );
+                return connection_filter_;
+            }
+
+            void scan_request_filter( bool b )
+            {
+                scan_filter_ = b;
+            }
+
+            bool scan_request_filter() const
+            {
+                return scan_filter_;
+            }
+
+            bool is_connection_request_in_filter( const device_address& addr ) const
+            {
+                return !connection_filter_ || is_in_white_list( addr );
+            }
+
+            bool is_scan_request_in_filter( const device_address& addr ) const
+            {
+                return !scan_filter_ || is_in_white_list( addr );
             }
 
         private:
             bool            active_;
             std::size_t     free_size_;
             device_address  addresses_[ Size ];
+            bool            connection_filter_;
+            bool            scan_filter_;
         };
 
         /**
@@ -206,14 +269,34 @@ namespace link_layer {
                 return this_to_radio().radio_remove_from_white_list( addr );
             }
 
-            void activate_white_list( bool white_list_is_active )
+            void connection_request_filter( bool b )
             {
-                this_to_radio().radio_activate_white_list( white_list_is_active );
+                this_to_radio().radio_connection_request_filter( b );
             }
 
-            bool filtered( const device_address& addr ) const
+            bool connection_request_filter() const
             {
-                return true;
+                return this_to_radio().radio_connection_request_filter();
+            }
+
+            void scan_request_filter( bool b )
+            {
+                this_to_radio().radio_scan_request_filter( b );
+            }
+
+            bool scan_request_filter() const
+            {
+                return this_to_radio().radio_scan_request_filter();
+            }
+
+            bool is_connection_request_in_filter( const device_address& addr ) const
+            {
+                return this_to_radio().radio_is_connection_request_in_filter( addr );
+            }
+
+            bool is_scan_request_in_filter( const device_address& addr ) const
+            {
+                return this_to_radio().radio_is_scan_request_in_filter( addr );
             }
         private:
             Radio& this_to_radio()
