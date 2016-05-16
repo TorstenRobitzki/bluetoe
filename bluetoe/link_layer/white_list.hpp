@@ -142,7 +142,7 @@ namespace link_layer {
      */
     struct no_white_list {
         /** @cond HIDDEN_SYMBOLS */
-        template < class Radio >
+        template < class Radio, class LinkLayer >
         struct impl {
         };
 

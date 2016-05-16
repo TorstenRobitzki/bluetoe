@@ -80,24 +80,24 @@ namespace link_layer {
     public:
         connection_addresses() = default;
 
-        connection_addresses( const address& local, const address& remote );
+        connection_addresses( const device_address& local, const device_address& remote );
         /**
          * @brief remote device address
          *
          * The remote device address of the given connection.
          */
-        const address& remote_address() const;
+        const device_address& remote_address() const;
 
         /**
          * @brief local device address
          *
          * The local device address of the given connection.
          */
-        const address& local_address() const;
+        const device_address& local_address() const;
 
     private:
-        address         local_addr_;
-        address         remote_addr_;
+        device_address  local_addr_;
+        device_address  remote_addr_;
     };
 }
 }

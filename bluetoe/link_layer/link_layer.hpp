@@ -75,7 +75,7 @@ namespace link_layer {
             typedef typename callbacks::template impl< Server > type;
         };
 
-        template < typename Radio, typename ... Options >
+        template < typename Radio, typename LinkLayer, typename ... Options >
         struct white_list
         {
             typedef typename bluetoe::details::find_by_meta_type<
@@ -83,7 +83,7 @@ namespace link_layer {
                 Options...,
                 no_white_list >::type list;
 
-            typedef typename list::template impl< Radio > type;
+            typedef typename list::template impl< Radio, LinkLayer > type;
         };
     }
 
@@ -115,6 +115,7 @@ namespace link_layer {
                 details::buffer_sizes< Options... >::rx_size,
                 link_layer< Server, ScheduledRadio, Options... >
             >,
+            link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
         private details::connection_callbacks< Server, Options... >::type,
         private details::signaling_channel< Options... >::type
@@ -269,7 +270,7 @@ namespace link_layer {
 
         unsigned                        current_channel_index_;
         unsigned                        adv_perturbation_;
-        const address                   address_;
+        const device_address            address_;
         channel_map                     channels_;
         unsigned                        cumulated_sleep_clock_accuracy_;
         delta_time                      transmit_window_offset_;
@@ -304,7 +305,7 @@ namespace link_layer {
 
         typedef typename ::bluetoe::details::find_by_meta_type<
             details::device_address_meta_type,
-            Options..., default_device_address >::type              device_address;
+            Options..., default_device_address >::type              local_device_address;
 
         typedef typename ::bluetoe::details::find_by_meta_type<
             details::sleep_clock_accuracy_meta_type,
@@ -319,7 +320,7 @@ namespace link_layer {
         , adv_response_size_( 0 )
         , current_channel_index_( first_advertising_channel )
         , adv_perturbation_( 0 )
-        , address_( device_address::address( *this ) )
+        , address_( local_device_address::address( *this ) )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
         , connection_details_( details::mtu_size< Options... >::mtu )
@@ -367,6 +368,8 @@ namespace link_layer {
             && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
             && parse_timing_parameters_from_connect_request( receive ) )
         {
+            const device_address remote_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+
             state_                    = state::connecting;
             current_channel_index_    = 0;
             conn_event_counter_       = 0;
@@ -389,7 +392,9 @@ namespace link_layer {
                 window_end,
                 connection_interval_ );
 
-            this->connection_request( connection_addresses( address_, address( &receive.buffer[ 2 ] ) ) );
+
+            this->connection_request( connection_addresses( address_, remote_address ) );
+
             connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
         }
         else
@@ -651,7 +656,7 @@ namespace link_layer {
 
         adv_buffer[ 0 ] = adv_ind_pdu_type_code;
 
-        if ( device_address::is_random() )
+        if ( address_.is_random() )
             adv_buffer[ 0 ] |= header_txaddr_field;
 
         adv_buffer[ 1 ] = address_length + server_->advertising_data( &adv_buffer[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
@@ -666,7 +671,7 @@ namespace link_layer {
 
         adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
 
-        if ( device_address::is_random() )
+        if ( address_.is_random() )
             adv_response_buffer[ 0 ] |= header_txaddr_field;
 
         adv_response_buffer[ 1 ] = address_length;

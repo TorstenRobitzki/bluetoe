@@ -64,7 +64,7 @@ namespace link_layer
          * @brief takes a scheduled radio and generates a random static address
          */
         template < class Radio >
-        static address address( const Radio& r )
+        static random_device_address address( const Radio& r )
         {
             return address::generate_static_random_address( r.static_random_address_seed() );
         }
@@ -94,10 +94,10 @@ namespace link_layer
          * @brief returns the static, configured address A:B:C:D:E:F
          */
         template < class Radio >
-        static address address( const Radio& )
+        static random_device_address address( const Radio& )
         {
             static const std::uint8_t addr[] = { F, E, D, C, B, A };
-            return ::bluetoe::link_layer::address( addr );
+            return ::bluetoe::link_layer::random_device_address( addr );
         }
 
         /** @cond HIDDEN_SYMBOLS */

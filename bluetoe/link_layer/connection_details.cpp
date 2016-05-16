@@ -41,18 +41,18 @@ namespace link_layer {
     }
 
 
-    connection_addresses::connection_addresses( const address& local, const address& remote )
+    connection_addresses::connection_addresses( const device_address& local, const device_address& remote )
         : local_addr_( local )
         , remote_addr_( remote )
     {
     }
 
-    const address& connection_addresses::remote_address() const
+    const device_address& connection_addresses::remote_address() const
     {
         return remote_addr_;
     }
 
-    const address& connection_addresses::local_address() const
+    const device_address& connection_addresses::local_address() const
     {
         return local_addr_;
     }
