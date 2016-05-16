@@ -129,7 +129,6 @@ namespace link_layer {
          */
         bool operator!=( const device_address& rhs ) const;
 
-    protected:
         device_address( const std::initializer_list< std::uint8_t >& initial_values, bool is_random )
             : address( initial_values )
             , is_random_( is_random )
@@ -140,6 +139,7 @@ namespace link_layer {
             , is_random_( is_random )
         {}
 
+    protected:
         explicit device_address( bool is_random )
             : address()
             , is_random_( is_random )
