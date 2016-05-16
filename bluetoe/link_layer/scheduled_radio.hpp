@@ -141,6 +141,11 @@ namespace link_layer {
         std::size_t radio_white_list_free_size() const;
 
         /**
+         * @brief remove all entries from the white list
+         */
+        void radio_clear_white_list();
+
+        /**
          * @brief Accept connection requests only from devices within the white list.
          *
          * If the property is set to true, only connection requests from from devices

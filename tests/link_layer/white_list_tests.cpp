@@ -27,6 +27,11 @@ public:
         return free_size_;
     }
 
+    void radio_clear_white_list()
+    {
+        free_size_ = Size;
+    }
+
     bool radio_add_to_white_list( const bluetoe::link_layer::device_address& addr )
     {
         if ( radio_is_in_white_list( addr ) )
@@ -221,6 +226,25 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( activate_white_list_function_exists, T, test_type
     T white_list;
     white_list.connection_request_filter( true );
     white_list.scan_request_filter( true );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( clear_empty_white_list, T, test_types )
+{
+    T white_list;
+    white_list.clear_white_list();
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8 );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( clear_none_empty_white_list, T, test_types )
+{
+    T white_list;
+    white_list.add_to_white_list( addr1 );
+    white_list.add_to_white_list( addr2 );
+
+    white_list.clear_white_list();
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8 );
+    BOOST_CHECK( !white_list.is_in_white_list( addr1 ) );
+    BOOST_CHECK( !white_list.is_in_white_list( addr2 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( all_connection_requests_are_in_filter_by_default, only_software )

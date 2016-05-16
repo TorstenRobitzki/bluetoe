@@ -67,6 +67,11 @@ namespace link_layer {
         std::size_t white_list_free_size() const;
 
         /**
+         * @brief remove all entries from the white list
+         */
+        void clear_white_list();
+
+        /**
          * @brief Accept connection requests only from devices within the white list.
          *
          * If the property is set to true, only connection requests from from devices
@@ -169,6 +174,11 @@ namespace link_layer {
                 return free_size_;
             }
 
+            void clear_white_list()
+            {
+                free_size_ = Size;
+            }
+
             bool add_to_white_list( const device_address& addr )
             {
                 if ( is_in_white_list( addr ) )
@@ -252,6 +262,11 @@ namespace link_layer {
             std::size_t white_list_free_size() const
             {
                 return this_to_radio().radio_white_list_free_size();
+            }
+
+            void clear_white_list()
+            {
+                this_to_radio().radio_clear_white_list();
             }
 
             bool add_to_white_list( const device_address& addr )
