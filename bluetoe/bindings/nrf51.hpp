@@ -59,6 +59,8 @@ namespace bluetoe
 
             std::uint32_t static_random_address_seed() const;
 
+            // no native white list implementation atm
+            static constexpr std::size_t radio_maximum_white_list_entries = 0;
         protected:
             void start_connection_event(
                 unsigned                        channel,
