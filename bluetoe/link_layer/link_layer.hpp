@@ -358,10 +358,19 @@ namespace link_layer {
 
         if ( is_valid_scan_request( receive ) )
         {
-            this->schedule_advertisment_and_receive(
-                current_channel_index_,
-                write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
-                read_buffer{ nullptr, 0 } );
+            const device_address remote_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+
+            if ( this->is_scan_request_in_filter( remote_address ) )
+            {
+                this->schedule_advertisment_and_receive(
+                    current_channel_index_,
+                    write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
+                    read_buffer{ nullptr, 0 } );
+            }
+            else
+            {
+                adv_timeout();
+            }
         }
         else if (
                is_valid_connect_request( receive )
@@ -370,32 +379,39 @@ namespace link_layer {
         {
             const device_address remote_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
-            state_                    = state::connecting;
-            current_channel_index_    = 0;
-            conn_event_counter_       = 0;
-            cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
-            timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
+            if ( this->is_connection_request_in_filter( remote_address ) )
+            {
+                state_                    = state::connecting;
+                current_channel_index_    = 0;
+                conn_event_counter_       = 0;
+                cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
+                timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
 
-            this->set_access_address_and_crc_init(
-                read_32( &receive.buffer[ 14 ] ),
-                read_24( &receive.buffer[ 18 ] ) );
+                this->set_access_address_and_crc_init(
+                    read_32( &receive.buffer[ 14 ] ),
+                    read_24( &receive.buffer[ 18 ] ) );
 
-            const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
-                  delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
+                const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
+                      delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
 
-            window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+                window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
-            this->reset();
-            this->schedule_connection_event(
-                channels_.data_channel( current_channel_index_ ),
-                window_start,
-                window_end,
-                connection_interval_ );
+                this->reset();
+                this->schedule_connection_event(
+                    channels_.data_channel( current_channel_index_ ),
+                    window_start,
+                    window_end,
+                    connection_interval_ );
 
 
-            this->connection_request( connection_addresses( address_, remote_address ) );
+                this->connection_request( connection_addresses( address_, remote_address ) );
 
-            connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
+                connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
+            }
+            else
+            {
+                adv_timeout();
+            }
         }
         else
         {
