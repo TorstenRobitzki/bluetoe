@@ -98,23 +98,23 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <p>provides a type and an instance to call connection related callbacks on.  
  <a href="structbluetoe_1_1link__layer_1_1connection__callbacks.html#details">More...</a></p>
 
-<p><code>#include &lt;<a class="el" href="link__layer_2options_8hpp_source.html">bluetoe/link_layer/options.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="connection__callbacks_8hpp_source.html">bluetoe/link_layer/connection_callbacks.hpp</a>&gt;</code></p>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><h3>template&lt;typename T, T &amp; Obj&gt;<br />
 struct bluetoe::link_layer::connection_callbacks&lt; T, Obj &gt;</h3>
 
 <p>provides a type and an instance to call connection related callbacks on. </p>
 <p>The parameter T have to be a class type with following optional none static member functions:</p>
-<p>template &lt; typename ConnectionData &gt; void ll_connection_established( const bluetoe::link_layer::connection_details&amp; details, const ConnectionData&amp; connection );</p>
-<p>template &lt; typename ConnectionData &gt; void ll_connection_changed( const bluetoe::link_layer::connection_details&amp; details, const ConnectionData&amp; connection );</p>
+<p>template &lt; typename ConnectionData &gt; void ll_connection_established( const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html" title="data type to store details of an established link layer connection ">bluetoe::link_layer::connection_details</a>&amp; details, const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__addresses.html" title="local and remote address of a connection ">bluetoe::link_layer::connection_addresses</a>&amp; addresses, const ConnectionData&amp; connection );</p>
+<p>template &lt; typename ConnectionData &gt; void ll_connection_changed( const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html" title="data type to store details of an established link layer connection ">bluetoe::link_layer::connection_details</a>&amp; details, const ConnectionData&amp; connection );</p>
 <p>template &lt; typename ConnectionData &gt; void ll_connection_closed( const ConnectionData&amp; connection ); </p>
 </div><hr/>The documentation for this struct was generated from the following file:<ul>
-<li>bluetoe/link_layer/<a class="el" href="link__layer_2options_8hpp_source.html">options.hpp</a></li>
+<li>bluetoe/link_layer/<a class="el" href="connection__callbacks_8hpp_source.html">connection_callbacks.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed May 4 2016 21:20:59 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon May 16 2016 16:27:51 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

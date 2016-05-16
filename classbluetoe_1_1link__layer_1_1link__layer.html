@@ -128,6 +128,12 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a4107cb2a989a5a01b94fda392fb0ad91"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a4107cb2a989a5a01b94fda392fb0ad91">end_event</a> ()</td></tr>
 <tr class="memdesc:a4107cb2a989a5a01b94fda392fb0ad91"><td class="mdescLeft">&#160;</td><td class="mdescRight">call back that will be called after a connect event was closed.  <a href="#a4107cb2a989a5a01b94fda392fb0ad91">More...</a><br /></td></tr>
 <tr class="separator:a4107cb2a989a5a01b94fda392fb0ad91"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8e8ee57ae01b7fd93299c5ccd3f51e56"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a8e8ee57ae01b7fd93299c5ccd3f51e56">connection_parameter_update_request</a> (std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a6f84a2cf93df0ab7b18fae87193726f2">timeout</a>)</td></tr>
+<tr class="memdesc:a8e8ee57ae01b7fd93299c5ccd3f51e56"><td class="mdescLeft">&#160;</td><td class="mdescRight">initiating the change of communication parameters of an established connection  <a href="#a8e8ee57ae01b7fd93299c5ccd3f51e56">More...</a><br /></td></tr>
+<tr class="separator:a8e8ee57ae01b7fd93299c5ccd3f51e56"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b474599cc4c19e278f5b03edc762210"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a1b474599cc4c19e278f5b03edc762210">disconnect</a> ()</td></tr>
+<tr class="memdesc:a1b474599cc4c19e278f5b03edc762210"><td class="mdescLeft">&#160;</td><td class="mdescRight">terminates the give connection  <a href="#a1b474599cc4c19e278f5b03edc762210">More...</a><br /></td></tr>
+<tr class="separator:a1b474599cc4c19e278f5b03edc762210"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><h3>template&lt;class Server, template&lt;                                          std::size_t TransmitSize,                                       std::size_t ReceiveSize,                                       class CallBack                       &gt; class ScheduledRadio, typename... Options&gt;<br />
@@ -174,6 +180,69 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 
 <p>call back that will be called when the master does not respond to an advertising PDU </p>
 <dl class="section see"><dt>See also</dt><dd>scheduled_radio::schedule_advertisment_and_receive </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a8e8ee57ae01b7fd93299c5ccd3f51e56"></a>
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename... Options&gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">bool <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::connection_parameter_update_request </td>
+          <td>(</td>
+          <td class="paramtype">std::uint16_t&#160;</td>
+          <td class="paramname"><em>interval_min</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint16_t&#160;</td>
+          <td class="paramname"><em>interval_max</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint16_t&#160;</td>
+          <td class="paramname"><em>latency</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint16_t&#160;</td>
+          <td class="paramname"><em>timeout</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>initiating the change of communication parameters of an established connection </p>
+<p>If it was not possible to initiate the connection parameter update, the function returns false. </p><dl class="todo"><dt><b><a class="el" href="todo.html#_todo000001">Todo:</a></b></dt><dd>Add parameter that identifies the connection. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a1b474599cc4c19e278f5b03edc762210"></a>
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename... Options&gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::disconnect </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>terminates the give connection </p>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000002">Todo:</a></b></dt><dd>Add parameter that identifies the connection. </dd></dl>
 
 </div>
 </div>
@@ -244,7 +313,7 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed May 4 2016 21:20:59 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon May 16 2016 16:27:51 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

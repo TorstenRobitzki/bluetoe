@@ -90,24 +90,128 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div>
 </div><!-- top -->
 <div class="header">
+  <div class="summary">
+<a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="classbluetoe_1_1link__layer_1_1connection__details-members.html">List of all members</a>  </div>
   <div class="headertitle">
 <div class="title">bluetoe::link_layer::connection_details Class Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 
-<p>data type to store details of a link layer connection  
+<p>data type to store details of an established link layer connection  
  <a href="classbluetoe_1_1link__layer_1_1connection__details.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="connection__details_8hpp_source.html">bluetoe/link_layer/connection_details.hpp</a>&gt;</code></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
+Public Member Functions</h2></td></tr>
+<tr class="memitem:a820c5a97a651f7a643937f752e28df31"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a820c5a97a651f7a643937f752e28df31"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a820c5a97a651f7a643937f752e28df31">connection_details</a> ()=default</td></tr>
+<tr class="memdesc:a820c5a97a651f7a643937f752e28df31"><td class="mdescLeft">&#160;</td><td class="mdescRight">default c'tor leaving all data members in a meaningless state <br /></td></tr>
+<tr class="separator:a820c5a97a651f7a643937f752e28df31"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b19d960170ab482f7856ca2f253e946"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2b19d960170ab482f7856ca2f253e946"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a2b19d960170ab482f7856ca2f253e946">connection_details</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">channel_map</a> &amp;<a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a34a50f7e3d86805efd97f8088000c70f">channels</a>, std::uint16_t inter, std::uint16_t lat, std::uint16_t to, unsigned acc)</td></tr>
+<tr class="memdesc:a2b19d960170ab482f7856ca2f253e946"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct the data object from its required parts. <br /></td></tr>
+<tr class="separator:a2b19d960170ab482f7856ca2f253e946"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a34a50f7e3d86805efd97f8088000c70f"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a34a50f7e3d86805efd97f8088000c70f"></a>
+const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">channel_map</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a34a50f7e3d86805efd97f8088000c70f">channels</a> () const </td></tr>
+<tr class="memdesc:a34a50f7e3d86805efd97f8088000c70f"><td class="mdescLeft">&#160;</td><td class="mdescRight">channels that a currently in use <br /></td></tr>
+<tr class="separator:a34a50f7e3d86805efd97f8088000c70f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa0738cda4b9537b7a6c602c0f9100374"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#aa0738cda4b9537b7a6c602c0f9100374">interval</a> () const </td></tr>
+<tr class="memdesc:aa0738cda4b9537b7a6c602c0f9100374"><td class="mdescLeft">&#160;</td><td class="mdescRight">connection interval  <a href="#aa0738cda4b9537b7a6c602c0f9100374">More...</a><br /></td></tr>
+<tr class="separator:aa0738cda4b9537b7a6c602c0f9100374"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9884e91a1139211cb302026624bd30d"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#ac9884e91a1139211cb302026624bd30d">latency</a> () const </td></tr>
+<tr class="memdesc:ac9884e91a1139211cb302026624bd30d"><td class="mdescLeft">&#160;</td><td class="mdescRight">slave latency  <a href="#ac9884e91a1139211cb302026624bd30d">More...</a><br /></td></tr>
+<tr class="separator:ac9884e91a1139211cb302026624bd30d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a369e5c368e8e592a04cdbc188cd06c88"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a369e5c368e8e592a04cdbc188cd06c88">timeout</a> () const </td></tr>
+<tr class="memdesc:a369e5c368e8e592a04cdbc188cd06c88"><td class="mdescLeft">&#160;</td><td class="mdescRight">connection timeout  <a href="#a369e5c368e8e592a04cdbc188cd06c88">More...</a><br /></td></tr>
+<tr class="separator:a369e5c368e8e592a04cdbc188cd06c88"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a49aeddc52a4533e88834335751f98f93"><td class="memItemLeft" align="right" valign="top">unsigned&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a49aeddc52a4533e88834335751f98f93">cumulated_sleep_clock_accuracy_ppm</a> () const </td></tr>
+<tr class="memdesc:a49aeddc52a4533e88834335751f98f93"><td class="mdescLeft">&#160;</td><td class="mdescRight">the cumulated sleep clock accuracy in parts per million.  <a href="#a49aeddc52a4533e88834335751f98f93">More...</a><br /></td></tr>
+<tr class="separator:a49aeddc52a4533e88834335751f98f93"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>data type to store details of a link layer connection </p>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+<div class="textblock"><p>data type to store details of an established link layer connection </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a49aeddc52a4533e88834335751f98f93"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">unsigned bluetoe::link_layer::connection_details::cumulated_sleep_clock_accuracy_ppm </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>the cumulated sleep clock accuracy in parts per million. </p>
+<p>The cumulated sleep clock accuracy is the sum of the clients and slaves accuracy (clock error) and is taken into account for this connection. </p>
+
+</div>
+</div>
+<a class="anchor" id="aa0738cda4b9537b7a6c602c0f9100374"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::uint16_t bluetoe::link_layer::connection_details::interval </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>connection interval </p>
+<p>The connection interval of the current connection in units of 1.25ms. </p>
+
+</div>
+</div>
+<a class="anchor" id="ac9884e91a1139211cb302026624bd30d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::uint16_t bluetoe::link_layer::connection_details::latency </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>slave latency </p>
+<p>The slave defined the number of connection events, the slave can skip (do not respond). </p>
+
+</div>
+</div>
+<a class="anchor" id="a369e5c368e8e592a04cdbc188cd06c88"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::uint16_t bluetoe::link_layer::connection_details::timeout </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>connection timeout </p>
+<p>The connection timeout of the current connection in units of 10ms. </p>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>bluetoe/link_layer/<a class="el" href="connection__details_8hpp_source.html">connection_details.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed May 4 2016 21:20:59 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon May 16 2016 16:27:51 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

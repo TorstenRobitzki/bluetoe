@@ -127,12 +127,12 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a731a9b169aa0a0d2f0d15c46c8c2b52c"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a731a9b169aa0a0d2f0d15c46c8c2b52c">notification_queue</a> (Args...mixin_arguments)</td></tr>
 <tr class="memdesc:a731a9b169aa0a0d2f0d15c46c8c2b52c"><td class="mdescLeft">&#160;</td><td class="mdescRight">constructs an empty <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html" title="class responsible to keep track of those characteristics that have outstanding notifications. ">notification_queue</a>  <a href="#a731a9b169aa0a0d2f0d15c46c8c2b52c">More...</a><br /></td></tr>
 <tr class="separator:a731a9b169aa0a0d2f0d15c46c8c2b52c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1607c908ec34102e3e694914eaf81108"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a1607c908ec34102e3e694914eaf81108">queue_notification</a> (std::size_t index)</td></tr>
-<tr class="memdesc:a1607c908ec34102e3e694914eaf81108"><td class="mdescLeft">&#160;</td><td class="mdescRight">queue the indexed characteristic for notification  <a href="#a1607c908ec34102e3e694914eaf81108">More...</a><br /></td></tr>
-<tr class="separator:a1607c908ec34102e3e694914eaf81108"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac3332bae2ffe997c556b990e4ec12e84"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#ac3332bae2ffe997c556b990e4ec12e84">queue_indication</a> (std::size_t index)</td></tr>
-<tr class="memdesc:ac3332bae2ffe997c556b990e4ec12e84"><td class="mdescLeft">&#160;</td><td class="mdescRight">queue the indexed characteristic for indication  <a href="#ac3332bae2ffe997c556b990e4ec12e84">More...</a><br /></td></tr>
-<tr class="separator:ac3332bae2ffe997c556b990e4ec12e84"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab6cd1063b2b73002d7ead8273a6ed3d6"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#ab6cd1063b2b73002d7ead8273a6ed3d6">queue_notification</a> (std::size_t index)</td></tr>
+<tr class="memdesc:ab6cd1063b2b73002d7ead8273a6ed3d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">queue the indexed characteristic for notification  <a href="#ab6cd1063b2b73002d7ead8273a6ed3d6">More...</a><br /></td></tr>
+<tr class="separator:ab6cd1063b2b73002d7ead8273a6ed3d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab16e7c779b3878bb7ea7c23b8f737b8c"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#ab16e7c779b3878bb7ea7c23b8f737b8c">queue_indication</a> (std::size_t index)</td></tr>
+<tr class="memdesc:ab16e7c779b3878bb7ea7c23b8f737b8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">queue the indexed characteristic for indication  <a href="#ab16e7c779b3878bb7ea7c23b8f737b8c">More...</a><br /></td></tr>
+<tr class="separator:ab16e7c779b3878bb7ea7c23b8f737b8c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a07085c0980463789078a583a8ef66b00"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a07085c0980463789078a583a8ef66b00">indication_confirmed</a> ()</td></tr>
 <tr class="memdesc:a07085c0980463789078a583a8ef66b00"><td class="mdescLeft">&#160;</td><td class="mdescRight">to be called, when a ATT Handle Value Confirmation was received.  <a href="#a07085c0980463789078a583a8ef66b00">More...</a><br /></td></tr>
 <tr class="separator:a07085c0980463789078a583a8ef66b00"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -251,14 +251,14 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="ac3332bae2ffe997c556b990e4ec12e84"></a>
+<a class="anchor" id="ab16e7c779b3878bb7ea7c23b8f737b8c"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
 template&lt;std::size_t Size, class Mixin &gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html">bluetoe::link_layer::notification_queue</a>&lt; Size, Mixin &gt;::queue_indication </td>
+          <td class="memname">bool <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html">bluetoe::link_layer::notification_queue</a>&lt; Size, Mixin &gt;::queue_indication </td>
           <td>(</td>
           <td class="paramtype">std::size_t&#160;</td>
           <td class="paramname"><em>index</em></td><td>)</td>
@@ -270,18 +270,19 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
 <p>queue the indexed characteristic for indication </p>
 <p>Once a characteristic is queued for indication, the function <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a55d71b7bbd7a1e12dafb0863fc399be6" title="return a next notification or indication to be send. ">dequeue_indication_or_confirmation()</a> will return { indication, index } om a future call.</p>
 <p>If the given characteristic was already queued for indication, or if a indication that was send to a client was not confirmed yet, the function will not have any side effects.</p>
+<p>The function returns true, if the given characteristic was not already queued for indication or if a confirmations is still awaited.</p>
 <dl class="section pre"><dt>Precondition</dt><dd>index &lt; Size </dd></dl>
 
 </div>
 </div>
-<a class="anchor" id="a1607c908ec34102e3e694914eaf81108"></a>
+<a class="anchor" id="ab6cd1063b2b73002d7ead8273a6ed3d6"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
 template&lt;std::size_t Size, class Mixin &gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html">bluetoe::link_layer::notification_queue</a>&lt; Size, Mixin &gt;::queue_notification </td>
+          <td class="memname">bool <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html">bluetoe::link_layer::notification_queue</a>&lt; Size, Mixin &gt;::queue_notification </td>
           <td>(</td>
           <td class="paramtype">std::size_t&#160;</td>
           <td class="paramname"><em>index</em></td><td>)</td>
@@ -293,6 +294,7 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
 <p>queue the indexed characteristic for notification </p>
 <p>Once a characteristic is queued for notification, the function <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a55d71b7bbd7a1e12dafb0863fc399be6" title="return a next notification or indication to be send. ">dequeue_indication_or_confirmation()</a> will return { notification, index } on a future call.</p>
 <p>If the given characteristic was already queued for notification, the function will not have any side effects.</p>
+<p>The function returns true, if the given characteristic was not already queued for notifications.</p>
 <dl class="section pre"><dt>Precondition</dt><dd>index &lt; Size </dd></dl>
 
 </div>
@@ -303,7 +305,7 @@ template&lt;std::size_t Size, class Mixin &gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed May 4 2016 21:20:59 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon May 16 2016 16:27:51 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

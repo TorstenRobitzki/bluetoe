@@ -12,6 +12,8 @@ var searchData=
   ['print',['print',['../classbluetoe_1_1link__layer_1_1address.html#a5bfdcc6529941fc9ec7389fdd0c1061b',1,'bluetoe::link_layer::address::print()'],['../classbluetoe_1_1link__layer_1_1delta__time.html#adc6ad118af7ef301134d1128edf829da',1,'bluetoe::link_layer::delta_time::print()']]],
   ['procedure_5falready_5fin_5fprogress',['procedure_already_in_progress',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934',1,'bluetoe::error_codes']]],
   ['progress_5fuuid',['progress_uuid',['../bootloader_8hpp.html#a753664d30a56f4cf3cddd2cc3e958c9a',1,'bluetoe::bootloader']]],
+  ['public_5fdevice_5faddress',['public_device_address',['../classbluetoe_1_1link__layer_1_1public__device__address.html',1,'bluetoe::link_layer']]],
+  ['public_5fdevice_5faddress',['public_device_address',['../classbluetoe_1_1link__layer_1_1public__device__address.html#acce3241b91f8bf85739792d1677bb50d',1,'bluetoe::link_layer::public_device_address']]],
   ['pulse_5foximeter',['pulse_oximeter',['../structbluetoe_1_1appearance.html#aea322d10cc4bf888d3a5732ed1727799',1,'bluetoe::appearance']]],
   ['push_5ffront',['push_front',['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#abb52ce1168b9b67e78854c2c61874358',1,'bluetoe::link_layer::pdu_ring_buffer']]]
 ];
