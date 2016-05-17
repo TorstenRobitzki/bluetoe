@@ -106,7 +106,7 @@ Advertising|connectable undirected advertising|implemented
  |connectable directed advertising|planned
  |non-connectable undirected advertising|planned
  |scannable undirected advertising|planned
-Device Filtering||not planned
+Device Filtering||implemented
 Connections|Single Connection|implemented
  |Multiple Connection|not planned
 Connection|Slave Latency|planned
