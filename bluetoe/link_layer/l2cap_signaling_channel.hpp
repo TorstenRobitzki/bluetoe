@@ -72,16 +72,25 @@ namespace l2cap {
     class no_signaling_channel
     {
     public:
+        /**
+         * @copydoc signaling_channel::signaling_channel_input
+         */
         void signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
         {
             out_size = 0;
         }
 
+        /**
+         * @copydoc signaling_channel::signaling_channel_output
+         */
         void signaling_channel_output( std::uint8_t* output, std::size_t& out_size )
         {
             out_size = 0;
         }
 
+        /**
+         * @copydoc signaling_channel::connection_parameter_update_request
+         */
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
         {
             return false;

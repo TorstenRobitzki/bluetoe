@@ -129,17 +129,28 @@ namespace link_layer {
          */
         bool operator!=( const device_address& rhs ) const;
 
+        /**
+         * @brief initialize an address by a initializer list with exactly 6 elements and a flag
+         *        indicating whether this address is a random address or not.
+         */
         device_address( const std::initializer_list< std::uint8_t >& initial_values, bool is_random )
             : address( initial_values )
             , is_random_( is_random )
         {}
 
+        /**
+         * @brief initializing an address by taking 6 bytes from the given start of an array and a flag
+         *        indicating whether this address is a random address or not.
+         */
         device_address( const std::uint8_t* initial_values, bool is_random )
             : address( initial_values )
             , is_random_( is_random )
         {}
 
     protected:
+        /**
+         * @brief constructs a public or random default device address (00:00:00:00:00:00)
+         */
         explicit device_address( bool is_random )
             : address()
             , is_random_( is_random )
@@ -157,13 +168,19 @@ namespace link_layer {
     class public_device_address : public device_address
     {
     public:
+        /**
+         * @brief initialize a public device address 00:00:00:00:00:00
+         */
         public_device_address() : device_address( false ) {}
 
+        /**
+         * @brief initialize a public device address by a initializer list with exactly 6 elements
+         */
         explicit public_device_address( const std::initializer_list< std::uint8_t >& initial_values )
             : device_address( initial_values, false ) {}
 
         /**
-         * @brief initializing an address by taking 6 bytes from the given start of an array
+         * @brief initializing a public device address by taking 6 bytes from the given start of an array
          */
         explicit public_device_address( const std::uint8_t* initial_values )
             : device_address( initial_values, false ) {}
@@ -177,13 +194,19 @@ namespace link_layer {
     class random_device_address : public device_address
     {
     public:
+        /**
+         * @brief initialize a random device address 00:00:00:00:00:00
+         */
         random_device_address() : device_address( true ) {}
 
+        /**
+         * @brief initialize a random device address by a initializer list with exactly 6 elements
+         */
         explicit random_device_address( const std::initializer_list< std::uint8_t >& initial_values )
             : device_address( initial_values, true ) {}
 
         /**
-         * @brief initializing an address by taking 6 bytes from the given start of an array
+         * @brief initializing a random device address by taking 6 bytes from the given start of an array
          */
         explicit random_device_address( const std::uint8_t* initial_values )
             : device_address( initial_values, true ) {}

@@ -80,7 +80,11 @@ namespace link_layer {
     public:
         connection_addresses() = default;
 
+        /**
+         * @brief construct a connection addresses from a pair of device addresses
+         */
         connection_addresses( const device_address& local, const device_address& remote );
+
         /**
          * @brief remote device address
          *
