@@ -1,6 +1,7 @@
 var searchData=
 [
   ['scan_5frequest_5ffilter',['scan_request_filter',['../classbluetoe_1_1link__layer_1_1white__list.html#a2deadc29cbdea11646b1c0c2f1557fe9',1,'bluetoe::link_layer::white_list::scan_request_filter(bool b)'],['../classbluetoe_1_1link__layer_1_1white__list.html#ab6efb797444049631fea1a3ffc8cbbe3',1,'bluetoe::link_layer::white_list::scan_request_filter() const ']]],
+  ['scannable_5fundirected_5fadvertising',['scannable_undirected_advertising',['../classbleutoe_1_1link__layer_1_1scannable__undirected__advertising.html',1,'bleutoe::link_layer']]],
   ['secondary_5fservice',['secondary_service',['../structbluetoe_1_1secondary__service.html',1,'bluetoe']]],
   ['seconds',['seconds',['../classbluetoe_1_1link__layer_1_1delta__time.html#ae6f432cb6e682eee9fdfc6f4263afe96',1,'bluetoe::link_layer::delta_time']]],
   ['security_5fmanager',['security_manager',['../classbluetoe_1_1security__manager.html',1,'bluetoe']]],
@@ -20,8 +21,8 @@ var searchData=
   ['set_5fcumulative_5fwheel_5frevolutions',['set_cumulative_wheel_revolutions',['../classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html#a9007f38fe66ea045274dcc9baa33d91a',1,'bluetoe::cycling_speed_and_cadence_handler_prototype']]],
   ['shared_5fwrite_5fqueue',['shared_write_queue',['../structbluetoe_1_1shared__write__queue.html',1,'bluetoe']]],
   ['signaling_5fchannel',['signaling_channel',['../classbluetoe_1_1l2cap_1_1signaling__channel.html',1,'bluetoe::l2cap']]],
-  ['signaling_5fchannel_5finput',['signaling_channel_input',['../classbluetoe_1_1l2cap_1_1signaling__channel.html#acf354a857c36bfcb7e6cc15b53079742',1,'bluetoe::l2cap::signaling_channel']]],
-  ['signaling_5fchannel_5foutput',['signaling_channel_output',['../classbluetoe_1_1l2cap_1_1signaling__channel.html#a4ec7054a6994060c4e2262a103c8dc77',1,'bluetoe::l2cap::signaling_channel']]],
+  ['signaling_5fchannel_5finput',['signaling_channel_input',['../classbluetoe_1_1l2cap_1_1signaling__channel.html#acf354a857c36bfcb7e6cc15b53079742',1,'bluetoe::l2cap::signaling_channel::signaling_channel_input()'],['../classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a6dc82af08f0770c149a27a2e92e9cf36',1,'bluetoe::l2cap::no_signaling_channel::signaling_channel_input()']]],
+  ['signaling_5fchannel_5foutput',['signaling_channel_output',['../classbluetoe_1_1l2cap_1_1signaling__channel.html#a4ec7054a6994060c4e2262a103c8dc77',1,'bluetoe::l2cap::signaling_channel::signaling_channel_output()'],['../classbluetoe_1_1l2cap_1_1no__signaling__channel.html#aaa99af07fab90942b2d3a635588cfd32',1,'bluetoe::l2cap::no_signaling_channel::signaling_channel_output()']]],
   ['size',['size',['../structbluetoe_1_1link__layer_1_1read__buffer.html#a45f731f6cc61ddb3702049a9d6880086',1,'bluetoe::link_layer::read_buffer::size()'],['../structbluetoe_1_1link__layer_1_1write__buffer.html#ae2f0fe94eebbd629bae528352fb32df5',1,'bluetoe::link_layer::write_buffer::size()'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a875552bde9322f3d07ad9e9a9dc90a30',1,'bluetoe::link_layer::ll_data_pdu_buffer::size()'],['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a01153c11ee28b458c2541c7cc00e01df',1,'bluetoe::link_layer::pdu_ring_buffer::size()']]],
   ['sleep_5fclock_5faccuracy_5fppm',['sleep_clock_accuracy_ppm',['../structbluetoe_1_1link__layer_1_1sleep__clock__accuracy__ppm.html',1,'bluetoe::link_layer']]],
   ['sports_5fwatch',['sports_watch',['../structbluetoe_1_1appearance.html#af21166b5f398056080c03de4ce3d4a2b',1,'bluetoe::appearance']]],

@@ -5,6 +5,8 @@ var searchData=
   ['characteristic_5fname',['characteristic_name',['../structbluetoe_1_1characteristic__name.html',1,'bluetoe']]],
   ['characteristic_5fuuid',['characteristic_uuid',['../structbluetoe_1_1characteristic__uuid.html',1,'bluetoe']]],
   ['characteristic_5fuuid16',['characteristic_uuid16',['../structbluetoe_1_1characteristic__uuid16.html',1,'bluetoe']]],
+  ['connectable_5fdirected_5fadvertising',['connectable_directed_advertising',['../classbleutoe_1_1link__layer_1_1connectable__directed__advertising.html',1,'bleutoe::link_layer']]],
+  ['connectable_5fundirected_5fadvertising',['connectable_undirected_advertising',['../classbleutoe_1_1link__layer_1_1connectable__undirected__advertising.html',1,'bleutoe::link_layer']]],
   ['connection_5faddresses',['connection_addresses',['../classbluetoe_1_1link__layer_1_1connection__addresses.html',1,'bluetoe::link_layer']]],
   ['connection_5fcallbacks',['connection_callbacks',['../structbluetoe_1_1link__layer_1_1connection__callbacks.html',1,'bluetoe::link_layer']]],
   ['connection_5fdata',['connection_data',['../classbluetoe_1_1server_1_1connection__data.html',1,'bluetoe::server']]],

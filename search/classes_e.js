@@ -1,5 +1,6 @@
 var searchData=
 [
+  ['scannable_5fundirected_5fadvertising',['scannable_undirected_advertising',['../classbleutoe_1_1link__layer_1_1scannable__undirected__advertising.html',1,'bleutoe::link_layer']]],
   ['secondary_5fservice',['secondary_service',['../structbluetoe_1_1secondary__service.html',1,'bluetoe']]],
   ['security_5fmanager',['security_manager',['../classbluetoe_1_1security__manager.html',1,'bluetoe']]],
   ['sensor_5flocation',['sensor_location',['../structbluetoe_1_1sensor__location.html',1,'bluetoe']]],

@@ -1,7 +1,7 @@
 var searchData=
 [
   ['random_5fdevice_5faddress',['random_device_address',['../classbluetoe_1_1link__layer_1_1random__device__address.html',1,'bluetoe::link_layer']]],
-  ['random_5fdevice_5faddress',['random_device_address',['../classbluetoe_1_1link__layer_1_1random__device__address.html#ab01129050a63b514d2ecb5de6d9f51d6',1,'bluetoe::link_layer::random_device_address']]],
+  ['random_5fdevice_5faddress',['random_device_address',['../classbluetoe_1_1link__layer_1_1random__device__address.html#a3cdba01fa26325cefd073f127778a5bb',1,'bluetoe::link_layer::random_device_address::random_device_address()'],['../classbluetoe_1_1link__layer_1_1random__device__address.html#aa565155ca671a9d6cc6e7918ec576208',1,'bluetoe::link_layer::random_device_address::random_device_address(const std::initializer_list&lt; std::uint8_t &gt; &amp;initial_values)'],['../classbluetoe_1_1link__layer_1_1random__device__address.html#ab01129050a63b514d2ecb5de6d9f51d6',1,'bluetoe::link_layer::random_device_address::random_device_address(const std::uint8_t *initial_values)']]],
   ['random_5fstatic_5faddress',['random_static_address',['../structbluetoe_1_1link__layer_1_1random__static__address.html',1,'bluetoe::link_layer']]],
   ['raw',['raw',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#ad0e5d9f398c4e59f8a33db42fd927fdd',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
   ['read_5fblob_5fhandler',['read_blob_handler',['../structbluetoe_1_1read__blob__handler.html',1,'bluetoe']]],
