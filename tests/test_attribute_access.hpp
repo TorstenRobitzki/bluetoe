@@ -19,7 +19,7 @@ public:
             }
         }
 
-        return std::pair< bool, bluetoe::details::attribute >( false, bluetoe::details::attribute{} );
+        return std::pair< bool, bluetoe::details::attribute >( false, bluetoe::details::attribute{ 0, nullptr } );
     }
 
     bluetoe::details::attribute attribute_by_type( std::uint16_t type )
@@ -41,24 +41,54 @@ public:
 
     void compare_characteristic_at( const std::initializer_list< std::uint8_t >& input, std::size_t index )
     {
-        compare_characteristic_impl( input, this->template attribute_at< 0 >( index ) );
+        BOOST_REQUIRE(
+            bluetoe::details::attribute_access_result::success
+                == read_characteristic_impl( input, this->template attribute_at< 0 >( index ) ) );
     }
 
     void compare_characteristic( const std::initializer_list< std::uint8_t >& input, std::uint16_t type )
     {
-        compare_characteristic_impl( input, attribute_by_type( type ) );
+        BOOST_REQUIRE(
+            bluetoe::details::attribute_access_result::success
+                == read_characteristic_impl( input, attribute_by_type( type ) ) );
+    }
+
+    // @TODO: proper name would be "read_attribute_at"
+    bluetoe::details::attribute_access_result read_characteristic_at( const std::initializer_list< std::uint8_t >& input,
+        std::size_t index, std::size_t offset, std::size_t buffer_size )
+    {
+        return read_characteristic_impl( input, this->template attribute_at< 0 >( index ), offset, buffer_size );
+    }
+
+    bluetoe::details::attribute_access_result write_attribute_at( const std::uint8_t* begin, const std::uint8_t* end, std::size_t index = 1, std::size_t offset = 0 )
+    {
+        auto write = bluetoe::details::attribute_access_arguments::write(
+            begin, end, offset, bluetoe::details::client_characteristic_configuration(), nullptr );
+
+        return this->template attribute_at< 0 >( index ).access( write, index );
+    }
+
+    bluetoe::details::attribute_access_result write_attribute_at( const std::initializer_list< std::uint8_t >& input, std::size_t index = 1, std::size_t offset = 0 )
+    {
+        return write_attribute_at( input.begin(), input.end(), index, offset );
     }
 
 private:
-    void compare_characteristic_impl( const std::initializer_list< std::uint8_t >& input, const bluetoe::details::attribute& value_attribute )
+    bluetoe::details::attribute_access_result read_characteristic_impl(
+        const std::initializer_list< std::uint8_t >& input,
+        const bluetoe::details::attribute& value_attribute,
+        std::size_t offset = 0,
+        std::size_t buffer_size = 100 )
     {
         const std::vector< std::uint8_t > values( input );
 
         std::uint8_t buffer[ 1000 ];
-        auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0, this->client_configurations() );
+        auto read = bluetoe::details::attribute_access_arguments::read( &buffer[ 0 ], &buffer[ buffer_size ], offset, this->client_configurations(), nullptr );
 
-        BOOST_REQUIRE( bluetoe::details::attribute_access_result::success == value_attribute.access( read, 1 ) );
+        auto result = value_attribute.access( read, 1 );
         BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );
+
+        return result;
     }
 };
 

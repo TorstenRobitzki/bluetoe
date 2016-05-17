@@ -22,6 +22,12 @@ namespace details {
         return read_handle( h );
     }
 
+    inline std::uint32_t read_32bit( const std::uint8_t* p )
+    {
+        return static_cast< std::uint32_t >( read_16bit( p ) )
+             | ( static_cast< std::uint32_t >( read_16bit( p + 2 ) ) << 16 );
+    }
+
     inline std::uint8_t* write_handle( std::uint8_t* out, std::uint16_t handle )
     {
         out[ 0 ] = handle & 0xff;
@@ -38,6 +44,11 @@ namespace details {
     inline std::uint8_t* write_16bit( std::uint8_t* out, std::uint16_t bits16 )
     {
         return write_handle( out, bits16 );
+    }
+
+    inline std::uint8_t* write_32bit( std::uint8_t* out, std::uint32_t bits32 )
+    {
+        return write_16bit( write_16bit( out, bits32 & 0xffff ), bits32 >> 16 );
     }
 
     inline std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )

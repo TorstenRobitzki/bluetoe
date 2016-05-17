@@ -122,7 +122,8 @@ BOOST_FIXTURE_TEST_CASE( output_to_small_for_more_than_one_service, request_with
 typedef bluetoe::server<
     global_temperature_service,
     cycling_speed_and_cadence_service,
-    service_with_3_characteristics
+    service_with_3_characteristics,
+    bluetoe::no_gap_service_for_gatt_servers
 > server_with_16bit_characteristics_in_the_middle;
 
 typedef request_with_reponse< server_with_16bit_characteristics_in_the_middle, 100 > server_with_16bit_characteristics_in_the_middle_100;

@@ -56,6 +56,37 @@ namespace link_layer {
         return *this;
     }
 
+    delta_time& delta_time::operator*=( unsigned rhs )
+    {
+        if ( rhs == 0 || usec_ == 0 )
+        {
+            usec_ = 0;
+        }
+        else if ( rhs > 1 )
+        {
+            if ( usec_ == 1 )
+            {
+                usec_ = rhs;
+            }
+            else
+            {
+                auto const prod = usec_ * rhs;
+                assert( prod > usec_ );
+                assert( prod > rhs );
+
+                usec_ = prod;
+            }
+        }
+
+        return *this;
+    }
+
+    unsigned delta_time::operator/(const delta_time& rhs )
+    {
+        assert( rhs.usec_ );
+        return usec_ / rhs.usec_;
+    }
+
     bool delta_time::operator<( const delta_time& rhs ) const
     {
         return usec_ < rhs.usec_;
@@ -91,6 +122,16 @@ namespace link_layer {
         return usec_;
     }
 
+    bool delta_time::zero() const
+    {
+        return usec_ == 0;
+    }
+
+    delta_time delta_time::ppm( unsigned part ) const
+    {
+        return delta_time( std::uint64_t( usec_ ) * part / 1000000 );
+    }
+
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
     {
         t.print( out );
@@ -108,6 +149,18 @@ namespace link_layer {
     {
         lhs-= rhs;
         return lhs;
+    }
+
+    delta_time operator*( delta_time lhs, unsigned rhs )
+    {
+        lhs *= rhs;
+        return lhs;
+    }
+
+    delta_time operator*( unsigned lhs, delta_time rhs )
+    {
+        rhs *= lhs;
+        return rhs;
     }
 
 }

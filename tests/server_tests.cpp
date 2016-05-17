@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
+#include "test_servers.hpp"
 
 #include <bluetoe/server.hpp>
 
@@ -80,3 +81,113 @@ BOOST_FIXTURE_TEST_CASE( is_clearable, connection_data<> )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( mixins )
+
+std::string tag_construction_order;
+
+struct reset_tag_construction_order
+{
+    reset_tag_construction_order()
+    {
+        tag_construction_order = "";
+    }
+};
+
+template < char C >
+struct tag
+{
+    tag()
+    {
+        tag_construction_order += C;
+    }
+};
+
+
+BOOST_FIXTURE_TEST_CASE( not_mixin, reset_tag_construction_order )
+{
+    three_apes_service three_appes;
+    BOOST_CHECK_EQUAL( tag_construction_order, "" );
+}
+
+BOOST_FIXTURE_TEST_CASE( empty_mixin, reset_tag_construction_order )
+{
+    bluetoe::server<
+        bluetoe::mixin<>
+    > server;
+
+    BOOST_CHECK_EQUAL( tag_construction_order, "" );
+}
+
+BOOST_FIXTURE_TEST_CASE( server_mixins, reset_tag_construction_order )
+{
+    bluetoe::server<
+        bluetoe::mixin< tag< 'A' > >
+    > server;
+
+    BOOST_CHECK_EQUAL( tag_construction_order, "A" );
+}
+
+BOOST_FIXTURE_TEST_CASE( multiple_server_mixins, reset_tag_construction_order )
+{
+    bluetoe::server<
+        bluetoe::mixin<>,
+        bluetoe::mixin< tag< 'A' > >,
+        bluetoe::mixin< tag< 'B' >, tag< 'C' > >
+    > server;
+
+    BOOST_CHECK_EQUAL( tag_construction_order, "ABC" );
+}
+
+BOOST_FIXTURE_TEST_CASE( single_service_mixin, reset_tag_construction_order )
+{
+    bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x0815 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::mixin< tag< 'A' > >
+        >
+    > server;
+
+    BOOST_CHECK_EQUAL( tag_construction_order, "A" );
+}
+
+BOOST_FIXTURE_TEST_CASE( multiple_service_mixin, reset_tag_construction_order )
+{
+    bluetoe::server<
+        bluetoe::service<
+            bluetoe::mixin< tag< 'A' > >,
+            bluetoe::service_uuid16< 0x0815 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::mixin< tag< 'B' >, tag< 'C' > >
+        >
+    > server;
+
+    BOOST_CHECK_EQUAL( tag_construction_order, "ABC" );
+}
+
+BOOST_FIXTURE_TEST_CASE( multiple_service_and_server_mixin, reset_tag_construction_order )
+{
+    bluetoe::server<
+        bluetoe::mixin< tag< 'A' > >,
+        bluetoe::service<
+            bluetoe::mixin< tag< 'B' > >,
+            bluetoe::service_uuid16< 0x0815 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::mixin< tag< 'C' >, tag< 'D' > >
+        >,
+        bluetoe::mixin< tag< 'E' > >,
+        bluetoe::service<
+            bluetoe::mixin< tag< 'F' > >,
+            bluetoe::service_uuid16< 0x0815 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::mixin< tag< 'G' >, tag< 'H' > >
+        >,
+        bluetoe::mixin< tag< 'I' > >
+    > server;
+
+    BOOST_CHECK_EQUAL( tag_construction_order, "AEIBCDFGH" );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+

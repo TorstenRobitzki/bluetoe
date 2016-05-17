@@ -1,14 +1,37 @@
 #include <bluetoe/options.hpp>
+#include <string>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
 #include <type_traits>
 
+template < typename >
+struct template_a {};
+
+template < typename >
+struct template_b {};
+
 BOOST_AUTO_TEST_CASE( select_type )
 {
     BOOST_CHECK( ( std::is_same< typename bluetoe::details::select_type< true, int, bool >::type, int >::value ) );
     BOOST_CHECK( ( std::is_same< typename bluetoe::details::select_type< false, int, bool >::type, bool >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( select_template_t1 )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            bluetoe::details::select_template_t1< true, template_a, template_b >::template type< int >,
+            template_a< int > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            bluetoe::details::select_template_t1< false, template_a, template_b >::template type< int >,
+            template_b< int > >::value
+    ) );
+
 }
 
 BOOST_AUTO_TEST_CASE( or_type )
@@ -249,6 +272,21 @@ namespace {
 
         string_list& list;
     };
+
+    struct count_calls
+    {
+        explicit count_calls( int& c ) : counts( c )
+        {
+        }
+
+        template< typename O >
+        void each()
+        {
+            ++counts;
+        }
+
+        int& counts;
+    };
 }
 
 BOOST_AUTO_TEST_CASE( for_each_empty )
@@ -291,6 +329,31 @@ BOOST_AUTO_TEST_CASE( for_each_feed_by_an_tuple )
     const string_list expected_result = { "type1", "type1", "type2", "type3" };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( list.begin(), list.end(), expected_result.begin(), expected_result.end() );
+}
+
+BOOST_AUTO_TEST_CASE( for_each_over_tuple_of_empty_tuple )
+{
+    int count = 0;
+
+    bluetoe::details::for_<
+        std::tuple<
+            std::tuple<>
+        > >::each( count_calls( count ) );
+
+    BOOST_CHECK_EQUAL( count, 1 );
+}
+
+BOOST_AUTO_TEST_CASE( for_each_over_tuple_of_tuples )
+{
+    int count = 0;
+
+    bluetoe::details::for_<
+        std::tuple<
+            std::tuple< int, char >,
+            std::tuple< bool, double >
+        > >::each( count_calls( count ) );
+
+    BOOST_CHECK_EQUAL( count, 2 );
 }
 
 BOOST_AUTO_TEST_CASE( group_by_meta_type_empty )
@@ -438,7 +501,7 @@ BOOST_AUTO_TEST_CASE( count_if )
 namespace {
     template < class T >
     struct by_value : T {};
-};
+}
 
 BOOST_AUTO_TEST_CASE( sum_by )
 {
@@ -458,4 +521,163 @@ BOOST_AUTO_TEST_CASE( sum_by )
                 std::integral_constant< int, 1 >
             >, by_value >::value ),
         5 );
+}
+
+BOOST_AUTO_TEST_CASE( find_if )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< float, char, int >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< int, float, char >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< float, int, char >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< int >, is_int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple<>, is_int >::type,
+            bluetoe::details::no_such_type >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_if< std::tuple< float, bool >, is_int >::type,
+            bluetoe::details::no_such_type >::value
+    ) );
+}
+
+BOOST_AUTO_TEST_CASE( last_from_pack )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_from_pack< int >::type,
+            int >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_from_pack< float, int >::type,
+            int >::value
+    ) );
+
+}
+
+namespace {
+    std::string ctor_order;
+
+    template < char C >
+    struct tag
+    {
+        tag()
+        {
+            ctor_order += C;
+        }
+    };
+
+    template < typename List >
+    static void test_derive_from( const std::string& expected )
+    {
+        ctor_order = "";
+        bluetoe::details::derive_from< List > instance;
+        static_cast< void >( instance );
+
+        BOOST_CHECK_EQUAL( ctor_order, expected );
+    }
+}
+
+BOOST_AUTO_TEST_CASE( derive_from )
+{
+    test_derive_from< std::tuple<> >( "" );
+    test_derive_from< std::tuple< tag<'A'> > >( "A" );
+    test_derive_from< std::tuple< tag<'A'>, tag<'B'> > >( "AB" );
+    test_derive_from< std::tuple< tag<'A'>, tag<'B'>, tag<'C'> > >( "ABC" );
+}
+
+namespace {
+
+    template <
+        typename List,
+        typename E >
+    struct add_only_tags;
+
+    template <
+        char C,
+        typename ... Es >
+    struct add_only_tags< std::tuple< Es... >, tag< C > >
+    {
+        typedef std::tuple< tag< C >, Es... > type;
+    };
+
+    template < typename ... Ms, typename T >
+    struct add_only_tags< std::tuple< Ms... >, T >
+    {
+        typedef std::tuple< Ms... > type;
+    };
+}
+
+BOOST_AUTO_TEST_CASE( fold )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::fold< std::tuple<>, add_only_tags >::type,
+            std::tuple<> >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::fold< std::tuple< int, tag<'A'>, float, tag<'B'> >, add_only_tags >::type,
+            std::tuple< tag<'A'>, tag<'B'> > >::value
+    ) );
+}
+
+BOOST_AUTO_TEST_CASE( transform_list )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list< std::tuple<>, bluetoe::details::extract_meta_type >::type,
+            std::tuple<> >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list<
+                std::tuple< type1 >,
+                bluetoe::details::extract_meta_type
+            >::type,
+            std::tuple< meta1 > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list<
+                std::tuple< type1, type2 >,
+                bluetoe::details::extract_meta_type
+            >::type,
+            std::tuple< meta1, meta2 > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::transform_list<
+                std::tuple< type1, type2, type3 >,
+                bluetoe::details::extract_meta_type
+            >::type,
+            std::tuple< meta1, meta2, meta3 > >::value
+    ) );
 }

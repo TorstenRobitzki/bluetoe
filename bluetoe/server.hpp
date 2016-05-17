@@ -5,8 +5,14 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
+#include <bluetoe/server_name.hpp>
+#include <bluetoe/adv_service_list.hpp>
+#include <bluetoe/server_meta_type.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
+#include <bluetoe/gap_service.hpp>
+#include <bluetoe/appearance.hpp>
+#include <bluetoe/mixin.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -14,10 +20,6 @@
 #include <cassert>
 
 namespace bluetoe {
-
-    namespace details {
-        struct server_name_meta_type;
-    }
 
     /**
      * @brief Root of the declaration of a GATT server.
@@ -42,13 +44,21 @@ namespace bluetoe {
      * @sa shared_write_queue
      * @sa extend_server
      * @sa server_name
+     * @sa appearance
      */
     template < typename ... Options >
-    class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >
+    class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >,
+        public details::derive_from< typename details::collect_mixins< Options... >::type >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services;
+        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services_without_gap;
+
+        // append gap serivce for gatt servers
+        typedef typename details::find_by_meta_type< details::gap_service_definition_meta_type,
+            Options..., gap_service_for_gatt_servers >::type gap_service_definition;
+        typedef typename gap_service_definition::template add_service< services_without_gap, Options... >::type services;
+
         static constexpr std::size_t number_of_client_configs = details::sum_by< services, details::sum_by_client_configs >::value;
 
         typedef typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type write_queue_type;
@@ -109,9 +119,12 @@ namespace bluetoe {
          * @brief notifies all connected clients about this value
          *
          * There is no check whether there was actual a change to the value or not. It's safe to call this function from a different
-         * thread or from an interrupt service routine.
+         * thread or from an interrupt service routine. But there is a check whether or not clients enabled notifications.
          *
          * The characteristic<> must have been given the notify parameter.
+         *
+         * @sa notify
+         * @sa characteristic
          *
          * Example:
          @code
@@ -133,9 +146,71 @@ namespace bluetoe {
         }
         @endcode
 
+         * @return The function will return false, if the given notification was ignored, because the
+         *         characteristic is already queued for notification, but not yet send out.
          */
         template < class T >
-        void notify( const T& value );
+        bool notify( const T& value );
+
+        /**
+         * Notify a characteristic, by giving the characteristic UUID.
+         *
+         * The charactieristic to be notify, must have been configured for notificaton.
+         * If multiple characteristics exists with the given UUID, the first characteristic will be notified.
+         *
+         * @sa notify
+         * @sa characteristic
+         *
+         * Example:
+         @code
+        std::int32_t temperature;
+
+        typedef bluetoe::server<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x0815 >,
+                bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >,
+                bluetoe::notify
+            >
+        > temperature_service;
+
+        int main()
+        {
+            temperature_service server;
+
+            server.notify< bluetoe::characteristic_uuid16< 0x0815 > >();
+        }
+        @endcode
+
+         * @return The function will return false, if the given notification was ignored, because the
+         *         characteristic is already queued for notification, but not yet send out.
+         */
+        template < class CharacteristicUUID >
+        bool notify();
+
+        /**
+         * @brief sends indications to all connceted clients.
+         *
+         * The function is mostly similar to notify(). Instead of an ATT notification, an ATT indication is send.
+         *
+         * @return The function will return false, if the given indication was ignored, because the
+         *         characteristic is already queued for indication, but not yet send out or the confirmation
+         *         to a previous send out indication of this characteristic was not received yet.
+         */
+        template < class T >
+        bool indicate( const T& value );
+
+        /**
+         * @brief sends indications to all connceted clients.
+         *
+         * The function is mostly similar to notify(). Instead of aa ATT notification, an ATT indication is send.
+         *
+         * @return The function will return false, if the given indication was ignored, because the
+         *         characteristic is already queued for indication, but not yet send out or the confirmation
+         *         to a previous send out indication of this characteristic was not received yet.
+         */
+        template < class CharacteristicUUID >
+        bool indicate();
 
         /** @cond HIDDEN_SYMBOLS */
         // function relevant only for l2cap layers
@@ -147,26 +222,37 @@ namespace bluetoe {
         /**
          * @brief returns the advertising data to the L2CAP implementation
          */
-        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size );
+        std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
 
-        typedef void (*lcap_notification_callback_t)( const details::notification_data& item );
+        enum notification_type {
+            notification,
+            indication,
+            confirmation
+        };
+
+        typedef bool (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, notification_type type );
 
         /**
          * @brief sets the callback for the l2cap layer to receive notifications and indications
          *
          * The server will inform the l2cap layer about that fact, that there are outstanding notifications for all connection for the
-         * characteristic given by the item pointer. It's up to the l2cap layer to call notification_output
+         * characteristic given by the item pointer. It's up to the l2cap layer to call notification_output.
+         * The usr_arg is stored and passed to the given callback, when the callback is called.
          */
-        void notification_callback( lcap_notification_callback_t );
+        void notification_callback( lcap_notification_callback_t, void* usr_arg );
 
         void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
+        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
+
+        void indication_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
 
         /**
          * @attention this function must be called with every client that got disconnected.
          */
         void client_disconnected( connection_data& );
 
+        typedef details::server_meta_type meta_type;
         /** @endcond */
 
     private:
@@ -178,6 +264,8 @@ namespace bluetoe {
 
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
+
+        static details::att_error_codes access_result_to_att_code( details::attribute_access_result, details::att_error_codes default_att_code );
 
         /**
          * for a PDU what starts with an opcode, followed by a pair of handles, the function checks the size of the PDU (must be A or B) and checks the handles.
@@ -208,6 +296,7 @@ namespace bluetoe {
         void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
         template < typename WriteQueue >
         void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
+        void handle_value_confirmation( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
         void all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
@@ -221,13 +310,21 @@ namespace bluetoe {
 
         // data
         lcap_notification_callback_t l2cap_cb_;
+        void*                        l2cap_arg_;
 
     protected: // for testing
         /** @cond HIDDEN_SYMBOLS */
 
         details::notification_data find_notification_data( const void* ) const;
+        details::notification_data find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const;
+
         /** @endcond */
     };
+
+    /**
+     * @example server_example.cpp
+     * This is a very small sample showing, how to define a very small GATT server.
+     */
 
     /**
      * @brief adds additional options to a given server definition
@@ -254,18 +351,6 @@ namespace bluetoe {
     template < typename ... ServerOptions, typename ... Options >
     struct extend_server< server< ServerOptions... >, Options... > : server< ServerOptions..., Options... >
     {
-    };
-
-    /**
-     * @brief adds a discoverable device name
-     */
-    template < const char* const Name >
-    struct server_name {
-        /** @cond HIDDEN_SYMBOLS */
-        typedef details::server_name_meta_type meta_type;
-
-        static constexpr char const* name = Name;
-        /** @endcond */
     };
 
     /*
@@ -328,14 +413,56 @@ namespace bluetoe {
         case details::att_opcodes::execute_write_request:
             handle_execute_write_request( input, in_size, output, out_size, connection, write_queue_type() );
             break;
+        case details::att_opcodes::confirmation:
+            handle_value_confirmation( input, in_size, output, out_size, connection );
+            break;
         default:
             error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
             break;
         }
     }
 
+    namespace details {
+        // all this hassel to stop gcc from complaining about constant argument to if
+        template < bool >
+        struct copy_name
+        {
+            static std::uint8_t* impl( std::uint8_t* begin, std::uint8_t* end, const char* const name )
+            {
+                if ( ( end - begin ) <= 2 )
+                    return begin;
+
+                const std::size_t name_length  = std::strlen( name );
+                const std::size_t max_name_len = std::min< std::size_t >( name_length, end - begin - 2 );
+
+                if ( name_length > 0 )
+                {
+                    begin[ 0 ] = max_name_len + 1;
+                    begin[ 1 ] = max_name_len == name_length
+                        ? bits( details::gap_types::complete_local_name )
+                        : bits( details::gap_types::shortened_local_name );
+
+                    std::copy( name + 0, name + max_name_len, &begin[ 2 ] );
+                    begin += max_name_len + 2;
+                }
+
+                return begin;
+            }
+        };
+
+        template <>
+        struct copy_name< false >
+        {
+            static std::uint8_t* impl( std::uint8_t* begin, std::uint8_t*, const char* const )
+            {
+                return begin;
+            }
+        };
+
+    }
+
     template < typename ... Options >
-    std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size )
+    std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size ) const
     {
         std::uint8_t* const end = begin + buffer_size;
 
@@ -351,21 +478,31 @@ namespace bluetoe {
 
         typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
 
-        if ( name::name && ( end - begin ) > 2 )
+        begin = details::copy_name< name::name != nullptr >::impl( begin, end, name::name );
+
+        typedef typename details::find_by_meta_type<
+            details::list_of_16_bit_service_uuids_tag,
+            Options...,
+            details::default_list_of_16_bit_service_uuids< services >
+        >::type service_list_uuid16;
+
+        begin = service_list_uuid16::advertising_data( begin, end );
+
+        typedef typename details::find_by_meta_type<
+            details::list_of_128_bit_service_uuids_tag,
+            Options...,
+            details::default_list_of_128_bit_service_uuids< services >
+        >::type service_list_uuid128;
+
+        begin = service_list_uuid128::advertising_data( begin, end );
+
+        // add aditional empty AD to be visible to Nordic sniffer
+        if ( end - begin >= 2u )
         {
-            const std::size_t name_length  = name::name ? std::strlen( name::name ) : 0u;
-            const std::size_t max_name_len = std::min< std::size_t >( name_length, end - begin - 2 );
-
-            if ( name_length > 0 )
-            {
-                begin[ 0 ] = max_name_len + 1;
-                begin[ 1 ] = max_name_len == name_length
-                    ? bits( details::gap_types::complete_local_name )
-                    : bits( details::gap_types::shortened_local_name );
-
-                std::copy( name::name + 0, name::name + max_name_len, &begin[ 2 ] );
-                begin += max_name_len + 2;
-            }
+            *begin = 0;
+            ++begin;
+            *begin = 0;
+            ++begin;
         }
 
         return buffer_size - ( end - begin );
@@ -373,7 +510,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < class T >
-    void server< Options... >::notify( const T& value )
+    bool server< Options... >::notify( const T& value )
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
@@ -381,13 +518,65 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            l2cap_cb_( data );
+            return l2cap_cb_( data, l2cap_arg_, notification );
+
+        return false;
     }
 
     template < typename ... Options >
-    void server< Options... >::notification_callback( lcap_notification_callback_t cb )
+    template < class CharacteristicUUID >
+    bool server< Options... >::notify()
     {
-        l2cap_cb_ = cb;
+        static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
+
+        typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
+
+        static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Notified characteristic not found by UUID." );
+        static_assert( characteristic::has_notification, "Characteristic must be configured for notification!" );
+
+        if ( l2cap_cb_ )
+            return l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, notification );
+
+        return false;
+    }
+
+    template < typename ... Options >
+    template < class T >
+    bool server< Options... >::indicate( const T& value )
+    {
+        static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
+
+        const details::notification_data data = find_notification_data( &value );
+        assert( data.valid() );
+
+        if ( l2cap_cb_ )
+            return l2cap_cb_( data, l2cap_arg_, indication );
+
+        return false;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::indicate()
+    {
+        static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
+
+        typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
+
+        static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Indicated characteristic not found by UUID." );
+        static_assert( characteristic::has_indication, "Characteristic must be configured for indication!" );
+
+        if ( l2cap_cb_ )
+            return l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, indication );
+
+        return false;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_callback( lcap_notification_callback_t cb, void* usr_arg )
+    {
+        l2cap_cb_  = cb;
+        l2cap_arg_ = usr_arg;
     }
 
     template < typename ... Options >
@@ -398,13 +587,47 @@ namespace bluetoe {
         if ( connection.client_configurations().flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled &&
              out_size >= 3 )
         {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations() );
-            auto rc   = data.value_attribute().access( read, data.handle() );
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
+            auto attr = attribute_at( data.handle() - 1 );
+            auto rc   = attr.access( read, data.handle() );
 
-            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::notification );
                 details::write_handle( output +1, data.handle() );
+            }
+
+            out_size = 3 + read.buffer_size;
+        }
+        else
+        {
+            out_size = 0;
+        }
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
+    {
+        notification_output( output, out_size, connection, find_notification_data_by_index( client_characteristic_configuration_index ) );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::indication_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
+    {
+        const auto details = find_notification_data_by_index( client_characteristic_configuration_index );
+        assert( details.valid() );
+
+        if ( connection.client_configurations().flags( details.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled &&
+             out_size >= 3 )
+        {
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
+            auto attr = attribute_at( details.handle() - 1 );
+            auto rc   = attr.access( read, details.handle() );
+
+            if ( rc == details::attribute_access_result::success )
+            {
+                *output = bits( details::att_opcodes::indication );
+                details::write_handle( output +1, details.handle() );
             }
 
             out_size = 3 + read.buffer_size;
@@ -424,7 +647,7 @@ namespace bluetoe {
     template < typename ... Options >
     details::attribute server< Options... >::attribute_at( std::size_t index )
     {
-        return details::attribute_from_service_list< services, 0 >::attribute_at( index );
+        return details::attribute_from_service_list< services, server< Options... > >::attribute_at( index );
     }
 
     template < typename ... Options >
@@ -449,6 +672,18 @@ namespace bluetoe {
     void server< Options... >::error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size )
     {
         error_response( opcode, error_code, 0, output, out_size );
+    }
+
+
+    template < typename ... Options >
+    details::att_error_codes server< Options... >::access_result_to_att_code( details::attribute_access_result access_code, details::att_error_codes default_att_code )
+    {
+        // if it can be copied lossles into a att_error_codes, it is a att_error_codes
+        const details::att_error_codes result = static_cast< details::att_error_codes >( access_code );
+
+        return static_cast< details::attribute_access_result >( result ) == access_code
+            ? result
+            : default_att_code;
     }
 
     template < typename ... Options >
@@ -565,22 +800,25 @@ namespace bluetoe {
     }
 
     namespace details {
+        template < class Server >
         struct value_filter
         {
-            value_filter( const std::uint8_t* begin, const std::uint8_t* end )
+            value_filter( const std::uint8_t* begin, const std::uint8_t* end, Server& s )
                 : begin_( begin )
                 , end_( end )
+                , server_( s )
             {
             }
 
             bool operator()( std::uint16_t, const details::attribute& attr ) const
             {
-                auto read = details::attribute_access_arguments::compare_value( begin_, end_ );
+                auto read = details::attribute_access_arguments::compare_value( begin_, end_, &server_ );
                 return attr.access( read, 1 ) == details::attribute_access_result::value_equal;
             }
 
             const std::uint8_t* const begin_;
             const std::uint8_t* const end_;
+            Server&                   server_;
         };
 
         struct collect_find_by_type_groups
@@ -631,7 +869,7 @@ namespace bluetoe {
 
         details::collect_find_by_type_groups iterator( output + 1 , output + out_size );
 
-        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter( &input[ 7 ], input + in_size ) ) )
+        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter< server< Options... > >( &input[ 7 ], input + in_size, *this ) ) )
         {
             *output  = bits( details::att_opcodes::find_by_type_value_response );
             out_size = iterator.size() + 1;
@@ -651,10 +889,10 @@ namespace bluetoe {
         if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
             return;
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations() );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), this );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
-        if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+        if ( rc == details::attribute_access_result::success )
         {
             *output  = bits( details::att_opcodes::read_response );
             out_size = 1 + read.buffer_size;
@@ -675,10 +913,10 @@ namespace bluetoe {
 
         const std::uint16_t offset = details::read_16bit( input + 3 );
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations() );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations(), this );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
-        if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+        if ( rc == details::attribute_access_result::success )
         {
             *output  = bits( details::att_opcodes::read_blob_response );
             out_size = 1 + read.buffer_size;
@@ -694,6 +932,7 @@ namespace bluetoe {
      }
 
     namespace details {
+        template < typename Server >
         struct collect_attributes
         {
             void operator()( std::uint16_t handle, const details::attribute& attr )
@@ -705,10 +944,10 @@ namespace bluetoe {
                 {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
-                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_ );
+                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_, &server_ );
                     auto rc   = attr.access( read, handle );
 
-                    if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated && read.buffer_size == maximum_pdu_size )
+                    if ( rc == details::attribute_access_result::success )
                     {
                         assert( read.buffer_size <= maximum_pdu_size );
 
@@ -727,13 +966,14 @@ namespace bluetoe {
                 }
             }
 
-            collect_attributes( std::uint8_t* begin, std::uint8_t* end, const details::client_characteristic_configuration& config )
+            collect_attributes( std::uint8_t* begin, std::uint8_t* end, const details::client_characteristic_configuration& config, Server& server )
                 : begin_( begin )
                 , current_( begin )
                 , end_( end )
                 , size_( 0 )
                 , first_( true )
                 , config_( config )
+                , server_( server )
             {
             }
 
@@ -758,6 +998,7 @@ namespace bluetoe {
             std::uint8_t    size_;
             bool            first_;
             details::client_characteristic_configuration config_;
+            Server&         server_;
         };
     }
 
@@ -767,9 +1008,9 @@ namespace bluetoe {
         std::uint16_t starting_handle, ending_handle;
 
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
-            return;
+             return;
 
-        details::collect_attributes iterator( output + 2, output + out_size, connection.client_configurations() );
+        details::collect_attributes< server< Options... > > iterator( output + 2, output + out_size, connection.client_configurations(), *this );
 
         all_attributes( starting_handle, ending_handle, iterator, details::uuid_filter( input + 5, in_size == 5 + 16 ) );
 
@@ -786,9 +1027,10 @@ namespace bluetoe {
     }
 
     namespace details {
+        template < typename ServiceList, typename Server >
         struct collect_primary_services
         {
-            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size )
+            collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size, Server& server )
                 : output_( output )
                 , end_( end )
                 , index_( starting_index )
@@ -797,6 +1039,7 @@ namespace bluetoe {
                 , first_( true )
                 , is_128bit_uuid_( true )
                 , attribute_data_size_( attribute_data_size )
+                , server_( server )
             {
             }
 
@@ -812,7 +1055,9 @@ namespace bluetoe {
                         attribute_data_size_    = is_128bit_uuid_ ? 16 + 4 : 2 + 4;
                     }
 
-                    output_ = Service::read_primary_service_response( output_, end_, index_, is_128bit_uuid_ );
+                    /// TODO: ClientCharacteristicIndex is derivable from Service and ServiceList, if 0 is used,
+                    /// some templates are most likely more than once instanciated
+                    output_ = Service::template read_primary_service_response< 0, ServiceList, Server >( output_, end_, index_, is_128bit_uuid_, server_ );
                 }
 
                 index_ += Service::number_of_attributes;
@@ -826,6 +1071,7 @@ namespace bluetoe {
                   bool            first_;
                   bool            is_128bit_uuid_;
                   std::uint8_t&   attribute_data_size_;
+                  Server&         server_;
         };
     }
 
@@ -847,7 +1093,7 @@ namespace bluetoe {
         ++begin; // gap for the size
 
         std::uint8_t* const data_begin = begin;
-        details::for_< services >::each( details::collect_primary_services( begin, end, 1, starting_handle, ending_handle, *(begin -1 ) ) );
+        details::for_< services >::each( details::collect_primary_services< services, server< Options... > >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ), *this ) );
 
         if ( begin == data_begin )
         {
@@ -885,10 +1131,10 @@ namespace bluetoe {
             if ( handle > number_of_attributes )
                 return error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
 
-            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations() );
+            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations(), this );
             auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
-            if ( rc == details::attribute_access_result::success || rc == details::attribute_access_result::read_truncated )
+            if ( rc == details::attribute_access_result::success )
             {
                 out_ptr += read.buffer_size;
                 assert( out_ptr <= end_output );
@@ -913,7 +1159,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations() );
+        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations(), this );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -921,13 +1167,13 @@ namespace bluetoe {
             *output  = bits( details::att_opcodes::write_response );
             out_size = 1;
         }
-        else if ( rc == details::attribute_access_result::write_overflow )
+        else if ( rc == details::attribute_access_result::invalid_attribute_value_length )
         {
             error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
         }
         else
         {
-            error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
+            error_response( *input, access_result_to_att_code( rc, details::att_error_codes::write_not_permitted ), handle, output, out_size );
         }
     }
 
@@ -959,7 +1205,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::check_write();
+        auto write = details::attribute_access_arguments::check_write( this );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::write_not_permitted )
@@ -1004,12 +1250,12 @@ namespace bluetoe {
                 const uint16_t handle = details::read_handle( queue.first );
                 const uint16_t offset = details::read_16bit( queue.first + 2 );
 
-                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second, offset, client.client_configurations() );
+                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second, offset, client.client_configurations(), this );
                 auto rc    = attribute_at( handle -1 ).access( write, handle );
 
                 if ( rc != details::attribute_access_result::success )
                 {
-                    if ( rc == details::attribute_access_result::write_overflow )
+                    if ( rc == details::attribute_access_result::invalid_attribute_value_length )
                         return error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
 
                     return error_response( *input, details::att_error_codes::invalid_offset, handle, output, out_size );
@@ -1019,6 +1265,18 @@ namespace bluetoe {
 
         *output  = bits( details::att_opcodes::execute_write_response );
         out_size = 1;
+    }
+
+    template < typename ... Options >
+    void server< Options... >::handle_value_confirmation( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    {
+        if ( in_size != 1 )
+            return error_response( *input, static_cast< details::att_error_codes >( 0x04 ), output, out_size );
+
+        out_size = 0;
+
+        if ( l2cap_cb_ )
+            l2cap_cb_( details::notification_data(), l2cap_arg_, confirmation );
     }
 
     template < typename ... Options >
@@ -1035,7 +1293,7 @@ namespace bluetoe {
     }
 
     namespace details {
-        template < class Iterator, class Filter >
+        template < class Iterator, class Filter, class AllServices, class Server >
         struct services_by_group
         {
             services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter, bool& found )
@@ -1054,7 +1312,7 @@ namespace bluetoe {
             {
                 if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
                 {
-                    const details::attribute& attr = Service::characteristic_declaration_attribute();
+                    const details::attribute& attr = Service::template attribute_at< 0, AllServices, Server >( 0 );
 
                     if ( filter_( index_, attr ) )
                     {
@@ -1079,7 +1337,7 @@ namespace bluetoe {
     bool server< Options... >::all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter )
     {
         bool result = false;
-        details::for_< services >::each( details::services_by_group< Iterator, Filter >( starting_handle, ending_handle, iterator, filter, result ) );
+        details::for_< services >::each( details::services_by_group< Iterator, Filter, services, server< Options... > >( starting_handle, ending_handle, iterator, filter, result ) );
 
         return result;
     }
@@ -1138,6 +1396,12 @@ namespace bluetoe {
     details::notification_data server< Options... >::find_notification_data( const void* value ) const
     {
         return details::find_notification_data_in_list< services >::template find_notification_data< 1, 0 >( value );
+    }
+
+    template < typename ... Options >
+    details::notification_data server< Options... >::find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const
+    {
+        return details::find_notification_data_in_list< services >::template find_notification_data_by_index< 1, 0 >( client_characteristic_configuration_index );
     }
 
     template < typename ... Options >

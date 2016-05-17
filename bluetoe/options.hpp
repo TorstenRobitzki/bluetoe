@@ -5,6 +5,10 @@
 #include <type_traits>
 #include <tuple>
 
+/**
+ * @file bluetoe/options.hpp
+ * This file contains all the generic meta template functions that are required by bluetoe
+ */
 namespace bluetoe {
 namespace details {
 
@@ -19,6 +23,24 @@ namespace details {
     template < typename A, typename B >
     struct select_type< false, A, B > {
         typedef B type;
+    };
+
+    /*
+     * Selects a template according to the given Select parameter. If select is true,
+     * the result will be A; B otherwise
+     *
+     * The result is named type, but it is a template.
+     */
+    template < bool Select, template < typename > class A, template < typename > class B >
+    struct select_template_t1 {
+        template < typename T1 >
+        using type = A< T1 >;
+    };
+
+    template < template < typename > class A, template < typename > class B >
+    struct select_template_t1< false, A, B > {
+        template < typename T1 >
+        using type = B< T1 >;
     };
 
     /*
@@ -229,6 +251,11 @@ namespace details {
             typename find_all_by_meta_type< MetaType, Types... >::type >::type type;
     };
 
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct find_all_by_meta_type< MetaType, std::tuple< Types... > > : find_all_by_meta_type< MetaType, Types... > {};
+
     /*
      * groups a list of types by there meta types
      *
@@ -376,6 +403,34 @@ namespace details {
         sum_by< std::tuple< T >, Predicate >::value
       + sum_by< std::tuple< Ts... >, Predicate >::value > {};
 
+    /*
+     * transform a list into an other list of the same length
+     */
+    template <
+        typename List,
+        template < typename > class Transform
+    >
+    struct transform_list;
+
+    template <
+        template < typename > class Transform
+    >
+    struct transform_list< std::tuple<>, Transform > {
+        typedef std::tuple<> type;
+    };
+
+    template <
+        typename E,
+        typename ... Es,
+        template < typename > class Transform
+    >
+    struct transform_list< std::tuple< E, Es... >, Transform > {
+        typedef typename add_type<
+            typename Transform< E >::type,
+            typename transform_list< std::tuple< Es... >, Transform >::type
+        >::type type;
+    };
+
     /**
      * @brief returns true, if Option is given in Options
      */
@@ -422,10 +477,10 @@ namespace details {
      */
     template <
         typename ... Options >
-    struct for_;
+    struct for_impl;
 
     template <>
-    struct for_<>
+    struct for_impl<>
     {
         template < typename Function >
         static void each( Function )
@@ -433,44 +488,119 @@ namespace details {
     };
 
     template <
-        typename Option >
-    struct for_< Option >
-    {
-        template < typename Function >
-        static void each( Function f )
-        {
-            f.template each< Option >();
-        }
-    };
-
-    template <
         typename Option,
         typename ... Options >
-    struct for_< Option, Options... >
+    struct for_impl< Option, Options... >
     {
         template < typename Function >
         static void each( Function f )
         {
             f.template each< Option >();
-            for_< Options... >::each( f );
+            for_impl< Options... >::each( f );
         }
     };
 
     template <
         typename ... Options >
-    struct for_< std::tuple< Options... > >
+    struct for_ : for_impl< Options... >
     {
-        template < typename Function >
-        static void each( Function f )
-        {
-            for_< Options... >::each( f );
-        }
+    };
+
+    template <
+        typename ... Options >
+    struct for_< std::tuple< Options... > > : for_impl< Options... >
+    {
+    };
+
+    /**
+     * @brief finds the first element in the list, for which Func< O >::value is true. With O beeing one of List
+     */
+    template <
+        typename List,
+        template < typename > class Func
+    >
+    struct find_if;
+
+    template <
+        template < typename > class Func
+    >
+    struct find_if< std::tuple<>, Func > {
+        typedef no_such_type type;
+    };
+
+    template <
+        typename T,
+        typename ... Ts,
+        template < typename > class Func
+    >
+    struct find_if< std::tuple< T, Ts...>, Func > {
+        typedef typename select_type<
+            Func< T >::value,
+            T,
+            typename find_if< std::tuple< Ts... >, Func >::type >::type type;
+    };
+
+
+    template < typename ... Ts >
+    struct last_from_pack;
+
+    template < typename T >
+    struct last_from_pack< T > {
+        typedef T type;
+    };
+
+    template <
+        typename T,
+        typename ... Ts >
+    struct last_from_pack< T, Ts... > {
+        typedef typename last_from_pack< Ts... >::type type;
     };
 
     // defines an empty type with the given meta_type
     template < typename MetaType >
     struct empty_meta_type {
         typedef MetaType meta_type;
+    };
+
+    template < typename ... Ts >
+    struct derive_from_impl;
+
+    template <>
+    struct derive_from_impl<> {};
+
+    template < typename T, typename ... Ts >
+    struct derive_from_impl< T, Ts... > : T, derive_from_impl< Ts... > {};
+
+    // derives from all types within the given typelist List
+    template < typename List >
+    struct derive_from;
+
+    template < typename ... Ts >
+    struct derive_from< std::tuple< Ts... > > : derive_from_impl< Ts... > {};
+
+    // fold a list with an operation
+    template <
+        typename List,
+        template < typename ListP, typename ElementP > class Operation,
+        typename Start = std::tuple<> >
+    struct fold;
+
+    template <
+        template < typename List, typename Element > class Operation,
+        typename Start >
+    struct fold< std::tuple<>, Operation, Start >
+    {
+        typedef Start type;
+    };
+
+    template <
+        typename T,
+        typename ... Ts,
+        template < typename List, typename Element > class Operation,
+        typename Start >
+    struct fold< std::tuple< T, Ts... >, Operation, Start >
+    {
+        typedef typename Operation< typename fold< std::tuple< Ts... >, Operation, Start >::type, T >::type type;
     };
 
 }

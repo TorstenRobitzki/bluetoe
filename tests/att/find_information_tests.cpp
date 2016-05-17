@@ -62,13 +62,11 @@ BOOST_FIXTURE_TEST_CASE( correct_list_of_16bit_uuids, request_with_reponse< smal
 {
     l2cap_input( request_all_attributes );
 
-    static const std::uint8_t expected_response[] = {
+    expected_result({
         0x05, 0x01,             // response opcode and format
         0x01, 0x00, 0x00, 0x28, // service definition
         0x02, 0x00, 0x03, 0x28  // Characteristic Declaration
-    };
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+    });
 }
 
 BOOST_FIXTURE_TEST_CASE( correct_list_of_128bit_uuids, request_with_reponse< small_temperature_service > )
@@ -76,16 +74,14 @@ BOOST_FIXTURE_TEST_CASE( correct_list_of_128bit_uuids, request_with_reponse< sma
     static const std::uint8_t request_value_attribute[] = { 0x04, 0x03, 0x00, 0x03, 0x00 };
     l2cap_input( request_value_attribute );
 
-    static const std::uint8_t expected_response[] = {
+    expected_result({
         0x05, 0x02,             // response opcode and format
         0x03, 0x00,             // handle
         0xAA, 0x3C, 0xC7, 0x5B,
         0xED, 0x4E, 0x8A, 0xA2,
         0x9F, 0x49, 0xE2, 0x0D,
         0x94, 0x40, 0x8B, 0x8C
-    };
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+    });
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -96,15 +92,13 @@ BOOST_FIXTURE_TEST_CASE( as_long_as_mtu_size_is_large_enough_all_16bit_uuids_wil
 {
     l2cap_input( request_all_attributes );
 
-    static const std::uint8_t expected_response[] = {
+    expected_result({
         0x05, 0x01,             // response opcode and format
         0x01, 0x00, 0x00, 0x28, // service definition
         0x02, 0x00, 0x03, 0x28, // Characteristic Declaration
         0x04, 0x00, 0x03, 0x28,
         0x06, 0x00, 0x03, 0x28
-    };
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+    });
 }
 
 BOOST_FIXTURE_TEST_CASE( response_includes_the_starting_and_ending_handle, request_with_reponse< three_apes_service > )
@@ -112,13 +106,11 @@ BOOST_FIXTURE_TEST_CASE( response_includes_the_starting_and_ending_handle, reque
     const std::uint8_t request[] = { 0x04, 0x02, 0x00, 0x04, 0x00 };
     l2cap_input( request );
 
-    static const std::uint8_t expected_response[] = {
+    expected_result({
         0x05, 0x01,
         0x02, 0x00, 0x03, 0x28,
         0x04, 0x00, 0x03, 0x28
-    };
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+    });
 }
 
 typedef request_with_reponse< three_apes_service, 56 > request_with_reponse_three_apes_service_56;
@@ -128,7 +120,7 @@ BOOST_FIXTURE_TEST_CASE( response_will_contain_only_128bit_uuids_if_the_first_on
     const std::uint8_t request[] = { 0x04, 0x03, 0x00, 0xff, 0xff };
     l2cap_input( request );
 
-    static const std::uint8_t expected_response[] = {
+    expected_result({
         0x05, 0x02,
         0x03, 0x00,
         0xAA, 0x3C, 0xC7, 0x5B,
@@ -145,9 +137,7 @@ BOOST_FIXTURE_TEST_CASE( response_will_contain_only_128bit_uuids_if_the_first_on
         0xED, 0x4E, 0x8A, 0xA2,
         0x9F, 0x49, 0xE2, 0x0D,
         0x94, 0x40, 0x8B, 0x8C
-    };
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+    });
 }
 
 typedef request_with_reponse< three_apes_service, 55 > request_with_reponse_three_apes_service_55;
@@ -156,7 +146,7 @@ BOOST_FIXTURE_TEST_CASE( response_will_contain_one_whole_tuples, request_with_re
     const std::uint8_t request[] = { 0x04, 0x03, 0x00, 0xff, 0xff };
     l2cap_input( request );
 
-    static const std::uint8_t expected_response[] = {
+    expected_result({
         0x05, 0x02,
         0x03, 0x00,
         0xAA, 0x3C, 0xC7, 0x5B,
@@ -168,9 +158,7 @@ BOOST_FIXTURE_TEST_CASE( response_will_contain_one_whole_tuples, request_with_re
         0xED, 0x4E, 0x8A, 0xA2,
         0x9F, 0x49, 0xE2, 0x0D,
         0x94, 0x40, 0x8B, 0x8C
-    };
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::begin( response ) + response_size, std::begin( expected_response ), std::end( expected_response ) );
+    });
 }
 
 BOOST_AUTO_TEST_SUITE_END()

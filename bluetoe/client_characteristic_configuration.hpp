@@ -17,7 +17,6 @@ namespace details {
         {
         }
 
-        // if there are no bugs, data will be null when there is no attribute access function, that will call flags()
         explicit client_characteristic_configuration( std::uint8_t* data, std::size_t s )
             : data_( data )
             , size_( s )
@@ -60,10 +59,21 @@ namespace details {
         std::size_t     size_;
     };
 
+    /**
+     * Store for configuration and state informations for characteristics that need such informations to be
+     * stored among the connection. Such characteristics are characteristics with notification or indication
+     * beeing enabled.
+     */
     template < std::size_t Size >
     class client_characteristic_configurations
     {
     public:
+        /**
+         * This information is intendet to be used by l2cap/link layer implementations that want to
+         * add informations for characteristics with notification/indication capabilities.
+         */
+        static constexpr std::size_t number_of_characteristics_with_configuration = Size;
+
         client_characteristic_configurations()
         {
             std::fill( std::begin( configs_ ), std::end( configs_ ), 0 );
