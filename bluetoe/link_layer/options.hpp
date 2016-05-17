@@ -10,39 +10,10 @@ namespace bluetoe
 namespace link_layer
 {
     namespace details {
-        struct advertising_interval_meta_type {};
         struct device_address_meta_type {};
         struct buffer_sizes_meta_type {};
         struct mtu_size_meta_type {};
-
-        template < unsigned long long AdvertisingIntervalMilliSeconds >
-        struct check_advertising_interval_parameter {
-            static_assert( AdvertisingIntervalMilliSeconds >= 20,    "the advertising interval must be greater than or equal to 20ms." );
-            static_assert( AdvertisingIntervalMilliSeconds <= 10240, "the advertising interval must be greater than or equal to 20ms." );
-
-            typedef void type;
-        };
-
     }
-
-    /**
-     * @brief advertising interval in ms in the range 20ms to 10.24s
-     */
-    template < std::uint16_t AdvertisingIntervalMilliSeconds, typename = typename details::check_advertising_interval_parameter< AdvertisingIntervalMilliSeconds >::type >
-    struct advertising_interval
-    {
-        /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_interval_meta_type meta_type;
-        /** @endcond */
-
-        /**
-         * timeout in ms roundet to the next 0.625ms
-         */
-        static constexpr delta_time interval() {
-
-            return delta_time( AdvertisingIntervalMilliSeconds * 1000 );
-        }
-    };
 
     /**
      * @brief defines that the device will use a static random address.

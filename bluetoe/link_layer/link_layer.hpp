@@ -10,6 +10,7 @@
 #include <bluetoe/link_layer/connection_callbacks.hpp>
 #include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
 #include <bluetoe/link_layer/white_list.hpp>
+#include <bluetoe/link_layer/advertising.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/sm/security_manager.hpp>
@@ -91,6 +92,13 @@ namespace link_layer {
      * @brief link layer implementation
      *
      * Implements a binding to a server by implementing a link layout on top of a ScheduleRadio device.
+     *
+     * @sa connectable_undirected_advertising
+     * @sa connectable_directed_advertising
+     * @sa scannable_undirected_advertising
+     * @sa non_connectable_undirected_advertising
+     * @sa auto_start_advertising
+     * @sa no_auto_start_advertising
      */
     template <
         class Server,
@@ -117,6 +125,7 @@ namespace link_layer {
             >,
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
+        public details::advertising_state_impl< Options... >,
         private details::connection_callbacks< Server, Options... >::type,
         private details::signaling_channel< Options... >::type
     {
@@ -169,6 +178,16 @@ namespace link_layer {
          * @todo Add parameter that identifies the connection.
          */
         void disconnect();
+
+        /**
+         * @brief provide adverting data
+         */
+        write_buffer advertising_data();
+
+        /**
+         * @brief provide adverting response data
+         */
+        write_buffer advertising_response_data();
 
     private:
         typedef ScheduledRadio<
@@ -268,9 +287,8 @@ namespace link_layer {
         std::size_t                     adv_size_;
         std::size_t                     adv_response_size_;
 
-        unsigned                        current_channel_index_;
-        unsigned                        adv_perturbation_;
         const device_address            address_;
+        unsigned                        current_channel_index_;
         channel_map                     channels_;
         unsigned                        cumulated_sleep_clock_accuracy_;
         delta_time                      transmit_window_offset_;
@@ -318,9 +336,8 @@ namespace link_layer {
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : adv_size_( 0 )
         , adv_response_size_( 0 )
-        , current_channel_index_( first_advertising_channel )
-        , adv_perturbation_( 0 )
         , address_( local_device_address::address( *this ) )
+        , current_channel_index_( first_advertising_channel )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
         , connection_details_( details::mtu_size< Options... >::mtu )
@@ -356,66 +373,37 @@ namespace link_layer {
     {
         assert( state_ == state::advertising );
 
-        if ( is_valid_scan_request( receive ) )
+        device_address remote_address;
+
+        if ( this->handle_non_connected_state( receive, *this, address_, remote_address )
+          && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
+          && parse_timing_parameters_from_connect_request( receive ) )
         {
-            const device_address remote_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+            state_                    = state::connecting;
+            current_channel_index_    = 0;
+            conn_event_counter_       = 0;
+            cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
+            timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
 
-            if ( this->is_scan_request_in_filter( remote_address ) )
-            {
-                this->schedule_advertisment_and_receive(
-                    current_channel_index_,
-                    write_buffer{ advertising_response_buffer(), adv_response_size_ }, delta_time::now(),
-                    read_buffer{ nullptr, 0 } );
-            }
-            else
-            {
-                adv_timeout();
-            }
-        }
-        else if (
-               is_valid_connect_request( receive )
-            && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
-            && parse_timing_parameters_from_connect_request( receive ) )
-        {
-            const device_address remote_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+            this->set_access_address_and_crc_init(
+                read_32( &receive.buffer[ 14 ] ),
+                read_24( &receive.buffer[ 18 ] ) );
 
-            if ( this->is_connection_request_in_filter( remote_address ) )
-            {
-                state_                    = state::connecting;
-                current_channel_index_    = 0;
-                conn_event_counter_       = 0;
-                cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
-                timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
+            const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
+                  delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
 
-                this->set_access_address_and_crc_init(
-                    read_32( &receive.buffer[ 14 ] ),
-                    read_24( &receive.buffer[ 18 ] ) );
+            window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
-                const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
-                      delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
+            this->reset();
+            this->schedule_connection_event(
+                channels_.data_channel( current_channel_index_ ),
+                window_start,
+                window_end,
+                connection_interval_ );
 
-                window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+            this->connection_request( connection_addresses( address_, remote_address ) );
 
-                this->reset();
-                this->schedule_connection_event(
-                    channels_.data_channel( current_channel_index_ ),
-                    window_start,
-                    window_end,
-                    connection_interval_ );
-
-
-                this->connection_request( connection_addresses( address_, remote_address ) );
-
-                connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
-            }
-            else
-            {
-                adv_timeout();
-            }
-        }
-        else
-        {
-            adv_timeout();
+            connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
         }
     }
 
@@ -424,18 +412,7 @@ namespace link_layer {
     {
         assert( state_ == state::advertising );
 
-        current_channel_index_ = current_channel_index_ == last_advertising_channel
-            ? first_advertising_channel
-            : current_channel_index_ + 1;
-
-        const delta_time next_time = current_channel_index_ == first_advertising_channel
-            ? next_adv_event()
-            : delta_time::now();
-
-        this->schedule_advertisment_and_receive(
-            current_channel_index_,
-            write_buffer{ advertising_buffer(), adv_size_ }, next_time,
-            read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
+        this->handle_adv_timeout( *this, advertising_receive_buffer() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -654,18 +631,6 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    delta_time link_layer< Server, ScheduledRadio, Options... >::next_adv_event()
-    {
-        adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
-
-        typedef typename ::bluetoe::details::find_by_meta_type<
-            details::advertising_interval_meta_type,
-            Options..., default_advertising_interval >::type adv_interval;
-
-        return adv_interval::interval() + delta_time::msec( adv_perturbation_ );
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer()
     {
         std::uint8_t* const adv_buffer = advertising_buffer();
@@ -695,36 +660,6 @@ namespace link_layer {
         std::copy( address_.begin(), address_.end(), &adv_response_buffer[ 2 ] );
 
         adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::is_valid_scan_request( const read_buffer& receive ) const
-    {
-        static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
-        static constexpr std::uint8_t scan_request_code = 0x03;
-
-        bool result = receive.size == scan_request_size
-            && ( receive.buffer[ 1 ] & 0x3f ) == scan_request_size - advertising_pdu_header_size
-            && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
-
-        result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
-
-        return result;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::is_valid_connect_request( const read_buffer& receive ) const
-    {
-        static constexpr std::size_t  connect_request_size = 34 + advertising_pdu_header_size;
-        static constexpr std::uint8_t connect_request_code = 0x05;
-
-        bool result = receive.size == connect_request_size
-                && ( receive.buffer[ 1 ] & 0x3f ) == connect_request_size - advertising_pdu_header_size
-                && ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
-
-        result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], address_.begin() );
-
-        return result;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -800,7 +735,7 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::start_advertising()
     {
         state_ = state::advertising;
-        current_channel_index_ = first_advertising_channel;
+
         defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
 
         fill_advertising_buffer();
@@ -810,10 +745,7 @@ namespace link_layer {
             advertising_radio_access_address,
             advertising_crc_init );
 
-        this->schedule_advertisment_and_receive(
-            current_channel_index_,
-            write_buffer{ advertising_buffer(), adv_size_ }, delta_time::now(),
-            read_buffer{ advertising_receive_buffer(), maximum_adv_request_size } );
+        this->handle_start_advertising( *this, advertising_receive_buffer() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -833,6 +765,19 @@ namespace link_layer {
     {
         return advertising_response_buffer() + max_advertising_data_size + address_length + advertising_pdu_header_size;
     }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    write_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_data()
+    {
+        return write_buffer{ advertising_buffer(), adv_size_ };
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    write_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_response_data()
+    {
+        return write_buffer{ advertising_response_buffer(), adv_response_size_ };
+    }
+
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
