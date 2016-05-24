@@ -180,14 +180,13 @@ namespace link_layer {
         void disconnect();
 
         /**
-         * @brief provide adverting data
+         * @brief fills the given buffer with l2cap advertising payload
          */
-        write_buffer advertising_data();
+        std::size_t fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
-        /**
-         * @brief provide adverting response data
-         */
-        write_buffer advertising_response_data();
+        read_buffer advertising_buffer();
+        read_buffer advertising_response_buffer();
+        read_buffer advertising_receive_buffer();
 
     private:
         typedef ScheduledRadio<
@@ -202,13 +201,8 @@ namespace link_layer {
         typedef typename details::security_manager< Options... >::type security_manager_t;
         typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
-        // calculates the time point for the next advertising event
-        delta_time next_adv_event();
+        typedef details::advertising_state_impl< Options... > advertising_t;
 
-        void fill_advertising_buffer();
-        void fill_advertising_response_buffer();
-        bool is_valid_scan_request( const read_buffer& receive ) const;
-        bool is_valid_connect_request( const read_buffer& receive ) const;
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
         bool check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const;
         bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
@@ -219,10 +213,6 @@ namespace link_layer {
         void transmit_notifications();
         void transmit_signaling_channel_output();
         static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
-
-        std::uint8_t* advertising_buffer();
-        std::uint8_t* advertising_response_buffer();
-        std::uint8_t* advertising_receive_buffer();
 
         enum class ll_result {
             go_ahead,
@@ -241,22 +231,11 @@ namespace link_layer {
         static std::uint32_t read_24( const std::uint8_t* );
         static std::uint32_t read_32( const std::uint8_t* );
 
-        static constexpr std::size_t    max_advertising_data_size   = 31;
-        static constexpr std::size_t    advertising_pdu_header_size = 2;
-        static constexpr std::size_t    address_length              = 6;
-        static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
-
         static constexpr unsigned       first_advertising_channel   = 37;
-        static constexpr unsigned       last_advertising_channel    = 39;
-        static constexpr unsigned       max_adv_perturbation_       = 10;
         static constexpr unsigned       num_windows_til_timeout     = 5;
 
-        static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
-        static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
         static constexpr std::uint8_t   lld_data_pdu_code           = 2;
-
-        static constexpr std::uint8_t   header_txaddr_field         = 0x40;
 
         static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
         static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
@@ -282,10 +261,7 @@ namespace link_layer {
 
 
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
-        static_assert( radio_t::size >= 2 * ( max_advertising_data_size + address_length + advertising_pdu_header_size ) + maximum_adv_request_size, "buffer to small" );
-
-        std::size_t                     adv_size_;
-        std::size_t                     adv_response_size_;
+        static_assert( radio_t::size >= advertising_t::maximum_required_advertising_buffer, "buffer to small" );
 
         const device_address            address_;
         unsigned                        current_channel_index_;
@@ -334,9 +310,7 @@ namespace link_layer {
     // implementation
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
-        : adv_size_( 0 )
-        , adv_response_size_( 0 )
-        , address_( local_device_address::address( *this ) )
+        : address_( local_device_address::address( *this ) )
         , current_channel_index_( first_advertising_channel )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
@@ -374,8 +348,15 @@ namespace link_layer {
         assert( state_ == state::advertising );
 
         device_address remote_address;
+        const bool connection_request_received = this->handle_adv_receive(
+            *this,
+            receive,
+            advertising_receive_buffer(),
+            advertising_buffer(),
+            advertising_response_buffer(),
+            address_, remote_address );
 
-        if ( this->handle_non_connected_state( receive, *this, address_, remote_address )
+        if ( connection_request_received
           && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
           && parse_timing_parameters_from_connect_request( receive ) )
         {
@@ -412,7 +393,7 @@ namespace link_layer {
     {
         assert( state_ == state::advertising );
 
-        this->handle_adv_timeout( *this, advertising_receive_buffer() );
+        this->handle_adv_timeout( *this, advertising_buffer(), advertising_receive_buffer(), address_ );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -631,38 +612,6 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_buffer()
-    {
-        std::uint8_t* const adv_buffer = advertising_buffer();
-
-        adv_buffer[ 0 ] = adv_ind_pdu_type_code;
-
-        if ( address_.is_random() )
-            adv_buffer[ 0 ] |= header_txaddr_field;
-
-        adv_buffer[ 1 ] = address_length + server_->advertising_data( &adv_buffer[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
-        std::copy( address_.begin(), address_.end(), &adv_buffer[ 2 ] );
-        adv_size_ = advertising_pdu_header_size + adv_buffer[ 1 ];
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::fill_advertising_response_buffer()
-    {
-        std::uint8_t* adv_response_buffer = advertising_response_buffer();
-
-        adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
-
-        if ( address_.is_random() )
-            adv_response_buffer[ 0 ] |= header_txaddr_field;
-
-        adv_response_buffer[ 1 ] = address_length;
-
-        std::copy( address_.begin(), address_.end(), &adv_response_buffer[ 2 ] );
-
-        adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     unsigned link_layer< Server, ScheduledRadio, Options... >::sleep_clock_accuracy( const read_buffer& receive ) const
     {
         static constexpr std::uint16_t inaccuracy_ppm[ 8 ] = {
@@ -738,46 +687,30 @@ namespace link_layer {
 
         defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
 
-        fill_advertising_buffer();
-        fill_advertising_response_buffer();
-
         this->set_access_address_and_crc_init(
             advertising_radio_access_address,
             advertising_crc_init );
 
-        this->handle_start_advertising( *this, advertising_receive_buffer() );
+        this->handle_start_advertising( *this, address_, advertising_buffer(), advertising_receive_buffer() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_buffer()
+    read_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_buffer()
     {
-        return this->raw();
+        return read_buffer{ this->raw(), advertising_t::maximum_adv_send_size };
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_response_buffer()
+    read_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_response_buffer()
     {
-        return advertising_buffer() + max_advertising_data_size + address_length + advertising_pdu_header_size;
+        return read_buffer{ advertising_buffer().buffer + advertising_t::maximum_adv_send_size, advertising_t::maximum_adv_send_size };
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint8_t* link_layer< Server, ScheduledRadio, Options... >::advertising_receive_buffer()
+    read_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_receive_buffer()
     {
-        return advertising_response_buffer() + max_advertising_data_size + address_length + advertising_pdu_header_size;
+        return read_buffer{ advertising_response_buffer().buffer + advertising_t::maximum_adv_send_size, advertising_t::maximum_adv_request_size };
     }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    write_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_data()
-    {
-        return write_buffer{ advertising_buffer(), adv_size_ };
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    write_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_response_data()
-    {
-        return write_buffer{ advertising_response_buffer(), adv_response_size_ };
-    }
-
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
@@ -1059,6 +992,12 @@ namespace link_layer {
     std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_32( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const
+    {
+        return server_->advertising_data( buffer, buffer_size );
     }
 
 }

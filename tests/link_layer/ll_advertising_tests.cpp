@@ -1,3 +1,5 @@
+#include "buffer_io.hpp"
+
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
@@ -452,3 +454,43 @@ BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_access_address_have_t
 
     BOOST_CHECK_EQUAL( adv.access_address, 0x8E89BED6 );
 }
+
+using advertising_connectable_undirected_advertising  =
+    advertising_base<
+        bluetoe::link_layer::connectable_undirected_advertising
+    >;
+
+BOOST_FIXTURE_TEST_CASE( starting_advertising_connectable_undirected_advertising, advertising_connectable_undirected_advertising )
+{
+    check_scheduling(
+        [&]( const test::advertising_data& scheduled ) -> bool
+        {
+            return !scheduled.transmitted_data.empty()
+                && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
+        },
+        "starting_advertising_connectable_undirected_advertising"
+    );
+}
+
+/*
+ * connectable directed advertising
+ */
+using advertising_connectable_directed_advertising  =
+    advertising_base<
+        bluetoe::link_layer::connectable_directed_advertising
+    >;
+
+// // an address is needed to start the advertising
+// BOOST_FIXTURE_TEST_CASE( directed_advertising_doesnt_stars_by_default, advertising_connectable_directed_advertising )
+// {
+//     BOOST_CHECK_EQUAL( 0, count_data( []( const test::advertising_data& ) -> bool {
+//         return true;
+//     } ) );
+
+// }
+
+// //
+// BOOST_FIXTURE_TEST_CASE( starting_connectiabnle_directed_advertising, advertising_connectable_directed_advertising )
+// {
+
+// }
