@@ -28,6 +28,10 @@ namespace link_layer {
 
             typedef void type;
         };
+
+        struct advertising_type_base {
+
+        };
     }
 
     /**
@@ -40,74 +44,83 @@ namespace link_layer {
      * @sa scannable_undirected_advertising
      * @sa non_connectable_undirected_advertising
      */
-    struct connectable_undirected_advertising
+    class connectable_undirected_advertising
     {
         /** @cond HIDDEN_SYMBOLS */
+    public:
         typedef details::advertising_type_meta_type meta_type;
 
-        static constexpr std::size_t    advertising_pdu_header_size = 2;
-        static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
-        static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
-        static constexpr std::uint8_t   header_txaddr_field         = 0x40;
-        static constexpr std::size_t    address_length              = 6;
-
         template < typename LinkLayer >
-        bool fill_advertising_data( LinkLayer link_layer, read_buffer& adv_buffer, const device_address& addr )
+        class impl
         {
-            std::uint8_t* const adv_data = adv_buffer.buffer;
-            assert( adv_buffer.size >= advertising_pdu_header_size + address_length );
+        protected:
+            static constexpr std::size_t    advertising_pdu_header_size = 2;
+            static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
+            static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
+            static constexpr std::uint8_t   header_txaddr_field         = 0x40;
+            static constexpr std::size_t    address_length              = 6;
 
-            adv_data[ 0 ] = adv_ind_pdu_type_code;
+            bool fill_advertising_data( read_buffer& adv_buffer )
+            {
+                LinkLayer& link_layer      = static_cast< LinkLayer& >( *this );
+                const device_address& addr = link_layer.local_address();
 
-            if ( addr.is_random() )
-                adv_data[ 0 ] |= header_txaddr_field;
+                std::uint8_t* const adv_data = adv_buffer.buffer;
+                assert( adv_buffer.size >= advertising_pdu_header_size + address_length );
 
-            adv_data[ 1 ] = address_length + link_layer.fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], adv_buffer.size );
-            std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
-            adv_buffer.size = advertising_pdu_header_size + adv_data[ 1 ];
-            adv_size_       = adv_buffer.size;
+                adv_data[ 0 ] = adv_ind_pdu_type_code;
 
-            return true;
-        }
+                if ( addr.is_random() )
+                    adv_data[ 0 ] |= header_txaddr_field;
 
-        template < typename LinkLayer >
-        bool get_advertising_data( LinkLayer link_layer, read_buffer& adv_buffer, const device_address& addr ) const
-        {
-            adv_buffer.size = adv_size_;
+                adv_data[ 1 ] = address_length + link_layer.fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], adv_buffer.size );
+                std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
+                adv_buffer.size = advertising_pdu_header_size + adv_data[ 1 ];
+                adv_size_       = adv_buffer.size;
 
-            return true;
-        }
+                return true;
+            }
 
-        template < typename LinkLayer >
-        bool fill_advertising_response_data( LinkLayer& link_layer, read_buffer& advertising_response_buffer, const device_address& addr )
-        {
-            std::uint8_t* adv_response_buffer = advertising_response_buffer.buffer;
+            bool get_advertising_data( read_buffer& adv_buffer ) const
+            {
+                adv_buffer.size = adv_size_;
 
-            adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
+                return true;
+            }
 
-            if ( addr.is_random() )
-                adv_response_buffer[ 0 ] |= header_txaddr_field;
+            bool fill_advertising_response_data( read_buffer& advertising_response_buffer )
+            {
+                LinkLayer& link_layer      = static_cast< LinkLayer& >( *this );
+                const device_address& addr = link_layer.local_address();
 
-            adv_response_buffer[ 1 ] = address_length;
+                std::uint8_t* adv_response_buffer = advertising_response_buffer.buffer;
 
-            std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
 
-            adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-            advertising_response_buffer.size = adv_response_size_;
+                if ( addr.is_random() )
+                    adv_response_buffer[ 0 ] |= header_txaddr_field;
 
-            return true;
-        }
+                adv_response_buffer[ 1 ] = address_length;
 
-        template < typename LinkLayer >
-        bool get_advertising_response_data( LinkLayer& link_layer, read_buffer& advertising_response_buffer ) const
-        {
-            advertising_response_buffer.size = adv_response_size_;
+                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
 
-            return true;
-        }
+                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
+                advertising_response_buffer.size = adv_response_size_;
 
-        std::size_t                     adv_size_;
-        std::size_t                     adv_response_size_;
+                return true;
+            }
+
+            bool get_advertising_response_data( read_buffer& advertising_response_buffer ) const
+            {
+                advertising_response_buffer.size = adv_response_size_;
+
+                return true;
+            }
+        private:
+            std::size_t                     adv_size_;
+            std::size_t                     adv_response_size_;
+
+        };
         /** @endcond */
     };
 
@@ -123,19 +136,53 @@ namespace link_layer {
      * @sa scannable_undirected_advertising
      * @sa non_connectable_undirected_advertising
      */
-    struct connectable_directed_advertising
+    class connectable_directed_advertising
     {
-        /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_type_meta_type meta_type;
-
-        bool fill_advertising_data( read_buffer& );
-        /** @endcond */
-
+    public:
         /**
          * @brief sets the address to be used in the advertising
          *        PDU.
+         *
+         * Starts advertising if an address was not set before.
          */
-        void directed_advertising_address( const device_address& );
+        void directed_advertising_address( const device_address& addr );
+
+        /** @cond HIDDEN_SYMBOLS */
+        typedef details::advertising_type_meta_type meta_type;
+
+        template < typename LinkLayer >
+        class impl
+        {
+        public:
+            void directed_advertising_address( const device_address& addr )
+            {
+                addr_ = addr;
+            }
+
+        protected:
+            bool fill_advertising_data( read_buffer& adv_buffer )
+            {
+                return false;
+            }
+
+            bool get_advertising_data( read_buffer& adv_buffer ) const
+            {
+                return false;
+            }
+
+            bool fill_advertising_response_data( read_buffer& advertising_response_buffer )
+            {
+                return false;
+            }
+
+            bool get_advertising_response_data( read_buffer& advertising_response_buffer ) const
+            {
+                return false;
+            }
+        private:
+            device_address  addr_;
+        };
+        /** @endcond */
     };
 
     /**
@@ -275,8 +322,10 @@ namespace link_layer {
     };
 
     namespace details {
-        template < typename ... Options >
-        class advertising_state_impl : connectable_undirected_advertising
+        template < typename LinkLayer, typename ... Options >
+        class advertising_state_impl :
+            public bluetoe::details::find_by_meta_type< advertising_type_meta_type,
+                Options..., connectable_undirected_advertising >::type::template impl< LinkLayer >
         {
         public:
             static constexpr std::size_t    max_advertising_data_size   = 31;
@@ -295,12 +344,12 @@ namespace link_layer {
             /*
              * Send out, first advertising
              */
-            template < typename LinkLayer >
-            void handle_start_advertising( LinkLayer& link_layer, const device_address& local_addr, read_buffer advertising_buffer, read_buffer receive_buffer )
+            void handle_start_advertising( read_buffer advertising_buffer, read_buffer receive_buffer )
             {
                 current_channel_index_ = first_advertising_channel;
+                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
-                if ( fill_advertising_data( link_layer, advertising_buffer, local_addr ) )
+                if ( this->fill_advertising_data( advertising_buffer ) )
                 {
                     link_layer.schedule_advertisment_and_receive(
                         current_channel_index_,
@@ -313,22 +362,21 @@ namespace link_layer {
             /*
              * handling incomming PDU
              */
-            template < typename LinkLayer >
             bool handle_adv_receive(
-                LinkLayer& link_layer,
                 read_buffer receive,
                 read_buffer receive_buffer,
                 read_buffer advertising_buffer,
                 read_buffer advertising_response_buffer,
-                const device_address& addr,
-                      device_address& remote_address )
+                device_address& remote_address )
             {
-                if ( is_valid_scan_request( receive, addr ) )
+                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
+
+                if ( is_valid_scan_request( receive, link_layer.local_address() ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
                     if ( link_layer.is_scan_request_in_filter( remote_address )
-                     &&  fill_advertising_response_data( link_layer, advertising_response_buffer, addr ) )
+                     &&  this->fill_advertising_response_data( advertising_response_buffer ) )
                     {
                         link_layer.schedule_advertisment_and_receive(
                             current_channel_index_,
@@ -339,20 +387,21 @@ namespace link_layer {
                         return false;
                     }
                 }
-                else if ( is_valid_connect_request( receive, addr ) )
+                else if ( is_valid_connect_request( receive, link_layer.local_address() ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
                     return true;
                 }
 
-                handle_adv_timeout( link_layer, advertising_buffer, receive_buffer, addr );
+                handle_adv_timeout( advertising_buffer, receive_buffer );
 
                 return false;
             }
 
-            template < typename LinkLayer >
-            void handle_adv_timeout( LinkLayer& link_layer, read_buffer advertising_buffer, read_buffer receive_buffer, const device_address& local_addr )
+            void handle_adv_timeout( read_buffer advertising_buffer, read_buffer receive_buffer )
             {
+                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
+
                 current_channel_index_ = current_channel_index_ == last_advertising_channel
                     ? first_advertising_channel
                     : current_channel_index_ + 1;
@@ -361,7 +410,7 @@ namespace link_layer {
                     ? next_adv_event()
                     : delta_time::now();
 
-                if ( get_advertising_data( link_layer, advertising_buffer, local_addr ) )
+                if ( this->get_advertising_data( advertising_buffer ) )
                 {
                     link_layer.schedule_advertisment_and_receive(
                         current_channel_index_,

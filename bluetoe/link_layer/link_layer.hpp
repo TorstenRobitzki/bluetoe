@@ -125,7 +125,9 @@ namespace link_layer {
             >,
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
-        public details::advertising_state_impl< Options... >,
+        public details::advertising_state_impl<
+            link_layer< Server, ScheduledRadio, Options... >,
+            Options... >,
         private details::connection_callbacks< Server, Options... >::type,
         private details::signaling_channel< Options... >::type
     {
@@ -188,6 +190,7 @@ namespace link_layer {
         read_buffer advertising_response_buffer();
         read_buffer advertising_receive_buffer();
 
+        const device_address& local_address() const;
     private:
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
@@ -201,7 +204,8 @@ namespace link_layer {
         typedef typename details::security_manager< Options... >::type security_manager_t;
         typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
-        typedef details::advertising_state_impl< Options... > advertising_t;
+        typedef details::advertising_state_impl<
+            link_layer< Server, ScheduledRadio, Options... >, Options... > advertising_t;
 
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
         bool check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const;
@@ -349,12 +353,11 @@ namespace link_layer {
 
         device_address remote_address;
         const bool connection_request_received = this->handle_adv_receive(
-            *this,
             receive,
             advertising_receive_buffer(),
             advertising_buffer(),
             advertising_response_buffer(),
-            address_, remote_address );
+            remote_address );
 
         if ( connection_request_received
           && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
@@ -393,7 +396,7 @@ namespace link_layer {
     {
         assert( state_ == state::advertising );
 
-        this->handle_adv_timeout( *this, advertising_buffer(), advertising_receive_buffer(), address_ );
+        this->handle_adv_timeout( advertising_buffer(), advertising_receive_buffer() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -691,7 +694,7 @@ namespace link_layer {
             advertising_radio_access_address,
             advertising_crc_init );
 
-        this->handle_start_advertising( *this, address_, advertising_buffer(), advertising_receive_buffer() );
+        this->handle_start_advertising( advertising_buffer(), advertising_receive_buffer() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -998,6 +1001,12 @@ namespace link_layer {
     std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const
     {
         return server_->advertising_data( buffer, buffer_size );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    const device_address& link_layer< Server, ScheduledRadio, Options... >::local_address() const
+    {
+        return address_;
     }
 
 }
