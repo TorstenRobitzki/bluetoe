@@ -251,6 +251,7 @@ namespace test {
         // make sure, there is only one action scheduled
         bool idle_;
         bool advertising_response_;
+        bool connection_event_response_;
         int  wake_ups_;
     };
 
@@ -268,6 +269,8 @@ namespace test {
     radio< TransmitSize, ReceiveSize, CallBack >::radio()
         : now_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
+        , advertising_response_( false )
+        , connection_event_response_( false )
         , wake_ups_( 0 )
     {
     }
@@ -283,6 +286,7 @@ namespace test {
 
         idle_ = false;
         advertising_response_ = true;
+        connection_event_response_ = false;
 
         const advertising_data data{
             now_,
@@ -306,6 +310,7 @@ namespace test {
         bluetoe::link_layer::delta_time             connection_interval )
     {
         advertising_response_ = false;
+        connection_event_response_ = true;
 
         const connection_event data{
             now_,
@@ -343,7 +348,7 @@ namespace test {
             {
                 simulate_advertising_response();
             }
-            else
+            else if ( connection_event_response_ )
             {
                 simulate_connection_event_response();
             }
@@ -403,6 +408,7 @@ namespace test {
             ? connection_event_response{ true, pdu_list_t() }
             : connection_events_response_.front();
 
+        assert( !connection_events_.empty() );
         auto& event = connection_events_.back();
 
         if ( !connection_events_response_.empty() )
