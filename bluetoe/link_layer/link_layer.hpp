@@ -186,10 +186,6 @@ namespace link_layer {
          */
         std::size_t fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
-        read_buffer advertising_buffer();
-        read_buffer advertising_response_buffer();
-        read_buffer advertising_receive_buffer();
-
         const device_address& local_address() const;
     private:
         typedef ScheduledRadio<
@@ -352,12 +348,7 @@ namespace link_layer {
         assert( state_ == state::advertising );
 
         device_address remote_address;
-        const bool connection_request_received = this->handle_adv_receive(
-            receive,
-            advertising_receive_buffer(),
-            advertising_buffer(),
-            advertising_response_buffer(),
-            remote_address );
+        const bool connection_request_received = this->handle_adv_receive( receive, remote_address );
 
         if ( connection_request_received
           && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
@@ -396,7 +387,7 @@ namespace link_layer {
     {
         assert( state_ == state::advertising );
 
-        this->handle_adv_timeout( advertising_buffer(), advertising_receive_buffer() );
+        this->handle_adv_timeout();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -694,25 +685,7 @@ namespace link_layer {
             advertising_radio_access_address,
             advertising_crc_init );
 
-        this->handle_start_advertising( advertising_buffer(), advertising_receive_buffer() );
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    read_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_buffer()
-    {
-        return read_buffer{ this->raw(), advertising_t::maximum_adv_send_size };
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    read_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_response_buffer()
-    {
-        return read_buffer{ advertising_buffer().buffer + advertising_t::maximum_adv_send_size, advertising_t::maximum_adv_send_size };
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    read_buffer link_layer< Server, ScheduledRadio, Options... >::advertising_receive_buffer()
-    {
-        return read_buffer{ advertising_response_buffer().buffer + advertising_t::maximum_adv_send_size, advertising_t::maximum_adv_request_size };
+        this->handle_start_advertising();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

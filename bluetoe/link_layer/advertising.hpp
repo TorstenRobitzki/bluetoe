@@ -60,40 +60,37 @@ namespace link_layer {
             static constexpr std::uint8_t   header_txaddr_field         = 0x40;
             static constexpr std::size_t    address_length              = 6;
 
-            bool fill_advertising_data( read_buffer& adv_buffer )
+            bool fill_advertising_data()
             {
-                LinkLayer& link_layer      = static_cast< LinkLayer& >( *this );
-                const device_address& addr = link_layer.local_address();
+                const device_address& addr = link_layer().local_address();
 
-                std::uint8_t* const adv_data = adv_buffer.buffer;
-                assert( adv_buffer.size >= advertising_pdu_header_size + address_length );
-
+                std::uint8_t* const adv_data = advertising_buffer().buffer;
                 adv_data[ 0 ] = adv_ind_pdu_type_code;
 
                 if ( addr.is_random() )
                     adv_data[ 0 ] |= header_txaddr_field;
 
-                adv_data[ 1 ] = address_length + link_layer.fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], adv_buffer.size );
+                adv_data[ 1 ] =
+                    address_length
+                  + link_layer().fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+
+                adv_size_ = advertising_pdu_header_size + adv_data[ 1 ];
+
                 std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
-                adv_buffer.size = advertising_pdu_header_size + adv_data[ 1 ];
-                adv_size_       = adv_buffer.size;
 
                 return true;
             }
 
-            bool get_advertising_data( read_buffer& adv_buffer ) const
+            bool get_advertising_data() const
             {
-                adv_buffer.size = adv_size_;
-
                 return true;
             }
 
-            bool fill_advertising_response_data( read_buffer& advertising_response_buffer )
+            bool fill_advertising_response_data()
             {
-                LinkLayer& link_layer      = static_cast< LinkLayer& >( *this );
-                const device_address& addr = link_layer.local_address();
+                const device_address& addr = link_layer().local_address();
 
-                std::uint8_t* adv_response_buffer = advertising_response_buffer.buffer;
+                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
 
                 adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
 
@@ -101,22 +98,43 @@ namespace link_layer {
                     adv_response_buffer[ 0 ] |= header_txaddr_field;
 
                 adv_response_buffer[ 1 ] = address_length;
+                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
 
                 std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
 
-                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-                advertising_response_buffer.size = adv_response_size_;
-
                 return true;
             }
 
-            bool get_advertising_response_data( read_buffer& advertising_response_buffer ) const
+            bool get_advertising_response_data() const
             {
-                advertising_response_buffer.size = adv_response_size_;
-
                 return true;
+            }
+
+            read_buffer advertising_buffer()
+            {
+                return read_buffer{ link_layer().raw(), adv_size_ };
+            }
+
+            read_buffer advertising_response_buffer()
+            {
+                return read_buffer{ advertising_buffer().buffer + maximum_adv_send_size, adv_response_size_ };
+            }
+
+            read_buffer advertising_receive_buffer()
+            {
+                return read_buffer{ advertising_response_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
             }
         private:
+            static constexpr std::size_t    max_advertising_data_size   = 31;
+            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
+            static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
+            static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+
+            LinkLayer& link_layer()
+            {
+                return static_cast< LinkLayer& >( *this );
+            }
+
             std::size_t                     adv_size_;
             std::size_t                     adv_response_size_;
 
@@ -159,23 +177,37 @@ namespace link_layer {
                 addr_ = addr;
             }
 
+            read_buffer advertising_buffer()
+            {
+                return read_buffer{ nullptr, 0 };
+            }
+
+            read_buffer advertising_response_buffer()
+            {
+                return read_buffer{ nullptr, 0 };
+            }
+
+            read_buffer advertising_receive_buffer()
+            {
+                return read_buffer{ nullptr, 0 };
+            }
         protected:
-            bool fill_advertising_data( read_buffer& adv_buffer )
+            bool fill_advertising_data()
             {
                 return false;
             }
 
-            bool get_advertising_data( read_buffer& adv_buffer ) const
+            bool get_advertising_data() const
             {
                 return false;
             }
 
-            bool fill_advertising_response_data( read_buffer& advertising_response_buffer )
+            bool fill_advertising_response_data()
             {
                 return false;
             }
 
-            bool get_advertising_response_data( read_buffer& advertising_response_buffer ) const
+            bool get_advertising_response_data() const
             {
                 return false;
             }
@@ -344,30 +376,25 @@ namespace link_layer {
             /*
              * Send out, first advertising
              */
-            void handle_start_advertising( read_buffer advertising_buffer, read_buffer receive_buffer )
+            void handle_start_advertising()
             {
                 current_channel_index_ = first_advertising_channel;
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
-                if ( this->fill_advertising_data( advertising_buffer ) )
+                if ( this->fill_advertising_data() )
                 {
                     link_layer.schedule_advertisment_and_receive(
                         current_channel_index_,
-                        write_buffer( advertising_buffer ),
+                        write_buffer( this->advertising_buffer() ),
                         delta_time::now(),
-                        receive_buffer );
+                        this->advertising_receive_buffer() );
                 }
             }
 
             /*
              * handling incomming PDU
              */
-            bool handle_adv_receive(
-                read_buffer receive,
-                read_buffer receive_buffer,
-                read_buffer advertising_buffer,
-                read_buffer advertising_response_buffer,
-                device_address& remote_address )
+            bool handle_adv_receive( read_buffer receive, device_address& remote_address )
             {
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
@@ -376,11 +403,11 @@ namespace link_layer {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
                     if ( link_layer.is_scan_request_in_filter( remote_address )
-                     &&  this->fill_advertising_response_data( advertising_response_buffer ) )
+                     &&  this->fill_advertising_response_data() )
                     {
                         link_layer.schedule_advertisment_and_receive(
                             current_channel_index_,
-                            write_buffer( advertising_response_buffer ),
+                            write_buffer( this->advertising_response_buffer() ),
                             delta_time::now(),
                             read_buffer{ nullptr, 0 } );
 
@@ -393,12 +420,12 @@ namespace link_layer {
                     return true;
                 }
 
-                handle_adv_timeout( advertising_buffer, receive_buffer );
+                handle_adv_timeout();
 
                 return false;
             }
 
-            void handle_adv_timeout( read_buffer advertising_buffer, read_buffer receive_buffer )
+            void handle_adv_timeout()
             {
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
@@ -410,13 +437,13 @@ namespace link_layer {
                     ? next_adv_event()
                     : delta_time::now();
 
-                if ( this->get_advertising_data( advertising_buffer ) )
+                if ( this->get_advertising_data() )
                 {
                     link_layer.schedule_advertisment_and_receive(
                         current_channel_index_,
-                        write_buffer( advertising_buffer ),
+                        write_buffer( this->advertising_buffer() ),
                         next_time,
-                        receive_buffer );
+                        this->advertising_receive_buffer() );
                 }
             }
 
