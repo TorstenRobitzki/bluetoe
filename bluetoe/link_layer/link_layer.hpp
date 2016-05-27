@@ -237,9 +237,6 @@ namespace link_layer {
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
         static constexpr std::uint8_t   lld_data_pdu_code           = 2;
 
-        static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
-        static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
-
         static constexpr std::uint8_t   LL_CONNECTION_UPDATE_REQ    = 0x00;
         static constexpr std::uint8_t   LL_CHANNEL_MAP_REQ          = 0x01;
         static constexpr std::uint8_t   LL_TERMINATE_IND            = 0x02;
@@ -680,10 +677,6 @@ namespace link_layer {
         state_ = state::advertising;
 
         defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
-
-        this->set_access_address_and_crc_init(
-            advertising_radio_access_address,
-            advertising_crc_init );
 
         this->handle_start_advertising();
     }

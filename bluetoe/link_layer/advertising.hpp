@@ -30,7 +30,44 @@ namespace link_layer {
         };
 
         struct advertising_type_base {
+            static constexpr std::uint8_t   header_txaddr_field         = 0x40;
+            static constexpr std::uint8_t   header_rxaddr_field         = 0x80;
+            static constexpr std::size_t    advertising_pdu_header_size = 2;
+            static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
+            static constexpr std::uint8_t   adv_direct_ind_pdu_type_code= 1;
+            static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
+            static constexpr std::size_t    address_length              = 6;
+            static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
 
+            static bool is_valid_scan_request( const read_buffer& receive, const device_address& addr )
+            {
+                static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
+                static constexpr std::uint8_t scan_request_code = 0x03;
+
+                bool result = receive.size == scan_request_size
+                    && ( receive.buffer[ 1 ] & 0x3f ) == scan_request_size - advertising_pdu_header_size
+                    && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
+
+                result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
+                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_txaddr_field ) != 0 );
+
+                return result;
+            }
+
+            static bool is_valid_connect_request( const read_buffer& receive, const device_address& addr )
+            {
+                static constexpr std::size_t  connect_request_size = 34 + advertising_pdu_header_size;
+                static constexpr std::uint8_t connect_request_code = 0x05;
+
+                bool result = receive.size == connect_request_size
+                        && ( receive.buffer[ 1 ] & 0x3f ) == connect_request_size - advertising_pdu_header_size
+                        && ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
+
+                result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
+                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_txaddr_field ) != 0 );
+
+                return result;
+            }
         };
     }
 
@@ -50,16 +87,10 @@ namespace link_layer {
     public:
         typedef details::advertising_type_meta_type meta_type;
 
-        template < typename LinkLayer >
-        class impl
+        template < typename LinkLayer, typename >
+        class impl : protected details::advertising_type_base
         {
         protected:
-            static constexpr std::size_t    advertising_pdu_header_size = 2;
-            static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
-            static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
-            static constexpr std::uint8_t   header_txaddr_field         = 0x40;
-            static constexpr std::size_t    address_length              = 6;
-
             bool fill_advertising_data()
             {
                 const device_address& addr = link_layer().local_address();
@@ -124,15 +155,29 @@ namespace link_layer {
             {
                 return read_buffer{ advertising_response_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
             }
+
+            bool is_valid_scan_request( const read_buffer& receive ) const
+            {
+                return details::advertising_type_base::is_valid_scan_request( receive, link_layer().local_address() );
+            }
+
+            bool is_valid_connect_request( const read_buffer& receive ) const
+            {
+                return details::advertising_type_base::is_valid_connect_request( receive, link_layer().local_address() );
+            }
         private:
             static constexpr std::size_t    max_advertising_data_size   = 31;
             static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
-            static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
             static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
 
             LinkLayer& link_layer()
             {
                 return static_cast< LinkLayer& >( *this );
+            }
+
+            const LinkLayer& link_layer() const
+            {
+                return static_cast< const LinkLayer& >( *this );
             }
 
             std::size_t                     adv_size_;
@@ -149,7 +194,6 @@ namespace link_layer {
      * no connection is established and and the directed_advertising_address()
      * function was called.
      *
-     * @sa white_list<>
      * @sa connectable_undirected_advertising
      * @sa scannable_undirected_advertising
      * @sa non_connectable_undirected_advertising
@@ -168,18 +212,26 @@ namespace link_layer {
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_type_meta_type meta_type;
 
-        template < typename LinkLayer >
-        class impl
+        template < typename LinkLayer, typename Advertising >
+        class impl : protected details::advertising_type_base
         {
         public:
             void directed_advertising_address( const device_address& addr )
             {
-                addr_ = addr;
+                bool address_valid     = addr != device_address();
+                bool start_advertising = !addr_valid_ && address_valid;
+
+                addr_       = addr;
+                addr_valid_ = address_valid;
+
+                if ( start_advertising && started_ )
+                    static_cast< Advertising& >( *this ).handle_start_advertising();
             }
 
+        protected:
             read_buffer advertising_buffer()
             {
-                return read_buffer{ nullptr, 0 };
+                return read_buffer{ link_layer().raw(), maximum_adv_send_size };
             }
 
             read_buffer advertising_response_buffer()
@@ -189,17 +241,45 @@ namespace link_layer {
 
             read_buffer advertising_receive_buffer()
             {
-                return read_buffer{ nullptr, 0 };
+                return read_buffer{ advertising_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
             }
-        protected:
+
+            impl()
+                : addr_valid_( false )
+                , started_( false )
+            {
+            }
+
             bool fill_advertising_data()
             {
-                return false;
+                if ( !addr_valid_ )
+                {
+                    started_ = true;
+                    return false;
+                }
+
+                const device_address& addr = link_layer().local_address();
+
+                std::uint8_t* const adv_data = advertising_buffer().buffer;
+                adv_data[ 0 ] = adv_direct_ind_pdu_type_code;
+
+                if ( addr.is_random() )
+                    adv_data[ 0 ] |= header_txaddr_field;
+
+                if ( addr_.is_random() )
+                    adv_data[ 0 ] |= header_rxaddr_field;
+
+                adv_data[ 1 ] = 2 * address_length;
+
+                std::copy( addr.begin(), addr.end(), &adv_data[ advertising_pdu_header_size ] );
+                std::copy( addr_.begin(), addr_.end(), &adv_data[ advertising_pdu_header_size + address_length ] );
+
+                return true;
             }
 
             bool get_advertising_data() const
             {
-                return false;
+                return addr_valid_;
             }
 
             bool fill_advertising_response_data()
@@ -211,8 +291,37 @@ namespace link_layer {
             {
                 return false;
             }
+
+            bool is_valid_scan_request( const read_buffer& receive ) const
+            {
+                return false;
+            }
+
+            bool is_valid_connect_request( const read_buffer& receive ) const
+            {
+                bool result = details::advertising_type_base::is_valid_connect_request( receive, link_layer().local_address() );
+                result = result && std::equal( &receive.buffer[ 2 ], &receive.buffer[ 8 ], addr_.begin() ) && addr_valid_;
+                result = result && addr_.is_random() == ( ( receive.buffer[ 0 ] & header_rxaddr_field ) != 0 );
+
+                return result;
+            }
         private:
+            static constexpr std::size_t    max_advertising_data_size   = 2 * address_length;
+            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size;
+
+            LinkLayer& link_layer()
+            {
+                return static_cast< LinkLayer& >( *this );
+            }
+
+            const LinkLayer& link_layer() const
+            {
+                return static_cast< const LinkLayer& >( *this );
+            }
+
             device_address  addr_;
+            bool            addr_valid_;
+            bool            started_;
         };
         /** @endcond */
     };
@@ -357,7 +466,7 @@ namespace link_layer {
         template < typename LinkLayer, typename ... Options >
         class advertising_state_impl :
             public bluetoe::details::find_by_meta_type< advertising_type_meta_type,
-                Options..., connectable_undirected_advertising >::type::template impl< LinkLayer >
+                Options..., connectable_undirected_advertising >::type::template impl< LinkLayer, advertising_state_impl< LinkLayer, Options... > >
         {
         public:
             static constexpr std::size_t    max_advertising_data_size   = 31;
@@ -383,6 +492,10 @@ namespace link_layer {
 
                 if ( this->fill_advertising_data() )
                 {
+                    link_layer.set_access_address_and_crc_init(
+                        advertising_radio_access_address,
+                        advertising_crc_init );
+
                     link_layer.schedule_advertisment_and_receive(
                         current_channel_index_,
                         write_buffer( this->advertising_buffer() ),
@@ -398,7 +511,7 @@ namespace link_layer {
             {
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
-                if ( is_valid_scan_request( receive, link_layer.local_address() ) )
+                if ( this->is_valid_scan_request( receive ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
@@ -414,7 +527,7 @@ namespace link_layer {
                         return false;
                     }
                 }
-                else if ( is_valid_connect_request( receive, link_layer.local_address() ) )
+                else if ( this->is_valid_connect_request( receive ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
                     return true;
@@ -450,40 +563,15 @@ namespace link_layer {
         private:
             typedef                         advertising_interval< 100 >         default_advertising_interval;
 
+            static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
+            static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
+
             static constexpr unsigned       first_advertising_channel   = 37;
             static constexpr unsigned       last_advertising_channel    = 39;
             static constexpr unsigned       max_adv_perturbation_       = 10;
 
             unsigned                        current_channel_index_;
             unsigned                        adv_perturbation_;
-
-            bool is_valid_scan_request( const read_buffer& receive, const device_address& addr ) const
-            {
-                static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
-                static constexpr std::uint8_t scan_request_code = 0x03;
-
-                bool result = receive.size == scan_request_size
-                    && ( receive.buffer[ 1 ] & 0x3f ) == scan_request_size - advertising_pdu_header_size
-                    && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
-
-                result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
-
-                return result;
-            }
-
-            bool is_valid_connect_request( const read_buffer& receive, const device_address& addr ) const
-            {
-                static constexpr std::size_t  connect_request_size = 34 + advertising_pdu_header_size;
-                static constexpr std::uint8_t connect_request_code = 0x05;
-
-                bool result = receive.size == connect_request_size
-                        && ( receive.buffer[ 1 ] & 0x3f ) == connect_request_size - advertising_pdu_header_size
-                        && ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
-
-                result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
-
-                return result;
-            }
 
             delta_time next_adv_event()
             {

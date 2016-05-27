@@ -60,6 +60,12 @@ namespace link_layer {
         return std::end( value_ );
     }
 
+    device_address::device_address()
+        : address()
+        , is_random_( true )
+    {
+    }
+
     bool device_address::operator==( const device_address& rhs ) const
     {
         return static_cast< const address& >( *this ) == rhs

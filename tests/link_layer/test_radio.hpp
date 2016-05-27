@@ -158,6 +158,11 @@ namespace test {
         void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
 
         /**
+         * @brief clear all events
+         */
+        void clear_events();
+
+        /**
          * @brief returns 0x47110815
          */
         std::uint32_t static_random_address_seed() const;

@@ -425,6 +425,12 @@ namespace test {
         }
     }
 
+    void radio_base::clear_events()
+    {
+        advertised_data_.clear();
+        connection_events_.clear();
+    }
+
     std::uint32_t radio_base::static_random_address_seed() const
     {
         return 0x47110815;

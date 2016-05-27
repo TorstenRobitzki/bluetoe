@@ -103,7 +103,7 @@ Aspect | Feature | Status
 Roles|Slave Role|implemented
  |Master Role|not planned
 Advertising|connectable undirected advertising|implemented
- |connectable directed advertising|planned
+ |connectable directed advertising|implemented
  |non-connectable undirected advertising|planned
  |scannable undirected advertising|planned
 Device Filtering||implemented

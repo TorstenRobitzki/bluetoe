@@ -98,7 +98,7 @@ namespace link_layer {
     class device_address : public address
     {
     public:
-        device_address() = default;
+        device_address();
 
         /**
          * @brief returns true, if this device address is a random device address.
