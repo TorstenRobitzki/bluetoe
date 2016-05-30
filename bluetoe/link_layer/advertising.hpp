@@ -36,6 +36,7 @@ namespace link_layer {
             static constexpr std::uint8_t   adv_ind_pdu_type_code       = 0;
             static constexpr std::uint8_t   adv_direct_ind_pdu_type_code= 1;
             static constexpr std::uint8_t   adv_nonconn_ind_pdu_type_code= 2;
+            static constexpr std::uint8_t   adv_scan_ind_pdu_type_code  = 6;
             static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
             static constexpr std::size_t    address_length              = 6;
             static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
@@ -338,6 +339,103 @@ namespace link_layer {
     {
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_type_meta_type meta_type;
+
+        template < typename LinkLayer, typename >
+        class impl : protected details::advertising_type_base
+        {
+        protected:
+            bool fill_advertising_data()
+            {
+                const device_address& addr = link_layer().local_address();
+
+                std::uint8_t* const adv_data = advertising_buffer().buffer;
+                adv_data[ 0 ] = adv_scan_ind_pdu_type_code;
+
+                if ( addr.is_random() )
+                    adv_data[ 0 ] |= header_txaddr_field;
+
+                adv_data[ 1 ] =
+                    address_length
+                  + link_layer().fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+
+                adv_size_ = advertising_pdu_header_size + adv_data[ 1 ];
+
+                std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
+
+                return true;
+            }
+
+            bool get_advertising_data() const
+            {
+                return true;
+            }
+
+            bool fill_advertising_response_data()
+            {
+                const device_address& addr = link_layer().local_address();
+
+                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
+
+                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
+
+                if ( addr.is_random() )
+                    adv_response_buffer[ 0 ] |= header_txaddr_field;
+
+                adv_response_buffer[ 1 ] = address_length;
+                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
+
+                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+
+                return true;
+            }
+
+            bool get_advertising_response_data() const
+            {
+                return true;
+            }
+
+            read_buffer advertising_buffer()
+            {
+                return read_buffer{ link_layer().raw(), adv_size_ };
+            }
+
+            read_buffer advertising_response_buffer()
+            {
+                return read_buffer{ advertising_buffer().buffer + maximum_adv_send_size, adv_response_size_ };
+            }
+
+            read_buffer advertising_receive_buffer()
+            {
+                return read_buffer{ advertising_response_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
+            }
+
+            bool is_valid_scan_request( const read_buffer& receive ) const
+            {
+                return details::advertising_type_base::is_valid_scan_request( receive, link_layer().local_address() );
+            }
+
+            bool is_valid_connect_request( const read_buffer& receive ) const
+            {
+                return false;
+            }
+        private:
+            static constexpr std::size_t    max_advertising_data_size   = 31;
+            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
+            static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+
+            LinkLayer& link_layer()
+            {
+                return static_cast< LinkLayer& >( *this );
+            }
+
+            const LinkLayer& link_layer() const
+            {
+                return static_cast< const LinkLayer& >( *this );
+            }
+
+            std::size_t                     adv_size_;
+            std::size_t                     adv_response_size_;
+        };
         /** @endcond */
     };
 

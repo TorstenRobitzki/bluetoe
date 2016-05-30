@@ -757,3 +757,103 @@ BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, non_connecta
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( scannable_undirected_advertising )
+
+struct scannable_undirected_advertising :
+    bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::scannable_undirected_advertising >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( starting_advertising, scannable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+
+    BOOST_CHECK_GT( advertisings().size(), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_type_and_size, scannable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 2
+                && ( pdu[ 0 ] & 0xf ) == 6
+                && ( pdu[ 1 ] & 0x3f ) == pdu.size() - 2;
+        },
+        "correct_type_and_size"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( contains_local_address, scannable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+    const auto address = local_address();
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 8
+                && std::equal( &pdu[ 2 ], &pdu[ 8 ], address.begin() )
+                && ( pdu[ 0 ] & 0x40 ) != 0;
+        },
+        "contains_local_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( response_to_scan_request, scannable_undirected_advertising )
+{
+    respond_to(
+        37, // channel
+        {
+            0xC3, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+        }
+    );
+
+    run( gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 1, count_data(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 4;
+        } ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, scannable_undirected_advertising )
+{
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    run( gatt_server_ );
+
+    BOOST_CHECK( connection_events().empty() );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

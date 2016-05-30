@@ -105,7 +105,7 @@ Roles|Slave Role|implemented
 Advertising|connectable undirected advertising|implemented
  |connectable directed advertising|implemented
  |non-connectable undirected advertising|implemented
- |scannable undirected advertising|planned
+ |scannable undirected advertising|implemented
 Device Filtering||implemented
 Connections|Single Connection|implemented
  |Multiple Connection|not planned
