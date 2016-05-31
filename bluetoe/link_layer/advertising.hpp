@@ -51,7 +51,7 @@ namespace link_layer {
                     && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
 
                 result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
-                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_txaddr_field ) != 0 );
+                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_rxaddr_field ) != 0 );
 
                 return result;
             }
@@ -66,7 +66,7 @@ namespace link_layer {
                         && ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
 
                 result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
-                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_txaddr_field ) != 0 );
+                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_rxaddr_field ) != 0 );
 
                 return result;
             }
