@@ -647,8 +647,9 @@ namespace link_layer {
         /**
          * timeout in ms roundet to the next 0.625ms
          */
-        static constexpr delta_time interval() {
-
+    protected:
+        delta_time current_advertising_interval() const
+        {
             return delta_time( AdvertisingIntervalMilliSeconds * 1000 );
         }
     };
@@ -656,32 +657,47 @@ namespace link_layer {
     /**
      * @brief adds the abillity to change the advertising channel
      *
-     * This option adds the following functions to the link_layer:
-     * - void advertising_interval_ms( unsigned interval_ms );
-     * - unsigned advertising_interval_ms() const;
+     * Using this type as an option to the link_layer, adds the documented
+     * functions to the link_layer.
      */
     struct variable_advertising_interval
     {
+    public:
+        variable_advertising_interval()
+            : interval_( delta_time::msec( 100 ) )
+        {
+        }
+
         /**
          * @brief sets the advertising interval in ms in the range 20ms to 10.24s
          */
-        void advertising_interval_ms( unsigned interval_ms );
+        void advertising_interval_ms( unsigned interval_ms )
+        {
+            if ( interval_ms >= 20 and interval_ms <= 10240 )
+                interval_ = delta_time::msec( interval_ms );
+        }
 
         /**
-         * @brief returns the currently used advertising interval
+         * @brief sets the advertising interval in ms in the range 20ms to 10.24s
          */
-        unsigned advertising_interval_ms() const;
+        void advertising_interval( delta_time interval )
+        {
+            if ( interval >= delta_time::msec( 20 ) and interval <= delta_time::msec( 10240 ) )
+                interval_ = interval;
+        }
 
         /**
-         * timeout in ms roundet to the next 0.625ms
+         * @brief currently used advertising interval
          */
-        static constexpr delta_time interval() {
-
-            return delta_time( 4 * 1000 );
+        delta_time current_advertising_interval() const
+        {
+            return interval_;
         }
 
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_interval_meta_type meta_type;
+    private:
+        delta_time interval_;
         /** @endcond */
     };
 
@@ -702,7 +718,11 @@ namespace link_layer {
         };
 
         template < typename ... Options >
-        class advertiser_base : public advertiser_base_base
+        class advertiser_base :
+            public advertiser_base_base,
+            public bluetoe::details::find_by_meta_type<
+                    details::advertising_interval_meta_type,
+                    Options..., advertising_interval< 100 > >::type
         {
         protected:
             advertiser_base()
@@ -718,11 +738,7 @@ namespace link_layer {
 
                 adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
 
-                typedef typename ::bluetoe::details::find_by_meta_type<
-                    details::advertising_interval_meta_type,
-                    Options..., default_advertising_interval >::type adv_interval;
-
-                return adv_interval::interval() + delta_time::msec( adv_perturbation_ );
+                return this->current_advertising_interval() + delta_time::msec( adv_perturbation_ );
             }
 
             unsigned current_channel() const
@@ -738,8 +754,6 @@ namespace link_layer {
             }
 
         private:
-            typedef                         advertising_interval< 100 >         default_advertising_interval;
-
             static constexpr unsigned       max_adv_perturbation_ = 10;
 
             unsigned                        current_channel_index_;
@@ -1026,6 +1040,9 @@ namespace link_layer {
                 }
             }
 
+            /*
+             * this is the true implementation of all the documentated function within the advertising types
+             */
             template < typename Type >
             void change_advertising()
             {

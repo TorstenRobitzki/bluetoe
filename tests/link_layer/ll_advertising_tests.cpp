@@ -1011,3 +1011,80 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, scannable_and_connecta
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( variable_advertising_interval )
+
+struct variable_interval_multiple_types :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::connectable_undirected_advertising,
+        bluetoe::link_layer::scannable_undirected_advertising,
+        bluetoe::link_layer::variable_advertising_interval
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( the_default_is_100ms, variable_interval_multiple_types )
+{
+    this->run( gatt_server_ );
+
+    check_scheduling(
+        filter_channel_37,
+        [&]( const test::advertising_data& a, const test::advertising_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 100 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 110 );
+        },
+        "the_default_is_100ms"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( changeable_to_30, variable_interval_multiple_types )
+{
+    advertising_interval_ms( 30 );
+    run( gatt_server_ );
+
+    check_scheduling(
+        filter_channel_37,
+        [&]( const test::advertising_data& a, const test::advertising_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 30 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 40 );
+        },
+        "changeable_to_300"
+    );
+}
+
+struct variable_interval_single_type :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::variable_advertising_interval
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( works_for_single_types_too, variable_interval_single_type )
+{
+    advertising_interval_ms( 30 );
+    run( gatt_server_ );
+
+    check_scheduling(
+        filter_channel_37,
+        [&]( const test::advertising_data& a, const test::advertising_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 30 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 40 );
+        },
+        "changeable_to_300"
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
