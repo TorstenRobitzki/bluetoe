@@ -603,6 +603,22 @@ namespace details {
         typedef typename Operation< typename fold< std::tuple< Ts... >, Operation, Start >::type, T >::type type;
     };
 
+    // for a T in Ts, find the index of T in Ts
+    template < typename T, typename ... Ts >
+    struct index_of;
+
+    template < typename T, typename ... Ts >
+    struct index_of< T, T, Ts... > {
+        static constexpr unsigned value = 0;
+    };
+
+    template < typename T, typename O, typename ... Ts >
+    struct index_of< T, O, Ts... > {
+        static constexpr unsigned value = index_of< T, Ts... >::value + 1;
+    };
+
+    template < typename T, typename ... Ts >
+    struct index_of< T, std::tuple< Ts... > > : index_of< T, Ts... > {};
 }
 }
 
