@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: Member List</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,40 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
-      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
-      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
-      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -100,19 +73,19 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab081bcb3e591f1b1152a6a4d1f8f1134">add_to_white_list</a>(const device_address &amp;addr)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a34aac63ab8c507b6575128c89061356c">clear_white_list</a>()</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ae26843ab70485d5567d6fdd214cb77c3">connection_request_filter</a>(bool b)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a4a1e3b22156b80a9e13393769088f84a">connection_request_filter</a>() const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a1076f20af7cee5481006fe0d6a60040e">is_connection_request_in_filter</a>(const device_address &amp;addr) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a6cc4665a51babc8b5328636a2351f341">is_in_white_list</a>(const device_address &amp;addr) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a9a1375caa2a2c7c3324623c1f4d27f7b">is_scan_request_in_filter</a>(const device_address &amp;addr) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a2dde6db52bd2c510570ccd49503077af">connection_request_filter</a>() const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#adf480ef797cfdb9eb72e6f4b46a4e58a">is_connection_request_in_filter</a>(const device_address &amp;addr) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a9f2a75cb12d67633d5e6fd11156ecb8b">is_in_white_list</a>(const device_address &amp;addr) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab2ec4d3d0111cd214ca506f608273474">is_scan_request_in_filter</a>(const device_address &amp;addr) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a7b2363a1b448e9920c0c1fc9f3ad7293">maximum_white_list_entries</a></td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"><span class="mlabel">static</span></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ac98316e0a1230a5c44557927996e4322">remove_from_white_list</a>(const device_address &amp;addr)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a2deadc29cbdea11646b1c0c2f1557fe9">scan_request_filter</a>(bool b)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab6efb797444049631fea1a3ffc8cbbe3">scan_request_filter</a>() const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a120a1b4c4a31b172cfa5b751c1e85079">white_list_free_size</a>() const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a90d3c34520327e1994565e5c1fdd40ee">scan_request_filter</a>() const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a17bd83fcdae1d33658109db6433b2d2c">white_list_free_size</a>() const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html">bluetoe::link_layer::white_list&lt; Size &gt;</a></td><td class="entry"></td></tr>
 </table></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

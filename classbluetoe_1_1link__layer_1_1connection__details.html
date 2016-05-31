@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: bluetoe::link_layer::connection_details Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,40 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
-      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
-      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
-      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -105,35 +78,35 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a820c5a97a651f7a643937f752e28df31"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a820c5a97a651f7a643937f752e28df31"></a>
+<tr class="memitem:a820c5a97a651f7a643937f752e28df31"><td class="memItemLeft" align="right" valign="top"><a id="a820c5a97a651f7a643937f752e28df31"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a820c5a97a651f7a643937f752e28df31">connection_details</a> ()=default</td></tr>
 <tr class="memdesc:a820c5a97a651f7a643937f752e28df31"><td class="mdescLeft">&#160;</td><td class="mdescRight">default c'tor leaving all data members in a meaningless state <br /></td></tr>
 <tr class="separator:a820c5a97a651f7a643937f752e28df31"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2b19d960170ab482f7856ca2f253e946"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2b19d960170ab482f7856ca2f253e946"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a2b19d960170ab482f7856ca2f253e946">connection_details</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">channel_map</a> &amp;<a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a34a50f7e3d86805efd97f8088000c70f">channels</a>, std::uint16_t inter, std::uint16_t lat, std::uint16_t to, unsigned acc)</td></tr>
+<tr class="memitem:a2b19d960170ab482f7856ca2f253e946"><td class="memItemLeft" align="right" valign="top"><a id="a2b19d960170ab482f7856ca2f253e946"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a2b19d960170ab482f7856ca2f253e946">connection_details</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">channel_map</a> &amp;<a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#afea1d07a8400be45b6b3cde74533f043">channels</a>, std::uint16_t inter, std::uint16_t lat, std::uint16_t to, unsigned acc)</td></tr>
 <tr class="memdesc:a2b19d960170ab482f7856ca2f253e946"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct the data object from its required parts. <br /></td></tr>
 <tr class="separator:a2b19d960170ab482f7856ca2f253e946"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a34a50f7e3d86805efd97f8088000c70f"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a34a50f7e3d86805efd97f8088000c70f"></a>
-const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">channel_map</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a34a50f7e3d86805efd97f8088000c70f">channels</a> () const </td></tr>
-<tr class="memdesc:a34a50f7e3d86805efd97f8088000c70f"><td class="mdescLeft">&#160;</td><td class="mdescRight">channels that a currently in use <br /></td></tr>
-<tr class="separator:a34a50f7e3d86805efd97f8088000c70f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa0738cda4b9537b7a6c602c0f9100374"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#aa0738cda4b9537b7a6c602c0f9100374">interval</a> () const </td></tr>
-<tr class="memdesc:aa0738cda4b9537b7a6c602c0f9100374"><td class="mdescLeft">&#160;</td><td class="mdescRight">connection interval  <a href="#aa0738cda4b9537b7a6c602c0f9100374">More...</a><br /></td></tr>
-<tr class="separator:aa0738cda4b9537b7a6c602c0f9100374"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac9884e91a1139211cb302026624bd30d"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#ac9884e91a1139211cb302026624bd30d">latency</a> () const </td></tr>
-<tr class="memdesc:ac9884e91a1139211cb302026624bd30d"><td class="mdescLeft">&#160;</td><td class="mdescRight">slave latency  <a href="#ac9884e91a1139211cb302026624bd30d">More...</a><br /></td></tr>
-<tr class="separator:ac9884e91a1139211cb302026624bd30d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a369e5c368e8e592a04cdbc188cd06c88"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a369e5c368e8e592a04cdbc188cd06c88">timeout</a> () const </td></tr>
-<tr class="memdesc:a369e5c368e8e592a04cdbc188cd06c88"><td class="mdescLeft">&#160;</td><td class="mdescRight">connection timeout  <a href="#a369e5c368e8e592a04cdbc188cd06c88">More...</a><br /></td></tr>
-<tr class="separator:a369e5c368e8e592a04cdbc188cd06c88"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a49aeddc52a4533e88834335751f98f93"><td class="memItemLeft" align="right" valign="top">unsigned&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a49aeddc52a4533e88834335751f98f93">cumulated_sleep_clock_accuracy_ppm</a> () const </td></tr>
-<tr class="memdesc:a49aeddc52a4533e88834335751f98f93"><td class="mdescLeft">&#160;</td><td class="mdescRight">the cumulated sleep clock accuracy in parts per million.  <a href="#a49aeddc52a4533e88834335751f98f93">More...</a><br /></td></tr>
-<tr class="separator:a49aeddc52a4533e88834335751f98f93"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afea1d07a8400be45b6b3cde74533f043"><td class="memItemLeft" align="right" valign="top"><a id="afea1d07a8400be45b6b3cde74533f043"></a>
+const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">channel_map</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#afea1d07a8400be45b6b3cde74533f043">channels</a> () const</td></tr>
+<tr class="memdesc:afea1d07a8400be45b6b3cde74533f043"><td class="mdescLeft">&#160;</td><td class="mdescRight">channels that a currently in use <br /></td></tr>
+<tr class="separator:afea1d07a8400be45b6b3cde74533f043"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afb11aa5e74ad73ae5f3c36c67ebeda17"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#afb11aa5e74ad73ae5f3c36c67ebeda17">interval</a> () const</td></tr>
+<tr class="memdesc:afb11aa5e74ad73ae5f3c36c67ebeda17"><td class="mdescLeft">&#160;</td><td class="mdescRight">connection interval  <a href="#afb11aa5e74ad73ae5f3c36c67ebeda17">More...</a><br /></td></tr>
+<tr class="separator:afb11aa5e74ad73ae5f3c36c67ebeda17"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3326ad5177c0a72f1baf49fbb5dc6617"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a3326ad5177c0a72f1baf49fbb5dc6617">latency</a> () const</td></tr>
+<tr class="memdesc:a3326ad5177c0a72f1baf49fbb5dc6617"><td class="mdescLeft">&#160;</td><td class="mdescRight">slave latency  <a href="#a3326ad5177c0a72f1baf49fbb5dc6617">More...</a><br /></td></tr>
+<tr class="separator:a3326ad5177c0a72f1baf49fbb5dc6617"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aada6635d160f04f5263fd1ccd998ab13"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#aada6635d160f04f5263fd1ccd998ab13">timeout</a> () const</td></tr>
+<tr class="memdesc:aada6635d160f04f5263fd1ccd998ab13"><td class="mdescLeft">&#160;</td><td class="mdescRight">connection timeout  <a href="#aada6635d160f04f5263fd1ccd998ab13">More...</a><br /></td></tr>
+<tr class="separator:aada6635d160f04f5263fd1ccd998ab13"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa55ccf58a8155e7d7afd6a19f280c507"><td class="memItemLeft" align="right" valign="top">unsigned&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#aa55ccf58a8155e7d7afd6a19f280c507">cumulated_sleep_clock_accuracy_ppm</a> () const</td></tr>
+<tr class="memdesc:aa55ccf58a8155e7d7afd6a19f280c507"><td class="mdescLeft">&#160;</td><td class="mdescRight">the cumulated sleep clock accuracy in parts per million.  <a href="#aa55ccf58a8155e7d7afd6a19f280c507">More...</a><br /></td></tr>
+<tr class="separator:aa55ccf58a8155e7d7afd6a19f280c507"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>data type to store details of an established link layer connection </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a class="anchor" id="a49aeddc52a4533e88834335751f98f93"></a>
+<a id="aa55ccf58a8155e7d7afd6a19f280c507"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -151,7 +124,7 @@ const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">chan
 
 </div>
 </div>
-<a class="anchor" id="aa0738cda4b9537b7a6c602c0f9100374"></a>
+<a id="afb11aa5e74ad73ae5f3c36c67ebeda17"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -169,7 +142,7 @@ const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">chan
 
 </div>
 </div>
-<a class="anchor" id="ac9884e91a1139211cb302026624bd30d"></a>
+<a id="a3326ad5177c0a72f1baf49fbb5dc6617"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -187,7 +160,7 @@ const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">chan
 
 </div>
 </div>
-<a class="anchor" id="a369e5c368e8e592a04cdbc188cd06c88"></a>
+<a id="aada6635d160f04f5263fd1ccd998ab13"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -211,7 +184,7 @@ const <a class="el" href="classbluetoe_1_1link__layer_1_1channel__map.html">chan
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

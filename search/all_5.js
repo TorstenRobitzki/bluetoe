@@ -1,6 +1,7 @@
 var searchData=
 [
   ['fill',['fill',['../structbluetoe_1_1link__layer_1_1read__buffer.html#aebbab2c42edb964f1f85dc732731a0f1',1,'bluetoe::link_layer::read_buffer']]],
+  ['fill_5fl2cap_5fadvertising_5fdata',['fill_l2cap_advertising_data',['../classbluetoe_1_1link__layer_1_1link__layer.html#af460adb0d3d7a20aaa19a599b5c8c2b0',1,'bluetoe::link_layer::link_layer']]],
   ['fingertip_5fpulse_5foximeter',['fingertip_pulse_oximeter',['../structbluetoe_1_1appearance.html#a9f82ff8677988a29914189b8130e2515',1,'bluetoe::appearance']]],
   ['fixed_5fvalue',['fixed_value',['../structbluetoe_1_1fixed__value.html',1,'bluetoe']]],
   ['free_5fraw_5fwrite_5fhandler',['free_raw_write_handler',['../structbluetoe_1_1free__raw__write__handler.html',1,'bluetoe']]],

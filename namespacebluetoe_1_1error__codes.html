@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: bluetoe::error_codes Namespace Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,38 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li class="current"><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="namespaces.html"><span>Namespace&#160;List</span></a></li>
-      <li><a href="namespacemembers.html"><span>Namespace&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -134,7 +109,7 @@ Enumerations</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>namespace for error codes, that should be convertable to int </p>
 </div><h2 class="groupheader">Enumeration Type Documentation</h2>
-<a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41"></a>
+<a id="ab0cf0ac028629d7fa6fc292d89041e41"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -146,73 +121,73 @@ Enumerations</h2></td></tr>
 
 <p>Error codes to be returned by read and write handlers for characteristic values. </p>
 <table class="fieldtable">
-<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128"></a>success&#160;</td><td class="fielddoc">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128"></a>success&#160;</td><td class="fielddoc">
 <p>read or write request could be fulfilled without an error </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c"></a>invalid_handle&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c"></a>invalid_handle&#160;</td><td class="fielddoc">
 <p>The attribute handle given was not valid on this server. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6"></a>read_not_permitted&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6"></a>read_not_permitted&#160;</td><td class="fielddoc">
 <p>The attribute cannot be read. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d"></a>write_not_permitted&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d"></a>write_not_permitted&#160;</td><td class="fielddoc">
 <p>The attribute cannot be written. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053"></a>invalid_pdu&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053"></a>invalid_pdu&#160;</td><td class="fielddoc">
 <p>The attribute PDU was invalid. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a"></a>insufficient_authentication&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a"></a>insufficient_authentication&#160;</td><td class="fielddoc">
 <p>The attribute requires authentication before it can be read or written. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e"></a>request_not_supported&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e"></a>request_not_supported&#160;</td><td class="fielddoc">
 <p>Attribute server does not support the request received from the client. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81"></a>invalid_offset&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81"></a>invalid_offset&#160;</td><td class="fielddoc">
 <p>Offset specified was past the end of the attribute. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284"></a>insufficient_authorization&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284"></a>insufficient_authorization&#160;</td><td class="fielddoc">
 <p>The attribute requires authorization before it can be read or written. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68"></a>prepare_queue_full&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68"></a>prepare_queue_full&#160;</td><td class="fielddoc">
 <p>Too many prepare writes have been queued. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1"></a>attribute_not_found&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1"></a>attribute_not_found&#160;</td><td class="fielddoc">
 <p>No attribute found within the given attri- bute handle range. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f"></a>attribute_not_long&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f"></a>attribute_not_long&#160;</td><td class="fielddoc">
 <p>The attribute cannot be read or written using the Read Blob Request. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1"></a>insufficient_encryption_key_size&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1"></a>insufficient_encryption_key_size&#160;</td><td class="fielddoc">
 <p>The Encryption Key Size used for encrypting this link is insufficient. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca"></a>invalid_attribute_value_length&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca"></a>invalid_attribute_value_length&#160;</td><td class="fielddoc">
 <p>The attribute value length is invalid for the operation. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037"></a>unlikely_error&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037"></a>unlikely_error&#160;</td><td class="fielddoc">
 <p>The attribute request that was requested has encountered an error that was unlikely, and therefore could not be completed as requested. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127"></a>insufficient_encryption&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127"></a>insufficient_encryption&#160;</td><td class="fielddoc">
 <p>The attribute requires encryption before it can be read or written. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d"></a>unsupported_group_type&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d"></a>unsupported_group_type&#160;</td><td class="fielddoc">
 <p>The attribute type is not a supported grouping attribute as defined by a higher layer specification. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24"></a>insufficient_resources&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24"></a>insufficient_resources&#160;</td><td class="fielddoc">
 <p>Insufficient Resources to complete the request. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522"></a>application_error_start&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522"></a>application_error_start&#160;</td><td class="fielddoc">
 <p>Start of range for application specific error codes </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f"></a>application_error_end&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f"></a>application_error_end&#160;</td><td class="fielddoc">
 <p>Last code of the range for application specific error codes </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2"></a>out_of_range&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2"></a>out_of_range&#160;</td><td class="fielddoc">
 <p>The Out of Range error code is used when an attribute value is out of range as defined by a profile or service specification. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934"></a>procedure_already_in_progress&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934"></a>procedure_already_in_progress&#160;</td><td class="fielddoc">
 <p>The Procedure Already in Progress error code is used when a profile or service request cannot be serviced because an operation that has been previously triggered is still in progress. </p>
 </td></tr>
-<tr><td class="fieldname"><a class="anchor" id="ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29"></a>cccd_improperly_configured&#160;</td><td class="fielddoc">
+<tr><td class="fieldname"><a id="ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29"></a>cccd_improperly_configured&#160;</td><td class="fielddoc">
 <p>The Client Characteristic Configuration Descriptor Improperly Configured error code is used when a Client Characteristic Configuration descriptor is not configured according to the requirements of the profile or service. </p>
 </td></tr>
 </table>
@@ -222,7 +197,7 @@ Enumerations</h2></td></tr>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

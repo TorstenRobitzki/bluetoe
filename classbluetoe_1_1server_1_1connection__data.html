@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: bluetoe::server&lt; Options &gt;::connection_data Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,40 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
-      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
-      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
-      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -113,36 +86,36 @@ Inheritance diagram for bluetoe::server&lt; Options &gt;::connection_data:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a89ae08f99816456d524034c05e405c73"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a89ae08f99816456d524034c05e405c73"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a89ae08f99816456d524034c05e405c73">connection_data</a> (std::uint16_t <a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a0ff7aa950ea35c64495f059b9129ad5c">server_mtu</a>)</td></tr>
+<tr class="memitem:a89ae08f99816456d524034c05e405c73"><td class="memItemLeft" align="right" valign="top"><a id="a89ae08f99816456d524034c05e405c73"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a89ae08f99816456d524034c05e405c73">connection_data</a> (std::uint16_t <a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a2d274827fccd5859b036be4ba3c63077">server_mtu</a>)</td></tr>
 <tr class="memdesc:a89ae08f99816456d524034c05e405c73"><td class="mdescLeft">&#160;</td><td class="mdescRight">constructs a <a class="el" href="classbluetoe_1_1server_1_1connection__data.html" title="per connection data ">connection_data</a> with the maximum transmission unit, the server can provide <br /></td></tr>
 <tr class="separator:a89ae08f99816456d524034c05e405c73"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6a0194a90bf94748fb331d7c41167d78"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6a0194a90bf94748fb331d7c41167d78"></a>
-std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a6a0194a90bf94748fb331d7c41167d78">negotiated_mtu</a> () const </td></tr>
-<tr class="memdesc:a6a0194a90bf94748fb331d7c41167d78"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the negotiated MTU <br /></td></tr>
-<tr class="separator:a6a0194a90bf94748fb331d7c41167d78"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ace2b106e6343c03de0ee0ccb62fc8f5b"><td class="memItemLeft" align="right" valign="top"><a id="ace2b106e6343c03de0ee0ccb62fc8f5b"></a>
+std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#ace2b106e6343c03de0ee0ccb62fc8f5b">negotiated_mtu</a> () const</td></tr>
+<tr class="memdesc:ace2b106e6343c03de0ee0ccb62fc8f5b"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the negotiated MTU <br /></td></tr>
+<tr class="separator:ace2b106e6343c03de0ee0ccb62fc8f5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e8577316f38bfc51944ede836827e4a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a3e8577316f38bfc51944ede836827e4a">client_mtu</a> (std::uint16_t mtu)</td></tr>
 <tr class="memdesc:a3e8577316f38bfc51944ede836827e4a"><td class="mdescLeft">&#160;</td><td class="mdescRight">sets the MTU size of the connected client.  <a href="#a3e8577316f38bfc51944ede836827e4a">More...</a><br /></td></tr>
 <tr class="separator:a3e8577316f38bfc51944ede836827e4a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a53410f461c63d0be76cf2cca66005bd2"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a53410f461c63d0be76cf2cca66005bd2">client_mtu</a> () const </td></tr>
-<tr class="memdesc:a53410f461c63d0be76cf2cca66005bd2"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the client MTU  <a href="#a53410f461c63d0be76cf2cca66005bd2">More...</a><br /></td></tr>
-<tr class="separator:a53410f461c63d0be76cf2cca66005bd2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0ff7aa950ea35c64495f059b9129ad5c"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a0ff7aa950ea35c64495f059b9129ad5c">server_mtu</a> () const </td></tr>
-<tr class="memdesc:a0ff7aa950ea35c64495f059b9129ad5c"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the MTU of this server as provided in the c'tor  <a href="#a0ff7aa950ea35c64495f059b9129ad5c">More...</a><br /></td></tr>
-<tr class="separator:a0ff7aa950ea35c64495f059b9129ad5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a675975e64617c84f6584c97830279ff9"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a675975e64617c84f6584c97830279ff9">client_mtu</a> () const</td></tr>
+<tr class="memdesc:a675975e64617c84f6584c97830279ff9"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the client MTU  <a href="#a675975e64617c84f6584c97830279ff9">More...</a><br /></td></tr>
+<tr class="separator:a675975e64617c84f6584c97830279ff9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2d274827fccd5859b036be4ba3c63077"><td class="memItemLeft" align="right" valign="top">std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a2d274827fccd5859b036be4ba3c63077">server_mtu</a> () const</td></tr>
+<tr class="memdesc:a2d274827fccd5859b036be4ba3c63077"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the MTU of this server as provided in the c'tor  <a href="#a2d274827fccd5859b036be4ba3c63077">More...</a><br /></td></tr>
+<tr class="separator:a2d274827fccd5859b036be4ba3c63077"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><h3>template&lt;typename... Options&gt;<br />
+<div class="textblock"><h3>template&lt;typename ... Options&gt;<br />
 class bluetoe::server&lt; Options &gt;::connection_data</h3>
 
 <p>per connection data </p>
 <p>The underlying layer have to provide the memory for a connection and pass the <a class="el" href="classbluetoe_1_1server_1_1connection__data.html" title="per connection data ">connection_data</a> to l2cap_input(). The purpose of this class is to store all connection related data that must be keept per connection and must be reset with a new connection. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a class="anchor" id="a3e8577316f38bfc51944ede836827e4a"></a>
+<a id="a3e8577316f38bfc51944ede836827e4a"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename... Options&gt; </div>
+template&lt;typename ... Options&gt; </div>
       <table class="memname">
         <tr>
           <td class="memname">void <a class="el" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt; Options &gt;::connection_data::client_mtu </td>
@@ -159,11 +132,11 @@ template&lt;typename... Options&gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="a53410f461c63d0be76cf2cca66005bd2"></a>
+<a id="a675975e64617c84f6584c97830279ff9"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename... Options&gt; </div>
+template&lt;typename ... Options&gt; </div>
       <table class="memname">
         <tr>
           <td class="memname">std::uint16_t <a class="el" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt; Options &gt;::connection_data::client_mtu </td>
@@ -179,11 +152,11 @@ template&lt;typename... Options&gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="a0ff7aa950ea35c64495f059b9129ad5c"></a>
+<a id="a2d274827fccd5859b036be4ba3c63077"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename... Options&gt; </div>
+template&lt;typename ... Options&gt; </div>
       <table class="memname">
         <tr>
           <td class="memname">std::uint16_t <a class="el" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt; Options &gt;::connection_data::server_mtu </td>
@@ -195,7 +168,7 @@ template&lt;typename... Options&gt; </div>
 </div><div class="memdoc">
 
 <p>returns the MTU of this server as provided in the c'tor </p>
-<dl class="section pre"><dt>Precondition</dt><dd>connection_data(X).<a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a0ff7aa950ea35c64495f059b9129ad5c" title="returns the MTU of this server as provided in the c&#39;tor ">server_mtu()</a> == X </dd></dl>
+<dl class="section pre"><dt>Precondition</dt><dd>connection_data(X).<a class="el" href="classbluetoe_1_1server_1_1connection__data.html#a2d274827fccd5859b036be4ba3c63077" title="returns the MTU of this server as provided in the c&#39;tor ">server_mtu()</a> == X </dd></dl>
 
 </div>
 </div>
@@ -205,7 +178,7 @@ template&lt;typename... Options&gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: Member List</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,40 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
-      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
-      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
-      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -101,7 +74,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a20e0209584436820f55b517baece19dc">delta_time</a>(std::uint32_t usec)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">inline</span><span class="mlabel">explicit</span></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a29f6ee40f3379dadf3e73acd1bdb9c32">msec</a>(std::uint32_t msec)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">static</span></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ad2d9fabed217773a0377593c013b9555">now</a>()</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">static</span></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a89b3526c0b11fc49eb2fa5a442c4940b">operator!=</a>(const delta_time &amp;rhs) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a04452f1702e652f2d61093990bf18ba7">operator!=</a>(const delta_time &amp;rhs) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ab1c512a44634ec4c612c3df2a1fd2512">operator*</a>(delta_time lhs, unsigned rhs)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">related</span></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a3b7a509334febf606c9e50ebcdfe0c06">operator*=</a>(unsigned rhs)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ab3f14eefb04e8b1a630c109b3442454c">operator+</a>(delta_time lhs, delta_time rhs)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">related</span></td></tr>
@@ -109,22 +82,22 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a009a8913346a7dfdae925dd29dea23d4">operator-</a>(delta_time lhs, delta_time rhs)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">related</span></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a1dc680553c74abe1eb0db333ac12070b">operator-=</a>(const delta_time &amp;rhs)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a8044f4d799afb1e5bb74b475a9002ada">operator/</a>(const delta_time &amp;rhs)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#aa1875ad8adba60ec26bd33064f609973">operator&lt;</a>(const delta_time &amp;rhs) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#abeba2487290e2484e40c60f885ee0ac2">operator&lt;</a>(const delta_time &amp;rhs) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a627adc23fb76fce856850e4057824b83">operator&lt;&lt;</a>(std::ostream &amp;, const delta_time &amp;)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">related</span></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#af6463838cdd79ebc8ec46c3f96718fac">operator&lt;=</a>(const delta_time &amp;rhs) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ad51da7848cd9e2a43f96159fd7308a7c">operator==</a>(const delta_time &amp;rhs) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ac71e872173fcb5ce2beee65fb32d58d7">operator&gt;</a>(const delta_time &amp;rhs) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#aae1f5b98432593798c42621baba2a6f4">operator&gt;=</a>(const delta_time &amp;rhs) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a41254507e0570e9261985ce5e4296f83">ppm</a>(unsigned part) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#adc6ad118af7ef301134d1128edf829da">print</a>(std::ostream &amp;) const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ad5e3e1ee1c4f3564ca64220b99ef4a0e">operator&lt;=</a>(const delta_time &amp;rhs) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a733bbfb8354bd4189d6276de7f9fc5b2">operator==</a>(const delta_time &amp;rhs) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a1a4df4faf30e3861ffb76dd3de0efc4c">operator&gt;</a>(const delta_time &amp;rhs) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a75d337be97e554362bca3ece136bbd9c">operator&gt;=</a>(const delta_time &amp;rhs) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ab8f851b252fb6e9f3d0f3ee7ae84a085">ppm</a>(unsigned part) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#aa2286751aa4d4f57e5e06d365f2ef898">print</a>(std::ostream &amp;) const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
   <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ae6f432cb6e682eee9fdfc6f4263afe96">seconds</a>(int s)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">static</span></td></tr>
   <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a018843f011d53a5484066382e82c9cbc">usec</a>(std::uint32_t usec)</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"><span class="mlabel">static</span></td></tr>
-  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#aa879a03fe92c20c75c6f2f356af9909b">usec</a>() const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#aed3c123f805298f545f7b25972403ad3">zero</a>() const </td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ae297c9f853193398b664fa9bd486a256">usec</a>() const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
+  <tr><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a7644cc7cc4054edde99356c37b66a27d">zero</a>() const</td><td class="entry"><a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html">bluetoe::link_layer::delta_time</a></td><td class="entry"></td></tr>
 </table></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

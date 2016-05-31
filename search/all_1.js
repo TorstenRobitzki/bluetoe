@@ -1,7 +1,7 @@
 var searchData=
 [
   ['barcode_5fscanner',['barcode_scanner',['../structbluetoe_1_1appearance.html#a8b794e7adfff672c0fcfb0bdb281477c',1,'bluetoe::appearance']]],
-  ['begin',['begin',['../classbluetoe_1_1link__layer_1_1address.html#a73d91010fc56ddfb908a94c18091ba07',1,'bluetoe::link_layer::address']]],
+  ['begin',['begin',['../classbluetoe_1_1link__layer_1_1address.html#abea52c4b16726d08543386a69ffb87d1',1,'bluetoe::link_layer::address']]],
   ['bind_5fcharacteristic_5fvalue',['bind_characteristic_value',['../classbluetoe_1_1bind__characteristic__value.html',1,'bluetoe']]],
   ['blood_5fpressure',['blood_pressure',['../structbluetoe_1_1appearance.html#acc7c622be90adcfa4894df9c290bfa55',1,'bluetoe::appearance']]],
   ['blood_5fpressure_5farm',['blood_pressure_arm',['../structbluetoe_1_1appearance.html#af5c778089543a4cc441be3c4cba8f131',1,'bluetoe::appearance']]],

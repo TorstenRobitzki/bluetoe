@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: bluetoe::link_layer::address Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,40 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
-      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
-      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
-      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -118,49 +91,49 @@ Inheritance diagram for bluetoe::link_layer::address:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:a526fa1978b77daaee52d8f11b27207d4"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a526fa1978b77daaee52d8f11b27207d4"></a>
-typedef std::uint8_t const *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4">const_iterator</a></td></tr>
+<tr class="memitem:a526fa1978b77daaee52d8f11b27207d4"><td class="memItemLeft" align="right" valign="top"><a id="a526fa1978b77daaee52d8f11b27207d4"></a>
+typedef std::uint8_t const  *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4">const_iterator</a></td></tr>
 <tr class="memdesc:a526fa1978b77daaee52d8f11b27207d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">random access iterator <br /></td></tr>
 <tr class="separator:a526fa1978b77daaee52d8f11b27207d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ad9efcf38d5eb8d0995f249445510a71d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad9efcf38d5eb8d0995f249445510a71d"></a>
+<tr class="memitem:ad9efcf38d5eb8d0995f249445510a71d"><td class="memItemLeft" align="right" valign="top"><a id="ad9efcf38d5eb8d0995f249445510a71d"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#ad9efcf38d5eb8d0995f249445510a71d">address</a> ()</td></tr>
 <tr class="memdesc:ad9efcf38d5eb8d0995f249445510a71d"><td class="mdescLeft">&#160;</td><td class="mdescRight">creates the address with all octes beeing zero (00:00:00:00:00:00) <br /></td></tr>
 <tr class="separator:ad9efcf38d5eb8d0995f249445510a71d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa3d55b4edfb553898adec242392f4d5f"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aa3d55b4edfb553898adec242392f4d5f"></a>
+<tr class="memitem:aa3d55b4edfb553898adec242392f4d5f"><td class="memItemLeft" align="right" valign="top"><a id="aa3d55b4edfb553898adec242392f4d5f"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#aa3d55b4edfb553898adec242392f4d5f">address</a> (const std::initializer_list&lt; std::uint8_t &gt; &amp;initial_values)</td></tr>
 <tr class="memdesc:aa3d55b4edfb553898adec242392f4d5f"><td class="mdescLeft">&#160;</td><td class="mdescRight">initialize an address by a initializer list with exactly 6 elements <br /></td></tr>
 <tr class="separator:aa3d55b4edfb553898adec242392f4d5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa2b78ad0d88e1e5b5675aa43ccc36009"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aa2b78ad0d88e1e5b5675aa43ccc36009"></a>
+<tr class="memitem:aa2b78ad0d88e1e5b5675aa43ccc36009"><td class="memItemLeft" align="right" valign="top"><a id="aa2b78ad0d88e1e5b5675aa43ccc36009"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#aa2b78ad0d88e1e5b5675aa43ccc36009">address</a> (const std::uint8_t *initial_values)</td></tr>
 <tr class="memdesc:aa2b78ad0d88e1e5b5675aa43ccc36009"><td class="mdescLeft">&#160;</td><td class="mdescRight">initializing an address by taking 6 bytes from the given start of an array <br /></td></tr>
 <tr class="separator:aa2b78ad0d88e1e5b5675aa43ccc36009"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5bfdcc6529941fc9ec7389fdd0c1061b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a5bfdcc6529941fc9ec7389fdd0c1061b"></a>
-std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a5bfdcc6529941fc9ec7389fdd0c1061b">print</a> (std::ostream &amp;) const </td></tr>
-<tr class="memdesc:a5bfdcc6529941fc9ec7389fdd0c1061b"><td class="mdescLeft">&#160;</td><td class="mdescRight">prints this in a human readable manner <br /></td></tr>
-<tr class="separator:a5bfdcc6529941fc9ec7389fdd0c1061b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a14aa3727dc0170735a87e1c7e3a75b2e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a14aa3727dc0170735a87e1c7e3a75b2e"></a>
-std::uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a14aa3727dc0170735a87e1c7e3a75b2e">msb</a> () const </td></tr>
-<tr class="memdesc:a14aa3727dc0170735a87e1c7e3a75b2e"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the most significant byte of the address <br /></td></tr>
-<tr class="separator:a14aa3727dc0170735a87e1c7e3a75b2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac41c35777c760c5831c33a5f2029fa34"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ac41c35777c760c5831c33a5f2029fa34"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#ac41c35777c760c5831c33a5f2029fa34">operator==</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1address.html">address</a> &amp;rhs) const </td></tr>
-<tr class="memdesc:ac41c35777c760c5831c33a5f2029fa34"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if this address is the same as the rhs address <br /></td></tr>
-<tr class="separator:ac41c35777c760c5831c33a5f2029fa34"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7092eca6d67edf5569752ff0e7fac588"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7092eca6d67edf5569752ff0e7fac588"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a7092eca6d67edf5569752ff0e7fac588">operator!=</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1address.html">address</a> &amp;rhs) const </td></tr>
-<tr class="memdesc:a7092eca6d67edf5569752ff0e7fac588"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns false, if this address is the same as the rhs address <br /></td></tr>
-<tr class="separator:a7092eca6d67edf5569752ff0e7fac588"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a73d91010fc56ddfb908a94c18091ba07"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a73d91010fc56ddfb908a94c18091ba07"></a>
-<a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a73d91010fc56ddfb908a94c18091ba07">begin</a> () const </td></tr>
-<tr class="memdesc:a73d91010fc56ddfb908a94c18091ba07"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns an iterator to the first byte (LSB) of the address <br /></td></tr>
-<tr class="separator:a73d91010fc56ddfb908a94c18091ba07"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a00485e6ff386fb3031178b8c8ed505d4"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a00485e6ff386fb3031178b8c8ed505d4"></a>
-<a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a00485e6ff386fb3031178b8c8ed505d4">end</a> () const </td></tr>
-<tr class="memdesc:a00485e6ff386fb3031178b8c8ed505d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns an iterator one behind the last byte of the address <br /></td></tr>
-<tr class="separator:a00485e6ff386fb3031178b8c8ed505d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a58e72815e5ea4c3001b235c576a48516"><td class="memItemLeft" align="right" valign="top"><a id="a58e72815e5ea4c3001b235c576a48516"></a>
+std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a58e72815e5ea4c3001b235c576a48516">print</a> (std::ostream &amp;) const</td></tr>
+<tr class="memdesc:a58e72815e5ea4c3001b235c576a48516"><td class="mdescLeft">&#160;</td><td class="mdescRight">prints this in a human readable manner <br /></td></tr>
+<tr class="separator:a58e72815e5ea4c3001b235c576a48516"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a32d6a1a3218225e436d2915ad5ea0437"><td class="memItemLeft" align="right" valign="top"><a id="a32d6a1a3218225e436d2915ad5ea0437"></a>
+std::uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a32d6a1a3218225e436d2915ad5ea0437">msb</a> () const</td></tr>
+<tr class="memdesc:a32d6a1a3218225e436d2915ad5ea0437"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the most significant byte of the address <br /></td></tr>
+<tr class="separator:a32d6a1a3218225e436d2915ad5ea0437"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0da1f9f8b3906d68fd1994f5454c7cab"><td class="memItemLeft" align="right" valign="top"><a id="a0da1f9f8b3906d68fd1994f5454c7cab"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a0da1f9f8b3906d68fd1994f5454c7cab">operator==</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1address.html">address</a> &amp;rhs) const</td></tr>
+<tr class="memdesc:a0da1f9f8b3906d68fd1994f5454c7cab"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if this address is the same as the rhs address <br /></td></tr>
+<tr class="separator:a0da1f9f8b3906d68fd1994f5454c7cab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2a986a136cab36344760889baa870906"><td class="memItemLeft" align="right" valign="top"><a id="a2a986a136cab36344760889baa870906"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a2a986a136cab36344760889baa870906">operator!=</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1address.html">address</a> &amp;rhs) const</td></tr>
+<tr class="memdesc:a2a986a136cab36344760889baa870906"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns false, if this address is the same as the rhs address <br /></td></tr>
+<tr class="separator:a2a986a136cab36344760889baa870906"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abea52c4b16726d08543386a69ffb87d1"><td class="memItemLeft" align="right" valign="top"><a id="abea52c4b16726d08543386a69ffb87d1"></a>
+<a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#abea52c4b16726d08543386a69ffb87d1">begin</a> () const</td></tr>
+<tr class="memdesc:abea52c4b16726d08543386a69ffb87d1"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns an iterator to the first byte (LSB) of the address <br /></td></tr>
+<tr class="separator:abea52c4b16726d08543386a69ffb87d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae207eeb543c0f3b723701737794eecca"><td class="memItemLeft" align="right" valign="top"><a id="ae207eeb543c0f3b723701737794eecca"></a>
+<a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a526fa1978b77daaee52d8f11b27207d4">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1address.html#ae207eeb543c0f3b723701737794eecca">end</a> () const</td></tr>
+<tr class="memdesc:ae207eeb543c0f3b723701737794eecca"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns an iterator one behind the last byte of the address <br /></td></tr>
+<tr class="separator:ae207eeb543c0f3b723701737794eecca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -171,7 +144,7 @@ Static Public Member Functions</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>a 48-bit universal LAN MAC address </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a class="anchor" id="a1fff24c2e2a5ecc987e958d8c5de0194"></a>
+<a id="a1fff24c2e2a5ecc987e958d8c5de0194"></a>
 <div class="memitem">
 <div class="memproto">
 <table class="mlabels">
@@ -204,7 +177,7 @@ Static Public Member Functions</h2></td></tr>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

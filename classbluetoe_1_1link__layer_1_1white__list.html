@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>BlueToe: bluetoe::link_layer::white_list&lt; Size &gt; Class Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
@@ -11,9 +12,6 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<script type="text/javascript">
-  $(document).ready(function() { init_search(); });
-</script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
@@ -36,40 +34,15 @@
 <script type="text/javascript">
 var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
-  <div id="navrow1" class="tabs">
-    <ul class="tablist">
-      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
-      <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="namespaces.html"><span>Namespaces</span></a></li>
-      <li class="current"><a href="annotated.html"><span>Classes</span></a></li>
-      <li><a href="files.html"><span>Files</span></a></li>
-      <li><a href="examples.html"><span>Examples</span></a></li>
-      <li>
-        <div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <div id="navrow2" class="tabs2">
-    <ul class="tablist">
-      <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
-      <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
-      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
-      <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
-    </ul>
-  </div>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,'Search');
+  $(document).ready(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -112,44 +85,44 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ac98316e0a1230a5c44557927996e4322"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ac98316e0a1230a5c44557927996e4322">remove_from_white_list</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr)</td></tr>
 <tr class="memdesc:ac98316e0a1230a5c44557927996e4322"><td class="mdescLeft">&#160;</td><td class="mdescRight">remove the given address from the white list  <a href="#ac98316e0a1230a5c44557927996e4322">More...</a><br /></td></tr>
 <tr class="separator:ac98316e0a1230a5c44557927996e4322"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6cc4665a51babc8b5328636a2351f341"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6cc4665a51babc8b5328636a2351f341"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a6cc4665a51babc8b5328636a2351f341">is_in_white_list</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr) const </td></tr>
-<tr class="memdesc:a6cc4665a51babc8b5328636a2351f341"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if the given address in within the white list <br /></td></tr>
-<tr class="separator:a6cc4665a51babc8b5328636a2351f341"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a120a1b4c4a31b172cfa5b751c1e85079"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a120a1b4c4a31b172cfa5b751c1e85079"></a>
-std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a120a1b4c4a31b172cfa5b751c1e85079">white_list_free_size</a> () const </td></tr>
-<tr class="memdesc:a120a1b4c4a31b172cfa5b751c1e85079"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the number of addresses that could be added to the white list before <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab081bcb3e591f1b1152a6a4d1f8f1134" title="add the given address to the white list. ">add_to_white_list()</a> would return false. <br /></td></tr>
-<tr class="separator:a120a1b4c4a31b172cfa5b751c1e85079"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a34aac63ab8c507b6575128c89061356c"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a34aac63ab8c507b6575128c89061356c"></a>
+<tr class="memitem:a9f2a75cb12d67633d5e6fd11156ecb8b"><td class="memItemLeft" align="right" valign="top"><a id="a9f2a75cb12d67633d5e6fd11156ecb8b"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a9f2a75cb12d67633d5e6fd11156ecb8b">is_in_white_list</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr) const</td></tr>
+<tr class="memdesc:a9f2a75cb12d67633d5e6fd11156ecb8b"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if the given address in within the white list <br /></td></tr>
+<tr class="separator:a9f2a75cb12d67633d5e6fd11156ecb8b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a17bd83fcdae1d33658109db6433b2d2c"><td class="memItemLeft" align="right" valign="top"><a id="a17bd83fcdae1d33658109db6433b2d2c"></a>
+std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a17bd83fcdae1d33658109db6433b2d2c">white_list_free_size</a> () const</td></tr>
+<tr class="memdesc:a17bd83fcdae1d33658109db6433b2d2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the number of addresses that could be added to the white list before <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab081bcb3e591f1b1152a6a4d1f8f1134" title="add the given address to the white list. ">add_to_white_list()</a> would return false. <br /></td></tr>
+<tr class="separator:a17bd83fcdae1d33658109db6433b2d2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a34aac63ab8c507b6575128c89061356c"><td class="memItemLeft" align="right" valign="top"><a id="a34aac63ab8c507b6575128c89061356c"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a34aac63ab8c507b6575128c89061356c">clear_white_list</a> ()</td></tr>
 <tr class="memdesc:a34aac63ab8c507b6575128c89061356c"><td class="mdescLeft">&#160;</td><td class="mdescRight">remove all entries from the white list <br /></td></tr>
 <tr class="separator:a34aac63ab8c507b6575128c89061356c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae26843ab70485d5567d6fdd214cb77c3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ae26843ab70485d5567d6fdd214cb77c3">connection_request_filter</a> (bool b)</td></tr>
 <tr class="memdesc:ae26843ab70485d5567d6fdd214cb77c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accept connection requests only from devices within the white list.  <a href="#ae26843ab70485d5567d6fdd214cb77c3">More...</a><br /></td></tr>
 <tr class="separator:ae26843ab70485d5567d6fdd214cb77c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4a1e3b22156b80a9e13393769088f84a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a4a1e3b22156b80a9e13393769088f84a"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a4a1e3b22156b80a9e13393769088f84a">connection_request_filter</a> () const </td></tr>
-<tr class="memdesc:a4a1e3b22156b80a9e13393769088f84a"><td class="mdescLeft">&#160;</td><td class="mdescRight">current value of the property. <br /></td></tr>
-<tr class="separator:a4a1e3b22156b80a9e13393769088f84a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2dde6db52bd2c510570ccd49503077af"><td class="memItemLeft" align="right" valign="top"><a id="a2dde6db52bd2c510570ccd49503077af"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a2dde6db52bd2c510570ccd49503077af">connection_request_filter</a> () const</td></tr>
+<tr class="memdesc:a2dde6db52bd2c510570ccd49503077af"><td class="mdescLeft">&#160;</td><td class="mdescRight">current value of the property. <br /></td></tr>
+<tr class="separator:a2dde6db52bd2c510570ccd49503077af"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2deadc29cbdea11646b1c0c2f1557fe9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a2deadc29cbdea11646b1c0c2f1557fe9">scan_request_filter</a> (bool b)</td></tr>
 <tr class="memdesc:a2deadc29cbdea11646b1c0c2f1557fe9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accept scan requests only from devices within the white list.  <a href="#a2deadc29cbdea11646b1c0c2f1557fe9">More...</a><br /></td></tr>
 <tr class="separator:a2deadc29cbdea11646b1c0c2f1557fe9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab6efb797444049631fea1a3ffc8cbbe3"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab6efb797444049631fea1a3ffc8cbbe3"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab6efb797444049631fea1a3ffc8cbbe3">scan_request_filter</a> () const </td></tr>
-<tr class="memdesc:ab6efb797444049631fea1a3ffc8cbbe3"><td class="mdescLeft">&#160;</td><td class="mdescRight">current value of the property. <br /></td></tr>
-<tr class="separator:ab6efb797444049631fea1a3ffc8cbbe3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1076f20af7cee5481006fe0d6a60040e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a1076f20af7cee5481006fe0d6a60040e"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a1076f20af7cee5481006fe0d6a60040e">is_connection_request_in_filter</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr) const </td></tr>
-<tr class="memdesc:a1076f20af7cee5481006fe0d6a60040e"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if a connection request from the given address should be answered. <br /></td></tr>
-<tr class="separator:a1076f20af7cee5481006fe0d6a60040e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9a1375caa2a2c7c3324623c1f4d27f7b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a9a1375caa2a2c7c3324623c1f4d27f7b"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a9a1375caa2a2c7c3324623c1f4d27f7b">is_scan_request_in_filter</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr) const </td></tr>
-<tr class="memdesc:a9a1375caa2a2c7c3324623c1f4d27f7b"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if a scan request from the given address should be answered. <br /></td></tr>
-<tr class="separator:a9a1375caa2a2c7c3324623c1f4d27f7b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a90d3c34520327e1994565e5c1fdd40ee"><td class="memItemLeft" align="right" valign="top"><a id="a90d3c34520327e1994565e5c1fdd40ee"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a90d3c34520327e1994565e5c1fdd40ee">scan_request_filter</a> () const</td></tr>
+<tr class="memdesc:a90d3c34520327e1994565e5c1fdd40ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">current value of the property. <br /></td></tr>
+<tr class="separator:a90d3c34520327e1994565e5c1fdd40ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adf480ef797cfdb9eb72e6f4b46a4e58a"><td class="memItemLeft" align="right" valign="top"><a id="adf480ef797cfdb9eb72e6f4b46a4e58a"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#adf480ef797cfdb9eb72e6f4b46a4e58a">is_connection_request_in_filter</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr) const</td></tr>
+<tr class="memdesc:adf480ef797cfdb9eb72e6f4b46a4e58a"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if a connection request from the given address should be answered. <br /></td></tr>
+<tr class="separator:adf480ef797cfdb9eb72e6f4b46a4e58a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab2ec4d3d0111cd214ca506f608273474"><td class="memItemLeft" align="right" valign="top"><a id="ab2ec4d3d0111cd214ca506f608273474"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab2ec4d3d0111cd214ca506f608273474">is_scan_request_in_filter</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;addr) const</td></tr>
+<tr class="memdesc:ab2ec4d3d0111cd214ca506f608273474"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if a scan request from the given address should be answered. <br /></td></tr>
+<tr class="separator:ab2ec4d3d0111cd214ca506f608273474"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
-<tr class="memitem:a7b2363a1b448e9920c0c1fc9f3ad7293"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7b2363a1b448e9920c0c1fc9f3ad7293"></a>
+<tr class="memitem:a7b2363a1b448e9920c0c1fc9f3ad7293"><td class="memItemLeft" align="right" valign="top"><a id="a7b2363a1b448e9920c0c1fc9f3ad7293"></a>
 static constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a7b2363a1b448e9920c0c1fc9f3ad7293">maximum_white_list_entries</a> = Size</td></tr>
 <tr class="memdesc:a7b2363a1b448e9920c0c1fc9f3ad7293"><td class="mdescLeft">&#160;</td><td class="mdescRight">The maximum number of device addresses, the white list can contain. <br /></td></tr>
 <tr class="separator:a7b2363a1b448e9920c0c1fc9f3ad7293"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -165,9 +138,9 @@ class bluetoe::link_layer::white_list&lt; Size &gt;</h3>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>the functions <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a1076f20af7cee5481006fe0d6a60040e" title="returns true, if a connection request from the given address should be answered. ">is_connection_request_in_filter()</a> and <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a9a1375caa2a2c7c3324623c1f4d27f7b" title="returns true, if a scan request from the given address should be answered. ">is_scan_request_in_filter()</a> might return always true, for a hardware implementation and the hardware would then not call the receive callback for devices that are not within the white list. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>the functions <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#adf480ef797cfdb9eb72e6f4b46a4e58a" title="returns true, if a connection request from the given address should be answered. ">is_connection_request_in_filter()</a> and <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab2ec4d3d0111cd214ca506f608273474" title="returns true, if a scan request from the given address should be answered. ">is_scan_request_in_filter()</a> might return always true, for a hardware implementation and the hardware would then not call the receive callback for devices that are not within the white list. </dd></dl>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a class="anchor" id="ab081bcb3e591f1b1152a6a4d1f8f1134"></a>
+<a id="ab081bcb3e591f1b1152a6a4d1f8f1134"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
@@ -188,7 +161,7 @@ template&lt;std::size_t Size = 8&gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="ae26843ab70485d5567d6fdd214cb77c3"></a>
+<a id="ae26843ab70485d5567d6fdd214cb77c3"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
@@ -212,7 +185,7 @@ template&lt;std::size_t Size = 8&gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="ac98316e0a1230a5c44557927996e4322"></a>
+<a id="ac98316e0a1230a5c44557927996e4322"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
@@ -233,7 +206,7 @@ template&lt;std::size_t Size = 8&gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="a2deadc29cbdea11646b1c0c2f1557fe9"></a>
+<a id="a2deadc29cbdea11646b1c0c2f1557fe9"></a>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
@@ -263,7 +236,7 @@ template&lt;std::size_t Size = 8&gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 17 2016 10:00:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

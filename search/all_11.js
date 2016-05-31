@@ -20,7 +20,7 @@ var searchData=
   ['rear_5fwheel',['rear_wheel',['../structbluetoe_1_1sensor__location.html#a583e9bb59bfd8eaf3a02a70cfb8b9fa8',1,'bluetoe::sensor_location']]],
   ['receive_5fbuffer_5fsize',['receive_buffer_size',['../structbluetoe_1_1link__layer_1_1buffer__sizes.html#ac44df9e5e10467bc8dc721db8ee7290b',1,'bluetoe::link_layer::buffer_sizes']]],
   ['received',['received',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#abb04733d8c033531f8d1b62f8da0db14',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
-  ['remote_5faddress',['remote_address',['../classbluetoe_1_1link__layer_1_1connection__addresses.html#a6d115520cc2dae2d44fe25b4df582a39',1,'bluetoe::link_layer::connection_addresses']]],
+  ['remote_5faddress',['remote_address',['../classbluetoe_1_1link__layer_1_1connection__addresses.html#a50e96a25539f69aa6a2a063973075ef7',1,'bluetoe::link_layer::connection_addresses']]],
   ['remote_5fcontrol',['remote_control',['../structbluetoe_1_1appearance.html#a0ad197eb779a879234569a49fab3b4e9',1,'bluetoe::appearance']]],
   ['remove_5ffrom_5fwhite_5flist',['remove_from_white_list',['../classbluetoe_1_1link__layer_1_1white__list.html#ac98316e0a1230a5c44557927996e4322',1,'bluetoe::link_layer::white_list']]],
   ['request_5fnot_5fsupported',['request_not_supported',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e',1,'bluetoe::error_codes']]],

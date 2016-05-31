@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['bootloader_2ehpp',['bootloader.hpp',['../bootloader_8hpp.html',1,'']]]
+  ['advertising_2ehpp',['advertising.hpp',['../advertising_8hpp.html',1,'']]]
 ];

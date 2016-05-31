@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['data_5fchannel',['data_channel',['../classbluetoe_1_1link__layer_1_1channel__map.html#a64e0c85aed9fc79125df5826bc7f8c09',1,'bluetoe::link_layer::channel_map']]],
+  ['data_5fchannel',['data_channel',['../classbluetoe_1_1link__layer_1_1channel__map.html#a888e11274afaa85c43041611554baa5a',1,'bluetoe::link_layer::channel_map']]],
   ['data_5fuuid',['data_uuid',['../bootloader_8hpp.html#a9e9862e1370b732a2ee65c06f6322cc7',1,'bluetoe::bootloader']]],
   ['delta_5ftime',['delta_time',['../classbluetoe_1_1link__layer_1_1delta__time.html',1,'bluetoe::link_layer']]],
   ['delta_5ftime',['delta_time',['../classbluetoe_1_1link__layer_1_1delta__time.html#a20e0209584436820f55b517baece19dc',1,'bluetoe::link_layer::delta_time']]],
@@ -10,6 +10,7 @@ var searchData=
   ['device_5fappearance',['device_appearance',['../structbluetoe_1_1device__appearance.html',1,'bluetoe']]],
   ['digital_5fpen',['digital_pen',['../structbluetoe_1_1appearance.html#a08abaae4b718be3d1072e84766bc9cde',1,'bluetoe::appearance']]],
   ['digitizer_5ftablet',['digitizer_tablet',['../structbluetoe_1_1appearance.html#a7925a588c71149ef8d9ab09bfb1a5806',1,'bluetoe::appearance']]],
+  ['directed_5fadvertising_5faddress',['directed_advertising_address',['../classbluetoe_1_1link__layer_1_1connectable__directed__advertising.html#ab7e0d5f4a88a80f2d11ed52d2027dbc2',1,'bluetoe::link_layer::connectable_directed_advertising']]],
   ['disconnect',['disconnect',['../classbluetoe_1_1link__layer_1_1link__layer.html#a1b474599cc4c19e278f5b03edc762210',1,'bluetoe::link_layer::link_layer']]],
   ['display',['display',['../structbluetoe_1_1appearance.html#a0e5285ac548babf9738ee77d06dd936f',1,'bluetoe::appearance']]]
 ];
