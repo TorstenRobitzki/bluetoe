@@ -24,7 +24,7 @@ namespace link_layer {
         template < unsigned long long AdvertisingIntervalMilliSeconds >
         struct check_advertising_interval_parameter {
             static_assert( AdvertisingIntervalMilliSeconds >= 20,    "the advertising interval must be greater than or equal to 20ms." );
-            static_assert( AdvertisingIntervalMilliSeconds <= 10240, "the advertising interval must be greater than or equal to 20ms." );
+            static_assert( AdvertisingIntervalMilliSeconds <= 10240, "the advertising interval must be smaller than or equal to 10.24s." );
 
             typedef void type;
         };
@@ -85,8 +85,23 @@ namespace link_layer {
      */
     class connectable_undirected_advertising
     {
-        /** @cond HIDDEN_SYMBOLS */
     public:
+        /**
+         * @brief change type of advertisment
+         *
+         * If more that one advertising type is given, this function can be used
+         * to define the advertising that is used next, when the device starts
+         * advertising. If the device is currently advertising, the function
+         * has no effect until the device stops advertising and starts over to
+         * advertise.
+         *
+         * @tparam Type the next type of advertising
+         * @example change_advertising_example.cpp
+         */
+        template < typename Type >
+        void change_advertising();
+
+        /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_type_meta_type meta_type;
 
         template < typename LinkLayer, typename >
@@ -111,29 +126,13 @@ namespace link_layer {
 
                 std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
 
+                fill_advertising_response_data();
                 return advertising_buffer();
             }
 
             read_buffer get_advertising_data()
             {
                 return advertising_buffer();
-            }
-
-            void fill_advertising_response_data()
-            {
-                const device_address& addr = link_layer().local_address();
-
-                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
-
-                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
-
-                if ( addr.is_random() )
-                    adv_response_buffer[ 0 ] |= header_txaddr_field;
-
-                adv_response_buffer[ 1 ] = address_length;
-                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-
-                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
             }
 
             read_buffer get_advertising_response_data()
@@ -155,10 +154,28 @@ namespace link_layer {
             {
                 return details::advertising_type_base::is_valid_connect_request( receive, link_layer().local_address() );
             }
-        private:
+
             static constexpr std::size_t    max_advertising_data_size   = 31;
             static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
             static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+        private:
+
+            void fill_advertising_response_data()
+            {
+                const device_address& addr = link_layer().local_address();
+
+                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
+
+                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
+
+                if ( addr.is_random() )
+                    adv_response_buffer[ 0 ] |= header_txaddr_field;
+
+                adv_response_buffer[ 1 ] = address_length;
+                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
+
+                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+            }
 
             read_buffer advertising_buffer()
             {
@@ -200,6 +217,21 @@ namespace link_layer {
      */
     class connectable_directed_advertising
     {
+    public:
+        /**
+         * @brief change type of advertisment
+         *
+         * If more that one advertising type is given, this function can be used
+         * to define the advertising that is used next, when the device starts
+         * advertising. If the device is currently advertising, the function
+         * has no effect until the device stops advertising and starts over to
+         * advertise.
+         *
+         * @tparam Type the next type of advertising
+         */
+        template < typename Type >
+        void change_advertising();
+
     public:
         /**
          * @brief sets the address to be used in the advertising
@@ -272,10 +304,6 @@ namespace link_layer {
                 return addr_valid_ ? advertising_buffer() : read_buffer{ nullptr, 0 };
             }
 
-            void fill_advertising_response_data()
-            {
-            }
-
             read_buffer get_advertising_response_data() const
             {
                 return read_buffer{ nullptr, 0 };
@@ -294,9 +322,11 @@ namespace link_layer {
 
                 return result;
             }
-        private:
+
             static constexpr std::size_t    max_advertising_data_size   = 2 * address_length;
             static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size;
+            static constexpr std::size_t    maximum_required_advertising_buffer = maximum_adv_send_size + maximum_adv_request_size;
+        private:
 
             LinkLayer& link_layer()
             {
@@ -334,6 +364,20 @@ namespace link_layer {
      */
     struct scannable_undirected_advertising
     {
+        /**
+         * @brief change type of advertisment
+         *
+         * If more that one advertising type is given, this function can be used
+         * to define the advertising that is used next, when the device starts
+         * advertising. If the device is currently advertising, the function
+         * has no effect until the device stops advertising and starts over to
+         * advertise.
+         *
+         * @tparam Type the next type of advertising
+         */
+        template < typename Type >
+        void change_advertising();
+
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_type_meta_type meta_type;
 
@@ -343,6 +387,7 @@ namespace link_layer {
         protected:
             read_buffer fill_advertising_data()
             {
+                fill_advertising_response_data();
                 const device_address& addr = link_layer().local_address();
 
                 std::uint8_t* const adv_data = advertising_buffer().buffer;
@@ -367,23 +412,6 @@ namespace link_layer {
                 return advertising_buffer();
             }
 
-            void fill_advertising_response_data()
-            {
-                const device_address& addr = link_layer().local_address();
-
-                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
-
-                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
-
-                if ( addr.is_random() )
-                    adv_response_buffer[ 0 ] |= header_txaddr_field;
-
-                adv_response_buffer[ 1 ] = address_length;
-                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-
-                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
-            }
-
             read_buffer get_advertising_response_data()
             {
                 return advertising_response_buffer();
@@ -403,10 +431,28 @@ namespace link_layer {
             {
                 return false;
             }
-        private:
+
             static constexpr std::size_t    max_advertising_data_size   = 31;
             static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
             static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+
+        private:
+            void fill_advertising_response_data()
+            {
+                const device_address& addr = link_layer().local_address();
+
+                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
+
+                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
+
+                if ( addr.is_random() )
+                    adv_response_buffer[ 0 ] |= header_txaddr_field;
+
+                adv_response_buffer[ 1 ] = address_length;
+                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
+
+                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+            }
 
             read_buffer advertising_buffer()
             {
@@ -443,6 +489,20 @@ namespace link_layer {
      */
     struct non_connectable_undirected_advertising
     {
+        /**
+         * @brief change type of advertisment
+         *
+         * If more that one advertising type is given, this function can be used
+         * to define the advertising that is used next, when the device starts
+         * advertising. If the device is currently advertising, the function
+         * has no effect until the device stops advertising and starts over to
+         * advertise.
+         *
+         * @tparam Type the next type of advertising
+         */
+        template < typename Type >
+        void change_advertising();
+
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_type_meta_type meta_type;
 
@@ -476,10 +536,6 @@ namespace link_layer {
                 return advertising_buffer();
             }
 
-            void fill_advertising_response_data()
-            {
-            }
-
             read_buffer get_advertising_response_data() const
             {
                 return read_buffer{ nullptr, 0 };
@@ -499,10 +555,11 @@ namespace link_layer {
             {
                 return false;
             }
-        private:
+
             static constexpr std::size_t    max_advertising_data_size   = 31;
             static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
             static constexpr std::size_t    maximum_required_advertising_buffer = maximum_adv_send_size;
+        private:
 
             read_buffer advertising_buffer()
             {
@@ -629,33 +686,81 @@ namespace link_layer {
     };
 
     namespace details {
-        template < typename LinkLayer, typename ... Options >
-        class advertising_state_impl :
-            public bluetoe::details::find_by_meta_type< advertising_type_meta_type,
-                Options..., connectable_undirected_advertising >::type::template impl< LinkLayer, advertising_state_impl< LinkLayer, Options... > >
-        {
-        public:
-            static constexpr std::size_t    max_advertising_data_size   = 31;
-            static constexpr std::size_t    advertising_pdu_header_size = 2;
-            static constexpr std::size_t    address_length              = 6;
-            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
-            static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
-            static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+        /*
+         * Type to implement the single and multiple adverting type advertisings
+         */
+        template < typename LinkLayer, typename Options, typename ... Advertisings >
+        class advertiser;
 
-            advertising_state_impl()
+        struct advertiser_base_base
+        {
+            static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
+            static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
+
+            static constexpr unsigned       first_advertising_channel   = 37;
+            static constexpr unsigned       last_advertising_channel    = 39;
+        };
+
+        template < typename ... Options >
+        class advertiser_base : public advertiser_base_base
+        {
+        protected:
+            advertiser_base()
                 : current_channel_index_( first_advertising_channel )
                 , adv_perturbation_( 0 )
             {
             }
+
+            delta_time next_adv_event()
+            {
+                if ( current_channel_index_ != this->first_advertising_channel )
+                    return delta_time::now();
+
+                adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
+
+                typedef typename ::bluetoe::details::find_by_meta_type<
+                    details::advertising_interval_meta_type,
+                    Options..., default_advertising_interval >::type adv_interval;
+
+                return adv_interval::interval() + delta_time::msec( adv_perturbation_ );
+            }
+
+            unsigned current_channel() const
+            {
+                return current_channel_index_;
+            }
+
+            void next_channel()
+            {
+                current_channel_index_ = current_channel_index_ == last_advertising_channel
+                    ? first_advertising_channel
+                    : current_channel_index_ + 1;
+            }
+
+        private:
+            typedef                         advertising_interval< 100 >         default_advertising_interval;
+
+            static constexpr unsigned       max_adv_perturbation_ = 10;
+
+            unsigned                        current_channel_index_;
+            unsigned                        adv_perturbation_;
+        };
+
+        /*
+         * Implementation for a single advertising type
+         */
+        template < typename LinkLayer, typename ... Options, typename Advertising >
+        class advertiser< LinkLayer, std::tuple< Options... >, std::tuple< Advertising > > :
+            public Advertising::template impl< LinkLayer, advertiser< LinkLayer, std::tuple< Options... >, std::tuple< Advertising > > >,
+            public advertiser_base< Options... >
+        {
+        public:
 
             /*
              * Send out, first advertising
              */
             void handle_start_advertising()
             {
-                current_channel_index_ = first_advertising_channel;
-
-                this->fill_advertising_response_data();
                 const read_buffer advertising_data = this->fill_advertising_data();
 
                 if ( !advertising_data.empty() )
@@ -663,11 +768,11 @@ namespace link_layer {
                     LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
                     link_layer.set_access_address_and_crc_init(
-                        advertising_radio_access_address,
-                        advertising_crc_init );
+                        this->advertising_radio_access_address,
+                        this->advertising_crc_init );
 
                     link_layer.schedule_advertisment_and_receive(
-                        current_channel_index_,
+                        this->current_channel(),
                         write_buffer( advertising_data ),
                         delta_time::now(),
                         this->advertising_receive_buffer() );
@@ -692,7 +797,7 @@ namespace link_layer {
                         if ( !response_data.empty() )
                         {
                             link_layer.schedule_advertisment_and_receive(
-                                current_channel_index_,
+                                this->current_channel(),
                                 write_buffer( response_data ),
                                 delta_time::now(),
                                 read_buffer{ nullptr, 0 } );
@@ -714,52 +819,234 @@ namespace link_layer {
 
             void handle_adv_timeout()
             {
-                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
-
-                current_channel_index_ = current_channel_index_ == last_advertising_channel
-                    ? first_advertising_channel
-                    : current_channel_index_ + 1;
-
-                const delta_time next_time = current_channel_index_ == first_advertising_channel
-                    ? next_adv_event()
-                    : delta_time::now();
-
                 const read_buffer advertising_data = this->get_advertising_data();
-
                 if ( !advertising_data.empty() )
                 {
-                    link_layer.schedule_advertisment_and_receive(
-                        current_channel_index_,
+                    this->next_channel();
+
+                    static_cast< LinkLayer& >( *this ).schedule_advertisment_and_receive(
+                        this->current_channel(),
                         write_buffer( advertising_data ),
-                        next_time,
+                        this->next_adv_event(),
                         this->advertising_receive_buffer() );
                 }
             }
+        };
+
+        /*
+         * Default
+         */
+        template < typename LinkLayer, typename ... Options >
+        class advertiser< LinkLayer, std::tuple< Options... >, std::tuple<> > :
+            public advertiser< LinkLayer, std::tuple< Options... >, std::tuple< connectable_undirected_advertising > >
+        {
+        };
+
+        template < typename LinkLayer, typename Options, typename Advertiser, typename ... Types >
+        class multipl_advertiser_base;
+
+        template < typename LinkLayer, typename Options, typename Advertiser >
+        class multipl_advertiser_base< LinkLayer, Options, Advertiser >
+        {
+        protected:
+            read_buffer fill_advertising_data( unsigned )
+            {
+                return read_buffer{ nullptr, 0 };
+            }
+
+            read_buffer advertising_receive_buffer( unsigned )
+            {
+                return read_buffer{ nullptr, 0 };
+            }
+
+            read_buffer get_advertising_data( unsigned )
+            {
+                return read_buffer{ nullptr, 0 };
+            }
+
+            read_buffer get_advertising_response_data( unsigned )
+            {
+                return read_buffer{ nullptr, 0 };
+            }
+
+            bool is_valid_scan_request( const read_buffer&, unsigned ) const
+            {
+                return false;
+            }
+
+            bool is_valid_connect_request( const read_buffer&, unsigned ) const
+            {
+                return false;
+            }
+         };
+
+        template < typename LinkLayer, typename Options, typename Advertiser, typename Type, typename ... Types >
+        class multipl_advertiser_base< LinkLayer, Options, Advertiser, Type, Types... > :
+            public Type::template impl< LinkLayer, Advertiser >,
+            public multipl_advertiser_base< LinkLayer, Options, Advertiser, Types... >
+        {
+        protected:
+
+            read_buffer fill_advertising_data( unsigned selected )
+            {
+                return selected == 0
+                    ? adv_type::fill_advertising_data()
+                    : tail_type::fill_advertising_data( selected -1 );
+            }
+
+            read_buffer advertising_receive_buffer( unsigned selected )
+            {
+                return selected == 0
+                    ? adv_type::advertising_receive_buffer()
+                    : tail_type::advertising_receive_buffer( selected -1 );
+            }
+
+            read_buffer get_advertising_data( unsigned selected )
+            {
+                return selected == 0
+                    ? adv_type::get_advertising_data()
+                    : tail_type::get_advertising_data( selected -1 );
+            }
+
+            read_buffer get_advertising_response_data( unsigned selected )
+            {
+                return selected == 0
+                    ? adv_type::get_advertising_response_data()
+                    : tail_type::get_advertising_response_data( selected -1 );
+            }
+
+            bool is_valid_scan_request( const read_buffer& b, unsigned selected ) const
+            {
+                return selected == 0
+                    ? adv_type::is_valid_scan_request( b )
+                    : tail_type::is_valid_scan_request( b, selected -1 );
+            }
+
+            bool is_valid_connect_request( const read_buffer& b, unsigned selected ) const
+            {
+                return selected == 0
+                    ? adv_type::is_valid_connect_request( b )
+                    : tail_type::is_valid_connect_request( b, selected -1 );
+            }
+        private:
+            using adv_type  = typename Type::template impl< LinkLayer, Advertiser >;
+            using tail_type = multipl_advertiser_base< LinkLayer, Options, Advertiser, Types... >;
+        };
+
+        /*
+         * Wrapper around multiple advertising types
+         */
+        template < typename LinkLayer, typename ... Options, typename FirstAdv, typename SecondAdv, typename ... Advertisings >
+        class advertiser< LinkLayer, std::tuple< Options... >, std::tuple< FirstAdv, SecondAdv, Advertisings... > > :
+            public advertiser_base< Options... >,
+            public multipl_advertiser_base<
+                LinkLayer,
+                std::tuple< Options... >,
+                advertiser< LinkLayer, std::tuple< Options... >, std::tuple< FirstAdv, SecondAdv, Advertisings... > >,
+                FirstAdv, SecondAdv, Advertisings...
+            >
+        {
+        public:
+            static constexpr std::size_t maximum_required_advertising_buffer = 100;
+
+            advertiser()
+                : selected_( 0 )
+                , proposal_( 0 )
+            {
+            }
+
+            void handle_start_advertising()
+            {
+                selected_ = proposal_;
+                const read_buffer advertising_data = this->fill_advertising_data( selected_ );
+
+                if ( !advertising_data.empty() )
+                {
+                    LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
+
+                    link_layer.set_access_address_and_crc_init(
+                        this->advertising_radio_access_address,
+                        this->advertising_crc_init );
+
+                    link_layer.schedule_advertisment_and_receive(
+                        this->current_channel(),
+                        write_buffer( advertising_data ),
+                        delta_time::now(),
+                        this->advertising_receive_buffer( selected_ ) );
+                }
+            }
+
+            bool handle_adv_receive( read_buffer receive, device_address& remote_address )
+            {
+                if ( this->is_valid_scan_request( receive, selected_ ) )
+                {
+                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+
+                    LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
+
+                    if ( link_layer.is_scan_request_in_filter( remote_address ) )
+                    {
+                        const read_buffer response_data = this->get_advertising_response_data( selected_ );
+
+                        if ( !response_data.empty() )
+                        {
+                            link_layer.schedule_advertisment_and_receive(
+                                this->current_channel(),
+                                write_buffer( response_data ),
+                                delta_time::now(),
+                                read_buffer{ nullptr, 0 } );
+
+                            return false;
+                        }
+                    }
+                }
+                else if ( this->is_valid_connect_request( receive, selected_ ) )
+                {
+                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+                    return true;
+                }
+
+                handle_adv_timeout();
+
+                return false;
+            }
+
+            void handle_adv_timeout()
+            {
+                const read_buffer advertising_data = this->get_advertising_data( selected_ );
+                if ( !advertising_data.empty() )
+                {
+                    this->next_channel();
+
+                    static_cast< LinkLayer& >( *this ).schedule_advertisment_and_receive(
+                        this->current_channel(),
+                        write_buffer( advertising_data ),
+                        this->next_adv_event(),
+                        this->advertising_receive_buffer( selected_ ) );
+                }
+            }
+
+            template < typename Type >
+            void change_advertising()
+            {
+                proposal_ = bluetoe::details::index_of< Type, FirstAdv, SecondAdv, Advertisings... >::value;
+            }
 
         private:
-            typedef                         advertising_interval< 100 >         default_advertising_interval;
 
-            static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
-            static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
-
-            static constexpr unsigned       first_advertising_channel   = 37;
-            static constexpr unsigned       last_advertising_channel    = 39;
-            static constexpr unsigned       max_adv_perturbation_       = 10;
-
-            unsigned                        current_channel_index_;
-            unsigned                        adv_perturbation_;
-
-            delta_time next_adv_event()
-            {
-                adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
-
-                typedef typename ::bluetoe::details::find_by_meta_type<
-                    details::advertising_interval_meta_type,
-                    Options..., default_advertising_interval >::type adv_interval;
-
-                return adv_interval::interval() + delta_time::msec( adv_perturbation_ );
-            }
+            unsigned selected_;
+            unsigned proposal_;
         };
+
+        /** @cond HIDDEN_SYMBOLS */
+        template < typename LinkLayer, typename ... Options >
+        using select_advertiser_implementation =
+            advertiser<
+                LinkLayer,
+                std::tuple< Options... >,
+                typename bluetoe::details::find_all_by_meta_type< advertising_type_meta_type,
+                    Options... >::type >;
+        /** @endcond */
     }
 }
 }

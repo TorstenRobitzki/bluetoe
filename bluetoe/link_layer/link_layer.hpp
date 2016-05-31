@@ -125,7 +125,7 @@ namespace link_layer {
             >,
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
-        public details::advertising_state_impl<
+        public details::select_advertiser_implementation<
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >,
         private details::connection_callbacks< Server, Options... >::type,
@@ -186,6 +186,9 @@ namespace link_layer {
          */
         std::size_t fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
+        /**
+         * @brief returns the own local device address
+         */
         const device_address& local_address() const;
     private:
         typedef ScheduledRadio<
@@ -200,7 +203,7 @@ namespace link_layer {
         typedef typename details::security_manager< Options... >::type security_manager_t;
         typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
-        typedef details::advertising_state_impl<
+        typedef details::select_advertiser_implementation<
             link_layer< Server, ScheduledRadio, Options... >, Options... > advertising_t;
 
         unsigned sleep_clock_accuracy( const read_buffer& receive ) const;

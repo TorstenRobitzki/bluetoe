@@ -857,3 +857,157 @@ BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, scannable_un
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( multiple_advertising_types )
+
+struct scannable_and_connectable_advertising :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::connectable_undirected_advertising,
+        bluetoe::link_layer::scannable_undirected_advertising
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( advertising_starts_with_the_first_named_type, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    BOOST_REQUIRE( !advertisings().empty() );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 0;
+        },
+        "advertising_starts_with_the_first_names_type"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( advertising_is_repeated_after_timeout, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    const auto number_of_advertising_pdus =
+        count_data( []( const test::advertising_data& scheduled ) -> bool
+        {
+            return !scheduled.transmitted_data.empty()
+                && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
+        } );
+
+    BOOST_CHECK_GT( number_of_advertising_pdus, 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( can_switch_type_before_starting, scannable_and_connectable_advertising )
+{
+    this->change_advertising< bluetoe::link_layer::scannable_undirected_advertising >();
+
+    run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 6;
+        },
+        "advertising_starts_with_the_first_names_type"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( can_not_switch_type_after_starting, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    this->change_advertising< bluetoe::link_layer::scannable_undirected_advertising >();
+
+    run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 0;
+        },
+        "can_not_switch_type_after_starting"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    this->change_advertising< bluetoe::link_layer::scannable_undirected_advertising >();
+
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    BOOST_REQUIRE( !connection_events().empty() );
+
+    BOOST_CHECK_GT( count_data(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 6;
+        }), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, scannable_and_connectable_advertising )
+{
+    respond_to(
+        37, // channel
+        {
+            0xC3, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+        }
+    );
+
+    run( gatt_server_ );
+
+    static const std::vector< std::uint8_t > expected_response =
+    {
+        0x44, 0x06,
+        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0
+    };
+
+    find_scheduling(
+        []( const test::advertising_data& pdu ) -> bool
+        {
+            return pdu.channel == 37
+                && pdu.transmision_time.zero()
+                && pdu.transmitted_data == expected_response
+                && pdu.receive_buffer.empty();
+        },
+        "empty_reponds_to_a_scan_request"
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

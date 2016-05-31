@@ -351,10 +351,12 @@ namespace test {
 
             if ( advertising_response_ )
             {
+                advertising_response_ = false;
                 simulate_advertising_response();
             }
             else if ( connection_event_response_ )
             {
+                connection_event_response_ = false;
                 simulate_connection_event_response();
             }
 
