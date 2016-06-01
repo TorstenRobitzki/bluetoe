@@ -1088,3 +1088,108 @@ BOOST_FIXTURE_TEST_CASE( works_for_single_types_too, variable_interval_single_ty
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( no_auto_start_advertising )
+
+struct no_auto_start_single_type :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::no_auto_start_advertising
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+struct no_auto_start_multiple_type :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::no_auto_start_advertising,
+        bluetoe::link_layer::connectable_undirected_advertising,
+        bluetoe::link_layer::scannable_undirected_advertising
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( no_automatic_start_single, no_auto_start_single_type )
+{
+    run( gatt_server_ );
+    BOOST_CHECK_EQUAL( 0, advertisings().size() );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_automatic_start_multiple, no_auto_start_multiple_type )
+{
+    run( gatt_server_ );
+    BOOST_CHECK_EQUAL( 0, advertisings().size() );
+}
+
+BOOST_FIXTURE_TEST_CASE( manuell_start_single_before, no_auto_start_single_type )
+{
+    start_advertising();
+    run( gatt_server_ );
+
+    BOOST_CHECK_NE( 0, advertisings().size() );
+}
+
+BOOST_FIXTURE_TEST_CASE( manuell_start_single_after, no_auto_start_single_type )
+{
+    run( gatt_server_ );
+
+    start_advertising();
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    BOOST_CHECK_NE( 0, advertisings().size() );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_automatic_start_after_disconnect, no_auto_start_single_type )
+{
+    start_advertising();
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    run( gatt_server_ );
+
+    BOOST_REQUIRE( !connection_events().empty() );
+    const auto connect_time = connection_events().front().schedule_time;
+
+    check_scheduling(
+        [&]( const test::advertising_data& adv )
+        {
+            return adv.schedule_time <= connect_time;
+        },
+        "no_automatic_start_after_disconnect"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( stop_advertising_test, no_auto_start_single_type )
+{
+    start_advertising();
+    run( gatt_server_ );
+
+    const auto adv_count = advertisings().size();
+    stop_advertising();
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    BOOST_CHECK_EQUAL( advertisings().size(), adv_count );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -211,7 +211,7 @@ namespace link_layer {
         bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
         bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
         void force_disconnect();
-        void start_advertising();
+        void start_advertising_impl();
         void wait_for_connection_event();
         void transmit_notifications();
         void transmit_signaling_channel_output();
@@ -326,7 +326,7 @@ namespace link_layer {
         if ( state_ == state::initial )
         {
             server_ = &server;
-            start_advertising();
+            start_advertising_impl();
 
             server.notification_callback( lcap_notification_callback, this );
         }
@@ -377,6 +377,7 @@ namespace link_layer {
                 connection_interval_ );
 
             this->connection_request( connection_addresses( address_, remote_address ) );
+            this->handle_stop_advertising();
 
             connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
         }
@@ -671,11 +672,11 @@ namespace link_layer {
     {
         this->connection_closed( connection_details_, static_cast< radio_t& >( *this ) );
 
-        start_advertising();
+        start_advertising_impl();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::start_advertising()
+    void link_layer< Server, ScheduledRadio, Options... >::start_advertising_impl()
     {
         state_ = state::advertising;
 

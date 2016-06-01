@@ -585,10 +585,29 @@ namespace link_layer {
      *
      * @sa no_auto_start_advertising
      */
-    struct auto_start_advertising
+    class auto_start_advertising
     {
+    public:
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_startup_meta_type meta_type;
+
+        template < typename Advertiser >
+        struct impl
+        {
+            bool begin_of_advertising_events() const
+            {
+                return true;
+            }
+
+            bool continued_advertising_events() const
+            {
+                return true;
+            }
+
+            void end_of_advertising_events()
+            {
+            }
+        };
         /** @endcond */
     };
 
@@ -603,8 +622,9 @@ namespace link_layer {
      *
      * @sa auto_start_advertising
      */
-    struct no_auto_start_advertising
+    class no_auto_start_advertising
     {
+    public:
         /**
          * @brief starts to advertise.
          *
@@ -624,13 +644,65 @@ namespace link_layer {
          */
         void stop_advertising();
 
-        /**
-         * @brief returns if the link layer is currently advertising
-         */
-        bool is_advertising() const;
-
         /** @cond HIDDEN_SYMBOLS */
         typedef details::advertising_startup_meta_type meta_type;
+
+        template < typename Advertiser >
+        class impl
+        {
+        public:
+            impl()
+                : started_( false )
+                , enabled_( false )
+            {}
+
+            void start_advertising()
+            {
+                const bool start = !enabled_;
+
+                enabled_ = true;
+
+                if ( start && started_ )
+                    static_cast< Advertiser& >( *this ).handle_start_advertising();
+            }
+
+            /**
+             * @brief same as start_advertising(), but the link layer will automatically stop
+             *        to advertise after count advertising events.
+             */
+            void start_advertising( unsigned count )
+            {
+            }
+
+            /**
+             * @brief stop advertising
+             */
+            void stop_advertising()
+            {
+                enabled_ = false;
+            }
+
+        protected:
+            bool begin_of_advertising_events()
+            {
+                started_ = true;
+                return enabled_ && started_;
+            }
+
+            bool continued_advertising_events()
+            {
+                return enabled_ && started_;
+            }
+
+            void end_of_advertising_events()
+            {
+                started_ = false;
+                enabled_ = false;
+            }
+        private:
+            volatile bool    started_;
+            volatile bool    enabled_;
+        };
         /** @endcond */
     };
 
@@ -721,7 +793,7 @@ namespace link_layer {
         class advertiser_base :
             public advertiser_base_base,
             public bluetoe::details::find_by_meta_type<
-                    details::advertising_interval_meta_type,
+                    advertising_interval_meta_type,
                     Options..., advertising_interval< 100 > >::type
         {
         protected:
@@ -760,13 +832,28 @@ namespace link_layer {
             unsigned                        adv_perturbation_;
         };
 
+        template < typename LinkLayer, typename Advertising, typename ... Options >
+        struct start_stop_implementation :
+            bluetoe::details::find_by_meta_type<
+                advertising_startup_meta_type,
+                Options...,
+                auto_start_advertising
+            >::type::template impl<
+                advertiser<
+                    LinkLayer,
+                    std::tuple< Options... >,
+                    Advertising
+                >
+            > {};
+
         /*
          * Implementation for a single advertising type
          */
         template < typename LinkLayer, typename ... Options, typename Advertising >
         class advertiser< LinkLayer, std::tuple< Options... >, std::tuple< Advertising > > :
             public Advertising::template impl< LinkLayer, advertiser< LinkLayer, std::tuple< Options... >, std::tuple< Advertising > > >,
-            public advertiser_base< Options... >
+            public advertiser_base< Options... >,
+            public start_stop_implementation< LinkLayer, std::tuple< Advertising >, Options... >
         {
         public:
 
@@ -777,7 +864,7 @@ namespace link_layer {
             {
                 const read_buffer advertising_data = this->fill_advertising_data();
 
-                if ( !advertising_data.empty() )
+                if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
                     LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
@@ -791,6 +878,11 @@ namespace link_layer {
                         delta_time::now(),
                         this->advertising_receive_buffer() );
                 }
+            }
+
+            void handle_stop_advertising()
+            {
+                this->end_of_advertising_events();
             }
 
             /*
@@ -834,7 +926,7 @@ namespace link_layer {
             void handle_adv_timeout()
             {
                 const read_buffer advertising_data = this->get_advertising_data();
-                if ( !advertising_data.empty() )
+                if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
 
@@ -958,7 +1050,8 @@ namespace link_layer {
                 std::tuple< Options... >,
                 advertiser< LinkLayer, std::tuple< Options... >, std::tuple< FirstAdv, SecondAdv, Advertisings... > >,
                 FirstAdv, SecondAdv, Advertisings...
-            >
+            >,
+            public start_stop_implementation< LinkLayer, std::tuple< FirstAdv, SecondAdv, Advertisings... >, Options... >
         {
         public:
             static constexpr std::size_t maximum_required_advertising_buffer = 100;
@@ -974,7 +1067,7 @@ namespace link_layer {
                 selected_ = proposal_;
                 const read_buffer advertising_data = this->fill_advertising_data( selected_ );
 
-                if ( !advertising_data.empty() )
+                if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
                     LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
@@ -988,6 +1081,10 @@ namespace link_layer {
                         delta_time::now(),
                         this->advertising_receive_buffer( selected_ ) );
                 }
+            }
+
+            void handle_stop_advertising()
+            {
             }
 
             bool handle_adv_receive( read_buffer receive, device_address& remote_address )
