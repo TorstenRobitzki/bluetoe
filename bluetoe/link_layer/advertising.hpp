@@ -654,12 +654,14 @@ namespace link_layer {
             impl()
                 : started_( false )
                 , enabled_( false )
+                , count_( 0 )
             {}
 
             void start_advertising()
             {
                 const bool start = !enabled_;
 
+                count_   = 0;
                 enabled_ = true;
 
                 if ( start && started_ )
@@ -668,10 +670,19 @@ namespace link_layer {
 
             /**
              * @brief same as start_advertising(), but the link layer will automatically stop
-             *        to advertise after count advertising events.
+             *        to advertise after count advertising PDUs send.
              */
             void start_advertising( unsigned count )
             {
+                assert( count );
+
+                const bool start = !enabled_;
+
+                count_ = count;
+                enabled_ = true;
+
+                if ( start && started_ )
+                    static_cast< Advertiser& >( *this ).handle_start_advertising();
             }
 
             /**
@@ -680,18 +691,37 @@ namespace link_layer {
             void stop_advertising()
             {
                 enabled_ = false;
+                count_   = 0;
             }
 
         protected:
             bool begin_of_advertising_events()
             {
+                bool result = enabled_;
+
+                if ( count_ )
+                {
+                    --count_;
+                    if ( count_ == 0 )
+                        enabled_ = false;
+                }
+
                 started_ = true;
-                return enabled_ && started_;
+                return result;
             }
 
             bool continued_advertising_events()
             {
-                return enabled_ && started_;
+                bool result = enabled_ && started_;
+
+                if ( count_ )
+                {
+                    --count_;
+                    if ( count_ == 0 )
+                        enabled_ = false;
+                }
+
+                return result;
             }
 
             void end_of_advertising_events()
@@ -700,8 +730,9 @@ namespace link_layer {
                 enabled_ = false;
             }
         private:
-            volatile bool    started_;
-            volatile bool    enabled_;
+            volatile bool       started_;
+            volatile bool       enabled_;
+            volatile unsigned   count_;
         };
         /** @endcond */
     };
@@ -1085,6 +1116,7 @@ namespace link_layer {
 
             void handle_stop_advertising()
             {
+                this->end_of_advertising_events();
             }
 
             bool handle_adv_receive( read_buffer receive, device_address& remote_address )
@@ -1125,7 +1157,7 @@ namespace link_layer {
             void handle_adv_timeout()
             {
                 const read_buffer advertising_data = this->get_advertising_data( selected_ );
-                if ( !advertising_data.empty() )
+                if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
 

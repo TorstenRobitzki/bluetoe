@@ -2,6 +2,7 @@
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
+#include <boost/mpl/list.hpp>
 
 #include <bluetoe/link_layer/link_layer.hpp>
 #include <bluetoe/link_layer/options.hpp>
@@ -1111,42 +1112,44 @@ struct no_auto_start_multiple_type :
     small_temperature_service gatt_server_;
 };
 
-BOOST_FIXTURE_TEST_CASE( no_automatic_start_single, no_auto_start_single_type )
+typedef boost::mpl::list<
+    no_auto_start_single_type,
+    no_auto_start_multiple_type > all_fixtures;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_single, LinkLayer, all_fixtures )
 {
-    run( gatt_server_ );
-    BOOST_CHECK_EQUAL( 0, advertisings().size() );
+    LinkLayer link_layer;
+    link_layer.run( link_layer.gatt_server_ );
+    BOOST_CHECK_EQUAL( 0, link_layer.advertisings().size() );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_automatic_start_multiple, no_auto_start_multiple_type )
+BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_before, LinkLayer, all_fixtures )
 {
-    run( gatt_server_ );
-    BOOST_CHECK_EQUAL( 0, advertisings().size() );
+    LinkLayer link_layer;
+    link_layer.start_advertising();
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_NE( 0, link_layer.advertisings().size() );
 }
 
-BOOST_FIXTURE_TEST_CASE( manuell_start_single_before, no_auto_start_single_type )
+BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_single_after, LinkLayer, all_fixtures )
 {
-    start_advertising();
-    run( gatt_server_ );
+    LinkLayer link_layer;
+    link_layer.run( link_layer.gatt_server_ );
 
-    BOOST_CHECK_NE( 0, advertisings().size() );
+    link_layer.start_advertising();
+
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_NE( 0, link_layer.advertisings().size() );
 }
 
-BOOST_FIXTURE_TEST_CASE( manuell_start_single_after, no_auto_start_single_type )
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_after_disconnect, LinkLayer, all_fixtures )
 {
-    run( gatt_server_ );
-
-    start_advertising();
-
-    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
-    run( gatt_server_ );
-
-    BOOST_CHECK_NE( 0, advertisings().size() );
-}
-
-BOOST_FIXTURE_TEST_CASE( no_automatic_start_after_disconnect, no_auto_start_single_type )
-{
-    start_advertising();
-    respond_to(
+    LinkLayer link_layer;
+    link_layer.start_advertising();
+    link_layer.respond_to(
         37,
         {
             0xc5, 0x22,                         // header
@@ -1164,12 +1167,12 @@ BOOST_FIXTURE_TEST_CASE( no_automatic_start_after_disconnect, no_auto_start_sing
         }
     );
 
-    run( gatt_server_ );
+    link_layer.run( link_layer.gatt_server_ );
 
-    BOOST_REQUIRE( !connection_events().empty() );
-    const auto connect_time = connection_events().front().schedule_time;
+    BOOST_REQUIRE( !link_layer.connection_events().empty() );
+    const auto connect_time = link_layer.connection_events().front().schedule_time;
 
-    check_scheduling(
+    link_layer.check_scheduling(
         [&]( const test::advertising_data& adv )
         {
             return adv.schedule_time <= connect_time;
@@ -1178,18 +1181,69 @@ BOOST_FIXTURE_TEST_CASE( no_automatic_start_after_disconnect, no_auto_start_sing
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( stop_advertising_test, no_auto_start_single_type )
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_advertising_test, LinkLayer, all_fixtures )
 {
-    start_advertising();
-    run( gatt_server_ );
+    LinkLayer link_layer;
+    link_layer.start_advertising();
+    link_layer.run( link_layer.gatt_server_ );
 
-    const auto adv_count = advertisings().size();
-    stop_advertising();
+    const auto adv_count = link_layer.advertisings().size();
+    link_layer.stop_advertising();
 
-    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
-    run( gatt_server_ );
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
 
-    BOOST_CHECK_EQUAL( advertisings().size(), adv_count );
+    BOOST_CHECK_EQUAL( link_layer.advertisings().size(), adv_count );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_advertising_after_one_advertisements, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 1u );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 1u, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_advertising_after_certain_advertisements, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 42u );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 42u, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( restart_after_count_down, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 42u );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 42u, link_layer.advertisings().size() );
+
+    link_layer.start_advertising();
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_GT( link_layer.advertisings().size(), 42u );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_count_down, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 300 );
+    link_layer.run( link_layer.gatt_server_ );
+
+    // 290 is simply the number of advertising PDUs send within 10 second
+    BOOST_REQUIRE_EQUAL( 290u, link_layer.advertisings().size() );
+
+    link_layer.start_advertising();
+
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_GT( link_layer.advertisings().size(), 550u );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
