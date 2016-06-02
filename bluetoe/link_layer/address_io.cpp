@@ -28,5 +28,11 @@ namespace link_layer {
     {
         return a.print( out );
     }
+
+    std::ostream& operator<<( std::ostream& out, const device_address& a )
+    {
+        return out << static_cast< const address& >( a ) << ( a.is_public() ? " (public)" : " (random)");
+    }
+
 }
 }

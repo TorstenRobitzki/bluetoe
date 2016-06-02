@@ -160,6 +160,8 @@ namespace link_layer {
         bool is_random_;
     };
 
+    std::ostream& operator<<( std::ostream& out, const device_address& a );
+
     /**
      * @brief data type containing a public device address
      *
