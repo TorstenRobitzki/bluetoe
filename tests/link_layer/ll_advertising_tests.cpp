@@ -491,21 +491,17 @@ BOOST_FIXTURE_TEST_CASE( directed_advertising_doesnt_starts_by_default, advertis
 //
 BOOST_FIXTURE_TEST_CASE( starting_connectable_directed_advertising, advertising_connectable_directed_advertising )
 {
-    directed_advertising_address( bluetoe::link_layer::address::generate_static_random_address( 1 ) );
+    directed_advertising_address( bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } ) );
 
     run( gatt_server_ );
-
-    BOOST_CHECK_GT( count_data( []( const test::advertising_data& scheduled ) -> bool
-        {
-            return true;
-        } ), 0 );
+    BOOST_CHECK_GT( advertisings().size(), 0 );
 }
 
 struct started_directed_advertising : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::connectable_directed_advertising >
 {
     started_directed_advertising()
     {
-        directed_advertising_address( bluetoe::link_layer::address::generate_static_random_address( 1 ) );
+        directed_advertising_address( bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } ) );
         this->run( gatt_server_ );
     }
 
@@ -558,7 +554,7 @@ BOOST_FIXTURE_TEST_CASE( contains_local_address, started_directed_advertising )
 
 BOOST_FIXTURE_TEST_CASE( contains_remote_address, started_directed_advertising )
 {
-    const auto address = bluetoe::link_layer::address::generate_static_random_address( 1 );
+    const auto address = bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } );
 
     check_scheduling(
         [&]( const test::advertising_data& data )
@@ -567,7 +563,7 @@ BOOST_FIXTURE_TEST_CASE( contains_remote_address, started_directed_advertising )
 
             return pdu.size() >= 14
                 && std::equal( &pdu[ 8 ], &pdu[ 14 ], address.begin() )
-                && ( pdu[ 0 ] & 0x80 ) != 0;
+                && ( pdu[ 0 ] & 0x80 ) == 0;
         },
         "contains_remote_address"
     );
@@ -580,8 +576,8 @@ BOOST_FIXTURE_TEST_CASE( is_connectable_from_directed_address, started_directed_
     respond_to(
         37,
         {
-            0xc5, 0x22,                         // header
-            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x85, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (public)
             0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
             0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
             0x08, 0x81, 0xf6,                   // CRC Init

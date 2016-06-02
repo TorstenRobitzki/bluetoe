@@ -318,7 +318,7 @@ namespace link_layer {
             {
                 bool result = details::advertising_type_base::is_valid_connect_request( receive, link_layer().local_address() );
                 result = result && std::equal( &receive.buffer[ 2 ], &receive.buffer[ 8 ], addr_.begin() ) && addr_valid_;
-                result = result && addr_.is_random() == ( ( receive.buffer[ 0 ] & header_rxaddr_field ) != 0 );
+                result = result && addr_.is_random() == ( ( receive.buffer[ 0 ] & header_txaddr_field ) != 0 );
 
                 return result;
             }
