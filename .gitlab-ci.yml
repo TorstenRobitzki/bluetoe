@@ -1,8 +1,8 @@
 before_script:
     - apt-get update -qq
+    - c++ -v
 
 tests:
     script:
-        - git clone git@gitlab.com:TorstenRobitzki/bluetoe.git
         - cd bluetoe
         - mkdir build && cd build && cmake .. && make all_tests.run
