@@ -20,6 +20,8 @@ class FlashRange
         timer           = null
         calc_checksum   = null
         capacity        = 0
+        data_checksums  = []
+        consecutive     = 0
 
         send_data = ( that, mtu )->
             while that.data.length > 0 && that.capacity > 0
@@ -30,11 +32,27 @@ class FlashRange
 
                 that.data     = that.data.slice send_size
                 that.capacity = that.capacity - send_size
+                console.log "calc_checksum: #{calc_checksum}"
+                console.log "data: #{JSON.stringify send_data }"
                 calc_checksum = adler32.adler32_buf send_data, calc_checksum
+                console.log "result: #{calc_checksum}"
+                data_checksums.push [ consecutive, calc_checksum ]
+                consecutive = consecutive + 1
+
+        check_progress_checksum = ( checksum, consecutive )->
+            console.log "crc: #{checksum}"
+            while data_checksums.length > 0
+                console.log "data_checksums #{data_checksums}"
+                [ con, crc ] = data_checksums.shift()
+
+                if con == consecutive && crc == checksum
+                    return true
+
+            return false
 
         progress_callback = (that)->
             (checksum, consecutive, mtu, receive_capacity)->
-                if checksum != calc_checksum
+                if !check_progress_checksum checksum, consecutive
                     that.cb 'checksum error in progress'
                 else
                     if that.data.length > 0

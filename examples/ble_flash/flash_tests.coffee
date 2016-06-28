@@ -7,10 +7,10 @@ flash   = require './flash.coffee'
 util    = require 'util'
 adler32 = require 'adler-32'
 
-create_network_mock = ->
+create_network_mock = ( data_cb )->
     {
         start_flash: sinon.spy(),
-        send_data: sinon.spy(),
+        send_data: if data_cb then data_cb else sinon.spy(),
         register_progress_callback: sinon.spy()
     }
 
@@ -32,7 +32,7 @@ random_buffer = ( size )->
 last_data_being_send = ( network_mock )->
     network_mock.send_data.lastCall.args[ 0 ]
 
-describe 'Network-Mock', ->
+xdescribe 'Network-Mock', ->
     network = null
 
     beforeEach ->
@@ -68,7 +68,7 @@ describe 'FlashMemory', ->
     afterEach ->
         clock.restore()
 
-    describe 'start flashing', ->
+    xdescribe 'start flashing', ->
 
         beforeEach ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
@@ -105,7 +105,7 @@ describe 'FlashMemory', ->
                 expect( network.start_flash.getCall( 0 ).args[ 0 ] ).to.deep.equal(
                     [ 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12 ])
 
-    describe 'running in a timeout', ->
+    xdescribe 'running in a timeout', ->
         beforeEach ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
             clock.tick 1000
@@ -114,7 +114,7 @@ describe 'FlashMemory', ->
             assert( error_callback.calledOnce )
             done()
 
-    describe 'after receiving the start_address procedure result', ->
+    xdescribe 'after receiving the start_address procedure result', ->
 
         beforeEach ->
             network         = create_network_mock()
@@ -133,7 +133,7 @@ describe 'FlashMemory', ->
         it 'data size is MTU -3 ', ->
             expect( network.send_data.firstCall.args[ 0 ].length ).to.equal( mtu - 3 )
 
-    describe 'after receiving the start_address procedure result with a wrong crc', ->
+    xdescribe 'after receiving the start_address procedure response with a wrong crc', ->
 
         beforeEach ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
@@ -143,7 +143,7 @@ describe 'FlashMemory', ->
             assert( error_callback.calledOnce )
             expect( error_callback.lastCall.args[ 0 ] ).to.equal 'checksum error'
 
-    describe 'sending data', ->
+    xdescribe 'sending data', ->
 
         beforeEach ->
             data          = random_buffer( receive_capacity + page_size )
@@ -209,11 +209,61 @@ describe 'FlashMemory', ->
                     network.register_progress_callback.lastCall.args[ 0 ](checksum, 0, mtu, receive_capacity)
                     expect( error_callback.called ).to.be.true
 
-    describe 'receiving progress', ->
+    xdescribe 'receiving progress', ->
+        beforeEach ->
+            data          = random_buffer( 3 * receive_capacity )
+            address_size  = 4
+            mtu           = 42
+
         describe 'fails when', ->
 
-            it 'checksum error is detected'
-            it 'unexpected consecutive number is detected'
+            beforeEach ->
+                start_address = 3 * page_size
+                checksum      = adler32.buf [ 0x00, 0x0C, 0x00, 0x00 ]
 
-    describe 'continously reveivin progress', ->
+                new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
 
+            it 'checksum error is detected', ->
+                consecutive = 3
+                expect( error_callback.called ).to.be.false
+                network.register_progress_callback.lastCall.args[ 0 ]( 0xdeadbeef, consecutive, mtu, receive_capacity - (consecutive + 1) * ( mtu - 3 ) )
+                expect( error_callback.called ).to.be.true
+
+    describe 'continously reveiving progress', ->
+
+        received_data = null
+        checksum      = null
+
+        beforeEach ->
+            # data_callback = ( data )->
+            #     received_data.concat data
+
+            #     if received_data.length == receive_capacity
+
+            # received_data = new Buffer()
+            network       = create_network_mock()
+            data          = random_buffer( 3 * receive_capacity )
+            address_size  = 4
+            mtu           = 42
+
+            start_address = 3 * page_size
+            checksum      = adler32.buf [ 0x00, 0x0C, 0x00, 0x00 ]
+
+            new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+            network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+
+        xit 'sends data until receive capacity is reached', ->
+            expect( collect_data_send( network ).length ).to.equal receive_capacity
+
+        it 'sends more data when progress is received', ->
+            console.log "crc1: #{checksum}"
+            d = data.slice( 0, mtu - 3 )
+            console.log "crc2: #{JSON.stringify d }"
+            console.log "crc2: #{adler32.buf d, checksum}"
+            # lets simulate that the bootloader sends a progress message, after 40 data messages
+            checksum = adler32.buf data.slice( 0, 40 * ( mtu - 3 ) ), checksum
+            network.register_progress_callback.lastCall.args[ 0 ]( checksum, 39, mtu, receive_capacity - 40 * ( mtu - 3 ) )
+            expect( error_callback.called ).to.be.false
+
+            expect( collect_data_send( network ).length ).to.equal receive_capacity + 40 * ( mtu -3 )

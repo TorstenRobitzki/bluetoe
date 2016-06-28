@@ -26,13 +26,13 @@ Start Flash | Start to flash a memory region              |      3 |            
 Stop Flash  | Stop to flash a memory region               |      4 |                      4 |
 Flush       | Flush written data to flash memory          |      5 |                      5 |
 Start       | Start a programm at a specific address      |      6 |                    n/a |
-Reset       | Start a programm at a specific address      |      7 |                    n/a |
+Reset       | Resets the bootloader                       |      7 |                    n/a |
 
 A client starts a procedure by sending an ATT Writing Request with the opcode to the Control Point, followed by the parameters that are required for the procedure. If the procedure starts successfully, the Bootloader will response with an ATT Write Response. The procedure will end by the reply of the bootloader that is send with an ATT Notification.
 
 If there was something wrong with the start of the Control Point procedure, the bootloader will response immediately with an ATT Error Response and an error code denoting the reason for the failure. If both, bootloader and bootloader client are implemented without error, an ATT Error Response is not expected.
 
-A write to the Control Point will result in either an ATT Error Response, or in an ATT Notification. A Control Point procedure is active as long as a notification is not send out by the bootloader. There should be only one active Control Point procedured at any time. That means a bootloader have to wait for the end of a procedure before starting the next procedure.
+A write to the Control Point will result in either an ATT Error Response, or in an ATT Notification. A Control Point procedure is active as long as a notification is not send out by the bootloader. There should be only one active Control Point procedured at any time. That means a bootloader client has to wait for the end of a procedure before starting the next procedure.
 
 All parameters longer than one octet are encoded in little endian.
 
@@ -88,7 +88,7 @@ Address-Size       | 1        | sizeof( std::uint8_t* ) |
 Page-Size          | 4        | Size of a Page |
 Page Buffers       | 4        | Number of pages the bootloader can buffer |
 
-The Address-Size is what the expression sizeof( std::uint8_t* ) evaluates to in the bootloader. It's used where ever an address have to be communicted between bootloader and bootloader client. The page size is the size of a single flash page. The number of Page Buffers denontes the amount of data the bootloader can store, before the client have to wait for buffers to becode free.
+The Address-Size is what the expression sizeof( std::uint8_t* ) evaluates to in the bootloader. It's used where ever an address have to be communicted between bootloader and bootloader client. The page size is the size of a single flash page. The number of Page Buffers denontes the amount of data the bootloader can store, before the client have to wait for buffers to become free.
 
 Start Flash
 -----------
@@ -110,10 +110,10 @@ MTU                | 1        | >= 23   |
 Receive Capacity   | 4        | number of byte that can be received |
 Checksum           | 4        | crc(Start Address) |
 
-The Bootloader is now in flash mode and will receive data and flash it into memory, as long as data is send to the Data characteristic or until a new control point procedure is received. The bootloader will flush data, when the received data reached the end of a page or when the Flush procedure is executed.
+The Bootloader is now in flash mode and will receive data and flash it into memory, as long as data is send to the Data characteristic or until a new control point procedure is received. The bootloader will flush data, when the received data reached the end of a page or when the Flush procedure is executed. A bootloader client shall not force a flush of data (neither implicit nor explicit) before it received the CRC of the start address to make sure, that the bootloader understood the start address correct.
 
 ### Buffer Management
-The bootloader have to take care that the bootloaders buffers do not overflow. The number of pages and the size of a page have to be known to the bootloader client or have to be inquired, using the Get Sizes procedure. Writing data into the middle of a page buffer will allocate the part of the buffer before the start address too.
+The bootloader client has to take care that the bootloaders buffers do not overflow. The number of pages and the size of a page have to be known to the bootloader client or have to be inquired, using the Get Sizes procedure. Writing data into the middle of a page buffer will allocate the part of the buffer before the start address too.
 
 The bootloader will send ATT Notifications using the Progress characteristic, to commucate the current free buffer sizes.
 
@@ -182,7 +182,7 @@ Data
 
 There is no layout for the data to be written. Data should be written with an ATT Write Request. The bootloader client have to make sure, that the bootloader can store the send data, by knowing the bootloaders buffer sizes and by observice Progress notifications. The bootloader should try to utillize the connection as much as possible and should send the data in packages that are at most MTU -3 in size.
 
-The bootloader will response with an ATT Write Response. The client can write additional data before the bootloader response to that write; as long as the underlying link layer can store the requests.
+The bootloader will response with an ATT Write Response.
 
 The Bootloader must be in flash mode by executing the Start Flash procedure.
 
