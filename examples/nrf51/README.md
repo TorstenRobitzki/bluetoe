@@ -24,16 +24,16 @@ Same as JLINK_DEVICE, but this time the nrfjprog tool from Nordic is used for fl
 
 ### Example:
 
-> cmake -DNRF51_SDK_ROOT=~/CMSIS/nRF5_SDK_11/ -DNRFJPROG_DEVICE=681485618 -DBLUETOE_ROOT=~/bluetoe ..
+\> cmake -DNRF51_SDK_ROOT=~/CMSIS/nRF5_SDK_11/ -DNRFJPROG_DEVICE=681485618 -DBLUETOE_ROOT=~/bluetoe ..
 
 ## Build targets
 
 For every example (blinky, bootloader, cycling_speed_and_cadence...) there are following targets:
-- <example>.elf to build an elf file
-- <example>.hex to build an hex file
-- <example>.flash to build the software and to flash it
+- \<example>.elf to build an elf file
+- \<example>.hex to build an hex file
+- \<example>.flash to build the software and to flash it
 - erase.flash erase the flash on the device
 
 ### Example:
 
-> make bootloader.flash
+\> make bootloader.flash
