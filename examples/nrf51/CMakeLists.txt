@@ -49,6 +49,11 @@ if (DEFINED JLINK_DEVICE)
     set(SELECT_JLINK_DEVICE "usb ${JLINK_DEVICE}")
 endif()
 
+if (DEFINED NRFJPROG_DEVICE)
+    message( WARNING "nrfjprog ${NRFJPROG_DEVICE} selected")
+    set(SELECT_JLINK_DEVICE --snr ${NRFJPROG_DEVICE})
+endif()
+
 function(add_example TARGETNAME)
     add_executable(${TARGETNAME}.elf
         ${TARGETNAME}.cpp
@@ -74,23 +79,31 @@ function(add_example TARGETNAME)
     add_dependencies(${TARGETNAME}.bin ${TARGETNAME}.elf)
     add_dependencies(${TARGETNAME}.hex ${TARGETNAME}.elf)
 
-    add_custom_target(
-       ${TARGETNAME}.jlink
-       COMMAND
-            echo "${SELECT_JLINK_DEVICE}" > ${TARGETNAME}.jlink &&
-            echo "halt" >> ${TARGETNAME}.jlink &&
-            echo "exec device = ${DEFAULT_JLINK_DEVICE_NAME}" >> ${TARGETNAME}.jlink &&
-            echo "loadbin ${TARGETNAME}.bin, 0" >> ${TARGETNAME}.jlink &&
-            echo "r" >> ${TARGETNAME}.jlink &&
-            echo "g" >> ${TARGETNAME}.jlink &&
-            echo "q" >> ${TARGETNAME}.jlink)
+    if (NRFJPROG_DEVICE)
+        add_custom_target(${TARGETNAME}.flash
+            COMMAND nrfjprog ${SELECT_JLINK_DEVICE} --reset --chiperase  --program ${TARGETNAME}.hex --verify
+            )
 
-    add_custom_target(${TARGETNAME}.flash
-        COMMAND JLinkExe ${TARGETNAME}.jlink
-        )
+        add_dependencies(${TARGETNAME}.flash ${TARGETNAME}.hex)
+    else()
+        add_custom_target(
+           ${TARGETNAME}.jlink
+           COMMAND
+                echo "${SELECT_JLINK_DEVICE}" > ${TARGETNAME}.jlink &&
+                echo "halt" >> ${TARGETNAME}.jlink &&
+                echo "exec device = ${DEFAULT_JLINK_DEVICE_NAME}" >> ${TARGETNAME}.jlink &&
+                echo "loadbin ${TARGETNAME}.bin, 0" >> ${TARGETNAME}.jlink &&
+                echo "r" >> ${TARGETNAME}.jlink &&
+                echo "g" >> ${TARGETNAME}.jlink &&
+                echo "q" >> ${TARGETNAME}.jlink)
 
-    add_dependencies(${TARGETNAME}.flash ${TARGETNAME}.bin)
-    add_dependencies(${TARGETNAME}.flash ${TARGETNAME}.jlink)
+        add_custom_target(${TARGETNAME}.flash
+            COMMAND JLinkExe ${TARGETNAME}.jlink
+            )
+
+        add_dependencies(${TARGETNAME}.flash ${TARGETNAME}.bin)
+        add_dependencies(${TARGETNAME}.flash ${TARGETNAME}.jlink)
+    endif()
 endfunction()
 
 add_custom_target(
