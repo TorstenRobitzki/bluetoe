@@ -2,34 +2,48 @@
 
 ## Overview
 
-Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is an example of a small GATT server:
+Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is a complete example of a small GATT server, that allows a client to controll an IO pin, running on a nrf51422:
 
     #include <bluetoe/server.hpp>
-    #include <bluetoe/service.hpp>
-    #include <bluetoe/characteristic.hpp>
+    #include <bluetoe/bindings/nrf51.hpp>
+    #include <nrf.h>
 
-    std::int32_t temperature;
-    const char serivce_name[]        = "Temperature / Bathroom";
-    const char characteristic_name[] = "Temperature in 10th degree celsius";
+    using namespace bluetoe;
 
-    typedef bluetoe::server<
-        bluetoe::server_name< server_name >,
-        bluetoe::service<
-            bluetoe::service_uuid< 0x8C8B4094, 0x0000, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
-            bluetoe::characteristic<
-                bluetoe::characteristic_name< char_name >,
-                bluetoe::characteristic_uuid< 0x8C8B4094, 0x0000, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
-                bluetoe::bind_characteristic_value< decltype( temperature ), &temperature >
+    static constexpr int io_pin = 19;
+
+    static std::uint8_t io_pin_write_handler( bool state )
+    {
+        // the GPIO pin according to the received value: 0 = off, 1 = on
+        NRF_GPIO->OUT = state
+            ? NRF_GPIO->OUT | ( 1 << io_pin )
+            : NRF_GPIO->OUT & ~( 1 << io_pin );
+
+        return error_codes::success;
+    }
+
+    typedef server<
+        service<
+            service_uuid< 0xC11169E1, 0x6252, 0x4450, 0x931C, 0x1B43A318783B >,
+            characteristic<
+                free_write_handler< bool, io_pin_write_handler >
             >
         >
-    > temperature_service;
+    > blinky_server;
+
+    blinky_server gatt;
+
+    nrf51< blinky_server > gatt_srv;
 
     int main()
     {
-        temperature_service                                             server;
-        bluetoe::binding::btstack_libusb_device< temperature_service >  device;
+        // Init GPIO pin
+        NRF_GPIO->PIN_CNF[ io_pin ] =
+            ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
+            ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
 
-        device.run( server );
+        for ( ;; )
+            gatt_srv.run( gatt );
     }
 
 ## Documentation
@@ -110,7 +124,7 @@ Device Filtering||implemented
 Connections|Single Connection|implemented
  |Multiple Connection|not planned
 Connection|Slave Latency|planned
-Feature Support|LE Encryption|not planned
+Feature Support|LE Encryption|planned
  |Connection Parameters Request Procedure|planned
  |Extended Reject Indication|planned
  |Slave-initiated Features Exchange|planned
