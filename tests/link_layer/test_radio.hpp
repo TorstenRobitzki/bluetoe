@@ -61,6 +61,29 @@ namespace test {
     {
         bool                                timeout; // respond with an timeout
         pdu_list_t                          data;    // respond with data (including no data)
+        std::function< pdu_list_t () >      func;    // inquire respond by calling func
+
+        /**
+         * @brief simulating no response, not even an empty PDU.
+         */
+        connection_event_response()
+            : timeout( true )
+        {}
+
+        explicit connection_event_response( const pdu_list_t& d )
+            : timeout( false )
+            , data( d )
+        {}
+
+        explicit connection_event_response( const std::function< pdu_list_t () >& f )
+            : timeout( false )
+            , func( f )
+        {}
+
+        explicit connection_event_response( const std::function< void() >& f )
+            : timeout( false )
+            , func( [f](){ f(); return pdu_list_t(); } )
+        {}
     };
 
     std::ostream& operator<<( std::ostream& out, const connection_event_response& );
@@ -412,7 +435,7 @@ namespace test {
     void radio< TransmitSize, ReceiveSize, CallBack >::simulate_connection_event_response()
     {
         connection_event_response response = connection_events_response_.empty()
-            ? connection_event_response{ true, pdu_list_t() }
+            ? connection_event_response()
             : connection_events_response_.front();
 
         assert( !connection_events_.empty() );
@@ -438,7 +461,10 @@ namespace test {
 
             bool more_data = false;
 
-            pdu_list_t& pdus = response.data;
+            pdu_list_t pdus = response.data;
+
+            if ( pdus.empty() && response.func )
+                pdus = response.func();
 
             do
             {

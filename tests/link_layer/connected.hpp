@@ -139,7 +139,7 @@ public:
             static_cast< std::uint8_t >( control.size() ) };
         pdu.insert( pdu.end(), control.begin(), control.end() );
 
-        const test::connection_event_response response{ false, { pdu } };
+        const test::connection_event_response response({ pdu });
 
         this->add_connection_event_respond( response );
         next_sequences();

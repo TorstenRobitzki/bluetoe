@@ -402,14 +402,12 @@ namespace test {
     void radio_base::add_connection_event_respond( std::initializer_list< std::uint8_t > pdu )
     {
         add_connection_event_respond(
-            connection_event_response{
-                false, pdu_list_t( 1, pdu )
-            } );
+            connection_event_response( pdu_list_t( 1, pdu ) ) );
     }
 
     void radio_base::add_connection_event_respond_timeout()
     {
-        add_connection_event_respond( connection_event_response{ true, pdu_list_t() } );
+        add_connection_event_respond( connection_event_response() );
     }
 
     void radio_base::check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message )
