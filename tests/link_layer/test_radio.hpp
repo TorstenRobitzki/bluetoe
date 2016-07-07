@@ -14,6 +14,17 @@
 namespace test {
 
     /**
+     * @brief expression that can be used in some of the finder functions to denote that this is always a match
+     */
+    static constexpr std::uint16_t X = 0x0100;
+
+    /**
+     * @brief expresssion that can be used as a last element of an expression to a finder function to denote that
+     *        you do not care about the reset of the pdu.
+     */
+    static constexpr std::uint16_t and_so_on = 0x0200;
+
+    /**
      * @brief stores all relevant arguments to a schedule_advertisment_and_receive() function call to the radio
      */
     struct advertising_data
@@ -104,6 +115,18 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const advertising_response& data );
 
+    /**
+     * @brief returns true, if pdu matches pattern.
+     * @sa X
+     * @sa and_so_on
+     */
+    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern );
+
+    /**
+     * @brief prints a pattern, so that it's easy comparable to a PDU
+     */
+    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern );
+
     class radio_base
     {
     public:
@@ -176,9 +199,13 @@ namespace test {
 
         void add_connection_event_respond( const connection_event_response& );
         void add_connection_event_respond( std::initializer_list< std::uint8_t > );
+        void add_connection_event_respond( std::function< void() > );
         void add_connection_event_respond_timeout();
 
         void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
+
+        bool find_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > );
+        bool find_outgoing_ll_pdu( std::initializer_list< std::uint16_t > );
 
         /**
          * @brief clear all events

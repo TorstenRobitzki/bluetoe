@@ -27,7 +27,7 @@ namespace test {
         {
             out << "response-timeout";
         }
-        else
+        else if ( rsp.data.size() )
         {
             out << "\ndata:\n";
 
@@ -35,6 +35,14 @@ namespace test {
             {
                 hex_dump( out, pdu.begin(), pdu.end() );
             }
+        }
+        else if ( rsp.func )
+        {
+            out << "func()";
+        }
+        else
+        {
+            out << "??empty??";
         }
 
         return out;
@@ -66,6 +74,70 @@ namespace test {
             out << c << "\n";
 
         return out;
+    }
+
+    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern )
+    {
+        std::size_t pos = 0;
+        for ( ; pos != pattern.size() && pos != pdu.size(); ++pos )
+        {
+            const std::uint16_t patt = *( pattern.begin() + pos );
+            const std::uint8_t  data = pdu[ pos ];
+
+            if ( patt == and_so_on )
+                return true;
+
+            if ( patt != X && patt != data )
+                return false;
+        }
+
+        // a trailing "and_so_on"
+        if ( pos == pdu.size() && pos < pattern.size() && *( pattern.begin() + pos ) == and_so_on )
+            return true;
+
+        return pos == pattern.size() && pos == pdu.size();
+    }
+
+    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern )
+    {
+        static constexpr std::size_t line_width = 16;
+
+        std::ostringstream out;
+        std::size_t width = line_width;
+
+        for ( auto begin = pattern.begin(); begin != pattern.end(); )
+        {
+            if ( *begin == X )
+            {
+                out << "XX";
+            }
+            else if ( *begin == and_so_on )
+            {
+                out << "...";
+            }
+            else
+            {
+                print_hex( out, static_cast< std::uint8_t >( *begin ) );
+            }
+
+            ++begin;
+            --width;
+
+            if ( begin != pattern.end() )
+            {
+                if ( width )
+                {
+                    out << ' ';
+                }
+                else
+                {
+                    out << '\n';
+                    width = line_width;
+                }
+            }
+        }
+
+        return out.str();
     }
 
     advertising_response::advertising_response()
@@ -403,6 +475,11 @@ namespace test {
     {
         add_connection_event_respond(
             connection_event_response( pdu_list_t( 1, pdu ) ) );
+    }
+
+    void radio_base::add_connection_event_respond( std::function< void() > f )
+    {
+        add_connection_event_respond( connection_event_response( f ) );
     }
 
     void radio_base::add_connection_event_respond_timeout()
