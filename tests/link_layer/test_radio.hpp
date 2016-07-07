@@ -204,8 +204,15 @@ namespace test {
 
         void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
 
-        bool find_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > );
-        bool find_outgoing_ll_pdu( std::initializer_list< std::uint16_t > );
+        /**
+         * @brief check that exacly one outgoing l2cap layer pdu matches the given pattern
+         */
+        void check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern );
+
+        /**
+         * @brief check that exacly one outgoing link layer pdu matches the given pattern
+         */
+        void check_outgoing_ll_pdu( std::initializer_list< std::uint16_t > pattern );
 
         /**
          * @brief clear all events

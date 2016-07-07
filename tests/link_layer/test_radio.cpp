@@ -500,6 +500,53 @@ namespace test {
         }
     }
 
+    static const auto filter_l2cap = []( pdu_t& pdu ) -> bool {
+        if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x02 ) == 0x02 )
+        {
+            pdu.erase( pdu.begin(), pdu.begin() + 2 );
+            return true;
+        }
+
+        return false;
+    };
+
+    void radio_base::check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern )
+    {
+        std::vector< connection_event > matching_events;
+
+        for ( const auto& event : connection_events_ )
+        {
+            for ( auto pdu : event.transmitted_data )
+            {
+                if ( filter_l2cap( pdu ) && check_pdu( pdu, pattern ) )
+                    matching_events.push_back( event );
+            }
+        }
+
+        if ( matching_events.size() == 0 )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << "no outgoing l2cap PDU matches the given pattern: " << pretty_print_pattern( pattern );
+            BOOST_CHECK( result );
+        }
+        else if ( matching_events.size() != 1 )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << "multiple outgoing l2cap PDU matches the given pattern: " << pretty_print_pattern( pattern ) << ":\n\n";
+
+            for ( const auto& p : matching_events )
+            {
+                result.message() << p << "\n";
+            }
+
+            BOOST_CHECK( result );
+        }
+    }
+
+    void radio_base::check_outgoing_ll_pdu( std::initializer_list< std::uint16_t > pattern )
+    {
+    }
+
     void radio_base::clear_events()
     {
         advertised_data_.clear();
