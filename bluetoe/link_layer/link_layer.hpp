@@ -215,6 +215,8 @@ namespace link_layer {
         void wait_for_connection_event();
         void transmit_notifications();
         void transmit_signaling_channel_output();
+        void transmit_pending_control_pdus();
+
         static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
 
         enum class ll_result {
@@ -247,10 +249,13 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_FEATURE_REQ              = 0x08;
         static constexpr std::uint8_t   LL_FEATURE_RSP              = 0x09;
         static constexpr std::uint8_t   LL_VERSION_IND              = 0x0C;
+        static constexpr std::uint8_t   LL_CONNECTION_PARAM_REQ     = 0x0F;
+        static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
         static constexpr std::uint8_t   LL_PING_REQ                 = 0x12;
         static constexpr std::uint8_t   LL_PING_RSP                 = 0x13;
 
         static constexpr std::uint8_t   LL_VERSION_NR               = 0x08;
+        static constexpr std::uint8_t   LL_VERSION_40               = 0x06;
 
         static constexpr std::uint16_t  l2cap_att_channel           = 4;
         static constexpr std::uint16_t  l2cap_signaling_channel     = 5;
@@ -258,6 +263,23 @@ namespace link_layer {
 
         static constexpr std::size_t    l2cap_header_size           = 4;
         static constexpr std::size_t    all_header_size             = 6;
+
+        struct link_layer_feature {
+            enum : std::uint8_t {
+                le_encryption                           = 0x01,
+                connection_parameters_request_procedure = 0x02,
+                extended_reject_indication              = 0x04,
+                slave_initiated_features_exchange       = 0x08,
+                le_ping                                 = 0x10,
+                le_data_packet_length_extension         = 0x20,
+                ll_privacy                              = 0x40,
+                extended_scanner_filter_policies        = 0x80
+            };
+        };
+
+        static constexpr std::uint8_t   supported_features =
+            link_layer_feature::connection_parameters_request_procedure |
+            link_layer_feature::le_ping;
 
 
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
@@ -281,6 +303,7 @@ namespace link_layer {
         Server*                         server_;
         notification_queue_t            connection_details_;
         bool                            termination_send_;
+        std::uint8_t                    used_features_;
 
         enum class state
         {
@@ -291,6 +314,12 @@ namespace link_layer {
             connected,
             disconnecting
         }                               state_;
+
+        std::uint16_t                   proposed_interval_min_;
+        std::uint16_t                   proposed_interval_max_;
+        std::uint16_t                   proposed_latency_;
+        std::uint16_t                   proposed_timeout_;
+        bool                            connection_parameters_request_pending_;
 
         // default configuration parameters
         typedef                         advertising_interval< 100 >         default_advertising_interval;
@@ -315,7 +344,9 @@ namespace link_layer {
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
         , connection_details_( details::mtu_size< Options... >::mtu )
+        , used_features_( supported_features )
         , state_( state::initial )
+        , connection_parameters_request_pending_( false )
     {
     }
 
@@ -337,6 +368,7 @@ namespace link_layer {
         {
             transmit_notifications();
             transmit_signaling_channel_output();
+            transmit_pending_control_pdus();
         }
 
         this->handle_connection_events();
@@ -359,6 +391,8 @@ namespace link_layer {
             conn_event_counter_       = 0;
             cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
             timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
+            used_features_            = supported_features;
+            connection_parameters_request_pending_ = false;
 
             this->set_access_address_and_crc_init(
                 read_32( &receive.buffer[ 14 ] ),
@@ -450,6 +484,22 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
     {
+        if ( used_features_ & link_layer_feature::connection_parameters_request_procedure )
+        {
+            if ( connection_parameters_request_pending_ )
+                return false;
+
+            proposed_interval_min_  = interval_min;
+            proposed_interval_max_  = interval_max;
+            proposed_latency_       = latency;
+            proposed_timeout_       = timeout;
+            connection_parameters_request_pending_ = true;
+
+            this->wake_up();
+
+            return true;
+        }
+
         const bool result = static_cast< signaling_channel_t& >( *this ).connection_parameter_update_request( interval_min, interval_max, latency, timeout );
 
         if ( result )
@@ -583,6 +633,40 @@ namespace link_layer {
 
             this->commit_transmit_buffer( out_buffer );
         }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::transmit_pending_control_pdus()
+    {
+        if ( !connection_parameters_request_pending_ )
+            return;
+
+        // first check if we have memory to transmit the message, or otherwise notifications would get lost
+        auto out_buffer = this->allocate_transmit_buffer();
+
+        if ( out_buffer.empty() )
+        {
+            this->wake_up();
+            return;
+        }
+
+        connection_parameters_request_pending_ = false;
+
+        out_buffer.fill( {
+            ll_control_pdu_code, 22, LL_CONNECTION_PARAM_REQ,
+            static_cast< std::uint8_t >( proposed_interval_min_ ),
+            static_cast< std::uint8_t >( proposed_interval_min_ >> 8 ),
+            static_cast< std::uint8_t >( proposed_interval_max_ ),
+            static_cast< std::uint8_t >( proposed_interval_max_ >> 8 ),
+            static_cast< std::uint8_t >( proposed_latency_ ),
+            static_cast< std::uint8_t >( proposed_latency_ >> 8 ),
+            static_cast< std::uint8_t >( proposed_timeout_ ),
+            static_cast< std::uint8_t >( proposed_timeout_ >> 8 ),
+            0x00,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff } );
+
+        this->commit_transmit_buffer( out_buffer );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -784,6 +868,9 @@ namespace link_layer {
             }
             else if ( opcode == LL_VERSION_IND && size == 6 )
             {
+                if ( pdu.buffer[ 3 ] <= LL_VERSION_40 )
+                    used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
+
                 write.fill( {
                     ll_control_pdu_code, 6, LL_VERSION_IND,
                     LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
@@ -809,12 +896,12 @@ namespace link_layer {
             }
             else if ( opcode == LL_FEATURE_REQ && size == 9 )
             {
-                static constexpr std::uint8_t LE_PING_FEATURE_FLAG = 0x10;
+                used_features_ = used_features_ & pdu.buffer[ 3 ];
 
                 write.fill( {
                     ll_control_pdu_code, 9,
                     LL_FEATURE_RSP,
-                    LE_PING_FEATURE_FLAG,
+                    used_features_,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
             }

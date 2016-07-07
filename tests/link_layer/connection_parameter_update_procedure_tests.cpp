@@ -1,10 +1,12 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
+#include "buffer_io.hpp"
+#include "connected.hpp"
+
 #include <bluetoe/link_layer/link_layer.hpp>
 #include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
 
-#include "connected.hpp"
 
 using namespace test;
 
@@ -40,13 +42,35 @@ struct link_layer_with_signaling_channel : unconnected_base< bluetoe::l2cap::sig
 
 BOOST_FIXTURE_TEST_CASE( if_master_protocol_version_is_unknown_try_ll, link_layer_with_signaling_channel )
 {
+    add_connection_event_respond(
+        [&](){
+            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
+        });
+
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    check_outgoing_ll_control_pdu( {
+        0x0F,                       // opcode
+        10, 0x00,                   // min interval
+        20, 0x00,                   // max interval
+        3, 0x00,                    // latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_master_protocol_version_is_40_use_l2cap, link_layer_with_signaling_channel )
 {
     ll_control_pdu(
         {
-            0x03, 0x06,
             0x0C,               // LL_VERSION_IND
             0x06,               // VersNr = Core Specification 4.0
             0x00, 0x02,         // CompId
@@ -63,7 +87,9 @@ BOOST_FIXTURE_TEST_CASE( if_master_protocol_version_is_40_use_l2cap, link_layer_
     run( 5 );
 
     check_outgoing_l2cap_pdu( {
-        X,  X, 0x05, 0x00, 0x12, and_so_on
+        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
+        10, 0x00, 20, 0x00, 3, 0x00,
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
     } );
 }
 

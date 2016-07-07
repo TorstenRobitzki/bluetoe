@@ -501,7 +501,7 @@ namespace test {
     }
 
     static const auto filter_l2cap = []( pdu_t& pdu ) -> bool {
-        if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x02 ) == 0x02 )
+        if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x03 ) == 0x02 )
         {
             pdu.erase( pdu.begin(), pdu.begin() + 2 );
             return true;
@@ -510,29 +510,46 @@ namespace test {
         return false;
     };
 
-    void radio_base::check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern )
+    static const auto filter_ll = []( pdu_t& pdu ) -> bool {
+        if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x03 ) == 0x03 )
+        {
+            pdu.erase( pdu.begin(), pdu.begin() + 2 );
+            return true;
+        }
+
+        return false;
+    };
+
+    template < class Filter, class Events, class Pattern >
+    static const std::vector< connection_event > filter_events( const Filter& filter, const Events& events, const Pattern& pattern )
     {
         std::vector< connection_event > matching_events;
 
-        for ( const auto& event : connection_events_ )
+        for ( const auto& event : events )
         {
             for ( auto pdu : event.transmitted_data )
             {
-                if ( filter_l2cap( pdu ) && check_pdu( pdu, pattern ) )
+                if ( filter( pdu ) && check_pdu( pdu, pattern ) )
                     matching_events.push_back( event );
             }
         }
 
+        return matching_events;
+    }
+
+    template < class Events, class Pattern >
+    static void check_single_event( const Events& matching_events, const char* msg0, const char* msg_multiple, const Pattern& pattern )
+    {
         if ( matching_events.size() == 0 )
         {
             boost::test_tools::predicate_result result( false );
-            result.message() << "no outgoing l2cap PDU matches the given pattern: " << pretty_print_pattern( pattern );
+            result.message() << msg0 << pretty_print_pattern( pattern );
             BOOST_CHECK( result );
         }
         else if ( matching_events.size() != 1 )
         {
             boost::test_tools::predicate_result result( false );
-            result.message() << "multiple outgoing l2cap PDU matches the given pattern: " << pretty_print_pattern( pattern ) << ":\n\n";
+            result.message() << msg_multiple << pretty_print_pattern( pattern ) << ":\n\n";
 
             for ( const auto& p : matching_events )
             {
@@ -543,8 +560,22 @@ namespace test {
         }
     }
 
-    void radio_base::check_outgoing_ll_pdu( std::initializer_list< std::uint16_t > pattern )
+    void radio_base::check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern )
     {
+        check_single_event(
+            filter_events( filter_l2cap, connection_events_, pattern ),
+            "no outgoing l2cap PDU matches the given pattern: ",
+            "multiple outgoing l2cap PDU matches the given pattern: ",
+            pattern );
+    }
+
+    void radio_base::check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern )
+    {
+        check_single_event(
+            filter_events( filter_ll, connection_events_, pattern ),
+            "no outgoing LL PDU matches the given pattern: ",
+            "multiple outgoing LL PDU matches the given pattern: ",
+            pattern );
     }
 
     void radio_base::clear_events()

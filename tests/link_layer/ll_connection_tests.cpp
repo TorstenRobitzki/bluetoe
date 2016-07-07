@@ -413,7 +413,7 @@ BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request, unconnected )
     static const std::uint8_t expected_response[] = {
         0x03, 0x09,
         0x09,
-        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::end( response ), std::begin( expected_response ), std::end( expected_response ) );

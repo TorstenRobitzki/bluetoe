@@ -212,7 +212,7 @@ namespace test {
         /**
          * @brief check that exacly one outgoing link layer pdu matches the given pattern
          */
-        void check_outgoing_ll_pdu( std::initializer_list< std::uint16_t > pattern );
+        void check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern );
 
         /**
          * @brief clear all events
