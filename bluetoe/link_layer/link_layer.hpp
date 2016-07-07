@@ -905,9 +905,13 @@ namespace link_layer {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
             }
-            else
+            else if ( opcode != LL_UNKNOWN_RSP )
             {
                 write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
+            }
+            else
+            {
+                commit = false;
             }
 
             if ( commit )
