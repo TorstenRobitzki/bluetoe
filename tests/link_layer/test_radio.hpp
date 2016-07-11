@@ -48,6 +48,9 @@ namespace test {
     using pdu_t = std::vector< std::uint8_t >;
     using pdu_list_t = std::vector< pdu_t >;
 
+    std::ostream& operator<<( std::ostream& out, const pdu_t& data );
+    std::ostream& operator<<( std::ostream& out, const pdu_list_t& data );
+
     struct connection_event
     {
         bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled (from start of simulation)
@@ -516,13 +519,13 @@ namespace test {
                     }
                     else
                     {
-                        auto pdu = pdus.front();
+                        const auto pdu = pdus.front();
                         pdus.erase( pdus.begin() );
-
                         std::copy( pdu.begin(), pdu.end(), receive_buffer.buffer );
                         more_data = !pdus.empty();
                     }
 
+                    receive_buffer.buffer[ 0 ] &= ~( sn_flag | nesn_flag );
                     receive_buffer.buffer[ 0 ] |= master_sequence_number_ | master_ne_sequence_number_;
                     master_sequence_number_    ^= sn_flag;
                 }

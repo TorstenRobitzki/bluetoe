@@ -48,6 +48,35 @@ namespace test {
         return out;
     }
 
+    static void head_info( std::ostream& out, const pdu_t& pdu )
+    {
+        if ( pdu.size() < 2 )
+        {
+            out << "?\n";
+            return;
+        }
+
+        const std::uint8_t  llid = pdu[ 0 ] & 3;
+        const bool          nesn = pdu[ 0 ] & 4;
+        const bool          sn   = pdu[ 0 ] & 8;
+        const bool          md   = pdu[ 0 ] & 16;
+        const bool          rfu  = pdu[ 0 ] & 0xe0;
+
+        out << "llid: " << (int)llid;
+        out << " ne: " << nesn << " sn: " << sn;
+
+        if ( md )
+            out << " md: 1";
+
+        if ( rfu )
+            out << " rfu!!!";
+
+        if ( pdu.size() -2 != pdu[ 1 ] )
+            out << " SIZE!!!: " << (int)pdu[ 1 ];
+
+        out << "\n";
+    }
+
     std::ostream& operator<<( std::ostream& out, const connection_event& data )
     {
         out << "schedule_time: " << data.schedule_time << "; channel: " << data.channel
@@ -56,12 +85,14 @@ namespace test {
 
         for ( const auto& pdu: data.received_data )
         {
+            head_info( out, pdu );
             hex_dump( out, pdu.begin(), pdu.end() );
         }
 
         out << "transmitted_data:\n";
         for ( const auto& pdu: data.transmitted_data )
         {
+            head_info( out, pdu );
             hex_dump( out, pdu.begin(), pdu.end() );
         }
 
@@ -72,6 +103,21 @@ namespace test {
     {
         for ( const auto& c : list )
             out << c << "\n";
+
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const pdu_t& data )
+    {
+        hex_dump( out, data.begin(), data.end() );
+
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const pdu_list_t& data )
+    {
+        for ( const auto& p : data )
+            hex_dump( out, p.begin(), p.end() );
 
         return out;
     }

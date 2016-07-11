@@ -320,6 +320,7 @@ namespace link_layer {
         std::uint16_t                   proposed_latency_;
         std::uint16_t                   proposed_timeout_;
         bool                            connection_parameters_request_pending_;
+        bool                            connection_parameters_request_running_;
 
         // default configuration parameters
         typedef                         advertising_interval< 100 >         default_advertising_interval;
@@ -347,6 +348,7 @@ namespace link_layer {
         , used_features_( supported_features )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
+        , connection_parameters_request_running_( false )
     {
     }
 
@@ -393,6 +395,7 @@ namespace link_layer {
             timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
             used_features_            = supported_features;
             connection_parameters_request_pending_ = false;
+            connection_parameters_request_running_ = false;
 
             this->set_access_address_and_crc_init(
                 read_32( &receive.buffer[ 14 ] ),
@@ -651,6 +654,7 @@ namespace link_layer {
         }
 
         connection_parameters_request_pending_ = false;
+        connection_parameters_request_running_ = true;
 
         out_buffer.fill( {
             ll_control_pdu_code, 22, LL_CONNECTION_PARAM_REQ,
@@ -904,6 +908,25 @@ namespace link_layer {
                     used_features_,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
+            }
+            else if ( opcode == LL_UNKNOWN_RSP && size == 2 && pdu.buffer[ 3 ] == LL_CONNECTION_PARAM_REQ )
+            {
+                if ( connection_parameters_request_running_ )
+                {
+                    connection_parameters_request_running_ = false;
+
+                    if ( signaling_channel_t::connection_parameter_update_request(
+                        proposed_interval_min_,
+                        proposed_interval_max_,
+                        proposed_latency_,
+                        proposed_timeout_ ) )
+                    {
+                        this->wake_up();
+                    }
+                }
+
+                used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
+                commit = false;
             }
             else if ( opcode != LL_UNKNOWN_RSP )
             {

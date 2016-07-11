@@ -150,6 +150,24 @@ public:
         ll_pdu( 0x03, control );
     }
 
+    void ll_function_call( std::function< void() > func )
+    {
+        std::function< test::pdu_list_t () > callback =
+            [=]() -> test::pdu_list_t
+            {
+                func();
+                const test::pdu_t empty{
+                    static_cast< std::uint8_t >( 0x01 | sequence_ | next_expected_sequence_ ), 0 };
+
+                return test::pdu_list_t( 1, empty );
+            };
+
+        this->add_connection_event_respond(
+            test::connection_event_response( callback ) );
+
+        next_sequences();
+    }
+
     void ll_empty_pdu()
     {
         this->add_connection_event_respond( {
