@@ -2,6 +2,9 @@
 #define BLUETOE_SM_SECURITY_MANAGER_HPP
 
 #include <cstddef>
+#include <cstdint>
+#include <cassert>
+#include <algorithm>
 
 namespace bluetoe {
     namespace details {

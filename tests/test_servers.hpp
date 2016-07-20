@@ -233,12 +233,14 @@ namespace {
                 []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
         }
 
-        static void l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename Server::notification_type type )
+        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename Server::notification_type type )
         {
             notification = item;
             notification_type = type;
 
             open_notifications_.insert( item.client_characteristic_configuration_index() );
+
+            return true;
         }
 
         template < typename T >

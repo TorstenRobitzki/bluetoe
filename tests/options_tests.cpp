@@ -681,3 +681,18 @@ BOOST_AUTO_TEST_CASE( transform_list )
             std::tuple< meta1, meta2, meta3 > >::value
     ) );
 }
+
+BOOST_AUTO_TEST_CASE( index_of )
+{
+    BOOST_CHECK_EQUAL( 0, int( bluetoe::details::index_of< int, int >::value ) );
+    BOOST_CHECK_EQUAL( 0, int( bluetoe::details::index_of< int, std::tuple< int > >::value ) );
+
+    BOOST_CHECK_EQUAL( 0, int( bluetoe::details::index_of< int, int, float >::value ) );
+    BOOST_CHECK_EQUAL( 0, int( bluetoe::details::index_of< int, std::tuple< int, float > >::value ) );
+
+    BOOST_CHECK_EQUAL( 1, int( bluetoe::details::index_of< float, int, float >::value ) );
+    BOOST_CHECK_EQUAL( 1, int( bluetoe::details::index_of< float, std::tuple< int, float > >::value ) );
+
+    BOOST_CHECK_EQUAL( 2, int( bluetoe::details::index_of< bool, int, float, bool >::value ) );
+    BOOST_CHECK_EQUAL( 1, int( bluetoe::details::index_of< float, std::tuple< int, float, bool > >::value ) );
+}

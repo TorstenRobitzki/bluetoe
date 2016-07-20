@@ -1,5 +1,8 @@
+#include "buffer_io.hpp"
+
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
+#include <boost/mpl/list.hpp>
 
 #include <bluetoe/link_layer/link_layer.hpp>
 #include <bluetoe/link_layer/options.hpp>
@@ -294,7 +297,7 @@ BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connec
     respond_to(
         37, // channel
         {
-            0x03, 0x0C, // header
+            0xC3, 0x0C, // header
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
             0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
         }
@@ -384,7 +387,7 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
 BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_connect )
 {
     static const std::initializer_list< std::uint8_t > valid_scan_request = {
-        0x03, 0x0C, // header
+        0xC3, 0x0C, // header
         0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
         0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
     };
@@ -452,3 +455,791 @@ BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_access_address_have_t
 
     BOOST_CHECK_EQUAL( adv.access_address, 0x8E89BED6 );
 }
+
+using advertising_connectable_undirected_advertising  =
+    advertising_base<
+        bluetoe::link_layer::connectable_undirected_advertising
+    >;
+
+BOOST_FIXTURE_TEST_CASE( starting_advertising_connectable_undirected_advertising, advertising_connectable_undirected_advertising )
+{
+    const auto number_of_advertising_pdus =
+        count_data( []( const test::advertising_data& scheduled ) -> bool
+        {
+            return !scheduled.transmitted_data.empty()
+                && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
+        } );
+
+    BOOST_CHECK_GT( number_of_advertising_pdus, 0 );
+}
+
+BOOST_AUTO_TEST_SUITE( connectable_directed_advertising )
+
+using advertising_connectable_directed_advertising  =
+    advertising_base<
+        bluetoe::link_layer::connectable_directed_advertising
+    >;
+
+// an address is needed to start the advertising
+BOOST_FIXTURE_TEST_CASE( directed_advertising_doesnt_starts_by_default, advertising_connectable_directed_advertising )
+{
+    BOOST_CHECK_EQUAL( 0, count_data( []( const test::advertising_data& ) -> bool {
+        return true;
+    } ) );
+}
+
+//
+BOOST_FIXTURE_TEST_CASE( starting_connectable_directed_advertising, advertising_connectable_directed_advertising )
+{
+    directed_advertising_address( bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } ) );
+
+    run( gatt_server_ );
+    BOOST_CHECK_GT( advertisings().size(), 0 );
+}
+
+struct started_directed_advertising : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::connectable_directed_advertising >
+{
+    started_directed_advertising()
+    {
+        directed_advertising_address( bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } ) );
+        this->run( gatt_server_ );
+    }
+
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( stop_connectable_directed_advertising, started_directed_advertising )
+{
+    directed_advertising_address( bluetoe::link_layer::device_address() );
+
+    run( gatt_server_ );
+    clear_events();
+
+    BOOST_CHECK_EQUAL( 0, count_data( []( const test::advertising_data& ) -> bool {
+        return true;
+    } ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_size_and_type, started_directed_advertising )
+{
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() == 2 * 6 + 2
+                && ( pdu[ 0 ] & 0xf ) == 1
+                && ( pdu[ 1 ] & 0x3f ) == 2 * 6;
+        },
+        "correct_size_and_type"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( contains_local_address, started_directed_advertising )
+{
+    const auto address = local_address();
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 8
+                && std::equal( &pdu[ 2 ], &pdu[ 8 ], address.begin() )
+                && ( pdu[ 0 ] & 0x40 ) != 0;
+        },
+        "contains_local_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( contains_remote_address, started_directed_advertising )
+{
+    const auto address = bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 14
+                && std::equal( &pdu[ 8 ], &pdu[ 14 ], address.begin() )
+                && ( pdu[ 0 ] & 0x80 ) == 0;
+        },
+        "contains_remote_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( is_connectable_from_directed_address, started_directed_advertising )
+{
+    BOOST_REQUIRE( connection_events().empty() );
+
+    respond_to(
+        37,
+        {
+            0x85, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (public)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    BOOST_CHECK( !connection_events().empty() );
+}
+
+BOOST_FIXTURE_TEST_CASE( is_not_connectable_from_other_addresses, started_directed_advertising )
+{
+    BOOST_REQUIRE( connection_events().empty() );
+
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    BOOST_CHECK( connection_events().empty() );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_response_to_scan_request, started_directed_advertising )
+{
+    respond_to(
+        37, // channel
+        {
+            0xC3, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+        }
+    );
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 1;
+        },
+        "no_response_to_scan_request"
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( non_connectable_undirected_advertising )
+
+struct non_connectable_undirected_advertising :
+    bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::non_connectable_undirected_advertising >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( starting_advertising, non_connectable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+
+    BOOST_CHECK_GT( advertisings().size(), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_type_and_size, non_connectable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 2
+                && ( pdu[ 0 ] & 0xf ) == 2
+                && ( pdu[ 1 ] & 0x3f ) == pdu.size() - 2;
+        },
+        "correct_type_and_size"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( contains_local_address, non_connectable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+    const auto address = local_address();
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 8
+                && std::equal( &pdu[ 2 ], &pdu[ 8 ], address.begin() )
+                && ( pdu[ 0 ] & 0x40 ) != 0;
+        },
+        "contains_local_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_response_to_scan_request, non_connectable_undirected_advertising )
+{
+    respond_to(
+        37, // channel
+        {
+            0xC3, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+        }
+    );
+
+    run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 2;
+        },
+        "no_response_to_scan_request"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, non_connectable_undirected_advertising )
+{
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    run( gatt_server_ );
+
+    BOOST_CHECK( connection_events().empty() );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( scannable_undirected_advertising )
+
+struct scannable_undirected_advertising :
+    bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::scannable_undirected_advertising >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( starting_advertising, scannable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+
+    BOOST_CHECK_GT( advertisings().size(), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_type_and_size, scannable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 2
+                && ( pdu[ 0 ] & 0xf ) == 6
+                && ( pdu[ 1 ] & 0x3f ) == pdu.size() - 2;
+        },
+        "correct_type_and_size"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( contains_local_address, scannable_undirected_advertising )
+{
+    this->run( gatt_server_ );
+    const auto address = local_address();
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 8
+                && std::equal( &pdu[ 2 ], &pdu[ 8 ], address.begin() )
+                && ( pdu[ 0 ] & 0x40 ) != 0;
+        },
+        "contains_local_address"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( response_to_scan_request, scannable_undirected_advertising )
+{
+    respond_to(
+        37, // channel
+        {
+            0xC3, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+        }
+    );
+
+    run( gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 1, count_data(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 4;
+        } ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, scannable_undirected_advertising )
+{
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    run( gatt_server_ );
+
+    BOOST_CHECK( connection_events().empty() );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( multiple_advertising_types )
+
+struct scannable_and_connectable_advertising :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::connectable_undirected_advertising,
+        bluetoe::link_layer::scannable_undirected_advertising
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( advertising_starts_with_the_first_named_type, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    BOOST_REQUIRE( !advertisings().empty() );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 0;
+        },
+        "advertising_starts_with_the_first_names_type"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( advertising_is_repeated_after_timeout, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    const auto number_of_advertising_pdus =
+        count_data( []( const test::advertising_data& scheduled ) -> bool
+        {
+            return !scheduled.transmitted_data.empty()
+                && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
+        } );
+
+    BOOST_CHECK_GT( number_of_advertising_pdus, 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( can_switch_type_before_starting, scannable_and_connectable_advertising )
+{
+    this->change_advertising< bluetoe::link_layer::scannable_undirected_advertising >();
+
+    run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 6;
+        },
+        "advertising_starts_with_the_first_names_type"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( can_not_switch_type_after_starting, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    this->change_advertising< bluetoe::link_layer::scannable_undirected_advertising >();
+
+    run( gatt_server_ );
+
+    check_scheduling(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 0;
+        },
+        "can_not_switch_type_after_starting"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, scannable_and_connectable_advertising )
+{
+    run( gatt_server_ );
+
+    this->change_advertising< bluetoe::link_layer::scannable_undirected_advertising >();
+
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    run( gatt_server_ );
+
+    BOOST_REQUIRE( !connection_events().empty() );
+
+    BOOST_CHECK_GT( count_data(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                && ( pdu[ 0 ] & 0xf ) == 6;
+        }), 0 );
+}
+
+BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, scannable_and_connectable_advertising )
+{
+    respond_to(
+        37, // channel
+        {
+            0xC3, 0x0C, // header
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
+        }
+    );
+
+    run( gatt_server_ );
+
+    static const std::vector< std::uint8_t > expected_response =
+    {
+        0x44, 0x06,
+        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0
+    };
+
+    find_scheduling(
+        []( const test::advertising_data& pdu ) -> bool
+        {
+            return pdu.channel == 37
+                && pdu.transmision_time.zero()
+                && pdu.transmitted_data == expected_response
+                && pdu.receive_buffer.empty();
+        },
+        "empty_reponds_to_a_scan_request"
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( variable_advertising_interval )
+
+struct variable_interval_multiple_types :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::connectable_undirected_advertising,
+        bluetoe::link_layer::scannable_undirected_advertising,
+        bluetoe::link_layer::variable_advertising_interval
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( the_default_is_100ms, variable_interval_multiple_types )
+{
+    this->run( gatt_server_ );
+
+    check_scheduling(
+        filter_channel_37,
+        [&]( const test::advertising_data& a, const test::advertising_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 100 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 110 );
+        },
+        "the_default_is_100ms"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( changeable_to_30, variable_interval_multiple_types )
+{
+    advertising_interval_ms( 30 );
+    run( gatt_server_ );
+
+    check_scheduling(
+        filter_channel_37,
+        [&]( const test::advertising_data& a, const test::advertising_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 30 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 40 );
+        },
+        "changeable_to_300"
+    );
+}
+
+struct variable_interval_single_type :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::variable_advertising_interval
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+BOOST_FIXTURE_TEST_CASE( works_for_single_types_too, variable_interval_single_type )
+{
+    advertising_interval_ms( 30 );
+    run( gatt_server_ );
+
+    check_scheduling(
+        filter_channel_37,
+        [&]( const test::advertising_data& a, const test::advertising_data& b )
+        {
+            const auto diff = b.on_air_time - a.on_air_time;
+
+            return diff >= bluetoe::link_layer::delta_time::msec( 30 )
+                && diff <= bluetoe::link_layer::delta_time::msec( 40 );
+        },
+        "changeable_to_300"
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( no_auto_start_advertising )
+
+struct no_auto_start_single_type :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::no_auto_start_advertising
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+struct no_auto_start_multiple_type :
+    bluetoe::link_layer::link_layer<
+        small_temperature_service, test::radio,
+        bluetoe::link_layer::no_auto_start_advertising,
+        bluetoe::link_layer::connectable_undirected_advertising,
+        bluetoe::link_layer::scannable_undirected_advertising
+    >
+{
+    small_temperature_service gatt_server_;
+};
+
+typedef boost::mpl::list<
+    no_auto_start_single_type,
+    no_auto_start_multiple_type > all_fixtures;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_single, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.run( link_layer.gatt_server_ );
+    BOOST_CHECK_EQUAL( 0, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_before, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising();
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_NE( 0, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_single_after, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.run( link_layer.gatt_server_ );
+
+    link_layer.start_advertising();
+
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_NE( 0, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_after_disconnect, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising();
+    link_layer.respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0, // InitA: c0:0f:01:00:00:00 (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x0b, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x48, 0x00,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_REQUIRE( !link_layer.connection_events().empty() );
+    const auto connect_time = link_layer.connection_events().front().schedule_time;
+
+    link_layer.check_scheduling(
+        [&]( const test::advertising_data& adv )
+        {
+            return adv.schedule_time <= connect_time;
+        },
+        "no_automatic_start_after_disconnect"
+    );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_advertising_test, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising();
+    link_layer.run( link_layer.gatt_server_ );
+
+    const auto adv_count = link_layer.advertisings().size();
+    link_layer.stop_advertising();
+
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( link_layer.advertisings().size(), adv_count );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_advertising_after_one_advertisements, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 1u );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 1u, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_advertising_after_certain_advertisements, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 42u );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 42u, link_layer.advertisings().size() );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( restart_after_count_down, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 42u );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_EQUAL( 42u, link_layer.advertisings().size() );
+
+    link_layer.start_advertising();
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_GT( link_layer.advertisings().size(), 42u );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( stop_count_down, LinkLayer, all_fixtures )
+{
+    LinkLayer link_layer;
+    link_layer.start_advertising( 300 );
+    link_layer.run( link_layer.gatt_server_ );
+
+    // 290 is simply the number of advertising PDUs send within 10 second
+    BOOST_REQUIRE_EQUAL( 290u, link_layer.advertisings().size() );
+
+    link_layer.start_advertising();
+
+    link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
+    link_layer.run( link_layer.gatt_server_ );
+
+    BOOST_CHECK_GT( link_layer.advertisings().size(), 550u );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -27,7 +27,7 @@ namespace test {
         {
             out << "response-timeout";
         }
-        else
+        else if ( rsp.data.size() )
         {
             out << "\ndata:\n";
 
@@ -36,8 +36,45 @@ namespace test {
                 hex_dump( out, pdu.begin(), pdu.end() );
             }
         }
+        else if ( rsp.func )
+        {
+            out << "func()";
+        }
+        else
+        {
+            out << "??empty??";
+        }
 
         return out;
+    }
+
+    static void head_info( std::ostream& out, const pdu_t& pdu )
+    {
+        if ( pdu.size() < 2 )
+        {
+            out << "?\n";
+            return;
+        }
+
+        const std::uint8_t  llid = pdu[ 0 ] & 3;
+        const bool          nesn = pdu[ 0 ] & 4;
+        const bool          sn   = pdu[ 0 ] & 8;
+        const bool          md   = pdu[ 0 ] & 16;
+        const bool          rfu  = pdu[ 0 ] & 0xe0;
+
+        out << "llid: " << (int)llid;
+        out << " ne: " << nesn << " sn: " << sn;
+
+        if ( md )
+            out << " md: 1";
+
+        if ( rfu )
+            out << " rfu!!!";
+
+        if ( pdu.size() -2 != pdu[ 1 ] )
+            out << " SIZE!!!: " << (int)pdu[ 1 ];
+
+        out << "\n";
     }
 
     std::ostream& operator<<( std::ostream& out, const connection_event& data )
@@ -48,12 +85,14 @@ namespace test {
 
         for ( const auto& pdu: data.received_data )
         {
+            head_info( out, pdu );
             hex_dump( out, pdu.begin(), pdu.end() );
         }
 
         out << "transmitted_data:\n";
         for ( const auto& pdu: data.transmitted_data )
         {
+            head_info( out, pdu );
             hex_dump( out, pdu.begin(), pdu.end() );
         }
 
@@ -66,6 +105,85 @@ namespace test {
             out << c << "\n";
 
         return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const pdu_t& data )
+    {
+        hex_dump( out, data.begin(), data.end() );
+
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const pdu_list_t& data )
+    {
+        for ( const auto& p : data )
+            hex_dump( out, p.begin(), p.end() );
+
+        return out;
+    }
+
+    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern )
+    {
+        std::size_t pos = 0;
+        for ( ; pos != pattern.size() && pos != pdu.size(); ++pos )
+        {
+            const std::uint16_t patt = *( pattern.begin() + pos );
+            const std::uint8_t  data = pdu[ pos ];
+
+            if ( patt == and_so_on )
+                return true;
+
+            if ( patt != X && patt != data )
+                return false;
+        }
+
+        // a trailing "and_so_on"
+        if ( pos == pdu.size() && pos < pattern.size() && *( pattern.begin() + pos ) == and_so_on )
+            return true;
+
+        return pos == pattern.size() && pos == pdu.size();
+    }
+
+    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern )
+    {
+        static constexpr std::size_t line_width = 16;
+
+        std::ostringstream out;
+        std::size_t width = line_width;
+
+        for ( auto begin = pattern.begin(); begin != pattern.end(); )
+        {
+            if ( *begin == X )
+            {
+                out << "XX";
+            }
+            else if ( *begin == and_so_on )
+            {
+                out << "...";
+            }
+            else
+            {
+                print_hex( out, static_cast< std::uint8_t >( *begin ) );
+            }
+
+            ++begin;
+            --width;
+
+            if ( begin != pattern.end() )
+            {
+                if ( width )
+                {
+                    out << ' ';
+                }
+                else
+                {
+                    out << '\n';
+                    width = line_width;
+                }
+            }
+        }
+
+        return out.str();
     }
 
     advertising_response::advertising_response()
@@ -402,14 +520,17 @@ namespace test {
     void radio_base::add_connection_event_respond( std::initializer_list< std::uint8_t > pdu )
     {
         add_connection_event_respond(
-            connection_event_response{
-                false, pdu_list_t( 1, pdu )
-            } );
+            connection_event_response( pdu_list_t( 1, pdu ) ) );
+    }
+
+    void radio_base::add_connection_event_respond( std::function< void() > f )
+    {
+        add_connection_event_respond( connection_event_response( f ) );
     }
 
     void radio_base::add_connection_event_respond_timeout()
     {
-        add_connection_event_respond( connection_event_response{ true, pdu_list_t() } );
+        add_connection_event_respond( connection_event_response() );
     }
 
     void radio_base::check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message )
@@ -423,6 +544,90 @@ namespace test {
                 BOOST_CHECK( result );
             }
         }
+    }
+
+    static const auto filter_l2cap = []( pdu_t& pdu ) -> bool {
+        if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x03 ) == 0x02 )
+        {
+            pdu.erase( pdu.begin(), pdu.begin() + 2 );
+            return true;
+        }
+
+        return false;
+    };
+
+    static const auto filter_ll = []( pdu_t& pdu ) -> bool {
+        if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x03 ) == 0x03 )
+        {
+            pdu.erase( pdu.begin(), pdu.begin() + 2 );
+            return true;
+        }
+
+        return false;
+    };
+
+    template < class Filter, class Events, class Pattern >
+    static const std::vector< connection_event > filter_events( const Filter& filter, const Events& events, const Pattern& pattern )
+    {
+        std::vector< connection_event > matching_events;
+
+        for ( const auto& event : events )
+        {
+            for ( auto pdu : event.transmitted_data )
+            {
+                if ( filter( pdu ) && check_pdu( pdu, pattern ) )
+                    matching_events.push_back( event );
+            }
+        }
+
+        return matching_events;
+    }
+
+    template < class Events, class Pattern >
+    static void check_single_event( const Events& matching_events, const char* msg0, const char* msg_multiple, const Pattern& pattern )
+    {
+        if ( matching_events.size() == 0 )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << msg0 << pretty_print_pattern( pattern );
+            BOOST_CHECK( result );
+        }
+        else if ( matching_events.size() != 1 )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << msg_multiple << pretty_print_pattern( pattern ) << ":\n\n";
+
+            for ( const auto& p : matching_events )
+            {
+                result.message() << p << "\n";
+            }
+
+            BOOST_CHECK( result );
+        }
+    }
+
+    void radio_base::check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern )
+    {
+        check_single_event(
+            filter_events( filter_l2cap, connection_events_, pattern ),
+            "no outgoing l2cap PDU matches the given pattern: ",
+            "multiple outgoing l2cap PDU matches the given pattern: ",
+            pattern );
+    }
+
+    void radio_base::check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern )
+    {
+        check_single_event(
+            filter_events( filter_ll, connection_events_, pattern ),
+            "no outgoing LL PDU matches the given pattern: ",
+            "multiple outgoing LL PDU matches the given pattern: ",
+            pattern );
+    }
+
+    void radio_base::clear_events()
+    {
+        advertised_data_.clear();
+        connection_events_.clear();
     }
 
     std::uint32_t radio_base::static_random_address_seed() const

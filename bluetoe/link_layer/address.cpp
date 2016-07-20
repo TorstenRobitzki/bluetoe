@@ -22,7 +22,7 @@ namespace link_layer {
         std::copy( initial_values + 0, initial_values + address_size_in_bytes, &value_[ 0 ] );
     }
 
-    address address::generate_static_random_address( std::uint32_t seed )
+    random_device_address address::generate_static_random_address( std::uint32_t seed )
     {
         std::uint8_t initial_values[ address_size_in_bytes ] = {
             static_cast<uint8_t>( seed >> 24 ),
@@ -32,7 +32,7 @@ namespace link_layer {
             0x0f,
             0xC0 };
 
-        return address( initial_values );
+        return random_device_address( initial_values );
     }
 
     std::uint8_t address::msb() const
@@ -60,5 +60,21 @@ namespace link_layer {
         return std::end( value_ );
     }
 
+    device_address::device_address()
+        : address()
+        , is_random_( true )
+    {
+    }
+
+    bool device_address::operator==( const device_address& rhs ) const
+    {
+        return static_cast< const address& >( *this ) == rhs
+            && is_random_ == rhs.is_random_;
+    }
+
+    bool device_address::operator!=( const device_address& rhs ) const
+    {
+        return !( *this == rhs );
+    }
 }
 }

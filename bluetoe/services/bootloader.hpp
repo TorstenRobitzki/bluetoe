@@ -23,7 +23,7 @@ namespace bluetoe
             struct handler_meta_type {};
             struct memory_region_meta_type {};
             struct page_size_meta_type {};
-        };
+        }
         /** @endcond */
 
         /**

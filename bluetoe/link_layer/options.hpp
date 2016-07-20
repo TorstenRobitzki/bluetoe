@@ -1,8 +1,8 @@
 #ifndef BLUETOE_LINK_LAYER_OPTIONS_HPP
 #define BLUETOE_LINK_LAYER_OPTIONS_HPP
 
-#include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/link_layer/connection_details.hpp>
 
 
 namespace bluetoe
@@ -10,39 +10,10 @@ namespace bluetoe
 namespace link_layer
 {
     namespace details {
-        struct advertising_interval_meta_type {};
         struct device_address_meta_type {};
         struct buffer_sizes_meta_type {};
         struct mtu_size_meta_type {};
-
-        template < unsigned long long AdvertisingIntervalMilliSeconds >
-        struct check_advertising_interval_parameter {
-            static_assert( AdvertisingIntervalMilliSeconds >= 20,    "the advertising interval must be greater than or equal to 20ms." );
-            static_assert( AdvertisingIntervalMilliSeconds <= 10240, "the advertising interval must be greater than or equal to 20ms." );
-
-            typedef void type;
-        };
-
     }
-
-    /**
-     * @brief advertising interval in ms in the range 20ms to 10.24s
-     */
-    template < std::uint16_t AdvertisingIntervalMilliSeconds, typename = typename details::check_advertising_interval_parameter< AdvertisingIntervalMilliSeconds >::type >
-    struct advertising_interval
-    {
-        /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_interval_meta_type meta_type;
-        /** @endcond */
-
-        /**
-         * timeout in ms roundet to the next 0.625ms
-         */
-        static constexpr delta_time interval() {
-
-            return delta_time( AdvertisingIntervalMilliSeconds * 1000 );
-        }
-    };
 
     /**
      * @brief defines that the device will use a static random address.
@@ -64,7 +35,7 @@ namespace link_layer
          * @brief takes a scheduled radio and generates a random static address
          */
         template < class Radio >
-        static address address( const Radio& r )
+        static random_device_address address( const Radio& r )
         {
             return address::generate_static_random_address( r.static_random_address_seed() );
         }
@@ -94,10 +65,10 @@ namespace link_layer
          * @brief returns the static, configured address A:B:C:D:E:F
          */
         template < class Radio >
-        static address address( const Radio& )
+        static random_device_address address( const Radio& )
         {
             static const std::uint8_t addr[] = { F, E, D, C, B, A };
-            return ::bluetoe::link_layer::address( addr );
+            return ::bluetoe::link_layer::random_device_address( addr );
         }
 
         /** @cond HIDDEN_SYMBOLS */
@@ -172,6 +143,7 @@ namespace link_layer
         static constexpr std::size_t mtu = MaxMTU;
         /** @endcond */
     };
+
 }
 }
 

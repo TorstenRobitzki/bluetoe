@@ -41,10 +41,12 @@ public:
     {
     }
 
-    void run()
+    void run( unsigned times = 1 )
     {
         small_temperature_service gatt_server_;
-        base::run( gatt_server_ );
+
+        for ( ; times; --times )
+            base::run( gatt_server_ );
     }
 
     void check_not_connected( const char* test ) const
@@ -55,6 +57,22 @@ public:
             result.message() << "in " << test << " check_not_connected failed.";
             BOOST_CHECK( result );
         }
+    }
+
+    void add_connection_update_request(
+        std::uint8_t win_size, std::uint16_t win_offset, std::uint16_t interval,
+        std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
+    {
+        ll_control_pdu( {
+            0x00,                                                   // opcode
+            win_size,
+            static_cast< std::uint8_t >( win_offset ),  static_cast< std::uint8_t >( win_offset >> 8 ),
+            static_cast< std::uint8_t >( interval ),    static_cast< std::uint8_t >( interval >> 8 ),
+            static_cast< std::uint8_t >( latency ),     static_cast< std::uint8_t >( latency >> 8 ),
+            static_cast< std::uint8_t >( timeout ),     static_cast< std::uint8_t >( timeout >> 8 ),
+            static_cast< std::uint8_t >( instance ),    static_cast< std::uint8_t >( instance >> 8 )
+        } );
+
     }
 
     void respond_with_connection_request( std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval )
@@ -121,7 +139,7 @@ public:
             static_cast< std::uint8_t >( control.size() ) };
         pdu.insert( pdu.end(), control.begin(), control.end() );
 
-        const test::connection_event_response response{ false, { pdu } };
+        const test::connection_event_response response({ pdu });
 
         this->add_connection_event_respond( response );
         next_sequences();
@@ -132,11 +150,35 @@ public:
         ll_pdu( 0x03, control );
     }
 
+    void ll_function_call( std::function< void() > func )
+    {
+        std::function< test::pdu_list_t () > callback =
+            [=]() -> test::pdu_list_t
+            {
+                func();
+                const test::pdu_t empty{
+                    static_cast< std::uint8_t >( 0x01 | sequence_ | next_expected_sequence_ ), 0 };
+
+                return test::pdu_list_t( 1, empty );
+            };
+
+        this->add_connection_event_respond(
+            test::connection_event_response( callback ) );
+
+        next_sequences();
+    }
+
     void ll_empty_pdu()
     {
         this->add_connection_event_respond( {
             static_cast< std::uint8_t >( 0x01 | sequence_ | next_expected_sequence_ ), 0 } );
         next_sequences();
+    }
+
+    void ll_empty_pdus( unsigned count )
+    {
+        for ( ; count; --count )
+            ll_empty_pdu();
     }
 
     void ll_data_pdu( std::initializer_list< std::uint8_t > control )

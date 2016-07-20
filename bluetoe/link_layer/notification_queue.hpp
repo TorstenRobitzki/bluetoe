@@ -45,9 +45,11 @@ namespace link_layer {
          * If the given characteristic was already queued for notification, the function
          * will not have any side effects.
          *
+         * The function returns true, if the given characteristic was not already queued for notifications.
+         *
          * @pre index < Size
          */
-        void queue_notification( std::size_t index );
+        bool queue_notification( std::size_t index );
 
         /**
          * @brief queue the indexed characteristic for indication
@@ -60,9 +62,12 @@ namespace link_layer {
          * if a indication that was send to a client was not confirmed yet,
          * the function will not have any side effects.
          *
+         * The function returns true, if the given characteristic was not already queued for indication or
+         * if a confirmations is still awaited.
+         *
          * @pre index < Size
          */
-        void queue_indication( std::size_t index );
+        bool queue_indication( std::size_t index );
 
         /**
          * @brief to be called, when a ATT Handle Value Confirmation was received.
@@ -100,7 +105,7 @@ namespace link_layer {
         void clear_indications_and_confirmations();
     private:
         int at( std::size_t index );
-        void add( std::size_t index, int );
+        bool add( std::size_t index, int );
         void remove( std::size_t index, int );
 
         static constexpr std::size_t bits_per_characteristc = 2;
@@ -131,8 +136,8 @@ namespace link_layer {
         {
         }
 
-        void queue_notification( std::size_t index ) {}
-        void queue_indication( std::size_t index ) {}
+        bool queue_notification( std::size_t index ) { return false; }
+        bool queue_indication( std::size_t index ) { return false; }
         void indication_confirmed() {}
 
         enum entry_type {
@@ -161,17 +166,21 @@ namespace link_layer {
     }
 
     template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::queue_notification( std::size_t index )
+    bool notification_queue< Size, Mixin >::queue_notification( std::size_t index )
     {
         assert( index < Size );
-        add( index, notification_bit );
+        return add( index, notification_bit );
     }
 
     template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::queue_indication( std::size_t index )
+    bool notification_queue< Size, Mixin >::queue_indication( std::size_t index )
     {
         assert( index < Size );
-        add( index, indication_bit );
+
+        if ( outstanding_confirmation_ == index )
+            return false;
+
+        return add( index, indication_bit );
     }
 
     template < std::size_t Size, class Mixin >
@@ -232,14 +241,17 @@ namespace link_layer {
     }
 
     template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::add( std::size_t index, int bits )
+    bool notification_queue< Size, Mixin >::add( std::size_t index, int bits )
     {
         assert( bits & ( ( 1 << bits_per_characteristc ) -1 ) );
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;
         const auto byte_offset = index * bits_per_characteristc / 8;
         assert( byte_offset < sizeof( queue_ ) / sizeof( queue_[ 0 ] ) );
 
+        const bool result = ( queue_[ byte_offset ] & ( bits << bit_offset ) ) == 0;
         queue_[ byte_offset ] |= bits << bit_offset;
+
+        return result;
     }
 
     template < std::size_t Size, class Mixin >

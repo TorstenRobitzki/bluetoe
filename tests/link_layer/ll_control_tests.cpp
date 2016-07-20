@@ -73,3 +73,34 @@ BOOST_FIXTURE_TEST_CASE( starts_advertising_after_termination, unconnected )
 
     BOOST_CHECK_LT( second_advertisment.on_air_time, bluetoe::link_layer::delta_time::msec( 50 ) );
 }
+
+BOOST_FIXTURE_TEST_CASE( do_not_respond_to_UNKNOWN_RSP, unconnected )
+{
+    check_single_ll_control_pdu(
+        {
+            0x03, 0x02,
+            0x07,               // LL_UNKNOWN_RSP
+            0x07                // request opcode
+        },
+        {
+            0x01, 0x00
+        },
+        "do_not_respond_to_UNKNOWN_RSP"
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( do_not_respond_to_UNKNOWN_RSP_even_if_broken, unconnected )
+{
+    check_single_ll_control_pdu(
+        {
+            0x03, 0x03,
+            0x07,               // LL_UNKNOWN_RSP
+            0x07,               // request opcode
+            0xff                // additional byte
+        },
+        {
+            0x01, 0x00
+        },
+        "do_not_respond_to_UNKNOWN_RSP"
+    );
+}

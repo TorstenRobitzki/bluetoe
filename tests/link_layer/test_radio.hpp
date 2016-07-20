@@ -9,8 +9,20 @@
 #include <functional>
 #include <iosfwd>
 #include <initializer_list>
+#include <iostream>
 
 namespace test {
+
+    /**
+     * @brief expression that can be used in some of the finder functions to denote that this is always a match
+     */
+    static constexpr std::uint16_t X = 0x0100;
+
+    /**
+     * @brief expresssion that can be used as a last element of an expression to a finder function to denote that
+     *        you do not care about the reset of the pdu.
+     */
+    static constexpr std::uint16_t and_so_on = 0x0200;
 
     /**
      * @brief stores all relevant arguments to a schedule_advertisment_and_receive() function call to the radio
@@ -36,6 +48,9 @@ namespace test {
     using pdu_t = std::vector< std::uint8_t >;
     using pdu_list_t = std::vector< pdu_t >;
 
+    std::ostream& operator<<( std::ostream& out, const pdu_t& data );
+    std::ostream& operator<<( std::ostream& out, const pdu_list_t& data );
+
     struct connection_event
     {
         bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled (from start of simulation)
@@ -60,6 +75,29 @@ namespace test {
     {
         bool                                timeout; // respond with an timeout
         pdu_list_t                          data;    // respond with data (including no data)
+        std::function< pdu_list_t () >      func;    // inquire respond by calling func
+
+        /**
+         * @brief simulating no response, not even an empty PDU.
+         */
+        connection_event_response()
+            : timeout( true )
+        {}
+
+        explicit connection_event_response( const pdu_list_t& d )
+            : timeout( false )
+            , data( d )
+        {}
+
+        explicit connection_event_response( const std::function< pdu_list_t () >& f )
+            : timeout( false )
+            , func( f )
+        {}
+
+        explicit connection_event_response( const std::function< void() >& f )
+            : timeout( false )
+            , func( [f](){ f(); return pdu_list_t(); } )
+        {}
     };
 
     std::ostream& operator<<( std::ostream& out, const connection_event_response& );
@@ -79,6 +117,18 @@ namespace test {
     };
 
     std::ostream& operator<<( std::ostream& out, const advertising_response& data );
+
+    /**
+     * @brief returns true, if pdu matches pattern.
+     * @sa X
+     * @sa and_so_on
+     */
+    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern );
+
+    /**
+     * @brief prints a pattern, so that it's easy comparable to a PDU
+     */
+    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern );
 
     class radio_base
     {
@@ -152,9 +202,25 @@ namespace test {
 
         void add_connection_event_respond( const connection_event_response& );
         void add_connection_event_respond( std::initializer_list< std::uint8_t > );
+        void add_connection_event_respond( std::function< void() > );
         void add_connection_event_respond_timeout();
 
         void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
+
+        /**
+         * @brief check that exacly one outgoing l2cap layer pdu matches the given pattern
+         */
+        void check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern );
+
+        /**
+         * @brief check that exacly one outgoing link layer pdu matches the given pattern
+         */
+        void check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern );
+
+        /**
+         * @brief clear all events
+         */
+        void clear_events();
 
         /**
          * @brief returns 0x47110815
@@ -234,10 +300,13 @@ namespace test {
             bluetoe::link_layer::delta_time             end_receive,
             bluetoe::link_layer::delta_time             connection_interval );
 
+        void wake_up();
+
         /**
          * @brief runs the simulation
          */
         void run();
+
     private:
         bluetoe::link_layer::delta_time now_;
 
@@ -247,6 +316,8 @@ namespace test {
         // make sure, there is only one action scheduled
         bool idle_;
         bool advertising_response_;
+        bool connection_event_response_;
+        int  wake_ups_;
     };
 
     // implementation
@@ -263,6 +334,9 @@ namespace test {
     radio< TransmitSize, ReceiveSize, CallBack >::radio()
         : now_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
+        , advertising_response_( false )
+        , connection_event_response_( false )
+        , wake_ups_( 0 )
     {
     }
 
@@ -277,6 +351,7 @@ namespace test {
 
         idle_ = false;
         advertising_response_ = true;
+        connection_event_response_ = false;
 
         const advertising_data data{
             now_,
@@ -300,6 +375,7 @@ namespace test {
         bluetoe::link_layer::delta_time             connection_interval )
     {
         advertising_response_ = false;
+        connection_event_response_ = true;
 
         const connection_event data{
             now_,
@@ -317,6 +393,12 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::wake_up()
+    {
+        ++wake_ups_;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
         bool new_scheduling_added = false;
@@ -329,10 +411,12 @@ namespace test {
 
             if ( advertising_response_ )
             {
+                advertising_response_ = false;
                 simulate_advertising_response();
             }
-            else
+            else if ( connection_event_response_ )
             {
+                connection_event_response_ = false;
                 simulate_connection_event_response();
             }
 
@@ -341,7 +425,10 @@ namespace test {
 
             new_scheduling_added = advertised_data_.size() + connection_events_.size() > count;
 
-        } while ( now_ < eos_ && new_scheduling_added );
+        } while ( now_ < eos_ && new_scheduling_added && wake_ups_ == 0 );
+
+        if ( wake_ups_ )
+            --wake_ups_;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
@@ -385,9 +472,10 @@ namespace test {
     void radio< TransmitSize, ReceiveSize, CallBack >::simulate_connection_event_response()
     {
         connection_event_response response = connection_events_response_.empty()
-            ? connection_event_response{ true, pdu_list_t() }
+            ? connection_event_response()
             : connection_events_response_.front();
 
+        assert( !connection_events_.empty() );
         auto& event = connection_events_.back();
 
         if ( !connection_events_response_.empty() )
@@ -410,7 +498,10 @@ namespace test {
 
             bool more_data = false;
 
-            pdu_list_t& pdus = response.data;
+            pdu_list_t pdus = response.data;
+
+            if ( pdus.empty() && response.func )
+                pdus = response.func();
 
             do
             {
@@ -428,13 +519,13 @@ namespace test {
                     }
                     else
                     {
-                        auto pdu = pdus.front();
+                        const auto pdu = pdus.front();
                         pdus.erase( pdus.begin() );
-
                         std::copy( pdu.begin(), pdu.end(), receive_buffer.buffer );
                         more_data = !pdus.empty();
                     }
 
+                    receive_buffer.buffer[ 0 ] &= ~( sn_flag | nesn_flag );
                     receive_buffer.buffer[ 0 ] |= master_sequence_number_ | master_ne_sequence_number_;
                     master_sequence_number_    ^= sn_flag;
                 }

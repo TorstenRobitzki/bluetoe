@@ -38,7 +38,7 @@ struct address_generator {
     }
 
     template < class Radio >
-    static bluetoe::link_layer::address address( const Radio& r )
+    static bluetoe::link_layer::random_device_address address( const Radio& r )
     {
         return bluetoe::link_layer::address::generate_static_random_address( ~r.static_random_address_seed() );
     }
