@@ -30,29 +30,40 @@ class FlashRange
 
                 that.peripheral.send_data( new_data )
 
+                # if this is the last chunk of a page, that page will be freed again, if the bootloader
+                # reports progress behind this chunk.
+                allocated_page = if Math.floor( ( that.capacity - 1 ) % that.page_size ) + 1 <= send_size then that.page_size else 0
+
                 that.data     = that.data.slice send_size
                 that.capacity = that.capacity - send_size
                 calc_checksum = crc32.buf new_data, calc_checksum
 
-                data_checksums.push [ consecutive, calc_checksum ]
+                data_checksums.push [ consecutive, calc_checksum, allocated_page ]
                 consecutive = consecutive + 1
 
         check_progress_checksum = ( checksum, consecutive )->
+            freed_buffer_space = 0
+
             while data_checksums.length > 0
-                [ con, crc_calculated ] = data_checksums.shift()
+                [ con, crc_calculated, unlock ] = data_checksums.shift()
+                freed_buffer_space = freed_buffer_space + unlock
 
                 if con == consecutive && crc_calculated == checksum
-                    return true
+                    return [ true, freed_buffer_space ]
 
-            false
+            [ false, freed_buffer_space ]
 
         progress_callback = (that)->
             (checksum, consecutive, mtu, receive_capacity)->
-                if !check_progress_checksum checksum, consecutive
+                [ ok, freed_buffer_space ] = check_progress_checksum checksum, consecutive
+
+                if !ok
                     that.cb 'checksum error in progress'
                 else
+                    that.capacity = that.capacity + freed_buffer_space
+
                     if that.data.length > 0
-                        send_data(that, mtu, receive_capacity)
+                        send_data(that, mtu, that.capacity)
                     else
                         that.cb()
 

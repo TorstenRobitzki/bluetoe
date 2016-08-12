@@ -21,6 +21,18 @@ collect_data_send = ( network )->
 
     result
 
+collect_buffer_send = ( network, consect, buffer_size )->
+    send_data = network.send_data
+    result    = new Buffer(0)
+
+    for n in [ consect...send_data.callCount ]
+        result = Buffer.concat([result, send_data.getCall(n).args[0]])
+        consect = consect + 1
+
+        return [ result, consect - 1 ] if result.length >= buffer_size
+
+    [ result, consect - 1 ]
+
 random_buffer = ( size )->
     result = new Buffer size
 
@@ -235,7 +247,6 @@ describe 'FlashMemory', ->
 
     describe 'continously reveiving progress', ->
 
-        received_data = null
         checksum      = null
 
         beforeEach ->
@@ -256,12 +267,37 @@ describe 'FlashMemory', ->
         it 'sends data until receive capacity is reached', ->
             expect( collect_data_send( network ).length ).to.equal receive_capacity
 
-        it 'sends more data when progress is received', ->
-            # lets simulate that the bootloader sends a progress message, after 40 data messages
-            checksum = crc.buf data.slice( 0, 40 * ( mtu - 3 ) ), checksum
+        it 'sends not more data when progress is not indicating a full block', ->
+            # lets simulate that the bootloader sends a progress message, after 20 data messages
+            checksum = crc.buf data.slice( 0, 20 * ( mtu - 3 ) ), checksum
 
             progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-            progress_callback( checksum, 39, mtu, receive_capacity - 40 * ( mtu - 3 ) )
+            progress_callback( checksum, 19, mtu, receive_capacity - 20 * ( mtu - 3 ) )
 
             expect( error_callback.called ).to.be.false
             expect( collect_data_send( network ).length ).to.equal receive_capacity
+
+        it 'sends more data when progress indicates a freed block received', ->
+            # Simulate that the bootloader sends a progress message, right after the first page
+            [ data_send, cons ] = collect_buffer_send( network, 0, page_size )
+
+            checksum  = crc.buf data_send, checksum
+
+            progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+            progress_callback( checksum, cons, mtu, receive_capacity - data_send.length )
+
+            expect( error_callback.called ).to.be.false
+            expect( collect_data_send( network ).length ).to.be.least receive_capacity + page_size
+
+        it 'sends new data with the new mtu size', ->
+            # Simulate that the bootloader sends a progress message, right after the first page
+            [ data_send, cons ] = collect_buffer_send( network, 0, page_size )
+
+            checksum  = crc.buf data_send, checksum
+            new_mtu   = mtu - 4
+
+            progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+            progress_callback( checksum, cons, new_mtu, receive_capacity - data_send.length )
+
+            send_data = network.send_data
+            expect( send_data.getCall( send_data.callCount - 2 ).args[0].length ).to.equal new_mtu - 3
