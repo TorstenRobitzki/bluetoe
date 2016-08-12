@@ -32,8 +32,7 @@ set(CMAKE_CXX_FLAGS "${CXX_DEFAULT_FLAGS} ${CXX_SPECIFIC_FLAGS} ${CXX_ARC_FLAGS}
 set(CMAKE_C_FLAGS   "${CXX_DEFAULT_FLAGS} ${CXX_ARC_FLAGS} ${CXX_BUILD_TYPE_FLAGS} ${CXX_DISABLED_WARNINGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${LINK_DEFAULT_FLAGS} ${LINK_ARC_FLAGS} ${LINK_BUILD_TYPE_FLAGS} -L ${CMAKE_SOURCE_DIR}")
 
-#add_definitions(-D_LITTLE_ENDIAN=1 -DNRF51 -D__HEAP_SIZE=0)
-add_definitions(-D_LITTLE_ENDIAN=1 -DNRF51 -DNDEBUG -D__HEAP_SIZE=0)
+add_definitions(-DNDEBUG)
 
 set(DEFAULT_JLINK_DEVICE_NAME nRF51422_xxAA)
 set(BLUETOE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
@@ -62,7 +61,7 @@ function(add_example TARGETNAME)
     )
 
     set_target_properties(${TARGETNAME}.elf PROPERTIES
-        LINK_FLAGS "-T ${CMAKE_CURRENT_LIST_DIR}/nrf51_xxaa.ld -Wl,-Map -Wl,${TARGETNAME}.map")
+        LINK_FLAGS "-T ${CMAKE_CURRENT_LIST_DIR}/cc26x0f128.lds -Wl,-Map -Wl,${TARGETNAME}.map")
 
     add_custom_target(${TARGETNAME}.bin
         arm-none-eabi-objcopy -S -O binary ${TARGETNAME}.elf ${TARGETNAME}.bin
