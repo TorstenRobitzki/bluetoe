@@ -180,10 +180,12 @@ describe 'FlashMemory', ->
 
         describe 'start address not beeign equal to a page address', ->
 
+            checksum    = null
+
             beforeEach ->
                 start_address   = 3 * page_size + 0x123
                 checksum        = crc.buf [ 0x23, 0x0D, 0x00, 0x00 ]
-                receive_capacity= receive_capacity - ( page_size - 0x123 )
+                receive_capacity= page_size * ( page_buffers - 1 ) + ( page_size - 0x123 )
 
                 new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
                 network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
@@ -197,6 +199,28 @@ describe 'FlashMemory', ->
             it 'should send the first data', ->
                 expect( collect_data_send( network ) ).to.deep.equal( data.slice( 0, receive_capacity ) )
 
+            it 'sends not more data when progress is not indicating a full block', ->
+                # lets simulate that the bootloader sends a progress message, after 10 data messages
+                checksum = crc.buf data.slice( 0, 10 * ( mtu - 3 ) ), checksum
+
+                progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+                progress_callback( checksum, 9, mtu, receive_capacity - 10 * ( mtu - 3 ) )
+
+                expect( error_callback.called ).to.be.false
+                expect( collect_data_send( network ).length ).to.equal receive_capacity
+
+            it 'sends more data when progress indicates a freed block received', ->
+                # Simulate that the bootloader sends a progress message, right after the first page
+                [ data_send, cons ] = collect_buffer_send( network, 0, page_size - 0x123 )
+
+                checksum  = crc.buf data_send, checksum
+
+                progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+                progress_callback( checksum, cons, mtu, receive_capacity - data_send.length )
+
+                expect( error_callback.called ).to.be.false
+                expect( collect_data_send( network ).length ).to.be.least receive_capacity + page_size
+
         describe 'writeing just a part of a page', ->
 
             checksum = 0
@@ -207,7 +231,9 @@ describe 'FlashMemory', ->
                 data            = random_buffer( 42 )
 
                 new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
-                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+
+                start_flash_callback = network.start_flash.lastCall.args[ 1 ]
+                start_flash_callback( null, mtu, receive_capacity, checksum )
 
             describe 'start address equal to a page address', ->
 
@@ -301,3 +327,15 @@ describe 'FlashMemory', ->
 
             send_data = network.send_data
             expect( send_data.getCall( send_data.callCount - 2 ).args[0].length ).to.equal new_mtu - 3
+
+        it 'sends more data when progress indicates all data received at once', ->
+            # Simulate that the bootloader sends a progress message, right after the first page
+            [ data_send, cons ] = collect_buffer_send( network, 0, receive_capacity )
+
+            checksum  = crc.buf data_send, checksum
+
+            progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+            progress_callback( checksum, cons, mtu, receive_capacity )
+
+            expect( error_callback.called ).to.be.false
+            expect( collect_data_send( network ).length ).to.be.least 2 * receive_capacity
