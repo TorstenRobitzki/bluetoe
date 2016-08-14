@@ -204,7 +204,7 @@ describe 'FlashMemory', ->
                 checksum = crc.buf data.slice( 0, 10 * ( mtu - 3 ) ), checksum
 
                 progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-                progress_callback( checksum, 9, mtu, receive_capacity - 10 * ( mtu - 3 ) )
+                progress_callback( checksum, 9, mtu )
 
                 expect( error_callback.called ).to.be.false
                 expect( collect_data_send( network ).length ).to.equal receive_capacity
@@ -216,7 +216,7 @@ describe 'FlashMemory', ->
                 checksum  = crc.buf data_send, checksum
 
                 progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-                progress_callback( checksum, cons, mtu, receive_capacity - data_send.length )
+                progress_callback( checksum, cons, mtu )
 
                 expect( error_callback.called ).to.be.false
                 expect( collect_data_send( network ).length ).to.be.least receive_capacity + page_size
@@ -242,7 +242,7 @@ describe 'FlashMemory', ->
 
                 it 'should wait for a handshake', ->
                     expect( error_callback.called ).to.be.false
-                    network.register_progress_callback.lastCall.args[ 0 ](checksum, 0, mtu, receive_capacity)
+                    network.register_progress_callback.lastCall.args[ 0 ](checksum, 0, mtu )
                     expect( error_callback.called ).to.be.true
 
     describe 'receiving progress', ->
@@ -267,7 +267,7 @@ describe 'FlashMemory', ->
                 expect( error_callback.called ).to.be.false
 
                 progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-                progress_callback( 0xdeadbeef, consecutive, mtu, receive_capacity - (consecutive + 1) * ( mtu - 3 ) )
+                progress_callback( 0xdeadbeef, consecutive, mtu )
 
                 expect( error_callback.called ).to.be.true
 
@@ -298,7 +298,7 @@ describe 'FlashMemory', ->
             checksum = crc.buf data.slice( 0, 20 * ( mtu - 3 ) ), checksum
 
             progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-            progress_callback( checksum, 19, mtu, receive_capacity - 20 * ( mtu - 3 ) )
+            progress_callback( checksum, 19, mtu )
 
             expect( error_callback.called ).to.be.false
             expect( collect_data_send( network ).length ).to.equal receive_capacity
@@ -310,7 +310,7 @@ describe 'FlashMemory', ->
             checksum  = crc.buf data_send, checksum
 
             progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-            progress_callback( checksum, cons, mtu, receive_capacity - data_send.length )
+            progress_callback( checksum, cons, mtu )
 
             expect( error_callback.called ).to.be.false
             expect( collect_data_send( network ).length ).to.be.least receive_capacity + page_size
@@ -323,7 +323,7 @@ describe 'FlashMemory', ->
             new_mtu   = mtu - 4
 
             progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-            progress_callback( checksum, cons, new_mtu, receive_capacity - data_send.length )
+            progress_callback( checksum, cons, new_mtu )
 
             send_data = network.send_data
             expect( send_data.getCall( send_data.callCount - 2 ).args[0].length ).to.equal new_mtu - 3
@@ -335,7 +335,56 @@ describe 'FlashMemory', ->
             checksum  = crc.buf data_send, checksum
 
             progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
-            progress_callback( checksum, cons, mtu, receive_capacity )
+            progress_callback( checksum, cons, mtu )
 
             expect( error_callback.called ).to.be.false
             expect( collect_data_send( network ).length ).to.be.least 2 * receive_capacity
+
+    describe 'end of flash', ->
+
+        checksum          = null
+        progress_callback = null
+        consecutive       = null
+
+        beforeEach ->
+            receive_capacity = page_size * page_buffers
+            network          = create_network_mock()
+            data             = random_buffer( 2 * receive_capacity )
+            address_size     = 3
+            mtu              = 42
+            consecutive      = 0
+
+            start_address    = 3 * page_size
+            checksum         = crc.buf [ 0x00, 0x0C, 0x00 ]
+
+            new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+
+            start_flash_callback = network.start_flash.lastCall.args[ 1 ]
+            start_flash_callback( null, mtu, receive_capacity, checksum )
+
+            progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+
+        progress_for_receive_capacity = ->
+            [ data_send, consecutive ] = collect_buffer_send( network, consecutive, receive_capacity )
+
+            checksum  = crc.buf data_send, checksum
+
+            progress_callback( checksum, consecutive, mtu )
+
+        it 'does not send indicates the end of flash, after sending all data', ->
+            progress_for_receive_capacity()
+
+            expect( error_callback.called ).to.be.false
+            expect( collect_data_send( network ).length ).to.be.least data.length
+
+        it 'callback called, after all data was received', ->
+            progress_for_receive_capacity()
+
+            [ data_send, consecutive ] = collect_buffer_send( network, consecutive + 1, receive_capacity )
+
+            checksum  = crc.buf data_send, checksum
+
+            progress_callback( checksum, consecutive, mtu )
+
+            expect( error_callback.called ).to.be.true
+            expect( error_callback.lastCall.args[ 0 ] ).to.not.exist

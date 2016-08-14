@@ -54,7 +54,7 @@ class FlashRange
             [ false, freed_buffer_space ]
 
         progress_callback = (that)->
-            (checksum, consecutive, mtu, receive_capacity)->
+            (checksum, consecutive, mtu )->
                 [ ok, freed_buffer_space ] = check_progress_checksum checksum, consecutive
 
                 if !ok
@@ -65,7 +65,8 @@ class FlashRange
                     if that.data.length > 0
                         send_data(that, mtu, that.capacity)
                     else
-                        that.cb()
+                        if data_checksums.length == 0
+                            that.cb()
 
         start_flash_handler = (that)->
             (error, mtu, receive_capacity, checksum)->
