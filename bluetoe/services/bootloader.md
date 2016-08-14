@@ -194,10 +194,13 @@ The bootloader will send progress notifications to inform the client about buffe
 Notification Fields | Length | Value |
 --------------------|-------:|------:|
 Checksum            | 4      | Checksum over Start-Address and all data received since the last Start Flash procedure start |
-Consecutive         | 1      | Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic |
+Consecutive         | 2      | Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic |
 MTU                 | 1      | >= 23   |
-Receive Capacity    | 4      | number of byte that can be received |
 
-The Consecutive number will overrun every 256th write to the Data characteristic. The purpose of the number is to alow the client to align the received values with the packet send.
+The Consecutive number will overrun every 65536th write to the Data characteristic. The purpose of the number is to alow the client to align the received values with the packet send. The bootloader can notify progress and / or changes in the MTU with every write to the data characteristic. The bootloader shall notify a progress PDU when a buffer becomes free.
+
+A client that received a progress PDU shall start to send more data, if the consequtive number indicates that a buffer became free and that the bootloader can receive more data.
+
+A client can use the checksum to detect transmission errors, but the client is not required to do so.
 
 
