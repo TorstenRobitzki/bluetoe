@@ -76,6 +76,9 @@ $(function() {
 <li>adv_timeout()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#aecd5e8e70bf21c87398c4b6742bcc217">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
 </li>
+<li>advertising_interval()
+: <a class="el" href="structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#a72b79e8a2011389dafa8831bf6a74ecb">bluetoe::link_layer::variable_advertising_interval</a>
+</li>
 <li>advertising_interval_ms()
 : <a class="el" href="structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#a4d733b5bc8851591ccccc4ae27b503e4">bluetoe::link_layer::variable_advertising_interval</a>
 </li>
@@ -137,7 +140,7 @@ $(function() {
 , <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a8e8ee57ae01b7fd93299c5ccd3f51e56">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
 </li>
 <li>connection_request_filter()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ae26843ab70485d5567d6fdd214cb77c3">bluetoe::link_layer::white_list&lt; Size &gt;</a>
+: <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a2dde6db52bd2c510570ccd49503077af">bluetoe::link_layer::white_list&lt; Size &gt;</a>
 </li>
 <li>crc_error()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeac9550100eccf2852ad80ed9161d8e7">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
@@ -150,6 +153,10 @@ $(function() {
 </li>
 <li>cumulative_wheel_revolutions_and_time()
 : <a class="el" href="classbluetoe_1_1cycling__speed__and__cadence__handler__prototype.html#a2f957feb47f10a27bff9e8ecb3c446cc">bluetoe::cycling_speed_and_cadence_handler_prototype</a>
+</li>
+<li>current_advertising_interval()
+: <a class="el" href="structbluetoe_1_1link__layer_1_1advertising__interval.html#ad67c42fcfdea579128ec1a6e9537936d">bluetoe::link_layer::advertising_interval&lt; AdvertisingIntervalMilliSeconds, typename &gt;</a>
+, <a class="el" href="structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#ab904ebb84367cb0a14a8a3d0ec92fb0a">bluetoe::link_layer::variable_advertising_interval</a>
 </li>
 </ul>
 
@@ -221,12 +228,7 @@ $(function() {
 : <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#a07085c0980463789078a583a8ef66b00">bluetoe::link_layer::notification_queue&lt; Size, Mixin &gt;</a>
 </li>
 <li>interval()
-: <a class="el" href="structbluetoe_1_1link__layer_1_1advertising__interval.html#ad9f1a4d09697d5832a360cedfc29bd7b">bluetoe::link_layer::advertising_interval&lt; AdvertisingIntervalMilliSeconds, typename &gt;</a>
-, <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#afb11aa5e74ad73ae5f3c36c67ebeda17">bluetoe::link_layer::connection_details</a>
-, <a class="el" href="structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#a51de0e4d990bef8896382e564e9d4960">bluetoe::link_layer::variable_advertising_interval</a>
-</li>
-<li>is_advertising()
-: <a class="el" href="structbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#ad069b785d34ddad138846381823d0f2c">bluetoe::link_layer::no_auto_start_advertising</a>
+: <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#afb11aa5e74ad73ae5f3c36c67ebeda17">bluetoe::link_layer::connection_details</a>
 </li>
 <li>is_connection_request_in_filter()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#adf480ef797cfdb9eb72e6f4b46a4e58a">bluetoe::link_layer::white_list&lt; Size &gt;</a>
@@ -453,7 +455,7 @@ $(function() {
 , <a class="el" href="classbluetoe_1_1l2cap_1_1signaling__channel.html#a4ec7054a6994060c4e2262a103c8dc77">bluetoe::l2cap::signaling_channel&lt; Options &gt;</a>
 </li>
 <li>start_advertising()
-: <a class="el" href="structbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a63e8dfefee7bd4dc89b0bf8819235860">bluetoe::link_layer::no_auto_start_advertising</a>
+: <a class="el" href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a63e8dfefee7bd4dc89b0bf8819235860">bluetoe::link_layer::no_auto_start_advertising</a>
 </li>
 <li>start_flash()
 : <a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a822957fcebcd248eb14ea05206ea61f6">bluetoe::bootloader::bootloader_handler_prototype</a>
@@ -462,7 +464,7 @@ $(function() {
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a5ba29c36248d90339a90987866fe7996">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
 </li>
 <li>stop_advertising()
-: <a class="el" href="structbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a3730eaeb001bfa4e73c1f41caf04a7ce">bluetoe::link_layer::no_auto_start_advertising</a>
+: <a class="el" href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a3730eaeb001bfa4e73c1f41caf04a7ce">bluetoe::link_layer::no_auto_start_advertising</a>
 </li>
 </ul>
 
@@ -501,7 +503,7 @@ $(function() {
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 31 2016 13:23:49 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sun Aug 14 2016 15:38:23 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

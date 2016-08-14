@@ -8,7 +8,8 @@ var searchData=
   ['adv_5ftimeout',['adv_timeout',['../classbluetoe_1_1link__layer_1_1link__layer.html#aecd5e8e70bf21c87398c4b6742bcc217',1,'bluetoe::link_layer::link_layer']]],
   ['advertising_2ehpp',['advertising.hpp',['../advertising_8hpp.html',1,'']]],
   ['advertising_5finterval',['advertising_interval',['../structbluetoe_1_1link__layer_1_1advertising__interval.html',1,'bluetoe::link_layer']]],
-  ['advertising_5finterval_5fms',['advertising_interval_ms',['../structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#a4d733b5bc8851591ccccc4ae27b503e4',1,'bluetoe::link_layer::variable_advertising_interval::advertising_interval_ms(unsigned interval_ms)'],['../structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#ad3b2d05d36198f6e9b6238a90316d440',1,'bluetoe::link_layer::variable_advertising_interval::advertising_interval_ms() const']]],
+  ['advertising_5finterval',['advertising_interval',['../structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#a72b79e8a2011389dafa8831bf6a74ecb',1,'bluetoe::link_layer::variable_advertising_interval']]],
+  ['advertising_5finterval_5fms',['advertising_interval_ms',['../structbluetoe_1_1link__layer_1_1variable__advertising__interval.html#a4d733b5bc8851591ccccc4ae27b503e4',1,'bluetoe::link_layer::variable_advertising_interval']]],
   ['alloc_5ffront',['alloc_front',['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#aff60a87fe465be535aadb4fd718f100d',1,'bluetoe::link_layer::pdu_ring_buffer']]],
   ['allocate_5freceive_5fbuffer',['allocate_receive_buffer',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a63c717dafa43b9d4854a01f668d15309',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
   ['allocate_5ftransmit_5fbuffer',['allocate_transmit_buffer',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a02afffdc3c6fafc155fc2cfffa71fa28',1,'bluetoe::link_layer::ll_data_pdu_buffer::allocate_transmit_buffer(std::size_t size)'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeddf12541649a13a98724c36c4672b7b',1,'bluetoe::link_layer::ll_data_pdu_buffer::allocate_transmit_buffer()']]],
@@ -18,5 +19,5 @@ var searchData=
   ['att_5ferror_5fcodes',['att_error_codes',['../bootloader_8hpp.html#a70418157e017a102147e30f276271ef9',1,'bluetoe::bootloader']]],
   ['attribute_5fnot_5ffound',['attribute_not_found',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1',1,'bluetoe::error_codes']]],
   ['attribute_5fnot_5flong',['attribute_not_long',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f',1,'bluetoe::error_codes']]],
-  ['auto_5fstart_5fadvertising',['auto_start_advertising',['../structbluetoe_1_1link__layer_1_1auto__start__advertising.html',1,'bluetoe::link_layer']]]
+  ['auto_5fstart_5fadvertising',['auto_start_advertising',['../classbluetoe_1_1link__layer_1_1auto__start__advertising.html',1,'bluetoe::link_layer']]]
 ];

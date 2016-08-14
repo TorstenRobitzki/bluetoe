@@ -98,11 +98,11 @@ Bootloader-Protocol</h1>
 <tr>
 <td>Start </td><td>Start a programm at a specific address </td><td align="right">6 </td><td align="right">n/a </td></tr>
 <tr>
-<td>Reset </td><td>Start a programm at a specific address </td><td align="right">7 </td><td align="right">n/a </td></tr>
+<td>Reset </td><td>Resets the bootloader </td><td align="right">7 </td><td align="right">n/a </td></tr>
 </table>
 <p>A client starts a procedure by sending an ATT Writing Request with the opcode to the Control Point, followed by the parameters that are required for the procedure. If the procedure starts successfully, the Bootloader will response with an ATT Write Response. The procedure will end by the reply of the bootloader that is send with an ATT Notification.</p>
 <p>If there was something wrong with the start of the Control Point procedure, the bootloader will response immediately with an ATT Error Response and an error code denoting the reason for the failure. If both, bootloader and bootloader client are implemented without error, an ATT Error Response is not expected.</p>
-<p>A write to the Control Point will result in either an ATT Error Response, or in an ATT Notification. A Control Point procedure is active as long as a notification is not send out by the bootloader. There should be only one active Control Point procedured at any time. That means a bootloader have to wait for the end of a procedure before starting the next procedure.</p>
+<p>A write to the Control Point will result in either an ATT Error Response, or in an ATT Notification. A Control Point procedure is active as long as a notification is not send out by the bootloader. There should be only one active Control Point procedured at any time. That means a bootloader client has to wait for the end of a procedure before starting the next procedure.</p>
 <p>All parameters longer than one octet are encoded in little endian.</p>
 <h2>Get Version </h2>
 <p>The procedure is started by writing the opcode to the Control Point.</p>
@@ -165,7 +165,7 @@ Bootloader-Protocol</h1>
 <tr>
 <td>Page Buffers </td><td align="right">4 </td><td align="right">Number of pages the bootloader can buffer </td></tr>
 </table>
-<p>The Address-Size is what the expression sizeof( std::uint8_t* ) evaluates to in the bootloader. It's used where ever an address have to be communicted between bootloader and bootloader client. The page size is the size of a single flash page. The number of Page Buffers denontes the amount of data the bootloader can store, before the client have to wait for buffers to becode free.</p>
+<p>The Address-Size is what the expression sizeof( std::uint8_t* ) evaluates to in the bootloader. It's used where ever an address have to be communicted between bootloader and bootloader client. The page size is the size of a single flash page. The number of Page Buffers denontes the amount of data the bootloader can store, before the client have to wait for buffers to become free.</p>
 <h2>Start Flash </h2>
 <p>The Start Flash Procedure takes an address as the first and only parameter. As the address size of the target plattform is out of the scope of the bootloader implementation, the size is equal to sizeof( std::uint8_t* ) on the bootloaders target device. The address denotes the target address of the memory contents that follows. The start address must be within the flashable ranges of the bootloader.</p>
 <table class="doxtable">
@@ -190,9 +190,9 @@ Bootloader-Protocol</h1>
 <tr>
 <td>Checksum </td><td align="right">4 </td><td align="right"> crc(Start Address) </td></tr>
 </table>
-<p>The Bootloader is now in flash mode and will receive data and flash it into memory, as long as data is send to the Data characteristic or until a new control point procedure is received. The bootloader will flush data, when the received data reached the end of a page or when the Flush procedure is executed.</p>
+<p>The Bootloader is now in flash mode and will receive data and flash it into memory, as long as data is send to the Data characteristic or until a new control point procedure is received. The bootloader will flush data, when the received data reached the end of a page or when the Flush procedure is executed. A bootloader client shall not force a flush of data (neither implicit nor explicit) before it received the CRC of the start address to make sure, that the bootloader understood the start address correct.</p>
 <h3>Buffer Management</h3>
-<p>The bootloader have to take care that the bootloaders buffers do not overflow. The number of pages and the size of a page have to be known to the bootloader client or have to be inquired, using the Get Sizes procedure. Writing data into the middle of a page buffer will allocate the part of the buffer before the start address too.</p>
+<p>The bootloader client has to take care that the bootloaders buffers do not overflow. The number of pages and the size of a page have to be known to the bootloader client or have to be inquired, using the Get Sizes procedure. Writing data into the middle of a page buffer will allocate the part of the buffer before the start address too.</p>
 <p>The bootloader will send ATT Notifications using the Progress characteristic, to commucate the current free buffer sizes.</p>
 <p>When leaving the flash mode by executing an other Control Point procedure, the next procedure will yield an error, if there was unflashed data.</p>
 <h3>Writing parts of a page</h3>
@@ -250,7 +250,7 @@ Bootloader-Protocol</h1>
 <p>It is not expected that the bootloader will response with a notification, but instead reset the device.</p>
 <h1>Data </h1>
 <p>There is no layout for the data to be written. Data should be written with an ATT Write Request. The bootloader client have to make sure, that the bootloader can store the send data, by knowing the bootloaders buffer sizes and by observice Progress notifications. The bootloader should try to utillize the connection as much as possible and should send the data in packages that are at most MTU -3 in size.</p>
-<p>The bootloader will response with an ATT Write Response. The client can write additional data before the bootloader response to that write; as long as the underlying link layer can store the requests.</p>
+<p>The bootloader will response with an ATT Write Response.</p>
 <p>The Bootloader must be in flash mode by executing the Start Flash procedure.</p>
 <h1>Progress </h1>
 <p>The bootloader will send progress notifications to inform the client about buffers that became free.</p>
@@ -260,17 +260,17 @@ Bootloader-Protocol</h1>
 <tr>
 <td>Checksum </td><td align="right">4 </td><td align="right">Checksum over Start-Address and all data received since the last Start Flash procedure start </td></tr>
 <tr>
-<td>Consecutive </td><td align="right">1 </td><td align="right">Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic </td></tr>
+<td>Consecutive </td><td align="right">2 </td><td align="right">Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic </td></tr>
 <tr>
 <td>MTU </td><td align="right">1 </td><td align="right">&gt;= 23 </td></tr>
-<tr>
-<td>Receive Capacity </td><td align="right">4 </td><td align="right">number of byte that can be received </td></tr>
 </table>
-<p>The Consecutive number will overrun every 256th write to the Data characteristic. The purpose of the number is to alow the client to align the received values with the packet send. </p>
+<p>The Consecutive number will overrun every 65536th write to the Data characteristic. The purpose of the number is to alow the client to align the received values with the packet send. The bootloader can notify progress and / or changes in the MTU with every write to the data characteristic. The bootloader shall notify a progress PDU when a buffer becomes free.</p>
+<p>A client that received a progress PDU shall start to send more data, if the consequtive number indicates that a buffer became free and that the bootloader can receive more data.</p>
+<p>A client can use the checksum to detect transmission errors, but the client is not required to do so. </p>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue May 31 2016 13:23:48 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sun Aug 14 2016 15:38:23 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>
