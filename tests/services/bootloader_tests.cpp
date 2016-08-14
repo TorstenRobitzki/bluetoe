@@ -595,9 +595,8 @@ BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the
         static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
         static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
         static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
-        0x00,                                   // consecutive number
-        0x17,                                   // MTU
-        0x00, 0x02, 0x00, 0x00                  // receive capacity
+        0x00, 0x00,                             // consecutive number
+        0x17                                    // MTU
    } );
 }
 
@@ -657,9 +656,8 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
             static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
-            0x00,                                   // consecutive number
-            0x17,                                   // MTU
-            0x00, 0x02, 0x00, 0x00                  // receive capacity
+            0x00, 0x00,                             // consecutive number
+            0x17                                    // MTU
        } );
     }
 
@@ -704,9 +702,8 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
             static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
-            0x00,                                   // consecutive number
-            0x17,                                   // MTU
-            0x00, 0x01, 0x00, 0x00                  // receive capacity
+            0x00, 0x00,                             // consecutive number
+            0x17                                    // MTU
         } );
 
         write_random_to_data_char( block_size );
@@ -721,9 +718,8 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
             static_cast< std::uint8_t >( ( expected_checksum_block2 >> 8 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum_block2 >> 16 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum_block2 >> 24 ) & 0xff ),
-            0x01,                                   // consecutive number
-            0x17,                                   // MTU
-            0x00, 0x01, 0x00, 0x00                  // receive capacity
+            0x01, 0x00,                             // consecutive number
+            0x17                                    // MTU
         } );
 
         // last block to write
@@ -739,9 +735,8 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
             static_cast< std::uint8_t >( ( expected_checksum_block3 >> 8 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum_block3 >> 16 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum_block3 >> 24 ) & 0xff ),
-            0x02,                                   // consecutive number
-            0x17,                                   // MTU
-            0x00, 0x01, 0x00, 0x00                  // receive capacity
+            0x02, 0x00,                             // consecutive number
+            0x17                                    // MTU
         } );
 
         end_flash( *this );
@@ -755,9 +750,8 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
             static_cast< std::uint8_t >( ( expected_checksum_block4 >> 8 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum_block4 >> 16 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum_block4 >> 24 ) & 0xff ),
-            0x03,                                   // consecutive number
-            0x17,                                   // MTU
-            0x00, 0x02, 0x00, 0x00                  // receive capacity
+            0x03, 0x00,                             // consecutive number
+            0x17                                    // MTU
         } );
 
         BOOST_CHECK_EQUAL_COLLECTIONS(
@@ -819,9 +813,8 @@ BOOST_AUTO_TEST_SUITE( stop_flash )
             static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
             static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
-            0x00,                                   // consecutive number
-            0x17,                                   // MTU
-            0x00, 0x02, 0x00, 0x00                  // receive capacity
+            0x00, 0x00,                             // consecutive number
+            0x17                                    // MTU
         } );
     }
 

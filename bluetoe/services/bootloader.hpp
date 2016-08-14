@@ -161,7 +161,7 @@ namespace bluetoe
                 }
 
                 template < class Handler >
-                void set_start_address( std::uintptr_t address, Handler& h, std::uint32_t checksum, std::uint8_t cons )
+                void set_start_address( std::uintptr_t address, Handler& h, std::uint32_t checksum, std::uint16_t cons )
                 {
                     assert( state_ == idle );
                     state_          = filling;
@@ -226,7 +226,7 @@ namespace bluetoe
                     return state_ == idle;
                 }
 
-                std::uint8_t consecutive() const
+                std::uint16_t consecutive() const
                 {
                     return consecutive_;
                 }
@@ -241,7 +241,7 @@ namespace bluetoe
                 std::size_t     ptr_;
                 std::uint32_t   crc_;
                 std::uint8_t    buffer_[ PageSize ];
-                std::uint8_t    consecutive_;
+                std::uint16_t   consecutive_;
             };
 
             enum opcode : std::uint8_t
@@ -462,15 +462,15 @@ namespace bluetoe
                 std::uint8_t bootloader_progress_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
                     buffers_[used_buffer_].free();
-                    out_size = 10;
+                    out_size = 7;
                     assert( read_size >= out_size );
 
                     out_buffer = bluetoe::details::write_32bit( out_buffer, buffers_[used_buffer_].crc() );
-                    *out_buffer = buffers_[used_buffer_].consecutive();
-                    ++out_buffer;
+                    out_buffer = bluetoe::details::write_16bit( out_buffer, buffers_[used_buffer_].consecutive() );
+
+                    // trick: that's the link layers MTU size:
                     *out_buffer = read_size + 3;
                     ++out_buffer;
-                    bluetoe::details::write_32bit( out_buffer, free_size() );
 
                     used_buffer_ = ( used_buffer_ + 1 ) % number_of_concurrent_flashs;
 
@@ -525,7 +525,7 @@ namespace bluetoe
                 static constexpr std::size_t    number_of_concurrent_flashs = 2;
                 unsigned                        next_buffer_;
                 unsigned                        used_buffer_;
-                std::uint8_t                    consecutive_;
+                std::uint16_t                   consecutive_;
                 flash_buffer< PageSize >        buffers_[number_of_concurrent_flashs];
             };
 
