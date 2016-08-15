@@ -1,9 +1,14 @@
-noble   = require 'noble'
-util    = require 'util'
-fs      = require 'fs'
-options = require('minimist')(
+raise = (text)->
+    console.log text
+    process.exit 1
+
+FlashMemory = require( './flash.coffee' ).FlashMemory
+noble       = require 'noble'
+util        = require 'util'
+fs          = require 'fs'
+options     = require('minimist')(
     process.argv.slice(2), {
-        boolean: ['help', 'version', 'list'],
+        boolean: ['help', 'version', 'list', 'verbose'],
         string: ['address', 'device', 'flash'],
         alias: {
             'help': ['h'],
@@ -11,10 +16,14 @@ options = require('minimist')(
             'device' : ['d'],
             'version': ['v'],
             'list'   : ['l'],
-            'flash'  : ['f']
+            'flash'  : ['f'],
+            'verbose': ['V']
         }
-        unknown: ( field )-> raise "Unrecognizes argument \"#{field}\""
+        unknown: ( field )->
+            raise "Unrecognizes argument \"#{field}\""
     })
+
+VERBOSE                     = options[ 'verbose' ]
 
 BOOTLOADER_SERVICE_UUID     = '7d295f4d28504f57b595837f5753f8a9'
 CONTROL_POINT_UUID          = '7d295f4d28504f57b595837f5753f8a9'
@@ -34,10 +43,6 @@ OPC_STOP_FLASH  = 4
 OPC_FLUSH       = 5
 OPC_START       = 6
 OPC_RESET       = 7
-
-raise = (text)->
-    console.log text
-    process.exit 1
 
 control_point_callback = (data, is_notification)->
     raise "Unexpected control point notification"
@@ -158,9 +163,7 @@ execute = ( opcode, arg1, arg2 )->
     buffer = new Buffer( [ opcode ] )
     buffer = Buffer.concat( [ buffer, params ] ) if params
 
-    console.log util.inspect buffer
-    console.log util.inspect params
-    control_point_char.write buffer, true, (error)->
+    control_point_char.write buffer, false, (error)->
         if error
             cb( error )
 
@@ -189,7 +192,7 @@ start_address = ->
     result
 
 print_usage = ->
-    console.log "usage: ble_flash [options] <input-file>"
+    console.log "usage: ble_flash [options]"
     console.log "options:"
     console.log "  --help, -h                   this help"
     console.log "  --address <addr>, -a <addr>  device start address if <input-file> is a binary file"
@@ -197,6 +200,7 @@ print_usage = ->
     console.log "  --version, -v                request version string from device"
     console.log "  --list, -l                   scan for a list of bootloaders"
     console.log "  --flash, -f <file>           flash the given file to the given address (--address)"
+    console.log "  --verbose, -V                a lot of debug printouts"
 
 calc_crc = ( data, start_address, size )->
     42
@@ -209,27 +213,43 @@ address_to_buffer = (address, address_size)->
 
     result
 
-write_block = ( start_address, data, address_size, page_size )->
-    params = new Buffer( address_size )
-    execute OPC_START_FLASH, address_to_buffer( start_address, address_size ), (error, mtu, capacity, crc)->
-        raise "write_block: error: #{error}" if error
+upload_range = ( peripheral, start_address, data, address_size, page_size, page_buffers, cb )->
+    console.log "upload #{data.length} starting at: #{start_address}..." if VERBOSE
 
-        console.log "write_block: #{mtu} #{capacity} #{crc}"
+    progress_callback = ->
 
-upload_file = ( peripheral, start_address, data, address_size, page_size, page_buffer, cb )->
-    buffers_used    = page_buffer
-    current_address = start_address
+    flash_cb = {
+        start_flash: ( start_address, cb ) ->
+            execute OPC_START_FLASH, new Buffer( start_address ), (error, mtu, receive_capacity, checksum)->
+                console.log "flash started. mtu: #{mtu}; receive_capacity: #{receive_capacity}; checksum: #{checksum}" if VERBOSE
+                cb(error, mtu, receive_capacity, checksum)
 
-    write_block start_address, data, address_size, page_size
+        send_data: ( data ) ->
+            data_char.write data, false, (error)->
+                if error
+                    cb( error )
+
+        register_progress_callback: ( cb ) ->
+            progress_callback = cb
+
+        unregister_progress_callback: ->
+            progress_callback = ->
+    }
+
+    new FlashMemory( flash_cb, start_address, data, address_size, page_size, page_buffers, cb )
 
 flash = ( file_name, start_address, peripheral, cb )->
-    execute OPC_GET_SIZES, (error, address_size, page_size, page_buffer)->
+    console.log "inquire bootloader buffer sizes..." if VERBOSE
+
+    execute OPC_GET_SIZES, (error, address_size, page_size, page_buffers)->
         raise "#{device.address} #{version} Error: #{error}" if error
+
+        console.log "address_size: #{address_size}; page_size: #{page_size}, page_buffers: #{page_buffers}" if VERBOSE
 
         fs.readFile file_name, (error, data)->
             raise "Error reading input file #{file_name}" if error
 
-            upload_file peripheral, start_address, data, address_size, page_size, page_buffer, cb
+            upload_range peripheral, start_address, data, address_size, page_size, page_buffers, cb
 
 try
     if options.help
@@ -237,11 +257,11 @@ try
         process.exit 0
 
     if options.list
-        console.log " mac              | version              | addr. size | page size | buffers "
-        console.log "----------------------------------------------------------------------------"
+        console.log " mac               | version              | addr. size | page size | buffers "
+        console.log "-----------------------------------------------------------------------------"
 
         print_line = (mac, version, address_size, page_size, page_buffer)->
-            console.log " #{left mac, 16} | #{left version, 20} | #{right address_size, 10} | #{right page_size, 9} | #{right page_buffer, 7}"
+            console.log " #{left mac, 17} | #{left version, 20} | #{right address_size, 10} | #{right page_size, 9} | #{right page_buffer, 7}"
 
         scan_devices null, (devices)->
             number_of_devices = Object.keys(devices).length

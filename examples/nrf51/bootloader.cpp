@@ -15,6 +15,10 @@ public:
     std::uint32_t checksum32( std::uintptr_t start_addr, std::size_t size );
     std::uint32_t checksum32( const std::uint8_t* start_addr, std::size_t size, std::uint32_t old_crc );
     std::uint32_t checksum32( std::uintptr_t start_addr );
+
+    flash_handler();
+private:
+    std::uint32_t crc_table_[ 256 ];
 };
 
 using gatt_definition = bluetoe::server<
@@ -93,12 +97,37 @@ std::uint32_t flash_handler::checksum32( std::uintptr_t start_addr, std::size_t 
     return 42u;
 }
 
-std::uint32_t flash_handler::checksum32( const std::uint8_t* start_addr, std::size_t size, std::uint32_t old_crc )
+std::uint32_t flash_handler::checksum32( const std::uint8_t* data, std::size_t size, std::uint32_t crc )
 {
-    return 42u;
+    crc = ~crc;
+
+    for ( ; size; --size, ++data )
+        crc = (crc >> 8) ^ crc_table_[ ( crc ^ *data ) & 0xFF ];
+
+    return ~crc;
 }
 
 std::uint32_t flash_handler::checksum32( std::uintptr_t start_addr )
 {
-    return 42u;
+    std::uint8_t addr[ sizeof( start_addr ) ];
+
+    for ( auto p = std::begin( addr ); p != std::end( addr ); ++p, start_addr = start_addr >> 8 )
+        *p = start_addr & 0xff;
+
+    return checksum32( std::begin( addr ), sizeof( addr ), 0 );
+}
+
+flash_handler::flash_handler()
+{
+    for ( std::uint32_t n = 0; n != sizeof( crc_table_ ); ++n )
+    {
+        std::uint32_t c = n;
+
+        for ( std::uint32_t k = 0; k != 8; ++k )
+            c = ( c & 1 )
+                ? (0xEDB88320 ^ (c >> 1))
+                : (c >> 1);
+
+        crc_table_[ n ] = c;
+    }
 }
