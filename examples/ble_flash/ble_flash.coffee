@@ -47,8 +47,10 @@ OPC_RESET       = 7
 control_point_callback = (data, is_notification)->
     raise "Unexpected control point notification"
 
-progress_callback      = (data, is_notification)->
+default_progress_callback = ->
     raise "Unexpected progress notification"
+
+progress_callback      = default_progress_callback
 
 scan_devices = (mac, cb)->
     devices = {}
@@ -93,7 +95,7 @@ connect_device = (peripheral, cb)->
                     control_point_char.on 'data', (data, is_notification)->
                         control_point_callback( data, is_notification )
 
-                    progress_char.on 'data,', (data, is_notification)->
+                    progress_char.on 'data', (data, is_notification)->
                         progress_callback( data, is_notification )
 
                     control_point_char.notify true, (error)->
@@ -216,7 +218,22 @@ address_to_buffer = (address, address_size)->
 upload_range = ( peripheral, start_address, data, address_size, page_size, page_buffers, cb )->
     console.log "upload #{data.length} starting at: #{start_address}..." if VERBOSE
 
-    progress_callback = ->
+    data_on_the_fly   = 5
+    queued_data       = []
+
+    send_function = ->
+        while queued_data.length != 0 and data_on_the_fly != 0
+            data_on_the_fly = data_on_the_fly - 1
+
+            data = queued_data.shift()
+
+            data_char.write data, false, (error)->
+                data_on_the_fly = data_on_the_fly + 1
+
+                if error
+                    cb( error )
+                else
+                    send_function()
 
     flash_cb = {
         start_flash: ( start_address, cb ) ->
@@ -225,15 +242,14 @@ upload_range = ( peripheral, start_address, data, address_size, page_size, page_
                 cb(error, mtu, receive_capacity, checksum)
 
         send_data: ( data ) ->
-            data_char.write data, false, (error)->
-                if error
-                    cb( error )
+            queued_data.push data
+            send_function()
 
         register_progress_callback: ( cb ) ->
             progress_callback = cb
 
         unregister_progress_callback: ->
-            progress_callback = ->
+            progress_callback = default_progress_callback
     }
 
     new FlashMemory( flash_cb, start_address, data, address_size, page_size, page_buffers, cb )
@@ -319,7 +335,7 @@ try
             connect_device device, (peripheral, error)->
                 raise "connecting #{device.address}: Error: #{error}" if error
 
-                console.log "device connected..."
+                console.log "device connected." if VERBOSE
 
                 flash options.flash, start_address(), device, (error)->
                     raise "flashing device: Error: #{error}" if error
