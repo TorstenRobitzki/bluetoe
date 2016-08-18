@@ -9,6 +9,7 @@ create_network_mock = ( data_cb )->
     {
         start_flash: sinon.spy(),
         send_data: if data_cb then data_cb else sinon.spy(),
+        flush: sinon.spy()
         register_progress_callback: sinon.spy()
     }
 
@@ -123,7 +124,7 @@ describe 'FlashMemory', ->
 
         beforeEach ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
-            network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+            network.start_flash.lastCall.args[ 1 ]( null, mtu, checksum )
 
         it 'starts sending data', ->
             expect( network.send_data.callCount ).to.not.equal 0
@@ -135,7 +136,7 @@ describe 'FlashMemory', ->
 
         beforeEach ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
-            network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, 0xdeadbeef )
+            network.start_flash.lastCall.args[ 1 ]( null, mtu, 0xdeadbeef )
 
         it 'calls the error callback', ->
             assert( error_callback.calledOnce )
@@ -155,7 +156,7 @@ describe 'FlashMemory', ->
                 checksum      = crc.buf [ 0x00, 0x0C, 0x00, 0x00 ]
 
                 new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
-                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+                network.start_flash.lastCall.args[ 1 ]( null, mtu, checksum )
 
             it 'should not call the error_callback', ->
                 expect( error_callback.callCount ).to.equal 0
@@ -176,7 +177,7 @@ describe 'FlashMemory', ->
                 receive_capacity= page_size * ( page_buffers - 1 ) + ( page_size - 0x123 )
 
                 new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
-                network.start_flash.lastCall.args[ 1 ]( null, mtu, receive_capacity, checksum )
+                network.start_flash.lastCall.args[ 1 ]( null, mtu, checksum )
 
             it 'should not call the error_callback', ->
                 expect( error_callback.callCount ).to.equal 0
@@ -210,7 +211,7 @@ describe 'FlashMemory', ->
                 new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
 
                 start_flash_callback = network.start_flash.lastCall.args[ 1 ]
-                start_flash_callback( null, mtu, receive_capacity, checksum )
+                start_flash_callback( null, mtu, checksum )
 
             describe 'start address equal to a page address', ->
 
@@ -237,7 +238,7 @@ describe 'FlashMemory', ->
                 new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
 
                 start_flash_callback = network.start_flash.lastCall.args[ 1 ]
-                start_flash_callback( null, mtu, receive_capacity, checksum )
+                start_flash_callback( null, mtu, checksum )
 
             it 'checksum error is detected', ->
                 consecutive = 3
@@ -265,7 +266,7 @@ describe 'FlashMemory', ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
 
             start_flash_callback = network.start_flash.lastCall.args[ 1 ]
-            start_flash_callback( null, mtu, receive_capacity, checksum )
+            start_flash_callback( null, mtu, checksum )
 
         it 'sends data until receive capacity is reached', ->
             expect( collect_data_send( network ).length ).to.equal receive_capacity
@@ -327,7 +328,7 @@ describe 'FlashMemory', ->
             new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
 
             start_flash_callback = network.start_flash.lastCall.args[ 1 ]
-            start_flash_callback( null, mtu, receive_capacity, checksum )
+            start_flash_callback( null, mtu, checksum )
 
             progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
 
@@ -351,6 +352,92 @@ describe 'FlashMemory', ->
         it 'callback called, after all data was received', ->
             for [ 0...4 ]
                 progress_for_next_buffer()
+
+            expect( error_callback.called ).to.be.true
+            expect( error_callback.lastCall.args[ 0 ] ).to.not.exist
+
+    describe 'flashing not full block', ->
+        checksum          = null
+        progress_callback = null
+        consecutive       = null
+
+        beforeEach ->
+            page_buffers     = 2
+            receive_capacity = page_size * page_buffers
+            network          = create_network_mock()
+            data             = random_buffer( 2 * receive_capacity - 1 )
+            address_size     = 3
+            mtu              = 42
+            consecutive      = 0
+
+            start_address    = 3 * page_size
+            checksum         = crc.buf [ 0x00, 0x0C, 0x00 ]
+
+            new flash.FlashMemory network, start_address, data, address_size, page_size, page_buffers, error_callback
+
+            start_flash_callback = network.start_flash.lastCall.args[ 1 ]
+            start_flash_callback( null, mtu, checksum )
+
+            progress_callback = network.register_progress_callback.lastCall.args[ 0 ]
+
+        progress_for_next_buffer = ->
+            data_send = collect_data_send( network )
+
+            checksum  = crc.buf data_send.slice( consecutive * page_size, ( consecutive + 1 ) * page_size ), checksum
+
+            progress_callback( checksum, consecutive, mtu )
+
+            consecutive = consecutive + 1
+
+        it 'does not call flush if not the last full buffer was flushed', ->
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+
+            expect( error_callback.called ).to.be.false
+            expect( network.flush.called ).to.be.false
+
+        it 'calls flush if the last full buffer was flushed', ->
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+
+            expect( error_callback.called ).to.be.false
+            expect( network.flush.called ).to.be.true
+
+            data_send = collect_data_send( network )
+            expect( data_send ).to.deep.equal data
+
+        it 'error in flush response is anticipated', ->
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+
+            flash_callback = network.flush.lastCall.args[ 0 ]
+            flash_callback "error!!!!111"
+
+            expect( error_callback.called ).to.be.true
+            expect( error_callback.lastCall.args[ 0 ] ).to.equal "error!!!!111"
+
+        it 'crc error in flush response is anticipated', ->
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+
+            flash_callback = network.flush.lastCall.args[ 0 ]
+            flash_callback( null, 0x12345678, 3 )
+
+            expect( error_callback.called ).to.be.true
+            expect( error_callback.lastCall.args[ 0 ] ).to.equal 'checksum error in flush response'
+
+        it 'callback called after flush response', ->
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+            progress_for_next_buffer()
+
+            checksum  = crc.buf data.slice( consecutive * page_size, ( consecutive + 1 ) * page_size ), checksum
+
+            flash_callback = network.flush.lastCall.args[ 0 ]
+            flash_callback( null, checksum, 3 )
 
             expect( error_callback.called ).to.be.true
             expect( error_callback.lastCall.args[ 0 ] ).to.not.exist

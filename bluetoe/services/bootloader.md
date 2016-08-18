@@ -107,7 +107,6 @@ Response Fields    | Length   | Value   |
 -------------------|---------:|--------:|
 Response Code      | 1        | 3       |
 MTU                | 1        | >= 23   |
-Receive Capacity   | 4        | number of byte that can be received |
 Checksum           | 4        | crc(Start Address) |
 
 The Bootloader is now in flash mode and will receive data and flash it into memory, as long as data is send to the Data characteristic or until a new control point procedure is received. The bootloader will flush data, when the received data reached the end of a page or when the Flush procedure is executed. A bootloader client shall not force a flush of data (neither implicit nor explicit) before it received the CRC of the start address to make sure, that the bootloader understood the start address correct.
@@ -142,7 +141,7 @@ Response Code      | 1        | 4       |
 Flush
 -----
 
-The procedure is started by writing the opcode to the Control Point. The bootloader must be in flash mode, when executing the procedure and there must be data in the last page buffer that was not automatically flashed (because the last bytes where not at the end of a page).
+The procedure is started by writing the opcode to the Control Point. The bootloader must be in flash mode, when executing the procedure and there must be data in the last page buffer that was not automatically flashed (because the last bytes where not at the end of a page). After executing the Flush procedure, the bootloader leaves the flash mode.
 
 Request Fields     | Length | Value |
 -------------------|-------:|------:|
@@ -150,9 +149,11 @@ Opcode             | 1      | 5     |
 
 The response is an ATT Notification, with the response code. When the response is received, the
 
-Response Fields    | Length   | Value   |
--------------------|---------:|--------:|
-Response Code      | 1        | 5       |
+Response Fields    | Length   | Value                                                                                        |
+-------------------|---------:|---------------------------------------------------------------------------------------------:|
+Response Code      | 1        | 5                                                                                            |
+Checksum           | 4        | Checksum over Start-Address and all data received since the last Start Flash procedure start |
+Consecutive        | 2        | Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented after a block became free  |
 
 Start
 -----
