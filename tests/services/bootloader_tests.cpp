@@ -457,7 +457,6 @@ BOOST_FIXTURE_TEST_CASE( flash_address, all_discovered_and_subscribed< bootloade
         0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),    // notification
         0x03,                                                               // response code
         0x17,                                                               // MTU
-        0xfe, 0x01, 0x00, 0x00,                                             // receive capacity == 200 - 2, because of unaligned startaddr
         0x12, 0x00, 0x00, 0x00                                              // checksum over start address = 0x10 + 0x02
     } );
 }

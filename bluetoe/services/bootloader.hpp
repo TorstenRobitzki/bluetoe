@@ -418,7 +418,6 @@ namespace bluetoe
                             ++out;
                             *out = read_size + 3;
                             ++out;
-                            out = bluetoe::details::write_32bit( out, free_size() );
                             out = bluetoe::details::write_32bit( out, buffers_[next_buffer_].crc() );
 
                             out_size = out - out_buffer;
