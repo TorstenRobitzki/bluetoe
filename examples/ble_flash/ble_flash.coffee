@@ -224,7 +224,6 @@ upload_range = ( peripheral, start_address, data, address_size, page_size, page_
     send_function = ->
         while queued_data.length != 0 and data_on_the_fly != 0
             data_on_the_fly = data_on_the_fly - 1
-
             data = queued_data.shift()
 
             data_char.write data, false, (error)->
@@ -245,8 +244,12 @@ upload_range = ( peripheral, start_address, data, address_size, page_size, page_
             queued_data.push data
             send_function()
 
-        register_progress_callback: ( cb ) ->
-            progress_callback = cb
+        register_progress_callback: ( progress ) ->
+            progress_callback = ( data )->
+                if data.length != 7
+                    raise "invalid progress PDU size #{data.length}"
+
+                progress( data.readUInt32LE(0), data.readUInt16LE(4), data.readUInt8(6) )
 
         unregister_progress_callback: ->
             progress_callback = default_progress_callback

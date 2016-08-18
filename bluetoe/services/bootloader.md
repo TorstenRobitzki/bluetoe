@@ -194,13 +194,17 @@ The bootloader will send progress notifications to inform the client about buffe
 Notification Fields | Length | Value |
 --------------------|-------:|------:|
 Checksum            | 4      | Checksum over Start-Address and all data received since the last Start Flash procedure start |
-Consecutive         | 2      | Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented with every write to the Data characteristic |
+Consecutive         | 2      | Consecutive number, that is reseted to 0 with the start of the Start Flash procedure and is incremented after a block became free  |
 MTU                 | 1      | >= 23   |
 
-The Consecutive number will overrun every 65536th write to the Data characteristic. The purpose of the number is to alow the client to align the received values with the packet send. The bootloader can notify progress and / or changes in the MTU with every write to the data characteristic. The bootloader shall notify a progress PDU when a buffer becomes free.
+The Consecutive number will overrun with every 65536th freed block. The purpose of the number is to alow the client to align the received values with the blocks send and the checksum that was calculated for that block. The bootloader shall notify a progress PDU when a buffer becomes free. A client can expect that the data of the freed buffer was flashed successfully.
 
-A client that received a progress PDU shall start to send more data, if the consequtive number indicates that a buffer became free and that the bootloader can receive more data.
+A client that received a progress PDU shall start to send more data.
 
 A client can use the checksum to detect transmission errors, but the client is not required to do so.
+
+If the data that was send with the write to the Data characteristic (identified by the consecutive number), spans over the end of the current block, the checksum is calculated only till the end of the block.
+
+A client should write the next data to the Data characteristic with a length of MTU -3 at max.
 
 

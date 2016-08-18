@@ -32,19 +32,22 @@ class FlashRange
 
                 # if this is the last chunk of a page, that page will be freed again, if the bootloader
                 # reports progress behind this chunk.
-                allocated_page = if Math.floor( ( that.capacity - 1 ) % that.page_size ) + 1 <= send_size then that.page_size else 0
+                if Math.floor( ( that.capacity - 1 ) % that.page_size ) + 1 <= send_size
+                    length_till_block_end   = that.capacity % that.page_size
 
-                that.data     = that.data.slice send_size
-                that.capacity = that.capacity - send_size
-                calc_checksum = crc32.buf new_data, calc_checksum
+                    block_checksum = crc32.buf new_data.slice( 0, length_till_block_end ), calc_checksum
+                    data_checksums.push [ consecutive, block_checksum, that.page_size ]
+                    consecutive    = consecutive + 1
 
-                data_checksums.push [ consecutive, calc_checksum, allocated_page ]
-                consecutive = consecutive + 1
+                that.data      = that.data.slice send_size
+                that.capacity  = that.capacity - send_size
+
+                calc_checksum  = crc32.buf new_data, calc_checksum
 
         check_progress_checksum = ( checksum, consecutive )->
             freed_buffer_space = 0
 
-            while data_checksums.length > 0
+            if data_checksums.length > 0
                 [ con, crc_calculated, unlock ] = data_checksums.shift()
                 freed_buffer_space = freed_buffer_space + unlock
 
