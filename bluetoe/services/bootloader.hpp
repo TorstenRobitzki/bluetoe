@@ -157,7 +157,9 @@ namespace bluetoe
 
                 std::uint32_t free_size() const
                 {
-                    return PageSize - ptr_;
+                    return state_ == filling
+                        ? PageSize - ptr_
+                        : 0;
                 }
 
                 template < class Handler >
@@ -451,7 +453,7 @@ namespace bluetoe
                         write_size      -= moved;
                         start_address   += moved;
 
-                        if ( write_size &&  !find_next_buffer( start_address ) )
+                        if ( write_size && !find_next_buffer( start_address ) )
                             return buffer_overrun_attempt;
                     }
 
@@ -495,13 +497,14 @@ namespace bluetoe
 
                 bool find_next_buffer( std::size_t start_address )
                 {
-                    check_sum    = buffers_[ next_buffer_ ].crc();
-                    next_buffer_ = ( next_buffer_ + 1 ) % number_of_concurrent_flashs;
+                    const auto next = ( next_buffer_ + 1 ) % number_of_concurrent_flashs;
 
-                    if ( buffers_[ next_buffer_ ].empty() )
+                    if ( buffers_[ next ].empty() )
                     {
                         ++consecutive_;
-                        buffers_[ next_buffer_ ].set_start_address( start_address, *this, check_sum, consecutive_ );
+                        buffers_[ next ].set_start_address( start_address, *this, buffers_[ next_buffer_ ].crc(), consecutive_ );
+                        next_buffer_ = next;
+
                         return true;
                     }
 
