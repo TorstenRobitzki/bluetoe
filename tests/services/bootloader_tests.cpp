@@ -565,9 +565,18 @@ BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the
 
     expected_result( { 0x13 } );
 
+    const std::uint32_t expected_checksum = checksum32( flash_start_addr )
+        + 0x0a + 0x0b + 0x0c;
+
     expected_output< bluetoe::bootloader::control_point_uuid >( {
         0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
-        0x05 } );
+        0x05,
+        static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+        static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+        0x00, 0x00,                             // consecutive number
+    } );
 
     // the flashed memory should be a whole page and the content should be equal to the original content
     // exept for the 3 bytes, written at the beginning
@@ -584,9 +593,6 @@ BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the
 
     // now, when signaling the end of the flash process, we get a notification
     end_flash( *this );
-
-    const std::uint32_t expected_checksum = checksum32( flash_start_addr )
-        + 0x0a + 0x0b + 0x0c;
 
     expected_output< bluetoe::bootloader::progress_uuid >( {
         0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),

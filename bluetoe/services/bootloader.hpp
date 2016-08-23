@@ -426,8 +426,17 @@ namespace bluetoe
                         }
                         break;
                     case opc_stop_flash:
-                    case opc_flush:
                         out_size = 1;
+                        break;
+                    case opc_flush:
+                        {
+                            std::uint8_t* out = out_buffer;
+                            ++out;
+                            out = bluetoe::details::write_32bit( out, buffers_[next_buffer_].crc() );
+                            out = bluetoe::details::write_16bit( out, buffers_[next_buffer_].consecutive() );
+
+                            out_size = out - out_buffer;
+                        }
                         break;
                     }
 
