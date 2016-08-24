@@ -58,7 +58,7 @@ script:
   - mkdir build
   - cd build
   - cmake --version
-  - cmake -DCMAKE_CXX_COMPILER=$COMPILER ..
+  - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
   - make all_tests.run
   - make build_examples
 
