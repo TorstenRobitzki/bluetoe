@@ -19,6 +19,7 @@ exports.buf = (()->
         for i in [ 0...data.length ]
             crc = (crc >>> 8) ^ crcTable[ ( crc ^ data[ i ] ) & 0xFF]
 
-        (crc ^ (-1))
+        result = (crc ^ (-1))
 
+        if result < 0 then 0x100000000 + result else result
 )()
