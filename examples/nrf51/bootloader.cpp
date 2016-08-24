@@ -1,8 +1,11 @@
 #include <bluetoe/services/bootloader.hpp>
 #include <bluetoe/server.hpp>
 #include <bluetoe/bindings/nrf51.hpp>
+#include <bluetoe/link_layer/connection_event_callback.hpp>
 
-static constexpr std::size_t flash_page_size = 1024;
+static constexpr std::size_t flash_page_size    = 1024;
+static constexpr unsigned    erase_page_time_ms = 23;
+
 namespace bb = bluetoe::bootloader;
 
 class flash_handler {
@@ -17,6 +20,8 @@ public:
     std::uint32_t checksum32( std::uintptr_t start_addr );
 
     flash_handler();
+
+    void ll_connection_event_happend();
 private:
     std::uint32_t crc_table_[ 256 ];
 };
@@ -55,6 +60,7 @@ gatt_definition gatt_server;
 bluetoe::nrf51<
     gatt_definition,
     bluetoe::link_layer::buffer_sizes< flash_page_size * 3, flash_page_size * 3 >,
+    bluetoe::link_layer::connection_event_callback< gatt_definition, gatt_server, erase_page_time_ms >,
     address_generator
 > link_layer;
 
@@ -130,4 +136,8 @@ flash_handler::flash_handler()
 
         crc_table_[ n ] = c;
     }
+}
+
+void flash_handler::ll_connection_event_happend()
+{
 }

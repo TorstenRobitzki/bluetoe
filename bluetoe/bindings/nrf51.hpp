@@ -62,7 +62,7 @@ namespace bluetoe
             // no native white list implementation atm
             static constexpr std::size_t radio_maximum_white_list_entries = 0;
         protected:
-            void start_connection_event(
+            bluetoe::link_layer::delta_time start_connection_event(
                 unsigned                        channel,
                 bluetoe::link_layer::delta_time start_receive,
                 bluetoe::link_layer::delta_time end_receive,
@@ -120,7 +120,7 @@ namespace bluetoe
             {
             }
 
-            void schedule_connection_event(
+            bluetoe::link_layer::delta_time schedule_connection_event(
                 unsigned                                    channel,
                 bluetoe::link_layer::delta_time             start_receive,
                 bluetoe::link_layer::delta_time             end_receive,
@@ -169,7 +169,7 @@ namespace bluetoe
 
         // implementation
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-        void scheduled_radio< TransmitSize, ReceiveSize, CallBack >::schedule_connection_event(
+        bluetoe::link_layer::delta_time scheduled_radio< TransmitSize, ReceiveSize, CallBack >::schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
@@ -181,7 +181,7 @@ namespace bluetoe
                 read = buffer::allocate_receive_buffer();
             }
 
-            start_connection_event( channel, start_receive, end_receive, read );
+            return start_connection_event( channel, start_receive, end_receive, read );
         }
     }
 

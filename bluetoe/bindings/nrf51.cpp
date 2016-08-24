@@ -333,7 +333,7 @@ namespace nrf51_details {
     {
     }
 
-    void scheduled_radio_base::start_connection_event(
+    link_layer::delta_time scheduled_radio_base::start_connection_event(
         unsigned                        channel,
         bluetoe::link_layer::delta_time start_receive,
         bluetoe::link_layer::delta_time end_receive,
@@ -388,6 +388,9 @@ namespace nrf51_details {
 
         nrf_timer->CC[ 0 ] = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
         nrf_timer->CC[ 1 ] = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
+
+        nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
+        return link_layer::delta_time::usec( nrf_timer->CC[ 0 ] - nrf_timer->CC[ 3 ] );
     }
 
     void scheduled_radio_base::evt_radio_interrupt()

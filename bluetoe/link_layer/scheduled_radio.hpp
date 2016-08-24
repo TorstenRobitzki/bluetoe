@@ -62,8 +62,10 @@ namespace link_layer {
          * In any case is one (and only one) of the callbacks called (timeout(), end_event()). The context of the callback call is run().
          *
          * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
+         *
+         * @ret the distance from now to start_receive
          */
-        void schedule_connection_event(
+        bluetoe::link_layer::delta_time schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,

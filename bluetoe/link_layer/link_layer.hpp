@@ -8,6 +8,7 @@
 #include <bluetoe/link_layer/channel_map.hpp>
 #include <bluetoe/link_layer/notification_queue.hpp>
 #include <bluetoe/link_layer/connection_callbacks.hpp>
+#include <bluetoe/link_layer/connection_event_callback.hpp>
 #include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
 #include <bluetoe/link_layer/white_list.hpp>
 #include <bluetoe/link_layer/advertising.hpp>
@@ -335,6 +336,10 @@ namespace link_layer {
             details::sleep_clock_accuracy_meta_type,
             Options..., default_sleep_clock_accuracy >::type        device_sleep_clock_accuracy;
 
+        typedef typename ::bluetoe::details::find_by_meta_type<
+            details::connection_event_callback_meta_type,
+            Options..., details::default_connection_event_callback
+        >::type                                                     connection_event_callback;
     };
 
     // implementation
@@ -551,11 +556,13 @@ namespace link_layer {
             window_end    = window_target + window_size;
         }
 
-        this->schedule_connection_event(
-            channels_.data_channel( current_channel_index_ ),
-            window_start,
-            window_end,
-            connection_interval_ );
+        const delta_time time_till_next_event = this->schedule_connection_event(
+                channels_.data_channel( current_channel_index_ ),
+                window_start,
+                window_end,
+                connection_interval_ );
+
+        connection_event_callback::call_connection_event_callback( time_till_next_event );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

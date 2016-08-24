@@ -294,7 +294,7 @@ namespace test {
             bluetoe::link_layer::delta_time             when,
             const bluetoe::link_layer::read_buffer&     receive );
 
-        void schedule_connection_event(
+        bluetoe::link_layer::delta_time schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
@@ -368,7 +368,7 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_connection_event(
+    bluetoe::link_layer::delta_time radio< TransmitSize, ReceiveSize, CallBack >::schedule_connection_event(
         unsigned                                    channel,
         bluetoe::link_layer::delta_time             start_receive,
         bluetoe::link_layer::delta_time             end_receive,
@@ -390,6 +390,8 @@ namespace test {
         };
 
         connection_events_.push_back( data );
+
+        return bluetoe::link_layer::delta_time();
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
