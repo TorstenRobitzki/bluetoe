@@ -123,11 +123,14 @@ parse_control_point_response = (response_code, data, cb)->
             expected_size 9
             cb(null, data.readUInt8(0), data.readUInt32LE(1), data.readUInt32LE(5))
         when OPC_START_FLASH
-            expected_size 9
-            cb(null, data.readUInt8(0), data.readUInt32LE(1), data.readUInt32LE(5))
-        when OPC_STOP_FLASH, OPC_FLUSH
+            expected_size 5
+            cb(null, data.readUInt8(0), data.readUInt32LE(1))
+        when OPC_STOP_FLASH
             expected_size 0
             cb(null)
+        when OPC_FLUSH
+            expected_size 6
+            cb(null, data.readUInt32LE(0), data.readUInt16LE(4))
         else
             cb("invalid response code #{response_code}; expected #{opcode}")
 
@@ -236,9 +239,9 @@ upload_range = ( peripheral, start_address, data, address_size, page_size, page_
 
     flash_cb = {
         start_flash: ( start_address, cb ) ->
-            execute OPC_START_FLASH, new Buffer( start_address ), (error, mtu, receive_capacity, checksum)->
-                console.log "flash started. mtu: #{mtu}; receive_capacity: #{receive_capacity}; checksum: #{checksum}" if VERBOSE
-                cb(error, mtu, receive_capacity, checksum)
+            execute OPC_START_FLASH, new Buffer( start_address ), (error, mtu, checksum)->
+                console.log "flash started. mtu: #{mtu}; checksum: #{checksum}" if VERBOSE
+                cb(error, mtu, checksum)
 
         send_data: ( data ) ->
             queued_data.push data
@@ -250,6 +253,9 @@ upload_range = ( peripheral, start_address, data, address_size, page_size, page_
                     raise "invalid progress PDU size #{data.length}"
 
                 progress( data.readUInt32LE(0), data.readUInt16LE(4), data.readUInt8(6) )
+
+        flush: ( callback )->
+            execute OPC_FLUSH, callback
 
         unregister_progress_callback: ->
             progress_callback = default_progress_callback
