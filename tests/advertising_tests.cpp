@@ -2,6 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <bluetoe/adv_service_list.hpp>
+
 #include "test_servers.hpp"
 
 template < class Server >
@@ -288,3 +289,36 @@ BOOST_FIXTURE_TEST_CASE( implicit_service_list, server_with_multiple_services )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( slave_connection_interval_range )
+
+using unspecifed_range = bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::no_list_of_service_uuids,
+    bluetoe::slave_connection_interval_range<>
+>;
+
+BOOST_FIXTURE_TEST_CASE( unspecified_range_encoding, unspecifed_range )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x05, 0x12, 0xff, 0xff, 0xff, 0xff,
+        0x00, 0x00
+    }, *this );
+}
+
+using specifed_range = bluetoe::extend_server<
+    small_temperature_service,
+    bluetoe::no_list_of_service_uuids,
+    bluetoe::slave_connection_interval_range< 0x0102, 0x203 >
+>;
+
+BOOST_FIXTURE_TEST_CASE( specific_range_encoding, specifed_range )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x05, 0x12, 0x02, 0x01, 0x03, 0x02,
+        0x00, 0x00
+    }, *this );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

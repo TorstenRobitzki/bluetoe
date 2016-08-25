@@ -7,6 +7,7 @@
 #include <bluetoe/filter.hpp>
 #include <bluetoe/server_name.hpp>
 #include <bluetoe/adv_service_list.hpp>
+#include <bluetoe/slave_connection_interval_range.hpp>
 #include <bluetoe/server_meta_type.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/write_queue.hpp>
@@ -495,6 +496,14 @@ namespace bluetoe {
         >::type service_list_uuid128;
 
         begin = service_list_uuid128::advertising_data( begin, end );
+
+        typedef typename details::find_by_meta_type<
+            details::slave_connection_interval_range_meta_type,
+            Options...,
+            details::no_slave_connection_interval_range
+        >::type slave_connection_interval_range_ad;
+
+        begin = slave_connection_interval_range_ad::advertising_data( begin, end );
 
         // add aditional empty AD to be visible to Nordic sniffer
         if ( end - begin >= 2u )
