@@ -127,3 +127,6 @@ add_example(thermometer)
 add_example(cycling_speed_and_cadence)
 add_example(blinky)
 add_example(bootloader)
+
+set_target_properties(bootloader.elf PROPERTIES
+    LINK_FLAGS "-T ${CMAKE_CURRENT_LIST_DIR}/bootloader.ld -Wl,-Map -Wl,bootloader.map")
