@@ -664,7 +664,7 @@ namespace link_layer {
         connection_parameters_request_running_ = true;
 
         out_buffer.fill( {
-            ll_control_pdu_code, 22, LL_CONNECTION_PARAM_REQ,
+            ll_control_pdu_code, 24, LL_CONNECTION_PARAM_REQ,
             static_cast< std::uint8_t >( proposed_interval_min_ ),
             static_cast< std::uint8_t >( proposed_interval_min_ >> 8 ),
             static_cast< std::uint8_t >( proposed_interval_max_ ),
@@ -673,7 +673,8 @@ namespace link_layer {
             static_cast< std::uint8_t >( proposed_latency_ >> 8 ),
             static_cast< std::uint8_t >( proposed_timeout_ ),
             static_cast< std::uint8_t >( proposed_timeout_ >> 8 ),
-            0x00,
+            0x00,                                   // PreferredPeriodicity (none)
+            0x00, 0x00,                             // ReferenceConnEventCount
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff } );
 

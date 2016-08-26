@@ -58,6 +58,7 @@ BOOST_FIXTURE_TEST_CASE( if_master_protocol_version_is_unknown_try_ll, link_laye
         3, 0x00,                    // latency
         (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
         0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
         0xff, 0xff,                 // Offset0 (none)
         0xff, 0xff,                 // Offset1 (none)
         0xff, 0xff,                 // Offset2 (none)
@@ -143,6 +144,7 @@ BOOST_FIXTURE_TEST_CASE( if_masters_features_contain_ll_use_ll, link_layer_with_
         3, 0x00,                    // latency
         (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
         0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
         0xff, 0xff,                 // Offset0 (none)
         0xff, 0xff,                 // Offset1 (none)
         0xff, 0xff,                 // Offset2 (none)
@@ -178,6 +180,7 @@ BOOST_FIXTURE_TEST_CASE( if_ll_doesn_work_fallback_to_l2cap, link_layer_with_sig
         3, 0x00,                    // latency
         (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
         0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
         0xff, 0xff,                 // Offset0 (none)
         0xff, 0xff,                 // Offset1 (none)
         0xff, 0xff,                 // Offset2 (none)
