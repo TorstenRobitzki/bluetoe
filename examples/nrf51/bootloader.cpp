@@ -5,9 +5,10 @@
 
 #include <nrf.h>
 
-static constexpr std::size_t flash_page_size    = 1024;
-static constexpr unsigned    erase_page_time_ms = 23;
-static constexpr unsigned    number_of_concurrent_flashs = 2;
+static constexpr std::size_t    flash_page_size    = 1024;
+static constexpr unsigned       erase_page_time_ms = 100;
+static constexpr unsigned       number_of_concurrent_flashs = 2;
+static constexpr std::uint16_t  min_connection_interval = erase_page_time_ms;
 
 namespace bb = bluetoe::bootloader;
 
@@ -25,6 +26,21 @@ public:
     flash_handler();
 
     void ll_connection_event_happend();
+
+    template < typename ConnectionData >
+    void ll_connection_established(
+             const bluetoe::link_layer::connection_details&   details,
+             const bluetoe::link_layer::connection_addresses& addresses,
+             const ConnectionData&                            connection );
+
+    template < typename ConnectionData >
+    void ll_connection_changed(
+             const bluetoe::link_layer::connection_details&  details,
+             const ConnectionData&                           connection );
+
+    template < typename ConnectionData >
+    void ll_connection_closed( const ConnectionData& connection );
+
 private:
     std::uint32_t crc_table_[ 256 ];
 
@@ -34,8 +50,10 @@ private:
     };
 
     std::array< flash_queue_entry, number_of_concurrent_flashs > flash_entries_;
-    unsigned next_flash_entry_;
-    unsigned num_flash_entries_;
+    unsigned        next_flash_entry_;
+    unsigned        num_flash_entries_;
+    std::uint16_t   current_connection_interval_;
+    bool            connection_interval_update_running_;
 };
 
 using gatt_definition = bluetoe::server<
@@ -45,7 +63,8 @@ using gatt_definition = bluetoe::server<
         bb::white_list<
             bb::memory_region< 0x6000, 0x40000 >
         >
-    >
+    >,
+    bluetoe::slave_connection_interval_range< min_connection_interval >
 >;
 
 /*
@@ -72,8 +91,9 @@ gatt_definition gatt_server;
 bluetoe::nrf51<
     gatt_definition,
     bluetoe::link_layer::buffer_sizes< flash_page_size * 3, flash_page_size * 3 >,
-    // TODO: advertise a larger maximum connection interval
-    bluetoe::link_layer::connection_event_callback< gatt_definition, gatt_server /* erase_page_time_ms */ >,
+    bluetoe::link_layer::connection_event_callback< gatt_definition, gatt_server, erase_page_time_ms >,
+    bluetoe::link_layer::connection_callbacks< gatt_definition, gatt_server >,
+    bluetoe::l2cap::signaling_channel<>,
     address_generator
 > link_layer;
 
@@ -94,6 +114,14 @@ bb::error_codes flash_handler::start_flash( std::uintptr_t address, const std::u
     flash_entries_[ next_entry ] = flash_queue_entry{ address, values };
 
     ++num_flash_entries_;
+
+    // if the connection interval is so small, that the ll_connection_event_happend() will never be called
+    // we try to ask the master to change the connection parameters.
+    if ( current_connection_interval_ < min_connection_interval && !connection_interval_update_running_ )
+    {
+        connection_interval_update_running_ = link_layer.connection_parameter_update_request(
+            min_connection_interval, 2 * min_connection_interval, 0, min_connection_interval );
+    }
 
     return bb::error_codes::success;
 }
@@ -147,6 +175,8 @@ std::uint32_t flash_handler::checksum32( std::uintptr_t start_addr )
 flash_handler::flash_handler()
     : next_flash_entry_( 0 )
     , num_flash_entries_( 0 )
+    , current_connection_interval_( 0 )
+    , connection_interval_update_running_( false )
 {
     for ( std::uint32_t n = 0; n != sizeof( crc_table_ ) / sizeof( crc_table_[ 0 ] ); ++n )
     {
@@ -213,4 +243,28 @@ void flash_handler::ll_connection_event_happend()
 
         bb::end_flash( gatt_server );
     }
+}
+
+template < typename ConnectionData >
+void flash_handler::ll_connection_established(
+         const bluetoe::link_layer::connection_details&   details,
+         const bluetoe::link_layer::connection_addresses&,
+         const ConnectionData& )
+{
+    current_connection_interval_        = details.interval();
+    connection_interval_update_running_ = false;
+}
+
+template < typename ConnectionData >
+void flash_handler::ll_connection_changed(
+         const bluetoe::link_layer::connection_details&  details,
+         const ConnectionData& )
+{
+    current_connection_interval_        = details.interval();
+    connection_interval_update_running_ = false;
+}
+
+template < typename ConnectionData >
+void flash_handler::ll_connection_closed( const ConnectionData& connection )
+{
 }
