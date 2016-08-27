@@ -968,6 +968,10 @@ namespace link_layer {
 
             server_->l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], att_size, connection_details_ );
 
+            // in case the ATT input changed the MTU size:
+            this->max_rx_size( connection_details_.negotiated_mtu() + all_header_size );
+            this->max_tx_size( connection_details_.negotiated_mtu() + all_header_size );
+
             if ( att_size )
             {
                 output.buffer[ 0 ] = lld_data_pdu_code;
