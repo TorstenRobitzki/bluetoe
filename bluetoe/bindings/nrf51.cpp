@@ -499,10 +499,6 @@ namespace nrf51_details {
         while ( !received_ && !timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
             ;
 
-        // when either received_ or timeout_ is true, no timer should be scheduled and the radio should be idle
-        assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
-        assert( nrf_timer->INTENCLR == 0 );
-
         if ( received_ )
         {
             assert( reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ) == receive_buffer_.buffer );
