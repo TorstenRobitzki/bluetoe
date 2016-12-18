@@ -6,7 +6,7 @@ set(CXX_SPECIFIC_FLAGS "-std=c++11")
 set(CXX_DISABLED_WARNINGS "-Wno-parentheses")
 
 # Stop compilation after first error
-set(CXX_DEFAULT_FLAGS "${CXX_DEFAULT_FLAGS} -Wfatal-errors -Werror")
+set(CXX_DEFAULT_FLAGS "${CXX_DEFAULT_FLAGS} -Wfatal-errors -Werror -Wno-sign-compare")
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_CXX_COMPILER "arm-none-eabi-g++")

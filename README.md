@@ -139,4 +139,3 @@ Pullrequests are wellcome.
 - boost for Unittests
 - CMake for build
 - a decent C++ compiler supporting C++11
-- btstack for experimental L2CAP support
