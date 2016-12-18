@@ -1,2 +1,2 @@
-add_test(cscs_tests)
-add_test(bootloader_tests test_gatt)
+add_and_register_test(cscs_tests)
+add_and_register_test(bootloader_tests test_gatt)

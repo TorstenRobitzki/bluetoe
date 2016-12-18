@@ -5,4 +5,4 @@ before_script:
 tests:
     script:
         - cd bluetoe
-        - mkdir build && cd build && cmake .. && make all_tests.run
+        - mkdir build && cd build && cmake .. && make && ctest
