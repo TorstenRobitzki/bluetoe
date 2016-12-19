@@ -30,10 +30,10 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
 };
 
 template < typename ... Options >
-class unconnected_base : public bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
+class unconnected_base : public bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... >
 {
 public:
-    typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+    typedef bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... > base;
 
     unconnected_base()
         : sequence_( 0 )
@@ -43,7 +43,7 @@ public:
 
     void run( unsigned times = 1 )
     {
-        small_temperature_service gatt_server_;
+        test::small_temperature_service gatt_server_;
 
         for ( ; times; --times )
             base::run( gatt_server_ );
@@ -201,13 +201,13 @@ struct unconnected : unconnected_base<> {};
 template < typename ... Options >
 struct connecting_base : unconnected_base< Options... >
 {
-    typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+    typedef bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... > base;
 
     connecting_base()
     {
         this->respond_to( 37, valid_connection_request_pdu );
 
-        small_temperature_service gatt_server_;
+        test::small_temperature_service gatt_server_;
         base::run( gatt_server_ );
     }
 };
@@ -223,7 +223,7 @@ struct connected_and_timeout : unconnected
         this->add_connection_event_respond( { 1, 0 } );
         this->add_connection_event_respond( { 1, 0 } );
 
-        small_temperature_service gatt_server_;
+        test::small_temperature_service gatt_server_;
         base::run( gatt_server_ );
     }
 };

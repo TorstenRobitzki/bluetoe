@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         >
     > simple_server;
 
-    BOOST_FIXTURE_TEST_CASE( l2cap_layer_gets_notified, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( l2cap_layer_gets_notified, test::request_with_reponse< simple_server > )
     {
         notify( value );
 
@@ -28,12 +28,12 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         BOOST_CHECK_EQUAL( notification_type, simple_server::notification );
     }
 
-    BOOST_FIXTURE_TEST_CASE( no_output_when_notification_not_enabled, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( no_output_when_notification_not_enabled, test::request_with_reponse< simple_server > )
     {
         expected_output( value, {} );
     }
 
-    BOOST_FIXTURE_TEST_CASE( notification_if_enabled, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( notification_if_enabled, test::request_with_reponse< simple_server > )
     {
         l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
         expected_result( { 0x13 } );
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         >
     > large_value_notify_server;
 
-    BOOST_FIXTURE_TEST_CASE( notification_data_is_clipped_to_mtu_size_23, request_with_reponse< large_value_notify_server > )
+    BOOST_FIXTURE_TEST_CASE( notification_data_is_clipped_to_mtu_size_23, test::request_with_reponse< large_value_notify_server > )
     {
         l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
         expected_result( { 0x13 } );
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         >
     > server_with_multiple_char;
 
-    BOOST_FIXTURE_TEST_CASE( all_values_notifable, request_with_reponse< server_with_multiple_char > )
+    BOOST_FIXTURE_TEST_CASE( all_values_notifable, test::request_with_reponse< server_with_multiple_char > )
     {
         notify( value_a1 );
         notify( value_a2 );
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         notify( value_c2 );
     }
 
-    BOOST_FIXTURE_TEST_CASE( notify_c1, request_with_reponse< server_with_multiple_char > )
+    BOOST_FIXTURE_TEST_CASE( notify_c1, test::request_with_reponse< server_with_multiple_char > )
     {
         l2cap_input( { 0x12, 0x0F, 0x00, 0x01, 0x00 } );
         expected_result( { 0x13 } );
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         expected_output( value_c1, { 0x1B, 0x0E, 0x00, 0x04 } );
     }
 
-    BOOST_FIXTURE_TEST_CASE( notify_b1_on_two_connections, request_with_reponse< server_with_multiple_char > )
+    BOOST_FIXTURE_TEST_CASE( notify_b1_on_two_connections, test::request_with_reponse< server_with_multiple_char > )
     {
         connection_data con1( 23 ), con2( 23 );
 
@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
         >
     > server;
 
-    BOOST_FIXTURE_TEST_CASE( notify_first_16bit_uuid, request_with_reponse< server > )
+    BOOST_FIXTURE_TEST_CASE( notify_first_16bit_uuid, test::request_with_reponse< server > )
     {
         notify< bluetoe::characteristic_uuid16< 0x1111 > >();
 
@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
         BOOST_CHECK_EQUAL( notification_type, server::notification );
     }
 
-    BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, request_with_reponse< server > )
+    BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, test::request_with_reponse< server > )
     {
         notify< bluetoe::characteristic_uuid16< 0x2222 > >();
 
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_SUITE( access_client_characteristic_configuration )
         >
     > simple_server;
 
-    BOOST_FIXTURE_TEST_CASE( read_default_values, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( read_default_values, test::request_with_reponse< simple_server > )
     {
         l2cap_input( { 0x0A, 0x04, 0x00 } );
         expected_result( { 0x0B, 0x00, 0x00 } );
@@ -244,13 +244,13 @@ BOOST_AUTO_TEST_SUITE( access_client_characteristic_configuration )
         expected_result( { 0x0B, 0x00, 0x00 } );
     }
 
-    BOOST_FIXTURE_TEST_CASE( read_blob_with_offset_1, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( read_blob_with_offset_1, test::request_with_reponse< simple_server > )
     {
         l2cap_input( { 0x0C, 0x04, 0x00, 0x01, 0x00 } );
         expected_result( { 0x0D, 0x00 } );
     }
 
-    BOOST_FIXTURE_TEST_CASE( set_and_read, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( set_and_read, test::request_with_reponse< simple_server > )
     {
         l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
         expected_result( { 0x13 } );

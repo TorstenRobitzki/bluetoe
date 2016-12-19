@@ -16,26 +16,26 @@
 namespace {
 
     template < typename ... Options >
-    struct advertising_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
+    struct advertising_base : bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... >
     {
         advertising_base()
         {
             this->run( gatt_server_ );
         }
 
-        small_temperature_service gatt_server_;
+        test::small_temperature_service gatt_server_;
     };
 
     struct advertising : advertising_base<> {};
 
     template < typename ... Options >
-    struct advertising_and_connect_base : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... >
+    struct advertising_and_connect_base : bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... >
     {
-        typedef bluetoe::link_layer::link_layer< small_temperature_service, test::radio, Options... > base;
+        typedef bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... > base;
 
         void run()
         {
-            small_temperature_service gatt_server_;
+            test::small_temperature_service gatt_server_;
             base::run( gatt_server_ );
         }
 
@@ -497,7 +497,7 @@ BOOST_FIXTURE_TEST_CASE( starting_connectable_directed_advertising, advertising_
     BOOST_CHECK_GT( advertisings().size(), 0 );
 }
 
-struct started_directed_advertising : bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::connectable_directed_advertising >
+struct started_directed_advertising : bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::connectable_directed_advertising >
 {
     started_directed_advertising()
     {
@@ -505,7 +505,7 @@ struct started_directed_advertising : bluetoe::link_layer::link_layer< small_tem
         this->run( gatt_server_ );
     }
 
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 BOOST_FIXTURE_TEST_CASE( stop_connectable_directed_advertising, started_directed_advertising )
@@ -656,9 +656,9 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( non_connectable_undirected_advertising )
 
 struct non_connectable_undirected_advertising :
-    bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::non_connectable_undirected_advertising >
+    bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::non_connectable_undirected_advertising >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 BOOST_FIXTURE_TEST_CASE( starting_advertising, non_connectable_undirected_advertising )
@@ -758,9 +758,9 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( scannable_undirected_advertising )
 
 struct scannable_undirected_advertising :
-    bluetoe::link_layer::link_layer< small_temperature_service, test::radio, bluetoe::link_layer::scannable_undirected_advertising >
+    bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::scannable_undirected_advertising >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 BOOST_FIXTURE_TEST_CASE( starting_advertising, scannable_undirected_advertising )
@@ -859,12 +859,12 @@ BOOST_AUTO_TEST_SUITE( multiple_advertising_types )
 
 struct scannable_and_connectable_advertising :
     bluetoe::link_layer::link_layer<
-        small_temperature_service, test::radio,
+        test::small_temperature_service, test::radio,
         bluetoe::link_layer::connectable_undirected_advertising,
         bluetoe::link_layer::scannable_undirected_advertising
     >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 BOOST_FIXTURE_TEST_CASE( advertising_starts_with_the_first_named_type, scannable_and_connectable_advertising )
@@ -1013,13 +1013,13 @@ BOOST_AUTO_TEST_SUITE( variable_advertising_interval )
 
 struct variable_interval_multiple_types :
     bluetoe::link_layer::link_layer<
-        small_temperature_service, test::radio,
+        test::small_temperature_service, test::radio,
         bluetoe::link_layer::connectable_undirected_advertising,
         bluetoe::link_layer::scannable_undirected_advertising,
         bluetoe::link_layer::variable_advertising_interval
     >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 BOOST_FIXTURE_TEST_CASE( the_default_is_100ms, variable_interval_multiple_types )
@@ -1059,11 +1059,11 @@ BOOST_FIXTURE_TEST_CASE( changeable_to_30, variable_interval_multiple_types )
 
 struct variable_interval_single_type :
     bluetoe::link_layer::link_layer<
-        small_temperature_service, test::radio,
+        test::small_temperature_service, test::radio,
         bluetoe::link_layer::variable_advertising_interval
     >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 BOOST_FIXTURE_TEST_CASE( works_for_single_types_too, variable_interval_single_type )
@@ -1090,22 +1090,22 @@ BOOST_AUTO_TEST_SUITE( no_auto_start_advertising )
 
 struct no_auto_start_single_type :
     bluetoe::link_layer::link_layer<
-        small_temperature_service, test::radio,
+        test::small_temperature_service, test::radio,
         bluetoe::link_layer::no_auto_start_advertising
     >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 struct no_auto_start_multiple_type :
     bluetoe::link_layer::link_layer<
-        small_temperature_service, test::radio,
+        test::small_temperature_service, test::radio,
         bluetoe::link_layer::no_auto_start_advertising,
         bluetoe::link_layer::connectable_undirected_advertising,
         bluetoe::link_layer::scannable_undirected_advertising
     >
 {
-    small_temperature_service gatt_server_;
+    test::small_temperature_service gatt_server_;
 };
 
 typedef boost::mpl::list<

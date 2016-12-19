@@ -4,7 +4,7 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/characteristic.hpp>
 
-namespace {
+namespace test {
     std::uint32_t global_temperature;
 
     typedef bluetoe::service<

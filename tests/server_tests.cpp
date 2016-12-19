@@ -106,7 +106,7 @@ struct tag
 
 BOOST_FIXTURE_TEST_CASE( not_mixin, reset_tag_construction_order )
 {
-    three_apes_service three_appes;
+    test::three_apes_service three_appes;
     BOOST_CHECK_EQUAL( tag_construction_order, "" );
 }
 

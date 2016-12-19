@@ -15,8 +15,8 @@
 
 #include "hexdump.hpp"
 
-namespace {
-    std::uint16_t temperature_value = 0x0104;
+namespace test {
+    extern std::uint16_t temperature_value;
 
     typedef bluetoe::server<
         bluetoe::service<
@@ -33,7 +33,9 @@ namespace {
     /*
      * Example with 3 characteristics, the example contains 7 attributes.
      */
-    std::uint8_t ape1 = 1, ape2 = 2, ape3 = 3;
+    extern std::uint8_t ape1;
+    extern std::uint8_t ape2;
+    extern std::uint8_t ape3;
 
     typedef bluetoe::server<
         bluetoe::service<

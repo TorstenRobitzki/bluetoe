@@ -19,12 +19,12 @@ typedef bluetoe::server<
 
 BOOST_AUTO_TEST_SUITE( indications_by_value )
 
-    BOOST_FIXTURE_TEST_CASE( indication_adds_a_client_configuration, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( indication_adds_a_client_configuration, test::request_with_reponse< simple_server > )
     {
         BOOST_REQUIRE_EQUAL( int{ number_of_client_configs }, 1u );
     }
 
-    BOOST_FIXTURE_TEST_CASE( l2cap_layer_gets_notified, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( l2cap_layer_gets_notified, test::request_with_reponse< simple_server > )
     {
         indicate( value );
 
@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
         BOOST_CHECK_EQUAL( notification_type, simple_server::indication );
     }
 
-    BOOST_FIXTURE_TEST_CASE( if_client_configuration_is_not_enabled_not_output, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( if_client_configuration_is_not_enabled_not_output, test::request_with_reponse< simple_server > )
     {
         connection_data client_configuration( mtu_size );
 
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
         BOOST_CHECK_EQUAL( size, 0 );
     }
 
-    BOOST_FIXTURE_TEST_CASE( output_if_enables, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( output_if_enables, test::request_with_reponse< simple_server > )
     {
         connection_data client_configuration( mtu_size );
         client_configuration.client_configurations().flags( 0, 2 ); // 2 == indications
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
         >
     > server;
 
-    BOOST_FIXTURE_TEST_CASE( notify_first_16bit_uuid, request_with_reponse< server > )
+    BOOST_FIXTURE_TEST_CASE( notify_first_16bit_uuid, test::request_with_reponse< server > )
     {
         indicate< bluetoe::characteristic_uuid16< 0x2222 > >();
 
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
         BOOST_CHECK_EQUAL( notification_type, server::indication );
     }
 
-    BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, request_with_reponse< server > )
+    BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, test::request_with_reponse< server > )
     {
         indicate< bluetoe::characteristic_uuid16< 0x3333 > >();
 
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( confirmation )
 
-    BOOST_FIXTURE_TEST_CASE( confirmation_is_forwared_to_the_link_layer, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( confirmation_is_forwared_to_the_link_layer, test::request_with_reponse< simple_server > )
     {
         l2cap_input( { 0x1E } );
 
@@ -139,14 +139,14 @@ BOOST_AUTO_TEST_SUITE( confirmation )
         BOOST_CHECK_EQUAL( notification_type, simple_server::confirmation );
     }
 
-    BOOST_FIXTURE_TEST_CASE( no_response_to_a_confirmation, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( no_response_to_a_confirmation, test::request_with_reponse< simple_server > )
     {
         l2cap_input( { 0x1E } );
 
         BOOST_CHECK_EQUAL( response_size, 0 );
     }
 
-    BOOST_FIXTURE_TEST_CASE( broken_pdu, request_with_reponse< simple_server > )
+    BOOST_FIXTURE_TEST_CASE( broken_pdu, test::request_with_reponse< simple_server > )
     {
         check_error_response(
             { 0x1E, 0x00 },

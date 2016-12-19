@@ -115,7 +115,7 @@ struct service_discover_base {
 };
 
 template < class Server >
-struct discover_primary_service : request_with_reponse< Server, 100u >, service_discover_base
+struct discover_primary_service : test::request_with_reponse< Server, 100u >, service_discover_base
 {
     discover_primary_service()
     {
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_SUITE( service_definition )
         >
     > csc_secondary_server;
 
-    struct discover_secondary_service : request_with_reponse< csc_secondary_server, 100u >, service_discover_base
+    struct discover_secondary_service : test::request_with_reponse< csc_secondary_server, 100u >, service_discover_base
     {
         discover_secondary_service()
         {

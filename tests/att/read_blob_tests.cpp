@@ -5,23 +5,23 @@
 
 BOOST_AUTO_TEST_SUITE( read_blob_errors )
 
-BOOST_FIXTURE_TEST_CASE( pdu_to_small, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( pdu_to_small, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x0C, 0x02, 0x00, 0x00 }, 0x0C, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( pdu_to_large, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( pdu_to_large, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x0C, 0x02, 0x00, 0x00, 0x00, 0x00 }, 0x0C, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_such_handle, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( no_such_handle, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x0C, 0x17, 0xAA, 0x00, 0x00 }, 0x0C, 0xAA17, 0x0A ) );
     BOOST_CHECK( check_error_response( { 0x0C, 0x04, 0x00, 0x00, 0x00 }, 0x0C, 0x0004, 0x0A ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_handle, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( invalid_handle, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x0C, 0x00, 0x00, 0x00, 0x00 }, 0x0C, 0x0000, 0x01 ) );
 }
@@ -40,12 +40,12 @@ typedef bluetoe::server<
 > unreadable_blob_server;
 
 
-BOOST_FIXTURE_TEST_CASE( not_readable, request_with_reponse< unreadable_blob_server > )
+BOOST_FIXTURE_TEST_CASE( not_readable, test::request_with_reponse< unreadable_blob_server > )
 {
     BOOST_CHECK( check_error_response( { 0x0C, 0x03, 0x00, 0x00, 0x00 }, 0x0C, 0x0003, 0x02 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( read_behind_end, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( read_behind_end, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x0C, 0x03, 0x00, 0x05, 0x00 }, 0x0C, 0x0003, 0x07 ) );
 }
@@ -72,7 +72,7 @@ typedef bluetoe::server<
     >
 > blob_server;
 
-BOOST_FIXTURE_TEST_CASE( read_starting_at_0, request_with_reponse< blob_server > )
+BOOST_FIXTURE_TEST_CASE( read_starting_at_0, test::request_with_reponse< blob_server > )
 {
     l2cap_input( { 0x0C, 0x03, 0x00, 0x00, 0x00 } );
     expected_result( {
@@ -83,13 +83,13 @@ BOOST_FIXTURE_TEST_CASE( read_starting_at_0, request_with_reponse< blob_server >
     } );
 }
 
-BOOST_FIXTURE_TEST_CASE( read_starting_at_50, request_with_reponse< blob_server > )
+BOOST_FIXTURE_TEST_CASE( read_starting_at_50, test::request_with_reponse< blob_server > )
 {
     l2cap_input( { 0x0C, 0x03, 0x00, 0x32, 0x00 } );
     expected_result( { 0x0D } );
 }
 
-BOOST_FIXTURE_TEST_CASE( read_starting_at_10, request_with_reponse< blob_server > )
+BOOST_FIXTURE_TEST_CASE( read_starting_at_10, test::request_with_reponse< blob_server > )
 {
     l2cap_input( { 0x0C, 0x03, 0x00, 0x0A, 0x00 } );
     expected_result( {
