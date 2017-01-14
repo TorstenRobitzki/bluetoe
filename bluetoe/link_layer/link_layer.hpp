@@ -937,6 +937,13 @@ namespace link_layer {
                 used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
                 commit = false;
             }
+            else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
+            {
+                write.fill( { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
+                write.size        = size + 2;
+
+                std::copy( &pdu.buffer[ 3 ], &pdu.buffer[ 3 + size - 1 ], &write.buffer[ 3 ] );
+            }
             else if ( opcode != LL_UNKNOWN_RSP )
             {
                 write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
