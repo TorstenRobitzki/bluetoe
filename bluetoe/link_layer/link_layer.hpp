@@ -715,6 +715,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const
     {
+        static constexpr auto       us_per_digits = 1250;
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
@@ -722,7 +723,7 @@ namespace link_layer {
 
         return transmit_window_size_ <= maximum_transmit_window_offset
             && transmit_window_size_ <= connection_interval_
-            && transmit_window_offset_ <= connection_interval_
+            && ( transmit_window_offset_ - delta_time( us_per_digits ) ) <= connection_interval_
             && timeout >= minimum_connection_timeout
             && timeout <= maximum_connection_timeout
             && timeout >= ( slave_latency + 1 ) * 2 * connection_interval_

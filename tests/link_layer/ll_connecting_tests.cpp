@@ -519,3 +519,28 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_slave_latency_is_larger_not_less_than_
 
     check_not_connected( "no_connection_if_slave_latency_is_larger_not_less_than_500" );
 }
+
+BOOST_FIXTURE_TEST_CASE( connection_established_when_window_offset_equals_interval, unconnected )
+{
+    respond_to(
+        37,
+        {
+            0xc5, 0x22,                         // header
+            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+            0x08, 0x81, 0xf6,                   // CRC Init
+            0x03,                               // transmit window size
+            0x18, 0x00,                         // window offset
+            0x18, 0x00,                         // interval
+            0x00, 0x00,                         // slave latency
+            0x80, 0x0c,                         // connection timeout
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+            0xaa                                // hop increment and sleep clock accuracy
+        }
+    );
+
+    run();
+
+    BOOST_REQUIRE( !connection_events().empty() );
+}
