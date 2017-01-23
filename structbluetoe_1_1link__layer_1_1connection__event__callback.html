@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>BlueToe: Member List</title>
+<title>BlueToe: bluetoe::link_layer::connection_event_callback&lt; T, Obj, RequiredTimeMS &gt; Struct Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -59,23 +59,35 @@ $(function() {
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><b>bluetoe</b></li><li class="navelem"><b>binding</b></li><li class="navelem"><a class="el" href="classbluetoe_1_1binding_1_1btstack__libusb__device.html">btstack_libusb_device</a></li>  </ul>
+<li class="navelem"><b>bluetoe</b></li><li class="navelem"><b>link_layer</b></li><li class="navelem"><a class="el" href="structbluetoe_1_1link__layer_1_1connection__event__callback.html">connection_event_callback</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div class="header">
   <div class="headertitle">
-<div class="title">bluetoe::binding::btstack_libusb_device&lt; Server &gt; Member List</div>  </div>
+<div class="title">bluetoe::link_layer::connection_event_callback&lt; T, Obj, RequiredTimeMS &gt; Struct Template Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 
-<p>This is the complete list of members for <a class="el" href="classbluetoe_1_1binding_1_1btstack__libusb__device.html">bluetoe::binding::btstack_libusb_device&lt; Server &gt;</a>, including all inherited members.</p>
-<table class="directory">
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>btstack_libusb_device</b>() (defined in <a class="el" href="classbluetoe_1_1binding_1_1btstack__libusb__device.html">bluetoe::binding::btstack_libusb_device&lt; Server &gt;</a>)</td><td class="entry"><a class="el" href="classbluetoe_1_1binding_1_1btstack__libusb__device.html">bluetoe::binding::btstack_libusb_device&lt; Server &gt;</a></td><td class="entry"></td></tr>
-  <tr><td class="entry"><a class="el" href="classbluetoe_1_1binding_1_1btstack__libusb__device.html#a3e2ce3665f0506ab637b220b70d70cb9">run</a>(Server &amp;)</td><td class="entry"><a class="el" href="classbluetoe_1_1binding_1_1btstack__libusb__device.html">bluetoe::binding::btstack_libusb_device&lt; Server &gt;</a></td><td class="entry"></td></tr>
-</table></div><!-- contents -->
+<p>install a callback that will be called, when a connection event happend.  
+ <a href="structbluetoe_1_1link__layer_1_1connection__event__callback.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="connection__event__callback_8hpp_source.html">bluetoe/link_layer/connection_event_callback.hpp</a>&gt;</code></p>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><h3>template&lt;typename T, T &amp; Obj, unsigned RequiredTimeMS = 0&gt;<br />
+struct bluetoe::link_layer::connection_event_callback&lt; T, Obj, RequiredTimeMS &gt;</h3>
+
+<p>install a callback that will be called, when a connection event happend. </p>
+<p>The intended use for this feature are cases, where the CPU is switched off and even the high priority ISR of the scheduled radio will not be served.</p>
+<p>The parameter T have to be a class type with following none static member function:</p>
+<p>void ll_connection_event_happend();</p>
+<p>The template parameter RequiredTimeMS defines the minimum time available until the next connection event will happen. The callback is only called, if the given time is available. If the parameter is 0, the callback will be called on every connection event. The link layer will not use slave latency to increase the time between two connection events to reach the RequiredTimeMS. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<li>bluetoe/link_layer/<a class="el" href="connection__event__callback_8hpp_source.html">connection_event_callback.hpp</a></li>
+</ul>
+</div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue Aug 23 2016 12:56:13 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Mon Jan 23 2017 17:51:03 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.12
 </small></address>

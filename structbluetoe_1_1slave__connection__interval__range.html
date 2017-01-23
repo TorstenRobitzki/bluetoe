@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.12"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>BlueToe: Class Members</title>
+<title>BlueToe: bluetoe::slave_connection_interval_range&lt; MinInterval, MaxInterval, typename &gt; Struct Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -43,7 +43,6 @@ $(function() {
 });
 </script>
 <div id="main-nav"></div>
-</div><!-- top -->
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -58,30 +57,29 @@ $(function() {
 </iframe>
 </div>
 
+<div id="nav-path" class="navpath">
+  <ul>
+<li class="navelem"><b>bluetoe</b></li><li class="navelem"><a class="el" href="structbluetoe_1_1slave__connection__interval__range.html">slave_connection_interval_range</a></li>  </ul>
+</div>
+</div><!-- top -->
+<div class="header">
+  <div class="headertitle">
+<div class="title">bluetoe::slave_connection_interval_range&lt; MinInterval, MaxInterval, typename &gt; Struct Template Reference</div>  </div>
+</div><!--header-->
 <div class="contents">
-<div class="textblock">Here is a list of all documented class members with links to the class documentation for each member:</div>
 
-<h3><a id="index_e"></a>- e -</h3><ul>
-<li>ear_thermometer
-: <a class="el" href="structbluetoe_1_1appearance.html#a08e4de94c62f59fa4ffd8a2fcf5bf0ee">bluetoe::appearance</a>
-</li>
-<li>empty
-: <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#aa4a63b71c17a23fd5d4517031b33f313afa107bb84180e89c18b281c724fd36af">bluetoe::link_layer::notification_queue&lt; Size, Mixin &gt;</a>
-, <a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html#a17d65afb86d5685aacd6f321152b1b72">bluetoe::link_layer::read_buffer</a>
-, <a class="el" href="structbluetoe_1_1link__layer_1_1write__buffer.html#a248f70573d690e14eaa96e4e79b762a1">bluetoe::link_layer::write_buffer</a>
-</li>
-<li>end()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1address.html#ae207eeb543c0f3b723701737794eecca">bluetoe::link_layer::address</a>
-</li>
-<li>end_event()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a4107cb2a989a5a01b94fda392fb0ad91">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
-</li>
-<li>entry_type
-: <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#aa4a63b71c17a23fd5d4517031b33f313">bluetoe::link_layer::notification_queue&lt; Size, Mixin &gt;</a>
-</li>
-<li>eye_glasses
-: <a class="el" href="structbluetoe_1_1appearance.html#a8f6e9367092683ba7bb6ffc73dba1773">bluetoe::appearance</a>
-</li>
+<p>add slave connection interval range to advertising data  
+ <a href="structbluetoe_1_1slave__connection__interval__range.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="slave__connection__interval__range_8hpp_source.html">bluetoe/slave_connection_interval_range.hpp</a>&gt;</code></p>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><h3>template&lt;std::uint16_t MinInterval = no_specific_slave_connection_minimum_interval, std::uint16_t MaxInterval = no_specific_slave_connection_maximum_interval, typename = typename details::check_slave_connection_interval_range_parameters&lt; MinInterval, MaxInterval &gt;::type&gt;<br />
+struct bluetoe::slave_connection_interval_range&lt; MinInterval, MaxInterval, typename &gt;</h3>
+
+<p>add slave connection interval range to advertising data </p>
+<p>Adds &lt;&lt;Slave connection="" interval="" range&gt;=""&gt;&gt; AD type to the advertising data. MinInterval and MaxInterval must be within the range of 0x0006 to 0x0C80. Using no_specific_slave_connection_minimum_interval or no_specific_slave_connection_maximum_interval specifies, that the respectve value is not used. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<li>bluetoe/<a class="el" href="slave__connection__interval__range_8hpp_source.html">slave_connection_interval_range.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

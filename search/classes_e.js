@@ -15,6 +15,7 @@ var searchData=
   ['service_5fuuid16',['service_uuid16',['../classbluetoe_1_1service__uuid16.html',1,'bluetoe']]],
   ['shared_5fwrite_5fqueue',['shared_write_queue',['../structbluetoe_1_1shared__write__queue.html',1,'bluetoe']]],
   ['signaling_5fchannel',['signaling_channel',['../classbluetoe_1_1l2cap_1_1signaling__channel.html',1,'bluetoe::l2cap']]],
+  ['slave_5fconnection_5finterval_5frange',['slave_connection_interval_range',['../structbluetoe_1_1slave__connection__interval__range.html',1,'bluetoe']]],
   ['sleep_5fclock_5faccuracy_5fppm',['sleep_clock_accuracy_ppm',['../structbluetoe_1_1link__layer_1_1sleep__clock__accuracy__ppm.html',1,'bluetoe::link_layer']]],
   ['static_5faddress',['static_address',['../structbluetoe_1_1link__layer_1_1static__address.html',1,'bluetoe::link_layer']]]
 ];
