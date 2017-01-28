@@ -2,6 +2,9 @@
 #define BLUETOE_LINK_LAYER_ADVERTISING_HPP
 
 #include <bluetoe/options.hpp>
+#include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/link_layer/buffer.hpp>
+#include <bluetoe/link_layer/delta_time.hpp>
 
 /**
  * @file bluetoe/link_layer/advertising.hpp
@@ -922,10 +925,11 @@ namespace link_layer {
             bool handle_adv_receive( read_buffer receive, device_address& remote_address )
             {
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
-                remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
                 if ( this->is_valid_scan_request( receive ) )
                 {
+                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+
                     if ( link_layer.is_scan_request_in_filter( remote_address ) )
                     {
                         const read_buffer response_data = this->get_advertising_response_data();
@@ -942,9 +946,12 @@ namespace link_layer {
                         }
                     }
                 }
-                else if ( this->is_valid_connect_request( receive ) && link_layer.is_connection_request_in_filter( remote_address ) )
+                else if ( this->is_valid_connect_request( receive ) )
                 {
-                    return true;
+                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+
+                    if ( link_layer.is_connection_request_in_filter( remote_address ) )
+                        return true;
                 }
 
                 handle_adv_timeout();
@@ -1119,11 +1126,11 @@ namespace link_layer {
 
             bool handle_adv_receive( read_buffer receive, device_address& remote_address )
             {
+                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
+
                 if ( this->is_valid_scan_request( receive, selected_ ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
-
-                    LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
                     if ( link_layer.is_scan_request_in_filter( remote_address ) )
                     {
@@ -1144,7 +1151,9 @@ namespace link_layer {
                 else if ( this->is_valid_connect_request( receive, selected_ ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
-                    return true;
+
+                    if ( link_layer.is_connection_request_in_filter( remote_address ) )
+                        return true;
                 }
 
                 handle_adv_timeout();
