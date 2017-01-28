@@ -61,7 +61,7 @@ script:
   - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
   - make
   - make build_examples
-  - ctest
+  - ctest --verbose
 
 after_success:
   - cd $TRAVIS_BUILD_DIR
