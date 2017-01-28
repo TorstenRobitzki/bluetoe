@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( empty_request, Advertiser, all_fixtures )
 {
     bluetoe::link_layer::device_address remote_address;
     Advertiser advertiser;
-    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::read_buffer({}), remote_address );
+    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::read_buffer{ nullptr, 0 }, remote_address );
 
     BOOST_CHECK( !result );
     BOOST_CHECK_EQUAL( remote_address, bluetoe::link_layer::device_address() );
@@ -131,7 +131,7 @@ bluetoe::link_layer::read_buffer valid_connection_request()
     };
 
     return bluetoe::link_layer::read_buffer{ const_cast< std::uint8_t* >( data.begin() ), data.size() };
-};
+}
 
 static const bluetoe::link_layer::random_device_address remote_address( { 0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x49 } );
 
