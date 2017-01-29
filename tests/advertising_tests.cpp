@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_SUITE( server_name )
 static constexpr char name[] = "Test Name";
 
 typedef bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::no_list_of_service_uuids,
     bluetoe::server_name< name >
 > named_temperature_service;
@@ -42,7 +42,7 @@ BOOST_FIXTURE_TEST_CASE( short_named_server, named_temperature_service )
 }
 
 typedef bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::no_list_of_service_uuids
 > unnamed_temperature_service;
 
@@ -129,7 +129,7 @@ BOOST_FIXTURE_TEST_CASE( uuid_with_no_element, no_element_server )
 }
 
 using three_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::list_of_16_bit_service_uuids<
         bluetoe::service_uuid16< 0x1234 >,
         bluetoe::service_uuid16< 0xabcd >,
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( service_list_128 )
 
 using no_uuids_server = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::no_list_of_service_uuids
 >;
 
@@ -185,7 +185,7 @@ BOOST_FIXTURE_TEST_CASE( no_uuid_list, no_uuids_server )
 }
 
 using one_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::list_of_128_bit_service_uuids<
         bluetoe::service_uuid< 0x111393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1191 >
     >
@@ -205,7 +205,7 @@ BOOST_FIXTURE_TEST_CASE( uuid_with_one_element, one_uuid_server )
 }
 
 using two_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::list_of_128_bit_service_uuids<
         bluetoe::service_uuid< 0x111393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1191 >,
         bluetoe::service_uuid< 0x221393DD, 0x01D2, 0x40D6, 0xA0A0, 0xE9B1A56A1177 >
@@ -233,7 +233,7 @@ BOOST_FIXTURE_TEST_CASE( uuid_with_two_element, two_uuid_server )
 }
 
 using no_uuid_server = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::list_of_128_bit_service_uuids<
     >
 >;
@@ -292,7 +292,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( slave_connection_interval_range )
 
 using unspecifed_range = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::no_list_of_service_uuids,
     bluetoe::slave_connection_interval_range<>
 >;
@@ -307,7 +307,7 @@ BOOST_FIXTURE_TEST_CASE( unspecified_range_encoding, unspecifed_range )
 }
 
 using specifed_range = bluetoe::extend_server<
-    small_temperature_service,
+    test::small_temperature_service,
     bluetoe::no_list_of_service_uuids,
     bluetoe::slave_connection_interval_range< 0x0102, 0x203 >
 >;

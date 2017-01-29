@@ -6,28 +6,28 @@
 
 BOOST_AUTO_TEST_SUITE( read_by_type_errors )
 
-BOOST_FIXTURE_TEST_CASE( invalid_request_size, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( invalid_request_size, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x03 }, 0x08, 0x0000, 0x04 ) );
     BOOST_CHECK( check_error_response( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x03, 0x04, 0x05, 0x06 }, 0x08, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( start_handle_zero, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( start_handle_zero, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x08, 0x00, 0x00, 0xff, 0xff, 0x03, 0x28 }, 0x08, 0x0000, 0x01 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( start_handle_greater_than_end_handle, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( start_handle_greater_than_end_handle, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x08, 0x05, 0x00, 0x04, 0x00, 0x03, 0x28 }, 0x08, 0x0005, 0x01 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( handle_out_of_range, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( handle_out_of_range, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x08, 0x40, 0x00, 0xff, 0xff, 0x00, 0x28 }, 0x08, 0x0040, 0x0A ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_such_type, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( no_such_type, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x08, 0x01, 0x00, 0xff, 0xff, 0xab, 0xcd }, 0x08, 0x0001, 0x0A ) );
 }
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( read_by_type )
 
-BOOST_FIXTURE_TEST_CASE( read_a_single_attribute, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( read_a_single_attribute, test::small_temperature_service_with_response<> )
 {
     l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x03, 0x28 } );
 
@@ -54,7 +54,7 @@ BOOST_FIXTURE_TEST_CASE( read_a_single_attribute, small_temperature_service_with
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( read_a_single_attribute_using_128bit_uuid, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( read_a_single_attribute_using_128bit_uuid, test::small_temperature_service_with_response<> )
 {
     l2cap_input( {
         0x08, 0x01, 0x00, 0xff, 0xff,
@@ -77,7 +77,7 @@ BOOST_FIXTURE_TEST_CASE( read_a_single_attribute_using_128bit_uuid, small_temper
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
-typedef request_with_reponse< three_apes_service, 100 > request_with_reponse_three_apes_service_100;
+typedef test::request_with_reponse< test::three_apes_service, 100 > request_with_reponse_three_apes_service_100;
 
 BOOST_FIXTURE_TEST_CASE( read_multiple_attributes, request_with_reponse_three_apes_service_100 )
 {
@@ -111,7 +111,7 @@ BOOST_FIXTURE_TEST_CASE( read_multiple_attributes, request_with_reponse_three_ap
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
-typedef request_with_reponse< three_apes_service, 50 > request_with_reponse_three_apes_service_50;
+typedef test::request_with_reponse< test::three_apes_service, 50 > request_with_reponse_three_apes_service_50;
 
 BOOST_FIXTURE_TEST_CASE( read_multiple_attributes_buffer_to_small, request_with_reponse_three_apes_service_50 )
 {
@@ -168,20 +168,20 @@ typedef bluetoe::server<
         bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
         bluetoe::characteristic<
             bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
-            bluetoe::bind_characteristic_value< std::uint8_t, &ape1 >
+            bluetoe::bind_characteristic_value< std::uint8_t, &test::ape1 >
         >,
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x0815 >,
-            bluetoe::bind_characteristic_value< std::uint8_t, &ape2 >
+            bluetoe::bind_characteristic_value< std::uint8_t, &test::ape2 >
         >,
         bluetoe::characteristic<
             bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAC >,
-            bluetoe::bind_characteristic_value< std::uint8_t, &ape3 >
+            bluetoe::bind_characteristic_value< std::uint8_t, &test::ape3 >
         >
     >
 > server_with_16bit_uuid_in_the_middle;
 
-typedef request_with_reponse< server_with_16bit_uuid_in_the_middle, 200 > r_and_r_with_server_with_16bit_uuid_in_the_middle_100;
+typedef test::request_with_reponse< server_with_16bit_uuid_in_the_middle, 200 > r_and_r_with_server_with_16bit_uuid_in_the_middle_100;
 
 BOOST_FIXTURE_TEST_CASE( read_multiple_attributes_within_mixed_size, r_and_r_with_server_with_16bit_uuid_in_the_middle_100 )
 {
@@ -228,7 +228,7 @@ typedef bluetoe::server<
     >
 > small_temperature_service;
 
-BOOST_FIXTURE_TEST_CASE( should_find_the_device_name_characteristic, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( should_find_the_device_name_characteristic, test::request_with_reponse< small_temperature_service > )
 {
     l2cap_input( { 0x02, 0x68, 0x00 } );
     expected_result( { 0x03, 0x17, 0x00 } );

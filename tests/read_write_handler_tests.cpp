@@ -669,102 +669,102 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
         std::tuple< std::uint8_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0x22 >, std::integral_constant< std::uint8_t, 34 > >,
-                std::tuple< test_tuple< 0x00 >, std::integral_constant< std::uint8_t, 0 > >,
-                std::tuple< test_tuple< 0xff >, std::integral_constant< std::uint8_t, 255 > >
+                std::tuple< test::tuple< 0x22 >, std::integral_constant< std::uint8_t, 34 > >,
+                std::tuple< test::tuple< 0x00 >, std::integral_constant< std::uint8_t, 0 > >,
+                std::tuple< test::tuple< 0xff >, std::integral_constant< std::uint8_t, 255 > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple<>, test_tuple< 0x00, 0x00 >
+                test::tuple<>, test::tuple< 0x00, 0x00 >
             >
         >,
         std::tuple< std::int8_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0x22 >, std::integral_constant< std::int8_t, 34 > >,
-                std::tuple< test_tuple< 0x00 >, std::integral_constant< std::int8_t, 0 > >,
-                std::tuple< test_tuple< 0x80 >, std::integral_constant< std::int8_t, -128 > >,
-                std::tuple< test_tuple< 0xff >, std::integral_constant< std::int8_t, -1 > >
+                std::tuple< test::tuple< 0x22 >, std::integral_constant< std::int8_t, 34 > >,
+                std::tuple< test::tuple< 0x00 >, std::integral_constant< std::int8_t, 0 > >,
+                std::tuple< test::tuple< 0x80 >, std::integral_constant< std::int8_t, -128 > >,
+                std::tuple< test::tuple< 0xff >, std::integral_constant< std::int8_t, -1 > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple<>, test_tuple< 0x00, 0x00 >
+                test::tuple<>, test::tuple< 0x00, 0x00 >
             >
         >,
         std::tuple< std::uint16_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0x22, 0x44 >, std::integral_constant< std::uint16_t, 0x4422 > >,
-                std::tuple< test_tuple< 0x00, 0x00 >, std::integral_constant< std::uint16_t, 0x0000 > >,
-                std::tuple< test_tuple< 0xff, 0xff >, std::integral_constant< std::uint16_t, 0xffff > >
+                std::tuple< test::tuple< 0x22, 0x44 >, std::integral_constant< std::uint16_t, 0x4422 > >,
+                std::tuple< test::tuple< 0x00, 0x00 >, std::integral_constant< std::uint16_t, 0x0000 > >,
+                std::tuple< test::tuple< 0xff, 0xff >, std::integral_constant< std::uint16_t, 0xffff > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple< 0x00 >, test_tuple< 0x00, 0x00, 0x00 >
+                test::tuple< 0x00 >, test::tuple< 0x00, 0x00, 0x00 >
             >
         >,
         std::tuple< std::int16_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0x22, 0x44 >, std::integral_constant< std::int16_t, 0x4422 > >,
-                std::tuple< test_tuple< 0x00, 0x00 >, std::integral_constant< std::int16_t, 0x0000 > >,
-                std::tuple< test_tuple< 0xff, 0xff >, std::integral_constant< std::int16_t, -1 > >
+                std::tuple< test::tuple< 0x22, 0x44 >, std::integral_constant< std::int16_t, 0x4422 > >,
+                std::tuple< test::tuple< 0x00, 0x00 >, std::integral_constant< std::int16_t, 0x0000 > >,
+                std::tuple< test::tuple< 0xff, 0xff >, std::integral_constant< std::int16_t, -1 > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple< 0x00 >, test_tuple< 0x00, 0x00, 0x00 >
+                test::tuple< 0x00 >, test::tuple< 0x00, 0x00, 0x00 >
             >
         >,
         std::tuple< std::uint32_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::uint32_t, 0x44221AF0 > >,
-                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint32_t, 0x00000000 > >,
-                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint32_t, 0xFFFFFFFF > >
+                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::uint32_t, 0x44221AF0 > >,
+                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint32_t, 0x00000000 > >,
+                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint32_t, 0xFFFFFFFF > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple< 0x00, 0x00, 0x00 >,
-                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
+                test::tuple< 0x00, 0x00, 0x00 >,
+                test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >,
         std::tuple< std::int32_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::int32_t, 0x44221AF0 > >,
-                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int32_t, 0x00000000 > >,
-                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int32_t, -1 > >
+                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::int32_t, 0x44221AF0 > >,
+                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int32_t, 0x00000000 > >,
+                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int32_t, -1 > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple< 0x00, 0x00, 0x00 >,
-                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
+                test::tuple< 0x00, 0x00, 0x00 >,
+                test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >,
         std::tuple< std::uint64_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::uint64_t, 0x0403020144221AF0 > >,
-                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint64_t, 0x0000000000000000 > >,
-                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint64_t, 0xFFFFFFFFFFFFFFFF > >
+                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::uint64_t, 0x0403020144221AF0 > >,
+                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint64_t, 0x0000000000000000 > >,
+                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint64_t, 0xFFFFFFFFFFFFFFFF > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
-                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
+                test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
+                test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >,
         std::tuple< std::int64_t,
             // valid pairs
             std::tuple<
-                std::tuple< test_tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::int64_t, 0x0403020144221AF0 > >,
-                std::tuple< test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int64_t, 0x0000000000000000 > >,
-                std::tuple< test_tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int64_t, -1 > >
+                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::int64_t, 0x0403020144221AF0 > >,
+                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int64_t, 0x0000000000000000 > >,
+                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int64_t, -1 > >
             >,
             // wrong size examples
             std::tuple<
-                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
-                test_tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
+                test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
+                test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >
     >;

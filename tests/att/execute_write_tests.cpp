@@ -19,23 +19,23 @@ typedef bluetoe::server<
     >
 > value_server;
 
-BOOST_FIXTURE_TEST_CASE( pdu_to_small, request_with_reponse< value_server > )
+BOOST_FIXTURE_TEST_CASE( pdu_to_small, test::request_with_reponse< value_server > )
 {
     BOOST_CHECK( check_error_response( { 0x18 }, 0x18, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( pdu_to_large, request_with_reponse< value_server > )
+BOOST_FIXTURE_TEST_CASE( pdu_to_large, test::request_with_reponse< value_server > )
 {
     BOOST_CHECK( check_error_response( { 0x18, 0x00, 0x01 }, 0x18, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_flags, request_with_reponse< value_server > )
+BOOST_FIXTURE_TEST_CASE( invalid_flags, test::request_with_reponse< value_server > )
 {
     BOOST_CHECK( check_error_response( { 0x18, 0x02 }, 0x18, 0x0000, 0x04 ) );
     BOOST_CHECK( check_error_response( { 0x18, 0x80 }, 0x18, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( request_not_supported_if_no_buffer_exist, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( request_not_supported_if_no_buffer_exist, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x18, 0x00 }, 0x18, 0x0000, 0x06 ) );
 }
@@ -64,7 +64,7 @@ typedef bluetoe::server<
     >
 > value_server;
 
-struct server_fixture : request_with_reponse< value_server >
+struct server_fixture : test::request_with_reponse< value_server >
 {
     server_fixture()
     {

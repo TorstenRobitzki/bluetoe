@@ -13,7 +13,7 @@ BOOST_AUTO_TEST_SUITE( find_information_errors )
 /**
  * @test response with an error if PDU size is to small
  */
-BOOST_FIXTURE_TEST_CASE( pdu_too_small, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( pdu_too_small, test::request_with_reponse< test::small_temperature_service > )
 {
     static const std::uint8_t too_small[] = { 0x04, 0x00, 0x00, 0xff };
 
@@ -23,7 +23,7 @@ BOOST_FIXTURE_TEST_CASE( pdu_too_small, request_with_reponse< small_temperature_
 /**
  * @test response with an error if the starting handle is zero
  */
-BOOST_FIXTURE_TEST_CASE( start_handle_zero, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( start_handle_zero, test::request_with_reponse< test::small_temperature_service > )
 {
     static const std::uint8_t start_zero[] = { 0x04, 0x00, 0x00, 0xff, 0xff };
 
@@ -33,7 +33,7 @@ BOOST_FIXTURE_TEST_CASE( start_handle_zero, request_with_reponse< small_temperat
 /**
  * @test response with an invalid handle, if starting handle is larger than ending handle
  */
-BOOST_FIXTURE_TEST_CASE( start_handle_larger_than_ending, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( start_handle_larger_than_ending, test::request_with_reponse< test::small_temperature_service > )
 {
     static const std::uint8_t larger_than[] = { 0x04, 0x06, 0x00, 0x05, 0x00 };
 
@@ -44,13 +44,13 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( find_small_temperature_service_valid_requests )
 
-BOOST_FIXTURE_TEST_CASE( request_out_of_range, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( request_out_of_range, test::request_with_reponse< test::small_temperature_service > )
 {
     static const std::uint8_t request[] = { 0x04, 0x04, 0x00, 0xff, 0xff };
     BOOST_CHECK( check_error_response( request, 0x04, 0x0004, 0x0A ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_opcode, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( correct_opcode, test::request_with_reponse< test::small_temperature_service > )
 {
     l2cap_input( request_all_attributes );
 
@@ -58,7 +58,7 @@ BOOST_FIXTURE_TEST_CASE( correct_opcode, request_with_reponse< small_temperature
     BOOST_CHECK_EQUAL( response[ 0 ], 0x05 );
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_list_of_16bit_uuids, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( correct_list_of_16bit_uuids, test::request_with_reponse< test::small_temperature_service > )
 {
     l2cap_input( request_all_attributes );
 
@@ -69,7 +69,7 @@ BOOST_FIXTURE_TEST_CASE( correct_list_of_16bit_uuids, request_with_reponse< smal
     });
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_list_of_128bit_uuids, request_with_reponse< small_temperature_service > )
+BOOST_FIXTURE_TEST_CASE( correct_list_of_128bit_uuids, test::request_with_reponse< test::small_temperature_service > )
 {
     static const std::uint8_t request_value_attribute[] = { 0x04, 0x03, 0x00, 0x03, 0x00 };
     l2cap_input( request_value_attribute );
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( more_than_one_characteristics )
 
-BOOST_FIXTURE_TEST_CASE( as_long_as_mtu_size_is_large_enough_all_16bit_uuids_will_be_served, request_with_reponse< three_apes_service > )
+BOOST_FIXTURE_TEST_CASE( as_long_as_mtu_size_is_large_enough_all_16bit_uuids_will_be_served, test::request_with_reponse< test::three_apes_service > )
 {
     l2cap_input( request_all_attributes );
 
@@ -101,7 +101,7 @@ BOOST_FIXTURE_TEST_CASE( as_long_as_mtu_size_is_large_enough_all_16bit_uuids_wil
     });
 }
 
-BOOST_FIXTURE_TEST_CASE( response_includes_the_starting_and_ending_handle, request_with_reponse< three_apes_service > )
+BOOST_FIXTURE_TEST_CASE( response_includes_the_starting_and_ending_handle, test::request_with_reponse< test::three_apes_service > )
 {
     const std::uint8_t request[] = { 0x04, 0x02, 0x00, 0x04, 0x00 };
     l2cap_input( request );
@@ -113,7 +113,7 @@ BOOST_FIXTURE_TEST_CASE( response_includes_the_starting_and_ending_handle, reque
     });
 }
 
-typedef request_with_reponse< three_apes_service, 56 > request_with_reponse_three_apes_service_56;
+typedef test::request_with_reponse< test::three_apes_service, 56 > request_with_reponse_three_apes_service_56;
 
 BOOST_FIXTURE_TEST_CASE( response_will_contain_only_128bit_uuids_if_the_first_one_is_a_128_bituuid, request_with_reponse_three_apes_service_56 )
 {
@@ -140,7 +140,7 @@ BOOST_FIXTURE_TEST_CASE( response_will_contain_only_128bit_uuids_if_the_first_on
     });
 }
 
-typedef request_with_reponse< three_apes_service, 55 > request_with_reponse_three_apes_service_55;
+typedef test::request_with_reponse< test::three_apes_service, 55 > request_with_reponse_three_apes_service_55;
 BOOST_FIXTURE_TEST_CASE( response_will_contain_one_whole_tuples, request_with_reponse_three_apes_service_55 )
 {
     const std::uint8_t request[] = { 0x04, 0x03, 0x00, 0xff, 0xff };

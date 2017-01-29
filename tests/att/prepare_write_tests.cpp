@@ -5,7 +5,7 @@
 
 BOOST_AUTO_TEST_SUITE( prepare_write_errors )
 
-BOOST_FIXTURE_TEST_CASE( no_write_buffer, request_with_reponse< three_apes_service > )
+BOOST_FIXTURE_TEST_CASE( no_write_buffer, test::request_with_reponse< test::three_apes_service > )
 {
     BOOST_CHECK( check_error_response( { 0x16, 0x03, 0x00, 0x00, 0x00, 0xab  }, 0x16, 0x0000, 0x06 ) );
 }
@@ -28,7 +28,7 @@ typedef bluetoe::server<
     >
 > very_large_value_server;
 
-typedef request_with_reponse< very_large_value_server > large_fixture;
+typedef test::request_with_reponse< very_large_value_server > large_fixture;
 
 BOOST_FIXTURE_TEST_CASE( pdu_to_small, large_fixture )
 {
@@ -61,7 +61,7 @@ typedef bluetoe::server<
     >
 > large_value_server_with_small_queue;
 
-BOOST_FIXTURE_TEST_CASE( write_queue_full, request_with_reponse< large_value_server_with_small_queue > )
+BOOST_FIXTURE_TEST_CASE( write_queue_full, test::request_with_reponse< large_value_server_with_small_queue > )
 {
     BOOST_CHECK( check_error_response(
         { 0x16, 0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 },
@@ -105,7 +105,7 @@ typedef bluetoe::server<
     >
 > three_apes_server;
 
-BOOST_FIXTURE_TEST_CASE( prepare_3_writes, request_with_reponse< three_apes_server > )
+BOOST_FIXTURE_TEST_CASE( prepare_3_writes, test::request_with_reponse< three_apes_server > )
 {
     l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
     expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
@@ -117,7 +117,7 @@ BOOST_FIXTURE_TEST_CASE( prepare_3_writes, request_with_reponse< three_apes_serv
     expected_result( { 0x17, 0x07, 0x00, 0x00, 0x00, 0x00, 0x03 } );
 }
 
-BOOST_FIXTURE_TEST_CASE( queue_can_be_used_after_beeing_released, request_with_reponse< three_apes_server > )
+BOOST_FIXTURE_TEST_CASE( queue_can_be_used_after_beeing_released, test::request_with_reponse< three_apes_server > )
 {
     connection_data con1( 23 );
     connection_data con2( 23 );
@@ -133,7 +133,7 @@ BOOST_FIXTURE_TEST_CASE( queue_can_be_used_after_beeing_released, request_with_r
     expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
 }
 
-BOOST_FIXTURE_TEST_CASE( client_disconnected_can_be_called_without_queue, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( client_disconnected_can_be_called_without_queue, test::small_temperature_service_with_response<> )
 {
     this->client_disconnected( connection );
 }

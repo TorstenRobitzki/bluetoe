@@ -59,8 +59,9 @@ script:
   - cd build
   - cmake --version
   - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
-  - make all_tests.run
+  - make
   - make build_examples
+  - ctest --verbose
 
 after_success:
   - cd $TRAVIS_BUILD_DIR
@@ -74,4 +75,4 @@ before_install:
   - wget https://launchpad.net/%7Eboost-latest/+archive/ubuntu/ppa/+files/libboost1.55-dev_1.55.0-1ppa1%7Esaucy1_amd64.deb
   - sudo dpkg --install libboost1.55-dev_1.55.0-1ppa1~saucy1_amd64.deb
   - sudo apt-get update -qq
-  - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv -in config/travisci_rsa.enc -out config/travisci_rsa -d
+  # - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv -in config/travisci_rsa.enc -out config/travisci_rsa -d

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <array>
 #include <bluetoe/service.hpp>
 
 #define BOOST_TEST_MODULE

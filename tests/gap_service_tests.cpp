@@ -23,7 +23,7 @@ typedef bluetoe::server<
 > nupsy_service;
 
 // service is discoverable and contains at least two characteristics
-BOOST_FIXTURE_TEST_CASE( service_is_discoverable_by_default, request_with_reponse< nupsy_service > )
+BOOST_FIXTURE_TEST_CASE( service_is_discoverable_by_default, test::request_with_reponse< nupsy_service > )
 {
     // Find By Type Value Request, 1, 0xffff, <<primary service>>, <<gap service>>
     l2cap_input( { 0x06, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28, 0x00, 0x18 } );
@@ -45,7 +45,7 @@ typedef bluetoe::server<
     bluetoe::no_gap_service_for_gatt_servers
 > without_gap_service_service;
 
-BOOST_FIXTURE_TEST_CASE( no_service_no_cookies, request_with_reponse< without_gap_service_service > )
+BOOST_FIXTURE_TEST_CASE( no_service_no_cookies, test::request_with_reponse< without_gap_service_service > )
 {
     // Find By Type Value Request, 1, 0xffff, <<primary service>>, <<gap service>>
     check_error_response(
@@ -54,7 +54,7 @@ BOOST_FIXTURE_TEST_CASE( no_service_no_cookies, request_with_reponse< without_ga
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( appearance_is_mandatory, request_with_reponse< nupsy_service > )
+BOOST_FIXTURE_TEST_CASE( appearance_is_mandatory, test::request_with_reponse< nupsy_service > )
 {
     // Read by Type Request, 0x0001, 0xffff, 0x2A01
     l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x01, 0x2A } );
@@ -64,7 +64,7 @@ BOOST_FIXTURE_TEST_CASE( appearance_is_mandatory, request_with_reponse< nupsy_se
     } );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_service_no_appearance, request_with_reponse< without_gap_service_service > )
+BOOST_FIXTURE_TEST_CASE( no_service_no_appearance, test::request_with_reponse< without_gap_service_service > )
 {
     // Read by Type Request, 0x0001, 0xffff, 0x2A01
     check_error_response(
@@ -85,7 +85,7 @@ typedef bluetoe::server<
     bluetoe::appearance::location_and_navigation_display_device
 > location_and_navigation_display_device_server;
 
-BOOST_FIXTURE_TEST_CASE( configured_appearance_is_used, request_with_reponse< location_and_navigation_display_device_server > )
+BOOST_FIXTURE_TEST_CASE( configured_appearance_is_used, test::request_with_reponse< location_and_navigation_display_device_server > )
 {
     // Read by Type Request, 0x0001, 0xffff, 0x2A01
     l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x01, 0x2A } );
@@ -95,7 +95,7 @@ BOOST_FIXTURE_TEST_CASE( configured_appearance_is_used, request_with_reponse< lo
     } );
 }
 
-BOOST_FIXTURE_TEST_CASE( device_name_is_mandatory, request_with_reponse< nupsy_service > )
+BOOST_FIXTURE_TEST_CASE( device_name_is_mandatory, test::request_with_reponse< nupsy_service > )
 {
     // Read by Type Request, 0x0001, 0xffff, 0x2A00
     l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x00, 0x2A } );
@@ -118,7 +118,7 @@ typedef bluetoe::server<
     >
 > no_name_service;
 
-BOOST_FIXTURE_TEST_CASE( default_name, request_with_reponse< no_name_service > )
+BOOST_FIXTURE_TEST_CASE( default_name, test::request_with_reponse< no_name_service > )
 {
     // Read by Type Request, 0x0001, 0xffff, 0x2A00
     l2cap_input( { 0x08, 0x01, 0x00, 0xff, 0xff, 0x00, 0x2A } );

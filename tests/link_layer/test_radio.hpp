@@ -243,6 +243,8 @@ namespace test {
             static bool locked_;
         };
 
+        static constexpr std::size_t radio_maximum_white_list_entries = 0;
+
     protected:
         typedef std::vector< advertising_data > advertising_list;
         advertising_list advertised_data_;

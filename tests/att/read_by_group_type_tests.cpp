@@ -6,33 +6,33 @@
 
 BOOST_AUTO_TEST_SUITE( read_by_group_type_errors )
 
-BOOST_FIXTURE_TEST_CASE( start_handle_zero, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( start_handle_zero, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x10, 0x00, 0x00, 0xff, 0xff, 0x00, 0x28 }, 0x10, 0x0000, 0x01 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( start_handle_greater_than_end_handle, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( start_handle_greater_than_end_handle, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x10, 0x05, 0x00, 0x04, 0x00, 0x00, 0x28 }, 0x10, 0x0005, 0x01 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_request_size, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( invalid_request_size, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x10, 0x05, 0x00, 0x05, 0x00 }, 0x10, 0x0000, 0x04 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( handle_out_of_range, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( handle_out_of_range, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response( { 0x10, 0x40, 0x00, 0xff, 0xff, 0x00, 0x28 }, 0x10, 0x0040, 0x0A ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( unsupprorted_group_type, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( unsupprorted_group_type, test::small_temperature_service_with_response<> )
 {
     // every type but the «Primary Service» is invalid for GATT
     BOOST_CHECK( check_error_response( { 0x10, 0x01, 0x00, 0xff, 0xff, 0x01, 0x28 }, 0x10, 0x0001, 0x10 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( unsupprorted_group_type_128bit, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( unsupprorted_group_type_128bit, test::small_temperature_service_with_response<> )
 {
     // every type but the «Primary Service» is invalid for GATT
     BOOST_CHECK( check_error_response(
@@ -45,7 +45,7 @@ BOOST_FIXTURE_TEST_CASE( unsupprorted_group_type_128bit, small_temperature_servi
         }, 0x10, 0x0001, 0x10 ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( request_out_of_range, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( request_out_of_range, test::small_temperature_service_with_response<> )
 {
     BOOST_CHECK( check_error_response(
         { 0x10, 0x02, 0x00, 0xff, 0xff, 0x00, 0x28 }, 0x10, 0x0002, 0x0a ) );
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( discover_primary_services )
 
-BOOST_FIXTURE_TEST_CASE( single_service, small_temperature_service_with_response<> )
+BOOST_FIXTURE_TEST_CASE( single_service, test::small_temperature_service_with_response<> )
 {
     l2cap_input( { 0x10, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28 } );
 
@@ -73,12 +73,12 @@ BOOST_FIXTURE_TEST_CASE( single_service, small_temperature_service_with_response
 }
 
 typedef bluetoe::server<
-    global_temperature_service,
-    service_with_3_characteristics,
-    cycling_speed_and_cadence_service
+    test::global_temperature_service,
+    test::service_with_3_characteristics,
+    test::cycling_speed_and_cadence_service
 > server_with_3_characteristics;
 
-typedef request_with_reponse< server_with_3_characteristics, 100 > request_with_reponse_server_with_3_characteristics_100;
+typedef test::request_with_reponse< server_with_3_characteristics, 100 > request_with_reponse_server_with_3_characteristics_100;
 
 BOOST_FIXTURE_TEST_CASE( different_attribute_data_size, request_with_reponse_server_with_3_characteristics_100 )
 {
@@ -101,7 +101,7 @@ BOOST_FIXTURE_TEST_CASE( different_attribute_data_size, request_with_reponse_ser
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
-typedef request_with_reponse< server_with_3_characteristics, 41 > request_with_reponse_server_with_3_characteristics_41;
+typedef test::request_with_reponse< server_with_3_characteristics, 41 > request_with_reponse_server_with_3_characteristics_41;
 
 BOOST_FIXTURE_TEST_CASE( output_to_small_for_more_than_one_service, request_with_reponse_server_with_3_characteristics_41 )
 {
@@ -120,13 +120,13 @@ BOOST_FIXTURE_TEST_CASE( output_to_small_for_more_than_one_service, request_with
 }
 
 typedef bluetoe::server<
-    global_temperature_service,
-    cycling_speed_and_cadence_service,
-    service_with_3_characteristics,
+    test::global_temperature_service,
+    test::cycling_speed_and_cadence_service,
+    test::service_with_3_characteristics,
     bluetoe::no_gap_service_for_gatt_servers
 > server_with_16bit_characteristics_in_the_middle;
 
-typedef request_with_reponse< server_with_16bit_characteristics_in_the_middle, 100 > server_with_16bit_characteristics_in_the_middle_100;
+typedef test::request_with_reponse< server_with_16bit_characteristics_in_the_middle, 100 > server_with_16bit_characteristics_in_the_middle_100;
 
 BOOST_FIXTURE_TEST_CASE( different_attribute_data_size_with_gap, server_with_16bit_characteristics_in_the_middle_100 )
 {
@@ -149,7 +149,7 @@ BOOST_FIXTURE_TEST_CASE( different_attribute_data_size_with_gap, server_with_16b
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( read_16bit_uuid_in_gap, request_with_reponse< server_with_16bit_characteristics_in_the_middle > )
+BOOST_FIXTURE_TEST_CASE( read_16bit_uuid_in_gap, test::request_with_reponse< server_with_16bit_characteristics_in_the_middle > )
 {
     l2cap_input( { 0x10, 0x04, 0x00, 0xff, 0xff, 0x00, 0x28 } );
 
@@ -163,13 +163,13 @@ BOOST_FIXTURE_TEST_CASE( read_16bit_uuid_in_gap, request_with_reponse< server_wi
 }
 
 typedef bluetoe::server<
-    cycling_speed_and_cadence_service,
-    cycling_speed_and_cadence_service,
-    cycling_speed_and_cadence_service,
-    cycling_speed_and_cadence_service
+    test::cycling_speed_and_cadence_service,
+    test::cycling_speed_and_cadence_service,
+    test::cycling_speed_and_cadence_service,
+    test::cycling_speed_and_cadence_service
 > server_with_4_bicycles;
 
-BOOST_FIXTURE_TEST_CASE( output_to_small_to_read_all_services, request_with_reponse< server_with_4_bicycles > )
+BOOST_FIXTURE_TEST_CASE( output_to_small_to_read_all_services, test::request_with_reponse< server_with_4_bicycles > )
 {
     l2cap_input( { 0x10, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28 } );
 
