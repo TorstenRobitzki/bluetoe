@@ -4,7 +4,7 @@
 
 using namespace bluetoe;
 
-static constexpr int io_pin = 19;
+static constexpr int io_pin = 21;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
