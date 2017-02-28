@@ -126,7 +126,7 @@ namespace link_layer {
         assert( size > ll_header_size );
 
         // buffer splited? There must be one byte left to not overflow the ring.
-        if ( end_ > front_ && size < end_ - front_ )
+        if ( end_ > front_ && static_cast< std::ptrdiff_t >( size ) < end_ - front_ )
         {
             return Buffer{ front_, size };
         }
@@ -136,13 +136,13 @@ namespace link_layer {
             const std::uint8_t* end_of_buffer = buffer + Size;
 
             // allocate at the end?
-            if ( size <= end_of_buffer - front_ )
+            if ( static_cast< std::ptrdiff_t >( size ) <= end_of_buffer - front_ )
             {
                 return Buffer{ front_, size };
             }
 
             // allocate at the begining? Again, there must be one byte left between the end front_ and the end_
-            if ( size < end_ - buffer )
+            if ( static_cast< std::ptrdiff_t >( size ) < end_ - buffer )
             {
                 return Buffer{ buffer, size };
             }

@@ -201,7 +201,7 @@ namespace bluetoe {
 
                 // copy data
                 std::uint8_t* output = args.buffer;
-                for ( int i = args.buffer_offset; i != args.buffer_offset + args.buffer_size; ++i, ++output )
+                for ( auto i = args.buffer_offset; i != args.buffer_offset + args.buffer_size; ++i, ++output )
                     *output = ( Value >> ( 8 * i ) ) & 0xff;
 
                 return details::attribute_access_result::success;

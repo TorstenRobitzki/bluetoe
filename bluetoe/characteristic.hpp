@@ -275,10 +275,10 @@ namespace bluetoe {
                 int index_low  = static_cast< int >( args.buffer_offset ) - static_cast< int >( uuid_offset );
                 int index_high = static_cast< int >( args.buffer_offset ) - static_cast< int >( uuid_offset + 1 );
 
-                if ( index_low >= 0 && index_low < args.buffer_size )
+                if ( index_low >= 0 && index_low < static_cast< int >( args.buffer_size ) )
                     args.buffer[ index_low ] ^= ( char_index & 0xff );
 
-                if ( index_high >= 0 && index_high < args.buffer_size )
+                if ( index_high >= 0 && index_high < static_cast< int >( args.buffer_size ) )
                     args.buffer[ index_high ] ^= ( char_index >> 8 );
             }
 
