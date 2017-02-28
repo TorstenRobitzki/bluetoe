@@ -1358,7 +1358,8 @@ namespace bluetoe {
             ? 2 + 2
             : 2 + 16;
 
-        for ( ; start <= end && start <= number_of_attributes && out_end - out >= size_per_tuple; ++start )
+        for ( ; start <= end && start <= number_of_attributes
+            && static_cast< std::size_t >( out_end - out ) >= size_per_tuple; ++start )
         {
             const details::attribute attr = attribute_at( start -1 );
             const bool is_16_bit_uuids    = attr.uuid != bits( details::gatt_uuids::internal_128bit_uuid );

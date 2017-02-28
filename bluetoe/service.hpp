@@ -260,7 +260,7 @@ namespace bluetoe {
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
 
-        if ( is_128bit_filter == uuid::is_128bit && end - output >= attribute_data_size )
+        if ( is_128bit_filter == uuid::is_128bit && static_cast< std::size_t >( end - output ) >= attribute_data_size )
         {
             std::uint8_t* const old_output = output;
 

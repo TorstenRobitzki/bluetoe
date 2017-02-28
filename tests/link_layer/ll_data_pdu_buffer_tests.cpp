@@ -51,7 +51,7 @@ struct running_mode : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_ra
     template < class Iter >
     void transmit_pdu( Iter begin, Iter end )
     {
-        const auto size = std::distance( begin, end );
+        const std::size_t size = std::distance( begin, end );
 
         auto buffer = allocate_transmit_buffer( size + 2 );
         assert( buffer.size == size +2 );
