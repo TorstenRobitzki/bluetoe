@@ -506,7 +506,7 @@ namespace bluetoe {
         begin = slave_connection_interval_range_ad::advertising_data( begin, end );
 
         // add aditional empty AD to be visible to Nordic sniffer
-        if ( end - begin >= 2u )
+        if ( static_cast< unsigned >( end - begin ) >= 2u )
         {
             *begin = 0;
             ++begin;
