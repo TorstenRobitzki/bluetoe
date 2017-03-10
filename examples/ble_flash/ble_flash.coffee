@@ -229,7 +229,7 @@ upload_range = ( peripheral, start_address, data, address_size, page_size, page_
             data_on_the_fly = data_on_the_fly - 1
             data = queued_data.shift()
 
-            data_char.write data, false, (error)->
+            data_char.write data, true, (error)->
                 data_on_the_fly = data_on_the_fly + 1
 
                 if error
