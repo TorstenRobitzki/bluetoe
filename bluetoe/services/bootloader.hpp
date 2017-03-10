@@ -616,7 +616,7 @@ namespace bluetoe
             bootloader::error_codes reset();
 
             /**
-             * Return a custom string a response to the Get Version procedure.
+             * Return a custom string as response to the Get Version procedure.
              * Make sure, that the response is not longer than 20 bytes, or othere wise it could get truncated on the link layer.
              */
             std::pair< const std::uint8_t*, std::size_t > get_version();
