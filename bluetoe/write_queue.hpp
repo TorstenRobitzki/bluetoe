@@ -142,7 +142,7 @@ namespace details {
     {
         assert( size );
 
-        if ( size + 2 > S - buffer_end_ || current_client_ != nullptr && current_client_ != &client )
+        if ( size + 2 > static_cast< std::size_t >( S - buffer_end_ ) || current_client_ != nullptr && current_client_ != &client )
             return nullptr;
 
         buffer_[ buffer_end_ ]     = size & 0xff;
