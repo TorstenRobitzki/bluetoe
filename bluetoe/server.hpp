@@ -1244,7 +1244,7 @@ namespace bluetoe {
     template < typename WriteQueue >
     void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& client, const WriteQueue& )
     {
-        if ( in_size != 2 || input[ 1 ] != 0 && input[ 1 ] != 1 )
+        if ( in_size != 2 || ( input[ 1 ] != 0 && input[ 1 ] != 1 ) )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         // the write queue will be freed in any case

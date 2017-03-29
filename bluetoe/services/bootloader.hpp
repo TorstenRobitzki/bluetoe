@@ -59,7 +59,7 @@ namespace bluetoe
         {
             static bool acceptable( std::uintptr_t start, std::uintptr_t end )
             {
-                return start >= Start && end <= End
+                return ( start >= Start && end <= End )
                     || white_list< Regions... >::acceptable( start, end );
             }
 

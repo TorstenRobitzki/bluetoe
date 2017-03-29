@@ -13,10 +13,10 @@ namespace bluetoe {
             std::uint16_t MaxInterval >
         struct check_slave_connection_interval_range_parameters
         {
-            static_assert( MinInterval >= 0x0006 && MinInterval <= 0x0C80 || MinInterval == no_specific_slave_connection_minimum_interval,
+            static_assert( ( MinInterval >= 0x0006 && MinInterval <= 0x0C80 ) || MinInterval == no_specific_slave_connection_minimum_interval,
                 "Invalid value for slave_connection_interval_range first template parameter (MinInterval) used!" );
 
-            static_assert( MaxInterval >= 0x0006 && MaxInterval <= 0x0C80 || MaxInterval == no_specific_slave_connection_maximum_interval,
+            static_assert( ( MaxInterval >= 0x0006 && MaxInterval <= 0x0C80 ) || MaxInterval == no_specific_slave_connection_maximum_interval,
                 "Invalid value for slave_connection_interval_range second template parameter (MaxInterval) used!" );
 
             static_assert( MinInterval <= MaxInterval || MinInterval == no_specific_slave_connection_minimum_interval || MaxInterval == no_specific_slave_connection_maximum_interval,
