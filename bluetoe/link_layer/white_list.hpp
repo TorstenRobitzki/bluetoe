@@ -144,12 +144,12 @@ namespace link_layer {
         /** @cond HIDDEN_SYMBOLS */
         template < class Radio, class LinkLayer >
         struct impl {
-            bool is_connection_request_in_filter( const device_address& addr ) const
+            bool is_connection_request_in_filter( const device_address& ) const
             {
                 return true;
             }
 
-            bool is_scan_request_in_filter( const device_address& addr ) const
+            bool is_scan_request_in_filter( const device_address& ) const
             {
                 return true;
             }

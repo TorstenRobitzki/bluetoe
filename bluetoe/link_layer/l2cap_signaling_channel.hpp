@@ -75,7 +75,7 @@ namespace l2cap {
         /**
          * @copydoc signaling_channel::signaling_channel_input
          */
-        void signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+        void signaling_channel_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t& out_size )
         {
             out_size = 0;
         }
@@ -83,7 +83,7 @@ namespace l2cap {
         /**
          * @copydoc signaling_channel::signaling_channel_output
          */
-        void signaling_channel_output( std::uint8_t* output, std::size_t& out_size )
+        void signaling_channel_output( std::uint8_t*, std::size_t& out_size )
         {
             out_size = 0;
         }
@@ -91,7 +91,7 @@ namespace l2cap {
         /**
          * @copydoc signaling_channel::connection_parameter_update_request
          */
-        bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
+        bool connection_parameter_update_request( std::uint16_t, std::uint16_t, std::uint16_t, std::uint16_t )
         {
             return false;
         }

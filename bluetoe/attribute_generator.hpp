@@ -25,7 +25,7 @@ namespace details {
     template < std::size_t ClientCharacteristicIndex, typename ... Options >
     struct generate_attribute_list< std::tuple<>, ClientCharacteristicIndex, std::tuple< Options... > >
     {
-        static const attribute attribute_at( std::size_t index )
+        static const attribute attribute_at( std::size_t )
         {
             assert( !"should not happen" );
             return attribute();

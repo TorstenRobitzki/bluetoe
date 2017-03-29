@@ -126,7 +126,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments compare_value( const std::uint8_t* begin, const std::uint8_t* end, void* server )
+        static attribute_access_arguments compare_value( const std::uint8_t* begin, const std::uint8_t* end, void* )
         {
             assert( end >= begin );
 
@@ -168,7 +168,7 @@ namespace details {
     template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
     struct attribute_at_list< std::tuple<>, ClientCharacteristicIndex, ServiceUUID, Server >
     {
-        static details::attribute attribute_at( std::size_t index )
+        static details::attribute attribute_at( std::size_t )
         {
             assert( !"index out of bound" );
             return details::attribute();
@@ -203,7 +203,7 @@ namespace details {
     template < typename Server, std::size_t ClientCharacteristicIndex, typename AllServices >
     struct attribute_from_service_list< std::tuple<>, Server, ClientCharacteristicIndex, AllServices >
     {
-        static details::attribute attribute_at( std::size_t index )
+        static details::attribute attribute_at( std::size_t )
         {
             assert( !"index out of bound" );
             return details::attribute();
@@ -297,7 +297,7 @@ namespace details {
         }
 
         template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-        static notification_data find_notification_data_by_index( std::size_t index )
+        static notification_data find_notification_data_by_index( std::size_t )
         {
             return notification_data();
         }

@@ -738,7 +738,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
     {
         handle = details::read_handle( &input[ 1 ] );
 
@@ -777,7 +777,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    void server< Options... >::handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
     {
         std::uint16_t starting_handle, ending_handle;
 
@@ -865,7 +865,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    void server< Options... >::handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
     {
         std::uint16_t starting_handle, ending_handle;
 
@@ -1085,7 +1085,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
     {
         std::uint16_t starting_handle, ending_handle;
 
@@ -1197,7 +1197,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
+    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
     {
         error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
     }
@@ -1235,7 +1235,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
+    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
     {
         error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
     }

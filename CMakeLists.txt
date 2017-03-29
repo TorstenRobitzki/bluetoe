@@ -8,7 +8,7 @@ if (DEFINED NDEBUG)
     add_definitions(-DNDEBUG=1)
 endif()
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wfatal-errors -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wfatal-errors")
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     # using Clang

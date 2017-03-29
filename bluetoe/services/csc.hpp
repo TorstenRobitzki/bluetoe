@@ -358,12 +358,12 @@ namespace bluetoe {
             };
 
             struct no_control_point_handler {
-                std::uint8_t csc_read_control_point( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) {
+                std::uint8_t csc_read_control_point( std::size_t, std::uint8_t*, std::size_t& ) {
                     return 0;
                 }
 
                 template < class Handler >
-                std::pair< std::uint8_t, bool > csc_write_control_point( std::size_t write_size, const std::uint8_t* value, Handler& handler ) {
+                std::pair< std::uint8_t, bool > csc_write_control_point( std::size_t, const std::uint8_t*, Handler& ) {
                     return std::make_pair( 0, false );
                 }
             };
@@ -374,7 +374,7 @@ namespace bluetoe {
             public:
                 static constexpr std::size_t max_response_size = 1 + 4 + 2 + 2 + 2;
 
-                void csc_wheel_revolution( std::uint32_t resolution, std::uint32_t time )
+                void csc_wheel_revolution( std::uint32_t, std::uint32_t )
                 {
                 }
 

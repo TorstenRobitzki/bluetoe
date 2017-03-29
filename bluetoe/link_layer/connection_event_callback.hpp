@@ -9,7 +9,7 @@ namespace link_layer {
 
         struct default_connection_event_callback
         {
-            static void call_connection_event_callback( const delta_time& time_till_next_event )
+            static void call_connection_event_callback( const delta_time& )
             {
             }
 

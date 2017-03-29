@@ -233,7 +233,7 @@ namespace test {
     {
     }
 
-    void radio_base::check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message ) const
+    void radio_base::check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* ) const
     {
         unsigned n = 0;
 

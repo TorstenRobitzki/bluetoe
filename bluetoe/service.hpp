@@ -335,7 +335,7 @@ namespace bluetoe {
         template < std::size_t ClientCharacteristicIndex, typename ... Options >
         struct generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >
         {
-            static attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
                 typedef typename find_by_meta_type< service_uuid_meta_type, Options... >::type uuid;
 
@@ -390,7 +390,7 @@ namespace bluetoe {
 
             typedef service_handles< service_list, included_service > handles;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
                 static const std::uint8_t value[] = {
                     handles::service_attribute_handle & 0xff,
@@ -437,7 +437,7 @@ namespace bluetoe {
 
             typedef service_handles< service_list, included_service > handles;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
                 static const std::uint8_t value[] = {
                     handles::service_attribute_handle & 0xff,

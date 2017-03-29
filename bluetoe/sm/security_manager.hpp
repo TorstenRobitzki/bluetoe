@@ -42,7 +42,7 @@ namespace bluetoe {
      * Implementation
      */
     /** @cond HIDDEN_SYMBOLS */
-    inline void security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    inline void security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size )
     {
         static const std::uint8_t response[] = {
             0x02,   // response
@@ -62,7 +62,7 @@ namespace bluetoe {
         out_size = response_size;
     }
 
-    inline void no_security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    inline void no_security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size )
     {
         assert( out_size >= 2 );
         out_size = 2;

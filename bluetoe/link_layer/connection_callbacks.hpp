@@ -168,19 +168,19 @@ namespace link_layer {
 
             template < class Server >
             struct impl {
-                void connection_request( const connection_addresses& addresses ) {}
+                void connection_request( const connection_addresses& ) {}
 
                 template < class Radio >
                 void connection_established(
-                    const connection_details&               details,
-                    const typename Server::connection_data& connection,
-                    Radio&                                  r ) {}
+                    const connection_details&,
+                    const typename Server::connection_data&,
+                    Radio& ) {}
 
                 template < class Radio >
-                void connection_changed(  const bluetoe::link_layer::connection_details& details, const typename Server::connection_data& connection, Radio& r ) {}
+                void connection_changed(  const bluetoe::link_layer::connection_details&, const typename Server::connection_data&, Radio& ) {}
 
                 template < class Radio >
-                void connection_closed( const typename Server::connection_data& connection, Radio& r ) {}
+                void connection_closed( const typename Server::connection_data&, Radio& ) {}
 
                 void handle_connection_events() {}
             };

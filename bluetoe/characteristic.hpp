@@ -357,7 +357,7 @@ namespace bluetoe {
         {
             static const attribute attr;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
                 const std::size_t str_len   = std::strlen( Name );
 
@@ -396,7 +396,7 @@ namespace bluetoe {
         {
             static const attribute attr;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
                 static constexpr std::size_t flags_size = 2;
                 std::uint8_t buffer[ flags_size ];

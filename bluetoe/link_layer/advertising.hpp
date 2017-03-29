@@ -312,7 +312,7 @@ namespace link_layer {
                 return read_buffer{ nullptr, 0 };
             }
 
-            bool is_valid_scan_request( const read_buffer& receive ) const
+            bool is_valid_scan_request( const read_buffer& ) const
             {
                 return false;
             }
@@ -430,7 +430,7 @@ namespace link_layer {
                 return details::advertising_type_base::is_valid_scan_request( receive, link_layer().local_address() );
             }
 
-            bool is_valid_connect_request( const read_buffer& receive ) const
+            bool is_valid_connect_request( const read_buffer& ) const
             {
                 return false;
             }
@@ -549,12 +549,12 @@ namespace link_layer {
                 return read_buffer{ nullptr, 0 };
             }
 
-            bool is_valid_scan_request( const read_buffer& receive ) const
+            bool is_valid_scan_request( const read_buffer& ) const
             {
                 return false;
             }
 
-            bool is_valid_connect_request( const read_buffer& receive ) const
+            bool is_valid_connect_request( const read_buffer& ) const
             {
                 return false;
             }

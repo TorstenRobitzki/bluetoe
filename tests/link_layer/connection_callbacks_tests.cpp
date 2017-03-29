@@ -17,7 +17,7 @@ struct only_connect_callback_t
     void ll_connection_established(
         const bluetoe::link_layer::connection_details&      details,
         const bluetoe::link_layer::connection_addresses&    addresses,
-        const ConnectionData&                               connection )
+        const ConnectionData& )
     {
         connection_established_called = true;
         reported_details              = details;
@@ -38,7 +38,7 @@ struct only_changed_callback_t
     }
 
     template < typename ConnectionData >
-    void ll_connection_changed( const bluetoe::link_layer::connection_details& details, const ConnectionData& connection )
+    void ll_connection_changed( const bluetoe::link_layer::connection_details& details, const ConnectionData& )
     {
         only_changed_called = true;
         reported_details    = details;
@@ -57,7 +57,7 @@ struct only_disconnect_callback_t
     }
 
     template < typename ConnectionData >
-    void ll_connection_closed( const ConnectionData& connection )
+    void ll_connection_closed( const ConnectionData& )
     {
         only_disconnect_called = true;
     }

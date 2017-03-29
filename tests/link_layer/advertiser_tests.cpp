@@ -16,23 +16,22 @@ struct link_layer_base
         std::fill( std::begin( buffer_ ), std::end( buffer_ ), 0 );
     }
 
-    bool is_connection_request_in_filter( const bluetoe::link_layer::device_address& addr ) const
+    bool is_connection_request_in_filter( const bluetoe::link_layer::device_address& ) const
     {
         return Connect;
     }
 
-    bool is_scan_request_in_filter( const bluetoe::link_layer::device_address& addr ) const
+    bool is_scan_request_in_filter( const bluetoe::link_layer::device_address& ) const
     {
         return Respond;
     }
 
     void schedule_advertisment_and_receive(
-        unsigned                                 channel,
-        const bluetoe::link_layer::write_buffer& transmit,
-        bluetoe::link_layer::delta_time          when,
-        const bluetoe::link_layer::read_buffer&  receive )
+        unsigned,
+        const bluetoe::link_layer::write_buffer&,
+        bluetoe::link_layer::delta_time,
+        const bluetoe::link_layer::read_buffer& )
     {
-
     }
 
     const bluetoe::link_layer::device_address& local_address() const

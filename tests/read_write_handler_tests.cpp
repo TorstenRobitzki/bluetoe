@@ -544,7 +544,7 @@ BOOST_FIXTURE_TEST_CASE( write_to_mixin, write_mixin_server )
 
 struct read_mixin
 {
-    std::uint8_t read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    std::uint8_t read_handler( std::size_t, std::uint8_t* out_buffer, std::size_t& out_size )
     {
         static constexpr std::uint8_t output[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 

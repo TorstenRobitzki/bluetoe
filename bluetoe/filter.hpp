@@ -80,7 +80,7 @@ namespace details {
     template < std::uint64_t UUID, typename Check >
     struct uuid16_filter< uuid16< UUID, Check > >
     {
-        bool operator()( std::uint16_t index, const attribute& attr ) const
+        bool operator()( std::uint16_t, const attribute& attr ) const
         {
             return attr.uuid == UUID;
         }

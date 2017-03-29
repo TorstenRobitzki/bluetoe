@@ -173,7 +173,7 @@ namespace bluetoe
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
-            bluetoe::link_layer::delta_time             connection_interval )
+            bluetoe::link_layer::delta_time )
         {
             link_layer::read_buffer read;
             {

@@ -106,7 +106,7 @@ namespace bluetoe {
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             template < class Server, std::size_t ClientCharacteristicIndex >
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
                 if ( args.type == details::attribute_access_type::read )
                 {
@@ -186,7 +186,7 @@ namespace bluetoe {
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             template < class Server, std::size_t ClientCharacteristicIndex  >
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
                 if ( !has_read_access )
                     return details::attribute_access_result::read_not_permitted;
@@ -207,7 +207,7 @@ namespace bluetoe {
                 return details::attribute_access_result::success;
             }
 
-            static bool is_this( const void* value )
+            static bool is_this( const void* )
             {
                 return false;
             }
@@ -255,7 +255,7 @@ namespace bluetoe {
             static constexpr bool has_indication   = false;
 
             template < class Server, std::size_t ClientCharacteristicIndex  >
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
@@ -276,7 +276,7 @@ namespace bluetoe {
                 return details::attribute_access_result::success;
             }
 
-            static bool is_this( const void* value )
+            static bool is_this( const void* )
             {
                 return false;
             }
@@ -300,7 +300,7 @@ namespace bluetoe {
         template <>
         struct invoke_read_handler< no_such_type > {
             template < class Server >
-            static std::uint8_t call_read_handler( std::size_t, std::size_t, std::uint8_t*, std::size_t&, void* server )
+            static std::uint8_t call_read_handler( std::size_t, std::size_t, std::uint8_t*, std::size_t&, void* )
             {
                 return error_codes::read_not_permitted;
             }
@@ -318,7 +318,7 @@ namespace bluetoe {
         template <>
         struct invoke_write_handler< no_such_type > {
             template < class Server, std::size_t ClientCharacteristicIndex >
-            static std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t*, const details::client_characteristic_configuration&, void* server )
+            static std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t*, const details::client_characteristic_configuration&, void* )
             {
                 return error_codes::write_not_permitted;
             }
