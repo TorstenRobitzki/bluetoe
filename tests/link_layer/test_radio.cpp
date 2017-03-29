@@ -459,6 +459,7 @@ namespace test {
     void radio_base::respond_with_crc_error( unsigned channel )
     {
         assert( channel < 40 );
+        static_cast< void >( channel );
 
         add_responder(
             [=]( const advertising_data& ) -> std::pair< bool, advertising_response >

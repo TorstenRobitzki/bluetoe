@@ -2,7 +2,7 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/codes.hpp>
 
-std::uint8_t read_blob_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+std::uint8_t read_blob_handler( std::size_t offset, std::size_t, std::uint8_t* out_buffer, std::size_t& out_size )
 {
     if ( offset == 0 )
     {
@@ -15,7 +15,7 @@ std::uint8_t read_blob_handler( std::size_t offset, std::size_t read_size, std::
     return bluetoe::error_codes::invalid_offset;
 }
 
-std::uint8_t read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+std::uint8_t read_handler( std::size_t, std::uint8_t* out_buffer, std::size_t& out_size )
 {
     *out_buffer = 42;
     out_size    = 1;
@@ -23,12 +23,12 @@ std::uint8_t read_handler( std::size_t read_size, std::uint8_t* out_buffer, std:
     return bluetoe::error_codes::success;
 }
 
-std::uint8_t write_blob_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+std::uint8_t write_blob_handler( std::size_t, std::size_t, const std::uint8_t* )
 {
     return bluetoe::error_codes::write_not_permitted;
 }
 
-std::uint8_t write_handler( std::size_t write_size, const std::uint8_t* value )
+std::uint8_t write_handler( std::size_t, const std::uint8_t* )
 {
     return bluetoe::error_codes::write_not_permitted;
 }
@@ -47,7 +47,7 @@ struct static_handler {
         return bluetoe::error_codes::success;
     }
 
-    static std::uint8_t write( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+    static std::uint8_t write( std::size_t, std::size_t, const std::uint8_t* )
     {
         return bluetoe::error_codes::write_not_permitted;
     }
@@ -55,12 +55,12 @@ struct static_handler {
 
 
 struct handler {
-    std::uint8_t read_blob( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    std::uint8_t read_blob( std::size_t, std::size_t, std::uint8_t*, std::size_t& )
     {
         return bluetoe::error_codes::success;
     }
 
-    std::uint8_t write_blob( std::size_t offset, std::size_t write_size, const std::uint8_t* value )
+    std::uint8_t write_blob( std::size_t, std::size_t, const std::uint8_t* )
     {
         return bluetoe::error_codes::write_not_permitted;
     }

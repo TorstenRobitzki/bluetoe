@@ -185,6 +185,7 @@ namespace details {
         assert( last >= &buffer_[ 2 ] );
         assert( last <= &buffer_[ S ] );
         assert( &client == current_client_ );
+        static_cast< void >( client );
 
         const std::size_t size = read_size( last );
 
