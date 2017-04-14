@@ -74,7 +74,7 @@ namespace bluetoe {
     };
 
     /**
-     * @brief A characteristic is an attribute that is accessable by a GATT client.
+     * @brief A characteristic is a typed value that is accessable by a GATT client hosted by a GATT server.
      *
      * A characteristics type (not it terms of C++ data type) is defined by a UUID. Characteristics with the
      * same UUID should represent attributes with the same type / characteristic. Usually a GATT client referes
