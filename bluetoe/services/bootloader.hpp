@@ -576,7 +576,8 @@ namespace bluetoe
                         bluetoe::bootloader::data_uuid,
                         bluetoe::mixin_write_handler<
                             implementation, &implementation::bootloader_write_data
-                        >
+                        >,
+                        bluetoe::write_without_response
                     >,
                     bluetoe::characteristic<
                         bluetoe::bootloader::progress_uuid,

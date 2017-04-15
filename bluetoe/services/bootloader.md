@@ -8,8 +8,8 @@ The characteristics has following properties:
 
 Characteristic | Properties        | UUID
 ---------------|-------------------|--------------------------------------
-Control Point  | Write, Notify, Write Without Response     | 7D295F4D-2850-4F57-B595-837F5753F8A9
-Data           | Write             | 7D295F4D-2850-4F57-B595-837F5753F8AA
+Control Point  | Write, Notify     | 7D295F4D-2850-4F57-B595-837F5753F8A9
+Data           | Write, Write Without Response | 7D295F4D-2850-4F57-B595-837F5753F8AA
 Progress       | Notify            | 7D295F4D-2850-4F57-B595-837F5753F8AB
 
 Procedures
