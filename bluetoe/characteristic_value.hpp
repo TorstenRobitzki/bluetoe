@@ -86,6 +86,20 @@ namespace bluetoe {
     };
 
     /**
+     * @brief sets the Write Without Response Characteristic Property bit.
+     *
+     * By adding this bit to the Characteristic Properties, a client knows that it can use the
+     * Write Without Response sub-procedure. In this case, a client can write to a characteristic
+     * and will get no response from the GATT server. Don't use this property if there is any
+     * need to respond with an error to a write attempt.
+     */
+    struct write_without_response {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
+        /** @endcond */
+    };
+
+    /**
      * @brief a very simple device to bind a characteristic to a global variable to provide access to the characteristic value
      */
     template < typename T, T* Ptr >
@@ -102,6 +116,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = !std::is_const< T >::value && !details::has_option< no_write_access, Options... >::value;
+            static constexpr bool has_write_without_response = details::has_option< write_without_response, Options... >::value;
             static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
@@ -182,6 +197,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
             static constexpr bool has_write_access = false;
+            static constexpr bool has_write_without_response = false;
             static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
@@ -251,6 +267,7 @@ namespace bluetoe {
         public:
             static constexpr bool has_read_access  = true;
             static constexpr bool has_write_access = false;
+            static constexpr bool has_write_without_response = false;
             static constexpr bool has_notification = false;
             static constexpr bool has_indication   = false;
 
@@ -334,13 +351,15 @@ namespace bluetoe {
                 using write_handler_type = typename find_by_meta_type< characteristic_value_write_handler_meta_type, Options... >::type;
                 static constexpr bool no_read          = has_option< no_read_access, Options... >::value;
                 static constexpr bool no_write         = has_option< no_write_access, Options... >::value;
+
                 static constexpr bool has_read_handler = !std::is_same< read_handler_type, no_such_type >::value;
                 static constexpr bool has_read_access  = has_read_handler && !no_read;
                 static constexpr bool has_write_access = !std::is_same< write_handler_type, no_such_type >::value;
+                static constexpr bool has_write_without_response = details::has_option< write_without_response, Options... >::value;
                 static constexpr bool has_notification = has_option< notify, Options... >::value;
                 static constexpr bool has_indication   = has_option< indicate, Options... >::value;
 
-                static_assert( !( no_write && has_write_access ), "There is no point in providing a write_handler and disabling write by using no_write_access" );
+                static_assert( !( no_write && ( has_write_access || has_write_without_response ) ), "There is no point in providing a write_handler and disabling write by using no_write_access" );
 
                 static_assert( !has_notification || ( has_notification && has_read_handler ), "When enabling notification, the characteristic needs a read_handler" );
                 static_assert( !has_indication || ( has_indication && has_read_handler ), "When enabling notification, the characteristic needs a read_handler" );

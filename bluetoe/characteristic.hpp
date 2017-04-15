@@ -118,6 +118,7 @@ namespace bluetoe {
      * @sa no_write_access
      * @sa notify
      * @sa indicate
+     * @sa write_without_response
      * @sa bind_characteristic_value
      * @sa characteristic_name
      * @sa free_read_blob_handler
@@ -294,6 +295,7 @@ namespace bluetoe {
                     static_cast< std::uint8_t >(
                         ( value_type::has_read_access  ? bits( details::gatt_characteristic_properties::read ) : 0 ) |
                         ( value_type::has_write_access ? bits( details::gatt_characteristic_properties::write ) : 0 ) |
+                        ( value_type::has_write_without_response ? bits( details::gatt_characteristic_properties::write_without_response ) : 0 ) |
                         ( value_type::has_notification ? bits( details::gatt_characteristic_properties::notify ) : 0 ) |
                         ( value_type::has_indication   ? bits( details::gatt_characteristic_properties::indicate ) : 0 ) )
                 };

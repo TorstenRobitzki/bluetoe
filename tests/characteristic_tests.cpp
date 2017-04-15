@@ -331,7 +331,21 @@ BOOST_AUTO_TEST_SUITE( characteristic_properties )
         BOOST_CHECK_EQUAL( properties & 0x20, 0x20 );
     }
 
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+        bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+        bluetoe::write_without_response
+    > write_without_response_char;
 
+    BOOST_FIXTURE_TEST_CASE( with_write_without_response, read_characteristic_properties< write_without_response_char > )
+    {
+        BOOST_CHECK_EQUAL( properties & 0x04, 0x04 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( without_write_without_response, read_characteristic_properties< simple_char_with_indication > )
+    {
+        BOOST_CHECK_EQUAL( properties & 0x04, 0x00 );
+    }
 
 BOOST_AUTO_TEST_SUITE_END()
 
