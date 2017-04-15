@@ -119,7 +119,7 @@ BOOST_FIXTURE_TEST_CASE( less_than_10ms_between_two_PDUs, advertising )
     check_scheduling(
         [&]( const test::advertising_data& a, const test::advertising_data& b )
         {
-            return a.channel != 37 && a.channel != 38
+            return ( a.channel != 37 && a.channel != 38 )
                 || ( b.on_air_time - a.on_air_time ) <= bluetoe::link_layer::delta_time::msec( 10 );
         },
         "less_than_10ms_between_two_PDUs"
