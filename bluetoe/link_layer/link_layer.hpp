@@ -940,7 +940,6 @@ namespace link_layer {
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
             {
                 write.fill( { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
-                write.size        = size + 2;
 
                 std::copy( &pdu.buffer[ 3 ], &pdu.buffer[ 3 + size - 1 ], &write.buffer[ 3 ] );
             }
