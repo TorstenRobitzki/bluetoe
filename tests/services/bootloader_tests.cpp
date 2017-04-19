@@ -184,12 +184,12 @@ struct all_discovered : services_discovered< Server >
 
 BOOST_FIXTURE_TEST_CASE( control_point_properties, all_discovered< bootloader_server > )
 {
-    BOOST_CHECK_EQUAL( cp_char.properties, 0x18 );
+    BOOST_CHECK_EQUAL( cp_char.properties, 0x1c );
 }
 
 BOOST_FIXTURE_TEST_CASE( data_char_properties, all_discovered< bootloader_server > )
 {
-    BOOST_CHECK_EQUAL( data_char.properties, 0x08 );
+    BOOST_CHECK_EQUAL( data_char.properties, 0x0c );
 }
 
 BOOST_FIXTURE_TEST_CASE( progress_char_properties, all_discovered< bootloader_server > )

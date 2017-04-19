@@ -570,7 +570,8 @@ namespace bluetoe
                             implementation, &implementation::bootloader_read_control_point
                         >,
                         bluetoe::no_read_access,
-                        bluetoe::notify
+                        bluetoe::notify,
+                        bluetoe::write_without_response
                     >,
                     bluetoe::characteristic<
                         bluetoe::bootloader::data_uuid,
