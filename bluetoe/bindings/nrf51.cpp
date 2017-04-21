@@ -511,7 +511,8 @@ namespace nrf51_details {
                 }
                 else
                 {
-                    NRF_RADIO->TASKS_STOP = 1;
+                    NRF_RADIO->SHORTS        = 0;
+                    NRF_RADIO->TASKS_DISABLE = 1;
                     state_       = state::idle;
                     evt_timeout_ = true;
                 }
