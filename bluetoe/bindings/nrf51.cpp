@@ -69,19 +69,11 @@ namespace nrf51_details {
             NRF_PPI->CH[ 1 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 0 ] );
 
             NRF_PPI->CHENSET = 0x3;
-            // NRF_GPIOTE->CONFIG[ 1 ] =
-            //     ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
-            //     ( debug_pin_receive << GPIOTE_CONFIG_PSEL_Pos ) |
-            //     ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
-            //     ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+        }
 
-            // NRF_PPI->CH[ 2 ].EEP = event_from_register( event );
-            // NRF_PPI->CH[ 2 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 1 ] );
-
-            // NRF_PPI->CH[ 3 ].EEP = event_from_register( event );
-            // NRF_PPI->CH[ 3 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 1 ] );
-
-            // NRF_PPI->CHENSET = ( 1 << 1 ) | ( 1 << 0 );
+        void debug_end_radio()
+        {
+            NRF_GPIOTE->TASKS_CLR[0] = 1;
         }
 
         void pulse_debug_pin( int pin )
@@ -131,6 +123,7 @@ namespace nrf51_details {
         }
 #   else
         void init_debug() {}
+        void debug_end_radio() {}
         void debug_timeout() {}
         void debug_crc_error() {}
         void debug_enter_isr() {}
@@ -208,6 +201,7 @@ namespace nrf51_details {
         // The polynomial has the form of x^24 +x^10 +x^9 +x^6 +x^4 +x^3 +x+1
         NRF_RADIO->CRCPOLY   = 0x100065B;
 
+        // TIFS is only enforced if END_DISABLE and DISABLED_TXEN shortcuts are enabled.
         NRF_RADIO->TIFS      = 150;
     }
 
@@ -408,6 +402,8 @@ namespace nrf51_details {
                     timeout_ = true;
                 }
             }
+
+            debug_end_radio();
         }
     }
 
@@ -454,7 +450,7 @@ namespace nrf51_details {
         // - when the PDU was receieved, the timer value is captured in CC[ 2 ]        (radio_address_capture1_ppi_channel)
         // - when a PDU is received, the radio is stopped                              (RADIO_SHORTS_END_DISABLE_Msk)
         // - if no PDU is received, and the timer reaches CC[ 1 ], the radio is stopped(compare1_disable_ppi_channel)
-        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk; // | RADIO_SHORTS_DISABLED_TXEN_Msk;
+        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
 
         NRF_PPI->CHENCLR =
               ( 1 << compare0_txen_ppi_channel )
@@ -485,6 +481,8 @@ namespace nrf51_details {
             {
                 // no need to disable the radio via the timer anymore:
                 NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
+                // Transmission has been startet already, make sure, radio gets disabled
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
                 const bool timeout   = nrf_timer->EVENTS_COMPARE[ 1 ];
                 const bool crc_error = !timeout && ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
@@ -492,7 +490,6 @@ namespace nrf51_details {
 
                 if ( !error )
                 {
-                    NRF_RADIO->TASKS_TXEN  = 1;
                     const auto trans = receive_buffer_.buffer == &empty_receive_[ 0 ]
                         ? callbacks_.next_transmit()
                         : callbacks_.received_data( receive_buffer_ );
@@ -514,7 +511,7 @@ namespace nrf51_details {
                 }
                 else
                 {
-//                    NRF_RADIO->SHORTS = 0;
+                    NRF_RADIO->TASKS_STOP = 1;
                     state_       = state::idle;
                     evt_timeout_ = true;
                 }
@@ -528,7 +525,6 @@ namespace nrf51_details {
             }
             else if ( state_ == state::evt_transmiting_closing )
             {
-//                NRF_RADIO->SHORTS = 0;
                 state_   = state::idle;
                 end_evt_ = true;
             }
@@ -581,7 +577,6 @@ namespace nrf51_details {
 
     void scheduled_radio_base::run()
     {
-        // TODO send cpu to sleep
         while ( !received_ && !timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
             __WFI();
 
