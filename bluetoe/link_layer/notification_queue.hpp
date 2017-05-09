@@ -21,7 +21,8 @@ namespace link_layer {
      * @param Mixin a class to be mixed in, to allow empty base class optimizations
      *
      * For all function, index is an index into a list of all the characterstics with notifications / indications
-     * enable. The queue is implemented by an array that contains
+     * enable. The queue is implemented by an array that contains a few bits (2) per characteristic to store the
+     * requested (or queued) notifications / indications.
      */
     template < std::size_t Size, class Mixin >
     class notification_queue : public Mixin
