@@ -109,7 +109,7 @@ namespace details {
         typedef std::tuple< Type > type;
     };
 
-    // to types are equal if they are the same types
+    // two types are equal if they are the same types
     template <
         typename Zero
      >
@@ -118,7 +118,7 @@ namespace details {
         typedef std::tuple<> type;
     };
 
-    // to types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
+    // two types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
     template <
         template < typename > class Templ,
         typename Type
@@ -128,7 +128,7 @@ namespace details {
         typedef std::tuple<> type;
     };
 
-    // to types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
+    // two types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
     template <
         template < typename ... > class Templ,
         typename Type
