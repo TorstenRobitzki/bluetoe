@@ -1,10 +1,15 @@
 #include <bluetoe/bindings/nrf51.hpp>
 
 #include <nrf.h>
+#include <core_cmInstr.h>
 
 #include <cassert>
 #include <cstdint>
 #include <algorithm>
+
+/*
+ * Compile this with BLUETOE_NRF51_RADIO_DEBUG defined to enable debugging
+ */
 
 namespace bluetoe {
 namespace nrf51_details {
@@ -32,36 +37,102 @@ namespace nrf51_details {
     static constexpr unsigned           us_radio_tx_startup_time            = 140;
     static constexpr unsigned           connect_request_size                = 36;
 
-    static void toggle_debug_pins()
-    {
-        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 18 );
-        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 19 );
-    }
+#   if defined BLUETOE_NRF51_RADIO_DEBUG
+        static constexpr int debug_pin_time_nr      = 17;
+        static constexpr int debug_pin_crc_error_nr = 18;
+        static constexpr int debug_pin_irs_nr       = 19;
+        static constexpr int debug_pin_cs_nr        = 20;
+        static constexpr int debug_pin_timer_irs_nr = 22;
+        static constexpr int debug_pin_transmit     = 23;
+        static constexpr int debug_pin_receive      = 24;
 
-    static void toggle_debug_pin1()
-    {
-        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 18 );
-    }
+        void init_debug()
+        {
+            for ( auto pin : { debug_pin_time_nr, debug_pin_crc_error_nr, debug_pin_irs_nr,
+                debug_pin_cs_nr, debug_pin_timer_irs_nr, debug_pin_transmit, debug_pin_receive } )
+            {
+                NRF_GPIO->PIN_CNF[ pin ] =
+                    ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
+                    ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+            }
 
-    static void toggle_debug_pin2()
-    {
-        NRF_GPIO->OUT = NRF_GPIO->OUT ^ ( 1 << 19 );
-    }
+            NRF_GPIOTE->CONFIG[ 0 ] =
+                ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
+                ( debug_pin_transmit << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
+                ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
 
-    static void init_debug_pins()
-    {
-        NRF_GPIO->PIN_CNF[ 18 ] =
-            ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
-            ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+            NRF_PPI->CH[ 0 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_ADDRESS );
+            NRF_PPI->CH[ 0 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 0 ] );
 
-        NRF_GPIO->PIN_CNF[ 19 ] =
-            ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
-            ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+            NRF_PPI->CH[ 1 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_END );
+            NRF_PPI->CH[ 1 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 0 ] );
 
-        toggle_debug_pins();
-        toggle_debug_pin1();
-        toggle_debug_pin2();
-    }
+            NRF_PPI->CHENSET = 0x3;
+        }
+
+        void debug_end_radio()
+        {
+            NRF_GPIOTE->TASKS_CLR[0] = 1;
+        }
+
+        void pulse_debug_pin( int pin )
+        {
+            NRF_GPIO->OUTSET = 1 << pin;
+            NRF_GPIO->OUTCLR = 1 << pin;
+        }
+
+        void debug_timeout()
+        {
+            pulse_debug_pin( debug_pin_time_nr );
+        }
+
+        void debug_crc_error()
+        {
+            pulse_debug_pin( debug_pin_crc_error_nr );
+        }
+
+        void debug_enter_isr()
+        {
+            NRF_GPIO->OUTSET = 1 << debug_pin_irs_nr;
+        }
+
+        void debug_leave_isr()
+        {
+            NRF_GPIO->OUTCLR = 1 << debug_pin_irs_nr;
+        }
+
+        void debug_enter_timer_isr()
+        {
+            NRF_GPIO->OUTSET = 1 << debug_pin_timer_irs_nr;
+        }
+
+        void debug_leave_timer_isr()
+        {
+            NRF_GPIO->OUTCLR = 1 << debug_pin_timer_irs_nr;
+        }
+
+        void debug_enter_critical_section()
+        {
+            NRF_GPIO->OUTSET = 1 << debug_pin_cs_nr;
+        }
+
+        void debug_leave_critical_section()
+        {
+            NRF_GPIO->OUTCLR = 1 << debug_pin_cs_nr;
+        }
+#   else
+        void init_debug() {}
+        void debug_end_radio() {}
+        void debug_timeout() {}
+        void debug_crc_error() {}
+        void debug_enter_isr() {}
+        void debug_leave_isr() {}
+        void debug_enter_timer_isr() {}
+        void debug_leave_timer_isr() {}
+        void debug_enter_critical_section() {}
+        void debug_leave_critical_section() {}
+#   endif
 
     /*
      * Frequency correction if NRF_FICR_Type has a OVERRIDEEN field
@@ -130,6 +201,7 @@ namespace nrf51_details {
         // The polynomial has the form of x^24 +x^10 +x^9 +x^6 +x^4 +x^3 +x+1
         NRF_RADIO->CRCPOLY   = 0x100065B;
 
+        // TIFS is only enforced if END_DISABLE and DISABLED_TXEN shortcuts are enabled.
         NRF_RADIO->TIFS      = 150;
     }
 
@@ -154,12 +226,16 @@ namespace nrf51_details {
     scheduled_radio_base::lock_guard::lock_guard()
         : context_( __get_PRIMASK() )
     {
+        debug_enter_critical_section();
+
         __disable_irq();
     }
 
     scheduled_radio_base::lock_guard::~lock_guard()
     {
         __set_PRIMASK( context_ );
+
+        debug_leave_critical_section();
     }
 
     scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs )
@@ -180,7 +256,7 @@ namespace nrf51_details {
                 ;
         }
 
-        init_debug_pins();
+        init_debug();
         init_radio();
         init_timer();
 
@@ -326,6 +402,8 @@ namespace nrf51_details {
                     timeout_ = true;
                 }
             }
+
+            debug_end_radio();
         }
     }
 
@@ -372,7 +450,7 @@ namespace nrf51_details {
         // - when the PDU was receieved, the timer value is captured in CC[ 2 ]        (radio_address_capture1_ppi_channel)
         // - when a PDU is received, the radio is stopped                              (RADIO_SHORTS_END_DISABLE_Msk)
         // - if no PDU is received, and the timer reaches CC[ 1 ], the radio is stopped(compare1_disable_ppi_channel)
-        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
 
         NRF_PPI->CHENCLR =
               ( 1 << compare0_txen_ppi_channel )
@@ -403,6 +481,8 @@ namespace nrf51_details {
             {
                 // no need to disable the radio via the timer anymore:
                 NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
+                // Transmission has been startet already, make sure, radio gets disabled
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
                 const bool timeout   = nrf_timer->EVENTS_COMPARE[ 1 ];
                 const bool crc_error = !timeout && ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
@@ -410,7 +490,6 @@ namespace nrf51_details {
 
                 if ( !error )
                 {
-                    NRF_RADIO->TASKS_TXEN  = 1;
                     const auto trans = receive_buffer_.buffer == &empty_receive_[ 0 ]
                         ? callbacks_.next_transmit()
                         : callbacks_.received_data( receive_buffer_ );
@@ -427,18 +506,22 @@ namespace nrf51_details {
                     static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
                     const std::size_t total_pdu_length = receive_buffer_.buffer[ 1 ] + ll_pdu_overhead;
                     anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] - total_pdu_length * 8 );
+                    debug_enter_timer_isr();
+                    debug_leave_timer_isr();
                 }
                 else
                 {
+                    NRF_RADIO->SHORTS        = 0;
+                    NRF_RADIO->TASKS_DISABLE = 1;
                     state_       = state::idle;
                     evt_timeout_ = true;
                 }
 
                 if ( timeout )
-                    toggle_debug_pin1();
+                    debug_timeout();
 
                 if ( crc_error )
-                    toggle_debug_pin2();
+                    debug_crc_error();
 
             }
             else if ( state_ == state::evt_transmiting_closing )
@@ -495,9 +578,8 @@ namespace nrf51_details {
 
     void scheduled_radio_base::run()
     {
-        // TODO send cpu to sleep
         while ( !received_ && !timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
-            ;
+            __WFI();
 
         if ( received_ )
         {
@@ -548,10 +630,18 @@ namespace nrf51_details {
 
 extern "C" void RADIO_IRQHandler(void)
 {
+    bluetoe::nrf51_details::debug_enter_isr();
+
     bluetoe::nrf51_details::instance->radio_interrupt();
+
+    bluetoe::nrf51_details::debug_leave_isr();
 }
 
 extern "C" void TIMER0_IRQHandler(void)
 {
+    bluetoe::nrf51_details::debug_enter_timer_isr();
+
     bluetoe::nrf51_details::instance->timer_interrupt();
+
+    bluetoe::nrf51_details::debug_leave_timer_isr();
 }
