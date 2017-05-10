@@ -76,6 +76,15 @@ namespace link_layer {
         };
     }
 
+
+    /**
+     * @example change_advertising_example.cpp
+     *
+     * This example demonstrates how to change the advertising type. The link layer is configured to support
+     * two different advertising types (bluetoe::link_layer::connectable_undirected_advertising and bluetoe::link_layer::connectable_directed_advertising).
+     * Now, the change_advertising() function can be used to switch between both advertising types.
+     */
+
     /**
      * @brief enables connectable undirected advertising
      *
@@ -92,14 +101,13 @@ namespace link_layer {
         /**
          * @brief change type of advertisment
          *
-         * If more that one advertising type is given, this function can be used
+         * If more than one advertising type is given, this function can be used
          * to define the advertising that is used next, when the device starts
          * advertising. If the device is currently advertising, the function
          * has no effect until the device stops advertising and starts over to
          * advertise.
          *
          * @tparam Type the next type of advertising
-         * @example change_advertising_example.cpp
          */
         template < typename Type >
         void change_advertising();
@@ -224,7 +232,7 @@ namespace link_layer {
         /**
          * @brief change type of advertisment
          *
-         * If more that one advertising type is given, this function can be used
+         * If more than one advertising type is given, this function can be used
          * to define the advertising that is used next, when the device starts
          * advertising. If the device is currently advertising, the function
          * has no effect until the device stops advertising and starts over to
@@ -370,7 +378,7 @@ namespace link_layer {
         /**
          * @brief change type of advertisment
          *
-         * If more that one advertising type is given, this function can be used
+         * If more than one advertising type is given, this function can be used
          * to define the advertising that is used next, when the device starts
          * advertising. If the device is currently advertising, the function
          * has no effect until the device stops advertising and starts over to
@@ -495,7 +503,7 @@ namespace link_layer {
         /**
          * @brief change type of advertisment
          *
-         * If more that one advertising type is given, this function can be used
+         * If more than one advertising type is given, this function can be used
          * to define the advertising that is used next, when the device starts
          * advertising. If the device is currently advertising, the function
          * has no effect until the device stops advertising and starts over to

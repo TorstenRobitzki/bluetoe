@@ -40,7 +40,7 @@ ATT not only defines this attribute table, but also how to access this table. Wh
 
 Bluetoe let you define a list of GATT services on your own, let you define the characteristics within each service and how accesses to a characteristic are mapped to C++ function calls (or global variables accesses, or constants beeing reads).
 
-@subsection Characteristics
+@subsection Characteristic
 
 Bluetoe uses the C++ type system to collect all data / information that is already available at compile time from the developer. So, the definition of a characteristic is a type; A template class called @ref bluetoe::characteristic which takes a list of parameters that defines how exactly a characteristic should work. Template classes that take a variable list of parameters are often used within Bluetoe and in most cases, the order of the parameters are not important. Here is a minimalistic example:
 
@@ -92,7 +92,7 @@ This would make Bluetoe to generate code that allows to read and write the chara
 
 There are a lot more types that defines the binding to characteristic values.
 
-@subsection Services
+@subsection Service
 
 Roughly saying, a @ref bluetoe::service is just an UUID with a list of characteristics! So this example should make sense to you:
 
@@ -135,7 +135,7 @@ int main()
 }
 @endcode
 
-@ref bluetoe::nrf52 is just a type alias that points to @ref bluetoe::link_layer, which takes additonal link layer configuration arguments. Again, Bluetoe applies resonable default to the link layer configuration. But if needed, parameters like buffer sizes, are configurable.
+bluetoe::nrf52<> is just a template alias that points to bluetoe::link_layer::link_layer, which takes additonal link layer configuration arguments. Again, Bluetoe applies resonable default to the link layer configuration. But if needed, parameters like buffer sizes, are configurable.
 
 @section define_gap And what's with GAP?
 

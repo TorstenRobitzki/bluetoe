@@ -39,10 +39,10 @@ namespace bluetoe {
     /**
      * @brief add slave connection interval range to advertising data
      *
-     * Adds <<Slave Connection Interval Range>> AD type to the advertising data.
+     * Adds \<\<Slave Connection Interval Range\>\> AD type to the advertising data.
      * MinInterval and MaxInterval must be within the range of 0x0006 to 0x0C80.
      * Using no_specific_slave_connection_minimum_interval or no_specific_slave_connection_maximum_interval
-     * specifies, that the respectve value is not used.
+     * specifies, that the respective value is not used.
      */
     template <
         std::uint16_t MinInterval = no_specific_slave_connection_minimum_interval,
