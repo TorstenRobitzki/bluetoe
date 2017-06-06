@@ -2,7 +2,7 @@
 
 @section intro_sec Introduction
 
-Bluetoe is an attempt to simplify the implementation of firmware for Bluetooth Low Energy devices. Bluetooth Low Energy devices / peripherals implement a so called GATT Server. GATT is the abreviation of Generic Attribute Profile. GATT is a protocol that allows a computer (desktop, phone etc.) to discover a remote devices capabilities and to interact with that device in an unified manner.
+Bluetoe is an attempt to simplify the implementation of firmware for Bluetooth Low Energy devices. Bluetooth Low Energy devices / peripherals implement a so called GATT Server. GATT is the abreviation of Generic Attribute Profile. GATT is a protocol that allows a computer (desktop, phone etc.) to discover remote devices capabilities and to interact with this devices in an unified manner.
 
 A lot of possible device capabilities are specified by the <a href="https://www.bluetooth.org">Bluetooth Special Interest Group</a>. Others capabilities are user defined and make sense only to the implementer of a device and requires a special client that knows how to use this capabilities. Those capabilities and the means how to access them are called profiles.
 
@@ -10,11 +10,11 @@ A lot of possible device capabilities are specified by the <a href="https://www.
 
 @subsection Characteristics
 
-The basic building blocks of GATT are characteristics. A characteristic can be thinked of as a piece of information / a variable that resides inside of a device, which clients can interact with (discover, reading, writing). To identify a characteristic, an identifier, called a UUID is used. Beside some very basic properties like "readable" or "writeable", a characteristic can have additional properties like a name or structure informations (e.g. this is a structure containing 1 float followed by 2 integers).
+The basic building blocks of GATT are characteristics. A \link bluetoe::characteristic characteristic \endlink can be thinked of as a piece of information / a variable that resides inside of a device, which clients can interact with (discover, reading, writing). To identify a characteristic, an identifier, called a UUID is used. Beside some very basic properties like "readable" or "writeable", a characteristic can have additional properties like a name or structure informations (e.g. this is a structure containing 1 float followed by 2 integers).
 
 @subsection Services
 
-A service groups characteristics to meaningful units. A helicopter position service would for example group the X, Y, and Z position of the helicopter to a Position Service. A device can announce the implementation / existance of a service by that device, so that computers looking for a specific device can see that the device is implementing the service, without the need to connect to the device.
+A \link bluetoe::service service \endlink groups characteristics to meaningful units. A helicopter position service would for example group the X, Y, and Z position of the helicopter to a Position Service. A device can announce the implementation / existance of a service by that device, so that computers looking for a specific device can see that the device is implementing the service, without the need to connect to the device.
 
 @subsection Profiles
 
