@@ -118,6 +118,8 @@ namespace bluetoe {
      * @sa no_write_access
      * @sa notify
      * @sa indicate
+     * @sa higher_outgoing_priority
+     * @sa lower_outgoing_priority
      * @sa write_without_response
      * @sa bind_characteristic_value
      * @sa characteristic_name

@@ -35,7 +35,9 @@ namespace bluetoe {
         bluetoe::characteristic<
             bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
             bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
-            bluetoe::no_read_access > >
+            bluetoe::no_read_access,
+            bluetoe::notify
+        >
      * @endcode
      * @sa characteristic
      */
@@ -65,6 +67,8 @@ namespace bluetoe {
      * When a characteristic gets notified, the current value of the characteristic will be send to all
      * connected clients that have subscribed for notifications.
      * @sa server::notify
+     * @sa higher_outgoing_priority
+     * @sa lower_outgoing_priority
      */
     struct notify {
         /** @cond HIDDEN_SYMBOLS */
@@ -78,6 +82,9 @@ namespace bluetoe {
      * When a characteristic gets notified, the current value of the characteristic will be send to all
      * connected clients that have subscribed for indications.
      * The difference to notify is, that indication needs to be confirmed by the GATT client.
+     * @sa server::indicate
+     * @sa higher_outgoing_priority
+     * @sa lower_outgoing_priority
      */
     struct indicate {
         /** @cond HIDDEN_SYMBOLS */
