@@ -13,7 +13,7 @@ namespace link_layer {
 
     /**
      * @brief class responsible to keep track of those characteristics that have outstanding
-     *        notifications.
+     *        notifications or indications.
      *
      * All operations on the queue must be reentrent / atomic!
      *

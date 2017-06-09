@@ -8,6 +8,7 @@
 #include <bluetoe/uuid.hpp>
 #include <bluetoe/characteristic.hpp>
 #include <bluetoe/bits.hpp>
+#include <bluetoe/find_notification_data.hpp>
 #include <cstddef>
 #include <cassert>
 #include <algorithm>

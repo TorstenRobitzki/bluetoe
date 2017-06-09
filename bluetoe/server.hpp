@@ -14,6 +14,7 @@
 #include <bluetoe/gap_service.hpp>
 #include <bluetoe/appearance.hpp>
 #include <bluetoe/mixin.hpp>
+#include <bluetoe/find_notification_data.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
