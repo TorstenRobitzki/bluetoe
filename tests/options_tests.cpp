@@ -696,3 +696,112 @@ BOOST_AUTO_TEST_CASE( index_of )
     BOOST_CHECK_EQUAL( 2, int( bluetoe::details::index_of< bool, int, float, bool >::value ) );
     BOOST_CHECK_EQUAL( 1, int( bluetoe::details::index_of< float, std::tuple< int, float, bool > >::value ) );
 }
+
+template < class A, class B >
+struct sort_createria
+{
+    using type = typename bluetoe::details::select_type< A::value < B::value, std::true_type, std::false_type >::type;
+};
+
+template < int I >
+using int_ = std::integral_constant< int, I >;
+
+BOOST_AUTO_TEST_CASE( stable_sort_order )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria >::type,
+            std::tuple<> >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, std::tuple<> >::type,
+            std::tuple<> >::value
+    ) );
+
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 1 > >::type,
+            std::tuple< int_< 1 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 1 >, int_< 2 > >::type,
+            std::tuple< int_< 1 >, int_< 2 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 2 >, int_< 1 > >::type,
+            std::tuple< int_< 1 >, int_< 2 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 1 >, int_< 2 >, int_< 3 > >::type,
+            std::tuple< int_< 1 >, int_< 2 >, int_< 3 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 2 >, int_< 1 >, int_< 3 > >::type,
+            std::tuple< int_< 1 >, int_< 2 >, int_< 3 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 3 >, int_< 2 >, int_< 1 > >::type,
+            std::tuple< int_< 1 >, int_< 2 >, int_< 3 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 1 >, int_< 3 >, int_< 2 > >::type,
+            std::tuple< int_< 1 >, int_< 2 >, int_< 3 > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< sort_createria, int_< 1 >, int_< 3 >, int_< 5 >, int_< 2 >, int_< 1 > >::type,
+            std::tuple< int_< 1 >, int_< 1 >, int_< 2 >, int_< 3 >, int_< 5 > > >::value
+    ) );
+}
+
+template < char A, char B >
+struct item {
+    static const char key = A;
+};
+
+template < class first, class second >
+struct order_item
+{
+    using type = typename bluetoe::details::select_type<
+        first::key < second::key,
+        std::true_type,
+        std::false_type >::type;
+};
+
+BOOST_AUTO_TEST_CASE( stable_sort_stability )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< order_item, item< 'A', 'A' > >::type,
+            std::tuple< item< 'A', 'A' > > >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< order_item, item< 'A', 'A' >, item< 'A', 'B' > >::type,
+            std::tuple< item< 'A', 'A' >, item< 'A', 'B' > > >::value
+    ) );
+
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::stable_sort< order_item, item< 'B', 'A' >, item< 'A', 'B' >, item< 'B', 'B' >, item< 'A', 'C' > >::type,
+            std::tuple< item< 'A', 'B' >, item< 'A', 'C' >, item< 'B', 'A' >, item< 'B', 'B' > > >::value
+    ) );
+}

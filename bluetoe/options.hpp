@@ -619,6 +619,68 @@ namespace details {
 
     template < typename T, typename ... Ts >
     struct index_of< T, std::tuple< Ts... > > : index_of< T, Ts... > {};
+
+    /*
+     * Insert T into Ts at the first position, that satisfies Order
+     */
+    template < template < typename, typename > class Order, typename T, typename ...Ts >
+    struct stable_insert;
+
+    template < template < typename, typename > class Order, typename T, typename ...Ts >
+    struct stable_insert< Order, T, std::tuple< Ts... > > : stable_insert< Order, T, Ts... > {};
+
+    template < template < typename, typename > class Order, typename T >
+    struct stable_insert< Order, T >
+    {
+        using type = std::tuple< T >;
+    };
+
+    template < template < typename, typename > class Order, typename T, typename First, typename ...Ts >
+    struct stable_insert< Order, T, First, Ts... >
+    {
+        using type = typename select_type<
+            Order< First, T  >::type::value,
+            typename add_type< First, typename stable_insert< Order, T, Ts... >::type >::type,
+            std::tuple< T, First, Ts... >
+        >::type;
+    };
+
+    /*
+     * stable sort a list of types based on a given order
+     *
+     * The order must take two types as argument and define type to be either std::true_type or std::false_type
+     */
+    template < template < typename, typename > class Order, typename ...Ts >
+    struct stable_sort;
+
+    template < template < typename, typename > class Order, typename ...Ts >
+    struct stable_sort< Order, std::tuple< Ts... > > : stable_sort< Order, Ts... > {};
+
+    template < template < typename, typename > class Order >
+    struct stable_sort< Order, std::tuple<> >
+    {
+        using type = std::tuple<>;
+    };
+
+    template < template < typename, typename > class Order >
+    struct stable_sort< Order >
+    {
+        using type = std::tuple<>;
+    };
+
+    template < template < typename, typename > class Order, typename T >
+    struct stable_sort< Order, T >
+    {
+        using type = std::tuple< T >;
+    };
+
+    template < template < typename, typename > class Order, typename T, typename ...Ts >
+    struct stable_sort< Order, T, Ts... >
+    {
+        using rest = typename stable_sort< Order, Ts... >::type;
+        using type = typename stable_insert< Order, T, rest >::type;
+    };
+
 }
 }
 
