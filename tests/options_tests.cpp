@@ -805,3 +805,30 @@ BOOST_AUTO_TEST_CASE( stable_sort_stability )
             std::tuple< item< 'A', 'B' >, item< 'A', 'C' >, item< 'B', 'A' >, item< 'B', 'B' > > >::value
     ) );
 }
+
+BOOST_AUTO_TEST_CASE( last_type )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_type< std::tuple<> >::type,
+            bluetoe::details::no_such_type >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_type< std::tuple<>, char >::type,
+            char >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_type< std::tuple< char > >::type,
+            char >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::last_type< std::tuple< char, double > >::type,
+            double >::value
+    ) );
+}

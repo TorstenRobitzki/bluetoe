@@ -171,6 +171,30 @@ namespace details {
      */
     struct no_such_type {};
 
+    /*
+     * Last element from typelist or Default if list is empty
+     */
+    template < typename T, typename Default = no_such_type >
+    struct last_type;
+
+    template < typename Default >
+    struct last_type< std::tuple<>, Default >
+    {
+        using type = Default;
+    };
+
+    template < typename T, typename Default >
+    struct last_type< std::tuple< T >, Default >
+    {
+        using type = T;
+    };
+
+    template < typename ...Ts, typename T, typename Default >
+    struct last_type< std::tuple< T, Ts... >, Default >
+    {
+        using type = typename last_type< std::tuple< Ts... >, Default >::type;
+    };
+
     template < typename T >
     struct extract_meta_type
     {
@@ -666,12 +690,6 @@ namespace details {
     struct stable_sort< Order >
     {
         using type = std::tuple<>;
-    };
-
-    template < template < typename, typename > class Order, typename T >
-    struct stable_sort< Order, T >
-    {
-        using type = std::tuple< T >;
     };
 
     template < template < typename, typename > class Order, typename T, typename ...Ts >
