@@ -3,6 +3,7 @@
 
 #include <bluetoe/server.hpp>
 #include <bluetoe/attribute.hpp>
+#include <bluetoe/outgoing_priority.hpp>
 
 /*
  * A notification index is key to a characteristic that is configured to allow notifications or indications.
@@ -12,9 +13,11 @@
 
 const std::uint8_t value_Aa = 0xAa;
 const std::uint8_t value_Ab = 0xAb;
+const std::uint8_t value_Ac = 0xAc;
 
 const std::uint8_t value_Ba = 0xBa;
 const std::uint8_t value_Bb = 0xBb;
+const std::uint8_t value_Bc = 0xBc;
 
 using A = bluetoe::service_uuid16< 0x1234 >;
 
@@ -51,34 +54,26 @@ std::uint8_t read_value( std::size_t notification_index )
     return out_buffer[ value_notification_pdu_min_size - 1 ];
 }
 
+template < class UUID, const std::uint8_t* Value >
+using characteristic =
+    bluetoe::characteristic<
+        UUID,
+        bluetoe::bind_characteristic_value< const std::uint8_t, Value >,
+        bluetoe::notify
+    >;
+
 BOOST_AUTO_TEST_CASE( all_default_prio )
 {
     using server = bluetoe::server<
         bluetoe::service<
             A,
-            bluetoe::characteristic<
-                A_a,
-                bluetoe::bind_characteristic_value< const std::uint8_t, &value_Aa >,
-                bluetoe::notify
-            >,
-            bluetoe::characteristic<
-                A_b,
-                bluetoe::bind_characteristic_value< const std::uint8_t, &value_Ab >,
-                bluetoe::notify
-            >
+            characteristic< A_a, &value_Aa >,
+            characteristic< A_b, &value_Ab >
         >,
         bluetoe::service<
             B,
-            bluetoe::characteristic<
-                B_a,
-                bluetoe::bind_characteristic_value< const std::uint8_t, &value_Ba >,
-                bluetoe::notify
-            >,
-            bluetoe::characteristic<
-                B_b,
-                bluetoe::bind_characteristic_value< const std::uint8_t, &value_Bb >,
-                bluetoe::notify
-            >
+            characteristic< B_a, &value_Ba >,
+            characteristic< B_b, &value_Bb >
         >
     >;
 
@@ -86,8 +81,115 @@ BOOST_AUTO_TEST_CASE( all_default_prio )
     BOOST_CHECK_EQUAL( read_value< server >( 1 ), 0xAb );
     BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xBa );
     BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xBb );
+
+    using find = bluetoe::details::find_notification_data_in_list< server::notification_priority, server::services >;
+
+    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 0 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 0 ).handle() ) );
+    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 1 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 1 ).handle() ) );
+    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 2 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 2 ).handle() ) );
+    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 3 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 3 ).handle() ) );
 }
+
+#if 0
+
+/*
+     Service:  | A       | B
+     ------------------------------
+     highest   |         | a, b
+     lowest    | a, c    |
+*/
 
 BOOST_AUTO_TEST_CASE( service_with_higher_priority )
 {
+    using server = bluetoe::server<
+        bluetoe::service<
+            A,
+            characteristic< A_a, &value_Aa >,
+            characteristic< A_b, &value_Ab >
+        >,
+        bluetoe::service<
+            B,
+            characteristic< B_a, &value_Ba >,
+            characteristic< B_b, &value_Bb >
+        >,
+        bluetoe::higher_outgoing_priority< B >
+    >;
+
+    BOOST_CHECK_EQUAL( read_value< server >( 0 ), 0xBa );
+    BOOST_CHECK_EQUAL( read_value< server >( 1 ), 0xBb );
+    BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xAa );
+    BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xAb );
 }
+
+/*
+     Service:  | A       | B
+     ------------------------------
+     highest   | a       | a
+               | b       | b
+     lowest    | c       | c
+*/
+BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities )
+{
+    using server = bluetoe::server<
+        bluetoe::service<
+            A,
+            characteristic< A_a, &value_Aa >,
+            characteristic< A_b, &value_Ab >,
+            characteristic< A_c, &value_Ac >,
+            bluetoe::higher_outgoing_priority< A_a, A_b >
+        >,
+        bluetoe::service<
+            B,
+            characteristic< B_a, &value_Ba >,
+            characteristic< B_b, &value_Bb >,
+            characteristic< B_c, &value_Bc >,
+            bluetoe::higher_outgoing_priority< B_a, B_b >
+        >
+    >;
+
+    BOOST_CHECK_EQUAL( read_value< server >( 0 ), 0xAa );
+    BOOST_CHECK_EQUAL( read_value< server >( 1 ), 0xBa );
+    BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xAb );
+    BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xBb );
+    BOOST_CHECK_EQUAL( read_value< server >( 4 ), 0xAc );
+    BOOST_CHECK_EQUAL( read_value< server >( 5 ), 0xBc );
+}
+
+/*
+     Service:  | A       | B
+     ------------------------------
+     highest   | a       |
+               | b       |
+               | c       |
+               |         | a, b
+     lowest    |         | c
+
+*/
+BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities_but_different_service_priority )
+{
+    using server = bluetoe::server<
+        bluetoe::service<
+            A,
+            characteristic< A_a, &value_Aa >,
+            characteristic< A_b, &value_Ab >,
+            characteristic< A_c, &value_Ac >,
+            bluetoe::higher_outgoing_priority< A_a, A_b >
+        >,
+        bluetoe::service<
+            B,
+            characteristic< B_a, &value_Ba >,
+            characteristic< B_b, &value_Bb >,
+            characteristic< B_c, &value_Bc >,
+            bluetoe::higher_outgoing_priority< B_a >
+        >,
+        bluetoe::higher_outgoing_priority< A >
+    >;
+
+    BOOST_CHECK_EQUAL( read_value< server >( 0 ), 0xAa );
+    BOOST_CHECK_EQUAL( read_value< server >( 1 ), 0xBa );
+    BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xAb );
+    BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xBb );
+    BOOST_CHECK_EQUAL( read_value< server >( 4 ), 0xAc );
+    BOOST_CHECK_EQUAL( read_value< server >( 5 ), 0xBc );
+}
+#endif

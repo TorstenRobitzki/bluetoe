@@ -225,57 +225,6 @@ BOOST_FIXTURE_TEST_CASE( check_service_with_2_notifications_attribute_layout, se
     BOOST_CHECK_EQUAL( 0x2902, ( attribute_at< 0, std::tuple< service_with_2_notifications > >( 8 ).uuid ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( notification_data_not_found, service_with_2_notifications )
-{
-    BOOST_CHECK( !( find_notification_data< 1, 0 >( nullptr ).valid() ) );
-}
-
-BOOST_FIXTURE_TEST_CASE( notification_data_found_first_char, service_with_2_notifications )
-{
-    const auto result1 = find_notification_data< 1, 0 >( &v1 );
-
-    BOOST_REQUIRE( result1.valid() );
-    BOOST_CHECK_EQUAL( result1.handle(), 3 );
-    BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 0 );
-}
-
-BOOST_FIXTURE_TEST_CASE( notification_data_found_second_char, service_with_2_notifications )
-{
-    const auto result2 = find_notification_data< 1, 0 >( &v3 );
-
-    BOOST_REQUIRE( result2.valid() );
-    BOOST_CHECK_EQUAL( result2.handle(), 8 );
-    BOOST_CHECK_EQUAL( result2.client_characteristic_configuration_index(), 1 );
-}
-
-BOOST_FIXTURE_TEST_CASE( characteristic_without_notification_cant_be_found, service_with_2_notifications )
-{
-    BOOST_CHECK( !( find_notification_data< 1, 0 >( &v2 ).valid() ) );
-}
-
-BOOST_FIXTURE_TEST_CASE( out_of_range_by_index, service_with_2_notifications )
-{
-    BOOST_CHECK( ( !find_notification_data_by_index< 1, 0 >( 2 ).valid() ) );
-}
-
-BOOST_FIXTURE_TEST_CASE( find_fist_by_index, service_with_2_notifications )
-{
-    const auto result1 = find_notification_data_by_index< 1, 0 >( 0 );
-
-    BOOST_REQUIRE( result1.valid() );
-    BOOST_CHECK_EQUAL( result1.handle(), 3 );
-    BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 0 );
-}
-
-BOOST_FIXTURE_TEST_CASE( find_second_by_index, service_with_2_notifications )
-{
-    const auto result1 = find_notification_data_by_index< 1, 0 >( 1 );
-
-    BOOST_REQUIRE( result1.valid() );
-    BOOST_CHECK_EQUAL( result1.handle(), 8 );
-    BOOST_CHECK_EQUAL( result1.client_characteristic_configuration_index(), 1 );
-}
-
 BOOST_AUTO_TEST_SUITE_END()
 
 std::int32_t temperature;

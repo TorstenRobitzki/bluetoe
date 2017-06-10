@@ -154,13 +154,6 @@ namespace bluetoe {
         template < std::size_t ClientCharacteristicIndex, typename ServiceUUID = void, typename Server = void >
         static details::attribute attribute_at( std::size_t index );
 
-        /**
-         * returns a correctly filled notification_data() object, if this characteristc was configured for notification or indication
-         * and the given value identifies the characteristic value. If not found find_notification_data( value ).valid() is false.
-         */
-        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-        static details::notification_data find_notification_data( const void* value );
-
         template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
         static details::notification_data find_notification_data_by_index( std::size_t index );
 
@@ -215,22 +208,6 @@ namespace bluetoe {
         assert( index < number_of_attributes );
 
         return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex, ServiceUUID, Server >( index );
-    }
-
-    template < typename ... Options >
-    template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-    details::notification_data characteristic< Options... >::find_notification_data( const void* value )
-    {
-        static_assert( FirstAttributesHandle != 0, "FirstAttributesHandle is invalid" );
-
-        if ( !value_type::is_this( value ) || !( value_type::has_notification || value_type::has_indication ) )
-            return details::notification_data();
-
-        return
-            details::notification_data(
-                FirstAttributesHandle + 1,
-                ClientCharacteristicIndex
-            );
     }
 
     template < typename ... Options >

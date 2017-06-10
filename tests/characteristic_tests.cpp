@@ -590,36 +590,3 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( characteristic_aggregate_format )
 
 BOOST_AUTO_TEST_SUITE_END()
-
-BOOST_AUTO_TEST_SUITE( find_notification_data )
-
-    std::uint8_t value = 0xff;
-
-    typedef bluetoe::characteristic<
-        bluetoe::characteristic_uuid16< 0xD0B1 >,
-        bluetoe::bind_characteristic_value< std::uint8_t, &value >,
-        bluetoe::notify
-    > notifiable_char;
-
-    BOOST_FIXTURE_TEST_CASE( not_found, access_attributes< notifiable_char > )
-    {
-        BOOST_CHECK( ( !find_notification_data< 1, 0 >( &simple_const_value ).valid() ) );
-        BOOST_CHECK( ( !find_notification_data< 1, 0 >( nullptr ).valid() ) );
-    }
-
-    BOOST_FIXTURE_TEST_CASE( found, access_attributes< notifiable_char > )
-    {
-        const auto result = find_notification_data< 1, 0 >( &value );
-
-        BOOST_REQUIRE( result.valid() );
-        BOOST_CHECK_EQUAL( result.handle(), 2 );
-        BOOST_CHECK_EQUAL( result.client_characteristic_configuration_index(), 0 );
-    }
-
-
-    BOOST_FIXTURE_TEST_CASE( not_found_if_characteristic_has_not_been_configured_for_notification, access_attributes< simple_char > )
-    {
-        BOOST_CHECK( ( !find_notification_data< 1, 0 >( &simple_value ).valid() ) );
-    }
-
-BOOST_AUTO_TEST_SUITE_END()

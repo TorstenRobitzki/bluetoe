@@ -3,6 +3,12 @@
 
 namespace bluetoe {
 
+    namespace details {
+        struct outgoing_priority_service_meta_type {};
+        struct outgoing_priority_characteristic_meta_type {};
+        struct outgoing_priority_meta_type {};
+    }
+
     /**
      * @brief Defines priorities of notified or indicated characteristics.
      *
@@ -81,7 +87,19 @@ namespace bluetoe {
      */
     template < class ... UUIDs >
     struct higher_outgoing_priority {
+        /** @cond HIDDEN_SYMBOLS */
+        using meta_type = details::outgoing_priority_meta_type;
 
+        template < class MetaType, class Entities >
+        struct impl;
+
+        template < class Char, class ... Chars >
+        struct impl< details::outgoing_priority_characteristic_meta_type, std::tuple< Char, Chars... > >
+        {
+            using ordered_by_priority = std::tuple< Char, Chars... >;
+            using priorites           = std::tuple< std::integral_constant< std::size_t, sizeof ...(Chars) + 1 > >;
+        };
+        /** @endcond */
     };
 
     /**
@@ -90,7 +108,9 @@ namespace bluetoe {
      */
     template < class ... UUIDs >
     struct lower_outgoing_priority {
-
+        /** @cond HIDDEN_SYMBOLS */
+        using meta_type = details::outgoing_priority_meta_type;
+        /** @endcond */
     };
 
     /**

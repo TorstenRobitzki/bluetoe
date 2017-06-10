@@ -15,6 +15,7 @@
 #include <bluetoe/appearance.hpp>
 #include <bluetoe/mixin.hpp>
 #include <bluetoe/find_notification_data.hpp>
+#include <bluetoe/outgoing_priority.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -54,16 +55,21 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type services_without_gap;
+        using services_without_gap = typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type;
 
         // append gap serivce for gatt servers
-        typedef typename details::find_by_meta_type< details::gap_service_definition_meta_type,
-            Options..., gap_service_for_gatt_servers >::type gap_service_definition;
-        typedef typename gap_service_definition::template add_service< services_without_gap, Options... >::type services;
+        using gap_service_definition = typename details::find_by_meta_type< details::gap_service_definition_meta_type,
+            Options..., gap_service_for_gatt_servers >::type;
+        using services = typename gap_service_definition::template add_service< services_without_gap, Options... >::type;
 
         static constexpr std::size_t number_of_client_configs = details::sum_by< services, details::sum_by_client_configs >::value;
 
-        typedef typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type write_queue_type;
+        using write_queue_type = typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type;
+
+        using notification_priority = typename details::find_by_meta_type< details::outgoing_priority_meta_type, Options... >::type;
+
+        static_assert( std::tuple_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
+            "Only one of bluetoe::higher_outgoing_priority<> or bluetoe::lower_outgoing_priority<> per server allowed!" );
         /** @endcond */
 
         /**
@@ -1406,13 +1412,13 @@ namespace bluetoe {
     template < typename ... Options >
     details::notification_data server< Options... >::find_notification_data( const void* value ) const
     {
-        return details::find_notification_data_in_list< services >::template find_notification_data< 1, 0 >( value );
+        return details::find_notification_data_in_list< notification_priority, services >::find_notification_data( value );
     }
 
     template < typename ... Options >
     details::notification_data server< Options... >::find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const
     {
-        return details::find_notification_data_in_list< services >::template find_notification_data_by_index< 1, 0 >( client_characteristic_configuration_index );
+        return details::find_notification_data_in_list< notification_priority, services >::find_notification_data_by_index( client_characteristic_configuration_index );
     }
 
     template < typename ... Options >
