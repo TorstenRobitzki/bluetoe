@@ -427,34 +427,6 @@ namespace details {
         sum_by< std::tuple< T >, Predicate >::value
       + sum_by< std::tuple< Ts... >, Predicate >::value > {};
 
-    /*
-     * transform a list into an other list of the same length
-     */
-    template <
-        typename List,
-        template < typename > class Transform
-    >
-    struct transform_list;
-
-    template <
-        template < typename > class Transform
-    >
-    struct transform_list< std::tuple<>, Transform > {
-        typedef std::tuple<> type;
-    };
-
-    template <
-        typename E,
-        typename ... Es,
-        template < typename > class Transform
-    >
-    struct transform_list< std::tuple< E, Es... >, Transform > {
-        typedef typename add_type<
-            typename Transform< E >::type,
-            typename transform_list< std::tuple< Es... >, Transform >::type
-        >::type type;
-    };
-
     /**
      * @brief returns true, if Option is given in Options
      */
@@ -626,6 +598,56 @@ namespace details {
     {
         typedef typename Operation< typename fold< std::tuple< Ts... >, Operation, Start >::type, T >::type type;
     };
+
+    template <
+        typename List,
+        template < typename ListP, typename ElementP > class Operation,
+        typename Start = std::tuple<> >
+    struct fold_right : fold< List, Operation, Start > {};
+
+    // fold_left to be able to transform list from front to end
+    template <
+        typename List,
+        template < typename ListP, typename ElementP > class Operation,
+        typename Start = std::tuple<> >
+    struct fold_left;
+
+    template <
+        template < typename List, typename Element > class Operation,
+        typename Start >
+    struct fold_left< std::tuple<>, Operation, Start >
+    {
+        using type = Start;
+    };
+
+    template <
+        typename T,
+        typename ... Ts,
+        template < typename List, typename Element > class Operation,
+        typename Start >
+    struct fold_left< std::tuple< T, Ts... >, Operation, Start >
+    {
+        using type = typename fold_left< std::tuple< Ts... >, Operation, typename Operation< Start, T >::type >::type;
+    };
+
+    template < template < typename > class Transform >
+    struct apply_transformation
+    {
+        template < typename List, typename Element >
+        struct apply
+        {
+            using type = typename add_type< List, typename Transform< Element >::type >::type;
+        };
+    };
+
+    /*
+     * transform a list into an other list of the same length
+     */
+    template <
+        typename List,
+        template < typename > class Transform
+    >
+    struct transform_list : fold_left< List, apply_transformation< Transform >::template apply > {};
 
     // for a T in Ts, find the index of T in Ts
     template < typename T, typename ... Ts >
