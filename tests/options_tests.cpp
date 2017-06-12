@@ -185,6 +185,8 @@ BOOST_AUTO_TEST_CASE( count_by_meta_type )
     BOOST_CHECK_EQUAL( ( bluetoe::details::count_by_meta_type< meta1, type2, type1 >::count ), 1 );
     BOOST_CHECK_EQUAL( ( bluetoe::details::count_by_meta_type< meta1, type4, type1, type3, type1 >::count ), 2 );
     BOOST_CHECK_EQUAL( ( bluetoe::details::count_by_meta_type< meta1, type4, type3, type2 >::count ), 0 );
+
+    BOOST_CHECK_EQUAL( ( bluetoe::details::count_by_meta_type< meta1, type1, type3, type2, type12 >::count ), 2 );
 }
 
 BOOST_AUTO_TEST_CASE( option_is_not_set_in_an_empty_list )
@@ -695,6 +697,13 @@ BOOST_AUTO_TEST_CASE( index_of )
 
     BOOST_CHECK_EQUAL( 2, int( bluetoe::details::index_of< bool, int, float, bool >::value ) );
     BOOST_CHECK_EQUAL( 1, int( bluetoe::details::index_of< float, std::tuple< int, float, bool > >::value ) );
+
+    // not in list
+    BOOST_CHECK_EQUAL( 3, int( bluetoe::details::index_of< double, std::tuple< int, float, bool > >::value ) );
+
+    // not in empty list
+    BOOST_CHECK_EQUAL( 0, int( bluetoe::details::index_of< double, std::tuple<> >::value ) );
+    BOOST_CHECK_EQUAL( 0, int( bluetoe::details::index_of< double >::value ) );
 }
 
 template < class A, class B >

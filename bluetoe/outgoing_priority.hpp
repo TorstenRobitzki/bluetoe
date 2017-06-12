@@ -1,12 +1,53 @@
 #ifndef BLUETOE_OUTGOING_PRIORITY_HPP
 #define BLUETOE_OUTGOING_PRIORITY_HPP
 
+#include <bluetoe/options.hpp>
+
 namespace bluetoe {
 
     namespace details {
         struct outgoing_priority_service_meta_type {};
         struct outgoing_priority_characteristic_meta_type {};
         struct outgoing_priority_meta_type {};
+
+        template < typename Services, typename ServiceUUID >
+        struct number_of_additional_priorities
+        {
+            template < typename Service >
+            using has_uuid = std::is_same< typename Service::uuid, ServiceUUID >;
+
+            // find the Service from the ServiceUUID in the List of Services
+            using service = typename find_if< Services, has_uuid >::type;
+            static constexpr int size = service::notification_priority::size;
+
+            // if the number of named characteristics is equal to the number of characteristics in the service,
+            // no characteristic will have default priority
+            static constexpr int size_with_default = size == service::number_of_client_configs
+                ? size
+                : size + 1;
+
+            // For a Service that doesn't contain a priority per characteristic, there is at least one
+            // addition priority, because all characteristics in the service form have a new unique priority
+            using type = std::integral_constant< int, size_with_default == 0 ? 1 : size_with_default >;
+        };
+
+        template < typename ... Us >
+        struct check_server_parameter
+        {
+            static_assert( details::count_by_meta_type< details::service_uuid_meta_type, Us... >::count == sizeof...( Us ),
+                "Only service UUIDs are acceptable parameters to higher_outgoing_priority<> as server parameter." );
+
+            static constexpr bool check = true;
+        };
+
+        template < typename ... Us >
+        struct check_service_parameter
+        {
+            static_assert( details::count_by_meta_type< details::characteristic_uuid_meta_type, Us... >::count == sizeof...( Us ),
+                "Only characteristic UUIDs are acceptable parameters to higher_outgoing_priority<> as service parameter." );
+
+            static constexpr bool check = true;
+        };
     }
 
     /**
@@ -85,26 +126,66 @@ namespace bluetoe {
      *
      * @sa lower_outgoing_priority
      */
-    template < class ... UUIDs >
+    template < typename ... UUIDs >
     struct higher_outgoing_priority {
         /** @cond HIDDEN_SYMBOLS */
         using meta_type = details::outgoing_priority_meta_type;
 
-        template < class MetaType, class Entities >
-        struct impl;
-
-        template < class Char, class ... Chars >
-        struct impl< details::outgoing_priority_characteristic_meta_type, std::tuple< Char, Chars... > >
+        template < typename Services, typename Service >
+        struct service_base_priority
         {
-            using ordered_by_priority = std::tuple< Char, Chars... >;
-            using priorites           = std::tuple< std::integral_constant< std::size_t, sizeof ...(Chars) + 1 > >;
+            template < typename Sum, typename ServiceUUID >
+            struct optional_sum_prio
+            {
+                using found = std::integral_constant< bool, Sum::first_type::value || std::is_same< ServiceUUID, typename Service::uuid >::value >;
+                using prio  = typename Sum::second_type;
+
+                // Only sum up the priorities that are before ServiceUUID in UUIDs...
+                using sum   = typename details::select_type< found::value,
+                    prio,
+                    typename details::number_of_additional_priorities< Services, ServiceUUID >::type >::type;
+
+                using type = details::pair< found, sum >;
+            };
+
+            // while Service::uuid is not in UUIDs... sum up the priorities of the services
+            using type = typename details::fold_left<
+                                        std::tuple< UUIDs... >,
+                                        optional_sum_prio,
+                                        details::pair< std::false_type, std::integral_constant< int, 0 > > >::type;
+
+            static constexpr int value = type::second_type::value;
         };
+
+        // this function is called on the server instantiation
+        template < typename Services, typename Service, typename Characteristic >
+        struct characteristic_priority
+        {
+            static constexpr auto checked = details::check_server_parameter< UUIDs... >::check;
+
+            static constexpr int service_prio = service_base_priority< Services, Service >::value;
+            static constexpr int char_prio    = Service::notification_priority::template characteristic_position< Characteristic >::value;
+
+            static constexpr int value = service_prio + char_prio;
+        };
+
+        // this function is called on the service instantiation
+        template < typename Characteristic >
+        struct characteristic_position
+        {
+            static constexpr auto checked = details::check_service_parameter< UUIDs... >::check;
+
+            static constexpr int value = details::index_of< typename Characteristic::configured_uuid, UUIDs... >::value;
+        };
+
+        static constexpr std::size_t size = sizeof...( UUIDs );
         /** @endcond */
     };
 
     /**
      * @brief Defines priorities of notified or indicated characteristics.
      * @sa higher_outgoing_priority
+     * @attention currently not implemented
      */
     template < class ... UUIDs >
     struct lower_outgoing_priority {

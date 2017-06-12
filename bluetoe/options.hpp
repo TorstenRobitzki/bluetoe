@@ -363,7 +363,7 @@ namespace details {
     struct count_by_meta_type< MetaType, Type, Types... > {
         typedef extract_meta_type< Type > meta_type;
 
-        enum { count = std::is_same< typename meta_type::type, MetaType >::value
+        enum { count = std::is_convertible< typename meta_type::type*, MetaType* >::value
             ? 1 + count_by_meta_type< MetaType, Types... >::count
             : 0 + count_by_meta_type< MetaType, Types... >::count
         };
@@ -650,8 +650,26 @@ namespace details {
     struct transform_list : fold_left< List, apply_transformation< Transform >::template apply > {};
 
     // for a T in Ts, find the index of T in Ts
+    // If T is not in Ts, the resulting value is sizeof...(Ts)
     template < typename T, typename ... Ts >
     struct index_of;
+
+    // not in list:
+    template < typename T, typename O >
+    struct index_of< T, O > {
+        static constexpr unsigned value = 1;
+    };
+
+    // not in empty list
+    template < typename T >
+    struct index_of< T > {
+        static constexpr unsigned value = 0;
+    };
+
+    template < typename T >
+    struct index_of< T, T > {
+        static constexpr unsigned value = 0;
+    };
 
     template < typename T, typename ... Ts >
     struct index_of< T, T, Ts... > {

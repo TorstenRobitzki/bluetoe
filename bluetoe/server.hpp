@@ -66,7 +66,7 @@ namespace bluetoe {
 
         using write_queue_type = typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type;
 
-        using notification_priority = typename details::find_by_meta_type< details::outgoing_priority_meta_type, Options... >::type;
+        using notification_priority = typename details::find_by_meta_type< details::outgoing_priority_meta_type, Options..., higher_outgoing_priority<> >::type;
 
         static_assert( std::tuple_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
             "Only one of bluetoe::higher_outgoing_priority<> or bluetoe::lower_outgoing_priority<> per server allowed!" );

@@ -81,16 +81,7 @@ BOOST_AUTO_TEST_CASE( all_default_prio )
     BOOST_CHECK_EQUAL( read_value< server >( 1 ), 0xAb );
     BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xBa );
     BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xBb );
-
-    using find = bluetoe::details::find_notification_data_in_list< server::notification_priority, server::services >;
-
-    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 0 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 0 ).handle() ) );
-    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 1 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 1 ).handle() ) );
-    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 2 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 2 ).handle() ) );
-    // BOOST_CHECK_EQUAL( find::find_notification_data_by_index_new( 3 ).handle(), ( find::find_notification_data_by_index< 1, 0 >( 3 ).handle() ) );
 }
-
-#if 0
 
 /*
      Service:  | A       | B
@@ -158,11 +149,11 @@ BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities )
 /*
      Service:  | A       | B
      ------------------------------
-     highest   | a       |
-               | b       |
-               | c       |
+     highest   |         | c
                |         | a, b
-     lowest    |         | c
+               | c       |
+               | b       |
+     lowest    | a       |
 
 */
 BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities_but_different_service_priority )
@@ -173,23 +164,22 @@ BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities_but_di
             characteristic< A_a, &value_Aa >,
             characteristic< A_b, &value_Ab >,
             characteristic< A_c, &value_Ac >,
-            bluetoe::higher_outgoing_priority< A_a, A_b >
+            bluetoe::higher_outgoing_priority< A_c, A_b >
         >,
         bluetoe::service<
             B,
             characteristic< B_a, &value_Ba >,
             characteristic< B_b, &value_Bb >,
             characteristic< B_c, &value_Bc >,
-            bluetoe::higher_outgoing_priority< B_a >
+            bluetoe::higher_outgoing_priority< B_c >
         >,
-        bluetoe::higher_outgoing_priority< A >
+        bluetoe::higher_outgoing_priority< B >
     >;
 
-    BOOST_CHECK_EQUAL( read_value< server >( 0 ), 0xAa );
+    BOOST_CHECK_EQUAL( read_value< server >( 0 ), 0xBc );
     BOOST_CHECK_EQUAL( read_value< server >( 1 ), 0xBa );
-    BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xAb );
-    BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xBb );
-    BOOST_CHECK_EQUAL( read_value< server >( 4 ), 0xAc );
-    BOOST_CHECK_EQUAL( read_value< server >( 5 ), 0xBc );
+    BOOST_CHECK_EQUAL( read_value< server >( 2 ), 0xBb );
+    BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xAc );
+    BOOST_CHECK_EQUAL( read_value< server >( 4 ), 0xAb );
+    BOOST_CHECK_EQUAL( read_value< server >( 5 ), 0xAa );
 }
-#endif

@@ -74,3 +74,6 @@ using helicopter = bluetoe::server<
         axis::Z
     >
 >;
+
+int main()
+{}
