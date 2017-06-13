@@ -48,6 +48,38 @@ namespace bluetoe {
 
             static constexpr bool check = true;
         };
+
+        template < typename T, int Prio >
+        struct add_prio;
+
+        template <>
+        struct add_prio< std::tuple<>, 0 >
+        {
+            using type = std::tuple< std::integral_constant< int, 1 > >;
+        };
+
+        template < int N, typename ...Ts >
+        struct add_prio< std::tuple< std::integral_constant< int, N >, Ts... >, 0 >
+        {
+            using type = std::tuple< std::integral_constant< int, N + 1 >, Ts... >;
+        };
+
+        template < int Prio >
+        struct add_prio< std::tuple<>, Prio >
+        {
+            using type = typename add_type<
+                std::integral_constant< int, 0 >,
+                typename add_prio< std::tuple<>, Prio -1 >::type >::type;
+        };
+
+        template < int N, typename ...Ts, int Prio >
+        struct add_prio< std::tuple< std::integral_constant< int, N >, Ts... >, Prio >
+        {
+            using type = typename add_type<
+                std::integral_constant< int, N >,
+                typename add_prio< std::tuple< Ts... >, Prio -1 >::type >::type;
+        };
+
     }
 
     /**
@@ -193,10 +225,36 @@ namespace bluetoe {
             static constexpr int value = service_prio + char_prio;
         };
 
+        template < typename Services, typename Service >
+        struct numbers_from_char
+        {
+            template < typename Numbers, typename Characteristic >
+            struct impl
+            {
+                static constexpr int prio = characteristic_priority< Services, Service, Characteristic >::value;
+                using type = typename details::add_prio< Numbers, prio >::type;
+            };
+        };
+
+        // Returns a list of numbers of priorities, starting with the number of characteristics with prio 0
         template < typename Services >
         struct numbers
         {
-            using type = std::tuple< std::integral_constant< std::size_t, 4 > >;
+            template < typename List, typename Characteristic >
+            using characteristics_with_cccd = details::select_type<
+                    Characteristic::number_of_client_configs,
+                    typename details::add_type< List, Characteristic >::type,
+                    List >;
+
+            template < typename Numbers, typename Service >
+            using numbers_from_services = details::fold<
+                typename details::fold<
+                    typename Service::characteristics,
+                    characteristics_with_cccd >::type,
+                numbers_from_char< Services, Service >::template impl,
+                Numbers >;
+
+            using type = typename details::fold< Services, numbers_from_services, std::tuple<> >::type;
         };
 
         static constexpr std::size_t size = sizeof...( UUIDs );

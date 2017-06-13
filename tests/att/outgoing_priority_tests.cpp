@@ -255,3 +255,120 @@ BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities_but_di
     BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_B, charB_b >::value ), 4 );
     BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_B, charB_c >::value ), 4 );
 }
+
+template < std::size_t I >
+using int_c = std::integral_constant< int, I >;
+
+BOOST_AUTO_TEST_CASE( numbers_for_single_priority )
+{
+    using server   = bluetoe::server< service_A, service_B >;
+    using services = server::services;
+    using prio     = typename server::notification_priority;
+
+    BOOST_CHECK((
+        std::is_same<
+            typename prio::numbers< services >::type,
+            std::tuple< int_c< 4 > >
+        >::value
+    ));
+}
+
+BOOST_AUTO_TEST_CASE( priority_numbers_for_an_example_with_two_services )
+{
+    using service_A = bluetoe::service<
+            A,
+            charA_a,
+            charA_b,
+            bluetoe::higher_outgoing_priority< A_a >
+        >;
+
+    using server   = bluetoe::server< service_A, service_B, bluetoe::higher_outgoing_priority< A > >;
+    using services = server::services;
+    using prio     = typename server::notification_priority;
+
+    BOOST_CHECK((
+        std::is_same<
+            typename prio::numbers< services >::type,
+            std::tuple< int_c< 1 >, int_c< 1 >, int_c< 2 > >
+        >::value
+    ));
+}
+
+BOOST_AUTO_TEST_CASE( priority_numbers_for_two_services_with_similar_characteristic_priorities_but_different_service_priority )
+{
+    using service_A = bluetoe::service<
+            A,
+            charA_a,
+            charA_b,
+            charA_c,
+            bluetoe::higher_outgoing_priority< A_a, A_b >
+        >;
+
+    using service_B = bluetoe::service<
+            B,
+            charB_a,
+            charB_b,
+            charB_c,
+            bluetoe::higher_outgoing_priority< B_a >
+        >;
+
+    using server   = bluetoe::server< service_A, service_B, bluetoe::higher_outgoing_priority< A > >;
+    using services = server::services;
+    using prio     = typename server::notification_priority;
+
+    BOOST_CHECK((
+        std::is_same<
+            typename prio::numbers< services >::type,
+            std::tuple< int_c< 1 >, int_c< 1 >, int_c< 1 >, int_c< 1 >, int_c< 2 > >
+        >::value
+    ));
+}
+
+
+BOOST_AUTO_TEST_CASE( add_prio_tests )
+{
+    using namespace bluetoe::details;
+
+    BOOST_CHECK((
+        std::is_same<
+            typename add_prio< std::tuple<>, 0 >::type,
+            std::tuple< int_c< 1 > >
+        >::value
+    ));
+
+    BOOST_CHECK((
+        std::is_same<
+            typename add_prio< std::tuple< int_c< 3 > >, 0 >::type,
+            std::tuple< int_c< 4 > >
+        >::value
+    ));
+
+    BOOST_CHECK((
+        std::is_same<
+            typename add_prio< std::tuple<>, 2 >::type,
+            std::tuple< int_c< 0 >, int_c< 0 >, int_c< 1 > >
+        >::value
+    ));
+
+    BOOST_CHECK((
+        std::is_same<
+            typename add_prio< std::tuple< int_c< 3 >, int_c< 2 > >, 0 >::type,
+            std::tuple< int_c< 4 >, int_c< 2 > >
+        >::value
+    ));
+
+    BOOST_CHECK((
+        std::is_same<
+            typename add_prio< std::tuple< int_c< 3 >, int_c< 2 >, int_c< 1 > >, 1 >::type,
+            std::tuple< int_c< 3 >, int_c< 3 >, int_c< 1 > >
+        >::value
+    ));
+
+    BOOST_CHECK((
+        std::is_same<
+            typename add_prio< std::tuple< int_c< 3 >, int_c< 2 >, int_c< 1 > >, 4 >::type,
+            std::tuple< int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 >, int_c< 1 > >
+        >::value
+    ));
+}
+
