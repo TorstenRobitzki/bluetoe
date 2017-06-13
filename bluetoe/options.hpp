@@ -739,6 +739,67 @@ namespace details {
         using type = typename stable_insert< Order, T, rest >::type;
     };
 
+    /*
+     * A map is a std::tuple< pair< Key, Value > >
+     */
+
+    // Returns the Value to the Key or no_such_type, if not found
+    template < typename Map, typename Key, typename Default = no_such_type >
+    struct map_find;
+
+    template < typename Key, typename Default >
+    struct map_find< std::tuple<>, Key, Default >
+    {
+        using type = Default;
+    };
+
+    template < typename Value, typename Key, typename ...Ts, typename Default >
+    struct map_find< std::tuple< pair< Key, Value >, Ts... >, Key, Default >
+    {
+        using type = Value;
+    };
+
+    template < typename Value, typename NotKey, typename Key, typename ...Ts, typename Default >
+    struct map_find< std::tuple< pair< NotKey, Value >, Ts... >, Key, Default >
+    {
+        using type = typename map_find< std::tuple< Ts... >, Key, Default >::type;
+    };
+
+    // Removes the key from the map
+    template < typename Map, typename Key >
+    struct map_erase;
+
+    template < typename Key >
+    struct map_erase< std::tuple<>, Key >
+    {
+        using type = std::tuple<>;
+    };
+
+    template < typename Key, typename Value, typename ...Ts >
+    struct map_erase< std::tuple< pair< Key, Value >, Ts... >, Key >
+    {
+        using type = std::tuple< Ts... >;
+    };
+
+    template < typename Key, typename NotKey, typename Value, typename ...Ts >
+    struct map_erase< std::tuple< pair< NotKey, Value >, Ts... >, Key >
+    {
+        using type = typename add_type<
+            pair< NotKey, Value >,
+            typename map_erase< std::tuple< Ts...>, Key >::type
+        >::type;
+    };
+
+    // inserts / replaces the Value under Key
+    template < typename Map, typename Key, typename Value >
+    struct map_insert
+    {
+        using type = typename add_type<
+            pair< Key, Value >,
+            typename map_erase< Map, Key >::type >::type;
+    };
+
+
 }
 }
 

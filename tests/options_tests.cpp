@@ -841,3 +841,110 @@ BOOST_AUTO_TEST_CASE( last_type )
             double >::value
     ) );
 }
+
+BOOST_AUTO_TEST_CASE( map_find )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_find< std::tuple<>, int >::type,
+            bluetoe::details::no_such_type
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_find< std::tuple<>, int, float >::type,
+            float
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_find<
+                std::tuple<
+                    bluetoe::details::pair< int, char >
+                >, int >::type,
+            char
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_find<
+                std::tuple<
+                    bluetoe::details::pair< int, char >, bluetoe::details::pair< float, bool >
+                >, float >::type,
+            bool
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_find<
+                std::tuple<
+                    bluetoe::details::pair< int, char >, bluetoe::details::pair< float, bool >
+                >, double >::type,
+            bluetoe::details::no_such_type
+        >::value
+    ) );
+}
+
+BOOST_AUTO_TEST_CASE( map_erase )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_erase< std::tuple<>, int >::type,
+            std::tuple<>
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_erase< std::tuple< bluetoe::details::pair< int, char > >, int >::type,
+            std::tuple<>
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_erase< std::tuple< bluetoe::details::pair< int, char > >, bool >::type,
+            std::tuple< bluetoe::details::pair< int, char > >
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_erase<
+                std::tuple<
+                    bluetoe::details::pair< int, char >,
+                    bluetoe::details::pair< bool, char >,
+                    bluetoe::details::pair< float, char >
+                >, bool >::type,
+            std::tuple< bluetoe::details::pair< int, char >, bluetoe::details::pair< float, char > >
+        >::value
+    ) );
+}
+
+BOOST_AUTO_TEST_CASE( map_insert )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_insert< std::tuple<>, int, char >::type,
+            std::tuple< bluetoe::details::pair< int, char > >
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_insert< std::tuple< bluetoe::details::pair< int, char > >, int, char >::type,
+            std::tuple< bluetoe::details::pair< int, char > >
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::map_insert< std::tuple< bluetoe::details::pair< int, bool > >, int, char >::type,
+            std::tuple< bluetoe::details::pair< int, char > >
+        >::value
+    ) );
+}
