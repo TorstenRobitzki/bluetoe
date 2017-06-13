@@ -157,6 +157,22 @@ namespace bluetoe {
             static constexpr int value = type::second_type::value;
         };
 
+        template < typename Sum, typename Service >
+        struct expand_shared_priorities
+        {
+            static constexpr int sum   = Sum::value;
+
+            // is this one of the services that share the priorities?
+            static constexpr bool shared = details::index_of< typename Service::uuid, UUIDs... >::value == sizeof...( UUIDs );
+
+            static constexpr int prios = Service::notification_priority::size;
+
+            static constexpr int shared_value = prios > sum ? prios : sum;
+            static constexpr int value = shared ? shared_value : sum;
+
+            using type = std::integral_constant< int, value >;
+        };
+
         // this function is called on the server instantiation
         template < typename Services, typename Service, typename Characteristic >
         struct characteristic_priority
@@ -164,21 +180,39 @@ namespace bluetoe {
             static constexpr auto checked = details::check_server_parameter< UUIDs... >::check;
 
             static constexpr int service_prio = service_base_priority< Services, Service >::value;
-            static constexpr int char_prio    = Service::notification_priority::template characteristic_position< Characteristic >::value;
+
+            // there is a big difference whether a Service is within UUIDs or not. In case, a Service is not within UUIDs
+            // (Service B and C in the example above), characteristics from different services can share the same priority.
+            static constexpr bool priorized_service = details::index_of< typename Service::uuid, UUIDs... >::value != sizeof...( UUIDs );
+
+            // the maximum of introduced priorities of all services that are not within UUIDs (and thus share a range of priorities).
+            static constexpr int shared_priorities = details::fold< Services, expand_shared_priorities, std::integral_constant< int, 0 > >::type::value;
+
+            static constexpr int char_prio    = Service::notification_priority::template characteristic_position< Characteristic, priorized_service, shared_priorities >::value;
 
             static constexpr int value = service_prio + char_prio;
         };
 
+        template < typename Services >
+        struct numbers
+        {
+            using type = std::tuple< std::integral_constant< std::size_t, 4 > >;
+        };
+
+        static constexpr std::size_t size = sizeof...( UUIDs );
+
         // this function is called on the service instantiation
-        template < typename Characteristic >
+        template < typename Characteristic, bool WithinPriorizedService, int SharedPriorities >
         struct characteristic_position
         {
             static constexpr auto checked = details::check_service_parameter< UUIDs... >::check;
 
-            static constexpr int value = details::index_of< typename Characteristic::configured_uuid, UUIDs... >::value;
+            static constexpr int pos = details::index_of< typename Characteristic::configured_uuid, UUIDs... >::value;
+            static constexpr int value = WithinPriorizedService
+                ? pos
+                : pos + SharedPriorities - size;
         };
 
-        static constexpr std::size_t size = sizeof...( UUIDs );
         /** @endcond */
     };
 

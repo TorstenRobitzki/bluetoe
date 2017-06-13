@@ -76,13 +76,41 @@ BOOST_AUTO_TEST_CASE( raised_priority_in_one_char )
             bluetoe::higher_outgoing_priority< A_b >
         >;
 
-    using server   = bluetoe::server< service_A >;
+    using server   = bluetoe::server< service_A, service_B >;
     using services = server::services;
     using prio     = typename server::notification_priority;
 
     BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_A, charA_b >::value ), 0 );
     BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_A, charA_a >::value ), 1 );
     BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_A, charA_c >::value ), 1 );
+    BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_B, charB_a >::value ), 1 );
+    BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_B, charB_c >::value ), 1 );
+}
+
+BOOST_AUTO_TEST_CASE( raised_priotity_on_all_services )
+{
+    using service_A = bluetoe::service<
+            A,
+            charA_a,
+            charA_b,
+            bluetoe::higher_outgoing_priority< A_a >
+        >;
+
+    using service_B = bluetoe::service<
+            B,
+            charB_a,
+            charB_b,
+            bluetoe::higher_outgoing_priority< B_a, B_b >
+        >;
+
+    using server   = bluetoe::server< service_A, service_B >;
+    using services = server::services;
+    using prio     = typename server::notification_priority;
+
+    BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_B, charB_a >::value ), 0 );
+    BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_A, charA_a >::value ), 1 );
+    BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_B, charB_b >::value ), 1 );
+    BOOST_CHECK_EQUAL( int( prio::characteristic_priority< services, service_A, charA_b >::value ), 2 );
 }
 
 BOOST_AUTO_TEST_CASE( raised_priority_in_two_chars )
