@@ -198,7 +198,7 @@ namespace link_layer {
             link_layer< Server, ScheduledRadio, Options... > > radio_t;
 
         typedef notification_queue<
-            Server::number_of_client_configs,
+            std::tuple< std::integral_constant< int, Server::number_of_client_configs > >,
             typename Server::connection_data > notification_queue_t;
 
         typedef typename details::security_manager< Options... >::type security_manager_t;

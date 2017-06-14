@@ -5,14 +5,14 @@
 #include <boost/test/included/unit_test.hpp>
 
 namespace {
-    struct empty {};
+    struct empty_fixture {};
 }
 
-using queue17 = bluetoe::link_layer::notification_queue< 17u, empty >;
-using queue3 = bluetoe::link_layer::notification_queue< 3u, empty >;
-using queue8 = bluetoe::link_layer::notification_queue< 8u, empty >;
+using queue17 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 17u > >, empty_fixture >;
+using queue3 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 3u > >, empty_fixture >;
+using queue8 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 8u > >, empty_fixture >;
 
-BOOST_AUTO_TEST_SUITE( notifications )
+BOOST_AUTO_TEST_SUITE( single_prio_notifications )
 
     BOOST_FIXTURE_TEST_CASE( empty_queue, queue17 )
     {
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_SUITE( notifications )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( indications )
+BOOST_AUTO_TEST_SUITE( single_prio_indications )
 
     BOOST_FIXTURE_TEST_CASE( queue_an_indication, queue3 )
     {
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_SUITE( indications )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( clearing )
+BOOST_AUTO_TEST_SUITE( single_prio_clearing )
 
     BOOST_FIXTURE_TEST_CASE( still_empty, queue8 )
     {
@@ -145,6 +145,74 @@ BOOST_AUTO_TEST_SUITE( clearing )
 
         BOOST_CHECK( queue_indication( 2 ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 2u } ) );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+using queue1 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 1u > >, empty_fixture >;
+
+BOOST_AUTO_TEST_SUITE( single_prio_single_char_notifications )
+
+    BOOST_FIXTURE_TEST_CASE( no_empty, queue1 )
+    {
+        BOOST_CHECK( queue_notification( 0 ) );
+        BOOST_CHECK( !queue_notification( 0 ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( dequeue_empty, queue1 )
+    {
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ empty, 0 } ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( dequeue_not_empty, queue1 )
+    {
+        queue_notification( 0 );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ notification, 0 } ) );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ empty, 0 } ) );
+        BOOST_CHECK( queue_notification( 0 ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( reset, queue1 )
+    {
+        BOOST_CHECK( queue_notification( 0 ) );
+        clear_indications_and_confirmations();
+        BOOST_CHECK( queue_notification( 0 ) );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( single_prio_single_char_indications )
+
+    BOOST_FIXTURE_TEST_CASE( no_empty, queue1 )
+    {
+        BOOST_CHECK( queue_indication( 0 ) );
+        BOOST_CHECK( !queue_indication( 0 ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( dequeue_not_empty, queue1 )
+    {
+        queue_indication( 0 );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 0 } ) );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ empty, 0 } ) );
+        BOOST_CHECK( !queue_indication( 0 ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( confirm_indication, queue1 )
+    {
+        queue_indication( 0 );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ indication, 0 } ) );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ empty, 0 } ) );
+        BOOST_CHECK( !queue_indication( 0 ) );
+
+        indication_confirmed();
+        BOOST_CHECK( queue_indication( 0 ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( reset, queue1 )
+    {
+        BOOST_CHECK( queue_indication( 0 ) );
+        clear_indications_and_confirmations();
+        BOOST_CHECK( queue_indication( 0 ) );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

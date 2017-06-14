@@ -11,27 +11,47 @@
 namespace bluetoe {
 namespace link_layer {
 
+    namespace details {
+        struct notification_queue_base
+        {
+            /**
+             * @brief type of entry
+             */
+            enum entry_type {
+                /** returned if there no entry */
+                empty,
+                /** returned if the entry is a notification */
+                notification,
+                /** returned if the entry is an indication */
+                indication
+            };
+        };
+    }
+
     /**
      * @brief class responsible to keep track of those characteristics that have outstanding
      *        notifications or indications.
      *
      * All operations on the queue must be reentrent / atomic!
      *
-     * @param Size Number of characteristics that have notifications and / or indications enabled
+     * @param Sizes List of number of characteristics that have notifications and / or indications enabled by priorities.
      * @param Mixin a class to be mixed in, to allow empty base class optimizations
      *
      * For all function, index is an index into a list of all the characterstics with notifications / indications
      * enable. The queue is implemented by an array that contains a few bits (2) per characteristic to store the
      * requested (or queued) notifications / indications.
      */
-    template < std::size_t Size, class Mixin >
-    class notification_queue : public Mixin
+    template < typename Sizes, class Mixin >
+    class notification_queue;
+
+    template < int Size, class Mixin >
+    class notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin > : public Mixin, public details::notification_queue_base
     {
     public:
         /**
          * @brief constructs an empty notification_queue
          *
-         * All constructor arguments are ment to be passed to the derviced Mixin
+         * All constructor arguments are ment to be passed to the derived Mixin.
          */
         template < class ... Args >
         notification_queue( Args... mixin_arguments );
@@ -79,18 +99,6 @@ namespace link_layer {
         void indication_confirmed();
 
         /**
-         * @brief type of entry
-         */
-        enum entry_type {
-            /** returned if there no entry */
-            empty,
-            /** returned if the entry is a notification */
-            notification,
-            /** returned if the entry is an indication */
-            indication
-        };
-
-        /**
          * @brief return a next notification or indication to be send.
          *
          * For a returned notification, the function will remove the returned entry.
@@ -119,14 +127,13 @@ namespace link_layer {
         std::size_t     next_;
         std::uint8_t    queue_[ ( Size * bits_per_characteristc + 7 ) / 8 ];
         std::size_t     outstanding_confirmation_;
-
     };
 
     /**
      * @brief Specialisation for zero characteritics with notification or indication enabled
      */
     template < class Mixin >
-    class notification_queue< 0, Mixin > : public Mixin
+    class notification_queue< std::tuple< std::integral_constant< int, 0 > >, Mixin > : public Mixin, public details::notification_queue_base
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
@@ -141,12 +148,6 @@ namespace link_layer {
         bool queue_indication( std::size_t ) { return false; }
         void indication_confirmed() {}
 
-        enum entry_type {
-            empty,
-            notification,
-            indication
-        };
-
         std::pair< entry_type, std::size_t > dequeue_indication_or_confirmation()
         {
             return { empty, 0 };
@@ -156,25 +157,96 @@ namespace link_layer {
         /** @endcond */
     };
 
+    /**
+     * @brief Specialisation for one characteritics with notification or indication enabled
+     */
+    template < class Mixin >
+    class notification_queue< std::tuple< std::integral_constant< int, 1 > >, Mixin > : public Mixin, public details::notification_queue_base
+    {
+    public:
+        /** @cond HIDDEN_SYMBOLS */
+
+        template < class ... Args >
+        notification_queue( Args... mixin_arguments )
+            : Mixin( mixin_arguments... )
+            , state_( empty )
+        {
+        }
+
+        bool queue_notification( std::size_t idx )
+        {
+            assert( idx == 0 );
+
+            const bool result = state_ == empty;
+
+            if ( result )
+                state_ = notification;
+
+            return result;
+        }
+
+        bool queue_indication( std::size_t idx)
+        {
+            assert( idx == 0 );
+
+            const bool result = state_ == empty;
+
+            if ( result )
+                state_ = indication;
+
+            return result;
+        }
+
+        void indication_confirmed()
+        {
+            if ( state_ == outstanding_confirmation )
+                state_ = empty;
+        }
+
+        std::pair< entry_type, std::size_t > dequeue_indication_or_confirmation()
+        {
+            const auto result = state_ == outstanding_confirmation
+                ? std::pair< entry_type, std::size_t >{ empty, 0 }
+                : std::pair< entry_type, std::size_t >{ static_cast< entry_type >( state_ ), 0 };
+
+            state_ = state_ == indication || state_ == outstanding_confirmation
+                ? outstanding_confirmation
+                : empty;
+
+            return result;
+        }
+
+        void clear_indications_and_confirmations()
+        {
+            state_ = empty;
+        }
+        /** @endcond */
+    private:
+        enum {
+            outstanding_confirmation = indication + 1
+        };
+
+        std::uint8_t state_;
+    };
 
     // implementation
-    template < std::size_t Size, class Mixin >
+    template < int Size, class Mixin >
     template < class ... Args >
-    notification_queue< Size, Mixin >::notification_queue( Args... mixin_arguments )
+    notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::notification_queue( Args... mixin_arguments )
         : Mixin( mixin_arguments... )
     {
         clear_indications_and_confirmations();
     }
 
-    template < std::size_t Size, class Mixin >
-    bool notification_queue< Size, Mixin >::queue_notification( std::size_t index )
+    template < int Size, class Mixin >
+    bool notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::queue_notification( std::size_t index )
     {
         assert( index < Size );
         return add( index, notification_bit );
     }
 
-    template < std::size_t Size, class Mixin >
-    bool notification_queue< Size, Mixin >::queue_indication( std::size_t index )
+    template < int Size, class Mixin >
+    bool notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::queue_indication( std::size_t index )
     {
         assert( index < Size );
 
@@ -184,8 +256,8 @@ namespace link_layer {
         return add( index, indication_bit );
     }
 
-    template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::indication_confirmed()
+    template < int Size, class Mixin >
+    void notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::indication_confirmed()
     {
         if ( outstanding_confirmation_ != Size )
         {
@@ -193,8 +265,9 @@ namespace link_layer {
         }
     }
 
-    template < std::size_t Size, class Mixin >
-    std::pair< typename notification_queue< Size, Mixin >::entry_type, std::size_t > notification_queue< Size, Mixin >::dequeue_indication_or_confirmation()
+    template < int Size, class Mixin >
+    std::pair< details::notification_queue_base::entry_type, std::size_t >
+    notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::dequeue_indication_or_confirmation()
     {
         bool ignore_first = true;
 
@@ -223,16 +296,16 @@ namespace link_layer {
         return { empty, 0 };
     }
 
-    template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::clear_indications_and_confirmations()
+    template < int Size, class Mixin >
+    void notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::clear_indications_and_confirmations()
     {
         next_ = 0;
         outstanding_confirmation_ = Size;
         std::fill( std::begin( queue_ ), std::end( queue_ ), 0 );
     }
 
-    template < std::size_t Size, class Mixin >
-    int notification_queue< Size, Mixin >::at( std::size_t index )
+    template < int Size, class Mixin >
+    int notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::at( std::size_t index )
     {
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;
         const auto byte_offset = index * bits_per_characteristc / 8;
@@ -241,8 +314,8 @@ namespace link_layer {
         return ( queue_[ byte_offset ] >> bit_offset ) & 0x03;
     }
 
-    template < std::size_t Size, class Mixin >
-    bool notification_queue< Size, Mixin >::add( std::size_t index, int bits )
+    template < int Size, class Mixin >
+    bool notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::add( std::size_t index, int bits )
     {
         assert( bits & ( ( 1 << bits_per_characteristc ) -1 ) );
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;
@@ -255,8 +328,8 @@ namespace link_layer {
         return result;
     }
 
-    template < std::size_t Size, class Mixin >
-    void notification_queue< Size, Mixin >::remove( std::size_t index, int bits )
+    template < int Size, class Mixin >
+    void notification_queue< std::tuple< std::integral_constant< int, Size > >, Mixin >::remove( std::size_t index, int bits )
     {
         assert( bits & ( ( 1 << bits_per_characteristc ) -1 ) );
         const auto bit_offset  = ( index * bits_per_characteristc ) % 8;
