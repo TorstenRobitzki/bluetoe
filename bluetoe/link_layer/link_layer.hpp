@@ -198,7 +198,7 @@ namespace link_layer {
             link_layer< Server, ScheduledRadio, Options... > > radio_t;
 
         typedef notification_queue<
-            std::tuple< std::integral_constant< int, Server::number_of_client_configs > >,
+            typename Server::notification_priority::template numbers< typename Server::services >::type,
             typename Server::connection_data > notification_queue_t;
 
         typedef typename details::security_manager< Options... >::type security_manager_t;
@@ -576,11 +576,11 @@ namespace link_layer {
 
         const auto notification = connection_details_.dequeue_indication_or_confirmation();
 
-        if ( notification.first != notification_queue_t::empty )
+        if ( notification.first != notification_queue_t::entry_type::empty )
         {
             std::size_t out_size = out_buffer.size - all_header_size;
 
-            if ( notification.first == notification_queue_t::notification )
+            if ( notification.first == notification_queue_t::entry_type::notification )
             {
                 server_->notification_output(
                     &out_buffer.buffer[ all_header_size ],
