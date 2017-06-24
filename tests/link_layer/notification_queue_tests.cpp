@@ -248,17 +248,18 @@ BOOST_AUTO_TEST_SUITE( mixed_priorities )
         BOOST_CHECK( ( dequeue_indication_or_confirmation().first == entry_type::empty ) );
     }
 
-    BOOST_FIXTURE_TEST_CASE( outstanding_indication_blocks, queue1_2 )
+    BOOST_FIXTURE_TEST_CASE( outstanding_indication_blocks_new_indiciation, queue1_2 )
     {
         BOOST_CHECK( queue_notification( 2 ) );
         BOOST_CHECK( !queue_notification( 2 ) );
         BOOST_CHECK( queue_indication( 1 ) );
         BOOST_CHECK( !queue_indication( 1 ) );
-        BOOST_CHECK( queue_notification( 0 ) );
 
-        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ entry_type::notification, 0 } ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ entry_type::indication, 1 } ) );
-//        BOOST_CHECK( ( dequeue_indication_or_confirmation().first == entry_type::empty ) );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ entry_type::notification, 2 } ) );
+
+        BOOST_CHECK( queue_indication( 0 ) );
+        BOOST_CHECK( ( dequeue_indication_or_confirmation().first == entry_type::empty ) );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

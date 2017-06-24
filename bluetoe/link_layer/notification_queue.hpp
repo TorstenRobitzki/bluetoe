@@ -26,6 +26,8 @@ namespace link_layer {
 
         template < typename Size >
         class notification_queue_impl_base;
+
+        static constexpr std::size_t no_outstanding_indicaton = ~std::size_t{ 0 };
     }
 
     /**
@@ -122,7 +124,7 @@ namespace link_layer {
     template < class ... Args >
     notification_queue< Sizes, Mixin >::notification_queue( Args... mixin_arguments )
         : Mixin( mixin_arguments... )
-        , outstanding_confirmation_index_( ~0 )
+        , outstanding_confirmation_index_( details::no_outstanding_indicaton )
     {
     }
 
@@ -135,25 +137,27 @@ namespace link_layer {
     template < typename Sizes, class Mixin >
     bool notification_queue< Sizes, Mixin >::queue_indication( std::size_t index )
     {
-        return impl::queue_indication( index );
+        return impl::queue_indication( index, outstanding_confirmation_index_ );
     }
 
     template < typename Sizes, class Mixin >
     void notification_queue< Sizes, Mixin >::indication_confirmed()
     {
-        impl::indication_confirmed();
+        outstanding_confirmation_index_ = details::no_outstanding_indicaton;
     }
 
     template < typename Sizes, class Mixin >
     std::pair< details::notification_queue_entry_type, std::size_t > notification_queue< Sizes, Mixin >::dequeue_indication_or_confirmation()
     {
-        return impl::dequeue_indication_or_confirmation();
+        const auto result = impl::dequeue_indication_or_confirmation( 0, outstanding_confirmation_index_ );
+
+        return result;
     }
 
     template < typename Sizes, class Mixin >
     void notification_queue< Sizes, Mixin >::clear_indications_and_confirmations()
     {
-        outstanding_confirmation_index_ = ~0;
+        outstanding_confirmation_index_ = details::no_outstanding_indicaton;
         impl::clear_indications_and_confirmations();
     }
 
@@ -164,7 +168,6 @@ namespace link_layer {
         {
         public:
             notification_queue_impl()
-                : outstanding_confirmation_( Size )
             {
                 clear_indications_and_confirmations();
             }
@@ -175,25 +178,17 @@ namespace link_layer {
                 return add( index, notification_bit );
             }
 
-            bool queue_indication( std::size_t index )
+            bool queue_indication( std::size_t index, std::size_t outstanding_confirmation )
             {
                 assert( index < Size );
 
-                if ( outstanding_confirmation_ == index )
+                if ( outstanding_confirmation == index )
                     return false;
 
                 return add( index, indication_bit );
             }
 
-            void indication_confirmed()
-            {
-                if ( outstanding_confirmation_ != Size )
-                {
-                    outstanding_confirmation_ = Size;
-                }
-            }
-
-            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation()
+            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t offset, std::size_t& outstanding_confirmation )
             {
                 bool ignore_first = true;
 
@@ -203,18 +198,18 @@ namespace link_layer {
                     ignore_first = false;
                     auto entry = at( i );
 
-                    if ( entry & indication_bit && outstanding_confirmation_ == Size )
+                    if ( entry & indication_bit && outstanding_confirmation == no_outstanding_indicaton )
                     {
-                        outstanding_confirmation_ = i;
+                        outstanding_confirmation = i + offset;
                         next_ = ( i + 1 ) % Size;
                         remove( i, indication_bit );
-                        return { indication, i };
+                        return { indication, i + offset };
                     }
                     else if ( entry & notification_bit )
                     {
                         next_ = ( i + 1 ) % Size;
                         remove( i, notification_bit );
-                        return { notification, i };
+                        return { notification, i + offset };
                     }
 
                 }
@@ -225,7 +220,6 @@ namespace link_layer {
             void clear_indications_and_confirmations()
             {
                 next_ = 0;
-                outstanding_confirmation_ = Size;
                 std::fill( std::begin( queue_ ), std::end( queue_ ), 0 );
             }
 
@@ -271,8 +265,6 @@ namespace link_layer {
 
             std::size_t     next_;
             std::uint8_t    queue_[ ( Size * bits_per_characteristc + 7 ) / 8 ];
-
-            std::size_t     outstanding_confirmation_;
         };
 
         /**
@@ -299,11 +291,10 @@ namespace link_layer {
                 return result;
             }
 
-            bool queue_indication( std::size_t idx)
+            bool queue_indication( std::size_t idx, std::size_t outstanding_confirmation )
             {
                 assert( idx == 0 );
-
-                const bool result = state_ == empty;
+                const bool result = state_ == empty && outstanding_confirmation != 0;
 
                 if ( result )
                     state_ = indication;
@@ -311,21 +302,17 @@ namespace link_layer {
                 return result;
             }
 
-            void indication_confirmed()
+            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t offset, std::size_t& outstanding_confirmation )
             {
-                if ( state_ == outstanding_confirmation )
+                const auto result = state_ == notification || ( state_ == indication && outstanding_confirmation == details::no_outstanding_indicaton )
+                    ? std::pair< notification_queue_entry_type, std::size_t >{ static_cast< notification_queue_entry_type >( state_ ), offset }
+                    : std::pair< notification_queue_entry_type, std::size_t >{ empty, 0 };
+
+                if ( result.first == indication )
+                    outstanding_confirmation = offset;
+
+                if ( result.first != empty )
                     state_ = empty;
-            }
-
-            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation()
-            {
-                const auto result = state_ == outstanding_confirmation
-                    ? std::pair< notification_queue_entry_type, std::size_t >{ empty, 0 }
-                    : std::pair< notification_queue_entry_type, std::size_t >{ static_cast< notification_queue_entry_type >( state_ ), 0 };
-
-                state_ = state_ == indication || state_ == outstanding_confirmation
-                    ? outstanding_confirmation
-                    : empty;
 
                 return result;
             }
@@ -335,11 +322,7 @@ namespace link_layer {
                 state_ = empty;
             }
         private:
-            enum {
-                outstanding_confirmation = indication + 1
-            };
-
-            std::uint8_t state_;
+            notification_queue_entry_type state_;
         };
 
         template <>
@@ -347,10 +330,9 @@ namespace link_layer {
         {
         public:
             bool queue_notification( std::size_t ) { return false; }
-            bool queue_indication( std::size_t ) { return false; }
-            void indication_confirmed() {}
+            bool queue_indication( std::size_t, size_t ) { return false; }
 
-            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation()
+            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t, std::size_t )
             {
                 return { notification_queue_entry_type::empty, 0 };
             }
@@ -374,30 +356,27 @@ namespace link_layer {
                     : base::queue_notification( idx - Size );
             }
 
-            bool queue_indication( std::size_t idx )
+            bool queue_indication( std::size_t idx, std::size_t outstanding_confirmation )
             {
+                const std::size_t base_outstanding_idx = outstanding_confirmation == no_outstanding_indicaton
+                    ? no_outstanding_indicaton
+                    : outstanding_confirmation - Size;
+
                 return idx < Size
-                    ? impl::queue_indication( idx )
-                    : base::queue_indication( idx - Size );
+                    ? impl::queue_indication( idx, outstanding_confirmation )
+                    : base::queue_indication( idx - Size, base_outstanding_idx );
             }
 
-            void indication_confirmed()
+            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t offset, std::size_t& outstanding_confirmation )
             {
-                impl::indication_confirmed();
-                base::indication_confirmed();
-            }
-
-            std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation()
-            {
-                auto result = impl::dequeue_indication_or_confirmation();
+                auto result = impl::dequeue_indication_or_confirmation( offset, outstanding_confirmation );
 
                 if ( result.first != notification_queue_entry_type::empty )
+                {
                     return result;
+                }
 
-                result = base::dequeue_indication_or_confirmation();
-
-                if ( result.first != notification_queue_entry_type::empty )
-                    result.second += Size;
+                result = base::dequeue_indication_or_confirmation( offset + Size, outstanding_confirmation );
 
                 return result;
             }
