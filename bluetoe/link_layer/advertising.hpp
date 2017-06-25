@@ -73,6 +73,29 @@ namespace link_layer {
 
                 return result;
             }
+
+            static std::size_t fill_empty_advertising_response_data( const device_address& addr, std::uint8_t* adv_response_buffer )
+            {
+                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
+
+                if ( addr.is_random() )
+                    adv_response_buffer[ 0 ] |= header_txaddr_field;
+
+                std::size_t adv_response_size = advertising_pdu_header_size + address_length;
+
+                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+
+                // add aditional empty AD to be visible to Nordic sniffer.
+                // Some stacks do not recognize the response without this empty AD.
+                adv_response_buffer[ adv_response_size ] = 0;
+                adv_response_buffer[ adv_response_size + 1 ] = 0;
+                adv_response_size += 2;
+
+                adv_response_buffer[ 1 ] = adv_response_size - advertising_pdu_header_size;
+
+                return adv_response_size;
+            }
+
         };
     }
 
@@ -173,19 +196,8 @@ namespace link_layer {
 
             void fill_advertising_response_data()
             {
-                const device_address& addr = link_layer().local_address();
-
-                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
-
-                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
-
-                if ( addr.is_random() )
-                    adv_response_buffer[ 0 ] |= header_txaddr_field;
-
-                adv_response_buffer[ 1 ] = address_length;
-                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-
-                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+                adv_response_size_ = fill_empty_advertising_response_data(
+                    link_layer().local_address(), advertising_response_buffer().buffer );
             }
 
             read_buffer advertising_buffer()
@@ -450,19 +462,8 @@ namespace link_layer {
         private:
             void fill_advertising_response_data()
             {
-                const device_address& addr = link_layer().local_address();
-
-                std::uint8_t* adv_response_buffer = advertising_response_buffer().buffer;
-
-                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
-
-                if ( addr.is_random() )
-                    adv_response_buffer[ 0 ] |= header_txaddr_field;
-
-                adv_response_buffer[ 1 ] = address_length;
-                adv_response_size_ = advertising_pdu_header_size + adv_response_buffer[ 1 ];
-
-                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+                adv_response_size_ = fill_empty_advertising_response_data(
+                    link_layer().local_address(), advertising_response_buffer().buffer );
             }
 
             read_buffer advertising_buffer()
