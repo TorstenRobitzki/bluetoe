@@ -10,5 +10,6 @@ var searchData=
   ['write_5fhandler',['write_handler',['../structbluetoe_1_1write__handler.html',1,'bluetoe']]],
   ['write_5fhandler_5fc',['write_handler_c',['../structbluetoe_1_1write__handler__c.html',1,'bluetoe']]],
   ['write_5fhandler_5fcv',['write_handler_cv',['../structbluetoe_1_1write__handler__cv.html',1,'bluetoe']]],
-  ['write_5fhandler_5fv',['write_handler_v',['../structbluetoe_1_1write__handler__v.html',1,'bluetoe']]]
+  ['write_5fhandler_5fv',['write_handler_v',['../structbluetoe_1_1write__handler__v.html',1,'bluetoe']]],
+  ['write_5fwithout_5fresponse',['write_without_response',['../structbluetoe_1_1write__without__response.html',1,'bluetoe']]]
 ];

@@ -15,5 +15,6 @@ var searchData=
   ['write_5fhandler_5fc',['write_handler_c',['../structbluetoe_1_1write__handler__c.html',1,'bluetoe']]],
   ['write_5fhandler_5fcv',['write_handler_cv',['../structbluetoe_1_1write__handler__cv.html',1,'bluetoe']]],
   ['write_5fhandler_5fv',['write_handler_v',['../structbluetoe_1_1write__handler__v.html',1,'bluetoe']]],
-  ['write_5fnot_5fpermitted',['write_not_permitted',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d',1,'bluetoe::error_codes']]]
+  ['write_5fnot_5fpermitted',['write_not_permitted',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d',1,'bluetoe::error_codes']]],
+  ['write_5fwithout_5fresponse',['write_without_response',['../structbluetoe_1_1write__without__response.html',1,'bluetoe']]]
 ];

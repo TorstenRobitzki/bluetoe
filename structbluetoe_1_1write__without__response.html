@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>BlueToe: Class Members - Enumerations</title>
+<title>BlueToe: bluetoe::write_without_response Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -43,7 +43,6 @@ $(function() {
 });
 </script>
 <div id="main-nav"></div>
-</div><!-- top -->
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -58,16 +57,31 @@ $(function() {
 </iframe>
 </div>
 
+<div id="nav-path" class="navpath">
+  <ul>
+<li class="navelem"><b>bluetoe</b></li><li class="navelem"><a class="el" href="structbluetoe_1_1write__without__response.html">write_without_response</a></li>  </ul>
+</div>
+</div><!-- top -->
+<div class="header">
+  <div class="headertitle">
+<div class="title">bluetoe::write_without_response Struct Reference</div>  </div>
+</div><!--header-->
 <div class="contents">
-&#160;<ul>
-<li>entry_type
-: <a class="el" href="classbluetoe_1_1link__layer_1_1notification__queue.html#aa4a63b71c17a23fd5d4517031b33f313">bluetoe::link_layer::notification_queue&lt; Size, Mixin &gt;</a>
-</li>
+
+<p>sets the Write Without Response Characteristic Property bit.  
+ <a href="structbluetoe_1_1write__without__response.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="characteristic__value_8hpp_source.html">bluetoe/characteristic_value.hpp</a>&gt;</code></p>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>sets the Write Without Response Characteristic Property bit. </p>
+<p>By adding this bit to the Characteristic Properties, a client knows that it can use the Write Without Response sub-procedure. In this case, a client can write to a characteristic and will get no response from the GATT server. Don't use this property if there is any need to respond with an error to a write attempt. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<li>bluetoe/<a class="el" href="characteristic__value_8hpp_source.html">characteristic_value.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Apr 14 2017 17:35:12 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Jun 30 2017 19:05:56 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>
