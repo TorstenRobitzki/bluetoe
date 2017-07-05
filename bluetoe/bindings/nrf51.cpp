@@ -14,10 +14,10 @@
 namespace bluetoe {
 namespace nrf51_details {
 
-    static constexpr NRF_RADIO_Type*    nrf_radio            = NRF_RADIO;
-    static constexpr NRF_TIMER_Type*    nrf_timer            = NRF_TIMER0;
-    static constexpr NVIC_Type*         nvic                 = NVIC;
-    static constexpr NRF_PPI_Type*      nrf_ppi              = NRF_PPI;
+    static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
+    static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
+    static NVIC_Type* const             nvic                 = NVIC;
+    static NRF_PPI_Type* const          nrf_ppi              = NRF_PPI;
     static scheduled_radio_base*        instance             = nullptr;
     // after T_IFS (150µs +- 2) at maximum, a connection request will be received (34 Bytes + 1 Byte preable, 4 Bytes Access Address and 3 Bytes CRC)
     // plus some additional 20µs
@@ -45,11 +45,13 @@ namespace nrf51_details {
         static constexpr int debug_pin_timer_irs_nr = 22;
         static constexpr int debug_pin_transmit     = 23;
         static constexpr int debug_pin_receive      = 24;
+        static constexpr int debug_pin_adv_response = 25;
 
         void init_debug()
         {
             for ( auto pin : { debug_pin_time_nr, debug_pin_crc_error_nr, debug_pin_irs_nr,
-                debug_pin_cs_nr, debug_pin_timer_irs_nr, debug_pin_transmit, debug_pin_receive } )
+                debug_pin_cs_nr, debug_pin_timer_irs_nr, debug_pin_transmit, debug_pin_receive,
+                debug_pin_adv_response } )
             {
                 NRF_GPIO->PIN_CNF[ pin ] =
                     ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
@@ -121,6 +123,11 @@ namespace nrf51_details {
         {
             NRF_GPIO->OUTCLR = 1 << debug_pin_cs_nr;
         }
+
+        void debug_adv_response()
+        {
+            pulse_debug_pin( debug_pin_adv_response );
+        }
 #   else
         void init_debug() {}
         void debug_end_radio() {}
@@ -132,6 +139,7 @@ namespace nrf51_details {
         void debug_leave_timer_isr() {}
         void debug_enter_critical_section() {}
         void debug_leave_critical_section() {}
+        void debug_adv_response() {}
 #   endif
 
     /*
@@ -305,6 +313,9 @@ namespace nrf51_details {
         receive_buffer_.size = std::min< std::size_t >( receive.size, maximum_advertising_pdu_size );
         if ( !receive_buffer_.empty() )
             receive_buffer_.buffer[ 1 ] = 0;
+
+        if ( receive.empty() )
+            debug_adv_response();
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
