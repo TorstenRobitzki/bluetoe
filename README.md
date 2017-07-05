@@ -62,42 +62,42 @@ Feature | Sub-Procedure | Status
 --------|---------------|-------
 Server Configuration|Exchange MTU|implemented
 Primary Service Discovery|Discover All Primary Services|implemented
- |Discover Primary Service By Service UUID|implemented
+<br/> |Discover Primary Service By Service UUID|implemented
 Relationship Discovery|Find Included Services|implemented
- |Declare Secondary Services|implemented
+<br/> |Declare Secondary Services|implemented
 Characteristic Discovery|Discover All Characteristic of a Service|implemented
- |Discover Characteristic by UUID|implemented
+<br/> |Discover Characteristic by UUID|implemented
 Characteristic Descriptor Discovery|Discover All Characteristic Descriptors|implemented
 Characteristic Value Read|Read Characteristic Value|implemented
- |Read Using Characteristic UUID|implemented
- |Read Long Characteristic Value|implemented
- |Read Multiple Characteristic Values|implemented
+<br/> |Read Using Characteristic UUID|implemented
+<br/> |Read Long Characteristic Value|implemented
+<br/> |Read Multiple Characteristic Values|implemented
 Characteristic Value Write| Write Without Response|implemented
- |Signed Write Without Response|not planned
- |Write Characteristic Value|implemented
- |Write Long Characteristic Values|implemented
- |Characteristic Value Reliable Writes|implemented
+<br/> |Signed Write Without Response|not planned
+<br/> |Write Characteristic Value|implemented
+<br/> |Write Long Characteristic Values|implemented
+<br/> |Characteristic Value Reliable Writes|implemented
 Characteristic Value Notification|Notifications|implemented
 Characteristic Value Indication|Indications|implemented
 Characteristic Descriptor Value Read|Read Characteristic Descriptors|implemented
- |Read Long Characteristic Descriptors|implemented
+<br/> |Read Long Characteristic Descriptors|implemented
 Characteristic Descriptor Value Write|Write Characteristic Descriptors|implemented
- |Write Long Characteristic Descriptors|implemented
+<br/> |Write Long Characteristic Descriptors|implemented
 Cryptography|Encryption|not planned
- |Authentication|not planned
+<br/> |Authentication|not planned
 
 This is the current state of implemented Advertising Data:
 
 Advertising Data|Format|Status
 ----------------|------|------
 Service UUID|Incomplete List of 16-bit Service UUIDs|implemented
- |Complete List of 16-bit Service UUIDs|implemented
- |Incomplete List of 32-bit Service UUIDs|not planned
- |Complete List of 32-bit Service UUIDs|not planned
- |Incomplete List of 128-bit Service UUIDs|implemented
- |Complete List of 128-bit Service UUIDs|implemented
+<br/> |Complete List of 16-bit Service UUIDs|implemented
+<br/> |Incomplete List of 32-bit Service UUIDs|not planned
+<br/> |Complete List of 32-bit Service UUIDs|not planned
+<br/> |Incomplete List of 128-bit Service UUIDs|implemented
+<br/> |Complete List of 128-bit Service UUIDs|implemented
 Local Name|Shortened Local Name|implemented
- |Complete Local Name|implemented
+<br/> |Complete Local Name|implemented
 Flags|Flags|implemented
 Manufacturer Specific Data|Manufacturer Specific Data|planned
 TX Power Level|TX Power Level|planned
@@ -115,23 +115,23 @@ This is the current state of the Link Layer implementation:
 Aspect | Feature | Status
 -------|---------|--------
 Roles|Slave Role|implemented
- |Master Role|not planned
+<br/> |Master Role|not planned
 Advertising|connectable undirected advertising|implemented
- |connectable directed advertising|implemented
- |non-connectable undirected advertising|implemented
- |scannable undirected advertising|implemented
+<br/> |connectable directed advertising|implemented
+<br/> |non-connectable undirected advertising|implemented
+<br/> |scannable undirected advertising|implemented
 Device Filtering||implemented
 Connections|Single Connection|implemented
- |Multiple Connection|not planned
+<br/> |Multiple Connection|not planned
 Connection|Slave Latency|planned
 Feature Support|LE Encryption|planned
- |Connection Parameters Request Procedure|planned
- |Extended Reject Indication|planned
- |Slave-initiated Features Exchange|planned
- |LE Ping|implemented
- |LE Data Packet Length Extension|planned
- |LL Privacy|not planned
- |Extended Scanner Filter Policies|not planned
+<br/> |Connection Parameters Request Procedure|planned
+<br/> |Extended Reject Indication|planned
+<br/> |Slave-initiated Features Exchange|planned
+<br/> |LE Ping|implemented
+<br/> |LE Data Packet Length Extension|planned
+<br/> |LL Privacy|not planned
+<br/> |Extended Scanner Filter Policies|not planned
 
 Pullrequests are wellcome.
 
