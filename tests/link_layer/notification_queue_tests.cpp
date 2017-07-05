@@ -262,4 +262,17 @@ BOOST_AUTO_TEST_SUITE( mixed_priorities )
         BOOST_CHECK( ( dequeue_indication_or_confirmation().first == entry_type::empty ) );
     }
 
+    // there was a bug in the implementation, where a class derived from all the elements
+    using queue1_1_2 = bluetoe::link_layer::notification_queue<
+    std::tuple<
+        std::integral_constant< int, 1u >,
+        std::integral_constant< int, 1u >,
+        std::integral_constant< int, 2u >
+    >, empty_fixture >;
+
+    BOOST_FIXTURE_TEST_CASE( implementation_without_ambiguous_base_classes, queue1_1_2 )
+    {
+        // just make sure, that this case compiles
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

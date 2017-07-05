@@ -24,7 +24,7 @@ namespace link_layer {
             indication
         };
 
-        template < typename Size >
+        template < typename Size, int C >
         class notification_queue_impl_base;
 
         static constexpr std::size_t no_outstanding_indicaton = ~std::size_t{ 0 };
@@ -44,7 +44,7 @@ namespace link_layer {
      * requested (or queued) notifications / indications.
      */
     template < typename Sizes, class Mixin >
-    class notification_queue : public Mixin, details::notification_queue_impl_base< Sizes >
+    class notification_queue : public Mixin, details::notification_queue_impl_base< Sizes, 0 >
     {
     public:
         using entry_type = details::notification_queue_entry_type;
@@ -115,7 +115,7 @@ namespace link_layer {
         void clear_indications_and_confirmations();
 
     private:
-        using impl = details::notification_queue_impl_base< Sizes >;
+        using impl = details::notification_queue_impl_base< Sizes, 0 >;
         std::size_t outstanding_confirmation_index_;
     };
 
@@ -163,7 +163,8 @@ namespace link_layer {
 
     namespace details
     {
-        template < int Size >
+        // C is introduced to make baseclasses with the very same Size not ambiguous
+        template < int Size, int C >
         class notification_queue_impl
         {
         public:
@@ -270,8 +271,8 @@ namespace link_layer {
         /**
          * @brief Specialisation for one characteritics with notification or indication enabled
          */
-        template <>
-        class notification_queue_impl< 1 >
+        template < int C >
+        class notification_queue_impl< 1, C >
         {
         public:
             notification_queue_impl()
@@ -325,8 +326,8 @@ namespace link_layer {
             notification_queue_entry_type state_;
         };
 
-        template <>
-        class notification_queue_impl_base< std::tuple<> >
+        template < int C >
+        class notification_queue_impl_base< std::tuple<>, C >
         {
         public:
             bool queue_notification( std::size_t ) { return false; }
@@ -340,14 +341,14 @@ namespace link_layer {
             void clear_indications_and_confirmations() {}
         };
 
-        template < int Size, class ...Ts >
-        class notification_queue_impl_base< std::tuple< std::integral_constant< int, Size >, Ts... > >
-            : public notification_queue_impl_base< std::tuple< Ts... > >
-            , private notification_queue_impl< Size >
+        template < int Size, class ...Ts, int C >
+        class notification_queue_impl_base< std::tuple< std::integral_constant< int, Size >, Ts... >, C >
+            : public notification_queue_impl_base< std::tuple< Ts... >, C + 1 >
+            , private notification_queue_impl< Size, C >
         {
         public:
-            using base = notification_queue_impl_base< std::tuple< Ts... > >;
-            using impl = notification_queue_impl< Size >;
+            using base = notification_queue_impl_base< std::tuple< Ts... >, C + 1 >;
+            using impl = notification_queue_impl< Size, C >;
 
             bool queue_notification( std::size_t idx )
             {
