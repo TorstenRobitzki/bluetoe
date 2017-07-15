@@ -363,7 +363,6 @@ namespace nrf51_details {
             // TODO: If timer wrapps, >= will fail!!!
             if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 3 ] >= nrf_timer->CC[ 0 ] )
             {
-                state_ = state::adv_transmitting;
                 nrf_timer->TASKS_CLEAR = 1;
                 NRF_RADIO->TASKS_TXEN = 1;
             }
