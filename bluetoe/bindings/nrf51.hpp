@@ -93,7 +93,6 @@ namespace bluetoe
             enum class state {
                 idle,
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
-                adv_timeout_stopping,
                 adv_transmitting,
                 adv_receiving,
                 // connection event

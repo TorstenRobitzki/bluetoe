@@ -331,7 +331,9 @@ namespace nrf51_details {
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_PAYLOAD   = 0;
 
-        NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
+        NRF_RADIO->SHORTS = receive.empty()
+            ? RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk
+            : NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
 
         NRF_PPI->CHENCLR = ( 1 << compare0_rxen_ppi_channel );
         NRF_PPI->CHENSET =
@@ -339,7 +341,7 @@ namespace nrf51_details {
             | ( 1 << compare1_disable_ppi_channel )
             | ( 1 << radio_end_capture2_ppi_channel );
 
-        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk | RADIO_INTENSET_PAYLOAD_Msk;
+        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
         const std::uint32_t read_timeout = ( send_size + 1 + 4 + 3 ) * 8 + adv_reponse_timeout_us;
         state_ = state::adv_transmitting;
@@ -372,25 +374,15 @@ namespace nrf51_details {
 
     void scheduled_radio_base::adv_radio_interrupt()
     {
-        if ( NRF_RADIO->EVENTS_PAYLOAD )
-        {
-            NRF_RADIO->EVENTS_PAYLOAD = 0;
-
-            if ( state_ == state::adv_transmitting )
-            {
-                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
-                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
-
-                NRF_RADIO->INTENCLR    = RADIO_INTENSET_PAYLOAD_Msk;
-            }
-        }
-
         if ( NRF_RADIO->EVENTS_DISABLED )
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
 
             if ( state_ == state::adv_transmitting )
             {
+                NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+                NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+
                 // stop the radio from receiving again
                 NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
                 state_ = state::adv_receiving;
