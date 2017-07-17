@@ -297,29 +297,31 @@ namespace nrf51_details {
     }
 
     void scheduled_radio_base::schedule_advertisment_and_receive(
-            unsigned channel,
-            const link_layer::write_buffer& transmit, link_layer::delta_time when,
-            const link_layer::read_buffer& receive )
+            unsigned                        channel,
+            const link_layer::write_buffer& advertising_data,
+            const link_layer::write_buffer& response_data,
+            link_layer::delta_time          when,
+            const link_layer::read_buffer&  receive )
     {
         assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
         assert( !received_ );
         assert( !timeout_ );
         assert( state_ == state::idle );
-        assert( receive.buffer && receive.size >= 2u || receive.empty() );
+        assert( receive.buffer && receive.size >= 2u );
+        assert( response_data.buffer );
 
-        const std::uint8_t  send_size  = std::min< std::size_t >( transmit.size, maximum_advertising_pdu_size );
+        const std::uint8_t  send_size  = std::min< std::size_t >( advertising_data.size, maximum_advertising_pdu_size );
 
+        response_data_       = response_data;
         receive_buffer_      = receive;
         receive_buffer_.size = std::min< std::size_t >( receive.size, maximum_advertising_pdu_size );
-        if ( !receive_buffer_.empty() )
-            receive_buffer_.buffer[ 1 ] = 0;
 
-        if ( receive.empty() )
-            debug_adv_response();
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
-        NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( transmit.buffer );
+
+        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
+        NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( advertising_data.buffer );
         NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( send_size << RADIO_PCNF1_MAXLEN_Pos );
 
         NRF_RADIO->INTENCLR    = 0xffffffff;
@@ -330,10 +332,6 @@ namespace nrf51_details {
         NRF_RADIO->EVENTS_READY     = 0;
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_PAYLOAD   = 0;
-
-        NRF_RADIO->SHORTS = receive.empty()
-            ? RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk
-            : NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
 
         NRF_PPI->CHENCLR = ( 1 << compare0_rxen_ppi_channel );
         NRF_PPI->CHENSET =
@@ -371,6 +369,39 @@ namespace nrf51_details {
         }
     }
 
+    bool scheduled_radio_base::is_valid_scan_request() const
+    {
+        static constexpr std::uint8_t scan_request_size     = 12;
+        static constexpr std::uint8_t scan_request_pdu_type = 0x03;
+        static constexpr std::uint8_t pdu_type_mask         = 0x0F;
+        static constexpr int          pdu_header_size       = 2;
+        static constexpr int          addr_size             = 6;
+        static constexpr std::uint8_t tx_add_mask           = 0x40;
+        static constexpr std::uint8_t rx_add_mask           = 0x80;
+
+        if ( receive_buffer_.buffer[ 1 ] != scan_request_size )
+            return false;
+
+        if ( ( receive_buffer_.buffer[ 0 ] & pdu_type_mask ) != scan_request_pdu_type )
+            return false;
+
+        if ( !std::equal( &receive_buffer_.buffer[ pdu_header_size + addr_size ], &receive_buffer_.buffer[ pdu_header_size + 2 * addr_size ],
+            &response_data_.buffer[ pdu_header_size ] ) )
+            return false;
+
+        // in the scan request, the randomness is stored in RxAdd, in the scan response, it's stored in
+        // TxAdd.
+        return static_cast< bool >( receive_buffer_.buffer[ 0 ] & rx_add_mask )
+            == static_cast< bool >( response_data_.buffer[ 0 ] & tx_add_mask );
+    }
+
+    void scheduled_radio_base::stop_radio()
+    {
+        NRF_RADIO->SHORTS        = 0;
+        NRF_RADIO->TASKS_DISABLE = 1;
+
+        state_      = state::idle;
+    }
 
     void scheduled_radio_base::adv_radio_interrupt()
     {
@@ -380,30 +411,56 @@ namespace nrf51_details {
 
             if ( state_ == state::adv_transmitting )
             {
+                NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+
                 NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
                 NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
-                // stop the radio from receiving again
-                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
                 state_ = state::adv_receiving;
             }
             else if ( state_ == state::adv_receiving )
             {
-                // either we realy received something, or the timer disabled the radio.
-                state_ = state::idle;
-
                 // the anchor is the end of the connect request. The timer was captured with the radio end event
                 anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] );
 
-                if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk || receive_buffer_.buffer[ 1 ] != 0 )
+                // either we realy received something, or the timer disabled the radio.
+                if ( ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk && NRF_RADIO->EVENTS_PAYLOAD )
                 {
-                    received_  = true;
+                    NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+                    // stop the timer from canceling the read!
+                    NRF_PPI->CHENCLR  = ( 1 << compare0_txen_ppi_channel )
+                                      | ( 1 << compare1_disable_ppi_channel )
+                                      | ( 1 << radio_end_capture2_ppi_channel );
+
+                    if ( is_valid_scan_request() )
+                    {
+                        state_ = state::adv_transmitting_response;
+
+                        NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( response_data_.buffer );
+                        NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( response_data_.size << RADIO_PCNF1_MAXLEN_Pos );
+
+                        debug_adv_response();
+                    }
+                    else
+                    {
+                        stop_radio();
+                        received_   = true;
+                    }
                 }
                 else
                 {
-                    timeout_ = true;
+                    stop_radio();
+                    timeout_    = true;
                 }
             }
+            else if ( state_ == state::adv_transmitting_response )
+            {
+                stop_radio();
+                timeout_    = true;
+            }
+
+            NRF_RADIO->EVENTS_PAYLOAD = 0;
 
             debug_end_radio();
         }
@@ -470,6 +527,7 @@ namespace nrf51_details {
         nrf_timer->CC[ 1 ] = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
 
         nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
+
         return link_layer::delta_time::usec( nrf_timer->CC[ 0 ] - nrf_timer->CC[ 3 ] );
     }
 

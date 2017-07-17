@@ -47,7 +47,8 @@ namespace bluetoe
 
             void schedule_advertisment_and_receive(
                 unsigned                        channel,
-                const link_layer::write_buffer& transmit,
+                const link_layer::write_buffer& advertising_data,
+                const link_layer::write_buffer& response_data,
                 link_layer::delta_time          when,
                 const link_layer::read_buffer&  receive );
 
@@ -72,6 +73,9 @@ namespace bluetoe
             friend void ::RADIO_IRQHandler(void);
             friend void ::TIMER0_IRQHandler(void);
 
+            bool is_valid_scan_request() const;
+            void stop_radio();
+
             void adv_radio_interrupt();
             void adv_timer_interrupt();
             void evt_radio_interrupt();
@@ -95,6 +99,7 @@ namespace bluetoe
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
                 adv_transmitting,
                 adv_receiving,
+                adv_transmitting_response,
                 // connection event
                 evt_wait_connect    = connection_event_type_base,
                 evt_transmiting_closing,
@@ -105,6 +110,7 @@ namespace bluetoe
             bluetoe::link_layer::delta_time anchor_offset_;
 
             link_layer::read_buffer         receive_buffer_;
+            link_layer::write_buffer        response_data_;
             std::uint8_t                    empty_receive_[ 2 ];
         };
 

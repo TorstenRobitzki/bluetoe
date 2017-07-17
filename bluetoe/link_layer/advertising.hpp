@@ -906,6 +906,7 @@ namespace link_layer {
             void handle_start_advertising()
             {
                 const read_buffer advertising_data = this->fill_advertising_data();
+                const read_buffer response_data    = this->get_advertising_response_data();
 
                 if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
@@ -918,6 +919,7 @@ namespace link_layer {
                     link_layer.schedule_advertisment_and_receive(
                         this->current_channel(),
                         write_buffer( advertising_data ),
+                        write_buffer( response_data ),
                         delta_time::now(),
                         this->advertising_receive_buffer() );
                 }
@@ -937,6 +939,7 @@ namespace link_layer {
 
                 if ( this->is_valid_scan_request( receive ) )
                 {
+/*
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
                     if ( link_layer.is_scan_request_in_filter( remote_address ) )
@@ -954,6 +957,7 @@ namespace link_layer {
                             return false;
                         }
                     }
+*/
                 }
                 else if ( this->is_valid_connect_request( receive ) )
                 {
@@ -971,6 +975,8 @@ namespace link_layer {
             void handle_adv_timeout()
             {
                 const read_buffer advertising_data = this->get_advertising_data();
+                const read_buffer response_data    = this->get_advertising_response_data();
+
                 if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
@@ -978,6 +984,7 @@ namespace link_layer {
                     static_cast< LinkLayer& >( *this ).schedule_advertisment_and_receive(
                         this->current_channel(),
                         write_buffer( advertising_data ),
+                        write_buffer( response_data ),
                         this->next_adv_event(),
                         this->advertising_receive_buffer() );
                 }
@@ -1139,6 +1146,7 @@ namespace link_layer {
 
                 if ( this->is_valid_scan_request( receive, selected_ ) )
                 {
+/*
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
                     if ( link_layer.is_scan_request_in_filter( remote_address ) )
@@ -1156,6 +1164,7 @@ namespace link_layer {
                             return false;
                         }
                     }
+*/
                 }
                 else if ( this->is_valid_connect_request( receive, selected_ ) )
                 {
