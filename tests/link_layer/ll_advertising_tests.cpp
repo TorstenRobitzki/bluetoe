@@ -289,40 +289,6 @@ BOOST_FIXTURE_TEST_CASE( pdus_contain_the_gap_data, advertising )
     );
 }
 
-/**
- * @test until now, the link layer should respond with an empty response
- */
-BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, advertising_and_connect )
-{
-    respond_to(
-        37, // channel
-        {
-            0xC3, 0x0C, // header
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
-        }
-    );
-
-    run();
-
-    static const std::vector< std::uint8_t > expected_response =
-    {
-        0x44, 0x08,
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, 0x00, 0x00
-    };
-
-    find_scheduling(
-        []( const test::advertising_data& pdu ) -> bool
-        {
-            return pdu.channel == 37
-                && pdu.transmision_time.zero()
-                && pdu.transmitted_data == expected_response
-                && pdu.receive_buffer.empty();
-        },
-        "empty_reponds_to_a_scan_request"
-    );
-}
-
 BOOST_FIXTURE_TEST_CASE( no_repond_to_an_invalid_pdu, advertising_and_connect )
 {
     respond_to(
@@ -379,59 +345,6 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
         );
 
     BOOST_CHECK_GT( number_of_advertising_packages, 5 );
-}
-
-/**
- * @brief After the SCAN_RSP PDU is sent, the advertiser shall move to the next used advertising channel index to send another ADV_IND PDU
- */
-BOOST_FIXTURE_TEST_CASE( move_to_next_chanel_after_adverting, advertising_and_connect )
-{
-    static const std::initializer_list< std::uint8_t > valid_scan_request = {
-        0xC3, 0x0C, // header
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
-    };
-
-    // simulate 4 scan requests on 4 different channels
-    for ( unsigned int c = 0; c != 4; ++c )
-    {
-        add_responder(
-            [c]( const test::advertising_data& d ) -> std::pair< bool, test::advertising_response >
-            {
-                const unsigned channel = 37 + c % 3;
-
-                return ( d.transmitted_data[ 0 ] & 0xf ) == 0 && d.channel == channel
-                    ? std::pair< bool, test::advertising_response >(
-                        true,
-                        test::advertising_response{ channel, valid_scan_request, T_IFS } )
-                    : std::pair< bool, test::advertising_response >( false, test::advertising_response() );
-            }
-        );
-    }
-
-    run();
-
-    unsigned count = 0;
-
-    check_scheduling(
-        [ &count ]( const test::advertising_data& first, const test::advertising_data& next ) -> bool
-        {
-            if ( ( first.transmitted_data[ 0 ] & 0xf ) != 0x4 )
-                return true;
-
-            ++count;
-
-            // `first` is an scan response, `second` should now be an advertising message on the next channel
-            return ( next.transmitted_data[ 0 ] & 0xf ) == 0
-                 && next.channel != first.channel
-                 // when changing to the second and third advertising channel, no delay should applied
-                 && ( next.transmision_time.zero() || next.channel == 37 );
-        },
-        "move_to_next_chanel_after_adverting"
-    );
-
-    // make sure, the test realy found 4 scan responses
-    BOOST_REQUIRE_EQUAL( count, 4 );
 }
 
 BOOST_FIXTURE_TEST_CASE( after_beeing_connected_the_ll_starts_to_advertise_again, connected_and_timeout )
@@ -703,31 +616,6 @@ BOOST_FIXTURE_TEST_CASE( contains_local_address, non_connectable_undirected_adve
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_response_to_scan_request, non_connectable_undirected_advertising )
-{
-    respond_to(
-        37, // channel
-        {
-            0xC3, 0x0C, // header
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
-        }
-    );
-
-    run( gatt_server_ );
-
-    check_scheduling(
-        [&]( const test::advertising_data& data )
-        {
-            const auto& pdu = data.transmitted_data;
-
-            return pdu.size() >= 1
-                && ( pdu[ 0 ] & 0xf ) == 2;
-        },
-        "no_response_to_scan_request"
-    );
-}
-
 BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, non_connectable_undirected_advertising )
 {
     respond_to(
@@ -803,29 +691,6 @@ BOOST_FIXTURE_TEST_CASE( contains_local_address, scannable_undirected_advertisin
         },
         "contains_local_address"
     );
-}
-
-BOOST_FIXTURE_TEST_CASE( response_to_scan_request, scannable_undirected_advertising )
-{
-    respond_to(
-        37, // channel
-        {
-            0xC3, 0x0C, // header
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
-        }
-    );
-
-    run( gatt_server_ );
-
-    BOOST_CHECK_EQUAL( 1, count_data(
-        [&]( const test::advertising_data& data )
-        {
-            const auto& pdu = data.transmitted_data;
-
-            return pdu.size() >= 1
-                && ( pdu[ 0 ] & 0xf ) == 4;
-        } ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, scannable_undirected_advertising )
@@ -974,37 +839,6 @@ BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, sca
             return pdu.size() >= 1
                 && ( pdu[ 0 ] & 0xf ) == 6;
         }), 0 );
-}
-
-BOOST_FIXTURE_TEST_CASE( empty_reponds_to_a_scan_request, scannable_and_connectable_advertising )
-{
-    respond_to(
-        37, // channel
-        {
-            0xC3, 0x0C, // header
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // scanner address
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0  // advertiser address
-        }
-    );
-
-    run( gatt_server_ );
-
-    static const std::vector< std::uint8_t > expected_response =
-    {
-        0x44, 0x08,
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, 0x00, 0x00
-    };
-
-    find_scheduling(
-        []( const test::advertising_data& pdu ) -> bool
-        {
-            return pdu.channel == 37
-                && pdu.transmision_time.zero()
-                && pdu.transmitted_data == expected_response
-                && pdu.receive_buffer.empty();
-        },
-        "empty_reponds_to_a_scan_request"
-    );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -296,7 +296,7 @@ namespace nrf51_details {
         return 80;
     }
 
-    void scheduled_radio_base::schedule_advertisment_and_receive(
+    void scheduled_radio_base::schedule_advertisment(
             unsigned                        channel,
             const link_layer::write_buffer& advertising_data,
             const link_layer::write_buffer& response_data,
@@ -391,8 +391,13 @@ namespace nrf51_details {
 
         // in the scan request, the randomness is stored in RxAdd, in the scan response, it's stored in
         // TxAdd.
-        return static_cast< bool >( receive_buffer_.buffer[ 0 ] & rx_add_mask )
-            == static_cast< bool >( response_data_.buffer[ 0 ] & tx_add_mask );
+        const bool scanner_addres_is_random = response_data_.buffer[ 0 ] & tx_add_mask;
+        if ( !static_cast< bool >( receive_buffer_.buffer[ 0 ] & rx_add_mask ) == scanner_addres_is_random )
+            return false;
+
+        const link_layer::device_address scanner( &receive_buffer_.buffer[ pdu_header_size ], scanner_addres_is_random );
+
+        return callbacks_.is_scan_request_in_filter_callback( scanner );
     }
 
     void scheduled_radio_base::stop_radio()

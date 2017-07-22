@@ -26,6 +26,7 @@ namespace bluetoe
             virtual link_layer::write_buffer next_transmit() = 0;
             virtual link_layer::read_buffer allocate_receive_buffer() = 0;
 
+            virtual bool is_scan_request_in_filter_callback( const link_layer::device_address& ) const = 0;
         };
 
         class scheduled_radio_base
@@ -45,7 +46,7 @@ namespace bluetoe
 
             explicit scheduled_radio_base( adv_callbacks& );
 
-            void schedule_advertisment_and_receive(
+            void schedule_advertisment(
                 unsigned                        channel,
                 const link_layer::write_buffer& advertising_data,
                 const link_layer::write_buffer& response_data,
@@ -169,6 +170,11 @@ namespace bluetoe
             link_layer::read_buffer allocate_receive_buffer() override
             {
                 return buffer::allocate_receive_buffer();
+            }
+
+            bool is_scan_request_in_filter_callback( const link_layer::device_address& addr ) const override
+            {
+                return static_cast< const CallBack* >( this )->is_scan_request_in_filter( addr );
             }
         };
 

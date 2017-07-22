@@ -35,19 +35,24 @@ namespace link_layer {
          * The function will return immediately. Depending on whether a response is received or the receiving times out,
          * CallBack::adv_received() or CallBack::adv_timeout() is called. In both cases, every following call to a scheduling
          * function is based on the time, the transmission was scheduled. So the new T0 = T0 + when. In case of a CRC error,
-         * CallBack::adv_timeout() will be called immediately .
+         * CallBack::adv_timeout() will be called immediately.
          *
-         * This function is intended to be used for sending advertising PDUs. If the given receive buffer is empty, the timeout callback
-         * will be called when the PDU was sent.
+         * White list filtering is applied by calling CallBack::is_scan_request_in_filter().
+         *
+         * This function is intended to be used for sending advertising PDUs.
          *
          * @param channel channel to transmit and to receive on
+         * @param advertising_data the advertising data to be send out.
+         * @param response_data the response data used to reply to a scan request, in case the request was in the white list.
          * @param transmit data to be transmitted
          * @param when point in time, when the first bit of data should be started to be transmitted
-         * @param receive buffer where the radio will copy the received data, before calling Callback::adv_receive(). This parameter can be empty if no receiving is intended.
+         * @param receive buffer where the radio will copy the received data, before calling Callback::adv_receive().
+         *        This buffer have to have at least room for two bytes.
          */
-        void schedule_advertisment_and_receive(
+        void schedule_advertisment(
             unsigned                                    channel,
-            const bluetoe::link_layer::write_buffer&    transmit,
+            const bluetoe::link_layer::write_buffer&    advertising_data,
+            const bluetoe::link_layer::write_buffer&    response_data,
             bluetoe::link_layer::delta_time             when,
             const bluetoe::link_layer::read_buffer&     receive );
 
@@ -75,7 +80,7 @@ namespace link_layer {
          * @brief set the access address initial CRC value for transmitted and received PDU
          *
          * The values should be changed, when there is no outstanding scheduled transmission or receiving.
-         * The values will be applied with the next call to schedule_advertisment_and_receive() or schedule_receive_and_transmit().
+         * The values will be applied with the next call to schedule_advertisment() or schedule_connection_event().
          */
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 

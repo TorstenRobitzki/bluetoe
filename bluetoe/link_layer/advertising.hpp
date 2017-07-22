@@ -916,7 +916,7 @@ namespace link_layer {
                         this->advertising_radio_access_address,
                         this->advertising_crc_init );
 
-                    link_layer.schedule_advertisment_and_receive(
+                    link_layer.schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
                         write_buffer( response_data ),
@@ -937,29 +937,7 @@ namespace link_layer {
             {
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
-                if ( this->is_valid_scan_request( receive ) )
-                {
-/*
-                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
-
-                    if ( link_layer.is_scan_request_in_filter( remote_address ) )
-                    {
-                        const read_buffer response_data = this->get_advertising_response_data();
-
-                        if ( !response_data.empty() )
-                        {
-                            link_layer.schedule_advertisment_and_receive(
-                                this->current_channel(),
-                                write_buffer( response_data ),
-                                delta_time::now(),
-                                read_buffer{ nullptr, 0 } );
-
-                            return false;
-                        }
-                    }
-*/
-                }
-                else if ( this->is_valid_connect_request( receive ) )
+                if ( this->is_valid_connect_request( receive ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
@@ -981,7 +959,7 @@ namespace link_layer {
                 {
                     this->next_channel();
 
-                    static_cast< LinkLayer& >( *this ).schedule_advertisment_and_receive(
+                    static_cast< LinkLayer& >( *this ).schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
                         write_buffer( response_data ),
@@ -1118,6 +1096,7 @@ namespace link_layer {
             {
                 selected_ = proposal_;
                 const read_buffer advertising_data = this->fill_advertising_data( selected_ );
+                const read_buffer response_data    = this->get_advertising_response_data( selected_ );
 
                 if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
@@ -1127,9 +1106,10 @@ namespace link_layer {
                         this->advertising_radio_access_address,
                         this->advertising_crc_init );
 
-                    link_layer.schedule_advertisment_and_receive(
+                    link_layer.schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
+                        write_buffer( response_data ),
                         delta_time::now(),
                         this->advertising_receive_buffer( selected_ ) );
                 }
@@ -1144,29 +1124,7 @@ namespace link_layer {
             {
                 LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
 
-                if ( this->is_valid_scan_request( receive, selected_ ) )
-                {
-/*
-                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
-
-                    if ( link_layer.is_scan_request_in_filter( remote_address ) )
-                    {
-                        const read_buffer response_data = this->get_advertising_response_data( selected_ );
-
-                        if ( !response_data.empty() )
-                        {
-                            link_layer.schedule_advertisment_and_receive(
-                                this->current_channel(),
-                                write_buffer( response_data ),
-                                delta_time::now(),
-                                read_buffer{ nullptr, 0 } );
-
-                            return false;
-                        }
-                    }
-*/
-                }
-                else if ( this->is_valid_connect_request( receive, selected_ ) )
+                if ( this->is_valid_connect_request( receive, selected_ ) )
                 {
                     remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
 
@@ -1182,13 +1140,16 @@ namespace link_layer {
             void handle_adv_timeout()
             {
                 const read_buffer advertising_data = this->get_advertising_data( selected_ );
+                const read_buffer response_data    = this->get_advertising_response_data( selected_ );
+
                 if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
 
-                    static_cast< LinkLayer& >( *this ).schedule_advertisment_and_receive(
+                    static_cast< LinkLayer& >( *this ).schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
+                        write_buffer( response_data ),
                         this->next_adv_event(),
                         this->advertising_receive_buffer( selected_ ) );
                 }

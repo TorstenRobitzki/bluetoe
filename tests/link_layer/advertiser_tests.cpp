@@ -26,8 +26,9 @@ struct link_layer_base
         return Respond;
     }
 
-    void schedule_advertisment_and_receive(
+    void schedule_advertisment(
         unsigned,
+        const bluetoe::link_layer::write_buffer&,
         const bluetoe::link_layer::write_buffer&,
         bluetoe::link_layer::delta_time,
         const bluetoe::link_layer::read_buffer& )

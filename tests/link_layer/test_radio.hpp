@@ -25,7 +25,7 @@ namespace test {
     static constexpr std::uint16_t and_so_on = 0x0200;
 
     /**
-     * @brief stores all relevant arguments to a schedule_advertisment_and_receive() function call to the radio
+     * @brief stores all relevant arguments to a schedule_advertisment() function call to the radio
      */
     struct advertising_data
     {
@@ -290,9 +290,10 @@ namespace test {
         radio();
 
         // scheduled_radio interface
-        void schedule_advertisment_and_receive(
+        void schedule_advertisment(
             unsigned                                    channel,
-            const bluetoe::link_layer::write_buffer&    transmit,
+            const bluetoe::link_layer::write_buffer&    advertising_data,
+            const bluetoe::link_layer::write_buffer&    response_data,
             bluetoe::link_layer::delta_time             when,
             const bluetoe::link_layer::read_buffer&     receive );
 
@@ -343,13 +344,16 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_advertisment_and_receive(
-            unsigned channel,
-            const bluetoe::link_layer::write_buffer& transmit, bluetoe::link_layer::delta_time when,
-            const bluetoe::link_layer::read_buffer& receive )
+    void radio< TransmitSize, ReceiveSize, CallBack >::schedule_advertisment(
+            unsigned                                    channel,
+            const bluetoe::link_layer::write_buffer&    transmit,
+            const bluetoe::link_layer::write_buffer&,
+            bluetoe::link_layer::delta_time             when,
+            const bluetoe::link_layer::read_buffer&     receive )
     {
         assert( idle_ );
         assert( access_address_and_crc_valid_ );
+        assert( transmit.buffer );
 
         idle_ = false;
         advertising_response_ = true;
