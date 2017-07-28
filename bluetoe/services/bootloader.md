@@ -99,7 +99,7 @@ Request Fields     | Length | Value |
 Opcode             | 1      | 3     |
 Start Address      | sizeof( std::uint8_t* ) | address of the range to be flashed |
 
-The bootloader will response with a notification that contains the response code, followed by the current ATT MTU size of the connection, the amount of data that can currently be received by the bootloader and a checksum that is calculated over the received address.
+The bootloader will response with a notification that contains the response code, followed by the current ATT MTU size of the connection and a checksum that is calculated over the received address.
 
 The MTU is send for the case, that the clients BLE API does not give access to that values. The knowlage of the value allows a client to write data in packets as big as possible (MTU-3). A client can start to write the data to be flashed directly after the Start Flash procedure was started (even before the ATT Response was received). If the client has no access to the connections MTU size and not received the Control Point procedures response, it should assume an MTU of 23.
 
