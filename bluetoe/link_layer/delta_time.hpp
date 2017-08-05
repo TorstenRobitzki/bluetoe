@@ -119,6 +119,8 @@ namespace link_layer {
          * @brief returns the given parts per million.
          *
          * delta_time::usec( 1000000 ).ppm( 44 ).usec() == 44
+         * @param part the parts of a million. The parameter have to in the range 0-1000
+         *        to not cause overflows.
          */
         delta_time ppm( unsigned part ) const;
     private:

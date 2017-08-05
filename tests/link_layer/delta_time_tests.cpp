@@ -2,6 +2,7 @@
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
+#include <algorithm>
 
 namespace bll = bluetoe::link_layer;
 
@@ -73,11 +74,6 @@ BOOST_AUTO_TEST_CASE( provides_a_zero_check )
     BOOST_CHECK( !bll::delta_time::usec( 5000 ).zero() );
 }
 
-BOOST_AUTO_TEST_CASE( can_calculate_part_per_million )
-{
-    BOOST_CHECK_EQUAL( bll::delta_time::usec( 5000 ).ppm( 1000000).usec(), 5000 );
-}
-
 BOOST_AUTO_TEST_CASE( multiplication_with_zero )
 {
     bll::delta_time z( 0 );
@@ -139,3 +135,46 @@ BOOST_AUTO_TEST_CASE( division_by_delta_time )
     BOOST_CHECK_EQUAL( h / s, 0 );
     BOOST_CHECK_EQUAL( h / h, 1 );
 }
+
+BOOST_AUTO_TEST_SUITE( Abort_Operation_Procedure )
+
+static constexpr long required_accuary = 1000000;
+
+static void check_close( const bll::delta_time& result, std::uint32_t expected )
+{
+    const std::uint32_t tolerance = std::max< std::uint32_t >( 1, expected / required_accuary );
+
+    BOOST_CHECK_GE(
+        static_cast< std::int64_t >( result.usec() ),
+        std::int64_t( expected ) - tolerance );
+
+    BOOST_CHECK_LE(
+        static_cast< std::int64_t >( result.usec() ),
+        std::int64_t( expected ) + tolerance );
+}
+
+BOOST_AUTO_TEST_CASE( can_calculate_part_per_million )
+{
+    check_close( bll::delta_time::usec( 5000 ).ppm( 1000 ), 5 );
+}
+
+BOOST_AUTO_TEST_CASE( ppm_with_calculations_that_should_overflow_32bit_math )
+{
+    check_close(
+        bll::delta_time::usec( 100 * 1000 * 1000 ).ppm( 1000 ),
+        100 * 1000 );
+}
+
+BOOST_AUTO_TEST_CASE( ppm_with_some_extrem_values )
+{
+    check_close( bll::delta_time::usec( 1000 * 1000 * 1000 ).ppm( 0 ), 0 );
+    check_close( bll::delta_time::usec( 1000 * 1000 * 1000 ).ppm( 1 ), 1000 );
+}
+
+BOOST_AUTO_TEST_CASE( ppm_rounded_down )
+{
+    check_close( bll::delta_time::usec( 1000 * 1000 - 2 ).ppm( 44 ), 43 );
+    check_close( bll::delta_time::usec( 44 ).ppm( 1000 * 1000 - 2 ), 43 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

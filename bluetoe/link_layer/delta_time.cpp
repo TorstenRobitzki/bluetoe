@@ -129,7 +129,12 @@ namespace link_layer {
 
     delta_time delta_time::ppm( unsigned part ) const
     {
-        return delta_time( std::uint64_t( usec_ ) * part / 1000000 );
+        /*
+         * Assumed that usec_ is at most 10^8 and the multiplication is done in a 64 bit
+         * integer, the result will be in the order 10^8 * 1000 = 10^11 ~ 2^37,
+         * the result can be scalled by 2^27 before shifting it to the right by 2^47
+         */
+        return delta_time( ( std::uint64_t( usec_ ) * part * 140737488 ) >> 47 );
     }
 
     std::ostream& operator<<( std::ostream& out, const delta_time& t )
