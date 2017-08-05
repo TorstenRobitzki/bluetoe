@@ -23,7 +23,7 @@ set(CXX_DISABLED_WARNINGS "${CXX_DISABLED_WARNINGS} -Wno-unused-local-typedefs")
 set(LINK_DEFAULT_FLAGS "${LINK_DEFAULT_FLAGS} -Wl,--gc-sections -L ${CMAKE_SOURCE_DIR}/examples -nostdlib")
 
 # debugging
-set(CXX_BUILD_TYPE_FLAGS "-g -O3")
+set(CXX_BUILD_TYPE_FLAGS "-g -Os")
 set(LINK_BUILD_TYPE_FLAGS "-g")
 
 project(bluetoe_nrf51_examples CXX ASM C)
