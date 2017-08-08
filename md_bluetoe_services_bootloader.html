@@ -176,7 +176,7 @@ Bootloader-Protocol</h1>
 <tr>
 <td>Start Address </td><td align="right">sizeof( std::uint8_t* ) </td><td align="right">address of the range to be flashed </td></tr>
 </table>
-<p>The bootloader will response with a notification that contains the response code, followed by the current ATT MTU size of the connection, the amount of data that can currently be received by the bootloader and a checksum that is calculated over the received address.</p>
+<p>The bootloader will response with a notification that contains the response code, followed by the current ATT MTU size of the connection and a checksum that is calculated over the received address.</p>
 <p>The MTU is send for the case, that the clients BLE API does not give access to that values. The knowlage of the value allows a client to write data in packets as big as possible (MTU-3). A client can start to write the data to be flashed directly after the Start Flash procedure was started (even before the ATT Response was received). If the client has no access to the connections MTU size and not received the Control Point procedures response, it should assume an MTU of 23.</p>
 <table class="doxtable">
 <tr>
@@ -274,7 +274,7 @@ Bootloader-Protocol</h1>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Jun 30 2017 19:05:55 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Tue Aug 8 2017 12:20:43 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>
