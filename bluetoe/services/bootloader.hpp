@@ -265,10 +265,10 @@ namespace bluetoe
             };
 
             template < typename UserHandler, typename MemRegions, std::size_t PageSize >
-            class handler : public UserHandler
+            class controller : public UserHandler
             {
             public:
-                handler()
+                controller()
                     : opcode( undefined_opcode )
                     , start_address( 0 )
                     , check_sum( 0 )
@@ -557,7 +557,7 @@ namespace bluetoe
                 static_assert( !std::is_same< bluetoe::details::no_such_type, user_handler >::value,
                     "To use the bootloader, please provide a handler<> that fullfiles the requirements documented with bootloader_handler_prototype." );
 
-                using implementation = handler< typename user_handler::user_handler, mem_regions, page_size::value >;
+                using implementation = controller< typename user_handler::user_handler, mem_regions, page_size::value >;
 
                 using type = bluetoe::service<
                     bluetoe::bootloader::service_uuid,
@@ -593,6 +593,9 @@ namespace bluetoe
             };
         }
         /** @endcond */
+
+        template < typename UserHandler, typename MemRegions, std::size_t PageSize >
+        using controller = details::controller< UserHandler, MemRegions, PageSize >;
 
         /**
          * @brief Prototype for a handler, that adapts the bootloader service to the actual hardware
