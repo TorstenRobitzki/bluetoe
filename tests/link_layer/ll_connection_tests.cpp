@@ -31,15 +31,17 @@ BOOST_FIXTURE_TEST_CASE( smaller_window_after_connected, only_one_pdu_from_maste
 }
 
 /*
- * For the second connection event, the derivation from the 2*30ms is 33µs
+ * For the second connection event, the derivation from the 2*30ms is 33µs (+ 1µs extra for rounding)
  */
 BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeouts, only_one_pdu_from_master )
 {
     BOOST_REQUIRE_GE( connection_events().size(), 2 );
     auto event = connection_events()[ 2 ];
 
-    BOOST_CHECK_EQUAL( event.start_receive, bluetoe::link_layer::delta_time::usec( 60000 - 33 ) );
-    BOOST_CHECK_EQUAL( event.end_receive, bluetoe::link_layer::delta_time::usec( 60000 + 33 ) );
+    BOOST_CHECK( event.start_receive >= bluetoe::link_layer::delta_time::usec( 60000 - 34 ) );
+    BOOST_CHECK( event.start_receive <= bluetoe::link_layer::delta_time::usec( 60000 - 32 ) );
+    BOOST_CHECK( event.end_receive >= bluetoe::link_layer::delta_time::usec( 60000 + 32 ) );
+    BOOST_CHECK( event.end_receive <= bluetoe::link_layer::delta_time::usec( 60000 + 34 ) );
 
 }
 

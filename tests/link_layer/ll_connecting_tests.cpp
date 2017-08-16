@@ -318,9 +318,9 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
  * The master is announcing a sleep clock accuracy of 250 ppm. In sum: 350ppm.
  *
  * Start at:
- *   2000ms - 350ppm = 1999300µs
+ *   2000ms - 350ppm = 1999300µs +-1µs
  * End at:
- *   ( 2000ms + 10ms ) + 350ppm = 2010703µs
+ *   ( 2000ms + 10ms ) + 350ppm = 2010703µs +-1µs
  */
 using local_device_with_100ppm = unconnected_base< bluetoe::link_layer::sleep_clock_accuracy_ppm< 100 > >;
 BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_device_with_100ppm )
@@ -349,8 +349,10 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
 
     const auto& event = connection_events().front();
 
-    BOOST_CHECK_EQUAL( event.start_receive.usec(), 1999300 );
-    BOOST_CHECK_EQUAL( event.end_receive.usec(), 2010703 );
+    BOOST_CHECK( event.start_receive.usec() >= 1999300 -1 );
+    BOOST_CHECK( event.start_receive.usec() <= 1999300 +1 );
+    BOOST_CHECK( event.end_receive.usec() >= 2010703 -1 );
+    BOOST_CHECK( event.end_receive.usec() <= 2010703 +1 );
     BOOST_CHECK_EQUAL( event.connection_interval.usec(), 2000000 );
 }
 
