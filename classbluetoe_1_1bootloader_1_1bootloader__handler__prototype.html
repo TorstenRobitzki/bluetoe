@@ -94,6 +94,12 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a93649dce57bc62cbd1e21f0025e012ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a566fcc2bc0ecd8eb00315cc7b440e3dc"><td class="memItemLeft" align="right" valign="top">std::uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a566fcc2bc0ecd8eb00315cc7b440e3dc">checksum32</a> (std::uintptr_t start_addr)</td></tr>
 <tr class="separator:a566fcc2bc0ecd8eb00315cc7b440e3dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aab9e489df1a65327b481989daa8a6ed2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="bootloader_8hpp.html#a44e1659e83283ae103c81831cd721370">bootloader::error_codes</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#aab9e489df1a65327b481989daa8a6ed2">public_read_mem</a> (std::uintptr_t address, std::size_t size, std::uint8_t *destination)</td></tr>
+<tr class="separator:aab9e489df1a65327b481989daa8a6ed2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8e32062ba9efd999207b62aa0b693ca7"><td class="memItemLeft" align="right" valign="top"><a id="a8e32062ba9efd999207b62aa0b693ca7"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a8e32062ba9efd999207b62aa0b693ca7">more_data_call_back</a> ()</td></tr>
+<tr class="memdesc:a8e32062ba9efd999207b62aa0b693ca7"><td class="mdescLeft">&#160;</td><td class="mdescRight">technical required function, that have to call request_read_progress(), with the instance of the server <br /></td></tr>
+<tr class="separator:a8e32062ba9efd999207b62aa0b693ca7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Prototype for a handler, that adapts the bootloader service to the actual hardware. </p>
@@ -196,6 +202,43 @@ Public Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <p>Return a custom string as response to the Get Version procedure. Make sure, that the response is not longer than 20 bytes, or othere wise it could get truncated on the link layer. </p>
+
+</div>
+</div>
+<a id="aab9e489df1a65327b481989daa8a6ed2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aab9e489df1a65327b481989daa8a6ed2">&#9670;&nbsp;</a></span>public_read_mem()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="bootloader_8hpp.html#a44e1659e83283ae103c81831cd721370">bootloader::error_codes</a> bluetoe::bootloader::bootloader_handler_prototype::public_read_mem </td>
+          <td>(</td>
+          <td class="paramtype">std::uintptr_t&#160;</td>
+          <td class="paramname"><em>address</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>size</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint8_t *&#160;</td>
+          <td class="paramname"><em>destination</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>This function is used, when reading from memory, while the Read procedure is executed.</p>
+<dl class="section attention"><dt>Attention</dt><dd>Make sure, that this function does not reveal any sensitiv information. Make sure, that address and size are resonable parameters.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>an value != error_codes::success, if read access to the given range is not possible or not authorized. </dd></dl>
 
 </div>
 </div>
@@ -313,7 +356,7 @@ Public Member Functions</h2></td></tr>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue Aug 8 2017 12:20:43 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Aug 30 2017 16:00:42 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>

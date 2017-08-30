@@ -114,6 +114,10 @@ using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="boo
 using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="bootloader_8hpp.html#a753664d30a56f4cf3cddd2cc3e958c9a">bluetoe::bootloader::progress_uuid</a> = <a class="el" href="structbluetoe_1_1characteristic__uuid.html">bluetoe::characteristic_uuid</a>&lt; 0x7D295F4D, 0x2850, 0x4F57, 0xB595, 0x837F5753F8AB &gt;</td></tr>
 <tr class="memdesc:a753664d30a56f4cf3cddd2cc3e958c9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">the UUID of the data charateristic is 7D295F4D-2850-4F57-B595-837F5753F8AA <br /></td></tr>
 <tr class="separator:a753664d30a56f4cf3cddd2cc3e958c9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac2af23e8dade37ff8ede829eaf1da91d"><td class="memTemplParams" colspan="2"><a id="ac2af23e8dade37ff8ede829eaf1da91d"></a>
+template&lt;typename UserHandler , typename MemRegions , std::size_t PageSize&gt; </td></tr>
+<tr class="memitem:ac2af23e8dade37ff8ede829eaf1da91d"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><b>bluetoe::bootloader::controller</b> = details::controller&lt; UserHandler, MemRegions, PageSize &gt;</td></tr>
+<tr class="separator:ac2af23e8dade37ff8ede829eaf1da91d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af80c211e41725ea5b7a31925857c3d50"><td class="memTemplParams" colspan="2"><a id="af80c211e41725ea5b7a31925857c3d50"></a>
 template&lt;typename ... Options&gt; </td></tr>
 <tr class="memitem:af80c211e41725ea5b7a31925857c3d50"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="bootloader_8hpp.html#af80c211e41725ea5b7a31925857c3d50">bluetoe::bootloader_service</a> = typename bootloader::details::calculate_service&lt; Options... &gt;::type</td></tr>
@@ -129,7 +133,8 @@ Enumerations</h2></td></tr>
  }<tr class="memdesc:a70418157e017a102147e30f276271ef9"><td class="mdescLeft">&#160;</td><td class="mdescRight">error codes that are used by the bootloader on the ATT layer <br /></td></tr>
 </td></tr>
 <tr class="separator:a70418157e017a102147e30f276271ef9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a44e1659e83283ae103c81831cd721370"><td class="memItemLeft" align="right" valign="top"><a id="a44e1659e83283ae103c81831cd721370"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="bootloader_8hpp.html#a44e1659e83283ae103c81831cd721370">bluetoe::bootloader::error_codes</a> : std::uint8_t { <b>success</b>
+<tr class="memitem:a44e1659e83283ae103c81831cd721370"><td class="memItemLeft" align="right" valign="top"><a id="a44e1659e83283ae103c81831cd721370"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="bootloader_8hpp.html#a44e1659e83283ae103c81831cd721370">bluetoe::bootloader::error_codes</a> : std::uint8_t { <b>bluetoe::bootloader::error_codes::success</b>, 
+<b>bluetoe::bootloader::error_codes::not_authorized</b>
  }<tr class="memdesc:a44e1659e83283ae103c81831cd721370"><td class="mdescLeft">&#160;</td><td class="mdescRight">range of error codes that can be used by the user handler to indicate the cause of an error <br /></td></tr>
 </td></tr>
 <tr class="separator:a44e1659e83283ae103c81831cd721370"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -148,7 +153,7 @@ template&lt;class Server &gt; </td></tr>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Tue Aug 8 2017 12:20:43 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Aug 30 2017 16:00:42 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>
