@@ -22,6 +22,8 @@ public:
     std::uint32_t checksum32( std::uintptr_t start_addr, std::size_t size );
     std::uint32_t checksum32( const std::uint8_t* start_addr, std::size_t size, std::uint32_t old_crc );
     std::uint32_t checksum32( std::uintptr_t start_addr );
+    bb::error_codes public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
+    void more_data_call_back();
 
     flash_handler();
 
@@ -170,6 +172,18 @@ std::uint32_t flash_handler::checksum32( std::uintptr_t start_addr )
         *p = start_addr & 0xff;
 
     return checksum32( std::begin( addr ), sizeof( addr ), 0 );
+}
+
+bb::error_codes flash_handler::public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination )
+{
+    read_mem( address, size, destination );
+
+    return bb::error_codes::success;
+}
+
+void flash_handler::more_data_call_back()
+{
+    gatt_server.request_read_progress( gatt_server );
 }
 
 flash_handler::flash_handler()

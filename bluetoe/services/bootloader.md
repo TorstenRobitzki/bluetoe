@@ -9,7 +9,7 @@ The characteristics has following properties:
 Characteristic | Properties        | UUID
 ---------------|-------------------|--------------------------------------
 Control Point  | Write, Write Without Response, Notify     | 7D295F4D-2850-4F57-B595-837F5753F8A9
-Data           | Write, Write Without Response | 7D295F4D-2850-4F57-B595-837F5753F8AA
+Data           | Write, Write Without Response, Indication | 7D295F4D-2850-4F57-B595-837F5753F8AA
 Progress       | Notify            | 7D295F4D-2850-4F57-B595-837F5753F8AB
 
 Procedures
@@ -27,6 +27,7 @@ Stop Flash  | Stop to flash a memory region               |      4 |            
 Flush       | Flush written data to flash memory          |      5 |                      5 |
 Start       | Start a programm at a specific address      |      6 |                    n/a |
 Reset       | Resets the bootloader                       |      7 |                    n/a |
+Read        | Read a memory range from the device         |      8 |                      8 |
 
 A client starts a procedure by sending an ATT Writing Request with the opcode to the Control Point, followed by the parameters that are required for the procedure. If the procedure starts successfully, the Bootloader will response with an ATT Write Response. The procedure will end by the reply of the bootloader that is send with an ATT Notification.
 
@@ -177,6 +178,27 @@ Request Fields     | Length | Value |
 Opcode             | 1      | 7     |
 
 It is not expected that the bootloader will response with a notification, but instead reset the device.
+
+Read
+----
+
+Request Fields     | Length | Value |
+-------------------|-------:|------:|
+Opcode             | 1      | 8     |
+Start-Address      | sizeof( std::uint8_t* ) | address of the range to be read |
+End-Address        | sizeof( std::uint8_t* ) | first byte behind the range to be read |
+
+Response Fields    | Length   | Value   |
+-------------------|---------:|--------:|
+Response Code      | 1        | 8       |
+Checksum           | 4        | Checksum over Start-Address and all data received |
+Error Code         | 1        | Reason, why reading from the device failed |
+
+The Read Procedure is started by writing the Start opcode, followed by start and end address of the range to be read, to the Control Point.
+
+The Bootloader will send all the requested data in up to MTU - 3 large chunks by indicating them to the Data characteristic. After all data was send, the bootloader response with a notification of the Control Point with a Read response.
+
+If reading from the device fails, the bootloader respond by notifying a Read response with an appropriate Error Code field value. An error can be notified every time while the read procedure is running.
 
 Data
 ====

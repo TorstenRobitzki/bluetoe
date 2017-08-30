@@ -70,6 +70,24 @@ struct handler {
         return result;
     }
 
+    bluetoe::bootloader::error_codes public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination )
+    {
+        if ( report_read_error_cnt_ == 0 )
+            return bluetoe::bootloader::error_codes::not_authorized;
+
+        if ( report_read_error_cnt_ > 0 )
+            --report_read_error_cnt_;
+
+        read_mem( address, size, destination );
+
+        return bluetoe::bootloader::error_codes::success;
+    }
+
+    void report_read_error( int counter )
+    {
+        report_read_error_cnt_ = counter;
+    }
+
     bluetoe::bootloader::error_codes start_flash( std::uintptr_t address, const std::uint8_t* values, std::size_t size )
     {
         start_flash_address = address;
@@ -94,10 +112,25 @@ struct handler {
         return bluetoe::bootloader::error_codes::success;
     }
 
+    void more_data_call_back()
+    {
+        more_data_requested_ = true;
+    }
+
+    bool more_data_requested()
+    {
+        bool result = more_data_requested_;
+        more_data_requested_ = false;
+
+        return result;
+    }
+
     handler()
         : start_flash_address( 0x1234 )
         , start_program_called( 0 )
         , reset_called( false )
+        , more_data_requested_( false )
+        , report_read_error_cnt_( -1 )
     {
         for ( int b = 0; b != num_blocks; ++b )
         {
@@ -114,6 +147,8 @@ struct handler {
     std::vector< std::uint8_t > start_flash_content;
     std::uintptr_t              start_program_called;
     bool                        reset_called;
+    bool                        more_data_requested_;
+    int                         report_read_error_cnt_;
 };
 
 using bootloader_server = bluetoe::server<
@@ -189,7 +224,7 @@ BOOST_FIXTURE_TEST_CASE( control_point_properties, all_discovered< bootloader_se
 
 BOOST_FIXTURE_TEST_CASE( data_char_properties, all_discovered< bootloader_server > )
 {
-    BOOST_CHECK_EQUAL( data_char.properties, 0x0c );
+    BOOST_CHECK_EQUAL( data_char.properties, 0x2c );
 }
 
 BOOST_FIXTURE_TEST_CASE( progress_char_properties, all_discovered< bootloader_server > )
@@ -229,6 +264,7 @@ struct all_discovered_and_subscribed : all_discovered< Server >
     all_discovered_and_subscribed()
         : cp_cccd( this->discover_cccd( this->cp_char ) )
         , progress_cccd( this->discover_cccd( this->progress_char ) )
+        , data_cccd( this->discover_cccd( this->data_char ) )
     {
         this->l2cap_input({
             0x12, this->low( cp_cccd.handle ), this->high( cp_cccd.handle ),
@@ -237,6 +273,10 @@ struct all_discovered_and_subscribed : all_discovered< Server >
         this->l2cap_input({
             0x12, this->low( progress_cccd.handle ), this->high( progress_cccd.handle ),
             0x01, 0x00
+        });
+        this->l2cap_input({
+            0x12, this->low( data_cccd.handle ), this->high( data_cccd.handle ),
+            0x02, 0x00
         });
     }
 
@@ -251,6 +291,7 @@ struct all_discovered_and_subscribed : all_discovered< Server >
 
     const discovered_characteristic_descriptor    cp_cccd;
     const discovered_characteristic_descriptor    progress_cccd;
+    const discovered_characteristic_descriptor    data_cccd;
 };
 
 /*
@@ -963,6 +1004,126 @@ BOOST_AUTO_TEST_SUITE( stop_flash )
             0x00, 0x00,                             // consecutive number
             0x17                                    // MTU
         } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( read_procedure )
+
+    BOOST_FIXTURE_TEST_CASE( read_range_without_error, all_discovered_and_subscribed< bootloader_server > )
+    {
+        std::vector< std::uint8_t > input = {
+            0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x08 };
+
+        add_ptr( input, 0x1000 );
+        add_ptr( input, 0x1020 );
+
+        l2cap_input( input, connection );
+
+        expected_result( { 0x13 } ); // write response
+
+        BOOST_CHECK( more_data_requested() );
+        request_read_progress( *this );
+
+        expected_output( notification, {
+            0x1d, low( data_char.value_handle ), high( data_char.value_handle ),// indication
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,                     // MTU - 3 bytes of data
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13
+        } );
+
+        BOOST_CHECK( more_data_requested() );
+        request_read_progress( *this );
+
+        expected_output( notification, {
+            0x1d, low( data_char.value_handle ), high( data_char.value_handle ),// indication
+            0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,                     // remaining bytes
+            0x1c, 0x1d, 0x1e, 0x1f
+        } );
+
+        BOOST_CHECK( more_data_requested() );
+        request_read_progress( *this );
+
+        const std::uint32_t expected_checksum = checksum32( &device_memory[ 0 ], 0x20, checksum32( 0x1000 ) );
+
+        expected_output( notification, {
+            0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ), // notification
+            0x08,                                                            // response code
+            static_cast< std::uint8_t >( expected_checksum & 0xff ),         // checksum
+            static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+            0x00                                                             // success
+        } );
+
+        BOOST_CHECK( !more_data_requested() );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_out_of_range, all_discovered_and_subscribed< bootloader_server > )
+    {
+        std::vector< std::uint8_t > input = {
+            0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x08 };
+
+        add_ptr( input, 0x0000 );
+        add_ptr( input, 0x1020 );
+
+        l2cap_input( input, connection );
+
+        expected_result( {
+            0x01, 0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x07 } ); // invalid Offset
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_handler_reports_error, all_discovered_and_subscribed< bootloader_server > )
+    {
+        report_read_error( 1 );
+
+        std::vector< std::uint8_t > input = {
+            0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+            0x08 };
+
+        add_ptr( input, 0x1000 );
+        add_ptr( input, 0x1020 );
+
+        l2cap_input( input, connection );
+
+        expected_result( { 0x13 } ); // write response
+
+        BOOST_CHECK( more_data_requested() );
+        request_read_progress( *this );
+
+        expected_output( notification, {
+            0x1d, low( data_char.value_handle ), high( data_char.value_handle ),// indication
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,                     // MTU - 3 bytes of data
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13
+        } );
+
+        BOOST_CHECK( more_data_requested() );
+        request_read_progress( *this );
+
+        expected_output( notification, {
+            0x1d, low( data_char.value_handle ), high( data_char.value_handle ) // indication
+        } );
+
+        BOOST_CHECK( more_data_requested() );
+        request_read_progress( *this );
+
+        const std::uint32_t expected_checksum = checksum32( &device_memory[ 0 ], 20, checksum32( 0x1000 ) );
+
+        expected_output( notification, {
+            0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ), // notification
+            0x08,                                                            // response code
+            static_cast< std::uint8_t >( expected_checksum & 0xff ),         // checksum
+            static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+            static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+            0x01                                                             // not_authorized
+        } );
+
+        BOOST_CHECK( !more_data_requested() );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -135,7 +135,15 @@ namespace bluetoe
          * @brief range of error codes that can be used by the user handler to indicate the cause of an error
          */
         enum class error_codes : std::uint8_t {
-            success
+            /**
+             * every thing is fine.
+             */
+            success,
+
+            /**
+             * somehow the request would require more authorization
+             */
+            not_authorized,
         };
 
         /** @cond HIDDEN_SYMBOLS */
@@ -256,6 +264,7 @@ namespace bluetoe
                 opc_flush,
                 opc_start,
                 opc_reset,
+                opc_read,
                 undefined_opcode = 0xff
             };
 
@@ -271,6 +280,7 @@ namespace bluetoe
                 controller()
                     : opcode( undefined_opcode )
                     , start_address( 0 )
+                    , end_address( 0 )
                     , check_sum( 0 )
                     , in_flash_mode( false )
                     , next_buffer_( 0 )
@@ -373,6 +383,23 @@ namespace bluetoe
 
                             this->reset();
                         }
+                    case opc_read:
+                        {
+                            error         = error_codes::success;
+                            start_address = read_address( value +1 );
+                            end_address   = read_address( value +1 + sizeof( std::uint8_t* ) );
+                            check_sum     = this->checksum32( start_address );
+
+                            if ( start_address > end_address || !MemRegions::acceptable( start_address,end_address ) )
+                                return request_error( bluetoe::error_codes::invalid_offset );
+
+                            if ( start_address != end_address )
+                            {
+                                this->more_data_call_back();
+
+                                return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
+                            }
+                        }
                     default:
                         return std::pair< std::uint8_t, bool >{ att_error_codes::invalid_opcode, false };
                     }
@@ -438,6 +465,17 @@ namespace bluetoe
                             out_size = out - out_buffer;
                         }
                         break;
+                    case opc_read:
+                        {
+                            std::uint8_t* out = out_buffer;
+                            ++out;
+                            out = bluetoe::details::write_32bit( out, check_sum );
+                            *out = static_cast< std::uint8_t >( error );
+                            ++out;
+
+                            out_size = out - out_buffer;
+                        }
+                        break;
                     }
 
                     return bluetoe::error_codes::success;
@@ -469,6 +507,30 @@ namespace bluetoe
                     return bluetoe::error_codes::success;
                 }
 
+                std::uint8_t bootloader_read_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+                {
+                    if ( opcode == opc_read )
+                    {
+                        out_size  = std::min( read_size, end_address - start_address );
+
+                        error     = this->public_read_mem( start_address, out_size, out_buffer );
+
+                        if ( error == error_codes::success )
+                        {
+                            check_sum = this->checksum32( out_buffer, out_size, check_sum );
+                            start_address += out_size;
+                        }
+                        else
+                        {
+                            out_size = 0;
+                        }
+
+                        this->more_data_call_back();
+                    }
+
+                    return bluetoe::error_codes::success;
+                }
+
                 std::uint8_t bootloader_progress_data( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
                     buffers_[used_buffer_].free();
@@ -491,6 +553,19 @@ namespace bluetoe
                 void end_flash( Server& server )
                 {
                     server.template notify< progress_uuid >();
+                }
+
+                template < class Server >
+                void request_read_progress( Server& server )
+                {
+                    if ( start_address == end_address || error != error_codes::success )
+                    {
+                        server.template notify< control_point_uuid >();
+                    }
+                    else
+                    {
+                        server.template indicate< data_uuid >();
+                    }
                 }
 
             private:
@@ -530,6 +605,8 @@ namespace bluetoe
 
                 std::uint8_t                    opcode;
                 std::uintptr_t                  start_address;
+                std::uintptr_t                  end_address;
+                error_codes                     error;
                 std::uint32_t                   check_sum;
                 bool                            in_flash_mode;
 
@@ -578,6 +655,11 @@ namespace bluetoe
                         bluetoe::mixin_write_handler<
                             implementation, &implementation::bootloader_write_data
                         >,
+                        bluetoe::mixin_read_handler<
+                            implementation, &implementation::bootloader_read_data
+                        >,
+                        bluetoe::no_read_access,
+                        bluetoe::indicate,
                         bluetoe::write_without_response
                     >,
                     bluetoe::characteristic<
@@ -645,6 +727,22 @@ namespace bluetoe
              * special overload to calculate the CRC over a start address
              */
             std::uint32_t checksum32( std::uintptr_t start_addr );
+
+            /**
+             * This function is used, when reading from memory, while the Read procedure is executed.
+             *
+             * @attention Make sure, that this function does not reveal any sensitiv information.
+             *            Make sure, that address and size are resonable parameters.
+             *
+             * @return an value != error_codes::success, if read access to the given range is not possible or not authorized.
+             */
+            bootloader::error_codes public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
+
+
+            /**
+             * @brief technical required function, that have to call request_read_progress(), with the instance of the server
+             */
+            void more_data_call_back();
 
         };
     }
