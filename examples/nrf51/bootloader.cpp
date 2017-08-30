@@ -23,6 +23,7 @@ public:
     std::uint32_t checksum32( const std::uint8_t* start_addr, std::size_t size, std::uint32_t old_crc );
     std::uint32_t checksum32( std::uintptr_t start_addr );
     bb::error_codes public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
+    std::uint32_t public_checksum32( std::uintptr_t start_addr, std::size_t size );
     void more_data_call_back();
 
     flash_handler();
@@ -162,6 +163,11 @@ std::uint32_t flash_handler::checksum32( const std::uint8_t* data, std::size_t s
         crc = (crc >> 8) ^ crc_table_[ ( crc ^ *data ) & 0xFF ];
 
     return ~crc;
+}
+
+std::uint32_t flash_handler::public_checksum32( std::uintptr_t start_addr, std::size_t size )
+{
+    return checksum32( start_addr, size );
 }
 
 std::uint32_t flash_handler::checksum32( std::uintptr_t start_addr )

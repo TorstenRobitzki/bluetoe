@@ -336,7 +336,7 @@ namespace bluetoe
                             if ( start_address > end_address || !MemRegions::acceptable( start_address,end_address ) )
                                 return request_error( bluetoe::error_codes::invalid_offset );
 
-                            check_sum = this->checksum32( start_address, end_address - start_address );
+                            check_sum = this->public_checksum32( start_address, end_address - start_address );
                         }
                         break;
                     case opc_start_flash:
@@ -738,6 +738,15 @@ namespace bluetoe
              */
             bootloader::error_codes public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
 
+            /**
+             * @brief version of checksum function, that will be directly called by the execution of the
+             *        Get CRC procedure.
+             *
+             * @attention If there are ranges that contain sensitiv information, make sure, that size is large enough,
+             *            so that one can not get the content of the memory from the resulting CRC.
+             *            In case, that such an attempt is detected, return a fixed value (0 for example).
+             */
+            std::uint32_t public_checksum32( std::uintptr_t start_addr, std::size_t size );
 
             /**
              * @brief technical required function, that have to call request_read_progress(), with the instance of the server

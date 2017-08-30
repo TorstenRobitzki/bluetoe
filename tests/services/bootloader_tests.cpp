@@ -88,6 +88,13 @@ struct handler {
         report_read_error_cnt_ = counter;
     }
 
+    std::uint32_t public_checksum32( std::uintptr_t start_addr, std::size_t size )
+    {
+        return fixed_crc_ == 0
+            ? checksum32( start_addr, size )
+            : fixed_crc_;
+    }
+
     bluetoe::bootloader::error_codes start_flash( std::uintptr_t address, const std::uint8_t* values, std::size_t size )
     {
         start_flash_address = address;
@@ -125,12 +132,18 @@ struct handler {
         return result;
     }
 
+    void report_fixed_public_crc( std::uint32_t crc )
+    {
+        fixed_crc_ = crc;
+    }
+
     handler()
         : start_flash_address( 0x1234 )
         , start_program_called( 0 )
         , reset_called( false )
         , more_data_requested_( false )
         , report_read_error_cnt_( -1 )
+        , fixed_crc_( 0 )
     {
         for ( int b = 0; b != num_blocks; ++b )
         {
@@ -149,6 +162,7 @@ struct handler {
     bool                        reset_called;
     bool                        more_data_requested_;
     int                         report_read_error_cnt_;
+    std::uint32_t               fixed_crc_;
 };
 
 using bootloader_server = bluetoe::server<
@@ -427,6 +441,28 @@ BOOST_FIXTURE_TEST_CASE( get_crc_over_different_out_of_range, all_discovered_and
         0x07 } );
 
     BOOST_CHECK( !notification.valid() );
+}
+
+BOOST_FIXTURE_TEST_CASE( public_checksum32_is_called, all_discovered_and_subscribed< bootloader_server > )
+{
+    report_fixed_public_crc( 0x12345678 );
+
+    std::vector< std::uint8_t > input = {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x01 };
+
+    add_ptr( input, 0x1000 );
+    add_ptr( input, 0x1002 );
+
+    l2cap_input( input, connection );
+
+    expected_result( { 0x13 } );
+
+    expected_output( notification, {
+        0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),    // notification
+        0x01,                                                               // response code
+        0x78, 0x56, 0x34, 0x12
+    } );
 }
 
 /*
