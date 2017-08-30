@@ -65,10 +65,15 @@ namespace bluetoe {
      * @brief adds the ability to notify this characteristic.
      *
      * When a characteristic gets notified, the current value of the characteristic will be send to all
-     * connected clients that have subscribed for notifications.
+     * connected clients that have subscribed for notifications. To send a notification, server::notify() have
+     * to be called. The server will store that there is a pending need to send out a notification and will do
+     * so, as soon as there is a free link layer PDU that can be used to transport the notification. The server
+     * will use what ever mean is implemented to read the characteristic, to get the characteristic value.
+     *
      * @sa server::notify
      * @sa higher_outgoing_priority
      * @sa lower_outgoing_priority
+     * @sa indicate
      */
     struct notify {
         /** @cond HIDDEN_SYMBOLS */
@@ -82,9 +87,11 @@ namespace bluetoe {
      * When a characteristic gets notified, the current value of the characteristic will be send to all
      * connected clients that have subscribed for indications.
      * The difference to notify is, that indication needs to be confirmed by the GATT client.
+     *
      * @sa server::indicate
      * @sa higher_outgoing_priority
      * @sa lower_outgoing_priority
+     * @sa notify
      */
     struct indicate {
         /** @cond HIDDEN_SYMBOLS */

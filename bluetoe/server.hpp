@@ -211,7 +211,7 @@ namespace bluetoe {
         /**
          * @brief sends indications to all connceted clients.
          *
-         * The function is mostly similar to notify(). Instead of aa ATT notification, an ATT indication is send.
+         * The function is mostly similar to notify(). Instead of an ATT notification, an ATT indication is send.
          *
          * @return The function will return false, if the given indication was ignored, because the
          *         characteristic is already queued for indication, but not yet send out or the confirmation
