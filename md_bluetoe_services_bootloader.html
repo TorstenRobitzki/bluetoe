@@ -253,6 +253,7 @@ Bootloader-Protocol</h1>
 </table>
 <p>It is not expected that the bootloader will response with a notification, but instead reset the device.</p>
 <h2>Read </h2>
+<p>The Read Procedure is started by writing the Start opcode, followed by start and end address of the range to be read, to the Control Point.</p>
 <table class="doxtable">
 <tr>
 <th>Request Fields </th><th align="right">Length </th><th align="right">Value  </th></tr>
@@ -263,6 +264,7 @@ Bootloader-Protocol</h1>
 <tr>
 <td>End-Address </td><td align="right">sizeof( std::uint8_t* ) </td><td align="right">first byte behind the range to be read </td></tr>
 </table>
+<p>The Bootloader will send all the requested data in up to MTU - 3 large chunks by indicating them to the Data characteristic. After all data was send, the bootloader response with a notification of the Control Point with a Read response.</p>
 <table class="doxtable">
 <tr>
 <th>Response Fields </th><th align="right">Length </th><th align="right">Value  </th></tr>
@@ -273,8 +275,6 @@ Bootloader-Protocol</h1>
 <tr>
 <td>Error Code </td><td align="right">1 </td><td align="right">Reason, why reading from the device failed </td></tr>
 </table>
-<p>The Read Procedure is started by writing the Start opcode, followed by start and end address of the range to be read, to the Control Point.</p>
-<p>The Bootloader will send all the requested data in up to MTU - 3 large chunks by indicating them to the Data characteristic. After all data was send, the bootloader response with a notification of the Control Point with a Read response.</p>
 <p>If reading from the device fails, the bootloader respond by notifying a Read response with an appropriate Error Code field value. An error can be notified every time while the read procedure is running.</p>
 <h1>Data </h1>
 <p>There is no layout for the data to be written. Data should be written with an ATT Write Request. The bootloader client have to make sure, that the bootloader can store the send data, by knowing the bootloaders buffer sizes and by observice Progress notifications. The bootloader should try to utillize the connection as much as possible and should send the data in packages that are at most MTU -3 in size.</p>
@@ -300,7 +300,7 @@ Bootloader-Protocol</h1>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Aug 30 2017 16:00:42 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Aug 30 2017 16:03:02 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>
