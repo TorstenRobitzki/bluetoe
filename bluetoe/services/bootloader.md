@@ -182,21 +182,21 @@ It is not expected that the bootloader will response with a notification, but in
 Read
 ----
 
+The Read Procedure is started by writing the Start opcode, followed by start and end address of the range to be read, to the Control Point.
+
 Request Fields     | Length | Value |
 -------------------|-------:|------:|
 Opcode             | 1      | 8     |
 Start-Address      | sizeof( std::uint8_t* ) | address of the range to be read |
 End-Address        | sizeof( std::uint8_t* ) | first byte behind the range to be read |
 
+The Bootloader will send all the requested data in up to MTU - 3 large chunks by indicating them to the Data characteristic. After all data was send, the bootloader response with a notification of the Control Point with a Read response.
+
 Response Fields    | Length   | Value   |
 -------------------|---------:|--------:|
 Response Code      | 1        | 8       |
 Checksum           | 4        | Checksum over Start-Address and all data received |
 Error Code         | 1        | Reason, why reading from the device failed |
-
-The Read Procedure is started by writing the Start opcode, followed by start and end address of the range to be read, to the Control Point.
-
-The Bootloader will send all the requested data in up to MTU - 3 large chunks by indicating them to the Data characteristic. After all data was send, the bootloader response with a notification of the Control Point with a Read response.
 
 If reading from the device fails, the bootloader respond by notifying a Read response with an appropriate Error Code field value. An error can be notified every time while the read procedure is running.
 
