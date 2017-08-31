@@ -395,7 +395,7 @@ namespace bluetoe
 
                             if ( start_address != end_address )
                             {
-                                this->more_data_call_back();
+                                this->data_indication_call_back();
 
                                 return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
                             }
@@ -525,7 +525,14 @@ namespace bluetoe
                             out_size = 0;
                         }
 
-                        this->more_data_call_back();
+                        if ( start_address == end_address || error != error_codes::success )
+                        {
+                            this->control_point_notification_call_back();
+                        }
+                        else
+                        {
+                            this->data_indication_call_back();
+                        }
                     }
 
                     return bluetoe::error_codes::success;
@@ -556,16 +563,15 @@ namespace bluetoe
                 }
 
                 template < class Server >
-                void request_read_progress( Server& server )
+                void bootloader_control_point_notification( Server& server )
                 {
-                    if ( start_address == end_address || error != error_codes::success )
-                    {
-                        server.template notify< control_point_uuid >();
-                    }
-                    else
-                    {
-                        server.template indicate< data_uuid >();
-                    }
+                    server.template notify< control_point_uuid >();
+                }
+
+                template < class Server >
+                void bootloader_data_indication( Server& server )
+                {
+                    server.template indicate< data_uuid >();
                 }
 
             private:
@@ -749,10 +755,14 @@ namespace bluetoe
             std::uint32_t public_checksum32( std::uintptr_t start_addr, std::size_t size );
 
             /**
-             * @brief technical required function, that have to call request_read_progress(), with the instance of the server
+             * @brief technical required function, that have to call bootloader_control_point_notification(), with the instance of the server
              */
-            void more_data_call_back();
+            void control_point_notification_call_back();
 
+            /**
+             * @brief technical required function, that have to call bootloader_data_indication(), with the instance of the server
+             */
+            void data_indication_call_back();
         };
     }
 

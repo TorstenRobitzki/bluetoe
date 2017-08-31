@@ -24,7 +24,8 @@ public:
     std::uint32_t checksum32( std::uintptr_t start_addr );
     bb::error_codes public_read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination );
     std::uint32_t public_checksum32( std::uintptr_t start_addr, std::size_t size );
-    void more_data_call_back();
+    void control_point_notification_call_back();
+    void data_indication_call_back();
 
     flash_handler();
 
@@ -187,9 +188,14 @@ bb::error_codes flash_handler::public_read_mem( std::uintptr_t address, std::siz
     return bb::error_codes::success;
 }
 
-void flash_handler::more_data_call_back()
+void flash_handler::control_point_notification_call_back()
 {
-    gatt_server.request_read_progress( gatt_server );
+    gatt_server.bootloader_control_point_notification( gatt_server );
+}
+
+void flash_handler::data_indication_call_back()
+{
+    gatt_server.bootloader_data_indication( gatt_server );
 }
 
 flash_handler::flash_handler()

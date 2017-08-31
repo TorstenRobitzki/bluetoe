@@ -119,19 +119,31 @@ struct handler {
         return bluetoe::bootloader::error_codes::success;
     }
 
-    void more_data_call_back()
+    void control_point_notification_call_back()
     {
-        more_data_requested_ = true;
+        control_point_notification_requested_ = true;
     }
 
-    bool more_data_requested()
+    bool control_point_notification_requested()
     {
-        bool result = more_data_requested_;
-        more_data_requested_ = false;
+        const bool result = control_point_notification_requested_;
+        control_point_notification_requested_ = false;
 
         return result;
     }
 
+    void data_indication_call_back()
+    {
+        data_indication_requested_ = true;
+    }
+
+    bool data_indication_requested()
+    {
+        const bool result = data_indication_requested_;
+        data_indication_requested_ = false;
+
+        return result;
+    }
     void report_fixed_public_crc( std::uint32_t crc )
     {
         fixed_crc_ = crc;
@@ -141,7 +153,8 @@ struct handler {
         : start_flash_address( 0x1234 )
         , start_program_called( 0 )
         , reset_called( false )
-        , more_data_requested_( false )
+        , control_point_notification_requested_( false )
+        , data_indication_requested_( false )
         , report_read_error_cnt_( -1 )
         , fixed_crc_( 0 )
     {
@@ -160,7 +173,8 @@ struct handler {
     std::vector< std::uint8_t > start_flash_content;
     std::uintptr_t              start_program_called;
     bool                        reset_called;
-    bool                        more_data_requested_;
+    bool                        control_point_notification_requested_;
+    bool                        data_indication_requested_;
     int                         report_read_error_cnt_;
     std::uint32_t               fixed_crc_;
 };
@@ -1059,8 +1073,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
 
         expected_result( { 0x13 } ); // write response
 
-        BOOST_CHECK( more_data_requested() );
-        request_read_progress( *this );
+        BOOST_CHECK( data_indication_requested() );
+        bootloader_data_indication( *this );
 
         expected_output( notification, {
             0x1d, low( data_char.value_handle ), high( data_char.value_handle ),// indication
@@ -1069,8 +1083,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x10, 0x11, 0x12, 0x13
         } );
 
-        BOOST_CHECK( more_data_requested() );
-        request_read_progress( *this );
+        BOOST_CHECK( data_indication_requested() );
+        bootloader_data_indication( *this );
 
         expected_output( notification, {
             0x1d, low( data_char.value_handle ), high( data_char.value_handle ),// indication
@@ -1078,8 +1092,9 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x1c, 0x1d, 0x1e, 0x1f
         } );
 
-        BOOST_CHECK( more_data_requested() );
-        request_read_progress( *this );
+        BOOST_CHECK( !data_indication_requested() );
+        BOOST_CHECK( control_point_notification_requested() );
+        bootloader_control_point_notification( *this );
 
         const std::uint32_t expected_checksum = checksum32( &device_memory[ 0 ], 0x20, checksum32( 0x1000 ) );
 
@@ -1093,7 +1108,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x00                                                             // success
         } );
 
-        BOOST_CHECK( !more_data_requested() );
+        BOOST_CHECK( !control_point_notification_requested() );
+        BOOST_CHECK( !data_indication_requested() );
     }
 
     BOOST_FIXTURE_TEST_CASE( read_out_of_range, all_discovered_and_subscribed< bootloader_server > )
@@ -1127,8 +1143,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
 
         expected_result( { 0x13 } ); // write response
 
-        BOOST_CHECK( more_data_requested() );
-        request_read_progress( *this );
+        BOOST_CHECK( data_indication_requested() );
+        bootloader_data_indication( *this );
 
         expected_output( notification, {
             0x1d, low( data_char.value_handle ), high( data_char.value_handle ),// indication
@@ -1137,15 +1153,16 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x10, 0x11, 0x12, 0x13
         } );
 
-        BOOST_CHECK( more_data_requested() );
-        request_read_progress( *this );
+        BOOST_CHECK( data_indication_requested() );
+        bootloader_data_indication( *this );
 
         expected_output( notification, {
             0x1d, low( data_char.value_handle ), high( data_char.value_handle ) // indication
         } );
 
-        BOOST_CHECK( more_data_requested() );
-        request_read_progress( *this );
+        BOOST_CHECK( !data_indication_requested() );
+        BOOST_CHECK( control_point_notification_requested() );
+        bootloader_control_point_notification( *this );
 
         const std::uint32_t expected_checksum = checksum32( &device_memory[ 0 ], 20, checksum32( 0x1000 ) );
 
@@ -1159,7 +1176,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x01                                                             // not_authorized
         } );
 
-        BOOST_CHECK( !more_data_requested() );
+        BOOST_CHECK( !control_point_notification_requested() );
+        BOOST_CHECK( !data_indication_requested() );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
