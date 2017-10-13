@@ -40,11 +40,11 @@ namespace details {
             return attributes[ index ];
         }
 
-        static attribute attributes[ sizeof ...(Attributes) ];
+        static const attribute attributes[ sizeof ...(Attributes) ];
     };
 
     template < typename ... Attributes, std::size_t ClientCharacteristicIndex, typename ... Options >
-    attribute generate_attribute_list< std::tuple< Attributes... >, ClientCharacteristicIndex, std::tuple< Options... > >::attributes[ sizeof ...(Attributes) ] =
+    const attribute generate_attribute_list< std::tuple< Attributes... >, ClientCharacteristicIndex, std::tuple< Options... > >::attributes[ sizeof ...(Attributes) ] =
     {
         generate_attribute< Attributes, ClientCharacteristicIndex, Options... >::attr...
     };
