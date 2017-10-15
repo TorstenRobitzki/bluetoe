@@ -1,4 +1,4 @@
-## To build the example:
+## To build the examples:
 - Download the SDK from Nordic
 - create a build directory (./build for example)
 - change into the build directory and execute cmake to create a make file
