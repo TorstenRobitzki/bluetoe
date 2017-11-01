@@ -62,7 +62,7 @@ namespace link_layer {
             typedef typename bluetoe::details::find_by_meta_type<
                 mtu_size_meta_type,
                 Options...,
-                max_mtu_size< details::default_att_mtu_size > >::type type;
+                max_mtu_size< bluetoe::details::default_att_mtu_size > >::type type;
 
             static constexpr std::size_t mtu = type::mtu;
         };
