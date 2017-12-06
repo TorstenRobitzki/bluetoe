@@ -6,6 +6,7 @@ endif()
 
 add_library(test_tools
     ${CMAKE_SOURCE_DIR}/bluetoe/link_layer/delta_time.cpp
+    ${CMAKE_SOURCE_DIR}/bluetoe/link_layer/address_io.cpp
     ${CMAKE_SOURCE_DIR}/tests/test_uuid.cpp
     ${CMAKE_SOURCE_DIR}/tests/test_servers.cpp
     ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp
