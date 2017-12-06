@@ -8,24 +8,24 @@ namespace bll = bluetoe::link_layer;
 
 BOOST_FIXTURE_TEST_CASE( is_default_constructable, bluetoe::link_layer::delta_time )
 {
-    BOOST_CHECK_EQUAL( usec(), 0 );
-    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::now().usec(), 0 );
+    BOOST_CHECK_EQUAL( usec(), 0u );
+    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::now().usec(), 0u );
 }
 
 BOOST_AUTO_TEST_CASE( constructable_from_number_of_micro_seconds )
 {
-    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time( 4711 ).usec(), 4711 );
-    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::usec( 4711 ).usec(), 4711 );
+    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time( 4711 ).usec(), 4711u );
+    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::usec( 4711 ).usec(), 4711u );
 }
 
 BOOST_AUTO_TEST_CASE( constructable_from_number_of_milli_seconds )
 {
-    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::msec( 4711 ).usec(), 4711000 );
+    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::msec( 4711 ).usec(), 4711000u );
 }
 
 BOOST_AUTO_TEST_CASE( constructable_from_number_of_seconds )
 {
-    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::seconds( 11 ).usec(), 11000000 );
+    BOOST_CHECK_EQUAL( bluetoe::link_layer::delta_time::seconds( 11 ).usec(), 11000000u );
 }
 
 BOOST_AUTO_TEST_CASE( provides_equal_comparison )
@@ -131,9 +131,9 @@ BOOST_AUTO_TEST_CASE( division_by_delta_time )
     bll::delta_time z( 20 );
     bll::delta_time s( 1000 );
 
-    BOOST_CHECK_EQUAL( h / z, 5 );
-    BOOST_CHECK_EQUAL( h / s, 0 );
-    BOOST_CHECK_EQUAL( h / h, 1 );
+    BOOST_CHECK_EQUAL( h / z, 5u );
+    BOOST_CHECK_EQUAL( h / s, 0u );
+    BOOST_CHECK_EQUAL( h / h, 1u );
 }
 
 BOOST_AUTO_TEST_SUITE( Abort_Operation_Procedure )

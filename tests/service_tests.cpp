@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buf
     const auto access_result = attr.access( read, 1 );
 
     BOOST_CHECK( access_result == bluetoe::details::attribute_access_result::success );
-    BOOST_CHECK_EQUAL( 0, read.buffer_size );
+    BOOST_CHECK_EQUAL( 0u, read.buffer_size );
 }
 
 BOOST_AUTO_TEST_CASE( first_attribute_is_the_primary_service_and_can_be_read_buffer_to_small )

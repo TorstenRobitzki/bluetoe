@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.handle(), 3 );
-        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 0 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 0u );
         BOOST_CHECK_EQUAL( notification_type, server::notification );
     }
 
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.handle(), 8 );
-        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1u );
         BOOST_CHECK_EQUAL( notification_type, server::notification );
     }
 

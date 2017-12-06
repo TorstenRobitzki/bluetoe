@@ -61,5 +61,5 @@ BOOST_FIXTURE_TEST_CASE( server_honors_negotiated_mtu, request_with_reponse_larg
 
     // now read the characteristic value attribute
     l2cap_input( { 0x0A, 0x03, 0x00 } );
-    BOOST_CHECK_EQUAL( response_size, 29 );
+    BOOST_CHECK_EQUAL( response_size, 29u );
 }

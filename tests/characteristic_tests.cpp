@@ -13,7 +13,7 @@
 
 BOOST_AUTO_TEST_CASE( even_the_simplest_characteristic_has_at_least_2_attributes )
 {
-    BOOST_CHECK_GE( std::size_t( simple_char::number_of_attributes ), 2 );
+    BOOST_CHECK_GE( std::size_t( simple_char::number_of_attributes ), 2u );
 }
 
 BOOST_FIXTURE_TEST_CASE( the_first_attribute_is_the_characteristic_declaration, simple_char )
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         BOOST_REQUIRE( char_declaration.access );
         BOOST_CHECK( char_declaration.access( read, 1 ) == bluetoe::details::attribute_access_result::success );
 
-        BOOST_CHECK_EQUAL( read.buffer_size, 0 );
+        BOOST_CHECK_EQUAL( read.buffer_size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_returns_invalid_offset_when_read_behind_data, simple_char )
@@ -387,7 +387,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_user_description )
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 16 );
 
         BOOST_REQUIRE( bluetoe::details::attribute_access_result::success == attribute_by_type( 0x2901 ).access( read, 1 ) );
-        BOOST_CHECK_EQUAL( read.buffer_size, 0 );
+        BOOST_CHECK_EQUAL( read.buffer_size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( characteristic_user_description_is_not_readable_behind, access_attributes< named_char > )
@@ -443,12 +443,12 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
 
     BOOST_FIXTURE_TEST_CASE( has_3_attributes, notified_char )
     {
-        BOOST_CHECK_EQUAL( int( number_of_attributes ), 3u );
+        BOOST_CHECK_EQUAL( int( number_of_attributes ), 3 );
     }
 
     BOOST_FIXTURE_TEST_CASE( number_of_client_configs_is_one, notified_char )
     {
-        BOOST_CHECK_EQUAL( int( number_of_client_configs ), 1u );
+        BOOST_CHECK_EQUAL( int( number_of_client_configs ), 1 );
     }
 
     BOOST_FIXTURE_TEST_CASE( characteristic_can_be_written, access_attributes< notified_char > )
@@ -505,8 +505,8 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         auto rc   = attribute_by_type( 0x2902 ).access( read, 0 );
 
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
-        BOOST_CHECK_EQUAL( read.buffer_size, 1 );
-        BOOST_CHECK_EQUAL( read.buffer[ 0 ], 0 );
+        BOOST_CHECK_EQUAL( read.buffer_size, 1u );
+        BOOST_CHECK_EQUAL( read.buffer[ 0 ], 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( and_be_read_with_offset_equal_size, access_attributes< notified_char > )
@@ -521,7 +521,7 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         auto rc   = attribute_by_type( 0x2902 ).access( read, 0 );
 
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
-        BOOST_CHECK_EQUAL( read.buffer_size, 0 );
+        BOOST_CHECK_EQUAL( read.buffer_size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( and_be_read_with_offset_out_of_range, access_attributes< notified_char > )

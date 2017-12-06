@@ -96,11 +96,11 @@ namespace test {
 
             this->l2cap_input( request, this->connection );
 
-            BOOST_REQUIRE_GT( this->response_size, 0 );
+            BOOST_REQUIRE_GT( this->response_size, 0u );
 
             if ( this->response[ 0 ] == 0x07 )
             {
-                BOOST_REQUIRE_EQUAL( this->response_size, 5 );
+                BOOST_REQUIRE_EQUAL( this->response_size, 5u );
                 return discovered_service(
                     this->response[ 1 ] | ( this->response[ 2 ] << 8 ),
                     this->response[ 3 ] | ( this->response[ 4 ] << 8 ) );
@@ -122,17 +122,17 @@ namespace test {
                 add_uuid( request, 0x2803 );
 
                 this->l2cap_input( request, this->connection );
-                BOOST_REQUIRE_GT( this->response_size, 0 );
+                BOOST_REQUIRE_GT( this->response_size, 0u );
 
                 last_response_code = this->response[ 0 ];
                 if ( last_response_code == 0x09 )
                 {
-                    BOOST_REQUIRE_GT( this->response_size, 1 );
+                    BOOST_REQUIRE_GT( this->response_size, 1u );
                     const std::size_t length = this->response[ 1 ];
 
                     BOOST_REQUIRE( length == 2 + 3 + 2 || length == 2 + 3 + 16 );
-                    BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % length, 0 );
-                    BOOST_REQUIRE_GT( ( this->response_size - 2 ) / length, 0 );
+                    BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % length, 0u );
+                    BOOST_REQUIRE_GT( ( this->response_size - 2 ) / length, 0u );
 
                     for ( std::size_t ptr = 2; ptr != this->response_size; ptr += length )
                     {
@@ -182,19 +182,19 @@ namespace test {
                 add_handle( request, start_handle, characteristic.end_handle );
 
                 this->l2cap_input( request, this->connection );
-                BOOST_REQUIRE_GT( this->response_size, 0 );
+                BOOST_REQUIRE_GT( this->response_size, 0u );
 
                 last_response_code = this->response[ 0 ];
                 if ( last_response_code == 0x05 )
                 {
-                    BOOST_REQUIRE_GT( this->response_size, 1 );
+                    BOOST_REQUIRE_GT( this->response_size, 1u );
                     const std::size_t format = this->response[ 1 ];
 
                     // 16 bit uuid
                     BOOST_REQUIRE( format == 0x01 );
                     static constexpr std::size_t length = 4;
-                    BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % length, 0 );
-                    BOOST_REQUIRE_GT( ( this->response_size - 2 ) / length, 0 );
+                    BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % length, 0u );
+                    BOOST_REQUIRE_GT( ( this->response_size - 2 ) / length, 0u );
 
                     for ( std::size_t ptr = 2; ptr != this->response_size; ptr += length )
                     {

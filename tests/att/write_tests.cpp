@@ -42,7 +42,7 @@ BOOST_FIXTURE_TEST_CASE( pdu_to_large, test::request_with_reponse< small_value_s
 {
     value = 0x3512;
     BOOST_CHECK( check_error_response( { 0x12, 0x03, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 }, 0x12, 0x0003, 0x0D ) );
-    BOOST_CHECK_EQUAL( value, 0x3512 );
+    BOOST_CHECK_EQUAL( value, 0x3512u );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -66,7 +66,7 @@ BOOST_FIXTURE_TEST_CASE( write_full_data, test::request_with_reponse< small_valu
     value = 0x3512;
     l2cap_input( { 0x12, 0x03, 0x00, 0x01, 0x02, 0x03, 0x04 } );
     expected_result( { 0x13 } );
-    BOOST_CHECK_EQUAL( value, 0x04030201 );
+    BOOST_CHECK_EQUAL( value, 0x04030201u );
 }
 
 BOOST_FIXTURE_TEST_CASE( write_full_data_part, test::request_with_reponse< small_value_server > )
@@ -74,7 +74,7 @@ BOOST_FIXTURE_TEST_CASE( write_full_data_part, test::request_with_reponse< small
     value = 0x44332211;
     l2cap_input( { 0x12, 0x03, 0x00, 0x01, 0x02, 0x03 } );
     expected_result( { 0x13 } );
-    BOOST_CHECK_EQUAL( value, 0x44030201 );
+    BOOST_CHECK_EQUAL( value, 0x44030201u );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

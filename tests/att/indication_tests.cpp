@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
 
     BOOST_FIXTURE_TEST_CASE( indication_adds_a_client_configuration, test::request_with_reponse< simple_server > )
     {
-        BOOST_REQUIRE_EQUAL( int{ number_of_client_configs }, 1u );
+        BOOST_REQUIRE_EQUAL( int{ number_of_client_configs }, 1 );
     }
 
     BOOST_FIXTURE_TEST_CASE( l2cap_layer_gets_notified, test::request_with_reponse< simple_server > )
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
         std::size_t size = mtu_size;
         indication_output( begin(), size, client_configuration, 0 );
 
-        BOOST_CHECK_EQUAL( size, 0 );
+        BOOST_CHECK_EQUAL( size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( output_if_enables, test::request_with_reponse< simple_server > )
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.handle(), 8 );
-        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1u );
         BOOST_CHECK_EQUAL( notification_type, server::indication );
     }
 
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.handle(), 14 );
-        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 2 );
+        BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 2u );
         BOOST_CHECK_EQUAL( notification_type, server::indication );
     }
 
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_SUITE( confirmation )
     {
         l2cap_input( { 0x1E } );
 
-        BOOST_CHECK_EQUAL( response_size, 0 );
+        BOOST_CHECK_EQUAL( response_size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( broken_pdu, test::request_with_reponse< simple_server > )

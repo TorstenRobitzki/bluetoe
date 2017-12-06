@@ -106,10 +106,10 @@ public:
 
         this->run();
 
-        BOOST_REQUIRE_GE( this->connection_events().size(), 2 );
+        BOOST_REQUIRE_GE( this->connection_events().size(), 2u );
         auto event = this->connection_events()[ 1 ];
 
-        BOOST_REQUIRE_EQUAL( event.transmitted_data.size(), 1 );
+        BOOST_REQUIRE_EQUAL( event.transmitted_data.size(), 1u );
 
         return event.transmitted_data[ 0 ];
     }

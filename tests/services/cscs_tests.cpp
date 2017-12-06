@@ -213,9 +213,9 @@ struct discover_all_characteristics : discover_primary_service< Server >
             0x03, 0x28 // <<characteristic>>
         });
 
-        BOOST_REQUIRE_EQUAL( this->response_size, 2 + 4 * 7 );
-        BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x09 ); // response opcode
-        BOOST_REQUIRE_EQUAL( this->response[ 1 ], 7 );    // handle + value length
+        BOOST_REQUIRE_EQUAL( this->response_size, std::size_t( 2 + 4 * 7 ) );
+        BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x09u ); // response opcode
+        BOOST_REQUIRE_EQUAL( this->response[ 1 ], 7u );    // handle + value length
 
         csc_measurement  = parse_characteristic_declaration( &this->response[ 2 + 0 * 7 ] );
         csc_feature      = parse_characteristic_declaration( &this->response[ 2 + 1 * 7 ] );
@@ -300,7 +300,7 @@ struct discover_all_descriptors : discover_all_characteristics< Server >
 
         BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x05 ); // response opcode
         BOOST_REQUIRE_EQUAL( this->response[ 1 ], 0x01 ); // Format
-        BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % 4, 0 );
+        BOOST_REQUIRE_EQUAL( ( this->response_size - 2 ) % 4, 0u );
 
         std::vector< handle_uuid_pair > result;
         for ( const std::uint8_t* p = &this->response[ 2 ]; p != this->begin() + this->response_size; p += 4 )
@@ -331,7 +331,7 @@ struct discover_all_descriptors : discover_all_characteristics< Server >
         });
 
         BOOST_REQUIRE_EQUAL( this->response[ 0 ], 0x0b ); // response opcode
-        BOOST_REQUIRE_GT( this->response_size, 1 );
+        BOOST_REQUIRE_GT( this->response_size, 1u );
 
         return std::vector< std::uint8_t >( this->begin() + 1, this->begin() + this->response_size );
     }
@@ -349,7 +349,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
     {
         const auto value = att_read( csc_measurement_client_configuration.handle );
 
-        BOOST_CHECK_EQUAL( value.size(), 2 );
+        BOOST_CHECK_EQUAL( value.size(), 2u );
         const std::uint16_t config_value = uint16( &value[ 0 ] );
 
         BOOST_CHECK( config_value == 0x0000 || config_value == 0x0001 );
@@ -362,7 +362,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_descriptors_tests )
     {
         const auto value = att_read( sc_control_point_client_configuration.handle );
 
-        BOOST_CHECK_EQUAL( value.size(), 2 );
+        BOOST_CHECK_EQUAL( value.size(), 2u );
         const std::uint16_t config_value = uint16( &value[ 0 ] );
 
         BOOST_CHECK( config_value == 0x0000 || config_value == 0x0002 );
@@ -384,7 +384,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
         BOOST_CHECK_EQUAL( response[ 0 ], 0x0b ); // response opcode
 
         // 2 octets with RFU bits set to 0.
-        BOOST_CHECK_EQUAL( response_size, 3 );
+        BOOST_CHECK_EQUAL( response_size, 3u );
         std::uint16_t value = uint16( &response[ 1 ] );
         BOOST_CHECK_EQUAL( value & 0xFFF8, 0 );
     }
@@ -401,7 +401,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_read_value_test_cases )
         BOOST_CHECK_EQUAL( response[ 0 ], 0x0b ); // response opcode
 
         // 1 octet with value other than RFU range.
-        BOOST_CHECK_EQUAL( response_size, 2 );
+        BOOST_CHECK_EQUAL( response_size, 2u );
         BOOST_CHECK_LT( response[ 1 ], 15 );
     }
 
@@ -533,7 +533,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
 
         // notification?
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification_type, csc_server::notification );
+        BOOST_CHECK_EQUAL( int( notification_type ), int( csc_server::notification ) );
 
         // lets generate a notification pdu
         expected_output( notification, {
@@ -551,7 +551,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
 
         // notification?
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification_type, csc_server::notification );
+        BOOST_CHECK_EQUAL( int( notification_type ), int( csc_server::notification ) );
 
         // lets generate a notification pdu
         expected_output( notification, {
@@ -568,7 +568,7 @@ template < class Server >
 void check_cp_response( Server& server, std::initializer_list< std::uint8_t > response )
 {
     BOOST_REQUIRE( server.notification.valid() );
-    BOOST_CHECK_EQUAL( server.notification_type, csc_server::indication );
+    BOOST_CHECK_EQUAL( int( server.notification_type ), int( csc_server::indication ) );
 
     std::vector< std::uint8_t > expected = {
         0x1d,
@@ -602,7 +602,7 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
         expected_result({ 0x13 });
 
         // check that callback was called
-        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0 );
+        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0u );
 
         // trigger indication
         confirm_cumulative_wheel_revolutions( *this );
@@ -634,7 +634,7 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
         expected_result({ 0x13 });
 
         // check that callback was called
-        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0x04302001 );
+        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0x04302001u );
 
         // trigger indication
         confirm_cumulative_wheel_revolutions( *this );
@@ -877,7 +877,7 @@ BOOST_AUTO_TEST_SUITE( service_procedures__general_error_handling )
         expected_result({ 0x13 });
 
         // check that callback was called
-        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0x04302001 );
+        BOOST_CHECK_EQUAL( cumulative_wheel_revolutions(), 0x04302001u );
 
         // trigger indication
         confirm_cumulative_wheel_revolutions( *this );

@@ -23,7 +23,7 @@ struct only_one_pdu_from_master : unconnected
  */
 BOOST_FIXTURE_TEST_CASE( smaller_window_after_connected, only_one_pdu_from_master )
 {
-    BOOST_REQUIRE_GE( connection_events().size(), 1 );
+    BOOST_REQUIRE_GE( connection_events().size(), 1u );
     auto event = connection_events()[ 1 ];
 
     BOOST_CHECK_EQUAL( event.start_receive, bluetoe::link_layer::delta_time::usec( 30000 - 16 ) );
@@ -35,7 +35,7 @@ BOOST_FIXTURE_TEST_CASE( smaller_window_after_connected, only_one_pdu_from_maste
  */
 BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeouts, only_one_pdu_from_master )
 {
-    BOOST_REQUIRE_GE( connection_events().size(), 2 );
+    BOOST_REQUIRE_GE( connection_events().size(), 2u );
     auto event = connection_events()[ 2 ];
 
     BOOST_CHECK( event.start_receive >= bluetoe::link_layer::delta_time::usec( 60000 - 34 ) );
@@ -253,9 +253,9 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, channe
     end_of_simulation( bluetoe::link_layer::delta_time::seconds( 3000 ) );
     run();
 
-    BOOST_CHECK_EQUAL( connection_events().at( 0x10002 ).channel, 36 );
-    BOOST_CHECK_EQUAL( connection_events().at( 0x10003 ).channel, 36 );
-    BOOST_CHECK_EQUAL( connection_events().at( 0x10004 ).channel, 36 );
+    BOOST_CHECK_EQUAL( connection_events().at( 0x10002 ).channel, 36u );
+    BOOST_CHECK_EQUAL( connection_events().at( 0x10003 ).channel, 36u );
+    BOOST_CHECK_EQUAL( connection_events().at( 0x10004 ).channel, 36u );
 }
 
 #endif
@@ -342,7 +342,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_timeout_used, unconnected )
 
     run();
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 8 + 5 );
+    BOOST_CHECK_EQUAL( connection_events().size(), std::size_t{ 8 + 5 } );
 }
 
 static void simulate_connection_update_request(
@@ -360,42 +360,42 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_size, unconnec
 {
     simulate_connection_update_request( *this, 205, 6, 40, 1, 25, 6 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_offset, unconnected )
 {
     simulate_connection_update_request( *this, 5, 206, 40, 1, 25, 6 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_interval, unconnected )
 {
     simulate_connection_update_request( *this, 5, 6, 3200, 1, 25, 6 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_latency, unconnected )
 {
     simulate_connection_update_request( *this, 5, 6, 40, 500, 25, 6 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_timeout, unconnected )
 {
     simulate_connection_update_request( *this, 5, 6, 40, 1, 3300, 6 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 6 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_instance, unconnected )
 {
     simulate_connection_update_request( *this, 5, 6, 40, 1, 25, 1 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 1 );
+    BOOST_CHECK_EQUAL( connection_events().size(), 1u );
 }
 
 BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request, unconnected )

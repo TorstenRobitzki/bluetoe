@@ -69,7 +69,7 @@ namespace {
 
 BOOST_FIXTURE_TEST_CASE( advertising_scheduled, advertising )
 {
-    BOOST_CHECK_GT( advertisings().size(), 0 );
+    BOOST_CHECK_GT( advertisings().size(), 0u );
 }
 
 BOOST_FIXTURE_TEST_CASE( advertising_uses_all_three_adv_channels, advertising )
@@ -79,9 +79,9 @@ BOOST_FIXTURE_TEST_CASE( advertising_uses_all_three_adv_channels, advertising )
     all_data( [&]( const test::advertising_data& d ) { ++channel[ d.channel ]; } );
 
     BOOST_CHECK_EQUAL( channel.size(), 3u );
-    BOOST_CHECK_GT( channel[ 37 ], 0 );
-    BOOST_CHECK_GT( channel[ 38 ], 0 );
-    BOOST_CHECK_GT( channel[ 39 ], 0 );
+    BOOST_CHECK_GT( channel[ 37 ], 0u );
+    BOOST_CHECK_GT( channel[ 38 ], 0u );
+    BOOST_CHECK_GT( channel[ 39 ], 0u );
 }
 
 BOOST_FIXTURE_TEST_CASE( channels_are_iterated, advertising )
@@ -344,7 +344,7 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
             0u
         );
 
-    BOOST_CHECK_GT( number_of_advertising_packages, 5 );
+    BOOST_CHECK_GT( number_of_advertising_packages, 5u );
 }
 
 BOOST_FIXTURE_TEST_CASE( after_beeing_connected_the_ll_starts_to_advertise_again, connected_and_timeout )
@@ -359,14 +359,14 @@ BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_crc_have_to_be_used, 
 {
     auto const adv = advertisings().back();
 
-    BOOST_CHECK_EQUAL( adv.crc_init, 0x555555 );
+    BOOST_CHECK_EQUAL( adv.crc_init, 0x555555u );
 }
 
 BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_access_address_have_to_be_used, connected_and_timeout )
 {
     auto const adv = advertisings().back();
 
-    BOOST_CHECK_EQUAL( adv.access_address, 0x8E89BED6 );
+    BOOST_CHECK_EQUAL( adv.access_address, 0x8E89BED6u );
 }
 
 using advertising_connectable_undirected_advertising  =
@@ -383,7 +383,7 @@ BOOST_FIXTURE_TEST_CASE( starting_advertising_connectable_undirected_advertising
                 && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
         } );
 
-    BOOST_CHECK_GT( number_of_advertising_pdus, 0 );
+    BOOST_CHECK_GT( number_of_advertising_pdus, 0u );
 }
 
 BOOST_AUTO_TEST_SUITE( connectable_directed_advertising )
@@ -396,7 +396,7 @@ using advertising_connectable_directed_advertising  =
 // an address is needed to start the advertising
 BOOST_FIXTURE_TEST_CASE( directed_advertising_doesnt_starts_by_default, advertising_connectable_directed_advertising )
 {
-    BOOST_CHECK_EQUAL( 0, count_data( []( const test::advertising_data& ) -> bool {
+    BOOST_CHECK_EQUAL( 0u, count_data( []( const test::advertising_data& ) -> bool {
         return true;
     } ) );
 }
@@ -407,7 +407,7 @@ BOOST_FIXTURE_TEST_CASE( starting_connectable_directed_advertising, advertising_
     directed_advertising_address( bluetoe::link_layer::public_device_address( { 0x00, 0x00, 0x00, 0x01, 0x0f, 0xc0 } ) );
 
     run( gatt_server_ );
-    BOOST_CHECK_GT( advertisings().size(), 0 );
+    BOOST_CHECK_GT( advertisings().size(), 0u );
 }
 
 struct started_directed_advertising : bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::connectable_directed_advertising >
@@ -428,7 +428,7 @@ BOOST_FIXTURE_TEST_CASE( stop_connectable_directed_advertising, started_directed
     run( gatt_server_ );
     clear_events();
 
-    BOOST_CHECK_EQUAL( 0, count_data( []( const test::advertising_data& ) -> bool {
+    BOOST_CHECK_EQUAL( 0u, count_data( []( const test::advertising_data& ) -> bool {
         return true;
     } ) );
 }
@@ -578,7 +578,7 @@ BOOST_FIXTURE_TEST_CASE( starting_advertising, non_connectable_undirected_advert
 {
     this->run( gatt_server_ );
 
-    BOOST_CHECK_GT( advertisings().size(), 0 );
+    BOOST_CHECK_GT( advertisings().size(), 0u );
 }
 
 BOOST_FIXTURE_TEST_CASE( correct_type_and_size, non_connectable_undirected_advertising )
@@ -655,7 +655,7 @@ BOOST_FIXTURE_TEST_CASE( starting_advertising, scannable_undirected_advertising 
 {
     this->run( gatt_server_ );
 
-    BOOST_CHECK_GT( advertisings().size(), 0 );
+    BOOST_CHECK_GT( advertisings().size(), 0u );
 }
 
 BOOST_FIXTURE_TEST_CASE( correct_type_and_size, scannable_undirected_advertising )
@@ -761,7 +761,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_is_repeated_after_timeout, scannable_and_co
                 && ( scheduled.transmitted_data[ 0 ] & 0xf ) == 0;
         } );
 
-    BOOST_CHECK_GT( number_of_advertising_pdus, 1 );
+    BOOST_CHECK_GT( number_of_advertising_pdus, 1u );
 }
 
 BOOST_FIXTURE_TEST_CASE( can_switch_type_before_starting, scannable_and_connectable_advertising )
@@ -838,7 +838,7 @@ BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, sca
 
             return pdu.size() >= 1
                 && ( pdu[ 0 ] & 0xf ) == 6;
-        }), 0 );
+        }), 0u );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -950,7 +950,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_single, LinkLayer, all_fixture
 {
     LinkLayer link_layer;
     link_layer.run( link_layer.gatt_server_ );
-    BOOST_CHECK_EQUAL( 0, link_layer.advertisings().size() );
+    BOOST_CHECK_EQUAL( 0u, link_layer.advertisings().size() );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_before, LinkLayer, all_fixtures )
@@ -959,7 +959,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_before, LinkLayer, all_fixtures )
     link_layer.start_advertising();
     link_layer.run( link_layer.gatt_server_ );
 
-    BOOST_CHECK_NE( 0, link_layer.advertisings().size() );
+    BOOST_CHECK_NE( 0u, link_layer.advertisings().size() );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_single_after, LinkLayer, all_fixtures )
@@ -972,7 +972,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( manuell_start_single_after, LinkLayer, all_fixtur
     link_layer.end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
     link_layer.run( link_layer.gatt_server_ );
 
-    BOOST_CHECK_NE( 0, link_layer.advertisings().size() );
+    BOOST_CHECK_NE( 0u, link_layer.advertisings().size() );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_after_disconnect, LinkLayer, all_fixtures )

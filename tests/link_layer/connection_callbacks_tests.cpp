@@ -180,7 +180,7 @@ BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_establis
     BOOST_CHECK_EQUAL( reported_details.interval(), 0x18 );
     BOOST_CHECK_EQUAL( reported_details.latency(), 2 );
     BOOST_CHECK_EQUAL( reported_details.timeout(), 0x548 );
-    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), 50 + 100 );
+    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), unsigned{ 50 + 100 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( addresses_reported_when_connection_established, link_layer_only_connect_callback )
@@ -247,7 +247,7 @@ BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_updates,
     BOOST_CHECK_EQUAL( reported_details.interval(), 40 );
     BOOST_CHECK_EQUAL( reported_details.latency(), 1 );
     BOOST_CHECK_EQUAL( reported_details.timeout(), 25 );
-    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), 50 + 100 );
+    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), unsigned{ 50 + 100 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( never_connected, link_layer_only_disconnect_callback )

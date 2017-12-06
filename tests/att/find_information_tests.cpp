@@ -54,7 +54,7 @@ BOOST_FIXTURE_TEST_CASE( correct_opcode, test::request_with_reponse< test::small
 {
     l2cap_input( request_all_attributes );
 
-    BOOST_REQUIRE_GT( response_size, 0 );
+    BOOST_REQUIRE_GT( response_size, 0u );
     BOOST_CHECK_EQUAL( response[ 0 ], 0x05 );
 }
 

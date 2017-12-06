@@ -142,20 +142,20 @@ typedef boost::mpl::list<
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( maximum_white_list_entries_is_provied, T, test_types )
 {
-    BOOST_CHECK_EQUAL( std::size_t(T::maximum_white_list_entries), 8 );
+    BOOST_CHECK_EQUAL( std::size_t(T::maximum_white_list_entries), 8u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( reports_the_maximum_number_of_elements_after_default_contructed, T, test_types )
 {
     T white_list;
-    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8 );
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( adding_one_address, T, test_types )
 {
     T white_list;
     BOOST_CHECK( white_list.add_to_white_list( addr1 ) );
-    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 7 );
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 7u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( adding_the_same_address, T, test_types )
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( adding_the_same_address, T, test_types )
     BOOST_CHECK( white_list.add_to_white_list( addr2 ) );
     BOOST_CHECK( white_list.add_to_white_list( addr1 ) );
 
-    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 6 );
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 6u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( addr_not_in_list, T, test_types )
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( remove_from_list, T, test_types )
     BOOST_CHECK( white_list.is_in_white_list( addr3 ) );
     BOOST_CHECK( white_list.is_in_white_list( addr4 ) );
 
-    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 5 );
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 5u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( activate_white_list_function_exists, T, test_types )
@@ -232,7 +232,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( clear_empty_white_list, T, test_types )
 {
     T white_list;
     white_list.clear_white_list();
-    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8 );
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( clear_none_empty_white_list, T, test_types )
@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( clear_none_empty_white_list, T, test_types )
     white_list.add_to_white_list( addr2 );
 
     white_list.clear_white_list();
-    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8 );
+    BOOST_CHECK_EQUAL( white_list.white_list_free_size(), 8u );
     BOOST_CHECK( !white_list.is_in_white_list( addr1 ) );
     BOOST_CHECK( !white_list.is_in_white_list( addr2 ) );
 }

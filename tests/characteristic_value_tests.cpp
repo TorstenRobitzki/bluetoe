@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
 
         BOOST_REQUIRE( bluetoe::details::attribute_access_result::success == value_attribute.access( read, 1 ) );
-        BOOST_CHECK_EQUAL( read.buffer_size, 0 );
+        BOOST_CHECK_EQUAL( read.buffer_size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( simple_value_can_be_written, simple_char )
@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
         auto write = bluetoe::details::attribute_access_arguments::write( new_value );
 
         BOOST_REQUIRE( bluetoe::details::attribute_access_result::invalid_attribute_value_length == characteristic.attribute_at< 0 >( 1 ).access( write, 1 ) );
-        BOOST_CHECK_EQUAL( write_to_large_value, 15 );
+        BOOST_CHECK_EQUAL( write_to_large_value, 15u );
     }
 
     std::uint8_t writable_value[ 4 ] = { 0x01, 0x02, 0x03, 0x04 };

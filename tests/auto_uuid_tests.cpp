@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_SUITE( implicit_characteristic_uuid )
 
     BOOST_FIXTURE_TEST_CASE( check_correct_number_of_attributes, auto_uuid_service )
     {
-        BOOST_CHECK_EQUAL( int( number_of_attributes ), 7u );
+        BOOST_CHECK_EQUAL( int( number_of_attributes ), 7 );
     }
 
 

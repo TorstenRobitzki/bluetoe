@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( connected_after_connection_request, Channel, adve
                  is_advertising = is_advertising && data.channel >= 37 && data.channel >= 40;
 
             return !is_advertising;
-        } ), 1 );
+        } ), 1u );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wrong_length, Channel, advertising_channels )
@@ -208,7 +208,7 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_initial_crc_value, unconnected )
 
     run();
 
-    BOOST_CHECK_EQUAL( connection_events().front().crc_init, 0xf68108 );
+    BOOST_CHECK_EQUAL( connection_events().front().crc_init, 0xf68108u );
 }
 
 BOOST_FIXTURE_TEST_SUITE( starting_unconnected_tests, unconnected )
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( start_receiving_on_the_correct_channel, Channel, 
     run();
 
     BOOST_REQUIRE( !connection_events().empty() );
-    BOOST_CHECK_EQUAL( connection_events().front().channel, ( 0 + 10 ) % 37 );
+    BOOST_CHECK_EQUAL( int( connection_events().front().channel ), ( 0 + 10 ) % 37 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -254,7 +254,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
     run();
 
     BOOST_REQUIRE( !connection_events().empty() );
-    BOOST_CHECK_EQUAL( connection_events().front().channel, ( ( 0 + 10 ) % 37 ) % 36 + 1 );
+    BOOST_CHECK_EQUAL( connection_events().front().channel, unsigned{ ( ( 0 + 10 ) % 37 ) % 36 + 1 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_10ms, unconnected )
@@ -308,9 +308,9 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 
     const auto& event = connection_events().front();
 
-    BOOST_CHECK_EQUAL( event.start_receive.usec(), 14992 );
-    BOOST_CHECK_EQUAL( event.end_receive.usec(), 18760 );
-    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 30000 );
+    BOOST_CHECK_EQUAL( event.start_receive.usec(), 14992u );
+    BOOST_CHECK_EQUAL( event.end_receive.usec(), 18760u );
+    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 30000u );
 }
 
 /*
@@ -353,7 +353,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
     BOOST_CHECK( event.start_receive.usec() <= 1999300 +1 );
     BOOST_CHECK( event.end_receive.usec() >= 2010703 -1 );
     BOOST_CHECK( event.end_receive.usec() <= 2010703 +1 );
-    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 2000000 );
+    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 2000000u );
 }
 
 /*
@@ -414,7 +414,7 @@ BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reac
         [&last]( const test::advertising_data& adv )
         {
             return adv.schedule_time >= last;
-        } ), 1 );
+        } ), 1u );
 }
 
 
