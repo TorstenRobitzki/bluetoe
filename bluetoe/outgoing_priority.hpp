@@ -6,8 +6,6 @@
 namespace bluetoe {
 
     namespace details {
-        struct outgoing_priority_service_meta_type {};
-        struct outgoing_priority_characteristic_meta_type {};
         struct outgoing_priority_meta_type {};
 
         template < typename Services, typename ServiceUUID >
