@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
+#include <bluetoe/link_layer/notification_queue.hpp>
 #include "test_servers.hpp"
-#include <array>
 
 BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
@@ -265,6 +265,253 @@ BOOST_AUTO_TEST_SUITE( access_client_characteristic_configuration )
             0x04, 0x00, 0x01, 0x00,  // handle and data
             0x07, 0x00, 0x00, 0x00   // handle and data
         } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+/*
+ * While working on DTS, there showed up a bug...
+ */
+BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
+
+    struct dts_service
+    {
+        dts_service()
+            : read_features_called( 0 )
+            , read_parameters_called( 0 )
+            , read_device_time_called( 0 )
+            , write_control_point_called( 0 )
+            , read_control_point_called( 0 )
+            , read_log_data_called( 0 )
+            , write_log_access_control_point_called( 0 )
+            , read_log_access_control_point_called( 0 )
+        {
+        }
+
+        std::uint8_t read_features( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            ++read_features_called;
+
+            return bluetoe::error_codes::success;
+        }
+
+        std::uint8_t read_parameters( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            ++read_parameters_called;
+            return bluetoe::error_codes::success;
+        }
+
+        std::uint8_t read_device_time( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            ++read_device_time_called;
+            return bluetoe::error_codes::success;
+        }
+
+        std::pair< std::uint8_t, bool > write_control_point( std::size_t, const std::uint8_t* )
+        {
+            ++write_control_point_called;
+            return { bluetoe::error_codes::success, true };
+        }
+
+        std::uint8_t read_control_point( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            ++read_control_point_called;
+            return bluetoe::error_codes::success;
+        }
+
+        std::uint8_t read_log_data( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            ++read_log_data_called;
+            return bluetoe::error_codes::success;
+        }
+
+        std::pair< std::uint8_t, bool > write_log_access_control_point( std::size_t, const std::uint8_t* )
+        {
+            ++write_log_access_control_point_called;
+            return { bluetoe::error_codes::success, true };
+        }
+
+        std::uint8_t read_log_access_control_point( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            ++read_log_access_control_point_called;
+            return bluetoe::error_codes::success;
+        }
+
+        template < typename Server, typename ConData, typename Element >
+        void read_output_handler( Server& srv, ConData& connection, Element notification )
+        {
+            BOOST_REQUIRE( notification.first != bluetoe::link_layer::details::empty );
+
+            std::uint8_t    buffer[ 100 ];
+            std::size_t     size = sizeof( buffer );
+
+            if ( notification.first == bluetoe::link_layer::details::notification )
+            {
+                srv.notification_output( buffer, size, connection, notification.second );
+            }
+            else
+            {
+                srv.indication_output( buffer, size, connection, notification.second );
+            }
+        }
+
+        unsigned read_features_called;
+        unsigned read_parameters_called;
+        unsigned read_device_time_called;
+        unsigned write_control_point_called;
+        unsigned read_control_point_called;
+        unsigned read_log_data_called;
+        unsigned write_log_access_control_point_called;
+        unsigned read_log_access_control_point_called;
+    };
+
+    using dts_service_uuid                  = bluetoe::service_uuid16< 0xff00 >;
+
+    using device_time_feature_uuid          = bluetoe::characteristic_uuid16< 0x1234 >;
+    using device_time_parameters_uuid       = bluetoe::characteristic_uuid16< 0x1235 >;
+    using device_time_uuid                  = bluetoe::characteristic_uuid16< 0x1236 >;
+    using device_time_control_point_uuid    = bluetoe::characteristic_uuid16< 0x1237 >;
+    using time_change_log_data_uuid         = bluetoe::characteristic_uuid16< 0x1238 >;
+    using record_access_control_point_uuid  = bluetoe::characteristic_uuid16< 0x1239 >;
+
+    /*
+     * Definition of the GATT structure of the IDS server
+     */
+    template < class ServiceImpl >
+    using dts_server_t = bluetoe::server<
+        /*
+         * One primary service
+         */
+        bluetoe::service<
+            dts_service_uuid,
+
+            /*
+             * Mandatory Characteristics
+             */
+            bluetoe::characteristic<
+                device_time_feature_uuid,
+                bluetoe::mixin_read_handler< dts_service, &dts_service::read_features >
+            >,
+            bluetoe::characteristic<
+                device_time_parameters_uuid,
+                bluetoe::mixin_read_handler< dts_service, &dts_service::read_parameters >
+            >,
+            bluetoe::characteristic<
+                device_time_uuid,
+                bluetoe::mixin_read_handler< dts_service, &dts_service::read_device_time >,
+                bluetoe::indicate
+            >,
+
+            /*
+             * Control Point
+             */
+            bluetoe::characteristic<
+                device_time_control_point_uuid,
+                bluetoe::mixin_write_indication_control_point_handler<
+                    dts_service,
+                    &dts_service::write_control_point,
+                    device_time_control_point_uuid
+                >,
+                bluetoe::mixin_read_handler<
+                    dts_service,
+                    &dts_service::read_control_point
+                >,
+                bluetoe::no_read_access,
+                bluetoe::indicate
+            >,
+
+            /*
+             * Log
+             */
+            bluetoe::characteristic<
+                time_change_log_data_uuid,
+                bluetoe::mixin_read_handler< dts_service, &dts_service::read_log_data >,
+                bluetoe::notify,
+                bluetoe::no_read_access
+            >,
+            bluetoe::characteristic<
+                record_access_control_point_uuid,
+                bluetoe::mixin_write_indication_control_point_handler<
+                    dts_service,
+                    &dts_service::write_log_access_control_point,
+                    record_access_control_point_uuid
+                >,
+                bluetoe::mixin_read_handler<
+                    dts_service,
+                    &dts_service::read_log_access_control_point
+                >,
+                bluetoe::no_read_access,
+                bluetoe::indicate
+            >,
+
+            /*
+             * Mixin a dts_service implementation
+             */
+            bluetoe::mixin< ServiceImpl >,
+
+            /*
+             * Make sure, that log data is transmitted with higher priority
+             */
+            bluetoe::higher_outgoing_priority< time_change_log_data_uuid >
+        >
+    >;
+
+    using test_server = test::request_with_reponse< dts_server_t< dts_service > >;
+
+    using notification_queue_t = bluetoe::link_layer::notification_queue<
+        typename test_server::notification_priority::template numbers< typename test_server::services >::type,
+        typename test_server::connection_data >;
+
+    notification_queue_t notification_queue( 23 );
+
+    static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void*, typename dts_server_t< dts_service >::notification_type type )
+    {
+        switch ( type )
+        {
+            case dts_server_t< dts_service >::notification:
+                return notification_queue.queue_notification( item.client_characteristic_configuration_index() );
+                break;
+            case dts_server_t< dts_service >::indication:
+                return notification_queue.queue_indication( item.client_characteristic_configuration_index() );
+                break;
+            case dts_server_t< dts_service >::confirmation:
+                notification_queue.indication_confirmed();
+                return true;
+                break;
+        }
+
+        return true;
+    }
+
+    BOOST_FIXTURE_TEST_CASE( inidicating_control_point_leads_to_reading_control_point, test_server )
+    {
+        notification_queue = notification_queue_t( 23 );
+        notification_callback( lcap_notification_callback, this );
+
+        // connect and subscribe to all characteristics
+        connection_data connection( 100 );
+        for ( unsigned config = 0; config != connection_data::number_of_characteristics_with_configuration; ++config )
+            connection.client_configurations().flags( config, 0x03 );
+
+        // mark the log data characteristic to have data
+        notify< time_change_log_data_uuid >();
+
+        // simulate that there is one free output buffer on the link layer.
+        read_output_handler( *this, connection, notification_queue.dequeue_indication_or_confirmation() );
+
+        // the ATT layer should shoose the characteristic with the highest output priorit
+        BOOST_CHECK_EQUAL( read_log_data_called, 1u );
+        BOOST_CHECK_EQUAL( read_device_time_called, 0u );
+        BOOST_CHECK_EQUAL( read_control_point_called, 0u );
+        BOOST_CHECK_EQUAL( read_log_access_control_point_called, 0u );
+
+        // same with the control point
+        indicate< device_time_control_point_uuid >();
+        read_output_handler( *this, connection, notification_queue.dequeue_indication_or_confirmation() );
+        BOOST_CHECK_EQUAL( read_log_data_called, 1u );
+        BOOST_CHECK_EQUAL( read_device_time_called, 0u );
+        BOOST_CHECK_EQUAL( read_control_point_called, 1u );
+        BOOST_CHECK_EQUAL( read_log_access_control_point_called, 0u );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

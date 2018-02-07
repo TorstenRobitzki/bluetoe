@@ -545,13 +545,15 @@ namespace bluetoe {
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
-        typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
 
         static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Notified characteristic not found by UUID." );
         static_assert( characteristic::has_notification, "Characteristic must be configured for notification!" );
 
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
         if ( l2cap_cb_ )
-            return l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, notification );
+            return l2cap_cb_( data, l2cap_arg_, notification );
 
         return false;
     }
@@ -577,13 +579,15 @@ namespace bluetoe {
     {
         static_assert( number_of_client_configs != 0, "there is no characteristic that is configured for notification or indication" );
 
-        typedef typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type characteristic;
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
 
         static_assert( !std::is_same< characteristic, details::no_such_type >::value, "Indicated characteristic not found by UUID." );
         static_assert( characteristic::has_indication, "Characteristic must be configured for indication!" );
 
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
         if ( l2cap_cb_ )
-            return l2cap_cb_( characteristic::get_notification_data(), l2cap_arg_, indication );
+            return l2cap_cb_( data, l2cap_arg_, indication );
 
         return false;
     }

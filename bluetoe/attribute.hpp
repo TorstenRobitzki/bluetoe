@@ -313,6 +313,7 @@ namespace details {
         {
             static constexpr bool has_indication   = Characteristic::value_type::has_indication;
             static constexpr bool has_notification = Characteristic::value_type::has_notification;
+            using characteristic_t = Characteristic;
 
             static details::notification_data get_notification_data() {
                 return Characteristic::template find_notification_data_by_index< FirstAttributesHandle, ClientCharacteristicIndex >( ClientCharacteristicIndex );

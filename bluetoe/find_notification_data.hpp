@@ -108,11 +108,29 @@ namespace details {
             using type = std::integral_constant< bool, A::priority < B::priority >;
         };
 
+        template < std::size_t CCCD, typename HandlePair >
+        struct characteristic_handle_pair_with_cccd : HandlePair
+        {
+            static constexpr std::size_t cccd_handle = CCCD;
+        };
+
+        template < typename Characteristics, typename Characteristic >
+        struct add_cccd
+        {
+            static constexpr std::size_t cccd_handle = std::tuple_size< Characteristics >::value;
+
+            using type = typename add_type<
+                Characteristics,
+                characteristic_handle_pair_with_cccd< cccd_handle, Characteristic >
+            >::type;
+        };
+
         using services                               = Services;
         using all_characteristics                    = typename fold_left< services, characteristics_from_service >::type;
         using characteristics_with_attribute_handles = typename fold_left< all_characteristics, add_handle_to_characteristic >::type;
         using characteristics_only_with_cccd         = typename fold_left< characteristics_with_attribute_handles, filter_characteristics_with_cccd >::type;
         using characteristics_sorted_by_priority     = typename stable_sort< order_by_prio, characteristics_only_with_cccd >::type;
+        using characteristics_with_cccd_handle       = typename fold_left< characteristics_sorted_by_priority, add_cccd >::type;
 
         static notification_data find_notification_data_by_index( std::size_t index )
         {
@@ -151,7 +169,31 @@ namespace details {
 
             return result;
         }
+    };
 
+    template <
+        typename Priorities,
+        typename Services,
+        typename Characteristic
+    >
+    struct find_notification_by_uuid
+    {
+        using find = find_notification_data_in_list< Priorities, Services >;
+
+        template < typename Other >
+        struct equal_char
+        {
+            static constexpr bool value = std::is_same< typename Other::characteristic_t, Characteristic >::value;
+        };
+
+        using char_infos = typename find_if<
+            typename find::characteristics_with_cccd_handle,
+            equal_char >::type;
+
+        static notification_data data()
+        {
+            return notification_data( char_infos::first_attribute_handle + 1, char_infos::cccd_handle );
+        }
     };
 
 }
