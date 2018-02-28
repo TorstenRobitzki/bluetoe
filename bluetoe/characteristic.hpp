@@ -154,9 +154,6 @@ namespace bluetoe {
         template < std::size_t ClientCharacteristicIndex, typename ServiceUUID = void, typename Server = void >
         static details::attribute attribute_at( std::size_t index );
 
-        template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-        static details::notification_data find_notification_data_by_index( std::size_t index );
-
         typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type    base_value_type;
 
         static_assert( !std::is_same< base_value_type, details::no_such_type >::value,
@@ -208,17 +205,6 @@ namespace bluetoe {
         assert( index < number_of_attributes );
 
         return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex, ServiceUUID, Server >( index );
-    }
-
-    template < typename ... Options >
-    template < std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-    details::notification_data characteristic< Options... >::find_notification_data_by_index( std::size_t index )
-    {
-        return index == ClientCharacteristicIndex && number_of_client_configs != 0
-            ? details::notification_data(
-                FirstAttributesHandle + 1,
-                ClientCharacteristicIndex )
-            : details::notification_data();
     }
 
     namespace details {
