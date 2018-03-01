@@ -27,8 +27,8 @@ namespace bluetoe {
         struct include_service_meta_type {};
         struct service_defintion_tag {};
 
-        template < typename CCCDIndices, typename ... Options >
-        struct generate_service_attributes;
+        template < typename ... Options >
+        struct count_service_attributes;
     }
 
     /**
@@ -132,7 +132,7 @@ namespace bluetoe {
 
         static_assert( !std::is_same< uuid, details::no_such_type >::value, "Please provide a UUID to the service (service_uuid or service_uuid16 for example)." );
 
-        static constexpr std::size_t number_of_service_attributes        = details::generate_service_attributes< std::tuple<>, Options... >::number_of_attributes;
+        static constexpr std::size_t number_of_service_attributes        = details::count_service_attributes< Options... >::number_of_attributes;
         static constexpr std::size_t number_of_characteristic_attributes = details::sum_by< characteristics, details::sum_by_attributes >::value;
         static constexpr std::size_t number_of_client_configs            = details::sum_by< characteristics, details::sum_by_client_configs >::value;
 
@@ -235,16 +235,28 @@ namespace bluetoe {
     /** @cond HIDDEN_SYMBOLS */
 
     // service implementation
+    namespace details {
+        template < typename ... Options >
+        using attribute_generation_parameters = typename
+                add_type<
+                    service_defintion_tag, // force generation of service generation attribute
+                    typename find_all_by_meta_type<
+                        include_service_meta_type,
+                        Options...
+                    >::type
+                >::type;
+    }
+
     template < typename ... Options >
     template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
     details::attribute service< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
 
-        using attribute_generator = details::generate_service_attributes< CCCDIndices, Options... >;
+        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, std::tuple< Options..., ServiceList > >;
 
         if ( index < number_of_service_attributes )
-            return attribute_generator::template attribute_at< ServiceList >( index );
+            return attribute_generator::attribute_at( index );
 
         return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid, Server >::attribute_at( index - number_of_service_attributes );
     }
@@ -450,26 +462,13 @@ namespace bluetoe {
             &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
         };
 
-        template < typename CCCDIndices, typename ... Options >
-        struct generate_service_attributes
-        {
-            typedef typename
-                add_type<
-                    service_defintion_tag, // force generation of service generation attribute
-                    typename find_all_by_meta_type<
-                        include_service_meta_type,
-                        Options...
-                    >::type
-                >::type attribute_generation_parameters;
-
-            enum { number_of_attributes = std::tuple_size< attribute_generation_parameters >::value };
-
-            template < typename ServiceList >
-            static const attribute attribute_at( std::size_t index )
-            {
-                return generate_attribute_list< attribute_generation_parameters, CCCDIndices, 0, std::tuple< Options..., ServiceList > >::attribute_at( index );
-            }
+        template < typename ... Options >
+        struct count_service_attributes{
+            enum {
+                number_of_attributes = std::tuple_size< attribute_generation_parameters< Options... > >::value
+            };
         };
+
 
     }
     /** @endcond */
