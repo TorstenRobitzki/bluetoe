@@ -197,11 +197,11 @@ namespace details {
     /*
      * Iterating the list of services is the same, but needs less parameters
      */
-    template < typename Services, typename Server, std::size_t ClientCharacteristicIndex = 0, typename AllServices = Services >
+    template < typename Services, typename Server, typename CCCDIndices, std::size_t ClientCharacteristicIndex = 0, typename AllServices = Services >
     struct attribute_from_service_list;
 
-    template < typename Server, std::size_t ClientCharacteristicIndex, typename AllServices >
-    struct attribute_from_service_list< std::tuple<>, Server, ClientCharacteristicIndex, AllServices >
+    template < typename Server, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename AllServices >
+    struct attribute_from_service_list< std::tuple<>, Server, CCCDIndices, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t )
         {
@@ -214,18 +214,20 @@ namespace details {
         typename T,
         typename ...Ts,
         typename Server,
+        typename CCCDIndices,
         std::size_t ClientCharacteristicIndex,
         typename AllServices >
-    struct attribute_from_service_list< std::tuple< T, Ts... >, Server, ClientCharacteristicIndex, AllServices >
+    struct attribute_from_service_list< std::tuple< T, Ts... >, Server, CCCDIndices, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
-                return T::template attribute_at< ClientCharacteristicIndex, AllServices, Server >( index );
+                return T::template attribute_at< CCCDIndices, ClientCharacteristicIndex, AllServices, Server >( index );
 
             typedef details::attribute_from_service_list<
                 std::tuple< Ts... >,
                 Server,
+                CCCDIndices,
                 ClientCharacteristicIndex + T::number_of_client_configs,
                 AllServices > remaining_characteristics;
 

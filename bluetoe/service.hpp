@@ -27,7 +27,7 @@ namespace bluetoe {
         struct include_service_meta_type {};
         struct service_defintion_tag {};
 
-        template < typename ... Options >
+        template < typename CCCDIndices, typename ... Options >
         struct generate_service_attributes;
     }
 
@@ -132,9 +132,7 @@ namespace bluetoe {
 
         static_assert( !std::is_same< uuid, details::no_such_type >::value, "Please provide a UUID to the service (service_uuid or service_uuid16 for example)." );
 
-        typedef details::generate_service_attributes< Options... >                                              attribute_generator;
-
-        static constexpr std::size_t number_of_service_attributes        = attribute_generator::number_of_attributes;
+        static constexpr std::size_t number_of_service_attributes        = details::generate_service_attributes< std::tuple<>, Options... >::number_of_attributes;
         static constexpr std::size_t number_of_characteristic_attributes = details::sum_by< characteristics, details::sum_by_attributes >::value;
         static constexpr std::size_t number_of_client_configs            = details::sum_by< characteristics, details::sum_by_client_configs >::value;
 
@@ -155,13 +153,13 @@ namespace bluetoe {
         /**
          * ClientCharacteristicIndex is the number of characteristics with a Client Characteristic Configuration attribute
          */
-        template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
         static details::attribute attribute_at( std::size_t index );
 
         /**
          * @brief assembles one data packet for a "Read by Group Type Response"
          */
-        template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server );
 
 
@@ -238,10 +236,12 @@ namespace bluetoe {
 
     // service implementation
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
+    template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
     details::attribute service< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
+
+        using attribute_generator = details::generate_service_attributes< CCCDIndices, Options... >;
 
         if ( index < number_of_service_attributes )
             return attribute_generator::template attribute_at< ServiceList >( index );
@@ -250,7 +250,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
+    template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
     std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& sever )
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
@@ -262,7 +262,7 @@ namespace bluetoe {
             output = details::write_handle( output, starting_index );
             output = details::write_handle( output, starting_index + number_of_attributes -1 );
 
-            const details::attribute primary_service = attribute_at< ClientCharacteristicIndex, ServiceList, Server >( 0 );
+            const details::attribute primary_service = attribute_at< CCCDIndices, ClientCharacteristicIndex, ServiceList, Server >( 0 );
 
             auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration(), &sever );
 
@@ -308,11 +308,12 @@ namespace bluetoe {
             static constexpr std::uint16_t service_attribute_handle = next::service_attribute_handle;
             static constexpr std::uint16_t end_service_handle       = next::end_service_handle;
         };
+
         /*
          * service declaration
          */
-        template < std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
+        struct generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             static attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
@@ -344,13 +345,13 @@ namespace bluetoe {
             static const attribute attr;
         };
 
-        template < std::size_t ClientCharacteristicIndex, typename ... Options >
-        const attribute generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >::attr =
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
+        const attribute generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, Options... >::attr =
         {
             bits( has_option< is_secondary_service, Options... >::value
                 ? gatt_uuids::secondary_service
                 : gatt_uuids::primary_service ),
-            &generate_attribute< service_defintion_tag, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, Options... >::access
         };
 
         /*
@@ -358,9 +359,10 @@ namespace bluetoe {
          */
         template <
             std::uint64_t UUID,
+            typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
             typename ... Options >
-        struct generate_attribute< include_service< service_uuid16< UUID > >, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             typedef typename last_from_pack< Options... >::type service_list;
             typedef typename find_service_by_uuid< service_list, service_uuid16< UUID > >::type included_service;
@@ -388,12 +390,13 @@ namespace bluetoe {
 
         template <
             std::uint64_t UUID,
+            typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
             typename ... Options >
-        const attribute generate_attribute< include_service< service_uuid16< UUID > >, ClientCharacteristicIndex, Options... >::attr =
+        const attribute generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr =
         {
             bits( details::gatt_uuids::include ),
-            &generate_attribute< include_service< service_uuid16< UUID > >, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
         };
 
         /*
@@ -405,9 +408,10 @@ namespace bluetoe {
             std::uint16_t C,
             std::uint16_t D,
             std::uint64_t E,
+            typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
             typename ... Options >
-        struct generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             typedef typename last_from_pack< Options... >::type service_list;
             typedef typename find_service_by_uuid< service_list, service_uuid< A, B, C, D, E > >::type included_service;
@@ -437,15 +441,16 @@ namespace bluetoe {
             std::uint16_t C,
             std::uint16_t D,
             std::uint64_t E,
+            typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
             typename ... Options >
-        const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >::attr =
+        const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr =
         {
             bits( details::gatt_uuids::include ),
-            &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
         };
 
-        template < typename ... Options >
+        template < typename CCCDIndices, typename ... Options >
         struct generate_service_attributes
         {
             typedef typename
@@ -462,7 +467,7 @@ namespace bluetoe {
             template < typename ServiceList >
             static const attribute attribute_at( std::size_t index )
             {
-                return generate_attribute_list< attribute_generation_parameters, 0, std::tuple< Options..., ServiceList > >::attribute_at( index );
+                return generate_attribute_list< attribute_generation_parameters, CCCDIndices, 0, std::tuple< Options..., ServiceList > >::attribute_at( index );
             }
         };
 
