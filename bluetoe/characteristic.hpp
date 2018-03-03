@@ -145,9 +145,6 @@ namespace bluetoe {
         static constexpr std::size_t number_of_attributes     = attribute_numbers::number_of_attributes;
         static constexpr std::size_t number_of_client_configs = attribute_numbers::number_of_client_configs;
 
-        /// @todo: remove
-        static constexpr std::size_t number_of_server_configs = 0;
-
         typedef details::characteristic_meta_type meta_type;
 
         // this is just the configured UUID, if auto uuids are used, this will be no_such_type
