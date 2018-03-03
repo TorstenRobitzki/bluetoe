@@ -234,7 +234,7 @@ namespace bluetoe {
             };
         };
 
-        // Returns a list of numbers of priorities, starting with the number of characteristics with prio 0
+        // Returns a list of numbers of priorities, starting with the number of characteristics with prio 0 (highest)
         template < typename Services >
         struct numbers
         {

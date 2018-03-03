@@ -1,6 +1,8 @@
 #ifndef BLUETOE_FIND_NOTIFICATION_DATA_HPP
 #define BLUETOE_FIND_NOTIFICATION_DATA_HPP
 
+#include <bluetoe/options.hpp>
+
 namespace bluetoe {
 namespace details {
 
@@ -29,17 +31,14 @@ namespace details {
             static constexpr int           priority       = Prio;
         };
 
-        template < typename Service >
-        struct priority_from_service
-        {
-            static constexpr int           priority       = 0;
-        };
-
         template < typename Characteristics, typename Service >
         struct characteristics_from_service
         {
             template < typename C >
-            struct add_service_offset;
+            struct add_service_offset
+            {
+                using type = std::tuple<>;
+            };
 
             // Add just to the first characteritic of a service the numer of attributes that are used to
             // model the service
@@ -72,7 +71,7 @@ namespace details {
         {
             using last = typename last_type< Characteristics, characteristic_handle_pair< preudo_first_char, 1, 0 > >::type;
 
-            static const std::size_t attribute_handle = last::first_attribute_handle + last::characteristic_t::number_of_attributes + Characteristic::service_offset;
+            static constexpr std::size_t attribute_handle = last::first_attribute_handle + last::characteristic_t::number_of_attributes + Characteristic::service_offset;
 
             using type = typename add_type<
                 Characteristics,
@@ -108,20 +107,37 @@ namespace details {
             using type = std::integral_constant< bool, A::priority < B::priority >;
         };
 
-        template < std::size_t CCCD, typename HandlePair >
-        struct characteristic_handle_pair_with_cccd : HandlePair
+        template < typename Characteristics, typename Characteristic >
+        struct add_cccd_position
         {
-            static constexpr std::size_t cccd_handle = CCCD;
+            template < std::size_t CCCD, typename HandlePair >
+            struct with_cccd_position : HandlePair
+            {
+                static constexpr std::size_t cccd_position = CCCD;
+            };
+
+            static constexpr std::size_t cccd_position = std::tuple_size< Characteristics >::value;
+
+            using type = typename add_type<
+                Characteristics,
+                with_cccd_position< cccd_position, Characteristic >
+            >::type;
         };
 
         template < typename Characteristics, typename Characteristic >
-        struct add_cccd
+        struct add_cccd_handle
         {
+            template < std::size_t CCCD, typename HandlePair >
+            struct with_cccd_handle : HandlePair
+            {
+                static constexpr std::size_t cccd_handle = CCCD;
+            };
+
             static constexpr std::size_t cccd_handle = std::tuple_size< Characteristics >::value;
 
             using type = typename add_type<
                 Characteristics,
-                characteristic_handle_pair_with_cccd< cccd_handle, Characteristic >
+                with_cccd_handle< cccd_handle, Characteristic >
             >::type;
         };
 
@@ -129,8 +145,9 @@ namespace details {
         using all_characteristics                    = typename fold_left< services, characteristics_from_service >::type;
         using characteristics_with_attribute_handles = typename fold_left< all_characteristics, add_handle_to_characteristic >::type;
         using characteristics_only_with_cccd         = typename fold_left< characteristics_with_attribute_handles, filter_characteristics_with_cccd >::type;
-        using characteristics_sorted_by_priority     = typename stable_sort< order_by_prio, characteristics_only_with_cccd >::type;
-        using characteristics_with_cccd_handle       = typename fold_left< characteristics_sorted_by_priority, add_cccd >::type;
+        using characteristics_with_cccd_position     = typename fold_left< characteristics_only_with_cccd, add_cccd_position >::type;
+        using characteristics_sorted_by_priority     = typename stable_sort< order_by_prio, characteristics_with_cccd_position >::type;
+        using characteristics_with_cccd_handle       = typename fold_left< characteristics_sorted_by_priority, add_cccd_handle >::type;
 
         static notification_data find_notification_data_by_index( std::size_t index )
         {
@@ -169,6 +186,13 @@ namespace details {
 
             return result;
         }
+
+        template < class Characteristic >
+        struct select_cccd_position {
+            using type = std::integral_constant< std::size_t, Characteristic::cccd_position >;
+        };
+
+        using cccd_indices = typename transform_list< characteristics_with_cccd_handle, select_cccd_position >::type;
     };
 
     template <

@@ -27,7 +27,7 @@ namespace {
     {
         read_characteristic_properties()
         {
-            const bluetoe::details::attribute value_attribute = this->template attribute_at< 0 >( 0 );
+            const bluetoe::details::attribute value_attribute = this->template attribute_at< std::tuple<>, 0 >( 0 );
             std::uint8_t buffer[ 100 ];
             auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 

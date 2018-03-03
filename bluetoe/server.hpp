@@ -70,6 +70,8 @@ namespace bluetoe {
 
         static_assert( std::tuple_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
             "Only one of bluetoe::higher_outgoing_priority<> or bluetoe::lower_outgoing_priority<> per server allowed!" );
+
+        using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
         /** @endcond */
 
         /**
@@ -261,14 +263,14 @@ namespace bluetoe {
         void client_disconnected( connection_data& );
 
         typedef details::server_meta_type meta_type;
+
+        static details::attribute attribute_at( std::size_t index );
         /** @endcond */
 
     private:
         static constexpr std::size_t number_of_attributes       = details::sum_by< services, details::sum_by_attributes >::value;
 
         static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
-
-        static details::attribute attribute_at( std::size_t index );
 
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );
@@ -320,8 +322,6 @@ namespace bluetoe {
         lcap_notification_callback_t l2cap_cb_;
         void*                        l2cap_arg_;
 
-        using cccd_indices = std::tuple<>;
-
     protected: // for testing
         /** @cond HIDDEN_SYMBOLS */
 
@@ -345,10 +345,10 @@ namespace bluetoe {
 
     typedef bluetoe::server<
     ...
-    > small_temperature_service;
+    > small_temperature_server;
 
     typedef bluetoe::extend_server<
-        small_temperature_service,
+        small_temperature_server,
         bluetoe::server_name< name >
     > small_named_temperature_service;
 
@@ -1100,6 +1100,8 @@ namespace bluetoe {
     template < typename ... Options >
     void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
     {
+        using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
+
         std::uint16_t starting_handle, ending_handle;
 
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
@@ -1315,7 +1317,7 @@ namespace bluetoe {
     }
 
     namespace details {
-        template < class Iterator, class Filter, class AllServices, details::attribute (*AttAccess)( std::size_t index ) >
+        template < class Iterator, class Filter, class AllServices, class Server >
         struct services_by_group
         {
             services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter, bool& found )
@@ -1334,7 +1336,7 @@ namespace bluetoe {
             {
                 if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
                 {
-                    const details::attribute& attr = AttAccess( index_ - 1 );
+                    const details::attribute& attr = Server::attribute_at( index_ - 1 );
 
                     if ( filter_( index_, attr ) )
                     {
@@ -1359,7 +1361,7 @@ namespace bluetoe {
     bool server< Options... >::all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter )
     {
         bool result = false;
-        details::services_by_group< Iterator, Filter, services, &attribute_at > service_iterator( starting_handle, ending_handle, iterator, filter, result );
+        details::services_by_group< Iterator, Filter, services, server< Options...  > > service_iterator( starting_handle, ending_handle, iterator, filter, result );
         details::for_< services >::each( service_iterator );
 
         return result;

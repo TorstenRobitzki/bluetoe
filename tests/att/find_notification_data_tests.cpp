@@ -62,6 +62,13 @@ using characteristic =
         bluetoe::notify
     >;
 
+template < class UUID, const std::uint8_t* Value >
+using characteristic_without_cccd =
+    bluetoe::characteristic<
+        UUID,
+        bluetoe::bind_characteristic_value< const std::uint8_t, Value >
+    >;
+
 BOOST_AUTO_TEST_CASE( all_default_prio )
 {
     using server = bluetoe::server<
@@ -182,4 +189,69 @@ BOOST_AUTO_TEST_CASE( two_services_with_similar_characteristic_priorities_but_di
     BOOST_CHECK_EQUAL( read_value< server >( 3 ), 0xAc );
     BOOST_CHECK_EQUAL( read_value< server >( 4 ), 0xAb );
     BOOST_CHECK_EQUAL( read_value< server >( 5 ), 0xAa );
+}
+
+template < int I >
+using int_c = std::integral_constant< std::size_t, I >;
+
+BOOST_AUTO_TEST_CASE( default_cccd_indices )
+{
+    using server = bluetoe::server<
+        bluetoe::service<
+            A,
+            characteristic< A_a, &value_Aa >,
+            characteristic< A_b, &value_Ab >,
+            characteristic< A_c, &value_Ac >
+        >,
+        bluetoe::service<
+            B,
+            characteristic< B_a, &value_Ba >,
+            characteristic< B_b, &value_Bb >,
+            characteristic< B_c, &value_Bc >
+        >
+    >;
+
+    BOOST_CHECK( (
+        std::is_same<
+            server::cccd_indices,
+            std::tuple< int_c< 0 >, int_c< 1 >, int_c< 2 >, int_c< 3 >, int_c< 4 >, int_c< 5 > > >::value
+    ) );
+
+}
+
+/*
+     Service:  | A       | B
+     ------------------------------
+     highest   |         | c
+               |         | a
+               | c       |
+               | b       |
+     lowest    | a       |
+
+*/
+BOOST_AUTO_TEST_CASE( cccd_indices_with_some_priorities )
+{
+    using server = bluetoe::server<
+        bluetoe::service<
+            A,
+            characteristic< A_a, &value_Aa >,
+            characteristic< A_b, &value_Ab >,
+            characteristic< A_c, &value_Ac >,
+            bluetoe::higher_outgoing_priority< A_c, A_b >
+        >,
+        bluetoe::service<
+            B,
+            characteristic< B_a, &value_Ba >,
+            characteristic_without_cccd< B_b, &value_Bb >,
+            characteristic< B_c, &value_Bc >,
+            bluetoe::higher_outgoing_priority< B_c >
+        >,
+        bluetoe::higher_outgoing_priority< B >
+    >;
+
+    BOOST_CHECK( (
+        std::is_same<
+            server::cccd_indices,
+            std::tuple< int_c< 4 >, int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 > > >::value
+    ) );
 }

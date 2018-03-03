@@ -267,6 +267,42 @@ BOOST_AUTO_TEST_SUITE( access_client_characteristic_configuration )
         } );
     }
 
+    using server_decl_with_priorities = bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x8C8B >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x8C8B >,
+                bluetoe::bind_characteristic_value< std::uint8_t, &value1 >,
+                bluetoe::notify
+            >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x8C8C >,
+                bluetoe::bind_characteristic_value< std::uint8_t, &value2 >,
+                bluetoe::indicate
+            >,
+
+            bluetoe::higher_outgoing_priority< bluetoe::characteristic_uuid16< 0x8C8C > >
+        >
+    >;
+
+    using server_with_priorities = test::request_with_reponse< server_decl_with_priorities >;
+
+    /*
+     * reproducer for #20 Writing to a CCCD leads to wrong CCCD beeing configured (when priorities are used)
+     */
+    BOOST_FIXTURE_TEST_CASE( configure_and_trigger, server_with_priorities )
+    {
+        // configure the first characteristics for notifications
+        l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
+        expected_result( { 0x13 } );
+
+        notify< bluetoe::characteristic_uuid16< 0x8C8B > >();
+
+        BOOST_CHECK_EQUAL(
+            connection.client_configurations().flags( notification.client_characteristic_configuration_index() ),
+            0x01 );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 /*

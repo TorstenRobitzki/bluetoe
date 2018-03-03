@@ -27,8 +27,11 @@ namespace bluetoe {
         struct characteristic_declaration_parameter {};
         struct characteristic_user_description_parameter {};
 
-        template < typename ... Options >
+        template < typename CCCDIndices, typename ... Options >
         struct generate_characteristic_attributes;
+
+        template < typename ... Options >
+        struct count_characteristic_attributes;
 
         template < typename Characteristic >
         struct sum_by_attributes;
@@ -134,14 +137,16 @@ namespace bluetoe {
     public:
         /** @cond HIDDEN_SYMBOLS */
 
-        using characteristic_descriptor_declarations = typename details::generate_characteristic_attributes< Options... >;
+        using attribute_numbers = details::count_characteristic_attributes< Options... >;
 
         /**
          * a characteristic is a list of attributes
          */
-        static constexpr std::size_t number_of_attributes     = characteristic_descriptor_declarations::number_of_attributes;
-        static constexpr std::size_t number_of_client_configs = characteristic_descriptor_declarations::number_of_client_configs;
-        static constexpr std::size_t number_of_server_configs = characteristic_descriptor_declarations::number_of_server_configs;
+        static constexpr std::size_t number_of_attributes     = attribute_numbers::number_of_attributes;
+        static constexpr std::size_t number_of_client_configs = attribute_numbers::number_of_client_configs;
+
+        /// @todo: remove
+        static constexpr std::size_t number_of_server_configs = 0;
 
         typedef details::characteristic_meta_type meta_type;
 
@@ -150,8 +155,9 @@ namespace bluetoe {
 
         /**
          * @brief gives access to all attributes of the characteristic
+         * @todo remove
          */
-        template < std::size_t ClientCharacteristicIndex, typename ServiceUUID = void, typename Server = void >
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID = void, typename Server = void >
         static details::attribute attribute_at( std::size_t index );
 
         typedef typename details::find_by_meta_type< details::characteristic_value_meta_type, Options... >::type    base_value_type;
@@ -199,11 +205,12 @@ namespace bluetoe {
     /** @cond HIDDEN_SYMBOLS */
 
     template < typename ... Options >
-    template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
+    template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
     details::attribute characteristic< Options... >::attribute_at( std::size_t index )
     {
         assert( index < number_of_attributes );
 
+        using characteristic_descriptor_declarations = typename details::generate_characteristic_attributes< CCCDIndices, Options... >;
         return characteristic_descriptor_declarations::template attribute_at< ClientCharacteristicIndex, ServiceUUID, Server >( index );
     }
 
@@ -356,7 +363,7 @@ namespace bluetoe {
         };
 
         /*
-         * Client Characteristic Configuration
+         * Client Characteristic Configuration Descriptor (CCCD)
          */
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
         struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
@@ -373,9 +380,15 @@ namespace bluetoe {
 
                 details::attribute_access_result result = attribute_access_result::write_not_permitted;
 
+                // currently, a lot of test code supplies an empty CCCDIndices list. In this case, use the ClientCharacteristicIndex
+                const std::size_t cccd_position_index = index_of< std::integral_constant< std::size_t, ClientCharacteristicIndex >, CCCDIndices >::value;
+                const std::size_t cccd_position = std::tuple_size< CCCDIndices >::value == 0
+                                                    ? ClientCharacteristicIndex
+                                                    : cccd_position_index;
+
                 if ( args.type == attribute_access_type::read )
                 {
-                    write_16bit( &buffer[ 0 ], args.client_config.flags( ClientCharacteristicIndex ) );
+                    write_16bit( &buffer[ 0 ], args.client_config.flags( cccd_position ) );
 
                     const std::size_t read_size = std::min( args.buffer_size, flags_size - args.buffer_offset );
 
@@ -391,7 +404,7 @@ namespace bluetoe {
                         return details::attribute_access_result::invalid_attribute_value_length;
 
                     if ( args.buffer_offset == 0 )
-                        args.client_config.flags( ClientCharacteristicIndex, read_16bit( &args.buffer[ 0 ] ) );
+                        args.client_config.flags( cccd_position, read_16bit( &args.buffer[ 0 ] ) );
 
                     result = attribute_access_result::success;
                 }
@@ -412,8 +425,8 @@ namespace bluetoe {
         template < typename ... Ts >
         struct are_client_characteristic_configuration_parameter< std::tuple< client_characteristic_configuration_parameter, Ts... > > : std::true_type {};
 
-        template < typename ... Options >
-        using generate_characteristic_attributes_base = generate_attributes<
+        template < typename CCCDIndices, typename ... Options >
+        struct generate_characteristic_attributes : generate_attributes<
                 std::tuple< Options... >,
                 std::tuple<
                     characteristic_declaration_parameter,
@@ -421,19 +434,21 @@ namespace bluetoe {
                     characteristic_user_description_parameter,
                     client_characteristic_configuration_parameter
                 >,
-                // @TODO can we avoid this?
-                std::tuple<>,
+                CCCDIndices,
                 // force the existens of an characteristic declaration, even without Options with this meta_type
                 std::tuple< empty_meta_type< characteristic_declaration_parameter > >
-            >;
+            > {};
 
         template < typename ... Options >
-        struct generate_characteristic_attributes : generate_characteristic_attributes_base< Options... >
+        struct count_characteristic_attributes
         {
-            enum { number_of_client_configs = count_if<
-                typename generate_characteristic_attributes_base< Options... >::attribute_generation_parameters,
-                are_client_characteristic_configuration_parameter >::value };
-            enum { number_of_server_configs = 0 };
+            enum { number_of_client_configs =
+                count_by_meta_type< client_characteristic_configuration_parameter, Options... >::count ? 1 : 0 };
+
+            enum { number_of_user_descriptions =
+                count_by_meta_type< characteristic_user_description_parameter, Options... >::count ? 1 : 0 };
+
+            enum { number_of_attributes = 2 + number_of_client_configs + number_of_user_descriptions };
         };
 
         template < typename Characteristic >

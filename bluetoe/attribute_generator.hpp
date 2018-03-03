@@ -32,8 +32,8 @@ namespace details {
         }
     };
 
-    template < typename ... Attributes, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-    struct generate_attribute_list< std::tuple< Attributes... >, CCCDIndices, ClientCharacteristicIndex, std::tuple< Options... > >
+    template < typename ... Attributes, typename ... CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
+    struct generate_attribute_list< std::tuple< Attributes... >, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, std::tuple< Options... > >
     {
         static const attribute attribute_at( std::size_t index )
         {
@@ -43,10 +43,24 @@ namespace details {
         static const attribute attributes[ sizeof ...(Attributes) ];
     };
 
-    template < typename ... Attributes, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-    const attribute generate_attribute_list< std::tuple< Attributes... >, CCCDIndices, ClientCharacteristicIndex, std::tuple< Options... > >::attributes[ sizeof ...(Attributes) ] =
+    template < typename ... Attributes, typename ... CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
+    const attribute generate_attribute_list< std::tuple< Attributes... >, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, std::tuple< Options... > >::attributes[ sizeof ...(Attributes) ] =
     {
-        generate_attribute< Attributes, CCCDIndices, ClientCharacteristicIndex, Options... >::attr...
+        generate_attribute< Attributes, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, Options... >::attr...
+    };
+
+    template < typename OptionsList, typename MetaTypeList, typename OptionsDefault = std::tuple<> >
+    struct count_attributes;
+
+    template < typename OptionsList, typename ... MetaTypes, typename OptionsDefault >
+    struct count_attributes< OptionsList, std::tuple< MetaTypes... >, OptionsDefault >
+    {
+        using attribute_generation_parameters = typename group_by_meta_types_without_empty_groups<
+            typename add_type< OptionsList, OptionsDefault >::type,
+            MetaTypes...
+        >::type;
+
+        enum { number_of_attributes = std::tuple_size< attribute_generation_parameters >::value };
     };
 
     template < typename OptionsList, typename MetaTypeList, typename CCCDIndices, typename OptionsDefault = std::tuple<> >
@@ -54,15 +68,14 @@ namespace details {
 
     template < typename OptionsList, typename ... MetaTypes, typename CCCDIndices, typename OptionsDefault >
     struct generate_attributes< OptionsList, std::tuple< MetaTypes... >, CCCDIndices, OptionsDefault >
+        : count_attributes< OptionsList, std::tuple< MetaTypes... >, OptionsDefault >
     {
-        typedef typename group_by_meta_types_without_empty_groups<
+        using attribute_generation_parameters = typename group_by_meta_types_without_empty_groups<
             typename add_type< OptionsList, OptionsDefault >::type,
             MetaTypes...
-        >::type attribute_generation_parameters;
+        >::type;
 
         attribute_generation_parameters get_attribute_generation_parameters() { return attribute_generation_parameters(); }
-
-        enum { number_of_attributes     = std::tuple_size< attribute_generation_parameters >::value };
 
         template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
         static const attribute attribute_at( std::size_t index )

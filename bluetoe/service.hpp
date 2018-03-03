@@ -258,7 +258,7 @@ namespace bluetoe {
         if ( index < number_of_service_attributes )
             return attribute_generator::attribute_at( index );
 
-        return details::attribute_at_list< characteristics, ClientCharacteristicIndex, uuid, Server >::attribute_at( index - number_of_service_attributes );
+        return details::attribute_at_list< characteristics, CCCDIndices, ClientCharacteristicIndex, uuid, Server >::attribute_at( index - number_of_service_attributes );
     }
 
     template < typename ... Options >
