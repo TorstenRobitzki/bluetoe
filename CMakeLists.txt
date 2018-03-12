@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.7)
 
 enable_testing()
 
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 if (DEFINED NDEBUG)
     add_definitions(-DNDEBUG=1)
