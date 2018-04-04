@@ -347,12 +347,17 @@ namespace bluetoe
                             start_address = read_address( value +1 );
                             check_sum     = this->checksum32( start_address );
                             consecutive_  = 0;
+                            next_buffer_  = 0;
+                            used_buffer_  = 0;
+                            in_flash_mode = true;
 
                             if ( !MemRegions::acceptable( start_address, start_address ) )
                                 return request_error( bluetoe::error_codes::invalid_offset );
 
+                            for ( auto& buffer : buffers_ )
+                                buffer.free();
+
                             buffers_[next_buffer_].set_start_address( start_address, *this, check_sum, consecutive_ );
-                            in_flash_mode = true;
                         }
                         break;
                     case opc_flush:

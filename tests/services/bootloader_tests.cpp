@@ -696,6 +696,73 @@ BOOST_FIXTURE_TEST_CASE( flush_notification_after_flashing, write_3_bytes_at_the
    } );
 }
 
+BOOST_FIXTURE_TEST_CASE( write_next_block_after_flush_before_progress, write_3_bytes_at_the_beginning_of_the_flash< bootloader_server > )
+{
+    // flush
+    l2cap_input( {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x05
+    }, connection );
+
+    // external input should never leed to an assert
+    start_flash_procedure( flash_start_addr );
+}
+
+BOOST_FIXTURE_TEST_CASE( write_block_after_flush, write_3_bytes_at_the_beginning_of_the_flash< bootloader_server > )
+{
+    // flush
+    l2cap_input( {
+        0x12, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x05
+    }, connection );
+
+    expected_result( { 0x13 } );
+
+    std::uint32_t expected_checksum = checksum32( flash_start_addr )
+        + 0x0a + 0x0b + 0x0c;
+
+    expected_output< bluetoe::bootloader::control_point_uuid >( {
+        0x1b, low( cp_char.value_handle ), high( cp_char.value_handle ),
+        0x05,
+        static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+        static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+        0x00, 0x00,                             // consecutive number
+    } );
+
+    // now, when signaling the end of the flash process, we get a notification
+    end_flash( *this );
+
+    expected_output< bluetoe::bootloader::progress_uuid >( {
+        0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+        static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+        static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+        0x00, 0x00,                             // consecutive number
+        0x17                                    // MTU
+   } );
+
+    // now a new block
+    start_flash_procedure( flash_start_addr );
+    write_random_to_data_char( block_size );
+    expected_checksum = checksum32( &device_memory[ 0 ], block_size, checksum32( flash_start_addr ) );
+
+    // now, when signaling the end of the flash process, we get a notification
+    end_flash( *this );
+
+    expected_output< bluetoe::bootloader::progress_uuid >( {
+        0x1b, low( progress_char.value_handle ), high( progress_char.value_handle ),
+        static_cast< std::uint8_t >( expected_checksum & 0xff ),               // checksum
+        static_cast< std::uint8_t >( ( expected_checksum >> 8 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 16 ) & 0xff ),
+        static_cast< std::uint8_t >( ( expected_checksum >> 24 ) & 0xff ),
+        0x00, 0x00,                             // consecutive number
+        0x17                                    // MTU
+   } );
+}
+
 /*
  * Start
  */
