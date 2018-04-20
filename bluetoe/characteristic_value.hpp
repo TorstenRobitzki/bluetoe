@@ -447,7 +447,7 @@ namespace bluetoe {
      * bluetoe::no_read_access parameter in conjunction with bluetoe::indicate or bluetoe::notify to provide the
      * data to a notification or indication without the charactertic beeing able to be read.
      * If only a read handler is passed to the bluetoe::characteristic, the characteristic will be read only.
-     * If the characteristic value will always be smaller than 20 octets, using a bluetoe::free_read_handler will save
+     * If the characteristic value will always be smaller than 21 octets, using a bluetoe::free_read_handler will save
      * you from coping with an offset.
      *
      * @tparam F pointer to function to handle a read request
@@ -534,7 +534,7 @@ namespace bluetoe {
      *
      * The handler can be used to handle blobs.
      * If only a write handler is passed to the bluetoe::characteristic, the characteristic will be write only.
-     * If the characteristic value will always be smaller than 20 octets, using a bluetoe::free_raw_write_handler will save
+     * If the characteristic value will always be smaller than 21 octets, using a bluetoe::free_raw_write_handler will save
      * you from coping with an offset.
      *
      * @tparam F pointer to function to handle a write request
@@ -857,7 +857,7 @@ namespace bluetoe {
         static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* server )
         {
             assert( server );
-            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_read_handler into the server." );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use bluetoe::mixin<> to mixin an instance of the mixin_read_handler into the server." );
 
             Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
 
@@ -879,7 +879,7 @@ namespace bluetoe {
         static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* server )
         {
             assert( server );
-            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use bluetoe::mixin<> to mixin an instance of the mixin_write_handler into the server." );
 
             Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
 
@@ -892,6 +892,41 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    template < class Mixin, std::uint8_t (Mixin::*F)( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size ) >
+    struct mixin_read_blob_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < class Server >
+        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* server )
+        {
+            assert( server );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use bluetoe::mixin<> to mixin an instance of the mixin_read_blob_handler into the server." );
+
+            Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
+            return (mixin.*F)( offset, read_size, out_buffer, out_size );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_read_handler_meta_type {};
+        /** @endcond */
+    };
+
+    template < class Mixin, std::uint8_t (Mixin::*F)( std::size_t offset, std::size_t write_size, const std::uint8_t* value ) >
+    struct mixin_write_blob_handler : details::value_handler_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < class Server, std::size_t ClientCharacteristicIndex >
+        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* server )
+        {
+            assert( server );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use bluetoe::mixin<> to mixin an instance of the mixin_write_blob_handler into the server." );
+
+            Mixin& mixin = static_cast< Mixin& >( *static_cast< Server* >( server ) );
+            return (mixin.*F)( offset, write_size, value );
+        }
+
+        struct meta_type : details::value_handler_base::meta_type, details::characteristic_value_write_handler_meta_type {};
+        /** @endcond */
+    };
 
     template < class Mixin, std::pair< std::uint8_t, bool > (Mixin::*F)( std::size_t write_size, const std::uint8_t* value ), typename IndicationUUID >
     struct mixin_write_indication_control_point_handler : details::value_handler_base
@@ -901,7 +936,7 @@ namespace bluetoe {
         static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server_ptr )
         {
             assert( server_ptr );
-            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use blueto::mixin<> to mixin an instance of the mixin_write_handler into the server." );
+            static_assert( std::is_convertible< Server*, Mixin* >::value, "Use bluetoe::mixin<> to mixin an instance of the mixin_write_handler into the server." );
 
             if ( offset != 0 )
                 return static_cast< std::uint8_t >( error_codes::attribute_not_long );

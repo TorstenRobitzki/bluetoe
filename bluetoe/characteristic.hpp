@@ -130,6 +130,12 @@ namespace bluetoe {
      * @sa free_read_handler
      * @sa free_write_blob_handler
      * @sa free_write_handler
+     * @sa mixin_read_handler
+     * @sa mixin_write_handler
+     * @sa mixin_read_blob_handler
+     * @sa mixin_write_blob_handler
+     * @sa mixin_write_indication_control_point_handler
+     * @sa mixin_write_notification_control_point_handler
      */
     template < typename ... Options >
     class characteristic
