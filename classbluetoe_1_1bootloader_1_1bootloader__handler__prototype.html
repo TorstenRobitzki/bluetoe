@@ -96,10 +96,17 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a566fcc2bc0ecd8eb00315cc7b440e3dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aab9e489df1a65327b481989daa8a6ed2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="bootloader_8hpp.html#a44e1659e83283ae103c81831cd721370">bootloader::error_codes</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#aab9e489df1a65327b481989daa8a6ed2">public_read_mem</a> (std::uintptr_t address, std::size_t size, std::uint8_t *destination)</td></tr>
 <tr class="separator:aab9e489df1a65327b481989daa8a6ed2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8e32062ba9efd999207b62aa0b693ca7"><td class="memItemLeft" align="right" valign="top"><a id="a8e32062ba9efd999207b62aa0b693ca7"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a8e32062ba9efd999207b62aa0b693ca7">more_data_call_back</a> ()</td></tr>
-<tr class="memdesc:a8e32062ba9efd999207b62aa0b693ca7"><td class="mdescLeft">&#160;</td><td class="mdescRight">technical required function, that have to call request_read_progress(), with the instance of the server <br /></td></tr>
-<tr class="separator:a8e32062ba9efd999207b62aa0b693ca7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a193ff91ca1f9ab074ae55f498d3ce0b3"><td class="memItemLeft" align="right" valign="top">std::uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a193ff91ca1f9ab074ae55f498d3ce0b3">public_checksum32</a> (std::uintptr_t start_addr, std::size_t size)</td></tr>
+<tr class="memdesc:a193ff91ca1f9ab074ae55f498d3ce0b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">version of checksum function, that will be directly called by the execution of the Get CRC procedure.  <a href="#a193ff91ca1f9ab074ae55f498d3ce0b3">More...</a><br /></td></tr>
+<tr class="separator:a193ff91ca1f9ab074ae55f498d3ce0b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4b83a38d63011d42e7884f8e64a55721"><td class="memItemLeft" align="right" valign="top"><a id="a4b83a38d63011d42e7884f8e64a55721"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a4b83a38d63011d42e7884f8e64a55721">control_point_notification_call_back</a> ()</td></tr>
+<tr class="memdesc:a4b83a38d63011d42e7884f8e64a55721"><td class="mdescLeft">&#160;</td><td class="mdescRight">technical required function, that have to call bootloader_control_point_notification(), with the instance of the server <br /></td></tr>
+<tr class="separator:a4b83a38d63011d42e7884f8e64a55721"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1210f508a2df96ef05c4d049b0b442cb"><td class="memItemLeft" align="right" valign="top"><a id="a1210f508a2df96ef05c4d049b0b442cb"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a1210f508a2df96ef05c4d049b0b442cb">data_indication_call_back</a> ()</td></tr>
+<tr class="memdesc:a1210f508a2df96ef05c4d049b0b442cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">technical required function, that have to call bootloader_data_indication(), with the instance of the server <br /></td></tr>
+<tr class="separator:a1210f508a2df96ef05c4d049b0b442cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Prototype for a handler, that adapts the bootloader service to the actual hardware. </p>
@@ -202,6 +209,37 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
       </table>
 </div><div class="memdoc">
 <p>Return a custom string as response to the Get Version procedure. Make sure, that the response is not longer than 20 bytes, or othere wise it could get truncated on the link layer. </p>
+
+</div>
+</div>
+<a id="a193ff91ca1f9ab074ae55f498d3ce0b3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a193ff91ca1f9ab074ae55f498d3ce0b3">&#9670;&nbsp;</a></span>public_checksum32()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::uint32_t bluetoe::bootloader::bootloader_handler_prototype::public_checksum32 </td>
+          <td>(</td>
+          <td class="paramtype">std::uintptr_t&#160;</td>
+          <td class="paramname"><em>start_addr</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>size</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>version of checksum function, that will be directly called by the execution of the Get CRC procedure. </p>
+<dl class="section attention"><dt>Attention</dt><dd>If there are ranges that contain sensitiv information, make sure, that size is large enough, so that one can not get the content of the memory from the resulting CRC. In case, that such an attempt is detected, return a fixed value (0 for example). </dd></dl>
 
 </div>
 </div>
@@ -356,7 +394,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Aug 30 2017 16:03:02 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Apr 20 2018 11:12:35 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>

@@ -1,6 +1,7 @@
 var searchData=
 [
   ['data_5fchannel',['data_channel',['../classbluetoe_1_1link__layer_1_1channel__map.html#a888e11274afaa85c43041611554baa5a',1,'bluetoe::link_layer::channel_map']]],
+  ['data_5findication_5fcall_5fback',['data_indication_call_back',['../classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a1210f508a2df96ef05c4d049b0b442cb',1,'bluetoe::bootloader::bootloader_handler_prototype']]],
   ['data_5fuuid',['data_uuid',['../bootloader_8hpp.html#a9e9862e1370b732a2ee65c06f6322cc7',1,'bluetoe::bootloader']]],
   ['delta_5ftime',['delta_time',['../classbluetoe_1_1link__layer_1_1delta__time.html',1,'bluetoe::link_layer::delta_time'],['../classbluetoe_1_1link__layer_1_1delta__time.html#a20e0209584436820f55b517baece19dc',1,'bluetoe::link_layer::delta_time::delta_time()']]],
   ['dequeue_5findication_5for_5fconfirmation',['dequeue_indication_or_confirmation',['../classbluetoe_1_1link__layer_1_1notification__queue.html#a873bc4a471853209a4e1fc5bc7c6b969',1,'bluetoe::link_layer::notification_queue']]],
