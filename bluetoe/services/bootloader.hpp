@@ -685,10 +685,11 @@ namespace bluetoe
                 >;
             };
         }
-        /** @endcond */
 
         template < typename UserHandler, typename MemRegions, std::size_t PageSize >
         using controller = details::controller< UserHandler, MemRegions, PageSize >;
+        /** @endcond */
+
 
         /**
          * @brief Prototype for a handler, that adapts the bootloader service to the actual hardware
