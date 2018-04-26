@@ -151,6 +151,9 @@ namespace bluetoe {
      * @sa mixin_write_blob_handler
      * @sa mixin_write_indication_control_point_handler
      * @sa mixin_write_notification_control_point_handler
+     * @sa requires_encryption
+     * @sa no_encryption_required
+     * @sa may_require_encryption
      */
     template < typename ... Options >
     class characteristic
