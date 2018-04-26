@@ -38,7 +38,7 @@ std::uint8_t read_value( std::size_t notification_index )
     // opcode + handle + 1 octed value (the std::uint8_t's from above)
     static constexpr std::size_t value_notification_pdu_min_size = 1 + 2 + 1;
 
-    typename Server::connection_data data_per_connection( 23 );
+    typename Server::connection_data data_per_connection( 23, false );
     Server server;
 
     // subscribe the characteristic:

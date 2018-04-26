@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
     BOOST_FIXTURE_TEST_CASE( notify_b1_on_two_connections, test::request_with_reponse< server_with_multiple_char > )
     {
-        connection_data con1( 23 ), con2( 23 );
+        connection_data con1( 23, false ), con2( 23, false );
 
         // enable notification on connection 1
         l2cap_input( { 0x12, 0x0B, 0x00, 0x01, 0x00 }, con1 );
@@ -498,7 +498,7 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
         typename test_server::notification_priority::template numbers< typename test_server::services >::type,
         typename test_server::connection_data >;
 
-    notification_queue_t notification_queue( 23 );
+    notification_queue_t notification_queue( 23, false );
 
     static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void*, typename dts_server_t< dts_service >::notification_type type )
     {
@@ -521,11 +521,11 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
 
     BOOST_FIXTURE_TEST_CASE( inidicating_control_point_leads_to_reading_control_point, test_server )
     {
-        notification_queue = notification_queue_t( 23 );
+        notification_queue = notification_queue_t( 23, false );
         notification_callback( lcap_notification_callback, this );
 
         // connect and subscribe to all characteristics
-        connection_data connection( 100 );
+        connection_data connection( 100, false );
         for ( unsigned config = 0; config != connection_data::number_of_characteristics_with_configuration; ++config )
             connection.client_configurations().flags( config, 0x03 );
 

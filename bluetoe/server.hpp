@@ -88,7 +88,7 @@ namespace bluetoe {
             /**
              * @brief constructs a connection_data with the maximum transmission unit, the server can provide
              */
-            explicit connection_data( std::uint16_t server_mtu );
+            explicit connection_data( std::uint16_t server_mtu, bool encrypted );
 
             /**
              * @brief returns the negotiated MTU
@@ -116,9 +116,16 @@ namespace bluetoe {
              * @pre connection_data(X).server_mtu() == X
              */
             std::uint16_t server_mtu() const;
+
+            /**
+             * @brief returns true, if the connection is currently encrypted
+             */
+            bool is_entrypted() const;
+
         private:
             std::uint16_t   server_mtu_;
             std::uint16_t   client_mtu_;
+            bool            encrypted_;
         };
 
         /**
@@ -1432,9 +1439,10 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    server< Options... >::connection_data::connection_data( std::uint16_t server_mtu )
+    server< Options... >::connection_data::connection_data( std::uint16_t server_mtu, bool encrypted )
         : server_mtu_( server_mtu )
         , client_mtu_( details::default_att_mtu_size )
+        , encrypted_( encrypted )
     {
         assert( server_mtu >= details::default_att_mtu_size );
     }
@@ -1462,6 +1470,12 @@ namespace bluetoe {
     std::uint16_t server< Options... >::connection_data::server_mtu() const
     {
         return server_mtu_;
+    }
+
+    template < typename ... Options >
+    bool server< Options... >::connection_data::is_entrypted() const
+    {
+        return encrypted_;
     }
 
     /** @endcond */

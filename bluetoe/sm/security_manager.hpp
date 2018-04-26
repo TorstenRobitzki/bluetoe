@@ -12,7 +12,7 @@ namespace bluetoe {
     }
 
     /**
-     * @brief place holder for a security manager, that could be implemented
+     * @brief Security manager implementation.
      */
     class security_manager
     {

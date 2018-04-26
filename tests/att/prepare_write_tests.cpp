@@ -70,8 +70,8 @@ BOOST_FIXTURE_TEST_CASE( write_queue_full, test::request_with_reponse< large_val
 
 BOOST_FIXTURE_TEST_CASE( write_queue_used_by_other_client, large_fixture )
 {
-    connection_data con1( 23 );
-    connection_data con2( 23 );
+    connection_data con1( 23, false );
+    connection_data con2( 23, false );
 
     l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con1 );
     expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 } );
@@ -119,8 +119,8 @@ BOOST_FIXTURE_TEST_CASE( prepare_3_writes, test::request_with_reponse< three_ape
 
 BOOST_FIXTURE_TEST_CASE( queue_can_be_used_after_beeing_released, test::request_with_reponse< three_apes_server > )
 {
-    connection_data con1( 23 );
-    connection_data con2( 23 );
+    connection_data con1( 23, false );
+    connection_data con2( 23, false );
 
     l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01 }, con1 );
 

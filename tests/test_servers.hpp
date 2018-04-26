@@ -67,7 +67,7 @@ namespace test {
         request_with_reponse()
             : response( &guarded_buffer[ guard_size ] )
             , response_size( ResponseBufferSize )
-            , connection( ResponseBufferSize )
+            , connection( ResponseBufferSize, false )
         {
             connection.client_mtu( ResponseBufferSize );
 
