@@ -17,6 +17,7 @@
 #include <bluetoe/meta_tools.hpp>
 #include <security_manager.hpp>
 #include <bluetoe/codes.hpp>
+#include <bluetoe/encryption.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -42,12 +43,18 @@ namespace link_layer {
             static constexpr std::size_t rx_size = s_type::receive_buffer_size;
         };
 
-        template < typename ... Options >
+        template < typename Server, typename ... Options >
         struct security_manager {
-            typedef typename bluetoe::details::find_by_meta_type<
+            using default_sm = typename bluetoe::details::select_type<
+                bluetoe::details::requires_encryption_support_t< Server >::value,
+                bluetoe::security_manager,
+                bluetoe::no_security_manager
+            >::type;
+
+            using type = typename bluetoe::details::find_by_meta_type<
                 bluetoe::details::security_manager_meta_type,
                 Options...,
-                no_security_manager >::type type;
+                default_sm >::type;
         };
 
         template < typename ... Options >
@@ -127,7 +134,7 @@ namespace link_layer {
             details::buffer_sizes< Options... >::rx_size,
             link_layer< Server, ScheduledRadio, Options... >
         >,
-        public details::security_manager< Options... >::type,
+        public details::security_manager< Server, Options... >::type,
         public details::white_list<
             ScheduledRadio<
                 details::buffer_sizes< Options... >::tx_size,
@@ -219,7 +226,7 @@ namespace link_layer {
             typename Server::notification_priority::template numbers< typename Server::services >::type,
             typename Server::connection_data > notification_queue_t;
 
-        typedef typename details::security_manager< Options... >::type security_manager_t;
+        typedef typename details::security_manager< Server, Options... >::type security_manager_t;
         typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
         typedef details::select_advertiser_implementation<
