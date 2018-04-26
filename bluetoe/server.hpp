@@ -48,6 +48,7 @@ namespace bluetoe {
      * @sa extend_server
      * @sa server_name
      * @sa appearance
+     * @sa requires_encryption
      */
     template < typename ... Options >
     class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >,

@@ -120,6 +120,7 @@ namespace bluetoe {
      * @sa service_uuid
      * @sa service_uuid16
      * @sa include_service
+     * @sa requires_encryption
      */
     template < typename ... Options >
     class service
