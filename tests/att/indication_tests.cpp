@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
 
     BOOST_FIXTURE_TEST_CASE( if_client_configuration_is_not_enabled_not_output, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration( mtu_size );
+        connection_data client_configuration( mtu_size, false );
 
         std::size_t size = mtu_size;
         indication_output( begin(), size, client_configuration, 0 );
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
 
     BOOST_FIXTURE_TEST_CASE( output_if_enables, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration( mtu_size );
+        connection_data client_configuration( mtu_size, false );
         client_configuration.client_configurations().flags( 0, 2 ); // 2 == indications
 
         std::size_t size = mtu_size;

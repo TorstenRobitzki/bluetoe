@@ -374,7 +374,7 @@ namespace link_layer {
         , current_channel_index_( first_advertising_channel )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
-        , connection_details_( details::mtu_size< Options... >::mtu )
+        , connection_details_( details::mtu_size< Options... >::mtu, false )
         , used_features_( supported_features )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
@@ -446,7 +446,7 @@ namespace link_layer {
             this->connection_request( connection_addresses( address_, remote_address ) );
             this->handle_stop_advertising();
 
-            connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu );
+            connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu, false );
         }
     }
 
