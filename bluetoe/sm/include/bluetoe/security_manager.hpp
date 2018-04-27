@@ -71,8 +71,14 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        template < class SecurityFunctions >
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& );
+        template < class OtherConnectionData >
+        class connection_data : public OtherConnectionData
+        {
+
+        };
+
+        template < class OtherConnectionData, class SecurityFunctions >
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
         typedef details::security_manager_meta_type meta_type;
     private:
@@ -91,8 +97,11 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        template < class SecurityFunctions >
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& );
+        template < class OtherConnectionData >
+        using connection_data = OtherConnectionData;
+
+        template < class OtherConnectionData, class SecurityFunctions >
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
         typedef details::security_manager_meta_type meta_type;
         /** @endcond */
@@ -103,8 +112,8 @@ namespace bluetoe {
      * Implementation
      */
     /** @cond HIDDEN_SYMBOLS */
-    template < class SecurityFunctions >
-    void security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& )
+    template < class OtherConnectionData, class SecurityFunctions >
+    void security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
         using namespace bluetoe::details;
 
@@ -173,8 +182,8 @@ namespace bluetoe {
         output[ 6 ] = 0;
     }
 
-    template < class SecurityFunctions >
-    void no_security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& )
+    template < class OtherConnectionData, class SecurityFunctions >
+    void no_security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
         error_response( details::sm_error_codes::pairing_not_supported, output, out_size );
     }

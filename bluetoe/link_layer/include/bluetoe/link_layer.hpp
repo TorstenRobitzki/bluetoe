@@ -222,11 +222,14 @@ namespace link_layer {
             details::buffer_sizes< Options... >::rx_size,
             link_layer< Server, ScheduledRadio, Options... > > radio_t;
 
+        typedef typename details::security_manager< Server, Options... >::type security_manager_t;
+
         typedef notification_queue<
             typename Server::notification_priority::template numbers< typename Server::services >::type,
             typename Server::connection_data > notification_queue_t;
 
-        typedef typename details::security_manager< Server, Options... >::type security_manager_t;
+        typedef typename security_manager_t::template connection_data< notification_queue_t > connection_details_t;
+
         typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
         typedef details::select_advertiser_implementation<
@@ -327,7 +330,7 @@ namespace link_layer {
         unsigned                        timeouts_til_connection_lost_;
         unsigned                        max_timeouts_til_connection_lost_;
         Server*                         server_;
-        notification_queue_t            connection_details_;
+        connection_details_t            connection_details_;
         bool                            termination_send_;
         std::uint8_t                    used_features_;
 
@@ -446,7 +449,7 @@ namespace link_layer {
             this->connection_request( connection_addresses( address_, remote_address ) );
             this->handle_stop_advertising();
 
-            connection_details_ = notification_queue_t( details::mtu_size< Options... >::mtu, false );
+            connection_details_ = connection_details_t( details::mtu_size< Options... >::mtu, false );
         }
     }
 
@@ -601,11 +604,11 @@ namespace link_layer {
 
         const auto notification = connection_details_.dequeue_indication_or_confirmation();
 
-        if ( notification.first != notification_queue_t::entry_type::empty )
+        if ( notification.first != connection_details_t::entry_type::empty )
         {
             std::size_t out_size = out_buffer.size - all_header_size;
 
-            if ( notification.first == notification_queue_t::entry_type::notification )
+            if ( notification.first == connection_details_t::entry_type::notification )
             {
                 server_->notification_output(
                     &out_buffer.buffer[ all_header_size ],
@@ -1020,7 +1023,7 @@ namespace link_layer {
         {
             std::size_t sm_size = output.size - all_header_size;
 
-            static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size, *this );
+            static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size, connection_details_, *this );
 
             if ( sm_size )
             {

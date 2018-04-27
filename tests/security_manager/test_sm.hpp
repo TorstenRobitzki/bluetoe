@@ -13,12 +13,17 @@ namespace test {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
 
-            this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size, *this );
+            this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size, connection_data_, *this );
 
             BOOST_CHECK_EQUAL_COLLECTIONS(
                 expected_output.begin(), expected_output.end(),
                 &buffer[ 0 ], &buffer[ size ] );
         }
+
+        struct gatt_connection_details {};
+        using connection_data_t = typename Manager::template connection_data< gatt_connection_details >;
+
+        connection_data_t connection_data_;
     };
 
     struct pairing_features_exchanged : security_manager< bluetoe::security_manager, 27 >
