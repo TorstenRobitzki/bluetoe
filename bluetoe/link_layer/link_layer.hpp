@@ -1003,7 +1003,7 @@ namespace link_layer {
         {
             std::size_t sm_size = output.size - all_header_size;
 
-            static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size );
+            static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size, *this );
 
             if ( sm_size )
             {
