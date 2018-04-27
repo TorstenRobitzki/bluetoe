@@ -4,31 +4,17 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/sm/security_manager.hpp>
 
-#include "../test_servers.hpp"
+#include "test_sm.hpp"
 
-template < class Manager, std::size_t MTU = 27 >
-struct link_layer : Manager
-{
-    void expected(
-        std::initializer_list< std::uint8_t > input,
-        std::initializer_list< std::uint8_t > expected_output )
-    {
-        std::uint8_t buffer[ MTU ];
-        std::size_t  size = MTU;
-
-        this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size );
-
-        BOOST_CHECK_EQUAL_COLLECTIONS(
-            expected_output.begin(), expected_output.end(),
-            &buffer[ 0 ], &buffer[ size ] );
-    }
-};
 
 static const std::initializer_list< std::uint8_t > pairing_request = {
-    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00
 };
 
-BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, link_layer< bluetoe::no_security_manager > )
+template < class Manager, std::size_t MTU = 27 >
+using sm = test::security_manager< Manager, MTU >;
+
+BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, sm< bluetoe::no_security_manager > )
 {
     expected(
         pairing_request,
@@ -38,7 +24,7 @@ BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, link_layer< bluetoe::no
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, link_layer< bluetoe::security_manager > )
+BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, sm< bluetoe::security_manager > )
 {
     expected(
         pairing_request,
@@ -46,10 +32,10 @@ BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, link_layer< bluetoe::securit
             0x02,   // response
             0x03,   // NoInputNoOutput
             0x00,   // OOB Authentication data not present
-            0x40,   // Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x00,   // Bonding, MITM = 0, SC = 0, Keypress = 0
             0x10,   // Maximum Encryption Key Size
-            0x0f,   // LinkKey
-            0x0f    // LinkKey
+            0x00,   // LinkKey
+            0x00    // LinkKey
         }
     );
 }
@@ -66,7 +52,7 @@ BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, link_layer< bluetoe::securit
  *
  * Verify that the IUT is able to perform the Just Works pairing procedure correctly when acting as slave, responder.
  */
-BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, link_layer< bluetoe::security_manager > )
+BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, sm< bluetoe::security_manager > )
 {
     /*
     expected(
