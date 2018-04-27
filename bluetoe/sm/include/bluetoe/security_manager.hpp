@@ -71,7 +71,8 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        template < class SecurityFunctions >
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& );
 
         typedef details::security_manager_meta_type meta_type;
     private:
@@ -90,7 +91,8 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        template < class SecurityFunctions >
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& );
 
         typedef details::security_manager_meta_type meta_type;
         /** @endcond */
@@ -101,7 +103,8 @@ namespace bluetoe {
      * Implementation
      */
     /** @cond HIDDEN_SYMBOLS */
-    inline void security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    template < class SecurityFunctions >
+    void security_manager::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& )
     {
         using namespace bluetoe::details;
 
@@ -170,7 +173,8 @@ namespace bluetoe {
         output[ 6 ] = 0;
     }
 
-    inline void no_security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size )
+    template < class SecurityFunctions >
+    void no_security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size, SecurityFunctions& )
     {
         error_response( details::sm_error_codes::pairing_not_supported, output, out_size );
     }

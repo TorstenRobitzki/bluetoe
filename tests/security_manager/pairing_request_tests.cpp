@@ -179,7 +179,6 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
                 0x10,           // Maximum Encryption Key Size (16)
                 0x00,           // Initiator Key Distribution
                 0xF0,           // Responder Key Distribution (RFU)
-
             },
             {
                 0x05,           // Pairing Failed
