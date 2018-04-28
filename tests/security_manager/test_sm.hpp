@@ -8,12 +8,36 @@ namespace test {
     struct security_functions {
         bluetoe::link_layer::device_address local_addr() const
         {
-            return bluetoe::link_layer::device_address();
+            return local_addr_;
+        }
+
+        void local_addr( const bluetoe::link_layer::device_address& addr )
+        {
+            local_addr_ = addr;
         }
 
         bluetoe::details::uint128_t create_srand() const
         {
-            return { { 0 } };
+            const bluetoe::details::uint128_t r{{
+                0xE0, 0x2E, 0x70, 0xC6,
+                0x4E, 0x27, 0x88, 0x63,
+                0x0E, 0x6F, 0xAD, 0x56,
+                0x21, 0xD5, 0x83, 0x57
+            }};
+
+            return r;
+        }
+
+        bluetoe::details::uint128_t r( const bluetoe::details::uint128_t& a ) const
+        {
+            const bluetoe::details::uint128_t result{{
+                a[15], a[14], a[13], a[12],
+                a[11], a[10], a[ 9], a[ 8],
+                a[ 7], a[ 6], a[ 5], a[ 4],
+                a[ 3], a[ 2], a[ 1], a[ 0],
+            }};
+
+            return result;
         }
 
         bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const bluetoe::details::uint128_t& b ) const
@@ -31,14 +55,17 @@ namespace test {
             return a;
         }
 
-        bluetoe::details::uint128_t aes( const bluetoe::details::uint128_t& key, bluetoe::details::uint128_t data ) const
+        bluetoe::details::uint128_t aes( bluetoe::details::uint128_t key, bluetoe::details::uint128_t data ) const
         {
+            key  = r( key );
+            data = r( data );
+
             AES_ctx ctx;
             AES_init_ctx( &ctx, &key[ 0 ] );
 
             AES_ECB_encrypt( &ctx, &data[ 0 ] );
 
-            return data;
+            return r( data );
         }
 
         bluetoe::details::uint128_t c1(
@@ -48,13 +75,32 @@ namespace test {
             const bluetoe::details::uint128_t& p2 ) const
         {
             // c1 (k, r, preq, pres, iat, rat, ia, ra) = e(k, e(k, r XOR p1) XOR p2)
-            return aes( temp_key, xor_( aes( temp_key, xor_( srand, p1 ) ), p2 ) );
+            const auto p1_ = aes( temp_key, xor_( srand, p1 ) );
+
+            return aes( temp_key, xor_( p1_, p2 ) );
         }
+
+        bluetoe::link_layer::device_address local_addr_;
     };
 
     template < class Manager, std::size_t MTU = 27 >
     struct security_manager : Manager, private security_functions
     {
+        security_manager()
+        {
+            local_addr(
+                bluetoe::link_layer::public_device_address({
+                    0xb6, 0xb5, 0xb4, 0xb3, 0xb2, 0xb1
+                })
+            );
+
+            remote_addr(
+                bluetoe::link_layer::random_device_address({
+                    0xa6, 0xa5, 0xa4, 0xa3, 0xa2, 0xa1
+                })
+            );
+        }
+
         void connect( const bluetoe::link_layer::device_address& addr )
         {
             connection_data_.remote_connection_created( addr );
@@ -77,6 +123,16 @@ namespace test {
 
         struct gatt_connection_details {};
         using connection_data_t = typename Manager::template connection_data< gatt_connection_details >;
+
+        void local_addr( const bluetoe::link_layer::device_address& addr )
+        {
+            static_cast< security_functions& >( *this ).local_addr( addr );
+        }
+
+        void remote_addr( const bluetoe::link_layer::device_address& addr )
+        {
+            connection_data_.remote_connection_created( addr );
+        }
 
         connection_data_t connection_data_;
     };
