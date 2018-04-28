@@ -173,6 +173,9 @@ namespace bluetoe {
         template < class OtherConnectionData, class SecurityFunctions >
         void handle_pairing_confirm( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
+        template < class OtherConnectionData, class SecurityFunctions >
+        void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
         template < class OtherConnectionData >
         void error_response( details::sm_error_codes error_code, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& );
 
@@ -243,6 +246,9 @@ namespace bluetoe {
                 break;
             case sm_opcodes::pairing_confirm:
                 handle_pairing_confirm( input, in_size, output, out_size, state, func );
+                break;
+            case sm_opcodes::pairing_random:
+                handle_pairing_random( input, in_size, output, out_size, state, func );
                 break;
             default:
                 error_response( sm_error_codes::command_not_supported, output, out_size, state );
@@ -325,6 +331,28 @@ namespace bluetoe {
 
         const auto confirm = func.c1( { { 0 } }, state.srand(), state.c1_p1(), state.c1_p2() );
         std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
+    }
+
+    template < class OtherConnectionData, class SecurityFunctions >
+    void security_manager::handle_pairing_random(
+        const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& )
+    {
+        (void)input;
+        (void)in_size;
+        (void)output;
+        (void)out_size;
+
+        using namespace details;
+
+        static constexpr std::size_t    pairing_random_size = 17;
+
+        if ( in_size != pairing_random_size )
+            return error_response( sm_error_codes::invalid_parameters, output, out_size, state );
+
+        if ( state.state() != pairing_state::pairing_confirmed )
+            return error_response( sm_error_codes::unspecified_reason, output, out_size, state );
+
+        out_size = pairing_random_size;
     }
 
     template < class OtherConnectionData >
