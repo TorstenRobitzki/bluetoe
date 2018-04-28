@@ -126,6 +126,22 @@ namespace bluetoe {
             {
                 state_ = details::pairing_state::idle;
             }
+
+            const details::uint128_t& c1_p1() const
+            {
+                return state_data_.pairing_state.c1_p1;
+            }
+
+            const details::uint128_t& c1_p2() const
+            {
+                return state_data_.pairing_state.c1_p2;
+            }
+
+            const details::uint128_t& srand() const
+            {
+                return state_data_.pairing_state.srand;
+            }
+
         private:
             bluetoe::link_layer::device_address remote_addr_;
             details::pairing_state              state_;
@@ -289,7 +305,7 @@ namespace bluetoe {
 
     template < class OtherConnectionData, class SecurityFunctions >
     void security_manager::handle_pairing_confirm(
-        const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& )
+        const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
     {
         (void)input;
         (void)in_size;
@@ -303,6 +319,12 @@ namespace bluetoe {
 
         if ( state.state() != pairing_state::pairing_requested )
             return error_response( sm_error_codes::unspecified_reason, output, out_size, state );
+
+        out_size = request_size;
+        output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_confirm );
+
+        const auto confirm = func.c1( { { 0 } }, state.srand(), state.c1_p1(), state.c1_p2() );
+        std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
     }
 
     template < class OtherConnectionData >
