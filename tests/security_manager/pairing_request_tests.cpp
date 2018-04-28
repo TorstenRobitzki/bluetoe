@@ -1,3 +1,5 @@
+#include <iostream>
+
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
@@ -186,4 +188,24 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
             }
         );
     }
+
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_CASE( not_in_idle_state, test::pairing_features_exchanged )
+{
+        expected(
+            {
+                0x01,           // Pairing Request
+                0x03,           // IO Capability NoInputNoOutput
+                0x00,           // OOB data flag (data not present)
+                0x00,           // AuthReq
+                0x10,           // Maximum Encryption Key Size (16)
+                0x00,           // Initiator Key Distribution
+                0x00,           // Responder Key Distribution (RFU)
+            },
+            {
+                0x05,           // Pairing Failed
+                0x08            // Unspecified Reason
+            }
+        );
+}
