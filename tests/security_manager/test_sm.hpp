@@ -152,13 +152,13 @@ namespace test {
                     0x07,           // Responder Key Distribution (RFU)
                 },
                 {
-                    0x02,   // response
-                    0x03,   // NoInputNoOutput
-                    0x00,   // OOB Authentication data not present
-                    0x00,   // Bonding, MITM = 0, SC = 0, Keypress = 0
-                    0x10,   // Maximum Encryption Key Size
-                    0x00,   // LinkKey
-                    0x00    // LinkKey
+                    0x02,           // response
+                    0x03,           // NoInputNoOutput
+                    0x00,           // OOB Authentication data not present
+                    0x00,           // Bonding, MITM = 0, SC = 0, Keypress = 0
+                    0x10,           // Maximum Encryption Key Size
+                    0x00,           // LinkKey
+                    0x00            // LinkKey
                 }
             );
         }
@@ -171,10 +171,10 @@ namespace test {
             expected(
                 {
                     0x03,                   // Pairing Confirm
-                    0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00
+                    0xe2, 0x16, 0xb5, 0x44, // Confirm Value
+                    0x96, 0xa2, 0xe7, 0x90,
+                    0x53, 0xb2, 0x31, 0x06,
+                    0xc9, 0xdd, 0xd4, 0xf8
                 },
                 {
                     0x03,                   // Pairing Confirm

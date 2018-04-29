@@ -56,3 +56,40 @@ BOOST_FIXTURE_TEST_CASE( wrong_size_II, test::pairing_confirm_exchanged )
         }
     );
 }
+
+BOOST_FIXTURE_TEST_CASE( incorrect_confirm_value, test::pairing_confirm_exchanged )
+{
+    expected(
+        {
+            0x04,                   // opcode
+            0xE0, 0x2E, 0x70, 0xC6,
+            0x4E, 0x27, 0x88, 0x63,
+            0x0E, 0x6F, 0xAD, 0x56,
+            0x21, 0xD5, 0x83, 0x56
+        },
+        {
+            0x05,           // Pairing Failed
+            0x04            // Confirm Value Failed
+        }
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( correct_confirm_value, test::pairing_confirm_exchanged )
+{
+    expected(
+        {
+            0x04,                   // opcode
+            0xE0, 0x2E, 0x70, 0xC6,
+            0x4E, 0x27, 0x88, 0x63,
+            0x0E, 0x6F, 0xAD, 0x56,
+            0x21, 0xD5, 0x83, 0x57
+        },
+        {
+            0x04,                   // opcode
+            0xE0, 0x2E, 0x70, 0xC6,
+            0x4E, 0x27, 0x88, 0x63,
+            0x0E, 0x6F, 0xAD, 0x56,
+            0x21, 0xD5, 0x83, 0x57
+        }
+    );
+}
