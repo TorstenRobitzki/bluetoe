@@ -4,6 +4,7 @@
 #include <bluetoe/link_layer/buffer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
 #include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
+#include <bluetoe/sm/security_manager.hpp>
 
 #include <vector>
 #include <functional>
@@ -310,6 +311,8 @@ namespace test {
          */
         void run();
 
+        static constexpr bool hardware_supports_encryption = false;
+
     private:
         bluetoe::link_layer::delta_time now_;
 
@@ -321,6 +324,43 @@ namespace test {
         bool advertising_response_;
         bool connection_event_response_;
         int  wake_ups_;
+    };
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    class radio_with_encryption : public radio< TransmitSize, ReceiveSize, CallBack >
+    {
+    public:
+        static constexpr bool hardware_supports_encryption = true;
+
+        // Security functions
+        bluetoe::details::uint128_t create_srand()
+        {
+            const bluetoe::details::uint128_t r{{
+                0xE0, 0x2E, 0x70, 0xC6,
+                0x4E, 0x27, 0x88, 0x63,
+                0x0E, 0x6F, 0xAD, 0x56,
+                0x21, 0xD5, 0x83, 0x57
+            }};
+
+            return r;
+        }
+
+        bluetoe::details::uint128_t c1(
+            const bluetoe::details::uint128_t& temp_key,
+            const bluetoe::details::uint128_t& /* srand */,
+            const bluetoe::details::uint128_t& /* p1 */,
+            const bluetoe::details::uint128_t& /* p2 */ ) const
+        {
+            return temp_key;
+        }
+
+        bluetoe::details::uint128_t s1(
+            const bluetoe::details::uint128_t& stk,
+            const bluetoe::details::uint128_t& /* srand */,
+            const bluetoe::details::uint128_t& /* mrand */)
+        {
+            return stk;
+        }
     };
 
     // implementation
