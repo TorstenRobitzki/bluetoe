@@ -361,6 +361,11 @@ namespace test {
         {
             return stk;
         }
+
+        std::pair< std::uint64_t, std::uint32_t > create_skd_and_iv()
+        {
+            return { 0x3fac22107855aa56ul, 0x78563412 };
+        }
     };
 
     // implementation
@@ -472,7 +477,6 @@ namespace test {
             assert( count + 1 >= advertised_data_.size() + connection_events_.size() );
 
             new_scheduling_added = advertised_data_.size() + connection_events_.size() > count;
-
         } while ( now_ < eos_ && new_scheduling_added && wake_ups_ == 0 );
 
         if ( wake_ups_ )

@@ -103,12 +103,83 @@ namespace link_layer {
          */
         struct link_layer_security_impl
         {
+            template < class LinkLayer >
+            struct impl
+            {
+                impl()
+                    : key_not_found_( false )
+                {}
+
+                LinkLayer& that()
+                {
+                    return static_cast< LinkLayer& >( *this );
+                }
+
+                bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write )
+                {
+                    if ( opcode == LinkLayer::LL_ENC_REQ && size == 23 )
+                    {
+                        write.fill( { LinkLayer::ll_control_pdu_code, 1 + 8 + 4, LinkLayer::LL_ENC_RSP } );
+
+                        const auto skd_n_iv = that().create_skd_and_iv();
+                        bluetoe::details::write_64bit( &write.buffer[ 3 ], skd_n_iv.first );
+                        bluetoe::details::write_32bit( &write.buffer[ 11 ], skd_n_iv.second );
+
+                        key_not_found_ = true;
+
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                void transmit_pending_security_pdus()
+                {
+                    if ( !key_not_found_ )
+                        return;
+
+                    auto out_buffer = that().allocate_transmit_buffer();
+                    if ( out_buffer.empty() )
+                    {
+                        that().wake_up();
+                        return;
+                    }
+
+                    key_not_found_ = false;
+
+                    out_buffer.fill( {
+                        LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
+
+                    that().commit_transmit_buffer( out_buffer );
+                }
+
+                bool key_not_found_;
+            };
         };
 
         struct link_layer_no_security_impl
         {
+            template < class LinkLayer >
+            struct impl
+            {
+                bool handle_encryption_pdus( std::uint8_t, std::uint8_t, write_buffer, read_buffer )
+                {
+                    return false;
+                }
+
+                void transmit_pending_security_pdus()
+                {
+                }
+            };
         };
 
+        template < class Server, class LinkLayer >
+        using select_link_layer_no_security_impl =
+            typename bluetoe::details::select_type<
+                bluetoe::details::requires_encryption_support_t< Server >::value,
+                link_layer_security_impl,
+                link_layer_no_security_impl
+            >::type::template impl< LinkLayer >;
     }
 
     /**
@@ -153,10 +224,7 @@ namespace link_layer {
             Options... >,
         private details::connection_callbacks< Server, Options... >::type,
         private details::signaling_channel< Options... >::type,
-        private bluetoe::details::select_type<
-                bluetoe::details::requires_encryption_support_t< Server >::value,
-                details::link_layer_security_impl,
-                details::link_layer_no_security_impl >::type
+        private details::select_link_layer_no_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >
     {
     public:
         link_layer();
@@ -217,11 +285,19 @@ namespace link_layer {
          * @brief returns the own local device address
          */
         const device_address& local_address() const;
+
     private:
+        friend details::select_link_layer_no_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
+
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
             details::buffer_sizes< Options... >::rx_size,
             link_layer< Server, ScheduledRadio, Options... > > radio_t;
+
+        // make sure, that the hardware supports encryption
+        static constexpr bool encryption_required = bluetoe::details::requires_encryption_support_t< Server >::value;
+        static_assert( !encryption_required || ( encryption_required && radio_t::hardware_supports_encryption ),
+            "The GATT server requires encryption while the selecte hardware binding doesn't provide support for encryption!" );
 
         typedef typename details::security_manager< Server, Options... >::type security_manager_t;
 
@@ -275,10 +351,13 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_CONNECTION_UPDATE_REQ    = 0x00;
         static constexpr std::uint8_t   LL_CHANNEL_MAP_REQ          = 0x01;
         static constexpr std::uint8_t   LL_TERMINATE_IND            = 0x02;
+        static constexpr std::uint8_t   LL_ENC_REQ                  = 0x03;
+        static constexpr std::uint8_t   LL_ENC_RSP                  = 0x04;
         static constexpr std::uint8_t   LL_UNKNOWN_RSP              = 0x07;
         static constexpr std::uint8_t   LL_FEATURE_REQ              = 0x08;
         static constexpr std::uint8_t   LL_FEATURE_RSP              = 0x09;
         static constexpr std::uint8_t   LL_VERSION_IND              = 0x0C;
+        static constexpr std::uint8_t   LL_REJECT_IND               = 0x0D;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_REQ     = 0x0F;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
         static constexpr std::uint8_t   LL_PING_REQ                 = 0x12;
@@ -293,6 +372,8 @@ namespace link_layer {
 
         static constexpr std::size_t    l2cap_header_size           = 4;
         static constexpr std::size_t    all_header_size             = 6;
+
+        static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
 
         struct link_layer_feature {
             enum : std::uint8_t {
@@ -517,6 +598,7 @@ namespace link_layer {
         }
         else
         {
+            this->transmit_pending_security_pdus();
             wait_for_connection_event();
         }
     }
@@ -974,6 +1056,9 @@ namespace link_layer {
                 write.fill( { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
 
                 std::copy( &pdu.buffer[ 3 ], &pdu.buffer[ 3 + size - 1 ], &write.buffer[ 3 ] );
+            }
+            else if ( this->handle_encryption_pdus( opcode, size, pdu, write ) )
+            {
             }
             else if ( opcode != LL_UNKNOWN_RSP )
             {
