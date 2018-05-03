@@ -51,6 +51,11 @@ namespace details {
         return write_16bit( write_16bit( out, bits32 & 0xffff ), bits32 >> 16 );
     }
 
+    inline std::uint8_t* write_64bit( std::uint8_t* out, std::uint64_t bits64 )
+    {
+        return write_32bit( write_32bit( out, bits64 & 0xffffffff ), bits64 >> 32 );
+    }
+
     inline std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )
     {
         *out = bits( opcode );
