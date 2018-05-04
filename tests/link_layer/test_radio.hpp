@@ -336,6 +336,7 @@ namespace test {
             : key_( { { 0x00 } } )
             , skdm_( 0u )
             , ivm_( 0u )
+            , encryption_started_( false )
         {
         }
 
@@ -379,6 +380,11 @@ namespace test {
             return { 0x3fac22107855aa56ul, 0x78563412 };
         }
 
+        void start_encryption()
+        {
+            encryption_started_ = true;
+        }
+
         // access to data provided for testing
         bluetoe::details::uint128_t encryption_key() const
         {
@@ -395,10 +401,16 @@ namespace test {
             return ivm_;
         }
 
+        bool encryption_started() const
+        {
+            return encryption_started_;
+        }
+
     private:
         bluetoe::details::uint128_t key_;
         std::uint64_t               skdm_;
         std::uint32_t               ivm_;
+        bool                        encryption_started_;
     };
 
     // implementation

@@ -149,9 +149,8 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_wi
         0xab, 0xbc, 0x12, 0x34,                 // IVm
     });
     ll_empty_pdu();
-    ll_empty_pdu();
 
-    run( 2 );
+    run();
 
     expected_response( {
         0x03, 0x0d,
@@ -181,9 +180,59 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security 
         0x40, 0x50, 0x60, 0x70,
         0xab, 0xbc, 0x12, 0x34,                 // IVm
     });
+    ll_empty_pdu();
 
     run();
 
     const auto used_key = encryption_key();
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( used_key ), std::end( used_key ), std::begin( test::example_key ), std::end( test::example_key ) );
+
+    expected_response( {
+        0x03, 0x0d,
+        0x04,                                   // LL_ENC_RSP
+        0x56, 0xaa, 0x55, 0x78,                 // SKDm
+        0x10, 0x22, 0xac, 0x3f,
+        0x12, 0x34, 0x56, 0x78                  // IVm
+    } );
+
+    expected_response( {
+        0x03, 0x01,
+        0x05                                    // LL_START_ENC_REQ
+    }, 1, 1 );
+
+    BOOST_CHECK( encryption_started() );
+}
+
+struct link_layer_with_encryption : link_layer_with_security
+{
+    link_layer_with_encryption()
+    {
+        test::key_vault = std::make_pair( true, test::example_key );
+
+        ll_control_pdu({
+            0x03,                                   // LL_ENC_REQ
+            0x00, 0x00, 0x00, 0x00,                 // Rand
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,                             // EDIV
+            0x00, 0x10, 0x20, 0x30,                 // SKDm
+            0x40, 0x50, 0x60, 0x70,
+            0xab, 0xbc, 0x12, 0x34,                 // IVm
+        });
+        ll_empty_pdu();
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption )
+{
+    ll_control_pdu({
+        0x06                                    // LL_START_ENC_RSP
+    });
+    ll_empty_pdu();
+
+    run();
+
+    expected_response( {
+        0x03, 0x01,
+        0x06                                    // LL_START_ENC_RSP
+    }, 3 );
 }

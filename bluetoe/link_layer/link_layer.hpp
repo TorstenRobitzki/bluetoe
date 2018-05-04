@@ -107,7 +107,8 @@ namespace link_layer {
             struct impl
             {
                 impl()
-                    : key_not_found_( false )
+                    : no_key_( true )
+                    , encryption_in_progress_( false )
                 {}
 
                 LinkLayer& that()
@@ -119,6 +120,7 @@ namespace link_layer {
                 {
                     if ( opcode == LinkLayer::LL_ENC_REQ && size == 23 )
                     {
+                        encryption_in_progress_ = true;
                         write.fill( { LinkLayer::ll_control_pdu_code, 1 + 8 + 4, LinkLayer::LL_ENC_RSP } );
 
                         const std::uint64_t rand = LinkLayer::read_64( pdu.buffer +3 );
@@ -129,8 +131,8 @@ namespace link_layer {
                               std::uint32_t ivs  = 0;
 
                         bluetoe::details::uint128_t key;
-                        std::tie( key_not_found_, key ) = that().connection_details_.find_key( ediv, rand );
-                        key_not_found_ = !key_not_found_;
+                        std::tie( no_key_, key ) = that().connection_details_.find_key( ediv, rand );
+                        no_key_ = !no_key_;
 
                         // setup encryption, even when no key is available to create SKDs and IVs
                         std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
@@ -140,31 +142,46 @@ namespace link_layer {
 
                         return true;
                     }
+                    else if ( opcode == LinkLayer::LL_START_ENC_RSP && size == 1 )
+                    {
+                        write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
+
+                        return true;
+                    }
 
                     return false;
                 }
 
                 void transmit_pending_security_pdus()
                 {
-                    if ( !key_not_found_ )
+                    if ( !encryption_in_progress_ )
                         return;
 
                     auto out_buffer = that().allocate_transmit_buffer();
                     if ( out_buffer.empty() )
-                    {
-                        that().wake_up();
                         return;
+
+                    if ( no_key_ )
+                    {
+                        no_key_                 = false;
+
+                        out_buffer.fill( {
+                            LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
+                    }
+                    else
+                    {
+                        out_buffer.fill( {
+                            LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
+
+                        that().start_encryption();
                     }
 
-                    key_not_found_ = false;
-
-                    out_buffer.fill( {
-                        LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
-
                     that().commit_transmit_buffer( out_buffer );
+                    encryption_in_progress_ = false;
                 }
 
-                bool key_not_found_;
+                bool no_key_;
+                bool encryption_in_progress_;
             };
         };
 
@@ -365,6 +382,8 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_TERMINATE_IND            = 0x02;
         static constexpr std::uint8_t   LL_ENC_REQ                  = 0x03;
         static constexpr std::uint8_t   LL_ENC_RSP                  = 0x04;
+        static constexpr std::uint8_t   LL_START_ENC_REQ            = 0x05;
+        static constexpr std::uint8_t   LL_START_ENC_RSP            = 0x06;
         static constexpr std::uint8_t   LL_UNKNOWN_RSP              = 0x07;
         static constexpr std::uint8_t   LL_FEATURE_REQ              = 0x08;
         static constexpr std::uint8_t   LL_FEATURE_RSP              = 0x09;
