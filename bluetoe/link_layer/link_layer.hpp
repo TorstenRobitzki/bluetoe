@@ -121,11 +121,22 @@ namespace link_layer {
                     {
                         write.fill( { LinkLayer::ll_control_pdu_code, 1 + 8 + 4, LinkLayer::LL_ENC_RSP } );
 
-                        const auto skd_n_iv = that().create_skd_and_iv();
-                        bluetoe::details::write_64bit( &write.buffer[ 3 ], skd_n_iv.first );
-                        bluetoe::details::write_32bit( &write.buffer[ 11 ], skd_n_iv.second );
+                        const std::uint64_t rand = LinkLayer::read_64( pdu.buffer +3 );
+                        const std::uint16_t ediv = LinkLayer::read_16( pdu.buffer +11 );
+                        const std::uint64_t skdm = LinkLayer::read_64( pdu.buffer +13 );
+                        const std::uint32_t ivm  = LinkLayer::read_32( pdu.buffer +21 );
+                              std::uint64_t skds = 0;
+                              std::uint32_t ivs  = 0;
 
-                        key_not_found_ = true;
+                        bluetoe::details::uint128_t key;
+                        std::tie( key_not_found_, key ) = that().connection_details_.find_key( ediv, rand );
+                        key_not_found_ = !key_not_found_;
+
+                        // setup encryption, even when no key is available to create SKDs and IVs
+                        std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
+
+                        bluetoe::details::write_64bit( &write.buffer[ 3 ], skds );
+                        bluetoe::details::write_32bit( &write.buffer[ 11 ], ivs );
 
                         return true;
                     }
@@ -341,6 +352,7 @@ namespace link_layer {
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
         static std::uint32_t read_32( const std::uint8_t* );
+        static std::uint64_t read_64( const std::uint8_t* );
 
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       num_windows_til_timeout     = 5;
@@ -1215,6 +1227,12 @@ namespace link_layer {
     std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_32( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint64_t link_layer< Server, ScheduledRadio, Options... >::read_64( const std::uint8_t* p )
+    {
+        return static_cast< std::uint64_t >( read_32( p ) ) | static_cast< std::uint64_t >( read_32( p + 4 ) ) << 32;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
