@@ -203,9 +203,9 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security 
     BOOST_CHECK( encryption_started() );
 }
 
-struct link_layer_with_encryption : link_layer_with_security
+struct link_layer_with_encryption_setup : link_layer_with_security
 {
-    link_layer_with_encryption()
+    link_layer_with_encryption_setup()
     {
         test::key_vault = std::make_pair( true, test::example_key );
 
@@ -222,7 +222,7 @@ struct link_layer_with_encryption : link_layer_with_security
     }
 };
 
-BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption )
+BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption_setup )
 {
     ll_control_pdu({
         0x06                                    // LL_START_ENC_RSP
@@ -235,4 +235,34 @@ BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption )
         0x03, 0x01,
         0x06                                    // LL_START_ENC_RSP
     }, 3 );
+
+    BOOST_CHECK( encryption_started() );
+}
+
+struct link_layer_with_encryption : link_layer_with_encryption_setup
+{
+    link_layer_with_encryption()
+    {
+        ll_control_pdu({
+            0x06                                    // LL_START_ENC_RSP
+        });
+        ll_empty_pdu();
+    }
+};
+
+BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
+{
+    ll_control_pdu({
+        0x0A                                    // LL_PAUSE_ENC_REQ
+    });
+    ll_empty_pdu();
+
+    run();
+
+    expected_response( {
+        0x03, 0x01,
+        0x0B                                    // LL_PAUSE_ENC_RSP
+    }, 5 );
+
+    BOOST_CHECK( !encryption_started() );
 }

@@ -139,17 +139,22 @@ namespace link_layer {
 
                         bluetoe::details::write_64bit( &write.buffer[ 3 ], skds );
                         bluetoe::details::write_32bit( &write.buffer[ 11 ], ivs );
-
-                        return true;
                     }
                     else if ( opcode == LinkLayer::LL_START_ENC_RSP && size == 1 )
                     {
                         write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
-
-                        return true;
+                    }
+                    else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
+                    {
+                        write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
+                        that().stop_encryption();
+                    }
+                    else
+                    {
+                        return false;
                     }
 
-                    return false;
+                    return true;
                 }
 
                 void transmit_pending_security_pdus()
@@ -387,6 +392,8 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_UNKNOWN_RSP              = 0x07;
         static constexpr std::uint8_t   LL_FEATURE_REQ              = 0x08;
         static constexpr std::uint8_t   LL_FEATURE_RSP              = 0x09;
+        static constexpr std::uint8_t   LL_PAUSE_ENC_REQ            = 0x0A;
+        static constexpr std::uint8_t   LL_PAUSE_ENC_RSP            = 0x0B;
         static constexpr std::uint8_t   LL_VERSION_IND              = 0x0C;
         static constexpr std::uint8_t   LL_REJECT_IND               = 0x0D;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_REQ     = 0x0F;

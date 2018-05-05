@@ -274,6 +274,16 @@ namespace link_layer {
          */
         std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
 
+        /**
+         * @brief start the encryption after the next connection event.
+         */
+        void start_encryption();
+
+        /**
+         * @brief stop encryption after the next connection event.
+         */
+        void stop_encryption();
+
     };
 }
 

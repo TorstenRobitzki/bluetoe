@@ -385,6 +385,11 @@ namespace test {
             encryption_started_ = true;
         }
 
+        void stop_encryption()
+        {
+            encryption_started_ = false;
+        }
+
         // access to data provided for testing
         bluetoe::details::uint128_t encryption_key() const
         {
