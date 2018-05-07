@@ -152,8 +152,11 @@ namespace bluetoe {
                 return link.is_entrypted() && state_ != details::pairing_state::pairing_completed;
             }
 
-            std::pair< bool, details::uint128_t > find_key( std::uint16_t /*ediv*/, std::uint64_t /*rand*/ ) const
+            std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
             {
+                if ( ediv == 0 && rand == 0 )
+                    return { true, state_data_.completed_state.short_term_key };
+
                 return std::pair< bool, details::uint128_t >{};
             }
 
