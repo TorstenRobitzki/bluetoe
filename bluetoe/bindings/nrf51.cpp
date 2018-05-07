@@ -690,31 +690,114 @@ namespace nrf51_details {
         return NRF_FICR->DEVICEID[ 0 ];
     }
 
+    static NRF_RNG_Type* const          nrf_random            = NRF_RNG;
+    static NRF_ECB_Type* const          nrf_aes               = NRF_ECB;
+
+    static std::uint8_t random_number8()
+    {
+        nrf_random->TASKS_START = 1;
+
+        while ( !nrf_random->EVENTS_VALRDY )
+            ;
+
+        nrf_random->EVENTS_VALRDY = 0;
+
+        return nrf_random->VALUE;
+    }
+
+    static std::uint16_t random_number16()
+    {
+        return static_cast< std::uint16_t >( random_number8() )
+            | ( static_cast< std::uint16_t >( random_number8() ) << 8 );
+    }
+
+    static std::uint32_t random_number32()
+    {
+        return static_cast< std::uint32_t >( random_number16() )
+            | ( static_cast< std::uint32_t >( random_number16() ) << 16 );
+    }
+
+    static std::uint64_t random_number64()
+    {
+        return static_cast< std::uint64_t >( random_number32() )
+            | ( static_cast< std::uint64_t >( random_number32() ) << 32 );
+    }
+
+    static struct alignas( 4 ) ecb_data_t {
+        std::uint8_t data[ 3 * 16 ];
+    } ecb_scratch_data;
+
+    static bluetoe::details::uint128_t aes( const bluetoe::details::uint128_t& key, const bluetoe::details::uint128_t& data )
+    {
+        std::copy( key.rbegin(), key.rend(), &ecb_scratch_data.data[ 0 ] );
+        std::copy( data.rbegin(), data.rend(), &ecb_scratch_data.data[ 16 ] );
+
+        nrf_aes->TASKS_STARTECB = 1;
+
+        while ( !nrf_aes->EVENTS_ENDECB && !nrf_aes->EVENTS_ERRORECB )
+            ;
+
+        assert( !nrf_aes->EVENTS_ERRORECB );
+        nrf_aes->EVENTS_ENDECB = 0;
+
+        bluetoe::details::uint128_t result;
+        std::copy( &ecb_scratch_data.data[ 32 ], &ecb_scratch_data.data[ 48 ], result.rbegin() );
+
+        return result;
+    }
+
+    static bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const bluetoe::details::uint128_t& b )
+    {
+        std::transform(
+            a.begin(), a.end(),
+            b.begin(),
+            a.begin(),
+            []( std::uint8_t a, std::uint8_t b ) -> std::uint8_t
+            {
+                return a xor b;
+            }
+        );
+
+        return a;
+    }
+
     scheduled_radio_base_with_encryption::scheduled_radio_base_with_encryption( adv_callbacks& cbs )
         : scheduled_radio_base( cbs )
     {
+        nrf_random->CONFIG = RNG_CONFIG_DERCEN_Msk;
+        nrf_random->SHORTS = RNG_SHORTS_VALRDY_STOP_Msk;
+        nrf_aes->ECBDATAPTR = reinterpret_cast< std::uint32_t >( &ecb_scratch_data );
     }
 
-    bluetoe::details::uint128_t scheduled_radio_base_with_encryption::create_srand()
+    details::uint128_t scheduled_radio_base_with_encryption::create_srand()
     {
-        return bluetoe::details::uint128_t{};
+        details::uint128_t result;
+        std::generate( result.begin(), result.end(), random_number8 );
+
+        return result;
     }
 
-    bluetoe::details::longterm_key_t scheduled_radio_base_with_encryption::create_long_term_key()
+    details::longterm_key_t scheduled_radio_base_with_encryption::create_long_term_key()
     {
-        return bluetoe::details::longterm_key_t{};
+        const details::longterm_key_t result = {
+            create_srand(),
+            random_number64(),
+            random_number16()
+        };
+
+        return result;
     }
 
-    bluetoe::details::uint128_t scheduled_radio_base_with_encryption::c1(
+    details::uint128_t scheduled_radio_base_with_encryption::c1(
         const bluetoe::details::uint128_t& temp_key,
         const bluetoe::details::uint128_t& rand,
         const bluetoe::details::uint128_t& p1,
         const bluetoe::details::uint128_t& p2 ) const
     {
-        (void)rand;
-        (void)p1;
-        (void)p2;
-        return temp_key;
+        // c1 (k, r, preq, pres, iat, rat, ia, ra) = e(k, e(k, r XOR p1) XOR p2)
+        const auto p1_ = aes( temp_key, xor_( rand, p1 ) );
+
+        return aes( temp_key, xor_( p1_, p2 ) );
     }
 
     bluetoe::details::uint128_t scheduled_radio_base_with_encryption::s1(
@@ -722,9 +805,11 @@ namespace nrf51_details {
         const bluetoe::details::uint128_t& srand,
         const bluetoe::details::uint128_t& mrand )
     {
-        (void)srand;
-        (void)mrand;
-        return temp_key;
+        bluetoe::details::uint128_t r;
+        std::copy( &srand[ 0 ], &srand[ 8 ], &r[ 8 ] );
+        std::copy( &mrand[ 0 ], &mrand[ 8 ], &r[ 0 ] );
+
+        return aes( temp_key, r );
     }
 
     std::pair< std::uint64_t, std::uint32_t > scheduled_radio_base_with_encryption::setup_encryption(
