@@ -573,6 +573,7 @@ namespace link_layer {
             this->handle_stop_advertising();
 
             connection_details_ = connection_details_t( std::size_t{ details::mtu_size< Options... >::mtu }, false );
+            connection_details_.remote_connection_created( remote_address );
         }
     }
 
