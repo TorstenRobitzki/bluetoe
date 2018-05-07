@@ -154,7 +154,7 @@ namespace bluetoe {
 
             std::pair< bool, details::uint128_t > find_key( std::uint16_t /*ediv*/, std::uint64_t /*rand*/ ) const
             {
-
+                return std::pair< bool, details::uint128_t >{};
             }
 
             void error_reset()

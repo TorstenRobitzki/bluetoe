@@ -690,6 +690,58 @@ namespace nrf51_details {
         return NRF_FICR->DEVICEID[ 0 ];
     }
 
+    scheduled_radio_base_with_encryption::scheduled_radio_base_with_encryption( adv_callbacks& cbs )
+        : scheduled_radio_base( cbs )
+    {
+    }
+
+    bluetoe::details::uint128_t scheduled_radio_base_with_encryption::create_srand()
+    {
+        return bluetoe::details::uint128_t{};
+    }
+
+    bluetoe::details::longterm_key_t scheduled_radio_base_with_encryption::create_long_term_key()
+    {
+        return bluetoe::details::longterm_key_t{};
+    }
+
+    bluetoe::details::uint128_t scheduled_radio_base_with_encryption::c1(
+        const bluetoe::details::uint128_t& temp_key,
+        const bluetoe::details::uint128_t& rand,
+        const bluetoe::details::uint128_t& p1,
+        const bluetoe::details::uint128_t& p2 ) const
+    {
+        (void)rand;
+        (void)p1;
+        (void)p2;
+        return temp_key;
+    }
+
+    bluetoe::details::uint128_t scheduled_radio_base_with_encryption::s1(
+        const bluetoe::details::uint128_t& temp_key,
+        const bluetoe::details::uint128_t& srand,
+        const bluetoe::details::uint128_t& mrand )
+    {
+        (void)srand;
+        (void)mrand;
+        return temp_key;
+    }
+
+    std::pair< std::uint64_t, std::uint32_t > scheduled_radio_base_with_encryption::setup_encryption(
+        bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm )
+    {
+        (void)key;
+        return { skdm, ivm };
+    }
+
+    void scheduled_radio_base_with_encryption::start_encryption()
+    {
+    }
+
+    void scheduled_radio_base_with_encryption::stop_encryption()
+    {
+    }
+
 }
 }
 
