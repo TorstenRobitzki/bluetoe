@@ -80,8 +80,7 @@ namespace link_layer {
          * dequeue_indication_or_confirmation() will return { indication, index }
          * om a future call.
          *
-         * If the given characteristic was already queued for indication, or
-         * if a indication that was send to a client was not confirmed yet,
+         * If the given characteristic was already queued for indication,
          * the function will not have any side effects.
          *
          * The function returns true, if the given characteristic was not already queued for indication or
@@ -137,7 +136,7 @@ namespace link_layer {
     template < typename Sizes, class Mixin >
     bool notification_queue< Sizes, Mixin >::queue_indication( std::size_t index )
     {
-        return impl::queue_indication( index, outstanding_confirmation_index_ );
+        return impl::queue_indication( index );
     }
 
     template < typename Sizes, class Mixin >
@@ -179,12 +178,9 @@ namespace link_layer {
                 return add( index, notification_bit );
             }
 
-            bool queue_indication( std::size_t index, std::size_t outstanding_confirmation )
+            bool queue_indication( std::size_t index )
             {
                 assert( index < Size );
-
-                if ( outstanding_confirmation == index )
-                    return false;
 
                 return add( index, indication_bit );
             }
@@ -292,10 +288,10 @@ namespace link_layer {
                 return result;
             }
 
-            bool queue_indication( std::size_t idx, std::size_t outstanding_confirmation )
+            bool queue_indication( std::size_t idx )
             {
                 assert( idx == 0 );
-                const bool result = state_ == empty && outstanding_confirmation != 0;
+                const bool result = state_ == empty;
 
                 if ( result )
                     state_ = indication;
@@ -331,7 +327,7 @@ namespace link_layer {
         {
         public:
             bool queue_notification( std::size_t ) { return false; }
-            bool queue_indication( std::size_t, size_t ) { return false; }
+            bool queue_indication( std::size_t ) { return false; }
 
             std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t, std::size_t )
             {
@@ -357,15 +353,11 @@ namespace link_layer {
                     : base::queue_notification( idx - Size );
             }
 
-            bool queue_indication( std::size_t idx, std::size_t outstanding_confirmation )
+            bool queue_indication( std::size_t idx )
             {
-                const std::size_t base_outstanding_idx = outstanding_confirmation == no_outstanding_indicaton
-                    ? no_outstanding_indicaton
-                    : outstanding_confirmation - Size;
-
                 return idx < Size
-                    ? impl::queue_indication( idx, outstanding_confirmation )
-                    : base::queue_indication( idx - Size, base_outstanding_idx );
+                    ? impl::queue_indication( idx )
+                    : base::queue_indication( idx - Size );
             }
 
             std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t offset, std::size_t& outstanding_confirmation )
