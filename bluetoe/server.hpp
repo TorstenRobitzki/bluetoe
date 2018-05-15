@@ -222,6 +222,24 @@ namespace bluetoe {
         template < class CharacteristicUUID >
         bool indicate();
 
+        /**
+         * @brief returns true, if the given connection is configured to send indications for the given characteristic
+         */
+        template < class CharacteristicUUID >
+        bool configured_for_indications( const details::client_characteristic_configuration& ) const;
+
+        /**
+         * @brief returns true, if the given connection is configured to send notifications for the given characteristic
+         */
+        template < class CharacteristicUUID >
+        bool configured_for_notifications( const details::client_characteristic_configuration& ) const;
+
+        /**
+         * @brief returns true, if the given connection is configured to send indications or notifications for the given characteristic
+         */
+        template < class CharacteristicUUID >
+        bool configured_for_notifications_or_indications( const details::client_characteristic_configuration& ) const;
+
         /** @cond HIDDEN_SYMBOLS */
         // function relevant only for l2cap layers
         /**
@@ -592,6 +610,38 @@ namespace bluetoe {
             return l2cap_cb_( data, l2cap_arg_, indication );
 
         return false;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::configured_for_indications( const details::client_characteristic_configuration& connection ) const
+    {
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
+        return connection.flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::configured_for_notifications( const details::client_characteristic_configuration& connection ) const
+    {
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
+        return connection.flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::configured_for_notifications_or_indications( const details::client_characteristic_configuration& connection ) const
+    {
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
+        static const auto both = ( details::client_characteristic_configuration_notification_enabled | details::client_characteristic_configuration_indication_enabled );
+
+        return connection.flags( data.client_characteristic_configuration_index() ) & both;
     }
 
     template < typename ... Options >
