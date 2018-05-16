@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>BlueToe: bluetoe::write_without_response Struct Reference</title>
+<title>BlueToe: bluetoe::cstring_value&lt; Name &gt; Struct Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -59,22 +59,33 @@ $(function() {
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><b>bluetoe</b></li><li class="navelem"><a class="el" href="structbluetoe_1_1write__without__response.html">write_without_response</a></li>  </ul>
+<li class="navelem"><b>bluetoe</b></li><li class="navelem"><a class="el" href="structbluetoe_1_1cstring__value.html">cstring_value</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div class="header">
   <div class="headertitle">
-<div class="title">bluetoe::write_without_response Struct Reference</div>  </div>
+<div class="title">bluetoe::cstring_value&lt; Name &gt; Struct Template Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 
-<p>sets the Write Without Response Characteristic Property bit.  
- <a href="structbluetoe_1_1write__without__response.html#details">More...</a></p>
+<p>a constant string characteristic with the value Name  
+ <a href="structbluetoe_1_1cstring__value.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="characteristic__value_8hpp_source.html">bluetoe/characteristic_value.hpp</a>&gt;</code></p>
+<div class="dynheader">
+Inheritance diagram for bluetoe::cstring_value&lt; Name &gt;:</div>
+<div class="dyncontent">
+ <div class="center">
+  <img src="structbluetoe_1_1cstring__value.png" usemap="#bluetoe::cstring_5Fvalue_3C_20Name_20_3E_map" alt=""/>
+  <map id="bluetoe::cstring_5Fvalue_3C_20Name_20_3E_map" name="bluetoe::cstring_5Fvalue_3C_20Name_20_3E_map">
+<area href="structbluetoe_1_1cstring__wrapper.html" alt="bluetoe::cstring_wrapper&lt; cstring_value&lt; Name &gt; &gt;" shape="rect" coords="0,0,307,24"/>
+</map>
+ </div></div>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>sets the Write Without Response Characteristic Property bit. </p>
-<p>By adding this bit to the Characteristic Properties, a client knows that it can use the Write Without Response sub-procedure. In this case, a client can write to a characteristic and will get no response from the GATT server. Don't use this property if there is any need to respond with an error to a write attempt. </p>
+<div class="textblock"><h3>template&lt;const char *const Name&gt;<br />
+struct bluetoe::cstring_value&lt; Name &gt;</h3>
+
+<p>a constant string characteristic with the value Name </p>
 </div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="characteristic__value_8hpp_source.html">characteristic_value.hpp</a></li>
 </ul>
