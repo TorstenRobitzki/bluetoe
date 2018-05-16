@@ -269,6 +269,11 @@ namespace bluetoe {
     template < std::uint32_t Value >
     using fixed_uint32_value = fixed_value< std::uint32_t, Value >;
 
+    /**
+     * @brief a constant string characteristic value
+     *
+     * The type Text have to have a member value() that returns a const char*.
+     */
     template < class Text >
     struct cstring_wrapper
     {
@@ -315,6 +320,22 @@ namespace bluetoe {
         };
 
         struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        /** @endcond */
+    };
+
+    /**
+     * @brief a constant string characteristic with the value Name
+     */
+    template < const char* const Name >
+    struct cstring_value : cstring_wrapper< cstring_value< Name > >
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static constexpr char const* name = Name;
+
+        static const char* value()
+        {
+            return name;
+        }
         /** @endcond */
     };
 
