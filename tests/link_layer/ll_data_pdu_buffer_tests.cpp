@@ -1,6 +1,7 @@
 #include <iostream>
 #include "buffer_io.hpp"
 #include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
+#include <bluetoe/options.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
@@ -259,11 +260,11 @@ using intt = std::integral_constant< std::size_t, V >;
 
 typedef boost::mpl::list<
     //          max_rx_size  min payload  max payload
-    std::tuple< intt< 29 >,  intt< 1 >,   intt< 25 > >
-    // std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
-    // std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
-    // std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
-    // std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >
+    bluetoe::details::type_list< intt< 29 >,  intt< 1 >,   intt< 25 > >
+    // bluetoe::details::type_list< intt< 50 >,  intt< 1 >,   intt< 48 > >,
+    // bluetoe::details::type_list< intt< 29 >,  intt< 1 >,   intt< 1 > >,
+    // bluetoe::details::type_list< intt< 29 >,  intt< 0 >,   intt< 25 > >,
+    // bluetoe::details::type_list< intt< 29 >,  intt< 25 >,  intt< 25 > >
 > test_sizes;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_sizes )
@@ -273,9 +274,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
     std::vector< std::size_t >    transmit_sizes;
     std::vector< std::size_t >    receive_sizes;
 
-    const std::size_t max_rx_size_value = std::tuple_element< 0, sizes >::type::value;
-    const std::size_t min_size          = std::tuple_element< 1, sizes >::type::value;
-    const std::size_t max_size          = std::tuple_element< 2, sizes >::type::value;
+    const std::size_t max_rx_size_value = bluetoe::details::type_list_element< 0, sizes >::type::value;
+    const std::size_t min_size          = bluetoe::details::type_list_element< 1, sizes >::type::value;
+    const std::size_t max_size          = bluetoe::details::type_list_element< 2, sizes >::type::value;
 
     max_rx_size( max_rx_size_value );
 

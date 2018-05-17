@@ -884,7 +884,7 @@ namespace link_layer {
             >::type::template impl<
                 advertiser<
                     LinkLayer,
-                    std::tuple< Options... >,
+                    bluetoe::details::type_list< Options... >,
                     Advertising
                 >
             > {};
@@ -893,10 +893,10 @@ namespace link_layer {
          * Implementation for a single advertising type
          */
         template < typename LinkLayer, typename ... Options, typename Advertising >
-        class advertiser< LinkLayer, std::tuple< Options... >, std::tuple< Advertising > > :
-            public Advertising::template impl< LinkLayer, advertiser< LinkLayer, std::tuple< Options... >, std::tuple< Advertising > > >,
+        class advertiser< LinkLayer, bluetoe::details::type_list< Options... >, bluetoe::details::type_list< Advertising > > :
+            public Advertising::template impl< LinkLayer, advertiser< LinkLayer, bluetoe::details::type_list< Options... >, bluetoe::details::type_list< Advertising > > >,
             public advertiser_base< Options... >,
-            public start_stop_implementation< LinkLayer, std::tuple< Advertising >, Options... >
+            public start_stop_implementation< LinkLayer, bluetoe::details::type_list< Advertising >, Options... >
         {
         public:
 
@@ -973,8 +973,8 @@ namespace link_layer {
          * Default
          */
         template < typename LinkLayer, typename ... Options >
-        class advertiser< LinkLayer, std::tuple< Options... >, std::tuple<> > :
-            public advertiser< LinkLayer, std::tuple< Options... >, std::tuple< connectable_undirected_advertising > >
+        class advertiser< LinkLayer, bluetoe::details::type_list< Options... >, bluetoe::details::type_list<> > :
+            public advertiser< LinkLayer, bluetoe::details::type_list< Options... >, bluetoe::details::type_list< connectable_undirected_advertising > >
         {
         };
 
@@ -1073,15 +1073,15 @@ namespace link_layer {
          * Wrapper around multiple advertising types
          */
         template < typename LinkLayer, typename ... Options, typename FirstAdv, typename SecondAdv, typename ... Advertisings >
-        class advertiser< LinkLayer, std::tuple< Options... >, std::tuple< FirstAdv, SecondAdv, Advertisings... > > :
+        class advertiser< LinkLayer, bluetoe::details::type_list< Options... >, bluetoe::details::type_list< FirstAdv, SecondAdv, Advertisings... > > :
             public advertiser_base< Options... >,
             public multipl_advertiser_base<
                 LinkLayer,
-                std::tuple< Options... >,
-                advertiser< LinkLayer, std::tuple< Options... >, std::tuple< FirstAdv, SecondAdv, Advertisings... > >,
+                bluetoe::details::type_list< Options... >,
+                advertiser< LinkLayer, bluetoe::details::type_list< Options... >, bluetoe::details::type_list< FirstAdv, SecondAdv, Advertisings... > >,
                 FirstAdv, SecondAdv, Advertisings...
             >,
-            public start_stop_implementation< LinkLayer, std::tuple< FirstAdv, SecondAdv, Advertisings... >, Options... >
+            public start_stop_implementation< LinkLayer, bluetoe::details::type_list< FirstAdv, SecondAdv, Advertisings... >, Options... >
         {
         public:
             static constexpr std::size_t maximum_required_advertising_buffer = 100;
@@ -1175,7 +1175,7 @@ namespace link_layer {
         using select_advertiser_implementation =
             advertiser<
                 LinkLayer,
-                std::tuple< Options... >,
+                bluetoe::details::type_list< Options... >,
                 typename bluetoe::details::find_all_by_meta_type< advertising_type_meta_type,
                     Options... >::type >;
         /** @endcond */

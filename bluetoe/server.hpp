@@ -68,7 +68,7 @@ namespace bluetoe {
 
         using notification_priority = typename details::find_by_meta_type< details::outgoing_priority_meta_type, Options..., higher_outgoing_priority<> >::type;
 
-        static_assert( std::tuple_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
+        static_assert( details::type_list_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
             "Only one of bluetoe::higher_outgoing_priority<> or bluetoe::lower_outgoing_priority<> per server allowed!" );
 
         using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
@@ -288,7 +288,7 @@ namespace bluetoe {
     private:
         static constexpr std::size_t number_of_attributes       = details::sum_by< services, details::sum_by_attributes >::value;
 
-        static_assert( std::tuple_size< services >::value > 0, "A server should at least contain one service." );
+        static_assert( details::type_list_size< services >::value > 0, "A server should at least contain one service." );
 
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint16_t handle, std::uint8_t* output, std::size_t& out_size );
         void error_response( std::uint8_t opcode, details::att_error_codes error_code, std::uint8_t* output, std::size_t& out_size );

@@ -11,7 +11,7 @@
 #include "test_attribute_access.hpp"
 #include "test_characteristics.hpp"
 
-using cccd_indices = std::tuple<>;
+using cccd_indices = bluetoe::details::type_list<>;
 
 BOOST_AUTO_TEST_CASE( even_the_simplest_characteristic_has_at_least_2_attributes )
 {

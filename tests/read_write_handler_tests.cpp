@@ -18,7 +18,7 @@
 
 static const std::uint8_t test_read_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
-using cccd_indices = std::tuple<>;
+using cccd_indices = bluetoe::details::type_list<>;
 
 std::uint8_t read_blob_test_value_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
 {
@@ -668,103 +668,103 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
 
     // that's how JSON looks in C++ ;-)
     using supported_types = boost::mpl::list<
-        std::tuple< std::uint8_t,
+        bluetoe::details::type_list< std::uint8_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0x22 >, std::integral_constant< std::uint8_t, 34 > >,
-                std::tuple< test::tuple< 0x00 >, std::integral_constant< std::uint8_t, 0 > >,
-                std::tuple< test::tuple< 0xff >, std::integral_constant< std::uint8_t, 255 > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0x22 >, std::integral_constant< std::uint8_t, 34 > >,
+                bluetoe::details::type_list< test::tuple< 0x00 >, std::integral_constant< std::uint8_t, 0 > >,
+                bluetoe::details::type_list< test::tuple< 0xff >, std::integral_constant< std::uint8_t, 255 > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple<>, test::tuple< 0x00, 0x00 >
             >
         >,
-        std::tuple< std::int8_t,
+        bluetoe::details::type_list< std::int8_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0x22 >, std::integral_constant< std::int8_t, 34 > >,
-                std::tuple< test::tuple< 0x00 >, std::integral_constant< std::int8_t, 0 > >,
-                std::tuple< test::tuple< 0x80 >, std::integral_constant< std::int8_t, -128 > >,
-                std::tuple< test::tuple< 0xff >, std::integral_constant< std::int8_t, -1 > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0x22 >, std::integral_constant< std::int8_t, 34 > >,
+                bluetoe::details::type_list< test::tuple< 0x00 >, std::integral_constant< std::int8_t, 0 > >,
+                bluetoe::details::type_list< test::tuple< 0x80 >, std::integral_constant< std::int8_t, -128 > >,
+                bluetoe::details::type_list< test::tuple< 0xff >, std::integral_constant< std::int8_t, -1 > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple<>, test::tuple< 0x00, 0x00 >
             >
         >,
-        std::tuple< std::uint16_t,
+        bluetoe::details::type_list< std::uint16_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0x22, 0x44 >, std::integral_constant< std::uint16_t, 0x4422 > >,
-                std::tuple< test::tuple< 0x00, 0x00 >, std::integral_constant< std::uint16_t, 0x0000 > >,
-                std::tuple< test::tuple< 0xff, 0xff >, std::integral_constant< std::uint16_t, 0xffff > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0x22, 0x44 >, std::integral_constant< std::uint16_t, 0x4422 > >,
+                bluetoe::details::type_list< test::tuple< 0x00, 0x00 >, std::integral_constant< std::uint16_t, 0x0000 > >,
+                bluetoe::details::type_list< test::tuple< 0xff, 0xff >, std::integral_constant< std::uint16_t, 0xffff > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple< 0x00 >, test::tuple< 0x00, 0x00, 0x00 >
             >
         >,
-        std::tuple< std::int16_t,
+        bluetoe::details::type_list< std::int16_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0x22, 0x44 >, std::integral_constant< std::int16_t, 0x4422 > >,
-                std::tuple< test::tuple< 0x00, 0x00 >, std::integral_constant< std::int16_t, 0x0000 > >,
-                std::tuple< test::tuple< 0xff, 0xff >, std::integral_constant< std::int16_t, -1 > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0x22, 0x44 >, std::integral_constant< std::int16_t, 0x4422 > >,
+                bluetoe::details::type_list< test::tuple< 0x00, 0x00 >, std::integral_constant< std::int16_t, 0x0000 > >,
+                bluetoe::details::type_list< test::tuple< 0xff, 0xff >, std::integral_constant< std::int16_t, -1 > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple< 0x00 >, test::tuple< 0x00, 0x00, 0x00 >
             >
         >,
-        std::tuple< std::uint32_t,
+        bluetoe::details::type_list< std::uint32_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::uint32_t, 0x44221AF0 > >,
-                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint32_t, 0x00000000 > >,
-                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint32_t, 0xFFFFFFFF > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::uint32_t, 0x44221AF0 > >,
+                bluetoe::details::type_list< test::tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint32_t, 0x00000000 > >,
+                bluetoe::details::type_list< test::tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint32_t, 0xFFFFFFFF > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple< 0x00, 0x00, 0x00 >,
                 test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >,
-        std::tuple< std::int32_t,
+        bluetoe::details::type_list< std::int32_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::int32_t, 0x44221AF0 > >,
-                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int32_t, 0x00000000 > >,
-                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int32_t, -1 > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0xF0, 0x1A, 0x22, 0x44 >, std::integral_constant< std::int32_t, 0x44221AF0 > >,
+                bluetoe::details::type_list< test::tuple< 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int32_t, 0x00000000 > >,
+                bluetoe::details::type_list< test::tuple< 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int32_t, -1 > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple< 0x00, 0x00, 0x00 >,
                 test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >,
-        std::tuple< std::uint64_t,
+        bluetoe::details::type_list< std::uint64_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::uint64_t, 0x0403020144221AF0 > >,
-                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint64_t, 0x0000000000000000 > >,
-                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint64_t, 0xFFFFFFFFFFFFFFFF > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::uint64_t, 0x0403020144221AF0 > >,
+                bluetoe::details::type_list< test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::uint64_t, 0x0000000000000000 > >,
+                bluetoe::details::type_list< test::tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::uint64_t, 0xFFFFFFFFFFFFFFFF > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
                 test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
         >,
-        std::tuple< std::int64_t,
+        bluetoe::details::type_list< std::int64_t,
             // valid pairs
-            std::tuple<
-                std::tuple< test::tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::int64_t, 0x0403020144221AF0 > >,
-                std::tuple< test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int64_t, 0x0000000000000000 > >,
-                std::tuple< test::tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int64_t, -1 > >
+            bluetoe::details::type_list<
+                bluetoe::details::type_list< test::tuple< 0xF0, 0x1A, 0x22, 0x44, 0x01, 0x02, 0x03, 0x04 >, std::integral_constant< std::int64_t, 0x0403020144221AF0 > >,
+                bluetoe::details::type_list< test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >, std::integral_constant< std::int64_t, 0x0000000000000000 > >,
+                bluetoe::details::type_list< test::tuple< 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff >, std::integral_constant< std::int64_t, -1 > >
             >,
             // wrong size examples
-            std::tuple<
+            bluetoe::details::type_list<
                 test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >,
                 test::tuple< 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 >
             >
@@ -830,8 +830,8 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
         {
             this->init();
 
-            using Input          = typename std::tuple_element< 0, Pair >::type;
-            using ExpectedOutput = typename std::tuple_element< 1, Pair >::type;
+            using Input          = typename bluetoe::details::type_list_element< 0, Pair >::type;
+            using ExpectedOutput = typename bluetoe::details::type_list_element< 1, Pair >::type;
 
             const std::vector< std::uint8_t > data = Input::values();
 
@@ -843,8 +843,8 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
 
     BOOST_AUTO_TEST_CASE_TEMPLATE( write_free_handlers_check_valid_values, Fixtures, supported_types )
     {
-        using Type          = typename std::tuple_element< 0, Fixtures >::type;
-        using ValidValues   = typename std::tuple_element< 1, Fixtures >::type;
+        using Type          = typename bluetoe::details::type_list_element< 0, Fixtures >::type;
+        using ValidValues   = typename bluetoe::details::type_list_element< 1, Fixtures >::type;
 
         fixture< Type > world;
 
@@ -868,8 +868,8 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
 
     BOOST_AUTO_TEST_CASE_TEMPLATE( write_free_handlers_wrong_size, Fixtures, supported_types )
     {
-        using Type          = typename std::tuple_element< 0, Fixtures >::type;
-        using InValidValues = typename std::tuple_element< 2, Fixtures >::type;
+        using Type          = typename bluetoe::details::type_list_element< 0, Fixtures >::type;
+        using InValidValues = typename bluetoe::details::type_list_element< 2, Fixtures >::type;
 
         fixture< Type > world;
 
@@ -885,7 +885,7 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
             this->init();
             this->result = 42;
 
-            using Input          = typename std::tuple_element< 0, Pair >::type;
+            using Input          = typename bluetoe::details::type_list_element< 0, Pair >::type;
 
             const std::vector< std::uint8_t > data = Input::values();
 
@@ -895,8 +895,8 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
 
     BOOST_AUTO_TEST_CASE_TEMPLATE( write_free_handlers_check_return_value, Fixtures, supported_types )
     {
-        using Type          = typename std::tuple_element< 0, Fixtures >::type;
-        using ValidValues   = typename std::tuple_element< 1, Fixtures >::type;
+        using Type          = typename bluetoe::details::type_list_element< 0, Fixtures >::type;
+        using ValidValues   = typename bluetoe::details::type_list_element< 1, Fixtures >::type;
 
         fixture< Type > world;
 

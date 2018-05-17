@@ -7,6 +7,7 @@
 #include <cassert>
 #include <algorithm>
 #include <iterator>
+#include <bluetoe/options.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -323,7 +324,7 @@ namespace link_layer {
         };
 
         template < int C >
-        class notification_queue_impl_base< std::tuple<>, C >
+        class notification_queue_impl_base< bluetoe::details::type_list<>, C >
         {
         public:
             bool queue_notification( std::size_t ) { return false; }
@@ -338,12 +339,12 @@ namespace link_layer {
         };
 
         template < int Size, class ...Ts, int C >
-        class notification_queue_impl_base< std::tuple< std::integral_constant< int, Size >, Ts... >, C >
-            : public notification_queue_impl_base< std::tuple< Ts... >, C + 1 >
+        class notification_queue_impl_base< bluetoe::details::type_list< std::integral_constant< int, Size >, Ts... >, C >
+            : public notification_queue_impl_base< bluetoe::details::type_list< Ts... >, C + 1 >
             , private notification_queue_impl< Size, C >
         {
         public:
-            using base = notification_queue_impl_base< std::tuple< Ts... >, C + 1 >;
+            using base = notification_queue_impl_base< bluetoe::details::type_list< Ts... >, C + 1 >;
             using impl = notification_queue_impl< Size, C >;
 
             bool queue_notification( std::size_t idx )

@@ -7,7 +7,7 @@ template < typename Char >
 class access_attributes : public Char, public bluetoe::details::client_characteristic_configurations< Char::number_of_client_configs >
 {
 public:
-    using cccd_indices = std::tuple<>;
+    using cccd_indices = bluetoe::details::type_list<>;
 
     std::pair< bool, bluetoe::details::attribute > find_attribute_by_type( std::uint16_t type )
     {

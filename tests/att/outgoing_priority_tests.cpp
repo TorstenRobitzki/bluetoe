@@ -268,7 +268,7 @@ BOOST_AUTO_TEST_CASE( numbers_for_single_priority )
     BOOST_CHECK((
         std::is_same<
             typename prio::numbers< services >::type,
-            std::tuple< int_c< 4 > >
+            bluetoe::details::type_list< int_c< 4 > >
         >::value
     ));
 }
@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE( priority_numbers_for_an_example_with_two_services )
     BOOST_CHECK((
         std::is_same<
             typename prio::numbers< services >::type,
-            std::tuple< int_c< 1 >, int_c< 1 >, int_c< 2 > >
+            bluetoe::details::type_list< int_c< 1 >, int_c< 1 >, int_c< 2 > >
         >::value
     ));
 }
@@ -319,7 +319,7 @@ BOOST_AUTO_TEST_CASE( priority_numbers_for_two_services_with_similar_characteris
     BOOST_CHECK((
         std::is_same<
             typename prio::numbers< services >::type,
-            std::tuple< int_c< 1 >, int_c< 1 >, int_c< 1 >, int_c< 1 >, int_c< 2 > >
+            bluetoe::details::type_list< int_c< 1 >, int_c< 1 >, int_c< 1 >, int_c< 1 >, int_c< 2 > >
         >::value
     ));
 }
@@ -331,43 +331,43 @@ BOOST_AUTO_TEST_CASE( add_prio_tests )
 
     BOOST_CHECK((
         std::is_same<
-            typename add_prio< std::tuple<>, 0 >::type,
-            std::tuple< int_c< 1 > >
+            typename add_prio< bluetoe::details::type_list<>, 0 >::type,
+            bluetoe::details::type_list< int_c< 1 > >
         >::value
     ));
 
     BOOST_CHECK((
         std::is_same<
-            typename add_prio< std::tuple< int_c< 3 > >, 0 >::type,
-            std::tuple< int_c< 4 > >
+            typename add_prio< bluetoe::details::type_list< int_c< 3 > >, 0 >::type,
+            bluetoe::details::type_list< int_c< 4 > >
         >::value
     ));
 
     BOOST_CHECK((
         std::is_same<
-            typename add_prio< std::tuple<>, 2 >::type,
-            std::tuple< int_c< 0 >, int_c< 0 >, int_c< 1 > >
+            typename add_prio< bluetoe::details::type_list<>, 2 >::type,
+            bluetoe::details::type_list< int_c< 0 >, int_c< 0 >, int_c< 1 > >
         >::value
     ));
 
     BOOST_CHECK((
         std::is_same<
-            typename add_prio< std::tuple< int_c< 3 >, int_c< 2 > >, 0 >::type,
-            std::tuple< int_c< 4 >, int_c< 2 > >
+            typename add_prio< bluetoe::details::type_list< int_c< 3 >, int_c< 2 > >, 0 >::type,
+            bluetoe::details::type_list< int_c< 4 >, int_c< 2 > >
         >::value
     ));
 
     BOOST_CHECK((
         std::is_same<
-            typename add_prio< std::tuple< int_c< 3 >, int_c< 2 >, int_c< 1 > >, 1 >::type,
-            std::tuple< int_c< 3 >, int_c< 3 >, int_c< 1 > >
+            typename add_prio< bluetoe::details::type_list< int_c< 3 >, int_c< 2 >, int_c< 1 > >, 1 >::type,
+            bluetoe::details::type_list< int_c< 3 >, int_c< 3 >, int_c< 1 > >
         >::value
     ));
 
     BOOST_CHECK((
         std::is_same<
-            typename add_prio< std::tuple< int_c< 3 >, int_c< 2 >, int_c< 1 > >, 4 >::type,
-            std::tuple< int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 >, int_c< 1 > >
+            typename add_prio< bluetoe::details::type_list< int_c< 3 >, int_c< 2 >, int_c< 1 > >, 4 >::type,
+            bluetoe::details::type_list< int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 >, int_c< 1 > >
         >::value
     ));
 }

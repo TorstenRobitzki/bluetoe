@@ -166,7 +166,7 @@ namespace details {
     struct attribute_at_list;
 
     template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
-    struct attribute_at_list< std::tuple<>, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >
+    struct attribute_at_list< type_list<>, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >
     {
         static details::attribute attribute_at( std::size_t )
         {
@@ -182,14 +182,14 @@ namespace details {
         std::size_t ClientCharacteristicIndex,
         typename ServiceUUID,
         typename Server >
-    struct attribute_at_list< std::tuple< T, Ts... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >
+    struct attribute_at_list< type_list< T, Ts... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
                 return T::template attribute_at< CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >( index );
 
-            typedef details::attribute_at_list< std::tuple< Ts... >, CCCDIndices, ClientCharacteristicIndex + T::number_of_client_configs, ServiceUUID, Server > remaining_characteristics;
+            typedef details::attribute_at_list< type_list< Ts... >, CCCDIndices, ClientCharacteristicIndex + T::number_of_client_configs, ServiceUUID, Server > remaining_characteristics;
 
             return remaining_characteristics::attribute_at( index - T::number_of_attributes );
         }
@@ -202,7 +202,7 @@ namespace details {
     struct attribute_from_service_list;
 
     template < typename Server, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename AllServices >
-    struct attribute_from_service_list< std::tuple<>, Server, CCCDIndices, ClientCharacteristicIndex, AllServices >
+    struct attribute_from_service_list< type_list<>, Server, CCCDIndices, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t )
         {
@@ -218,7 +218,7 @@ namespace details {
         typename CCCDIndices,
         std::size_t ClientCharacteristicIndex,
         typename AllServices >
-    struct attribute_from_service_list< std::tuple< T, Ts... >, Server, CCCDIndices, ClientCharacteristicIndex, AllServices >
+    struct attribute_from_service_list< type_list< T, Ts... >, Server, CCCDIndices, ClientCharacteristicIndex, AllServices >
     {
         static details::attribute attribute_at( std::size_t index )
         {
@@ -226,7 +226,7 @@ namespace details {
                 return T::template attribute_at< CCCDIndices, ClientCharacteristicIndex, AllServices, Server >( index );
 
             typedef details::attribute_from_service_list<
-                std::tuple< Ts... >,
+                type_list< Ts... >,
                 Server,
                 CCCDIndices,
                 ClientCharacteristicIndex + T::number_of_client_configs,
@@ -291,7 +291,7 @@ namespace details {
     struct find_characteristic_data_by_uuid_in_characteristic_list;
 
     template < typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_characteristic_list< type_list<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
     {
         typedef details::no_such_type type;
     };
@@ -302,12 +302,12 @@ namespace details {
         typename UUID,
         std::size_t FirstAttributesHandle,
         std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple< Characteristic, Characteristics...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_characteristic_list< type_list< Characteristic, Characteristics...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
     {
         using found = std::is_same< typename Characteristic::configured_uuid, UUID >;
 
         using next = typename find_characteristic_data_by_uuid_in_characteristic_list<
-            std::tuple< Characteristics... >,
+            type_list< Characteristics... >,
             UUID,
             FirstAttributesHandle + Characteristic::number_of_attributes,
             ClientCharacteristicIndex + Characteristic::number_of_client_configs >::type;
@@ -337,7 +337,7 @@ namespace details {
     struct find_characteristic_data_by_uuid_in_service_list;
 
     template < typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_service_list< std::tuple<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_service_list< type_list<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
     {
         typedef details::no_such_type type;
     };
@@ -348,13 +348,13 @@ namespace details {
         typename UUID,
         std::size_t FirstAttributesHandle,
         std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_service_list< std::tuple< Service, Services...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    struct find_characteristic_data_by_uuid_in_service_list< type_list< Service, Services...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
     {
         typedef typename find_characteristic_data_by_uuid_in_characteristic_list<
             typename Service::characteristics, UUID, FirstAttributesHandle + Service::number_of_service_attributes, ClientCharacteristicIndex >::type c_type;
 
         typedef typename find_characteristic_data_by_uuid_in_service_list<
-            std::tuple< Services... >, UUID, FirstAttributesHandle + Service::number_of_attributes, ClientCharacteristicIndex + Service::number_of_client_configs >::type l_type;
+            type_list< Services... >, UUID, FirstAttributesHandle + Service::number_of_attributes, ClientCharacteristicIndex + Service::number_of_client_configs >::type l_type;
 
         typedef typename details::or_type<
             details::no_such_type,

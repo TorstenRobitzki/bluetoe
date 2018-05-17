@@ -72,7 +72,7 @@ namespace bluetoe {
     };
 
     template < typename ... UUID16 >
-    struct list_of_16_bit_service_uuids< std::tuple< UUID16... > > : list_of_16_bit_service_uuids< UUID16... > {};
+    struct list_of_16_bit_service_uuids< details::type_list< UUID16... > > : list_of_16_bit_service_uuids< UUID16... > {};
     /** @endcond */
 
     struct no_list_of_service_uuids {
@@ -146,7 +146,7 @@ namespace bluetoe {
 
     /** @cond HIDDEN_SYMBOLS */
     template < typename ... UUID16 >
-    struct list_of_128_bit_service_uuids< std::tuple< UUID16... > > : list_of_128_bit_service_uuids< UUID16... > {};
+    struct list_of_128_bit_service_uuids< details::type_list< UUID16... > > : list_of_128_bit_service_uuids< UUID16... > {};
 
     template <>
     struct list_of_128_bit_service_uuids<> {
@@ -168,7 +168,7 @@ namespace bluetoe {
         struct create_list_of_service_uuids
         {
             typedef typename bluetoe::details::transform_list<
-                std::tuple< Services... >,
+                type_list< Services... >,
                 extract_uuid >::type uuids;
 
             typedef typename find_all_by_meta_type< Filter, uuids >::type type;
@@ -178,14 +178,14 @@ namespace bluetoe {
         struct default_list_of_16_bit_service_uuids;
 
         template < typename ... Services >
-        struct default_list_of_16_bit_service_uuids< std::tuple< Services... > > : list_of_16_bit_service_uuids<
+        struct default_list_of_16_bit_service_uuids< type_list< Services... > > : list_of_16_bit_service_uuids<
             typename create_list_of_service_uuids< bluetoe::details::service_uuid_16_meta_type, Services... >::type > {};
 
         template < typename ServiceList >
         struct default_list_of_128_bit_service_uuids;
 
         template < typename ... Services >
-        struct default_list_of_128_bit_service_uuids< std::tuple< Services... > > : list_of_128_bit_service_uuids<
+        struct default_list_of_128_bit_service_uuids< type_list< Services... > > : list_of_128_bit_service_uuids<
             typename create_list_of_service_uuids< bluetoe::details::service_uuid_128_meta_type, Services... >::type > {};
     }
 }

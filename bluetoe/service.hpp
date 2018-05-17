@@ -138,7 +138,7 @@ namespace bluetoe {
 
         using notification_priority = typename details::find_by_meta_type< details::outgoing_priority_meta_type, Options..., higher_outgoing_priority<> >::type;
 
-        static_assert( std::tuple_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
+        static_assert( details::type_list_size< typename details::find_all_by_meta_type< details::outgoing_priority_meta_type, Options... >::type >::value <= 1,
             "Only one of bluetoe::higher_outgoing_priority<> or bluetoe::lower_outgoing_priority<> per service allowed!" );
 
         /**
@@ -253,7 +253,7 @@ namespace bluetoe {
     {
         assert( index < number_of_attributes );
 
-        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, std::tuple< Options..., ServiceList > >;
+        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, details::type_list< Options..., ServiceList > >;
 
         if ( index < number_of_service_attributes )
             return attribute_generator::attribute_at( index );
@@ -306,16 +306,16 @@ namespace bluetoe {
         struct service_handles;
 
         template < typename Service, typename ... Ss, std::uint16_t Handle >
-        struct service_handles< std::tuple< Service, Ss... >, Service, Handle >
+        struct service_handles< type_list< Service, Ss... >, Service, Handle >
         {
             static constexpr std::uint16_t service_attribute_handle = Handle;
             static constexpr std::uint16_t end_service_handle       = Handle + Service::number_of_attributes - 1;
         };
 
         template < typename Service, typename S, typename ... Ss, std::uint16_t Handle >
-        struct service_handles< std::tuple< S, Ss... >, Service, Handle >
+        struct service_handles< type_list< S, Ss... >, Service, Handle >
         {
-            typedef service_handles< std::tuple< Ss... >, Service, Handle + S::number_of_attributes > next;
+            typedef service_handles< type_list< Ss... >, Service, Handle + S::number_of_attributes > next;
 
             static constexpr std::uint16_t service_attribute_handle = next::service_attribute_handle;
             static constexpr std::uint16_t end_service_handle       = next::end_service_handle;
@@ -465,7 +465,7 @@ namespace bluetoe {
         template < typename ... Options >
         struct count_service_attributes{
             enum {
-                number_of_attributes = std::tuple_size< attribute_generation_parameters< Options... > >::value
+                number_of_attributes = type_list_size< attribute_generation_parameters< Options... > >::value
             };
         };
 

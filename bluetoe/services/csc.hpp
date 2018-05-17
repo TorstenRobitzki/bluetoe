@@ -106,7 +106,7 @@ namespace bluetoe {
             struct service_from_parameters;
 
             template < typename ... Ts >
-            struct service_from_parameters< std::tuple< Ts... > > {
+            struct service_from_parameters< bluetoe::details::type_list< Ts... > > {
                 typedef service< Ts... > type;
             };
 
@@ -146,7 +146,7 @@ namespace bluetoe {
             class sensor_position_handler;
 
             template < typename ... SensorLocations >
-            class sensor_position_handler< std::tuple< SensorLocations... > >
+            class sensor_position_handler< bluetoe::details::type_list< SensorLocations... > >
             {
             public:
                 sensor_position_handler()
@@ -220,7 +220,7 @@ namespace bluetoe {
             };
 
             template < typename ... SensorLocations >
-            const std::uint8_t sensor_position_handler< std::tuple< SensorLocations... > >::positions_[sizeof ...(SensorLocations)] = { SensorLocations::value... };
+            const std::uint8_t sensor_position_handler< bluetoe::details::type_list< SensorLocations... > >::positions_[sizeof ...(SensorLocations)] = { SensorLocations::value... };
 
             class no_sensor_position_handler
             {
@@ -423,11 +423,11 @@ namespace bluetoe {
             template < typename SensorList >
             struct select_sensorlocation_implementation< false, false, SensorList >
             {
-                using type = std::tuple<>;
+                using type = bluetoe::details::type_list<>;
             };
 
             template < typename SensorPosition >
-            struct select_sensorlocation_implementation< true, false, std::tuple< SensorPosition > >
+            struct select_sensorlocation_implementation< true, false, bluetoe::details::type_list< SensorPosition > >
             {
                 using type = characteristic<
                     characteristic_uuid16< 0x2A5D >,
@@ -467,8 +467,8 @@ namespace bluetoe {
                     "You need to provide a bluetoe::crc::handler<> to define how the protocol can access the messured values." );
 
 
-                static constexpr bool has_static_sensorlocation   = std::tuple_size< sensor_locations >::value == 1u;
-                static constexpr bool has_multiple_sensorlocation = std::tuple_size< sensor_locations >::value > 1u;
+                static constexpr bool has_static_sensorlocation   = bluetoe::details::type_list_size< sensor_locations >::value == 1u;
+                static constexpr bool has_multiple_sensorlocation = bluetoe::details::type_list_size< sensor_locations >::value > 1u;
                 static constexpr bool has_sensorlocation          = has_static_sensorlocation || has_multiple_sensorlocation;
 
                 static constexpr bool has_set_cumulative_value    = wheel_handler::features != 0;
@@ -487,7 +487,7 @@ namespace bluetoe {
                     >::type
                 >;
 
-                using mandatory_characteristics = std::tuple<
+                using mandatory_characteristics = bluetoe::details::type_list<
                     characteristic<
                         characteristic_uuid16< 0x2A5B >,
                         characteristic_name< measurement_name >,
@@ -531,7 +531,7 @@ namespace bluetoe {
 
                 using all_characteristics = characteristics_with_control_point;
 
-                using default_parameter = std::tuple<
+                using default_parameter = bluetoe::details::type_list<
                     mixin< service_implementation >,
                     service_uuid,
                     bluetoe::service_name< service_name >,

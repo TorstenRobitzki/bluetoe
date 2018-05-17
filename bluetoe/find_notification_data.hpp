@@ -37,15 +37,15 @@ namespace details {
             template < typename C >
             struct add_service_offset
             {
-                using type = std::tuple<>;
+                using type = type_list<>;
             };
 
             // Add just to the first characteritic of a service the numer of attributes that are used to
             // model the service
             template < typename C, typename ...Cs >
-            struct add_service_offset< std::tuple< C, Cs... > >
+            struct add_service_offset< type_list< C, Cs... > >
             {
-                using type = std::tuple<
+                using type = type_list<
                     characteristic_with_service_attribute_offset< C, Service::number_of_service_attributes, Priorities::template characteristic_priority< Services, Service, C >::value >,
                     characteristic_with_service_attribute_offset< Cs, 0, Priorities::template characteristic_priority< Services, Service, Cs >::value >... >;
             };
@@ -116,7 +116,7 @@ namespace details {
                 static constexpr std::size_t cccd_position = CCCD;
             };
 
-            static constexpr std::size_t cccd_position = std::tuple_size< Characteristics >::value;
+            static constexpr std::size_t cccd_position = type_list_size< Characteristics >::value;
 
             using type = typename add_type<
                 Characteristics,
@@ -133,7 +133,7 @@ namespace details {
                 static constexpr std::size_t cccd_handle = CCCD;
             };
 
-            static constexpr std::size_t cccd_handle = std::tuple_size< Characteristics >::value;
+            static constexpr std::size_t cccd_handle = type_list_size< Characteristics >::value;
 
             using type = typename add_type<
                 Characteristics,

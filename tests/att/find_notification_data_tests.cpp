@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE( default_cccd_indices )
     BOOST_CHECK( (
         std::is_same<
             server::cccd_indices,
-            std::tuple< int_c< 0 >, int_c< 1 >, int_c< 2 >, int_c< 3 >, int_c< 4 >, int_c< 5 > > >::value
+            bluetoe::details::type_list< int_c< 0 >, int_c< 1 >, int_c< 2 >, int_c< 3 >, int_c< 4 >, int_c< 5 > > >::value
     ) );
 
 }
@@ -252,6 +252,6 @@ BOOST_AUTO_TEST_CASE( cccd_indices_with_some_priorities )
     BOOST_CHECK( (
         std::is_same<
             server::cccd_indices,
-            std::tuple< int_c< 4 >, int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 > > >::value
+            bluetoe::details::type_list< int_c< 4 >, int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 > > >::value
     ) );
 }

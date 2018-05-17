@@ -236,7 +236,7 @@ namespace bluetoe {
          * Characteristic declaration
          */
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< type_list< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             typedef typename characteristic_or_service_uuid< Options... >::uuid                             uuid;
             typedef typename characteristic< Options... >::value_type                                       value_type;
@@ -300,16 +300,16 @@ namespace bluetoe {
         };
 
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        const attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
+        const attribute generate_attribute< type_list< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
             bits( details::gatt_uuids::characteristic ),
-            &generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::char_declaration_access
+            &generate_attribute< type_list< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::char_declaration_access
         };
 
         /*
          * Characteristic Value
          */
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< type_list< characteristic_value_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
             typedef typename characteristic_or_service_uuid< Options... >::uuid      uuid;
@@ -319,7 +319,7 @@ namespace bluetoe {
         };
 
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        const attribute generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
+        const attribute generate_attribute< type_list< characteristic_value_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
             uuid::is_128bit
                 ? bits( details::gatt_uuids::internal_128bit_uuid )
                 : uuid::as_16bit(),
@@ -330,7 +330,7 @@ namespace bluetoe {
          * Characteristic User Description
          */
         template < const char* const Name, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< type_list< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             static const attribute attr;
 
@@ -360,16 +360,16 @@ namespace bluetoe {
         };
 
         template < const char* const Name, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
+        const attribute generate_attribute< type_list< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
             bits( gatt_uuids::characteristic_user_description ),
-            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< type_list< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
         };
 
         /*
          * Client Characteristic Configuration Descriptor (CCCD)
          */
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< type_list< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             static const attribute attr;
 
@@ -385,7 +385,7 @@ namespace bluetoe {
 
                 // currently, a lot of test code supplies an empty CCCDIndices list. In this case, use the ClientCharacteristicIndex
                 const std::size_t cccd_position_index = index_of< std::integral_constant< std::size_t, ClientCharacteristicIndex >, CCCDIndices >::value;
-                const std::size_t cccd_position = std::tuple_size< CCCDIndices >::value == 0
+                const std::size_t cccd_position = type_list_size< CCCDIndices >::value == 0
                                                     ? ClientCharacteristicIndex
                                                     : cccd_position_index;
 
@@ -417,21 +417,21 @@ namespace bluetoe {
         };
 
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        const attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
+        const attribute generate_attribute< type_list< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr {
             bits( gatt_uuids::client_characteristic_configuration ),
-            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< type_list< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
         };
 
         template < typename Parmeters >
         struct are_client_characteristic_configuration_parameter : std::false_type {};
 
         template < typename ... Ts >
-        struct are_client_characteristic_configuration_parameter< std::tuple< client_characteristic_configuration_parameter, Ts... > > : std::true_type {};
+        struct are_client_characteristic_configuration_parameter< type_list< client_characteristic_configuration_parameter, Ts... > > : std::true_type {};
 
         template < typename CCCDIndices, typename ... Options >
         struct generate_characteristic_attributes : generate_attributes<
-                std::tuple< Options... >,
-                std::tuple<
+                type_list< Options... >,
+                type_list<
                     characteristic_declaration_parameter,
                     characteristic_value_declaration_parameter,
                     characteristic_user_description_parameter,
@@ -439,7 +439,7 @@ namespace bluetoe {
                 >,
                 CCCDIndices,
                 // force the existens of an characteristic declaration, even without Options with this meta_type
-                std::tuple< empty_meta_type< characteristic_declaration_parameter > >
+                type_list< empty_meta_type< characteristic_declaration_parameter > >
             > {};
 
         template < typename ... Options >

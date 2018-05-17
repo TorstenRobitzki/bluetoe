@@ -51,31 +51,31 @@ namespace bluetoe {
         struct add_prio;
 
         template <>
-        struct add_prio< std::tuple<>, 0 >
+        struct add_prio< type_list<>, 0 >
         {
-            using type = std::tuple< std::integral_constant< int, 1 > >;
+            using type = type_list< std::integral_constant< int, 1 > >;
         };
 
         template < int N, typename ...Ts >
-        struct add_prio< std::tuple< std::integral_constant< int, N >, Ts... >, 0 >
+        struct add_prio< type_list< std::integral_constant< int, N >, Ts... >, 0 >
         {
-            using type = std::tuple< std::integral_constant< int, N + 1 >, Ts... >;
+            using type = type_list< std::integral_constant< int, N + 1 >, Ts... >;
         };
 
         template < int Prio >
-        struct add_prio< std::tuple<>, Prio >
+        struct add_prio< type_list<>, Prio >
         {
             using type = typename add_type<
                 std::integral_constant< int, 0 >,
-                typename add_prio< std::tuple<>, Prio -1 >::type >::type;
+                typename add_prio< type_list<>, Prio -1 >::type >::type;
         };
 
         template < int N, typename ...Ts, int Prio >
-        struct add_prio< std::tuple< std::integral_constant< int, N >, Ts... >, Prio >
+        struct add_prio< type_list< std::integral_constant< int, N >, Ts... >, Prio >
         {
             using type = typename add_type<
                 std::integral_constant< int, N >,
-                typename add_prio< std::tuple< Ts... >, Prio -1 >::type >::type;
+                typename add_prio< type_list< Ts... >, Prio -1 >::type >::type;
         };
 
     }
@@ -180,7 +180,7 @@ namespace bluetoe {
 
             // while Service::uuid is not in UUIDs... sum up the priorities of the services
             using type = typename details::fold_left<
-                                        std::tuple< UUIDs... >,
+                                        details::type_list< UUIDs... >,
                                         optional_sum_prio,
                                         details::pair< std::false_type, std::integral_constant< int, 0 > > >::type;
 
@@ -252,7 +252,7 @@ namespace bluetoe {
                 numbers_from_char< Services, Service >::template impl,
                 Numbers >;
 
-            using type = typename details::fold< Services, numbers_from_services, std::tuple<> >::type;
+            using type = typename details::fold< Services, numbers_from_services, details::type_list<> >::type;
         };
 
         static constexpr std::size_t size = sizeof...( UUIDs );

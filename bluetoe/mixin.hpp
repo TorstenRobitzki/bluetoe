@@ -17,39 +17,39 @@ namespace bluetoe {
         struct sum_mixins;
 
         template <>
-        struct sum_mixins< std::tuple<> >
+        struct sum_mixins< type_list<> >
         {
-            typedef std::tuple<> type;
+            typedef type_list<> type;
         };
 
         template < typename ... Ts, typename ... Ms >
-        struct sum_mixins< std::tuple< mixin< Ts... >, Ms... > >{
+        struct sum_mixins< type_list< mixin< Ts... >, Ms... > >{
             typedef typename add_type<
-                std::tuple< Ts... >,
-                typename sum_mixins< std::tuple< Ms... > >::type >::type type;
+                type_list< Ts... >,
+                typename sum_mixins< type_list< Ms... > >::type >::type type;
         };
 
         template < typename List, typename Element >
         struct extract_service_mixins;
 
         template < typename ... Ms, typename ... Options >
-        struct extract_service_mixins< std::tuple< Ms... >, bluetoe::service< Options... > >
+        struct extract_service_mixins< type_list< Ms... >, bluetoe::service< Options... > >
         {
             typedef typename find_all_by_meta_type< mixin_meta_type, Options... >::type mixins;
-            typedef typename add_type< mixins, std::tuple< Ms... > >::type              type;
+            typedef typename add_type< mixins, type_list< Ms... > >::type              type;
         };
 
         template < typename ... Ms, typename T >
-        struct extract_service_mixins< std::tuple< Ms... >, T >
+        struct extract_service_mixins< type_list< Ms... >, T >
         {
-            typedef std::tuple< Ms... > type;
+            typedef type_list< Ms... > type;
         };
 
         template < typename ... Options >
         struct collect_mixins
         {
             typedef typename find_all_by_meta_type< mixin_meta_type, Options... >::type         server_mixins;
-            typedef typename fold< std::tuple< Options ... >, extract_service_mixins >::type    service_mixins;
+            typedef typename fold< type_list< Options ... >, extract_service_mixins >::type    service_mixins;
             typedef typename add_type< server_mixins, service_mixins >::type                mixins;
             typedef typename sum_mixins< mixins >::type                                     type;
         };
