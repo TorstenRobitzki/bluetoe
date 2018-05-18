@@ -171,7 +171,7 @@ namespace bluetoe {
                 std::tuple< Services... >,
                 extract_uuid >::type uuids;
 
-            typedef typename find_all_by_meta_type_in_list< Filter, uuids >::type type;
+            typedef typename find_all_by_meta_type< Filter, uuids >::type type;
         };
 
         template < typename ServiceList >
