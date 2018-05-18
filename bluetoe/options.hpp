@@ -12,18 +12,28 @@
 namespace bluetoe {
 namespace details {
 
+    template < typename T >
+    struct wrap {
+        using type = T;
+    };
+
     /*
      * Select A or B by Select. If Select == true, the result is A; B otherwise
      */
-    template < bool Select, typename A, typename B >
-    struct select_type {
-        typedef A type;
+    template < bool Select >
+    struct select_type_impl {
+        template < typename A, typename B >
+        using f = A;
     };
 
-    template < typename A, typename B >
-    struct select_type< false, A, B > {
-        typedef B type;
+    template <>
+    struct select_type_impl< false > {
+        template < typename A, typename B >
+        using f = B;
     };
+
+    template < bool Select, typename A, typename B >
+    using select_type = wrap< typename select_type_impl< Select >::template f< A, B > >;
 
     /*
      * Selects a template according to the given Select parameter. If select is true,
@@ -46,15 +56,20 @@ namespace details {
     /*
      * return A if A is not Null, otherwise return B if B is not Null, otherwise Null
      */
-    template < typename Null, typename A, typename B >
-    struct or_type {
-        typedef A type;
+    template < typename Null, typename A >
+    struct or_type_impl {
+        template < typename >
+        using f = A;
     };
 
-    template < typename Null, typename B >
-    struct or_type< Null, Null, B > {
-        typedef B type;
+    template < typename Null >
+    struct or_type_impl< Null, Null > {
+        template < typename B >
+        using f = B;
     };
+
+    template < typename Null, typename A, typename B >
+    using or_type = wrap< typename or_type_impl< Null, A >::template f< B > >;
 
     /*
      *  add A to B
@@ -209,76 +224,81 @@ namespace details {
                 meta_type, no_such_type >::type >::type  has_meta_type;
     };
 
+    template < typename MetaType, typename T >
+    using of_meta_type = std::is_convertible< typename extract_meta_type< T >::type*, MetaType* >;
+
     /*
      * finds the first type that has the embedded meta_type
      */
     template <
+        bool Empty >
+    struct find_by_meta_type_impl;
+
+    template <>
+    struct find_by_meta_type_impl< false >
+    {
+        template < typename MetaType, typename ... >
+        using f = no_such_type;
+    };
+
+    template <>
+    struct find_by_meta_type_impl< true >
+    {
+        template < typename MetaType, typename T, typename ... Ts >
+        using f =
+            typename select_type_impl<
+                of_meta_type< MetaType, T >::value
+            >::template f<
+                T,
+                typename find_by_meta_type_impl< sizeof...(Ts) != 0 && !of_meta_type< MetaType, T >::value >::template f< MetaType, Ts... >
+            >;
+    };
+
+    template <
         typename MetaType,
         typename ... Types >
-    struct find_by_meta_type;
-
-    template <
-        typename MetaType >
-    struct find_by_meta_type< MetaType >
-    {
-        typedef no_such_type type;
-    };
-
-    template <
-        typename MetaType,
-        typename Type >
-    struct find_by_meta_type< MetaType, Type >
-    {
-        typedef extract_meta_type< Type > meta_type;
-        typedef typename select_type<
-            std::is_convertible< typename meta_type::type*, MetaType* >::value,
-            Type, no_such_type >::type type;
-    };
-
-    template <
-        typename MetaType,
-        typename Type,
-        typename ... Types >
-    struct find_by_meta_type< MetaType, Type, Types... >
-    {
-        typedef typename or_type<
-            no_such_type,
-            typename find_by_meta_type< MetaType, Type >::type,
-            typename find_by_meta_type< MetaType, Types... >::type >::type type;
-    };
+    using find_by_meta_type = wrap< typename find_by_meta_type_impl< sizeof...(Types) != 0 >::template f< MetaType, Types... > >;
 
     /*
      * finds all types that has the embedded meta_type
      */
-    template <
-        typename MetaType,
-        typename ... Types >
-    struct find_all_by_meta_type;
+    template < bool >
+    struct find_all_by_meta_type_impl;
 
-    template <
-        typename MetaType >
-    struct find_all_by_meta_type< MetaType >
+    template <>
+    struct find_all_by_meta_type_impl< false >
     {
-        typedef std::tuple<> type;
+        template < typename MetaType, typename ... >
+        using f = std::tuple<>;
+    };
+
+    template <>
+    struct find_all_by_meta_type_impl< true >
+    {
+        template < typename MetaType, typename T, typename ... Ts >
+        using f =
+            typename select_type_impl<
+                of_meta_type< MetaType, T >::value
+            >::template f<
+                typename add_type< T, typename find_all_by_meta_type_impl< sizeof...(Ts) != 0 >::template f< MetaType, Ts... > >::type,
+                typename find_all_by_meta_type_impl< sizeof...(Ts) != 0 >::template f< MetaType, Ts... >
+            >;
     };
 
     template <
         typename MetaType,
-        typename Type,
         typename ... Types >
-    struct find_all_by_meta_type< MetaType, Type, Types... >
-    {
-        typedef extract_meta_type< Type > meta_type;
-        typedef typename select_type<
-            std::is_convertible< typename meta_type::type*, MetaType* >::value,
-            typename add_type< Type, typename find_all_by_meta_type< MetaType, Types... >::type >::type,
-            typename find_all_by_meta_type< MetaType, Types... >::type >::type type;
-    };
+    using find_all_by_meta_type = wrap< typename find_all_by_meta_type_impl< sizeof...(Types) != 0 >::template f< MetaType, Types... > >;
+
+    template <
+        typename MetaType,
+        typename List >
+    struct find_all_by_meta_type_in_list;
 
     template <
         typename MetaType,
         typename ... Types >
-    struct find_all_by_meta_type< MetaType, std::tuple< Types... > > : find_all_by_meta_type< MetaType, Types... > {};
+    struct find_all_by_meta_type_in_list< MetaType, std::tuple< Types... > > : find_all_by_meta_type< MetaType, Types... > {};
 
     /*
      * groups a list of types by there meta types
