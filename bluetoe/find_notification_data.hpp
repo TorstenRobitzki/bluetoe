@@ -6,13 +6,7 @@
 namespace bluetoe {
 namespace details {
 
-
-    template <
-        typename Priorities,
-        typename Services
-    >
-    struct find_notification_data_in_list
-    {
+    namespace impl {
         template < typename Characteristics, typename Pair >
         struct filter_characteristics_with_cccd
         {
@@ -31,28 +25,6 @@ namespace details {
             static constexpr int           priority       = Prio;
         };
 
-        template < typename Characteristics, typename Service >
-        struct characteristics_from_service
-        {
-            template < typename C >
-            struct add_service_offset
-            {
-                using type = std::tuple<>;
-            };
-
-            // Add just to the first characteritic of a service the numer of attributes that are used to
-            // model the service
-            template < typename C, typename ...Cs >
-            struct add_service_offset< std::tuple< C, Cs... > >
-            {
-                using type = std::tuple<
-                    characteristic_with_service_attribute_offset< C, Service::number_of_service_attributes, Priorities::template characteristic_priority< Services, Service, C >::value >,
-                    characteristic_with_service_attribute_offset< Cs, 0, Priorities::template characteristic_priority< Services, Service, Cs >::value >... >;
-            };
-
-            using type = typename add_type< Characteristics, typename add_service_offset< typename Service::characteristics >::type >::type;
-        };
-
         struct preudo_first_char
         {
             static const std::size_t number_of_attributes = 0;
@@ -69,13 +41,13 @@ namespace details {
         template < typename Characteristics, typename Characteristic >
         struct add_handle_to_characteristic
         {
-            using last = typename last_type< Characteristics, characteristic_handle_pair< preudo_first_char, 1, 0 > >::type;
+            using last = typename last_type< Characteristics, impl::characteristic_handle_pair< impl::preudo_first_char, 1, 0 > >::type;
 
             static constexpr std::size_t attribute_handle = last::first_attribute_handle + last::characteristic_t::number_of_attributes + Characteristic::service_offset;
 
             using type = typename add_type<
                 Characteristics,
-                characteristic_handle_pair< typename Characteristic::characteristic_t, attribute_handle, Characteristic::priority >
+                impl::characteristic_handle_pair< typename Characteristic::characteristic_t, attribute_handle, Characteristic::priority >
             >::type;
         };
 
@@ -141,18 +113,53 @@ namespace details {
             >::type;
         };
 
+        template < class Characteristic >
+        struct select_cccd_position {
+            using type = std::integral_constant< std::size_t, Characteristic::cccd_position >;
+        };
+
+    }
+
+    template <
+        typename Priorities,
+        typename Services
+    >
+    struct find_notification_data_in_list
+    {
+        template < typename Characteristics, typename Service >
+        struct characteristics_from_service
+        {
+            template < typename C >
+            struct add_service_offset
+            {
+                using type = std::tuple<>;
+            };
+
+            // Add just to the first characteritic of a service the numer of attributes that are used to
+            // model the service
+            template < typename C, typename ...Cs >
+            struct add_service_offset< std::tuple< C, Cs... > >
+            {
+                using type = std::tuple<
+                    impl::characteristic_with_service_attribute_offset< C, Service::number_of_service_attributes, Priorities::template characteristic_priority< Services, Service, C >::value >,
+                    impl::characteristic_with_service_attribute_offset< Cs, 0, Priorities::template characteristic_priority< Services, Service, Cs >::value >... >;
+            };
+
+            using type = typename add_type< Characteristics, typename add_service_offset< typename Service::characteristics >::type >::type;
+        };
+
         using services                               = Services;
         using all_characteristics                    = typename fold_left< services, characteristics_from_service >::type;
-        using characteristics_with_attribute_handles = typename fold_left< all_characteristics, add_handle_to_characteristic >::type;
-        using characteristics_only_with_cccd         = typename fold_left< characteristics_with_attribute_handles, filter_characteristics_with_cccd >::type;
-        using characteristics_with_cccd_position     = typename fold_left< characteristics_only_with_cccd, add_cccd_position >::type;
-        using characteristics_sorted_by_priority     = typename stable_sort< order_by_prio, characteristics_with_cccd_position >::type;
-        using characteristics_with_cccd_handle       = typename fold_left< characteristics_sorted_by_priority, add_cccd_handle >::type;
+        using characteristics_with_attribute_handles = typename fold_left< all_characteristics, impl::add_handle_to_characteristic >::type;
+        using characteristics_only_with_cccd         = typename fold_left< characteristics_with_attribute_handles, impl::filter_characteristics_with_cccd >::type;
+        using characteristics_with_cccd_position     = typename fold_left< characteristics_only_with_cccd, impl::add_cccd_position >::type;
+        using characteristics_sorted_by_priority     = typename stable_sort< impl::order_by_prio, characteristics_with_cccd_position >::type;
+        using characteristics_with_cccd_handle       = typename fold_left< characteristics_sorted_by_priority, impl::add_cccd_handle >::type;
 
         static notification_data find_notification_data_by_index( std::size_t index )
         {
             std::uint16_t attribute = 0;
-            for_< characteristics_sorted_by_priority >::each( attribute_at( attribute, index ) );
+            for_< characteristics_sorted_by_priority >::each( impl::attribute_at( attribute, index ) );
 
             return notification_data( attribute, index );
         }
@@ -187,12 +194,7 @@ namespace details {
             return result;
         }
 
-        template < class Characteristic >
-        struct select_cccd_position {
-            using type = std::integral_constant< std::size_t, Characteristic::cccd_position >;
-        };
-
-        using cccd_indices = typename transform_list< characteristics_with_cccd_handle, select_cccd_position >::type;
+        using cccd_indices = typename transform_list< characteristics_with_cccd_handle, impl::select_cccd_position >::type;
     };
 
     template <
