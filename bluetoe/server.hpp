@@ -1150,8 +1150,6 @@ namespace bluetoe {
     template < typename ... Options >
     void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
     {
-        using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
-
         std::uint16_t starting_handle, ending_handle;
 
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
