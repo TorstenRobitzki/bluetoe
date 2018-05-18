@@ -620,30 +620,42 @@ namespace details {
         typename Start = std::tuple<> >
     struct fold_right : fold< List, Operation, Start > {};
 
-    // fold_left to be able to transform list from front to end
+
     template <
         typename List,
         template < typename ListP, typename ElementP > class Operation,
         typename Start = std::tuple<> >
     struct fold_left;
 
-    template <
-        template < typename List, typename Element > class Operation,
-        typename Start >
-    struct fold_left< std::tuple<>, Operation, Start >
-    {
-        using type = Start;
+    template < bool >
+    struct fold_left_impl;
+
+    template <>
+    struct fold_left_impl< false > {
+        template <
+            template < typename, typename > class,
+            typename Start,
+            typename ... >
+        using f = Start;
+    };
+
+    template <>
+    struct fold_left_impl< true > {
+        template <
+            template < typename, typename > class Operation,
+            typename Start,
+            typename T,
+            typename ... Ts >
+        using f = typename fold_left_impl< sizeof...(Ts) != 0 >::template f< Operation, typename Operation< Start, T >::type, Ts... >;
     };
 
     template <
-        typename T,
         typename ... Ts,
-        template < typename List, typename Element > class Operation,
+        template < typename ListP, typename ElementP > class Operation,
         typename Start >
-    struct fold_left< std::tuple< T, Ts... >, Operation, Start >
-    {
-        using type = typename fold_left< std::tuple< Ts... >, Operation, typename Operation< Start, T >::type >::type;
-    };
+    struct fold_left< std::tuple< Ts... >, Operation, Start > :
+        wrap< typename fold_left_impl< sizeof...(Ts) != 0 >::template f< Operation, Start, Ts... > >
+    {};
 
     template < template < typename > class Transform >
     struct apply_transformation
