@@ -287,11 +287,11 @@ namespace details {
     /*
      * Given a list of characteristics, find the data required for notification
      */
-    template < typename CharacteristicList, typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
+    template < typename CharacteristicList, typename UUID >
     struct find_characteristic_data_by_uuid_in_characteristic_list;
 
-    template < typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    template < typename UUID >
+    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple<>, UUID >
     {
         typedef details::no_such_type type;
     };
@@ -299,18 +299,14 @@ namespace details {
     template <
         typename Characteristic,
         typename ... Characteristics,
-        typename UUID,
-        std::size_t FirstAttributesHandle,
-        std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple< Characteristic, Characteristics...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+        typename UUID >
+    struct find_characteristic_data_by_uuid_in_characteristic_list< std::tuple< Characteristic, Characteristics...>, UUID >
     {
         using found = std::is_same< typename Characteristic::configured_uuid, UUID >;
 
         using next = typename find_characteristic_data_by_uuid_in_characteristic_list<
             std::tuple< Characteristics... >,
-            UUID,
-            FirstAttributesHandle + Characteristic::number_of_attributes,
-            ClientCharacteristicIndex + Characteristic::number_of_client_configs >::type;
+            UUID >::type;
 
         struct result
         {
@@ -329,11 +325,11 @@ namespace details {
     /*
      * Given a list of services and a UUID, find the data required for notification
      */
-    template < typename ServiceList, typename UUID, std::size_t FirstAttributesHandle = 1, std::size_t ClientCharacteristicIndex = 0 >
+    template < typename ServiceList, typename UUID >
     struct find_characteristic_data_by_uuid_in_service_list;
 
-    template < typename UUID, std::size_t FirstAttributesHandle, std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_service_list< std::tuple<>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+    template < typename UUID >
+    struct find_characteristic_data_by_uuid_in_service_list< std::tuple<>, UUID >
     {
         typedef details::no_such_type type;
     };
@@ -341,19 +337,15 @@ namespace details {
     struct wrap_search_in_service_list {
         template <
             typename UUID,
-            std::size_t FirstAttributesHandle,
-            std::size_t ClientCharacteristicIndex,
             typename ... Services >
         using f = typename find_characteristic_data_by_uuid_in_service_list<
-            std::tuple< Services... >, UUID, FirstAttributesHandle, ClientCharacteristicIndex >::type;
+            std::tuple< Services... >, UUID >::type;
     };
 
     template < typename Result >
     struct wrap_result_found_in_service {
         template <
             typename UUID,
-            std::size_t FirstAttributesHandle,
-            std::size_t ClientCharacteristicIndex,
             typename ... Services >
         using f = Result;
     };
@@ -361,15 +353,13 @@ namespace details {
     template <
         typename Service,
         typename ... Services,
-        typename UUID,
-        std::size_t FirstAttributesHandle,
-        std::size_t ClientCharacteristicIndex >
-    struct find_characteristic_data_by_uuid_in_service_list< std::tuple< Service, Services...>, UUID, FirstAttributesHandle, ClientCharacteristicIndex >
+        typename UUID >
+    struct find_characteristic_data_by_uuid_in_service_list< std::tuple< Service, Services...>, UUID >
     {
         // The searched UUID is either in first Service or in the remaining service. There is no point in searching through
         // the remaining service, if the first service contains the characteristic already
         using c_type = typename find_characteristic_data_by_uuid_in_characteristic_list<
-            typename Service::characteristics, UUID, FirstAttributesHandle + Service::number_of_service_attributes, ClientCharacteristicIndex >::type;
+            typename Service::characteristics, UUID >::type;
 
         using next_path =
             typename select_type<
@@ -380,8 +370,6 @@ namespace details {
 
         using type = typename next_path::template f<
             UUID,
-            FirstAttributesHandle + Service::number_of_attributes,
-            ClientCharacteristicIndex + Service::number_of_client_configs,
             Services... >;
     };
 
