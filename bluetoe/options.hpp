@@ -12,18 +12,28 @@
 namespace bluetoe {
 namespace details {
 
-    /*
-     * Select A or B by Select. If Select == true, the result is A; B otherwise
-     */
-    template < bool Select, typename A, typename B >
-    struct select_type {
-        typedef A type;
+    template < typename T >
+    struct wrap {
+        using type = T;
     };
 
-    template < typename A, typename B >
-    struct select_type< false, A, B > {
-        typedef B type;
+     /*
+      * Select A or B by Select. If Select == true, the result is A; B otherwise
+      */
+    template < bool Select >
+    struct select_type_impl {
+        template < typename A, typename B >
+        using f = A;
     };
+
+    template <>
+    struct select_type_impl< false > {
+        template < typename A, typename B >
+        using f = B;
+    };
+
+    template < bool Select, typename A, typename B >
+    using select_type = wrap< typename select_type_impl< Select >::template f< A, B > >;
 
     /*
      * Selects a template according to the given Select parameter. If select is true,
@@ -46,15 +56,20 @@ namespace details {
     /*
      * return A if A is not Null, otherwise return B if B is not Null, otherwise Null
      */
-    template < typename Null, typename A, typename B >
-    struct or_type {
-        typedef A type;
+    template < typename Null, typename A >
+    struct or_type_impl {
+        template < typename >
+        using f = A;
     };
 
-    template < typename Null, typename B >
-    struct or_type< Null, Null, B > {
-        typedef B type;
+    template < typename Null >
+    struct or_type_impl< Null, Null > {
+        template < typename B >
+        using f = B;
     };
+
+    template < typename Null, typename A, typename B >
+    using or_type = wrap< typename or_type_impl< Null, A >::template f< B > >;
 
     /*
      *  add A to B
