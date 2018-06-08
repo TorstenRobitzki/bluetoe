@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_SUITE( notify_on_subscription )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.handle(), 0x0003 );
-        BOOST_CHECK( notification_type == notification_type::notification );
+        BOOST_CHECK( notification_type == server_with_notify_on_subscription::notification_type::notification );
     }
 
     BOOST_FIXTURE_TEST_CASE( test_indication, test::request_with_reponse< server_with_notify_on_subscription > )
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_SUITE( notify_on_subscription )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.handle(), 0x0006 );
-        BOOST_CHECK( notification_type == notification_type::indication );
+        BOOST_CHECK( notification_type == server_with_notify_on_subscription::notification_type::indication );
     }
 
     BOOST_FIXTURE_TEST_CASE( no_cb_called_when_not_configured, test::request_with_reponse< simple_server > )
