@@ -153,7 +153,7 @@ namespace bluetoe {
         /**
          * ClientCharacteristicIndex is the number of characteristics with a Client Characteristic Configuration attribute
          */
-        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
         static details::attribute attribute_at( std::size_t index );
 
         /**
@@ -253,7 +253,7 @@ namespace bluetoe {
     {
         assert( index < number_of_attributes );
 
-        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, std::tuple< Options..., ServiceList > >;
+        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, uuid, Server, std::tuple< Options..., ServiceList > >;
 
         if ( index < number_of_service_attributes )
             return attribute_generator::attribute_at( index );
@@ -324,8 +324,8 @@ namespace bluetoe {
         /*
          * service declaration
          */
-        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        struct generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, Options... >
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
+        struct generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >
         {
             static attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
@@ -357,13 +357,13 @@ namespace bluetoe {
             static const attribute attr;
         };
 
-        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... Options >
-        const attribute generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, Options... >::attr =
+        template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
+        const attribute generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr =
         {
             bits( has_option< is_secondary_service, Options... >::value
                 ? gatt_uuids::secondary_service
                 : gatt_uuids::primary_service ),
-            &generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
         };
 
         /*
@@ -373,8 +373,10 @@ namespace bluetoe {
             std::uint64_t UUID,
             typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
+            typename ServiceUUID,
+            typename Server,
             typename ... Options >
-        struct generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >
         {
             typedef typename last_from_pack< Options... >::type service_list;
             typedef typename find_service_by_uuid< service_list, service_uuid16< UUID > >::type included_service;
@@ -404,8 +406,10 @@ namespace bluetoe {
             std::uint64_t UUID,
             typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
+            typename ServiceUUID,
+            typename Server,
             typename ... Options >
-        const attribute generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr =
+        const attribute generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr =
         {
             bits( details::gatt_uuids::include ),
             &generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
@@ -422,8 +426,10 @@ namespace bluetoe {
             std::uint64_t E,
             typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
+            typename ServiceUUID,
+            typename Server,
             typename ... Options >
-        struct generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >
+        struct generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >
         {
             typedef typename last_from_pack< Options... >::type service_list;
             typedef typename find_service_by_uuid< service_list, service_uuid< A, B, C, D, E > >::type included_service;
@@ -455,11 +461,13 @@ namespace bluetoe {
             std::uint64_t E,
             typename CCCDIndices,
             std::size_t ClientCharacteristicIndex,
+            typename ServiceUUID,
+            typename Server,
             typename ... Options >
-        const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >::attr =
+        const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr =
         {
             bits( details::gatt_uuids::include ),
-            &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
+            &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
         };
 
         template < typename ... Options >

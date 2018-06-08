@@ -263,6 +263,44 @@ namespace details {
     };
 
     /*
+     * finds the first type that has _not_ the embedded meta_type
+     */
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct find_by_not_meta_type;
+
+    template <
+        typename MetaType >
+    struct find_by_not_meta_type< MetaType >
+    {
+        typedef no_such_type type;
+    };
+
+    template <
+        typename MetaType,
+        typename Type >
+    struct find_by_not_meta_type< MetaType, Type >
+    {
+        typedef extract_meta_type< Type > meta_type;
+        typedef typename select_type<
+            std::is_convertible< typename meta_type::type*, MetaType* >::value,
+            no_such_type, Type >::type type;
+    };
+
+    template <
+        typename MetaType,
+        typename Type,
+        typename ... Types >
+    struct find_by_not_meta_type< MetaType, Type, Types... >
+    {
+        typedef typename or_type<
+            no_such_type,
+            typename find_by_not_meta_type< MetaType, Type >::type,
+            typename find_by_not_meta_type< MetaType, Types... >::type >::type type;
+    };
+
+    /*
      * finds all types that has the embedded meta_type
      */
     template <

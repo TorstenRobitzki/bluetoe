@@ -172,6 +172,59 @@ BOOST_AUTO_TEST_CASE( find_meta_type_in_larger_list )
         std::is_same< typename bluetoe::details::find_by_meta_type< meta1, type2, type3, type4 >::type, bluetoe::details::no_such_type >::value ) );
 }
 
+BOOST_AUTO_TEST_CASE( find_by_not_meta_type_in_empty_list )
+{
+    BOOST_CHECK( ( std::is_same< typename bluetoe::details::find_by_not_meta_type< meta1 >::type, bluetoe::details::no_such_type >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( find_by_not_meta_type_in_one_element )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_by_not_meta_type< meta1, type1 >::type,
+            bluetoe::details::no_such_type
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_by_not_meta_type< meta1, type2 >::type,
+            type2
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_by_not_meta_type< meta1, type12 >::type,
+            bluetoe::details::no_such_type
+        >::value
+    ) );
+}
+
+BOOST_AUTO_TEST_CASE( find_by_not_meta_type_in_list )
+{
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_by_not_meta_type< meta1, type1, type2, type12 >::type,
+            type2
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_by_not_meta_type< meta1, type1, type12 >::type,
+            bluetoe::details::no_such_type
+        >::value
+    ) );
+
+    BOOST_CHECK( (
+        std::is_same<
+            typename bluetoe::details::find_by_not_meta_type< meta1, type2, type3 >::type,
+            type2
+        >::value
+    ) );
+}
+
 BOOST_AUTO_TEST_CASE( count_by_meta_type_in_empty_list )
 {
     BOOST_CHECK_EQUAL( ( bluetoe::details::count_by_meta_type< meta1 >::count ), 0 );

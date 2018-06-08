@@ -4,6 +4,7 @@
 #include <bluetoe/options.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
+#include <bluetoe/meta_types.hpp>
 #include <type_traits>
 #include <climits>
 
@@ -42,7 +43,11 @@ namespace bluetoe {
      * @endcode
      * @sa characteristic
      */
-    class no_read_access {};
+    struct no_read_access {
+        /** @cond HIDDEN_SYMBOLS */
+        using meta_type = details::valid_characteristic_option_meta_type;
+        /** @endcond */
+    };
 
     /**
      * @brief if added as option to a characteristic, write access is removed from the characteristic
@@ -60,7 +65,11 @@ namespace bluetoe {
      * @endcode
      * @sa characteristic
      */
-    class no_write_access {};
+    struct no_write_access {
+        /** @cond HIDDEN_SYMBOLS */
+        using meta_type = details::valid_characteristic_option_meta_type;
+        /** @endcond */
+    };
 
     /**
      * @brief adds the ability to notify this characteristic.
@@ -78,7 +87,10 @@ namespace bluetoe {
      */
     struct notify {
         /** @cond HIDDEN_SYMBOLS */
-        struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
+        struct meta_type :
+            details::client_characteristic_configuration_parameter,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -96,7 +108,10 @@ namespace bluetoe {
      */
     struct indicate {
         /** @cond HIDDEN_SYMBOLS */
-        struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
+        struct meta_type :
+            details::client_characteristic_configuration_parameter,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -117,7 +132,10 @@ namespace bluetoe {
                 srv.template notify< UUID >();
         }
 
-        struct meta_type : details::characteristic_subscription_call_back_meta_type, details::characteristic_parameter_meta_type {};
+        struct meta_type :
+            details::characteristic_subscription_call_back_meta_type,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -138,7 +156,10 @@ namespace bluetoe {
                 srv.template indicate< UUID >();
         }
 
-        struct meta_type : details::characteristic_subscription_call_back_meta_type, details::characteristic_parameter_meta_type {};
+        struct meta_type :
+            details::characteristic_subscription_call_back_meta_type,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -146,7 +167,11 @@ namespace bluetoe {
     struct default_on_characteristic_subscription {
         template < typename UUID, typename Server >
         static void on_subscription( std::uint16_t, Server& ) {}
-        struct meta_type : details::characteristic_subscription_call_back_meta_type, details::characteristic_parameter_meta_type {};
+
+        struct meta_type :
+            details::characteristic_subscription_call_back_meta_type,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
     };
     /** @endcond */
 
@@ -160,7 +185,10 @@ namespace bluetoe {
      */
     struct write_without_response {
         /** @cond HIDDEN_SYMBOLS */
-        struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
+        struct meta_type :
+            details::client_characteristic_configuration_parameter,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -242,7 +270,10 @@ namespace bluetoe {
 
         };
 
-        struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        struct meta_type :
+            details::characteristic_value_meta_type,
+            details::characteristic_value_declaration_parameter,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -294,7 +325,10 @@ namespace bluetoe {
             }
         };
 
-        struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        struct meta_type :
+            details::characteristic_value_meta_type,
+            details::characteristic_value_declaration_parameter,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -370,7 +404,10 @@ namespace bluetoe {
 
         };
 
-        struct meta_type : details::characteristic_value_meta_type, details::characteristic_value_declaration_parameter {};
+        struct meta_type :
+            details::characteristic_value_meta_type,
+            details::characteristic_value_declaration_parameter,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -472,7 +509,10 @@ namespace bluetoe {
                 }
             };
 
-            struct meta_type : characteristic_value_meta_type, characteristic_value_declaration_parameter {};
+            struct meta_type :
+                characteristic_value_meta_type,
+                characteristic_value_declaration_parameter,
+                details::valid_characteristic_option_meta_type {};
         };
 
         template < typename T >

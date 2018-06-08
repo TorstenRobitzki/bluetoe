@@ -27,7 +27,10 @@ namespace {
     {
         read_characteristic_properties()
         {
-            const bluetoe::details::attribute value_attribute = this->template attribute_at< std::tuple<>, 0 >( 0 );
+            using suuid = bluetoe::service_uuid16< 0x4711 >;
+            struct srv {};
+
+            const bluetoe::details::attribute value_attribute = this->template attribute_at< std::tuple<>, 0, suuid, srv >( 0 );
             std::uint8_t buffer[ 100 ];
             auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
