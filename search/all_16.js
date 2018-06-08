@@ -3,7 +3,7 @@ var searchData=
   ['watch',['watch',['../structbluetoe_1_1appearance.html#ae2f66171ab3a70a9325a2b3e82b1231d',1,'bluetoe::appearance']]],
   ['weight_5fscale',['weight_scale',['../structbluetoe_1_1appearance.html#af342e84751e89a0a3476368c914d6619',1,'bluetoe::appearance']]],
   ['wheel_5frevolution_5fdata_5fsupported',['wheel_revolution_data_supported',['../structbluetoe_1_1csc_1_1wheel__revolution__data__supported.html',1,'bluetoe::csc']]],
-  ['white_5flist',['white_list',['../classbluetoe_1_1link__layer_1_1white__list.html',1,'bluetoe::link_layer::white_list&lt; Size &gt;'],['../structbluetoe_1_1bootloader_1_1white__list.html',1,'bluetoe::bootloader::white_list&lt; Regions &gt;']]],
+  ['white_5flist',['white_list',['../structbluetoe_1_1bootloader_1_1white__list.html',1,'bluetoe::bootloader::white_list&lt; Regions &gt;'],['../classbluetoe_1_1link__layer_1_1white__list.html',1,'bluetoe::link_layer::white_list&lt; Size &gt;']]],
   ['white_5flist_5ffree_5fsize',['white_list_free_size',['../classbluetoe_1_1link__layer_1_1white__list.html#a17bd83fcdae1d33658109db6433b2d2c',1,'bluetoe::link_layer::white_list']]],
   ['wrist_5fworn_5fpulse_5foximeter',['wrist_worn_pulse_oximeter',['../structbluetoe_1_1appearance.html#afdb9050a8348217070e7ecaec0532e09',1,'bluetoe::appearance']]],
   ['write_5fblob_5fhandler',['write_blob_handler',['../structbluetoe_1_1write__blob__handler.html',1,'bluetoe']]],

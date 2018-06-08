@@ -63,6 +63,8 @@ $(function() {
 </div>
 </div><!-- top -->
 <div class="header">
+  <div class="summary">
+<a href="#typedef-members">Typedefs</a>  </div>
   <div class="headertitle">
 <div class="title">options.hpp File Reference</div>  </div>
 </div><!--header-->
@@ -72,12 +74,24 @@ $(function() {
 <code>#include &lt;tuple&gt;</code><br />
 </div>
 <p><a href="options_8hpp_source.html">Go to the source code of this file.</a></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
+Typedefs</h2></td></tr>
+<tr class="memitem:a663ca79f5b8492b7fed7092b85373e3e"><td class="memTemplParams" colspan="2"><a id="a663ca79f5b8492b7fed7092b85373e3e"></a>
+template&lt;bool Select, typename A , typename B &gt; </td></tr>
+<tr class="memitem:a663ca79f5b8492b7fed7092b85373e3e"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><b>bluetoe::details::select_type</b> = wrap&lt; typename select_type_impl&lt; Select &gt;::template f&lt; A, B &gt; &gt;</td></tr>
+<tr class="separator:a663ca79f5b8492b7fed7092b85373e3e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe6f72f9c0e73906bc787769431e63d7"><td class="memTemplParams" colspan="2"><a id="afe6f72f9c0e73906bc787769431e63d7"></a>
+template&lt;typename Null , typename A , typename B &gt; </td></tr>
+<tr class="memitem:afe6f72f9c0e73906bc787769431e63d7"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><b>bluetoe::details::or_type</b> = wrap&lt; typename or_type_impl&lt; Null, A &gt;::template f&lt; B &gt; &gt;</td></tr>
+<tr class="separator:afe6f72f9c0e73906bc787769431e63d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>This file contains all the generic meta template functions that are required by bluetoe </p>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed May 16 2018 11:43:33 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Jun 8 2018 13:16:36 for BlueToe by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.13
 </small></address>
