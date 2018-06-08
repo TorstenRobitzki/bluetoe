@@ -21,6 +21,7 @@ namespace bluetoe {
 
         struct characteristic_value_declaration_parameter {};
         struct client_characteristic_configuration_parameter {};
+        struct characteristic_subscription_call_back_meta_type {};
     }
 
     /**
@@ -98,6 +99,56 @@ namespace bluetoe {
         struct meta_type : details::client_characteristic_configuration_parameter, details::characteristic_parameter_meta_type {};
         /** @endcond */
     };
+
+    /**
+     * @brief queues a notification of a characteristic as soon, as it was configured for notification.
+     *
+     * This requires, that the characteristic was configured for notifications.
+     *
+     * @sa characteristic
+     * @sa notify
+     */
+    struct notify_on_subscription {
+        /** @cond HIDDEN_SYMBOLS */
+        template < typename UUID, typename Server >
+        static void on_subscription( std::uint16_t flags, Server& srv )
+        {
+            if ( flags & details::client_characteristic_configuration_notification_enabled )
+                srv.template notify< UUID >();
+        }
+
+        struct meta_type : details::characteristic_subscription_call_back_meta_type, details::characteristic_parameter_meta_type {};
+        /** @endcond */
+    };
+
+    /**
+     * @brief queues a indication of a characteristic as soon, as it was configured for indication.
+     *
+     * This requires, that the characteristic was configured for indications.
+     *
+     * @sa characteristic
+     * @sa indicate
+     */
+    struct indicate_on_subscription {
+        /** @cond HIDDEN_SYMBOLS */
+        template < typename UUID, typename Server >
+        static void on_subscription( std::uint16_t flags, Server& srv )
+        {
+            if ( flags & details::client_characteristic_configuration_indication_enabled )
+                srv.template indicate< UUID >();
+        }
+
+        struct meta_type : details::characteristic_subscription_call_back_meta_type, details::characteristic_parameter_meta_type {};
+        /** @endcond */
+    };
+
+    /** @cond HIDDEN_SYMBOLS */
+    struct default_on_characteristic_subscription {
+        template < typename UUID, typename Server >
+        static void on_subscription( std::uint16_t, Server& ) {}
+        struct meta_type : details::characteristic_subscription_call_back_meta_type, details::characteristic_parameter_meta_type {};
+    };
+    /** @endcond */
 
     /**
      * @brief sets the Write Without Response Characteristic Property bit.

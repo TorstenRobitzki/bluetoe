@@ -372,6 +372,8 @@ namespace bluetoe {
         struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Options... >
         {
             static const attribute attr;
+            using server = typename find_by_meta_type< server_meta_type, Options... >::type;
+            using uuid   = typename characteristic_or_service_uuid< Options... >::uuid;
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
@@ -407,7 +409,18 @@ namespace bluetoe {
                         return details::attribute_access_result::invalid_attribute_value_length;
 
                     if ( args.buffer_offset == 0 )
+                    {
                         args.client_config.flags( cccd_position, read_16bit( &args.buffer[ 0 ] ) );
+
+                        using subscription_callback =
+                            typename find_by_meta_type<
+                                characteristic_subscription_call_back_meta_type,
+                                Options..., default_on_characteristic_subscription >::type;
+
+                        subscription_callback::template on_subscription< uuid >(
+                            args.client_config.flags( cccd_position ),
+                            *static_cast< server* >( args.server ) );
+                    }
 
                     result = attribute_access_result::success;
                 }
