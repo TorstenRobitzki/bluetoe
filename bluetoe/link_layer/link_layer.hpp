@@ -12,6 +12,7 @@
 #include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
 #include <bluetoe/link_layer/white_list.hpp>
 #include <bluetoe/link_layer/advertising.hpp>
+#include <bluetoe/link_layer/meta_types.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/sm/security_manager.hpp>
@@ -88,6 +89,14 @@ namespace link_layer {
 
             typedef typename list::template impl< Radio, LinkLayer > type;
         };
+
+        template < typename >
+        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer;
+
+        template <>
+        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
+            ::bluetoe::details::no_such_type
+        > {};
     }
 
     /**
@@ -193,6 +202,14 @@ namespace link_layer {
          */
         const device_address& local_address() const;
     private:
+        static constexpr auto options_test = sizeof(
+            details::option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
+                typename ::bluetoe::details::find_by_not_meta_type<
+                    details::valid_link_layer_option_meta_type,
+                    Options...
+                >::type
+            > );
+
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
             details::buffer_sizes< Options... >::rx_size,

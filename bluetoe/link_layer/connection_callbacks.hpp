@@ -1,6 +1,8 @@
 #ifndef BLUETOE_LINK_LAYER_CONNECTION_CALLBACKS_HPP
 #define BLUETOE_LINK_LAYER_CONNECTION_CALLBACKS_HPP
 
+#include <bluetoe/link_layer/meta_types.hpp>
+
 namespace bluetoe {
 namespace link_layer {
     class connection_details;
@@ -32,7 +34,9 @@ namespace link_layer {
     template < typename T, T& Obj >
     struct connection_callbacks {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::connection_callbacks_meta_type meta_type;
+        struct meta_type :
+            details::connection_callbacks_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < class Server >
         class impl {
@@ -164,7 +168,9 @@ namespace link_layer {
 
     namespace details {
         struct no_connection_callbacks {
-            typedef details::connection_callbacks_meta_type meta_type;
+            struct meta_type :
+                details::connection_callbacks_meta_type,
+                details::valid_link_layer_option_meta_type {};
 
             template < class Server >
             struct impl {
