@@ -161,7 +161,8 @@ namespace bluetoe {
         /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
             details::outgoing_priority_meta_type,
-            details::valid_service_option_meta_type {};
+            details::valid_service_option_meta_type,
+            details::valid_server_option_meta_type {};
 
         template < typename Services, typename Service >
         struct service_base_priority
@@ -284,7 +285,8 @@ namespace bluetoe {
         /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
             details::outgoing_priority_meta_type,
-            details::valid_service_option_meta_type {};
+            details::valid_service_option_meta_type,
+            details::valid_server_option_meta_type {};
         /** @endcond */
     };
 

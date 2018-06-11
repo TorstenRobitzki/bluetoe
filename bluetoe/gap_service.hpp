@@ -27,7 +27,9 @@ namespace bluetoe {
      */
     struct no_gap_service_for_gatt_servers {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::gap_service_definition_meta_type meta_type;
+        struct meta_type :
+            details::gap_service_definition_meta_type,
+            details::valid_server_option_meta_type {};
 
         template < typename Services, typename ... ServerOptions >
         struct add_service {
@@ -48,7 +50,9 @@ namespace bluetoe {
     struct gap_service_for_gatt_servers
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::gap_service_definition_meta_type meta_type;
+        struct meta_type :
+            details::gap_service_definition_meta_type,
+            details::valid_server_option_meta_type {};
 
         template < typename Appearance, typename Name >
         using gap_service =

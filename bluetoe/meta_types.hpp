@@ -11,9 +11,14 @@ namespace bluetoe {
         struct valid_characteristic_option_meta_type {};
 
         /*
-         * A meta_type that tags avery valid option to a service
+         * A meta_type that tags every valid option to a service
          */
         struct valid_service_option_meta_type {};
+
+        /*
+         * A meta_type that tags every valid option to a server
+         */
+        struct valid_server_option_meta_type {};
     }
 }
 

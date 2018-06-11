@@ -1,10 +1,12 @@
 #ifndef BLUETOE_SERVER_NAME_HPP
 #define BLUETOE_SERVER_NAME_HPP
 
+#include <bluetoe/meta_types.hpp>
+
 namespace bluetoe {
 
     namespace details {
-        struct server_name_meta_type;
+        struct server_name_meta_type {};
     }
 
     /**
@@ -13,7 +15,9 @@ namespace bluetoe {
     template < const char* const Name >
     struct server_name {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::server_name_meta_type meta_type;
+        struct meta_type :
+            details::server_name_meta_type,
+            details::valid_server_option_meta_type {};
 
         static constexpr char const* name = Name;
 

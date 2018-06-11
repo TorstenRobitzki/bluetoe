@@ -160,7 +160,9 @@ namespace bluetoe {
               number_of_service_attributes
             + number_of_characteristic_attributes;
 
-        typedef details::service_meta_type meta_type;
+        struct meta_type :
+            details::service_meta_type,
+            details::valid_server_option_meta_type {};
 
         /**
          * ClientCharacteristicIndex is the number of characteristics with a Client Characteristic Configuration attribute
