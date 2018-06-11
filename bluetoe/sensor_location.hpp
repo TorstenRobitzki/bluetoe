@@ -14,7 +14,10 @@ namespace bluetoe {
     struct sensor_location_tag
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::sensor_location_meta_type    meta_type;
+        struct meta_type :
+            details::sensor_location_meta_type,
+            details::valid_service_option_meta_type {};
+
         static constexpr std::uint8_t                 value = L;
         /** @endcond */
     };

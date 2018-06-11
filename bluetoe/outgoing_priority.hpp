@@ -159,7 +159,9 @@ namespace bluetoe {
     template < typename ... UUIDs >
     struct higher_outgoing_priority {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::outgoing_priority_meta_type;
+        struct meta_type :
+            details::outgoing_priority_meta_type,
+            details::valid_service_option_meta_type {};
 
         template < typename Services, typename Service >
         struct service_base_priority
@@ -280,7 +282,9 @@ namespace bluetoe {
     template < class ... UUIDs >
     struct lower_outgoing_priority {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::outgoing_priority_meta_type;
+        struct meta_type :
+            details::outgoing_priority_meta_type,
+            details::valid_service_option_meta_type {};
         /** @endcond */
     };
 

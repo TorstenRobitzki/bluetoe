@@ -18,7 +18,9 @@
 namespace bluetoe {
 
     template < const char* const >
-    class service_name {};
+    struct service_name {
+        using meta_type = details::valid_service_option_meta_type;
+    };
 
     namespace details {
         struct service_meta_type {};
@@ -29,6 +31,12 @@ namespace bluetoe {
 
         template < typename ... Options >
         struct count_service_attributes;
+
+        template < typename >
+        struct option_passed_to_service_that_is_not_a_valid_option_for_a_service;
+
+        template <>
+        struct option_passed_to_service_that_is_not_a_valid_option_for_a_service< no_such_type > {};
     }
 
     /**
@@ -54,7 +62,9 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::service_uuid_128_meta_type meta_type;
+        struct meta_type :
+            details::service_uuid_128_meta_type,
+            details::valid_service_option_meta_type {};
         /** @endcond */
     };
 
@@ -75,7 +85,9 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::service_uuid_16_meta_type meta_type;
+        struct meta_type :
+            details::service_uuid_16_meta_type,
+            details::valid_service_option_meta_type {};
         /** @endcond */
     };
 
@@ -162,6 +174,13 @@ namespace bluetoe {
         template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server );
 
+        static constexpr auto options_test = sizeof(
+            details::option_passed_to_service_that_is_not_a_valid_option_for_a_service<
+                typename details::find_by_not_meta_type<
+                    details::valid_service_option_meta_type,
+                    Options...
+                >::type
+            > );
 
         /** @endcond */
     };
@@ -174,7 +193,9 @@ namespace bluetoe {
      */
     struct is_secondary_service {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::is_secondary_service_meta_type meta_type;
+        struct meta_type :
+            details::is_secondary_service_meta_type,
+            details::valid_service_option_meta_type {};
         /** @endcond */
     };
 
@@ -215,7 +236,9 @@ namespace bluetoe {
     struct include_service< service_uuid< A, B, C, D, E > >
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::include_service_meta_type meta_type;
+        struct meta_type :
+            details::include_service_meta_type,
+            details::valid_service_option_meta_type {};
         /** @endcond */
     };
 
@@ -223,7 +246,9 @@ namespace bluetoe {
     struct include_service< service_uuid16< UUID > >
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::include_service_meta_type meta_type;
+        struct meta_type :
+            details::include_service_meta_type,
+            details::valid_service_option_meta_type {};
         /** @endcond */
     };
 

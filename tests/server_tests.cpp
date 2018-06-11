@@ -144,7 +144,6 @@ BOOST_FIXTURE_TEST_CASE( single_service_mixin, reset_tag_construction_order )
     bluetoe::server<
         bluetoe::service<
             bluetoe::service_uuid16< 0x0815 >,
-            bluetoe::fixed_uint8_value< 0x42 >,
             bluetoe::mixin< tag< 'A' > >
         >
     > server;
@@ -158,7 +157,6 @@ BOOST_FIXTURE_TEST_CASE( multiple_service_mixin, reset_tag_construction_order )
         bluetoe::service<
             bluetoe::mixin< tag< 'A' > >,
             bluetoe::service_uuid16< 0x0815 >,
-            bluetoe::fixed_uint8_value< 0x42 >,
             bluetoe::mixin< tag< 'B' >, tag< 'C' > >
         >
     > server;
@@ -173,14 +171,12 @@ BOOST_FIXTURE_TEST_CASE( multiple_service_and_server_mixin, reset_tag_constructi
         bluetoe::service<
             bluetoe::mixin< tag< 'B' > >,
             bluetoe::service_uuid16< 0x0815 >,
-            bluetoe::fixed_uint8_value< 0x42 >,
             bluetoe::mixin< tag< 'C' >, tag< 'D' > >
         >,
         bluetoe::mixin< tag< 'E' > >,
         bluetoe::service<
             bluetoe::mixin< tag< 'F' > >,
             bluetoe::service_uuid16< 0x0815 >,
-            bluetoe::fixed_uint8_value< 0x42 >,
             bluetoe::mixin< tag< 'G' >, tag< 'H' > >
         >,
         bluetoe::mixin< tag< 'I' > >
