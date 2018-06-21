@@ -39,7 +39,7 @@ namespace details {
 
     };
 
-    inline std::uint8_t bits( att_opcodes c )
+    constexpr std::uint8_t bits( att_opcodes c )
     {
         return static_cast< std::uint8_t >( c );
     }
@@ -64,7 +64,7 @@ namespace details {
         insufficient_resources
     };
 
-    inline std::uint8_t bits( att_error_codes c )
+    constexpr std::uint8_t bits( att_error_codes c )
     {
         return static_cast< std::uint8_t >( c );
     }
@@ -74,7 +74,7 @@ namespace details {
         long_128bit = 0x02
     };
 
-    inline std::uint8_t bits( att_uuid_format c )
+    contexpr std::uint8_t bits( att_uuid_format c )
     {
         return static_cast< std::uint8_t >( c );
     }
@@ -90,7 +90,7 @@ namespace details {
         internal_128bit_uuid    = 1
     };
 
-    inline std::uint16_t bits( gatt_uuids c )
+    constexpr std::uint16_t bits( gatt_uuids c )
     {
         return static_cast< std::uint16_t >( c );
     }
@@ -103,7 +103,7 @@ namespace details {
         indicate                = 0x20
     };
 
-    inline std::uint8_t bits( gatt_characteristic_properties c )
+    constexpr std::uint8_t bits( gatt_characteristic_properties c )
     {
         return static_cast< std::uint8_t >( c );
     }
@@ -118,7 +118,7 @@ namespace details {
         shortened_local_name            = 0x08,
     };
 
-    inline std::uint8_t bits( gap_types c )
+    constexpr std::uint8_t bits( gap_types c )
     {
         return static_cast< std::uint8_t >( c );
     }
