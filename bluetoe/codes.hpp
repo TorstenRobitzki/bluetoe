@@ -74,7 +74,7 @@ namespace details {
         long_128bit = 0x02
     };
 
-    contexpr std::uint8_t bits( att_uuid_format c )
+    constexpr std::uint8_t bits( att_uuid_format c )
     {
         return static_cast< std::uint8_t >( c );
     }
