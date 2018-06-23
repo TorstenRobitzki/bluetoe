@@ -76,8 +76,14 @@ function(add_example TARGETNAME)
     add_custom_target(${TARGETNAME}.hex
         arm-none-eabi-objcopy -S -O ihex ${TARGETNAME}.elf ${TARGETNAME}.hex
         )
+    add_custom_target(${TARGETNAME}.lis
+        arm-none-eabi-objdump -S ${TARGETNAME}.elf > ${TARGETNAME}.lis
+        )
+
     add_dependencies(${TARGETNAME}.bin ${TARGETNAME}.elf)
     add_dependencies(${TARGETNAME}.hex ${TARGETNAME}.elf)
+    add_dependencies(${TARGETNAME}.lis ${TARGETNAME}.elf)
+
 
     if (NRFJPROG_DEVICE)
         add_custom_target(${TARGETNAME}.flash
