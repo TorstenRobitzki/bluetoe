@@ -53,6 +53,9 @@ namespace test {
                 return key_vault;
             }
 
+            void remote_connection_created( const bluetoe::link_layer::device_address& )
+            {
+            }
         };
 
         template < class OtherConnectionData, class SecurityFunctions >
