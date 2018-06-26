@@ -24,7 +24,7 @@ set(CXX_DISABLED_WARNINGS "${CXX_DISABLED_WARNINGS} -Wno-unused-local-typedefs")
 set(LINK_DEFAULT_FLAGS "${LINK_DEFAULT_FLAGS} -Wl,--gc-sections -L ${CMAKE_SOURCE_DIR}/examples -nostdlib")
 
 # debugging
-set(CXX_BUILD_TYPE_FLAGS "-g -O0")
+set(CXX_BUILD_TYPE_FLAGS "-g -Os")
 set(LINK_BUILD_TYPE_FLAGS "-g")
 
 project(bluetoe_nrf51_examples CXX ASM C)
@@ -49,6 +49,7 @@ include_directories(${NRF5_SDK_ROOT}/components/toolchain/gcc)
 include_directories(${NRF5_SDK_ROOT}/components/toolchain/cmsis/include/)
 include_directories(${BLUETOE_ROOT})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(SYSTEM ./assert)
 
 if (DEFINED NRFJPROG_DEVICE)
     message( WARNING "nrfjprog ${NRFJPROG_DEVICE} selected")
@@ -64,6 +65,7 @@ function(add_example TARGETNAME)
         ${BLUETOE_ROOT}/bluetoe/link_layer/connection_details.cpp
         ${BLUETOE_ROOT}/bluetoe/bindings/nrf51.cpp
         runtime.cpp
+        assert/assert.cpp
         ${NRF5_SDK_ROOT}/components/toolchain/system_nrf52.c
         gcc_startup_nrf52.s
     )
