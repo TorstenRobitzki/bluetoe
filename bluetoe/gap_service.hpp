@@ -76,7 +76,7 @@ namespace bluetoe {
                 appearance::unknown
             >::type device_appearance;
 
-            static constexpr char default_server_name[ 15 ] = "Bluetoe-Server";;
+            static constexpr char default_server_name[ 15 ] = "Bluetoe-Server";
 
             typedef typename details::find_by_meta_type<
                 details::server_name_meta_type,

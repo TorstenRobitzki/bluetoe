@@ -56,7 +56,7 @@ namespace details {
                 ( A >> 8  ) & 0xff,
                 ( A >> 16 ) & 0xff,
                 ( A >> 24 ) & 0xff
-            };;
+            };
         static constexpr bool is_128bit = true;
 
         static std::uint16_t as_16bit() {
