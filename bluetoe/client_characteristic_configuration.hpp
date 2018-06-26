@@ -11,13 +11,13 @@ namespace details {
     class client_characteristic_configuration
     {
     public:
-        client_characteristic_configuration()
+        constexpr client_characteristic_configuration()
             : data_( nullptr )
             , size_( 0 )
         {
         }
 
-        explicit client_characteristic_configuration( std::uint8_t* data, std::size_t s )
+        constexpr explicit client_characteristic_configuration( std::uint8_t* data, std::size_t s )
             : data_( data )
             , size_( s )
         {
@@ -43,12 +43,12 @@ namespace details {
         static constexpr std::size_t bits_per_config = 2;
 
     private:
-        static std::size_t shift( std::size_t index )
+        static constexpr std::size_t shift( std::size_t index )
         {
             return ( index % 4 ) * bits_per_config;
         }
 
-        static std::uint8_t mask( std::size_t index )
+        static constexpr std::uint8_t mask( std::size_t index )
         {
             return 0x03 << shift( index );
         }

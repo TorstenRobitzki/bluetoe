@@ -49,7 +49,7 @@ namespace details {
         void*                               server;
 
         template < std::size_t N >
-        static attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration())
+        static constexpr attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration())
         {
             return attribute_access_arguments{
                 attribute_access_type::read,
@@ -76,7 +76,7 @@ namespace details {
         }
 
         template < std::size_t N >
-        static attribute_access_arguments write( const std::uint8_t(&buffer)[N], std::size_t offset = 0, const client_characteristic_configuration& cc = client_characteristic_configuration() )
+        static constexpr attribute_access_arguments write( const std::uint8_t(&buffer)[N], std::size_t offset = 0, const client_characteristic_configuration& cc = client_characteristic_configuration() )
         {
             return attribute_access_arguments{
                 attribute_access_type::write,
@@ -102,7 +102,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments check_write( void* server )
+        static constexpr attribute_access_arguments check_write( void* server )
         {
             return attribute_access_arguments{
                 attribute_access_type::write,
@@ -114,7 +114,7 @@ namespace details {
             };
         }
 
-        static attribute_access_arguments compare_128bit_uuid( const std::uint8_t* uuid )
+        static constexpr attribute_access_arguments compare_128bit_uuid( const std::uint8_t* uuid )
         {
             return attribute_access_arguments{
                 attribute_access_type::compare_128bit_uuid,

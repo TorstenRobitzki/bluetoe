@@ -70,7 +70,7 @@ namespace link_layer
         template < class Radio >
         static random_device_address address( const Radio& )
         {
-            static const std::uint8_t addr[] = { F, E, D, C, B, A };
+            static constexpr std::uint8_t addr[] = { F, E, D, C, B, A };
             return ::bluetoe::link_layer::random_device_address( addr );
         }
 

@@ -27,7 +27,7 @@ namespace details {
 
         struct preudo_first_char
         {
-            static const std::size_t number_of_attributes = 0;
+            static constexpr std::size_t number_of_attributes = 0;
         };
 
         template < typename Characteristic, std::uint16_t FirstAttributesHandle, int Prio >
@@ -53,7 +53,7 @@ namespace details {
 
         struct attribute_at
         {
-            attribute_at( std::uint16_t& r, std::size_t i )
+            constexpr attribute_at( std::uint16_t& r, std::size_t i )
                 : result( r )
                 , index( i )
             {}
@@ -166,7 +166,7 @@ namespace details {
 
         struct attribute_value
         {
-            attribute_value( notification_data& r, const void* v )
+            constexpr attribute_value( notification_data& r, const void* v )
                 : result( r )
                 , index( 0 )
                 , value( v )
@@ -216,7 +216,7 @@ namespace details {
             typename find::characteristics_with_cccd_handle,
             equal_char >::type;
 
-        static notification_data data()
+        static constexpr notification_data data()
         {
             return notification_data( char_infos::first_attribute_handle + 1, char_infos::cccd_handle );
         }

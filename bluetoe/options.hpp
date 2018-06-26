@@ -214,8 +214,8 @@ namespace details {
     struct extract_meta_type
     {
         template < class U >
-        static typename U::meta_type check( U* )  { return U::meta_type(); }
-        static no_such_type          check( ... ) { return no_such_type(); }
+        static constexpr typename U::meta_type check( U* )  { return U::meta_type(); }
+        static constexpr no_such_type          check( ... ) { return no_such_type(); }
 
         typedef decltype( check( static_cast< T* >( nullptr ) ) ) meta_type;
         typedef meta_type                                         type;

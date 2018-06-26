@@ -21,7 +21,7 @@ namespace bluetoe {
 
         static constexpr char const* name = Name;
 
-        static const char* value()
+        static constexpr const char* value()
         {
             return name;
         }

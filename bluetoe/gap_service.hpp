@@ -76,7 +76,7 @@ namespace bluetoe {
                 appearance::unknown
             >::type device_appearance;
 
-            static const char default_server_name[ 15 ];
+            static constexpr char default_server_name[ 15 ] = "Bluetoe-Server";;
 
             typedef typename details::find_by_meta_type<
                 details::server_name_meta_type,
@@ -95,7 +95,7 @@ namespace bluetoe {
 
     /** @cond HIDDEN_SYMBOLS */
     template < typename Services, typename ... ServerOptions >
-    const char gap_service_for_gatt_servers::add_service< Services, ServerOptions... >::default_server_name[ 15 ] = "Bluetoe-Server";
+    constexpr char gap_service_for_gatt_servers::add_service< Services, ServerOptions... >::default_server_name[ 15 ];
     /** @endcond */
 
 }
