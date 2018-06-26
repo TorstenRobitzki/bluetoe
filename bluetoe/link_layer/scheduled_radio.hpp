@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <bluetoe/link_layer/buffer.hpp>
 #include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -21,7 +22,7 @@ namespace link_layer {
      * functions relative point in time, is based on.
      */
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    class scheduled_radio : public ll_data_pdu_buffer< TransmitSize, ReceiveSize, < scheduled_radio< TransmitSize, ReceiveSize, CallBack > >
+    class scheduled_radio : public ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack > >
     {
     public:
         /**
