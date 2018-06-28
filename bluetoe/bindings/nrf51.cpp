@@ -175,7 +175,7 @@ namespace nrf51_details {
     {
     }
 
-    static void init_radio()
+    static void init_radio( bool encryption_possible )
     {
         override_correction< NRF_FICR_Type >( NRF_FICR, NRF_RADIO );
 
@@ -185,7 +185,9 @@ namespace nrf51_details {
             ( 1 << RADIO_PCNF0_S0LEN_Pos ) |
             ( 8 << RADIO_PCNF0_LFLEN_Pos ) |
             ( 0 << RADIO_PCNF0_S1LEN_Pos ) |
-            ( RADIO_PCNF0_S1INCL_Automatic << RADIO_PCNF0_S1INCL_Pos );
+            ( encryption_possible
+                ? ( RADIO_PCNF0_S1INCL_Automatic << RADIO_PCNF0_S1INCL_Pos )
+                : ( RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos ) );
 
         NRF_RADIO->PCNF1 =
             ( RADIO_PCNF1_WHITEEN_Enabled << RADIO_PCNF1_WHITEEN_Pos ) |
@@ -247,7 +249,7 @@ namespace nrf51_details {
         debug_leave_critical_section();
     }
 
-    scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs )
+    scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs, bool encryption_possible )
         : callbacks_( cbs )
         , timeout_( false )
         , received_( false )
@@ -266,7 +268,7 @@ namespace nrf51_details {
         }
 
         init_debug();
-        init_radio();
+        init_radio( encryption_possible );
         init_timer();
 
         instance = this;
@@ -276,6 +278,11 @@ namespace nrf51_details {
         NVIC_EnableIRQ( RADIO_IRQn );
         NVIC_ClearPendingIRQ( TIMER0_IRQn );
         NVIC_EnableIRQ( TIMER0_IRQn );
+    }
+
+    scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs )
+        : scheduled_radio_base( cbs, false )
+    {
     }
 
     unsigned scheduled_radio_base::frequency_from_channel( unsigned channel ) const
@@ -791,7 +798,7 @@ namespace nrf51_details {
     }
 
     scheduled_radio_base_with_encryption::scheduled_radio_base_with_encryption( adv_callbacks& cbs )
-        : scheduled_radio_base( cbs )
+        : scheduled_radio_base( cbs, true )
     {
         nrf_random->CONFIG = RNG_CONFIG_DERCEN_Msk;
         nrf_random->SHORTS = RNG_SHORTS_VALRDY_STOP_Msk;

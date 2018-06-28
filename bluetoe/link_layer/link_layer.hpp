@@ -940,34 +940,31 @@ namespace link_layer {
     {
         ll_result result = handle_pending_ll_control();
 
-        if ( result != ll_result::go_ahead )
+        if ( result != ll_result::go_ahead || !defered_ll_control_pdu_.empty() )
             return result;
 
-        if ( defered_ll_control_pdu_.empty() )
+        for ( auto pdu = this->next_received(); pdu.size != 0; )
         {
-            for ( auto pdu = this->next_received(); pdu.size != 0; )
+            auto output = this->allocate_transmit_buffer();
+
+            if ( output.size )
             {
-                auto output = this->allocate_transmit_buffer();
-
-                if ( output.size )
+                const auto llid = pdu.buffer[ 0 ] & 0x03;
+                if ( llid == ll_control_pdu_code )
                 {
-                    const auto llid = pdu.buffer[ 0 ] & 0x03;
-                    if ( llid == ll_control_pdu_code )
-                    {
-                        result = handle_ll_control_data( pdu, output );
-                    }
-                    else if ( llid == lld_data_pdu_code && state_ != state::disconnecting )
-                    {
-                        result = handle_l2cap( pdu, output );
-                    }
-
-                    this->free_received();
-                    pdu = this->next_received();
+                    result = handle_ll_control_data( pdu, output );
                 }
-                else
+                else if ( llid == lld_data_pdu_code && state_ != state::disconnecting )
                 {
-                    pdu.size = 0;
+                    result = handle_l2cap( pdu, output );
                 }
+
+                this->free_received();
+                pdu = this->next_received();
+            }
+            else
+            {
+                pdu.size = 0;
             }
         }
 

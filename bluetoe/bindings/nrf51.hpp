@@ -44,6 +44,7 @@ namespace bluetoe
                 const std::uint32_t context_;
             };
 
+            scheduled_radio_base( adv_callbacks&, bool encryption_possible );
             explicit scheduled_radio_base( adv_callbacks& );
 
             void schedule_advertisment(

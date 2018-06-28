@@ -19,6 +19,8 @@ namespace link_layer {
      * to switch on the receiver / transmitter and to transmit and to receive. This points are defined as relative offsets to a previous point in time T0. The
      * first T0 is defined by the return of the constructor. After that, every scheduling function have to define what the next T0 is, that the next
      * functions relative point in time, is based on.
+     *
+     * TransmitSize and ReceiveSize is the size of buffer used for receiving and transmitting. This might not make sense for all implementations.
      */
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     class scheduled_radio : public ll_data_pdu_buffer< TransmitSize, ReceiveSize, < scheduled_radio< TransmitSize, ReceiveSize, CallBack > >
@@ -197,6 +199,15 @@ namespace link_layer {
          * @brief returns true, if a scan request from the given address should be answered.
          */
         bool radio_is_scan_request_in_filter( const device_address& addr ) const;
+
+        /**
+         * @brief a number of bytes that are additional required by the hardware to handle an over the air package/PDU.
+         *
+         * This number includes every byte that have to stored in a package to meet the requirments of the hardware,
+         * that is not part of the received / transmitted PDU (CRC, preamble etc.).
+         */
+        static constexpr std::size_t radio_package_overhead = 0;
+
 
         /**
          * @brief indication no support for encryption
