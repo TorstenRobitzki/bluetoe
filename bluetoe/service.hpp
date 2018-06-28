@@ -381,18 +381,18 @@ namespace bluetoe {
                 return attribute_access_result::write_not_permitted;
             }
 
-            static const attribute attr;
+            static constexpr attribute attr  =
+            {
+                bits( has_option< is_secondary_service, Options... >::value
+                    ? gatt_uuids::secondary_service
+                    : gatt_uuids::primary_service ),
+                &generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
+            };
+
         };
 
         template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
-        const attribute generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr =
-        {
-            bits( has_option< is_secondary_service, Options... >::value
-                ? gatt_uuids::secondary_service
-                : gatt_uuids::primary_service ),
-            &generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
-        };
-
+        constexpr attribute generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr ;
         /*
          * include attribute for 16-bit includes
          */
@@ -414,7 +414,7 @@ namespace bluetoe {
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
-                static const std::uint8_t value[] = {
+                static constexpr std::uint8_t value[] = {
                     handles::service_attribute_handle & 0xff,
                     handles::service_attribute_handle >> 8,
                     handles::end_service_handle & 0xff,
@@ -426,7 +426,11 @@ namespace bluetoe {
                 return attribute_value_read_only_access( args, &value[ 0 ], sizeof( value ) );
             }
 
-            static const attribute attr;
+            static constexpr attribute attr =
+            {
+                bits( details::gatt_uuids::include ),
+                &generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
+            };
         };
 
         template <
@@ -436,11 +440,7 @@ namespace bluetoe {
             typename ServiceUUID,
             typename Server,
             typename ... Options >
-        const attribute generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr =
-        {
-            bits( details::gatt_uuids::include ),
-            &generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, Options... >::access
-        };
+        constexpr attribute generate_attribute< include_service< service_uuid16< UUID > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr ;
 
         /*
          * include attribute for 128-bit includes
@@ -467,7 +467,7 @@ namespace bluetoe {
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
-                static const std::uint8_t value[] = {
+                static constexpr std::uint8_t value[] = {
                     handles::service_attribute_handle & 0xff,
                     handles::service_attribute_handle >> 8,
                     handles::end_service_handle & 0xff,
@@ -477,7 +477,11 @@ namespace bluetoe {
                 return attribute_value_read_only_access( args, &value[ 0 ], sizeof( value ) );
             }
 
-            static const attribute attr;
+            static constexpr attribute attr  =
+            {
+                bits( details::gatt_uuids::include ),
+                &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
+            };
         };
 
         template <
@@ -491,11 +495,7 @@ namespace bluetoe {
             typename ServiceUUID,
             typename Server,
             typename ... Options >
-        const attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr =
-        {
-            bits( details::gatt_uuids::include ),
-            &generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
-        };
+        constexpr attribute generate_attribute< include_service< service_uuid< A, B, C, D, E > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr;
 
         template < typename ... Options >
         struct count_service_attributes{

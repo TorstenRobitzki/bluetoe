@@ -90,7 +90,7 @@ namespace bluetoe {
             , details::valid_server_option_meta_type
         {};
 
-        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
+        static constexpr std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
         {
             return begin;
         }
@@ -101,7 +101,7 @@ namespace bluetoe {
 
         struct uuid_128_writer
         {
-            uuid_128_writer( std::uint8_t*& b, std::uint8_t* e )
+            constexpr uuid_128_writer( std::uint8_t*& b, std::uint8_t* e )
                 : begin( b )
                 , end( e )
             {
@@ -164,7 +164,7 @@ namespace bluetoe {
             details::list_of_128_bit_service_uuids_tag,
             details::valid_server_option_meta_type {};
 
-        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* ) {
+        static constexpr std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* ) {
             return begin;
         }
     };

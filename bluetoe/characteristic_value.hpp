@@ -231,18 +231,18 @@ namespace bluetoe {
             /*
              * Used to find this characteristic for notification
              */
-            static bool is_this( const void* value )
+            static constexpr bool is_this( const void* value )
             {
                 return value == Ptr;
             }
 
         private:
-            static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments& args, const std::true_type& )
+            static constexpr details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments& args, const std::true_type& )
             {
                 return details::attribute_value_read_access( args, static_cast< const std::uint8_t* >( static_cast< const void* >( Ptr ) ), sizeof( T ) );
             }
 
-            static details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& )
+            static constexpr details::attribute_access_result characteristic_value_read_access( details::attribute_access_arguments&, const std::false_type& )
             {
                 return details::attribute_access_result::read_not_permitted;
             }
@@ -263,7 +263,7 @@ namespace bluetoe {
                 return details::attribute_access_result::success;
             }
 
-            static details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& )
+            static constexpr details::attribute_access_result characteristic_value_write_access( details::attribute_access_arguments&, const std::false_type& )
             {
                 return details::attribute_access_result::write_not_permitted;
             }
@@ -319,7 +319,7 @@ namespace bluetoe {
                 return details::attribute_access_result::success;
             }
 
-            static bool is_this( const void* )
+            static constexpr bool is_this( const void* )
             {
                 return false;
             }
@@ -397,7 +397,7 @@ namespace bluetoe {
                 return details::attribute_access_result::success;
             }
 
-            static bool is_this( const void* )
+            static constexpr bool is_this( const void* )
             {
                 return false;
             }
@@ -420,7 +420,7 @@ namespace bluetoe {
         /** @cond HIDDEN_SYMBOLS */
         static constexpr char const* name = Name;
 
-        static const char* value()
+        static constexpr char* value()
         {
             return name;
         }
@@ -431,7 +431,7 @@ namespace bluetoe {
         template < class T >
         struct invoke_read_handler {
             template < class Server >
-            static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* server )
+            static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* server )
             {
                 return T::template call_read_handler< Server >( offset, read_size, out_buffer, out_size, server );
             }
@@ -440,7 +440,7 @@ namespace bluetoe {
         template <>
         struct invoke_read_handler< no_such_type > {
             template < class Server >
-            static std::uint8_t call_read_handler( std::size_t, std::size_t, std::uint8_t*, std::size_t&, void* )
+            static constexpr std::uint8_t call_read_handler( std::size_t, std::size_t, std::uint8_t*, std::size_t&, void* )
             {
                 return error_codes::read_not_permitted;
             }
@@ -449,7 +449,7 @@ namespace bluetoe {
         template < class T >
         struct invoke_write_handler {
             template < class Server, std::size_t ClientCharacteristicIndex >
-            static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server )
+            static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& config, void* server )
             {
                 return T::template call_write_handler< Server, ClientCharacteristicIndex >( offset, write_size, value, config, server );
             }
@@ -458,7 +458,7 @@ namespace bluetoe {
         template <>
         struct invoke_write_handler< no_such_type > {
             template < class Server, std::size_t ClientCharacteristicIndex >
-            static std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t*, const details::client_characteristic_configuration&, void* )
+            static constexpr std::uint8_t call_write_handler( std::size_t, std::size_t, const std::uint8_t*, const details::client_characteristic_configuration&, void* )
             {
                 return error_codes::write_not_permitted;
             }
@@ -587,7 +587,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return F( offset, read_size, out_buffer, out_size );
         }
@@ -630,7 +630,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return offset == 0
                 ? F( read_size, out_buffer, out_size )
@@ -673,7 +673,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return F( offset, write_size, value );
         }
@@ -710,7 +710,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? F( write_size, value )
@@ -726,7 +726,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return (O.*F)( offset, read_size, out_buffer, out_size );
         }
@@ -740,7 +740,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return (O.*F)( offset, read_size, out_buffer, out_size );
         }
@@ -754,7 +754,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return (O.*F)( offset, read_size, out_buffer, out_size );
         }
@@ -768,7 +768,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return (O.*F)( offset, read_size, out_buffer, out_size );
         }
@@ -782,7 +782,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
@@ -798,7 +798,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
@@ -814,7 +814,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
@@ -830,7 +830,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server >
-        static std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
+        static constexpr std::uint8_t call_read_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size, void* )
         {
             return offset == 0
                 ? (O.*F)( read_size, out_buffer, out_size )
@@ -846,7 +846,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -860,7 +860,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -874,7 +874,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -888,7 +888,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return (O.*F)( offset, write_size, value );
         }
@@ -902,7 +902,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
@@ -918,7 +918,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
@@ -950,7 +950,7 @@ namespace bluetoe {
     {
         /** @cond HIDDEN_SYMBOLS */
         template < class Server, std::size_t ClientCharacteristicIndex >
-        static std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
+        static constexpr std::uint8_t call_write_handler( std::size_t offset, std::size_t write_size, const std::uint8_t* value, const details::client_characteristic_configuration& , void* )
         {
             return offset == 0
                 ? (O.*F)( write_size, value )
