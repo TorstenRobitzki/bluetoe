@@ -383,7 +383,7 @@ namespace link_layer {
         static constexpr std::uint8_t header_rfu_mask = 0xe0;
         static_cast< void >( header_rfu_mask );
 
-        // make sure, no NFU bits are set
+        // make sure, no RFU bits are set
         assert( ( pdu.buffer[ 0 ] & header_rfu_mask ) == 0 );
 
         typename Radio::lock_guard lock;

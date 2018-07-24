@@ -390,6 +390,7 @@ BOOST_FIXTURE_TEST_CASE( only_one_transmitbuffer_entry_allocatable, running_mode
     max_tx_size( 100 );
 
     auto write1 = allocate_transmit_buffer();
+    write1.buffer[ 0 ] = 0;
     write1.buffer[ 1 ] = 98;
     commit_transmit_buffer( write1 );
 
