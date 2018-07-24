@@ -28,7 +28,7 @@ namespace details {
     template < typename CCCDIndices,std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
     struct generate_attribute_list< std::tuple<>, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, std::tuple< Options... > >
     {
-        static constexpr attribute attribute_at( std::size_t )
+        static const attribute attribute_at( std::size_t )
         {
             assert( !"should not happen" );
             return attribute();
@@ -38,19 +38,19 @@ namespace details {
     template < typename ... Attributes, typename ... CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
     struct generate_attribute_list< std::tuple< Attributes... >, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, ServiceUUID, Server, std::tuple< Options... > >
     {
-        static constexpr attribute attribute_at( std::size_t index )
+        static const attribute attribute_at( std::size_t index )
         {
             return attributes[ index ];
         }
 
-        static constexpr attribute attributes[ sizeof ...(Attributes) ] =
-        {
-            generate_attribute< Attributes, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr...
-        };
+        static const attribute attributes[ sizeof ...(Attributes) ];
     };
 
     template < typename ... Attributes, typename ... CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
-    constexpr attribute generate_attribute_list< std::tuple< Attributes... >, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, ServiceUUID, Server, std::tuple< Options... > >::attributes[ sizeof ...(Attributes) ];
+    const attribute generate_attribute_list< std::tuple< Attributes... >, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, ServiceUUID, Server, std::tuple< Options... > >::attributes[ sizeof ...(Attributes) ] =
+    {
+        generate_attribute< Attributes, std::tuple< CCCDIndices... >, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr...
+    };
 
     template < typename OptionsList, typename MetaTypeList, typename OptionsDefault = std::tuple<> >
     struct count_attributes;
@@ -81,7 +81,7 @@ namespace details {
         attribute_generation_parameters get_attribute_generation_parameters() { return attribute_generation_parameters(); }
 
         template < std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
-        static constexpr attribute attribute_at( std::size_t index )
+        static const attribute attribute_at( std::size_t index )
         {
             return generate_attribute_list<
                 attribute_generation_parameters,

@@ -320,14 +320,14 @@ namespace bluetoe {
                 return details::attribute_access_result::success;
             }
 
-            static constexpr attribute attr {
-                bits( details::gatt_uuids::characteristic ),
-                &generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::char_declaration_access
-            };
+            static const attribute attr;
         };
 
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
-        constexpr attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr;
+        const attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr {
+            bits( details::gatt_uuids::characteristic ),
+            &generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::char_declaration_access
+        };
 
         /*
          * Characteristic Value
@@ -338,16 +338,16 @@ namespace bluetoe {
             // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
             typedef typename characteristic_or_service_uuid< ServiceUUID, Options... >::uuid      uuid;
 
-            static constexpr attribute attr {
-                uuid::is_128bit
-                    ? bits( details::gatt_uuids::internal_128bit_uuid )
-                    : uuid::as_16bit(),
-                &characteristic< Options... >::value_type::template characteristic_value_access< Server, ClientCharacteristicIndex >
-            };
+            static const attribute attr;
         };
 
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
-        constexpr attribute generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr ;
+        const attribute generate_attribute< std::tuple< characteristic_value_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr {
+            uuid::is_128bit
+                ? bits( details::gatt_uuids::internal_128bit_uuid )
+                : uuid::as_16bit(),
+            &characteristic< Options... >::value_type::template characteristic_value_access< Server, ClientCharacteristicIndex >
+        };
 
         /*
          * Characteristic User Description
@@ -355,10 +355,7 @@ namespace bluetoe {
         template < const char* const Name, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
         struct generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >
         {
-            static constexpr attribute attr {
-                bits( gatt_uuids::characteristic_user_description ),
-                &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
-            };
+            static const attribute attr;
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
             {
@@ -386,7 +383,10 @@ namespace bluetoe {
         };
 
         template < const char* const Name, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
-        constexpr attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr ;
+        const attribute generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr {
+            bits( gatt_uuids::characteristic_user_description ),
+            &generate_attribute< std::tuple< characteristic_user_description_parameter, characteristic_name< Name > >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
+        };
 
         /*
          * Client Characteristic Configuration Descriptor (CCCD)
@@ -394,10 +394,7 @@ namespace bluetoe {
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
         struct generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >
         {
-            static constexpr attribute attr {
-                bits( gatt_uuids::client_characteristic_configuration ),
-                &generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
-            };
+            static const attribute attr;
             using uuid   = typename characteristic_or_service_uuid< ServiceUUID, Options... >::uuid;
 
             static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
@@ -455,7 +452,10 @@ namespace bluetoe {
         };
 
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
-        constexpr attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr ;
+        constexpr attribute generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::attr {
+            bits( gatt_uuids::client_characteristic_configuration ),
+            &generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >::access
+        };
 
         template < typename Parmeters >
         struct are_client_characteristic_configuration_parameter : std::false_type {};

@@ -418,9 +418,9 @@ namespace bluetoe {
     struct cstring_value : cstring_wrapper< cstring_value< Name > >
     {
         /** @cond HIDDEN_SYMBOLS */
-        static constexpr char const* name = Name;
+        static constexpr char const * name = Name;
 
-        static constexpr char* value()
+        static constexpr char const * value()
         {
             return name;
         }

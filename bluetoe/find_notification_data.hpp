@@ -216,7 +216,7 @@ namespace details {
             typename find::characteristics_with_cccd_handle,
             equal_char >::type;
 
-        static constexpr notification_data data()
+        static notification_data data()
         {
             return notification_data( char_infos::first_attribute_handle + 1, char_infos::cccd_handle );
         }
