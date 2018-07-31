@@ -303,6 +303,7 @@ namespace nrf51_details {
             link_layer::delta_time          when,
             const link_layer::read_buffer&  receive )
     {
+        while ((NRF_RADIO->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled);
         assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
         assert( !received_ );
         assert( !timeout_ );
@@ -481,6 +482,7 @@ namespace nrf51_details {
         bluetoe::link_layer::delta_time end_receive,
         const link_layer::read_buffer&  receive_buffer )
     {
+        while ((NRF_RADIO->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled);
         assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
         assert( state_ == state::idle );
         assert( receive_buffer.buffer && receive_buffer.size >= 2u || receive_buffer.empty() );
