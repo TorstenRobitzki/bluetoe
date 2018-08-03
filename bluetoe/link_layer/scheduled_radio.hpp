@@ -27,6 +27,38 @@ namespace link_layer {
     {
     public:
         /**
+         * @brief type that provides types and functions to access the differnt parts of a receiving PDU.
+         *
+         * There might be technical reasons, why an in memory PDU might differ in layout from an over the air PDU.
+         * This indirection is supposed to resolve such cases. (Currently, it's nrf51/52 that requires this).
+         */
+        struct pdu_layout {
+            using iterator       = std::uint8_t*;
+            using const_iterator = const std::uint8_t*;
+
+            /**
+             * @brief returns the header for advertising channel and for data channel PDUs.
+             */
+            static std::uint16_t header( const read_buffer& pdu );
+            static std::uint16_t header( const write_buffer& pdu );
+
+            /**
+             * @brief writes to the header of the given PDU
+             */
+            static void header( const read_buffer& pdu, std::uint16_t header_value );
+
+            /**
+             * @brief returns the writable body for advertising channel or for data channel PDUs.
+             */
+            static std::pair< iterator, iterator > body( const read_buffer& pdu );
+
+            /**
+             * @brief returns the readonly body for advertising channel or for data channel PDUs.
+             */
+            static std::pair< const_iterator, const_iterator > body( const write_buffer& pdu );
+        };
+
+        /**
          * initializes the hardware and defines the first time point as anker for the next call to a scheduling function.
          */
         scheduled_radio();
