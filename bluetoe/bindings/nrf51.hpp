@@ -4,6 +4,7 @@
 #include <bluetoe/link_layer/link_layer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
 #include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
+#include <bluetoe/link_layer/default_pdu_layout.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);
@@ -226,15 +227,65 @@ namespace bluetoe
             };
         };
 
-    }
+    } // namespace nrf51_details
+
+    /*
+     * When using encryption, the Radio and the AES CCM peripheral expect an "RFU" byte between LL header and
+     * payload.
+     */
+    struct pdu_layout_with_encryption : bluetoe::link_layer::details::layout_base< pdu_layout_with_encryption > {
+        static constexpr std::size_t header_size = sizeof( std::uint16_t );
+        using bluetoe::link_layer::details::layout_base< pdu_layout_with_encryption >::header;
+
+        static std::uint16_t header( const std::uint8_t* pdu )
+        {
+            return ::bluetoe::details::read_16bit( pdu );
+        }
+
+        static void header( std::uint8_t* pdu, std::uint16_t header_value )
+        {
+            ::bluetoe::details::write_16bit( pdu, header_value );
+        }
+
+        static std::pair< std::uint8_t*, std::uint8_t* > body( const link_layer::read_buffer& pdu )
+        {
+            assert( pdu.size >= header_size );
+
+            return { &pdu.buffer[ header_size + 1 ], &pdu.buffer[ pdu.size ] };
+        }
+
+        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const link_layer::write_buffer& pdu )
+        {
+            assert( pdu.size >= header_size );
+
+            return { &pdu.buffer[ header_size + 1 ], &pdu.buffer[ pdu.size ] };
+        }
+
+        static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
+        {
+            return header_size + payload_size + 1;
+        }
+    };
 
     template < class Server, typename ... Options >
-    using nrf51 = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
+    using nrf51_without_encryption = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
         nrf51_details::scheduled_radio_base >::scheduled_radio, Options... >;
 
     template < class Server, typename ... Options >
-    using nrf51_with_encryption = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
+    using nrf51 = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
         nrf51_details::scheduled_radio_base_with_encryption >::scheduled_radio, Options... >;
-}
+
+    namespace link_layer {
+        template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+        struct pdu_layout_by_radio<
+            nrf51_details::scheduled_radio_factory<
+                nrf51_details::scheduled_radio_base_with_encryption
+            >::template scheduled_radio< TransmitSize, ReceiveSize, CallBack >
+        >
+        {
+            using pdu_layout = pdu_layout_with_encryption;
+        };
+    }
+} // namespace bluetoe
 
 #endif // include guard

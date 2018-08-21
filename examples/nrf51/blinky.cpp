@@ -28,7 +28,7 @@ typedef server<
 
 blinky_server gatt;
 
-nrf51_with_encryption< blinky_server > gatt_srv;
+nrf51< blinky_server > gatt_srv;
 
 int main()
 {
