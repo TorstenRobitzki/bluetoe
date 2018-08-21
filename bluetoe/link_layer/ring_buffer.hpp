@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include <bluetoe/link_layer/buffer.hpp>
+#include <bluetoe/link_layer/default_pdu_layout.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -17,9 +18,12 @@ namespace link_layer {
      * to the next PDU stored in the buffer.
      *
      * Elements are inserted at the front and removed from the end. When the ring buffer is empty
-     * it is quarantied that the buffer can store one elemente of at least ( Size / 2 ) - 1 in size.
+     * it is garantied that the buffer can store one elemente of at least Size - 1 in size.
+     *
+     * The Layout is used to access the header field of the PDU and to determin the in memory
+     * length of stored PDUs.
      */
-    template < std::size_t Size, typename Buffer = read_buffer >
+    template < std::size_t Size, typename Buffer = read_buffer, typename Layout = default_pdu_layout >
     class pdu_ring_buffer
     {
     public:
@@ -51,7 +55,7 @@ namespace link_layer {
          * If there is not enough room for size bytes in the ring buffer, the function will return an
          * empty read_buffer.
          *
-         * @pre size > 2
+         * @pre size > Layout::data_channel_pdu_memory_size( 0 )
          * @pre buffer must point to an array of at least Size bytes
          */
         Buffer alloc_front( std::uint8_t* buffer, std::size_t size ) const;
@@ -62,8 +66,8 @@ namespace link_layer {
          * The length field of the PDU must contain the actual size of the PDU - 2.
          * Now the stored PDU can be read through the ring.
          *
-         * @pre pdu.size >= pdu.buffer[ 1 ] + 2
-         * @pre pdu.buffer[ 1 ] != 0
+         * @pre pdu.size >= Layout::data_channel_pdu_memory_size( Layout::header( pdu ) >> 8 )
+         * @pre Layout::header( pdu ) >> 8 != 0
          * @post next_end().size != 0
          */
         void push_front( std::uint8_t* buffer, const Buffer& pdu );
@@ -88,11 +92,14 @@ namespace link_layer {
         bool more_than_one() const;
 
     private:
-        static constexpr std::size_t  ll_header_size = 2;
-        static constexpr std::uint8_t wrap_mark = 0;
+        static constexpr std::size_t    ll_header_size = 2;
+        static constexpr std::uint16_t  wrap_mark = 0;
 
         template < class P >
         static std::uint8_t pdu_length( const P& pdu );
+
+        template < typename P >
+        static std::size_t pdu_length( P* );
 
         // 1) if end_ == front_, the ring is empty
         //        end_ and front_ can point to everywhere into the buffer
@@ -104,26 +111,27 @@ namespace link_layer {
         std::uint8_t* front_;
     };
 
-    template < std::size_t Size, typename Buffer >
-    pdu_ring_buffer< Size, Buffer >::pdu_ring_buffer( std::uint8_t* buffer )
+    template < std::size_t Size, typename Buffer, typename Layout >
+    pdu_ring_buffer< Size, Buffer, Layout >::pdu_ring_buffer( std::uint8_t* buffer )
     {
         reset( buffer );
     }
 
-    template < std::size_t Size, typename Buffer >
-    void pdu_ring_buffer< Size, Buffer >::reset( std::uint8_t* buffer )
+    template < std::size_t Size, typename Buffer, typename Layout >
+    void pdu_ring_buffer< Size, Buffer, Layout >::reset( std::uint8_t* buffer )
     {
         assert( buffer );
         front_ = buffer;
-        front_[ 1 ] = wrap_mark;
         end_   = buffer;
+
+        Layout::header( buffer, wrap_mark );
     }
 
-    template < std::size_t Size, typename Buffer >
-    Buffer pdu_ring_buffer< Size, Buffer >::alloc_front( std::uint8_t* buffer, std::size_t size ) const
+    template < std::size_t Size, typename Buffer, typename Layout >
+    Buffer pdu_ring_buffer< Size, Buffer, Layout >::alloc_front( std::uint8_t* buffer, std::size_t size ) const
     {
         assert( buffer );
-        assert( size > ll_header_size );
+        assert( size >= Layout::data_channel_pdu_memory_size( 0 ) );
 
         // buffer splited? There must be one byte left to not overflow the ring.
         if ( end_ > front_ && static_cast< std::ptrdiff_t >( size ) < end_ - front_ )
@@ -151,17 +159,18 @@ namespace link_layer {
         return Buffer{ 0, 0 };
     }
 
-    template < std::size_t Size, typename Buffer >
-    void pdu_ring_buffer< Size, Buffer >::push_front( std::uint8_t* buffer, const Buffer& pdu )
+    template < std::size_t Size, typename Buffer, typename Layout >
+    void pdu_ring_buffer< Size, Buffer, Layout >::push_front( std::uint8_t* buffer, const Buffer& pdu )
     {
         assert( pdu.size >= pdu_length( pdu ) );
-        assert( pdu_length( pdu ) != 0 );
 
         const std::uint8_t* end_of_buffer = buffer + Size;
 
         // set size to 0 to mark force the end_ pointer to wrap here
         if ( front_ != pdu.buffer && front_ + 1 < end_of_buffer )
-            front_[ 1 ] = wrap_mark;
+        {
+            Layout::header( front_, wrap_mark );
+        }
 
         const bool was_empty = front_ == end_;
 
@@ -172,18 +181,18 @@ namespace link_layer {
             end_ = pdu.buffer;
     }
 
-    template < std::size_t Size, typename Buffer >
-    Buffer pdu_ring_buffer< Size, Buffer >::next_end() const
+    template < std::size_t Size, typename Buffer, typename Layout >
+    Buffer pdu_ring_buffer< Size, Buffer, Layout >::next_end() const
     {
         return front_ == end_
             ? Buffer{ 0, 0 }
-            : Buffer{ end_, end_[ 1 ] + ll_header_size };
+            : Buffer{ end_, pdu_length( end_ ) };
     }
 
-    template < std::size_t Size, typename Buffer >
-    void pdu_ring_buffer< Size, Buffer >::pop_end( std::uint8_t* buffer )
+    template < std::size_t Size, typename Buffer, typename Layout >
+    void pdu_ring_buffer< Size, Buffer, Layout >::pop_end( std::uint8_t* buffer )
     {
-        end_ += end_[ 1 ] + ll_header_size;
+        end_ += pdu_length( end_ );
 
         const std::uint8_t* end_of_buffer = buffer + Size;
 
@@ -192,17 +201,24 @@ namespace link_layer {
             end_ = buffer;
     }
 
-    template < std::size_t Size, typename Buffer >
+    template < std::size_t Size, typename Buffer, typename Layout >
     template < class P >
-    std::uint8_t pdu_ring_buffer< Size, Buffer >::pdu_length( const P& pdu )
+    std::uint8_t pdu_ring_buffer< Size, Buffer, Layout >::pdu_length( const P& pdu )
     {
-        return pdu.buffer[ 1 ] + ll_header_size;
+        return pdu_length( pdu.buffer );
     }
 
-    template < std::size_t Size, typename Buffer >
-    bool pdu_ring_buffer< Size, Buffer >::more_than_one() const
+    template < std::size_t Size, typename Buffer, typename Layout >
+    template < typename P >
+    std::size_t pdu_ring_buffer< Size, Buffer, Layout >::pdu_length( P* p )
     {
-        return end_ != front_ && ( end_ + end_[ 1 ] + ll_header_size ) != front_;
+        return Layout::data_channel_pdu_memory_size( Layout::header( p ) >> 8 );
+    }
+
+    template < std::size_t Size, typename Buffer, typename Layout >
+    bool pdu_ring_buffer< Size, Buffer, Layout >::more_than_one() const
+    {
+        return end_ != front_ && ( end_ + pdu_length( end_) ) != front_;
     }
 
 }

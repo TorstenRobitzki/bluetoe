@@ -88,7 +88,7 @@ struct full_ring : small_ring
         p2.buffer[ 1 ] = 16;
         push_front( buffer, p2 );
 
-        BOOST_REQUIRE_EQUAL( alloc_front( buffer, 19 ).size, 0u );
+        BOOST_REQUIRE_EQUAL( alloc_front( buffer, 15 ).size, 0u );
     }
 };
 
