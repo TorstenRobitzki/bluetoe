@@ -5,9 +5,14 @@
 
 namespace bluetoe
 {
+
     template < class Server, typename ... Options >
-    using nrf52 = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
-        nrf51_details::scheduled_radio_base >::scheduled_radio, Options... >;
+    using nrf52 = link_layer::link_layer<
+        Server,
+        nrf51_details::template scheduled_radio_factory<
+            nrf51_details::scheduled_radio_base_with_encryption< Options... >
+        >::template scheduled_radio,
+        Options... >;
 
 }
 
