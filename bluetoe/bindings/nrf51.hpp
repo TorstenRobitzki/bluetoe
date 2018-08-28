@@ -70,11 +70,12 @@ namespace bluetoe
             static constexpr bool hardware_supports_encryption = false;
 
         protected:
-            bluetoe::link_layer::delta_time start_connection_event(
+            bluetoe::link_layer::delta_time start_connection_event_impl(
                 unsigned                        channel,
                 bluetoe::link_layer::delta_time start_receive,
                 bluetoe::link_layer::delta_time end_receive,
-                const link_layer::read_buffer&  receive_buffer );
+                const link_layer::read_buffer&  receive_buffer,
+                bool                            encrypted );
         private:
 
             friend void ::RADIO_IRQHandler(void);
@@ -121,10 +122,35 @@ namespace bluetoe
             std::uint8_t                    empty_receive_[ 2 ];
         };
 
+
+        class scheduled_radio_base_without_encryption_base : public scheduled_radio_base
+        {
+        protected:
+            scheduled_radio_base_without_encryption_base( adv_callbacks& cbs ) : scheduled_radio_base( cbs ) {}
+
+            bluetoe::link_layer::delta_time start_connection_event(
+                unsigned                        channel,
+                bluetoe::link_layer::delta_time start_receive,
+                bluetoe::link_layer::delta_time end_receive,
+                const link_layer::read_buffer&  receive_buffer )
+            {
+                return this->start_connection_event_impl( channel, start_receive, end_receive, receive_buffer, false );
+            }
+        };
+
         class scheduled_radio_base_with_encryption_base : public scheduled_radio_base
         {
         protected:
             scheduled_radio_base_with_encryption_base( adv_callbacks& cbs, std::uint32_t scratch_area, std::uint32_t encrypted_area );
+
+            bluetoe::link_layer::delta_time start_connection_event(
+                unsigned                        channel,
+                bluetoe::link_layer::delta_time start_receive,
+                bluetoe::link_layer::delta_time end_receive,
+                const link_layer::read_buffer&  receive_buffer )
+            {
+                return this->start_connection_event_impl( channel, start_receive, end_receive, receive_buffer, encrypted_ );
+            }
 
         public:
             static constexpr bool hardware_supports_encryption = true;
@@ -152,6 +178,7 @@ namespace bluetoe
 
         private:
             std::uint32_t   encrypted_area_;
+            bool            encrypted_;
         };
 
         /*
@@ -214,7 +241,6 @@ namespace bluetoe
 
                 return this->start_connection_event( channel, start_receive, end_receive, read );
             }
-
         private:
             using buffer = bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack, Base > >;
 
@@ -276,7 +302,7 @@ namespace bluetoe
     using nrf51_without_encryption = link_layer::link_layer<
         Server,
         nrf51_details::template scheduled_radio_factory<
-            nrf51_details::scheduled_radio_base
+            nrf51_details::scheduled_radio_base_without_encryption_base
         >::scheduled_radio,
         Options... >;
 
