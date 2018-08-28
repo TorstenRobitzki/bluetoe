@@ -96,6 +96,7 @@ add_custom_target(
 add_example(thermometer)
 add_example(cycling_speed_and_cadence)
 add_example(blinky)
+add_example(blinky_without_encryption)
 add_example(bootloader)
 
 set_target_properties(bootloader.elf PROPERTIES
