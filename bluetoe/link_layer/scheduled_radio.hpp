@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <bluetoe/link_layer/buffer.hpp>
 #include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
 
 namespace bluetoe {
 namespace link_layer {

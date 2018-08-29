@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <cstdint>
+#include <bluetoe/link_layer/meta_types.hpp>
 
 namespace bluetoe {
 
@@ -42,7 +43,9 @@ namespace l2cap {
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef bluetoe::details::signaling_channel_meta_type meta_type;
+        struct meta_type :
+            bluetoe::details::signaling_channel_meta_type,
+            bluetoe::link_layer::details::valid_link_layer_option_meta_type {};
         /** @endcond */
     private:
         void reject_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );

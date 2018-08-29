@@ -32,3 +32,4 @@ documentation/
 node_modules/
 
 *.pcapng
+/.vs

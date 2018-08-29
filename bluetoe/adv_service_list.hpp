@@ -5,6 +5,7 @@
 #include <bluetoe/bits.hpp>
 #include <bluetoe/options.hpp>
 #include <bluetoe/service_uuid.hpp>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
 
@@ -24,7 +25,10 @@ namespace bluetoe {
     template < typename ... UUID16 >
     struct list_of_16_bit_service_uuids {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::list_of_16_bit_service_uuids_tag;
+        struct meta_type
+            : details::list_of_16_bit_service_uuids_tag
+            , details::valid_server_option_meta_type
+        {};
 
         static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* end )
         {
@@ -63,7 +67,10 @@ namespace bluetoe {
     /** @cond HIDDEN_SYMBOLS */
     template <>
     struct list_of_16_bit_service_uuids<> {
-        using meta_type = details::list_of_16_bit_service_uuids_tag;
+        struct meta_type
+            : details::list_of_16_bit_service_uuids_tag
+            , details::valid_server_option_meta_type
+        {};
 
         static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
         {
@@ -80,9 +87,10 @@ namespace bluetoe {
         struct meta_type
             : details::list_of_16_bit_service_uuids_tag
             , details::list_of_128_bit_service_uuids_tag
+            , details::valid_server_option_meta_type
         {};
 
-        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
+        static constexpr std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
         {
             return begin;
         }
@@ -93,7 +101,7 @@ namespace bluetoe {
 
         struct uuid_128_writer
         {
-            uuid_128_writer( std::uint8_t*& b, std::uint8_t* e )
+            constexpr uuid_128_writer( std::uint8_t*& b, std::uint8_t* e )
                 : begin( b )
                 , end( e )
             {
@@ -117,7 +125,9 @@ namespace bluetoe {
     template < typename ... UUID128 >
     struct list_of_128_bit_service_uuids {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::list_of_128_bit_service_uuids_tag;
+        struct meta_type :
+            details::list_of_128_bit_service_uuids_tag,
+            details::valid_server_option_meta_type {};
 
         static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* end )
         {
@@ -150,9 +160,11 @@ namespace bluetoe {
 
     template <>
     struct list_of_128_bit_service_uuids<> {
-        using meta_type = details::list_of_128_bit_service_uuids_tag;
+        struct meta_type :
+            details::list_of_128_bit_service_uuids_tag,
+            details::valid_server_option_meta_type {};
 
-        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* ) {
+        static constexpr std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* ) {
             return begin;
         }
     };

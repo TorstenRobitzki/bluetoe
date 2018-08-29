@@ -5,11 +5,12 @@
 #include <cstddef>
 #include <cassert>
 #include <utility>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
 
     namespace details {
-        struct write_queue_meta_type;
+        struct write_queue_meta_type {};
     }
 
     /**
@@ -46,7 +47,9 @@ namespace bluetoe {
     template < std::uint16_t S >
     struct shared_write_queue {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::write_queue_meta_type meta_type;
+        struct meta_type :
+            details::write_queue_meta_type,
+            details::valid_server_option_meta_type {};
 
         static constexpr std::uint16_t queue_size = S;
         /** @endcond */

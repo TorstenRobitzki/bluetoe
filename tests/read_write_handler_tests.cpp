@@ -19,6 +19,8 @@
 static const std::uint8_t test_read_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
 using cccd_indices = std::tuple<>;
+using suuid = bluetoe::service_uuid16< 0x4711 >;
+struct srv {};
 
 std::uint8_t read_blob_test_value_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
 {
@@ -285,7 +287,7 @@ typedef typename boost::mpl::insert_range<
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_handlers, Attribute, all_read_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -297,7 +299,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_handlers, Attribute, all_read_hand
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_no_write_access_read_blob_handlers, Attribute, all_read_only_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
 
     auto access = bluetoe::details::attribute_access_arguments::write( test_read_value );
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::write_not_permitted );
@@ -305,7 +307,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_no_write_access_read_blob_handlers, Attribut
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_with_offset, Attribute, read_blob_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
@@ -317,7 +319,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_with_offset, Attribute, read_blob_
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_with_offset, Attribute, read_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
@@ -326,7 +328,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_with_offset, Attribute, read_handler_te
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_handler_characteristic_declaration_uuid, Attribute, read_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 0 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 0 );
 
     BOOST_CHECK_EQUAL( attr.uuid, 0x2803 );
 }
@@ -394,7 +396,7 @@ BOOST_FIXTURE_TEST_SUITE( test_write_handlers, reset_test_write_value )
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_handlers, Attribute, all_write_handler_tests )
 {
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
 
     auto access = bluetoe::details::attribute_access_arguments::write( fixture );
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::success );
@@ -403,7 +405,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_handlers, Attribute, all_write_handler
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_no_read_access_to_write_handler, Attribute, all_write_only_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -415,7 +417,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_blob_with_offset, Attribute, all_write
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
     static const std::uint8_t expected_value[] = { 0x00, 0x00, 0xaa, 0xbb, 0xcc };
 
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
 
     auto access = bluetoe::details::attribute_access_arguments::write( fixture, 2 );
 
@@ -427,7 +429,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_with_offset, Attribute, write_handler_
 {
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
 
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0 >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
     auto access = bluetoe::details::attribute_access_arguments::write( fixture, 2 );
 
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::attribute_not_long );

@@ -6,7 +6,7 @@ namespace bluetoe {
     static constexpr std::uint16_t no_specific_slave_connection_maximum_interval = 0xFFFF;
 
     namespace details {
-        struct slave_connection_interval_range_meta_type;
+        struct slave_connection_interval_range_meta_type {};
 
         template <
             std::uint16_t MinInterval,
@@ -52,7 +52,9 @@ namespace bluetoe {
     struct slave_connection_interval_range
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::slave_connection_interval_range_meta_type meta_type;
+        struct meta_type :
+            details::slave_connection_interval_range_meta_type,
+            details::valid_server_option_meta_type {};
 
         static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* end )
         {

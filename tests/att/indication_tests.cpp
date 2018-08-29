@@ -154,3 +154,59 @@ BOOST_AUTO_TEST_SUITE( confirmation )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+using server_with_notify_on_subscription = bluetoe::server<
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x1234 >,
+
+        // Handle of CCCD is: 0x0004
+        bluetoe::characteristic<
+            bluetoe::bind_characteristic_value< std::uint8_t, &value >,
+            bluetoe::characteristic_uuid16< 0x0001 >,
+            bluetoe::notify,
+            bluetoe::notify_on_subscription
+        >,
+
+        // Handle of CCCD is: 0x0007
+        bluetoe::characteristic<
+            bluetoe::bind_characteristic_value< std::uint8_t, &value >,
+            bluetoe::characteristic_uuid16< 0x0002 >,
+            bluetoe::indicate,
+            bluetoe::indicate_on_subscription
+        >
+    >
+>;
+
+BOOST_AUTO_TEST_SUITE( notify_on_subscription )
+
+    BOOST_FIXTURE_TEST_CASE( test_notification, test::request_with_reponse< server_with_notify_on_subscription > )
+    {
+        l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
+
+        BOOST_CHECK_EQUAL( connection.client_configurations().flags( 0 ), 0x0001 );
+
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification.handle(), 0x0003 );
+        BOOST_CHECK( notification_type == server_with_notify_on_subscription::notification_type::notification );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( test_indication, test::request_with_reponse< server_with_notify_on_subscription > )
+    {
+        l2cap_input( { 0x12, 0x07, 0x00, 0x02, 0x00 } );
+
+        BOOST_CHECK_EQUAL( connection.client_configurations().flags( 1 ), 0x0002 );
+
+        BOOST_REQUIRE( notification.valid() );
+        BOOST_CHECK_EQUAL( notification.handle(), 0x0006 );
+        BOOST_CHECK( notification_type == server_with_notify_on_subscription::notification_type::indication );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( no_cb_called_when_not_configured, test::request_with_reponse< simple_server > )
+    {
+        l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
+
+        BOOST_CHECK_EQUAL( connection.client_configurations().flags( 0 ), 0x0001 );
+        BOOST_CHECK( !notification.valid() );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

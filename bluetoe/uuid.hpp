@@ -39,7 +39,24 @@ namespace details {
         typename = typename details::check_uuid_parameters< A, B, C, D, E >::type >
     struct uuid
     {
-        static const std::uint8_t bytes[ 16 ];
+        static constexpr std::uint8_t bytes[ 16 ] = {
+                ( E >> 0  ) & 0xff,
+                ( E >> 8  ) & 0xff,
+                ( E >> 16 ) & 0xff,
+                ( E >> 24 ) & 0xff,
+                ( E >> 32 ) & 0xff,
+                ( E >> 40 ) & 0xff,
+                ( D >> 0  ) & 0xff,
+                ( D >> 8  ) & 0xff,
+                ( C >> 0  ) & 0xff,
+                ( C >> 8  ) & 0xff,
+                ( B >> 0  ) & 0xff,
+                ( B >> 8  ) & 0xff,
+                ( A >> 0  ) & 0xff,
+                ( A >> 8  ) & 0xff,
+                ( A >> 16 ) & 0xff,
+                ( A >> 24 ) & 0xff
+            };
         static constexpr bool is_128bit = true;
 
         static std::uint16_t as_16bit() {
@@ -54,24 +71,7 @@ namespace details {
         std::uint64_t D,
         std::uint64_t E,
         typename F >
-    const std::uint8_t uuid< A, B, C, D, E, F >::bytes[ 16 ] = {
-        ( E >> 0  ) & 0xff,
-        ( E >> 8  ) & 0xff,
-        ( E >> 16 ) & 0xff,
-        ( E >> 24 ) & 0xff,
-        ( E >> 32 ) & 0xff,
-        ( E >> 40 ) & 0xff,
-        ( D >> 0  ) & 0xff,
-        ( D >> 8  ) & 0xff,
-        ( C >> 0  ) & 0xff,
-        ( C >> 8  ) & 0xff,
-        ( B >> 0  ) & 0xff,
-        ( B >> 8  ) & 0xff,
-        ( A >> 0  ) & 0xff,
-        ( A >> 8  ) & 0xff,
-        ( A >> 16 ) & 0xff,
-        ( A >> 24 ) & 0xff
-    };
+    constexpr std::uint8_t uuid< A, B, C, D, E, F >::bytes[ 16 ];
 
     /**
      * @brief a 16-Bit UUID
@@ -79,7 +79,10 @@ namespace details {
     template < std::uint64_t UUID, typename = typename check_uuid_parameter16< UUID >::type >
     struct uuid16
     {
-        static const std::uint8_t bytes[ 2 ];
+        static constexpr std::uint8_t bytes[ 2 ] = {
+                ( UUID >> 0 ) & 0xff,
+                ( UUID >> 8 ) & 0xff,
+            };
         static constexpr bool is_128bit = false;
 
         static constexpr std::uint16_t as_16bit() {
@@ -88,10 +91,7 @@ namespace details {
     };
 
     template < std::uint64_t UUID, typename A >
-    const std::uint8_t uuid16< UUID, A >::bytes[ 2 ] = {
-        ( UUID >> 0 ) & 0xff,
-        ( UUID >> 8 ) & 0xff,
-    };
+    constexpr std::uint8_t uuid16< UUID, A >::bytes[ 2 ];
 
     /**
      * @brief the 128 bit Bluetooth Base UUID

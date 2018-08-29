@@ -305,6 +305,133 @@ BOOST_AUTO_TEST_SUITE( access_client_characteristic_configuration )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( checking_proper_configuration )
+
+    struct handler
+    {
+        std::pair< std::uint8_t, bool > write_1( std::size_t, const std::uint8_t* )
+        {
+            return { bluetoe::error_codes::success, false };
+        }
+
+        std::uint8_t read_1( std::size_t, std::uint8_t*, std::size_t& )
+        {
+            return bluetoe::error_codes::success;
+        }
+
+    };
+
+    using uuid1 = bluetoe::characteristic_uuid16< 0x8C8C >;
+    using uuid2 = bluetoe::characteristic_uuid16< 0x8C8D >;
+
+    using server_decl_with_priorities = bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x8C8B >,
+            bluetoe::mixin< handler >,
+            bluetoe::characteristic<
+                uuid1,
+                bluetoe::mixin_write_indication_control_point_handler<
+                    handler,
+                    &handler::write_1,
+                    uuid1
+                >,
+                bluetoe::mixin_read_handler<
+                    handler,
+                    &handler::read_1
+                >,
+                bluetoe::no_read_access,
+                bluetoe::indicate
+            >,
+            bluetoe::characteristic<
+                uuid2,
+                bluetoe::mixin_write_indication_control_point_handler<
+                    handler,
+                    &handler::write_1,
+                    uuid2
+                >,
+                bluetoe::mixin_read_handler<
+                    handler,
+                    &handler::read_1
+                >,
+                bluetoe::no_read_access,
+                bluetoe::indicate
+            >,
+
+            bluetoe::higher_outgoing_priority< uuid2 >
+        >
+    >;
+
+    using server_with_priorities = test::request_with_reponse< server_decl_with_priorities >;
+
+    BOOST_FIXTURE_TEST_CASE( check_unconfigured, server_with_priorities )
+    {
+        BOOST_CHECK( !configured_for_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_indications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications_or_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications_or_indications< uuid2 >( connection.client_configurations() ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( configured_1_for_indications, server_with_priorities )
+    {
+        l2cap_input( { 0x12, 0x04, 0x00, 0x02, 0x00 } );
+        expected_result( { 0x13 } );
+
+        BOOST_CHECK(  configured_for_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_indications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK(  configured_for_notifications_or_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications_or_indications< uuid2 >( connection.client_configurations() ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( configured_2_for_indications, server_with_priorities )
+    {
+        l2cap_input( { 0x12, 0x07, 0x00, 0x02, 0x00 } );
+        expected_result( { 0x13 } );
+
+        BOOST_CHECK( !configured_for_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK(  configured_for_indications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications_or_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK(  configured_for_notifications_or_indications< uuid2 >( connection.client_configurations() ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( configured_both_for_indications, server_with_priorities )
+    {
+        l2cap_input( { 0x12, 0x04, 0x00, 0x02, 0x00 } );
+        expected_result( { 0x13 } );
+
+        l2cap_input( { 0x12, 0x07, 0x00, 0x02, 0x00 } );
+        expected_result( { 0x13 } );
+
+        BOOST_CHECK( configured_for_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( configured_for_indications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( !configured_for_notifications< uuid2 >( connection.client_configurations() ) );
+        BOOST_CHECK( configured_for_notifications_or_indications< uuid1 >( connection.client_configurations() ) );
+        BOOST_CHECK( configured_for_notifications_or_indications< uuid2 >( connection.client_configurations() ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( correct_uuid_beeing_tested_in_control_point_handler, server_with_priorities )
+    {
+        // configure the second characteristics for indication
+        l2cap_input( { 0x12, 0x07, 0x00, 0x02, 0x00 } );
+        expected_result( { 0x13 } );
+
+        // write to second control point
+        l2cap_input( { 0x12, 0x06, 0x00, 0x42 } );
+        expected_result( { 0x13 } );
+
+        // write to first control point
+        l2cap_input( { 0x12, 0x03, 0x00, 0x42 } );
+        expected_result( { 0x01, 0x12, 0x03, 0x00, 0xfd } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
 /*
  * While working on DTS, there showed up a bug...
  */

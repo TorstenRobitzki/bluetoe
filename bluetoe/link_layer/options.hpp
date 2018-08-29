@@ -3,6 +3,7 @@
 
 #include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/link_layer/connection_details.hpp>
+#include <bluetoe/link_layer/meta_types.hpp>
 
 
 namespace bluetoe
@@ -41,7 +42,9 @@ namespace link_layer
         }
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::device_address_meta_type meta_type;
+        struct meta_type :
+            details::device_address_meta_type,
+            details::valid_link_layer_option_meta_type {};
         /** @endcond */
     };
 
@@ -67,12 +70,14 @@ namespace link_layer
         template < class Radio >
         static random_device_address address( const Radio& )
         {
-            static const std::uint8_t addr[] = { F, E, D, C, B, A };
+            static constexpr std::uint8_t addr[] = { F, E, D, C, B, A };
             return ::bluetoe::link_layer::random_device_address( addr );
         }
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::device_address_meta_type meta_type;
+        struct meta_type :
+            details::device_address_meta_type,
+            details::valid_link_layer_option_meta_type {};
         /** @endcond */
     };
 
@@ -105,7 +110,9 @@ namespace link_layer
         static constexpr unsigned accuracy_ppm = static_cast< unsigned >( SleepClockAccuracyPPM );
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::sleep_clock_accuracy_meta_type meta_type;
+        struct meta_type :
+            details::sleep_clock_accuracy_meta_type,
+            details::valid_link_layer_option_meta_type {};
         /** @endcond */
     };
 
@@ -116,7 +123,9 @@ namespace link_layer
     struct buffer_sizes
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::buffer_sizes_meta_type meta_type;
+        struct meta_type :
+            details::buffer_sizes_meta_type,
+            details::valid_link_layer_option_meta_type {};
         /** @endcond */
 
         /**
@@ -138,7 +147,9 @@ namespace link_layer
     template < std::uint8_t MaxMTU >
     struct max_mtu_size {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::mtu_size_meta_type meta_type;
+        struct meta_type :
+            details::mtu_size_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         static constexpr std::size_t mtu = MaxMTU;
         /** @endcond */

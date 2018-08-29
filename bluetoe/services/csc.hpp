@@ -5,6 +5,7 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/sensor_location.hpp>
 #include <bluetoe/options.hpp>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
 
@@ -17,7 +18,7 @@ namespace bluetoe {
 
         namespace details {
             /** @cond HIDDEN_SYMBOLS */
-            struct handler_tag;
+            struct handler_tag {};
 
             struct wheel_revolution_data_handler_tag {};
             struct crank_revolution_data_handler_tag {};
@@ -33,7 +34,9 @@ namespace bluetoe {
         struct handler
         {
             /** @cond HIDDEN_SYMBOLS */
-            typedef details::handler_tag meta_type;
+            struct meta_type :
+                details::handler_tag,
+                ::bluetoe::details::valid_service_option_meta_type {};
 
             typedef Handler user_handler;
             /** @endcond */
@@ -58,7 +61,10 @@ namespace bluetoe {
          */
         struct wheel_revolution_data_supported {
             /** @cond HIDDEN_SYMBOLS */
-            typedef details::wheel_revolution_data_handler_tag meta_type;
+            struct meta_type :
+                details::wheel_revolution_data_handler_tag,
+                ::bluetoe::details::valid_service_option_meta_type {};
+
 
             template < class T >
             void add_wheel_mesurement( std::uint8_t& flags, std::uint8_t*& out_buffer, T& handler )
@@ -76,7 +82,9 @@ namespace bluetoe {
 
         struct crank_revolution_data_supported {
             /** @cond HIDDEN_SYMBOLS */
-            typedef details::crank_revolution_data_handler_tag meta_type;
+            struct meta_type :
+                details::crank_revolution_data_handler_tag,
+                ::bluetoe::details::valid_service_option_meta_type {};
 
             template < class T >
             void add_crank_mesurement( std::uint8_t& flags, std::uint8_t*& out_buffer, T& handler )

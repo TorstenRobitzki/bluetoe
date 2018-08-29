@@ -1,6 +1,8 @@
 #ifndef BLUETOE_APPEARANCE_HPP
 #define BLUETOE_APPEARANCE_HPP
 
+#include <bluetoe/meta_types.hpp>
+
 namespace bluetoe {
 
     namespace details {
@@ -14,7 +16,10 @@ namespace bluetoe {
     struct device_appearance
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::device_appearance_meta_type    meta_type;
+        struct meta_type :
+            details::device_appearance_meta_type,
+            details::valid_server_option_meta_type {};
+
         static constexpr std::uint16_t                  value = A;
         /** @endcond */
     };

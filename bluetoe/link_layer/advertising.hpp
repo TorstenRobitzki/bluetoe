@@ -5,6 +5,7 @@
 #include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/link_layer/buffer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
+#include <bluetoe/link_layer/meta_types.hpp>
 
 /**
  * @file bluetoe/link_layer/advertising.hpp
@@ -136,7 +137,9 @@ namespace link_layer {
         void change_advertising();
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_type_meta_type meta_type;
+        struct meta_type :
+            details::advertising_type_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < typename LinkLayer, typename >
         class impl : protected details::advertising_type_base
@@ -265,7 +268,9 @@ namespace link_layer {
         void directed_advertising_address( const device_address& addr );
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_type_meta_type meta_type;
+        struct meta_type :
+            details::advertising_type_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < typename LinkLayer, typename Advertising >
         class impl : protected details::advertising_type_base
@@ -402,7 +407,9 @@ namespace link_layer {
         void change_advertising();
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_type_meta_type meta_type;
+        struct meta_type :
+            details::advertising_type_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < typename LinkLayer, typename >
         class impl : protected details::advertising_type_base
@@ -516,7 +523,9 @@ namespace link_layer {
         void change_advertising();
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_type_meta_type meta_type;
+        struct meta_type :
+            details::advertising_type_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < typename LinkLayer, typename >
         class impl : protected details::advertising_type_base
@@ -601,7 +610,9 @@ namespace link_layer {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_startup_meta_type meta_type;
+        struct meta_type :
+            details::advertising_startup_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < typename Advertiser >
         struct impl
@@ -657,7 +668,9 @@ namespace link_layer {
         void stop_advertising();
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_startup_meta_type meta_type;
+        struct meta_type :
+            details::advertising_startup_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < typename Advertiser >
         class impl
@@ -756,7 +769,9 @@ namespace link_layer {
     struct advertising_interval
     {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_interval_meta_type meta_type;
+        struct meta_type :
+            details::advertising_interval_meta_type,
+            details::valid_link_layer_option_meta_type {};
         /** @endcond */
 
         /**
@@ -810,7 +825,9 @@ namespace link_layer {
         }
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::advertising_interval_meta_type meta_type;
+        struct meta_type :
+            details::advertising_interval_meta_type,
+            details::valid_link_layer_option_meta_type {};
     private:
         delta_time interval_;
         /** @endcond */

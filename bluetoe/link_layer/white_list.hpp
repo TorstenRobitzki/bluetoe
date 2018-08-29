@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_WHITE_LIST_HPP
 
 #include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/link_layer/meta_types.hpp>
 #include <iterator>
 #include <algorithm>
 
@@ -120,7 +121,9 @@ namespace link_layer {
         bool is_scan_request_in_filter( const device_address& addr ) const;
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::white_list_meta_type meta_type;
+        struct meta_type :
+            details::white_list_meta_type,
+            details::valid_link_layer_option_meta_type {};
 
         template < class Radio, class LinkLayer >
         struct impl :
@@ -155,7 +158,9 @@ namespace link_layer {
             }
         };
 
-        typedef details::white_list_meta_type meta_type;
+        struct meta_type :
+            details::white_list_meta_type,
+            details::valid_link_layer_option_meta_type {};
         /** @endcond */
     };
 

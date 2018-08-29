@@ -24,6 +24,13 @@
 #include <cassert>
 
 namespace bluetoe {
+    namespace details {
+        template < typename >
+        struct option_passed_to_server_that_is_not_a_valid_option_for_a_server;
+
+        template <>
+        struct option_passed_to_server_that_is_not_a_valid_option_for_a_server< no_such_type > {};
+    }
 
     /**
      * @brief Root of the declaration of a GATT server.
@@ -188,6 +195,24 @@ namespace bluetoe {
         template < class CharacteristicUUID >
         bool indicate();
 
+        /**
+         * @brief returns true, if the given connection is configured to send indications for the given characteristic
+         */
+        template < class CharacteristicUUID >
+        bool configured_for_indications( const details::client_characteristic_configuration& ) const;
+
+        /**
+         * @brief returns true, if the given connection is configured to send notifications for the given characteristic
+         */
+        template < class CharacteristicUUID >
+        bool configured_for_notifications( const details::client_characteristic_configuration& ) const;
+
+        /**
+         * @brief returns true, if the given connection is configured to send indications or notifications for the given characteristic
+         */
+        template < class CharacteristicUUID >
+        bool configured_for_notifications_or_indications( const details::client_characteristic_configuration& ) const;
+
         /** @cond HIDDEN_SYMBOLS */
         // function relevant only for l2cap layers
         /**
@@ -288,6 +313,13 @@ namespace bluetoe {
         lcap_notification_callback_t l2cap_cb_;
         void*                        l2cap_arg_;
 
+        static constexpr auto options_test = sizeof(
+            details::option_passed_to_server_that_is_not_a_valid_option_for_a_server<
+                typename details::find_by_not_meta_type<
+                    details::valid_server_option_meta_type,
+                    Options...
+                >::type
+            > );
     protected: // for testing
         /** @cond HIDDEN_SYMBOLS */
 
@@ -558,6 +590,38 @@ namespace bluetoe {
             return l2cap_cb_( data, l2cap_arg_, indication );
 
         return false;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::configured_for_indications( const details::client_characteristic_configuration& connection ) const
+    {
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
+        return connection.flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::configured_for_notifications( const details::client_characteristic_configuration& connection ) const
+    {
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
+        return connection.flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled;
+    }
+
+    template < typename ... Options >
+    template < class CharacteristicUUID >
+    bool server< Options... >::configured_for_notifications_or_indications( const details::client_characteristic_configuration& connection ) const
+    {
+        using characteristic = typename details::find_characteristic_data_by_uuid_in_service_list< services, CharacteristicUUID >::type;
+        const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
+
+        static const auto both = ( details::client_characteristic_configuration_notification_enabled | details::client_characteristic_configuration_indication_enabled );
+
+        return connection.flags( data.client_characteristic_configuration_index() ) & both;
     }
 
     template < typename ... Options >
@@ -1066,8 +1130,6 @@ namespace bluetoe {
     template < typename ... Options >
     void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
     {
-        using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
-
         std::uint16_t starting_handle, ending_handle;
 
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )

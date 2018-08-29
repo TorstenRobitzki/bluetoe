@@ -111,10 +111,11 @@ BOOST_AUTO_TEST_SUITE( single_prio_indications )
 
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ entry_type::indication, 16u } ) );
 
-        BOOST_CHECK( !queue_indication( 16u ) );
-        indication_confirmed();
-
         BOOST_CHECK( queue_indication( 16u ) );
+        BOOST_CHECK( !queue_indication( 16u ) );
+
+        indication_confirmed();
+        BOOST_CHECK( !queue_indication( 16u ) );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -194,7 +195,7 @@ BOOST_AUTO_TEST_SUITE( single_prio_single_char_indications )
         queue_indication( 0 );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ entry_type::indication, 0 } ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation().first == entry_type::empty ) );
-        BOOST_CHECK( !queue_indication( 0 ) );
+        BOOST_CHECK( queue_indication( 0 ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( confirm_indication, queue1 )
@@ -202,10 +203,10 @@ BOOST_AUTO_TEST_SUITE( single_prio_single_char_indications )
         queue_indication( 0 );
         BOOST_CHECK( ( dequeue_indication_or_confirmation()  == std::pair< entry_type, std::size_t >{ entry_type::indication, 0 } ) );
         BOOST_CHECK( ( dequeue_indication_or_confirmation().first == entry_type::empty ) );
-        BOOST_CHECK( !queue_indication( 0 ) );
+        BOOST_CHECK( queue_indication( 0 ) );
 
         indication_confirmed();
-        BOOST_CHECK( queue_indication( 0 ) );
+        BOOST_CHECK( !queue_indication( 0 ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( reset, queue1 )

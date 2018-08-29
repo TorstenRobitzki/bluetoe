@@ -77,7 +77,11 @@ namespace bluetoe {
     template < typename ... T >
     struct mixin {
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::mixin_meta_type meta_type;
+        struct meta_type :
+            details::mixin_meta_type,
+            details::valid_service_option_meta_type,
+            details::valid_server_option_meta_type {};
+
         /** @endcond */
     };
 

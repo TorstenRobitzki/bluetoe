@@ -7,22 +7,22 @@
 namespace bluetoe {
 namespace details {
 
-    inline std::uint16_t read_handle( const std::uint8_t* h )
+    constexpr std::uint16_t read_handle( const std::uint8_t* h )
     {
         return *h + ( *( h + 1 ) << 8 );
     }
 
-    inline std::uint16_t read_16bit_uuid( const std::uint8_t* h )
+    constexpr std::uint16_t read_16bit_uuid( const std::uint8_t* h )
     {
         return read_handle( h );
     }
 
-    inline std::uint16_t read_16bit( const std::uint8_t* h )
+    constexpr std::uint16_t read_16bit( const std::uint8_t* h )
     {
         return read_handle( h );
     }
 
-    inline std::uint32_t read_32bit( const std::uint8_t* p )
+    constexpr std::uint32_t read_32bit( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16bit( p ) )
              | ( static_cast< std::uint32_t >( read_16bit( p + 2 ) ) << 16 );
