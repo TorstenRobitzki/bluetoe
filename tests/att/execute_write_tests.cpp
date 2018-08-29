@@ -146,7 +146,7 @@ BOOST_FIXTURE_TEST_CASE( first_change_applied_if_second_write_was_erroneous, ser
 
 BOOST_FIXTURE_TEST_CASE( queue_is_release_after_executing, server_fixture )
 {
-    connection_data other_client( mtu_size, false );
+    connection_data other_client( mtu_size );
     l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00 }, other_client );
     expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00 } );
 }
@@ -155,7 +155,7 @@ BOOST_FIXTURE_TEST_CASE( queue_is_release_after_canceling, serval_writes )
 {
     l2cap_input( { 0x18, 0x00 } );
 
-    connection_data other_client( mtu_size, false );
+    connection_data other_client( mtu_size );
     l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00 }, other_client );
     expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00 } );
 }
@@ -166,7 +166,7 @@ BOOST_FIXTURE_TEST_CASE( queue_is_release_after_an_error_occured, server_fixture
     l2cap_input( { 0x16, 0x03, 0x00, 0x0E, 0x00, 0x02, 0x01, 0x00 } );
     l2cap_input( { 0x18, 0x01 } );
 
-    connection_data other_client( mtu_size, false );
+    connection_data other_client( mtu_size );
     l2cap_input( { 0x16, 0x03, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00 }, other_client );
     expected_result( { 0x17, 0x03, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00 } );
 }

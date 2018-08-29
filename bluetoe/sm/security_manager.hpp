@@ -9,6 +9,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/link_layer/address.hpp>
 #include <bluetoe/link_state.hpp>
+#include <bluetoe/sm/pairing_status.hpp>
 
 namespace bluetoe {
 
@@ -185,6 +186,13 @@ namespace bluetoe {
                 return state_data_.pairing_state.mconfirm;
             }
 
+            device_pairing_status local_device_pairing_status() const
+            {
+                return state_ == details::pairing_state::pairing_completed
+                    ? bluetoe::device_pairing_status::unauthenticated_key
+                    : bluetoe::device_pairing_status::no_key;
+            }
+
         private:
             bluetoe::link_layer::device_address remote_addr_;
             details::pairing_state              state_;
@@ -256,6 +264,11 @@ namespace bluetoe {
 
             void remote_connection_created( const bluetoe::link_layer::device_address& )
             {
+            }
+
+            device_pairing_status local_device_pairing_status() const
+            {
+                return bluetoe::device_pairing_status::no_key;
             }
         };
 
