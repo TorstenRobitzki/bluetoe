@@ -63,7 +63,9 @@ namespace test {
         {
         }
 
-        typedef bluetoe::details::security_manager_meta_type meta_type;
+        struct meta_type :
+            bluetoe::details::security_manager_meta_type,
+            bluetoe::link_layer::details::valid_link_layer_option_meta_type {};
     };
 }
 

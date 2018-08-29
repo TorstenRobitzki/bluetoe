@@ -62,7 +62,11 @@ namespace bluetoe {
      */
     struct requires_encryption {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::requires_encryption_meta_type;
+        struct meta_type :
+            details::requires_encryption_meta_type,
+            details::valid_server_option_meta_type,
+            details::valid_service_option_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -80,7 +84,11 @@ namespace bluetoe {
      */
     struct no_encryption_required {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::no_encryption_required_meta_type;
+        struct meta_type :
+            details::no_encryption_required_meta_type,
+            details::valid_server_option_meta_type,
+            details::valid_service_option_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
@@ -98,7 +106,11 @@ namespace bluetoe {
      */
     struct may_require_encryption {
         /** @cond HIDDEN_SYMBOLS */
-        using meta_type = details::may_require_encryption_meta_type;
+        struct meta_type :
+            details::may_require_encryption_meta_type,
+            details::valid_server_option_meta_type,
+            details::valid_service_option_meta_type,
+            details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
 
