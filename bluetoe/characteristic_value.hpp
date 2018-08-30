@@ -484,8 +484,8 @@ namespace bluetoe {
 
                 static_assert( !( no_write && ( has_write_access || has_write_without_response ) ), "There is no point in providing a write_handler and disabling write by using no_write_access" );
 
-                static_assert( !has_notification || ( has_notification && has_read_handler ), "When enabling notification, the characteristic needs a read_handler" );
-                static_assert( !has_indication || ( has_indication && has_read_handler ), "When enabling notification, the characteristic needs a read_handler" );
+                static_assert( !has_notification || ( has_notification && has_read_handler ), "When enabling notification, the characteristic needs to have a read_handler" );
+                static_assert( !has_indication || ( has_indication && has_read_handler ), "When enabling indications, the characteristic needs to have a read_handler" );
 
                 static_assert( has_read_access || has_write_access || has_notification || has_indication, "Ups!");
 

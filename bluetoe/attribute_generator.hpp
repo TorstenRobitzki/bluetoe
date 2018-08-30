@@ -14,7 +14,7 @@ namespace details {
     struct generate_attribute;
 
     /**
-     * generate a const static array of attributes out of a list of tuples, containing the parameter to generate a attribute
+     * generate a const static array of attributes out of a list of tuples, containing the parameter to generate an attribute
      *
      *  Attributes: A std::tuple, containing a tuple for every attribute to generate.
      *
