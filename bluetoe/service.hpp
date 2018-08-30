@@ -281,12 +281,12 @@ namespace bluetoe {
     {
         assert( index < number_of_attributes );
 
-        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, uuid, Server, std::tuple< Options..., ServiceList > >;
+        using attribute_generator = details::generate_attribute_list< details::attribute_generation_parameters< Options... >, CCCDIndices, ClientCharacteristicIndex, service< Options... >, Server, std::tuple< Options..., ServiceList > >;
 
         if ( index < number_of_service_attributes )
             return attribute_generator::attribute_at( index );
 
-        return details::attribute_at_list< characteristics, CCCDIndices, ClientCharacteristicIndex, uuid, Server >::attribute_at( index - number_of_service_attributes );
+        return details::attribute_at_list< characteristics, CCCDIndices, ClientCharacteristicIndex, service< Options... >, Server >::attribute_at( index - number_of_service_attributes );
     }
 
     template < typename ... Options >
