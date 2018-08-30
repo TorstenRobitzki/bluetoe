@@ -189,6 +189,22 @@ namespace bluetoe {
             // @TODO the default for a characteristic should always be true
             static bool constexpr value = encryption_default< Default, Options... >::value;
         };
+
+        template < typename Characteristic, typename Service, typename Server >
+        struct characteristic_requires_encryption;
+
+        template < typename ... CharacteristicOptions, typename ... ServiceOptions, typename ... ServerOptions >
+        struct characteristic_requires_encryption<
+            bluetoe::characteristic< CharacteristicOptions... >,
+            bluetoe::service< ServiceOptions... >,
+            bluetoe::server< ServerOptions... > >
+        {
+            // @TODO the default for a characteristic should always be true
+            static bool constexpr server_requires_encryption  = encryption_default< false, ServerOptions... >::value;
+            static bool constexpr service_requires_encryption = encryption_default< server_requires_encryption, ServiceOptions... >::value;
+
+            static bool constexpr value                       = encryption_default< service_requires_encryption, CharacteristicOptions... >::value;
+        };
     }
 
 } // namespace bluetoe
