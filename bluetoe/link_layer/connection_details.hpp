@@ -1,8 +1,8 @@
 #ifndef BLUETOE_LINK_LAYER_CONNECTION_DETAILS_HPP
 #define BLUETOE_LINK_LAYER_CONNECTION_DETAILS_HPP
 
-#include <bluetoe/link_layer/address.hpp>
-#include <bluetoe/link_layer/channel_map.hpp>
+#include <address.hpp>
+#include <channel_map.hpp>
 #include <cstdint>
 
 namespace bluetoe {

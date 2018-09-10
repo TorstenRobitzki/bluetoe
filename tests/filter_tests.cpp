@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include <bluetoe/filter.hpp>
-#include <bluetoe/attribute.hpp>
-#include <bluetoe/uuid.hpp>
+#include <filter.hpp>
+#include <attribute.hpp>
+#include <uuid.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

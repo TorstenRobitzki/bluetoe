@@ -1,10 +1,10 @@
 #ifndef BLUETOE_CHARACTERISTIC_VALUE_HPP
 #define BLUETOE_CHARACTERISTIC_VALUE_HPP
 
-#include <bluetoe/options.hpp>
-#include <bluetoe/attribute.hpp>
-#include <bluetoe/codes.hpp>
-#include <bluetoe/meta_types.hpp>
+#include <meta_tools.hpp>
+#include <attribute.hpp>
+#include <codes.hpp>
+#include <meta_types.hpp>
 #include <type_traits>
 #include <climits>
 

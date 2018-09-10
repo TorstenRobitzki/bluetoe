@@ -1,7 +1,7 @@
 #ifndef BLUETOE_LINK_LAYER_CONNECTION_CALLBACKS_HPP
 #define BLUETOE_LINK_LAYER_CONNECTION_CALLBACKS_HPP
 
-#include <bluetoe/link_layer/meta_types.hpp>
+#include <meta_types.hpp>
 
 namespace bluetoe {
 namespace link_layer {

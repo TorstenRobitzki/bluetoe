@@ -1,12 +1,12 @@
-#ifndef BLUETOE_OPTIONS_HPP
-#define BLUETOE_OPTIONS_HPP
+#ifndef BLUETOE_META_TOOLS_HPP
+#define BLUETOE_META_TOOLS_HPP
 
 #include <utility>
 #include <type_traits>
 #include <tuple>
 
 /**
- * @file bluetoe/options.hpp
+ * @file bluetoe/meta_tools.hpp
  * This file contains all the generic meta template functions that are required by bluetoe
  */
 namespace bluetoe {

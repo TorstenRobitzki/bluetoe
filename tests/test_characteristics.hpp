@@ -1,7 +1,7 @@
 #ifndef BLUETOE_TESTS_CHARACTERISTICS_HPP
 #define BLUETOE_TESTS_CHARACTERISTICS_HPP
 
-#include <bluetoe/characteristic_value.hpp>
+#include <characteristic_value.hpp>
 
 namespace {
     std::uint32_t       simple_value       = 0xaabbccdd;

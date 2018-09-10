@@ -1,7 +1,7 @@
 #include "buffer_io.hpp"
-#include "../hexdump.hpp"
+#include "hexdump.hpp"
 
-#include <bluetoe/link_layer/buffer.hpp>
+#include <buffer.hpp>
 #include <ostream>
 
 namespace bluetoe {

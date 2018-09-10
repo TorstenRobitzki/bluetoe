@@ -1,5 +1,5 @@
 #include <iostream>
-#include <bluetoe/write_queue.hpp>
+#include <write_queue.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

@@ -1,9 +1,9 @@
 #ifndef BLUETOE_LINK_LAYER_OPTIONS_HPP
 #define BLUETOE_LINK_LAYER_OPTIONS_HPP
 
-#include <bluetoe/link_layer/address.hpp>
-#include <bluetoe/link_layer/connection_details.hpp>
-#include <bluetoe/link_layer/meta_types.hpp>
+#include <address.hpp>
+#include <connection_details.hpp>
+#include <ll_meta_types.hpp>
 
 
 namespace bluetoe

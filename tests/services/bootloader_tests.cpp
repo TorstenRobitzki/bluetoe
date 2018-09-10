@@ -1,16 +1,16 @@
 #include <iostream>
 #include <iomanip>
 #include <random>
-#include "../hexdump.hpp"
-#include "../test_uuid.hpp"
+#include <hexdump.hpp>
+#include <test_uuid.hpp>
 
-#include <bluetoe/server.hpp>
-#include <bluetoe/services/bootloader.hpp>
+#include <server.hpp>
+#include <bootloader.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "test_gatt.hpp"
+#include "test_gatt.cpp"
 
 using namespace test;
 

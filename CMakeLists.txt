@@ -1,23 +1,10 @@
-cmake_minimum_required(VERSION 2.8.7)
-
-enable_testing()
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
-if (DEFINED NDEBUG)
-    add_definitions(-DNDEBUG=1)
-endif()
-
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wfatal-errors")
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    # using Clang
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    # using GCC
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif()
+cmake_minimum_required(VERSION 3.10)
+# Prevent in source build, add this options before project keyword
+set(CMAKE_DISABLE_SOURCE_CHANGES ON)
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+project(lib_bluetoe CXX)
 
 add_subdirectory(bluetoe)
+enable_testing()
 add_subdirectory(tests)
-add_subdirectory(examples)
+

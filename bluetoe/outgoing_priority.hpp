@@ -1,7 +1,7 @@
 #ifndef BLUETOE_OUTGOING_PRIORITY_HPP
 #define BLUETOE_OUTGOING_PRIORITY_HPP
 
-#include <bluetoe/options.hpp>
+#include <meta_tools.hpp>
 
 namespace bluetoe {
 

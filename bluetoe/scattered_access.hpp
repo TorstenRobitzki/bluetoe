@@ -1,7 +1,7 @@
 #ifndef BLUETOE_SCATTERED_ACCESS_HPP
 #define BLUETOE_SCATTERED_ACCESS_HPP
 
-#include <bluetoe/attribute.hpp>
+#include <attribute.hpp>
 #include <algorithm>
 
 namespace bluetoe {

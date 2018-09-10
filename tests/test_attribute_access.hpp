@@ -1,7 +1,7 @@
 #ifndef BLUETOE_TESTS_TEST_ATTRIBUTE_ACCESS_HPP
 #define BLUETOE_TESTS_TEST_ATTRIBUTE_ACCESS_HPP
 
-#include <bluetoe/attribute.hpp>
+#include <attribute.hpp>
 
 template < typename Char >
 class access_attributes : public Char, public bluetoe::details::client_characteristic_configurations< Char::number_of_client_configs >

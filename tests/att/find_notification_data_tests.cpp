@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/server.hpp>
-#include <bluetoe/attribute.hpp>
-#include <bluetoe/outgoing_priority.hpp>
+#include <server.hpp>
+#include <attribute.hpp>
+#include <outgoing_priority.hpp>
 
 /*
  * A notification index is key to a characteristic that is configured to allow notifications or indications.

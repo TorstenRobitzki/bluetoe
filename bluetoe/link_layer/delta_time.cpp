@@ -1,4 +1,4 @@
-#include <bluetoe/link_layer/delta_time.hpp>
+#include <delta_time.hpp>
 #include <ostream>
 #include <cassert>
 

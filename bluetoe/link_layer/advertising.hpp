@@ -1,11 +1,11 @@
 #ifndef BLUETOE_LINK_LAYER_ADVERTISING_HPP
 #define BLUETOE_LINK_LAYER_ADVERTISING_HPP
 
-#include <bluetoe/options.hpp>
-#include <bluetoe/link_layer/address.hpp>
-#include <bluetoe/link_layer/buffer.hpp>
-#include <bluetoe/link_layer/delta_time.hpp>
-#include <bluetoe/link_layer/meta_types.hpp>
+#include <meta_tools.hpp>
+#include <address.hpp>
+#include <buffer.hpp>
+#include <delta_time.hpp>
+#include <ll_meta_types.hpp>
 
 /**
  * @file bluetoe/link_layer/advertising.hpp
@@ -853,7 +853,7 @@ namespace link_layer {
         class advertiser_base :
             public advertiser_base_base,
             public bluetoe::details::find_by_meta_type<
-                    advertising_interval_meta_type,
+                    details::advertising_interval_meta_type,
                     Options..., advertising_interval< 100 > >::type
         {
         protected:

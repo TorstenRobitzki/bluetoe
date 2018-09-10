@@ -2,7 +2,7 @@
 #define BLUETOE_ATTRIBUTE_GENERATOR_HPP
 
 #include <tuple>
-#include <bluetoe/options.hpp>
+#include <meta_tools.hpp>
 
 namespace bluetoe {
 namespace details {

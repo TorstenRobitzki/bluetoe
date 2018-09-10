@@ -1,12 +1,11 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/link_layer/link_layer.hpp>
-#include <bluetoe/link_layer/options.hpp>
-#include <bluetoe/server.hpp>
-#include "test_radio.hpp"
+#include <link_layer.hpp>
+#include <server.hpp>
+#include <test_radio.hpp>
 #include "connected.hpp"
-#include "../test_servers.hpp"
+#include <test_servers.hpp>
 
 BOOST_FIXTURE_TEST_CASE( response_to_att_request, unconnected )
 {

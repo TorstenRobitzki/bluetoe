@@ -1,9 +1,8 @@
 #ifndef BLUETOE_BINDINGS_NRF51_HPP
 #define BLUETOE_BINDINGS_NRF51_HPP
 
-#include <bluetoe/link_layer/link_layer.hpp>
-#include <bluetoe/link_layer/delta_time.hpp>
-#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
+#include <link_layer.hpp>
+#include <ll_data_pdu_buffer.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);

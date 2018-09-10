@@ -1,6 +1,6 @@
-#include <bluetoe/characteristic.hpp>
-#include <bluetoe/service.hpp>
-#include <bluetoe/client_characteristic_configuration.hpp>
+#include <characteristic.hpp>
+#include <service.hpp>
+#include <client_characteristic_configuration.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

@@ -1,11 +1,11 @@
 #ifndef BLUETOE_ADV_SERVICE_LIST_HPP
 #define BLUETOE_ADV_SERVICE_LIST_HPP
 
-#include <bluetoe/codes.hpp>
-#include <bluetoe/bits.hpp>
-#include <bluetoe/options.hpp>
-#include <bluetoe/service_uuid.hpp>
-#include <bluetoe/meta_types.hpp>
+#include <codes.hpp>
+#include <bits.hpp>
+#include <meta_tools.hpp>
+#include <service_uuid.hpp>
+#include <meta_types.hpp>
 
 namespace bluetoe {
 

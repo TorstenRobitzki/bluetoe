@@ -7,10 +7,10 @@
 #include <cstdint>
 #include <cassert>
 
-#include <bluetoe/link_layer/link_layer.hpp>
+#include <link_layer.hpp>
 
 #include "test_radio.hpp"
-#include "../test_servers.hpp"
+#include "test_servers.hpp"
 
 
 static const std::initializer_list< std::uint8_t > valid_connection_request_pdu =

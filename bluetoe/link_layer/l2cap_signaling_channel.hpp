@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include <cstdint>
-#include <bluetoe/link_layer/meta_types.hpp>
+#include <ll_meta_types.hpp>
 
 namespace bluetoe {
 

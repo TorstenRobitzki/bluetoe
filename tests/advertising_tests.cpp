@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/adv_service_list.hpp>
+#include <adv_service_list.hpp>
 
 #include "test_servers.hpp"
 

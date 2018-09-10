@@ -1,28 +1,23 @@
 #set(Boost_DEBUG 1)
 find_package( Boost REQUIRED )
-if (Boost_FOUND)
-    include_directories(BEFORE ${Boost_INCLUDE_DIR})
-endif()
 
-add_library(test_tools
-    ${CMAKE_SOURCE_DIR}/bluetoe/link_layer/delta_time.cpp
-    ${CMAKE_SOURCE_DIR}/bluetoe/link_layer/address_io.cpp
-    ${CMAKE_SOURCE_DIR}/tests/test_uuid.cpp
-    ${CMAKE_SOURCE_DIR}/tests/test_servers.cpp
-    ${CMAKE_SOURCE_DIR}/tests/hexdump.cpp
-    ${CMAKE_SOURCE_DIR}/tests/link_layer/test_radio.cpp
-    ${CMAKE_SOURCE_DIR}/tests/link_layer/buffer_io.cpp)
+add_subdirectory(test_tools)
 
-function(add_and_register_test TARGETNAME)
-    add_executable(${TARGETNAME} ${TARGETNAME}.cpp ${ARGV1} ${ARGV2} ${ARGV3} ${ARGV4})
-    target_link_libraries(${TARGETNAME} bluetoe test_tools)
-    add_test(${TARGETNAME} ${TARGETNAME})
+function(add_and_register_test test_runner)
+    add_executable(${test_runner} ${test_runner}.cpp)
+    target_include_directories(${test_runner} PRIVATE ${Boost_INCLUDE_DIR})
+    target_link_libraries(${test_runner} bluetoe::iface bluetoe::utility test::tools)
+    target_compile_features(${test_runner} PRIVATE cxx_std_11)
+    if (BLUETOE_EXCLUDE_SLOW_TESTS)
+        target_compile_definitions(${test_runner} BLUETOE_EXCLUDE_SLOW_TESTS)
+    endif()
+    add_test(${test_runner} ./${test_runner})
 endfunction()
 
-if (BLUETOE_EXCLUDE_SLOW_TESTS)
-    add_definitions(-DBLUETOE_EXCLUDE_SLOW_TESTS)
-    message(WARNING "excluding slow tests from test set!")
-endif()
+function(bluetoe_add_test test_runner)
+    add_and_register_test(${test_runner} bluetoe::iface)
+endfunction()
+
 
 add_and_register_test(write_queue_tests)
 add_and_register_test(service_tests)
@@ -36,6 +31,7 @@ add_and_register_test(auto_uuid_tests)
 add_and_register_test(scattered_access_tests)
 add_and_register_test(gap_service_tests)
 add_and_register_test(read_write_handler_tests)
+
 
 add_subdirectory(att)
 add_subdirectory(link_layer)

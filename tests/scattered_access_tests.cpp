@@ -1,5 +1,5 @@
 #include <iostream>
-#include <bluetoe/scattered_access.hpp>
+#include <scattered_access.hpp>
 #include "hexdump.hpp"
 
 #define BOOST_TEST_MODULE

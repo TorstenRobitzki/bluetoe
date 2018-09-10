@@ -1,5 +1,5 @@
-#include <bluetoe/gap_service.hpp>
-#include <bluetoe/server.hpp>
+#include <gap_service.hpp>
+#include <server.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

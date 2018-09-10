@@ -1,4 +1,4 @@
-#include <bluetoe/link_layer/connection_details.hpp>
+#include <connection_details.hpp>
 
 namespace bluetoe {
 namespace link_layer {

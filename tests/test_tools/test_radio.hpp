@@ -1,9 +1,9 @@
 #ifndef BLUETOE_TESTS_LINK_LAYER_TEST_RADIO_HPP
 #define BLUETOE_TESTS_LINK_LAYER_TEST_RADIO_HPP
 
-#include <bluetoe/link_layer/buffer.hpp>
-#include <bluetoe/link_layer/delta_time.hpp>
-#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
+#include <buffer.hpp>
+#include <delta_time.hpp>
+#include <ll_data_pdu_buffer.hpp>
 
 #include <vector>
 #include <functional>

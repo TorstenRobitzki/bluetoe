@@ -2,7 +2,7 @@
 #define BLUETOE_BITS_HPP
 
 #include <cstdint>
-#include <bluetoe/codes.hpp>
+#include <codes.hpp>
 
 namespace bluetoe {
 namespace details {

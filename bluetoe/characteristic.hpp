@@ -1,17 +1,17 @@
 #ifndef BLUETOE_CHARACTERISTIC_HPP
 #define BLUETOE_CHARACTERISTIC_HPP
 
-#include <bluetoe/characteristic_value.hpp>
-#include <bluetoe/attribute.hpp>
-#include <bluetoe/codes.hpp>
-#include <bluetoe/uuid.hpp>
-#include <bluetoe/options.hpp>
-#include <bluetoe/bits.hpp>
-#include <bluetoe/scattered_access.hpp>
-#include <bluetoe/service_uuid.hpp>
-#include <bluetoe/attribute_generator.hpp>
-#include <bluetoe/server_meta_type.hpp>
-#include <bluetoe/meta_types.hpp>
+#include <characteristic_value.hpp>
+#include <attribute.hpp>
+#include <codes.hpp>
+#include <uuid.hpp>
+#include <meta_tools.hpp>
+#include <bits.hpp>
+#include <scattered_access.hpp>
+#include <service_uuid.hpp>
+#include <attribute_generator.hpp>
+#include <server_meta_type.hpp>
+#include <meta_types.hpp>
 
 #include <cstddef>
 #include <cassert>
