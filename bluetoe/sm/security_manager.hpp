@@ -150,7 +150,7 @@ namespace bluetoe {
             template < class T >
             bool outgoing_security_manager_data_available( const bluetoe::details::link_state< T >& link ) const
             {
-                return link.is_entrypted() && state_ != details::pairing_state::pairing_completed;
+                return link.is_encrypted() && state_ != details::pairing_state::pairing_completed;
             }
 
             std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const

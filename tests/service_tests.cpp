@@ -1,13 +1,13 @@
-#include <iostream>
 #include "test_services.hpp"
 #include "hexdump.hpp"
+#include <bluetoe/server.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
 #include <iterator>
 
-struct srv {};
+using srv = bluetoe::server<>;
 
 BOOST_AUTO_TEST_CASE( service_without_any_characteristic_results_in_one_attribute )
 {
@@ -116,12 +116,14 @@ BOOST_FIXTURE_TEST_CASE( accessing_all_attributes, test::service_with_3_characte
 }
 
 typedef std::tuple< test::service_with_3_characteristics > service_with_3_characteristics_list;
+using server_with_3_characteristics_list = bluetoe::server< test::service_with_3_characteristics >;
 
 BOOST_FIXTURE_TEST_CASE( read_by_group_type_response, test::service_with_3_characteristics )
 {
     std::uint8_t    buffer[ 100 ];
+    server_with_3_characteristics_list server;
 
-    std::uint8_t* const end = read_primary_service_response< std::tuple<>, 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), 12, true, *this );
+    std::uint8_t* const end = read_primary_service_response< std::tuple<>, 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), 12, true, server );
 
     BOOST_CHECK_EQUAL( end - std::begin( buffer ), 20u );
 
@@ -142,8 +144,9 @@ BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_buffer_to_small, test::serv
 {
     std::uint8_t    buffer[ 19 ];
     std::uint16_t   index = 1;
+    server_with_3_characteristics_list server;
 
-    std::uint8_t* const end = read_primary_service_response< std::tuple<>, 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), index, true, *this );
+    std::uint8_t* const end = read_primary_service_response< std::tuple<>, 0, service_with_3_characteristics_list >( std::begin( buffer ), std::end( buffer ), index, true, server );
 
     BOOST_CHECK( end == std::begin( buffer ) );
 }
@@ -153,8 +156,9 @@ typedef std::tuple< test::cycling_speed_and_cadence_service > cycling_speed_and_
 BOOST_FIXTURE_TEST_CASE( read_by_group_type_response_for_16bit_uuid, test::cycling_speed_and_cadence_service )
 {
     std::uint8_t    buffer[ 100 ];
+    server_with_3_characteristics_list server;
 
-    std::uint8_t* const end = read_primary_service_response< std::tuple<>, 0, cycling_speed_and_cadence_service_list >( std::begin( buffer ), std::end( buffer ), 1, false, *this );
+    std::uint8_t* const end = read_primary_service_response< std::tuple<>, 0, cycling_speed_and_cadence_service_list >( std::begin( buffer ), std::end( buffer ), 1, false, server );
 
     BOOST_CHECK_EQUAL( end - std::begin( buffer ), 6u );
 

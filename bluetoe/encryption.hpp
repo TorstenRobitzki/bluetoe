@@ -1,10 +1,19 @@
 #ifndef BLUETOE_ENCRYPTION_HPP
 #define BLUETOE_ENCRYPTION_HPP
 
-#include <bluetoe/server.hpp>
 #include <bluetoe/options.hpp>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
+
+    template < typename ... Options >
+    class server;
+
+    template < typename ... Options >
+    class service;
+
+    template < typename ... Options >
+    class characteristic;
 
     namespace details {
         struct requires_encryption_meta_type {};

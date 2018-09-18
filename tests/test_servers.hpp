@@ -134,10 +134,11 @@ namespace test {
         }
 
         template < class Iter >
-        void expected_output( const bluetoe::details::notification_data& value, Iter begin, Iter end, typename Server::connection_data& con )
+        void expected_output( const bluetoe::details::notification_data& org_value, Iter begin, Iter end, typename Server::connection_data& con )
         {
-            assert( value.valid() );
+            assert( org_value.valid() );
 
+            bluetoe::details::notification_data value = org_value;
             const std::vector< std::uint8_t > values( begin, end );
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;

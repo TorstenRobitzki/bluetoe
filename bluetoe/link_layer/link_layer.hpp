@@ -15,6 +15,7 @@
 #include <bluetoe/link_layer/meta_types.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/options.hpp>
+#include <bluetoe/bits.hpp>
 #include <bluetoe/sm/security_manager.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/encryption.hpp>
@@ -144,11 +145,13 @@ namespace link_layer {
                     else if ( opcode == LinkLayer::LL_START_ENC_RSP && size == 1 )
                     {
                         write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
+                        that().connection_details_.is_encrypted( true );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
                         write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
                         that().stop_encryption();
+                        that().connection_details_.is_encrypted( false );
                     }
                     else
                     {
@@ -186,6 +189,11 @@ namespace link_layer {
                     encryption_in_progress_ = false;
                 }
 
+                bool link_is_encrypted() const
+                {
+                    return encryption_in_progress_;
+                }
+
                 bool no_key_;
                 bool encryption_in_progress_;
             };
@@ -203,6 +211,11 @@ namespace link_layer {
 
                 void transmit_pending_security_pdus()
                 {
+                }
+
+                bool link_is_encrypted() const
+                {
+                    return false;
                 }
             };
         };

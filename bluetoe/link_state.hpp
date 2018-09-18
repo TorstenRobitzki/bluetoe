@@ -51,7 +51,12 @@ namespace details {
         /**
          * @brief returns true, if the connection is currently encrypted
          */
-        bool is_entrypted() const;
+        bool is_encrypted() const;
+
+        /**
+         * @brief set the current encryption status
+         */
+        void is_encrypted( bool encrypted );
 
         /**
          * @brief returns the pairing state of the local device with the remote device for this link
@@ -62,6 +67,12 @@ namespace details {
          * @brief sets the pairing status of the current link / connection
          */
         void pairing_status( device_pairing_status status );
+
+        /**
+         * @brief returns the result of is_encrypted() and pairing_status() as tuple
+         */
+        connection_security_attributes security_attributes() const;
+
     private:
         std::uint16_t               server_mtu_;
         std::uint16_t               client_mtu_;
@@ -107,9 +118,15 @@ namespace details {
     }
 
     template < class ATTState >
-    bool link_state< ATTState >::is_entrypted() const
+    bool link_state< ATTState >::is_encrypted() const
     {
         return encrypted_;
+    }
+
+    template < class ATTState >
+    void link_state< ATTState >::is_encrypted( bool encrypted )
+    {
+        encrypted_ = encrypted;
     }
 
     template < class ATTState >
@@ -122,6 +139,12 @@ namespace details {
     void link_state< ATTState >::pairing_status( device_pairing_status status )
     {
         pairing_status_ = status;
+    }
+
+    template < class ATTState >
+    connection_security_attributes link_state< ATTState >::security_attributes() const
+    {
+        return connection_security_attributes{ encrypted_, pairing_status_ };
     }
 
     /** @endcond */

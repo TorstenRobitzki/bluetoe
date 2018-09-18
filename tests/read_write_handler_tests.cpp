@@ -20,7 +20,7 @@ static const std::uint8_t test_read_value[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 
 using cccd_indices = std::tuple<>;
 using suuid = bluetoe::service_uuid16< 0x4711 >;
-struct srv {};
+using srv   = bluetoe::server<>;
 
 std::uint8_t read_blob_test_value_handler( std::size_t offset, std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
 {
@@ -577,7 +577,10 @@ BOOST_FIXTURE_TEST_CASE( read_from_mixin, read_mixin_server )
     std::uint8_t buffer[ 100 ];
 
     const auto attr = readable_char::attribute_at< cccd_indices, 0, read_mixin_service, read_mixin_server >( 1 );
-    auto read       = bluetoe::details::attribute_access_arguments::read( std::begin( buffer ), std::end( buffer ), 0, bluetoe::details::client_characteristic_configuration(), static_cast< read_mixin_server* >( this ) );
+    auto read       = bluetoe::details::attribute_access_arguments::read( std::begin( buffer ), std::end( buffer ), 0,
+                        bluetoe::details::client_characteristic_configuration(),
+                        bluetoe::connection_security_attributes(),
+                        static_cast< read_mixin_server* >( this ) );
 
     static constexpr std::uint8_t expected[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
 

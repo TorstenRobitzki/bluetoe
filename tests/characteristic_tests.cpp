@@ -13,7 +13,7 @@
 
 using cccd_indices = std::tuple<>;
 using suuid = bluetoe::service_uuid16< 0x4711 >;
-struct srv;
+using srv   = bluetoe::server<>;
 
 BOOST_AUTO_TEST_CASE( even_the_simplest_characteristic_has_at_least_2_attributes )
 {
@@ -218,7 +218,8 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer;
 
-        auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer, 0, bluetoe::details::client_characteristic_configuration(), nullptr );
+        auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer, 0,
+                        bluetoe::details::client_characteristic_configuration(), bluetoe::connection_security_attributes(), nullptr );
         auto rc   = char_declaration.access( read, 1 );
 
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
@@ -230,7 +231,8 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer;
 
-        auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer + 1, 0, bluetoe::details::client_characteristic_configuration(), nullptr );
+        auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer + 1, 0,
+                        bluetoe::details::client_characteristic_configuration(), bluetoe::connection_security_attributes(), nullptr );
         auto rc   = char_declaration.access( read, 1 );
 
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
@@ -557,7 +559,8 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
     {
         static const std::uint8_t byte = 0;
 
-        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte, 2, client_configurations(), nullptr );
+        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte, 2,
+            client_configurations(), bluetoe::connection_security_attributes(), nullptr );
         BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::success );
 
         // write as no effect
@@ -568,7 +571,8 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
     {
         static const std::uint8_t byte = 0;
 
-        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 2, client_configurations(), nullptr );
+        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 2,
+                        client_configurations(), bluetoe::connection_security_attributes(), nullptr );
         BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::invalid_attribute_value_length );
     }
 
@@ -576,7 +580,8 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
     {
         static const std::uint8_t byte = 0;
 
-        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 3, client_configurations(), nullptr );
+        auto write = bluetoe::details::attribute_access_arguments::write( &byte, &byte + 1, 3,
+                        client_configurations(), bluetoe::connection_security_attributes(), nullptr );
         BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::invalid_offset );
     }
 

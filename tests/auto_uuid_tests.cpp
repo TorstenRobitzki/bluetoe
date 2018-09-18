@@ -10,7 +10,7 @@
 
 namespace blued = bluetoe::details;
 
-struct srv {};
+using srv = bluetoe::server<>;
 
 BOOST_AUTO_TEST_SUITE( implicit_characteristic_uuid )
 

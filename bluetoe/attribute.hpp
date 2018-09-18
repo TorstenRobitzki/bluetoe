@@ -3,6 +3,7 @@
 
 #include <bluetoe/options.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
+#include <bluetoe/sm/pairing_status.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
@@ -25,6 +26,8 @@ namespace details {
         invalid_attribute_value_length  = 0x0d,
         attribute_not_long              = 0x0b,
         request_not_supported           = 0x06,
+        insufficient_encryption         = 0x0f,
+        insufficient_authentication     = 0x05,
 
         // returned when access type is compare_128bit_uuid and the attribute contains a 128bit uuid and
         // the buffer in attribute_access_arguments is equal to the contained uuid.
@@ -46,10 +49,15 @@ namespace details {
         std::size_t                         buffer_size;
         std::size_t                         buffer_offset;
         client_characteristic_configuration client_config;
+        connection_security_attributes      connection_security;
         void*                               server;
 
         template < std::size_t N >
-        static constexpr attribute_access_arguments read( std::uint8_t(&buffer)[N], std::size_t offset, const client_characteristic_configuration& cc = client_characteristic_configuration())
+        static constexpr attribute_access_arguments read(
+            std::uint8_t(&buffer)[N],
+            std::size_t offset,
+            const client_characteristic_configuration& cc = client_characteristic_configuration(),
+            const connection_security_attributes& cs = connection_security_attributes() )
         {
             return attribute_access_arguments{
                 attribute_access_type::read,
@@ -57,11 +65,16 @@ namespace details {
                 N,
                 offset,
                 cc,
+                cs,
                 nullptr
             };
         }
 
-        static attribute_access_arguments read( std::uint8_t* begin, std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc, void* server )
+        static attribute_access_arguments read(
+            std::uint8_t* begin, std::uint8_t* end, std::size_t offset,
+            const client_characteristic_configuration& cc,
+            const connection_security_attributes& cs,
+            void* server )
         {
             assert( end >= begin );
 
@@ -71,12 +84,15 @@ namespace details {
                 static_cast< std::size_t >( end - begin ),
                 offset,
                 cc,
+                cs,
                 server
             };
         }
 
         template < std::size_t N >
-        static constexpr attribute_access_arguments write( const std::uint8_t(&buffer)[N], std::size_t offset = 0, const client_characteristic_configuration& cc = client_characteristic_configuration() )
+        static constexpr attribute_access_arguments write( const std::uint8_t(&buffer)[N], std::size_t offset = 0,
+            const client_characteristic_configuration& cc = client_characteristic_configuration(),
+            const connection_security_attributes& cs = connection_security_attributes() )
         {
             return attribute_access_arguments{
                 attribute_access_type::write,
@@ -84,11 +100,15 @@ namespace details {
                 N,
                 offset,
                 cc,
+                cs,
                 nullptr
             };
         }
 
-        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, std::size_t offset, const client_characteristic_configuration& cc, void* server )
+        static attribute_access_arguments write( const std::uint8_t* begin, const std::uint8_t* end, std::size_t offset,
+            const client_characteristic_configuration& cc,
+            const connection_security_attributes& cs,
+            void* server )
         {
             assert( end >= begin );
 
@@ -98,6 +118,7 @@ namespace details {
                 static_cast< std::size_t >( end - begin ),
                 offset,
                 cc,
+                cs,
                 server
             };
         }
@@ -110,6 +131,7 @@ namespace details {
                 0,
                 0,
                 client_characteristic_configuration(),
+                connection_security_attributes(),
                 server
             };
         }
@@ -122,6 +144,7 @@ namespace details {
                 16u,
                 0,
                 client_characteristic_configuration(),
+                connection_security_attributes(),
                 nullptr
             };
         }
@@ -136,6 +159,7 @@ namespace details {
                 static_cast< std::size_t >( end - begin ),
                 0,
                 client_characteristic_configuration(),
+                connection_security_attributes(),
                 nullptr
             };
         }
