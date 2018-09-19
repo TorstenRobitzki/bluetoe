@@ -192,6 +192,31 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    namespace details {
+        template < bool RequiresEncryption >
+        struct encryption_requirements;
+
+        template <>
+        struct encryption_requirements< false > {
+            static attribute_access_result check( const connection_security_attributes& ) {
+                return attribute_access_result::success;
+            }
+        };
+
+        template <>
+        struct encryption_requirements< true > {
+            static attribute_access_result check( const connection_security_attributes& attr )
+            {
+                if ( attr.is_encrypted )
+                    return attribute_access_result::success;
+
+                return attr.pairing_status == device_pairing_status::no_key
+                    ? attribute_access_result::insufficient_authentication
+                    : attribute_access_result::insufficient_encryption;
+            }
+        };
+    }
+
     /**
      * @brief a very simple device to bind a characteristic to a global variable to provide access to the characteristic value
      */
@@ -216,8 +241,10 @@ namespace bluetoe {
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
-                if ( RequiresEncryption && !args.connection_security.is_encrypted )
-                    return details::attribute_access_result::insufficient_authentication;
+                const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
+
+                if ( security_result != details::attribute_access_result::success )
+                    return security_result;
 
                 if ( args.type == details::attribute_access_type::read )
                 {
@@ -303,8 +330,10 @@ namespace bluetoe {
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
-                if ( RequiresEncryption && !args.connection_security.is_encrypted )
-                    return details::attribute_access_result::insufficient_authentication;
+                const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
+
+                if ( security_result != details::attribute_access_result::success )
+                    return security_result;
 
                 if ( !has_read_access )
                     return details::attribute_access_result::read_not_permitted;
@@ -384,8 +413,10 @@ namespace bluetoe {
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
-                if ( RequiresEncryption && !args.connection_security.is_encrypted )
-                    return details::attribute_access_result::insufficient_authentication;
+                const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
+
+                if ( security_result != details::attribute_access_result::success )
+                    return security_result;
 
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
@@ -501,8 +532,10 @@ namespace bluetoe {
                 template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
                 static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )
                 {
-                    if ( RequiresEncryption && !args.connection_security.is_encrypted )
-                        return details::attribute_access_result::insufficient_authentication;
+                    const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
+
+                    if ( security_result != details::attribute_access_result::success )
+                        return security_result;
 
                     if ( args.type == attribute_access_type::read )
                     {
