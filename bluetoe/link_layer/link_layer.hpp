@@ -240,7 +240,7 @@ namespace link_layer {
     /**
      * @brief link layer implementation
      *
-     * Implements a binding to a server by implementing a link layout on top of a ScheduleRadio device.
+     * Implements a binding to a server by implementing a link layer on top of a ScheduleRadio device.
      *
      * @sa connectable_undirected_advertising
      * @sa connectable_directed_advertising
