@@ -1,11 +1,14 @@
 if(CMAKE_CROSSCOMPILING)
-
+    # set global compiler options that are hardware dependent
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-m0 -mthumb -mabi=aapcs" PARENT_SCOPE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=cortex-m0 -mthumb -mabi=aapcs" PARENT_SCOPE)
+    # create an interface-only target to publish hardware specific options. Any target that
+    # requires the hardware specific options need only to depend on this target
     add_library(toolchain_nrf51 INTERFACE)
     add_library(toolchain::nrf51 ALIAS toolchain_nrf51)
     target_include_directories(toolchain_nrf51 INTERFACE ${NRF5_SDK_ROOT}/components/device)
     target_include_directories(toolchain_nrf51 INTERFACE ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include)
     target_include_directories(toolchain_nrf51 INTERFACE .)
-    target_compile_options(toolchain_nrf51 INTERFACE -mcpu=cortex-m0 -mthumb -mabi=aapcs )
     target_compile_definitions(toolchain_nrf51 INTERFACE NRF51)
 
     enable_language(ASM)
@@ -25,8 +28,6 @@ if(CMAKE_CROSSCOMPILING)
             -o ${CMAKE_CURRENT_BINARY_DIR}/linker_script.ld
             ${CMAKE_CURRENT_SOURCE_DIR}/nrf51_xxaa.ld
             )
-
-
 else()
 message(error "")
 endif()

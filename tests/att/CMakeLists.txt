@@ -1,4 +1,3 @@
-
 add_and_register_test(find_information_tests)
 add_and_register_test(find_by_type_value_tests)
 add_and_register_test(find_notification_data_tests)
