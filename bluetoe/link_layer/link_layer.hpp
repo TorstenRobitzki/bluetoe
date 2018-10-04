@@ -120,15 +120,19 @@ namespace link_layer {
 
                 bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write )
                 {
+                    using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
                     if ( opcode == LinkLayer::LL_ENC_REQ && size == 23 )
                     {
                         encryption_in_progress_ = true;
-                        write.fill( { LinkLayer::ll_control_pdu_code, 1 + 8 + 4, LinkLayer::LL_ENC_RSP } );
+                        fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1 + 8 + 4, LinkLayer::LL_ENC_RSP } );
 
-                        const std::uint64_t rand = LinkLayer::read_64( pdu.buffer +3 );
-                        const std::uint16_t ediv = LinkLayer::read_16( pdu.buffer +11 );
-                        const std::uint64_t skdm = LinkLayer::read_64( pdu.buffer +13 );
-                        const std::uint32_t ivm  = LinkLayer::read_32( pdu.buffer +21 );
+                        const std::uint8_t* const pdu_body = layout_t::body( pdu ).first;
+
+                        const std::uint64_t rand = LinkLayer::read_64( pdu_body +1 );
+                        const std::uint16_t ediv = LinkLayer::read_16( pdu_body +9 );
+                        const std::uint64_t skdm = LinkLayer::read_64( pdu_body +11 );
+                        const std::uint32_t ivm  = LinkLayer::read_32( pdu_body +19 );
                               std::uint64_t skds = 0;
                               std::uint32_t ivs  = 0;
 
@@ -139,17 +143,19 @@ namespace link_layer {
                         // setup encryption, even when no key is available to create SKDs and IVs
                         std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
 
-                        bluetoe::details::write_64bit( &write.buffer[ 3 ], skds );
-                        bluetoe::details::write_32bit( &write.buffer[ 11 ], ivs );
+                        std::uint8_t* write_body = layout_t::body( write ).first;
+
+                        bluetoe::details::write_64bit( &write_body[ 1 ], skds );
+                        bluetoe::details::write_32bit( &write_body[ 9 ], ivs );
                     }
                     else if ( opcode == LinkLayer::LL_START_ENC_RSP && size == 1 )
                     {
-                        write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
+                        fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
                         that().connection_details_.is_encrypted( true );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
-                        write.fill( { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
+                        fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
                         that().stop_encryption();
                         that().connection_details_.is_encrypted( false );
                     }
@@ -163,6 +169,8 @@ namespace link_layer {
 
                 void transmit_pending_security_pdus()
                 {
+                    using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
                     if ( !encryption_in_progress_ )
                         return;
 
@@ -174,12 +182,12 @@ namespace link_layer {
                     {
                         no_key_                 = false;
 
-                        out_buffer.fill( {
+                        fill< layout_t >( out_buffer, {
                             LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
                     }
                     else
                     {
-                        out_buffer.fill( {
+                        fill< layout_t >( out_buffer, {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
                         that().start_encryption();
@@ -341,6 +349,13 @@ namespace link_layer {
          */
         const device_address& local_address() const;
 
+        using radio_t = ScheduledRadio<
+            details::buffer_sizes< Options... >::tx_size,
+            details::buffer_sizes< Options... >::rx_size,
+            link_layer< Server, ScheduledRadio, Options... > >;
+
+        using layout_t = typename pdu_layout_by_radio< radio_t >::pdu_layout;
+
     private:
 
         friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
@@ -352,11 +367,6 @@ namespace link_layer {
                     Options...
                 >::type
             > );
-
-        typedef ScheduledRadio<
-            details::buffer_sizes< Options... >::tx_size,
-            details::buffer_sizes< Options... >::rx_size,
-            link_layer< Server, ScheduledRadio, Options... > > radio_t;
 
         // make sure, that the hardware supports encryption
         static constexpr bool encryption_required = bluetoe::details::requires_encryption_support_t< Server >::value;
@@ -376,10 +386,10 @@ namespace link_layer {
         typedef details::select_advertiser_implementation<
             link_layer< Server, ScheduledRadio, Options... >, Options... > advertising_t;
 
-        unsigned sleep_clock_accuracy( const read_buffer& receive ) const;
+        unsigned sleep_clock_accuracy( const std::uint8_t* received_body ) const;
         bool check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const;
-        bool parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request );
-        bool parse_timing_parameters_from_connection_update_request( const write_buffer& valid_connect_request );
+        bool parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body );
+        bool parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_connect_request );
         void force_disconnect();
         void start_advertising_impl();
         void wait_for_connection_event();
@@ -464,9 +474,8 @@ namespace link_layer {
                 ? link_layer_feature::le_encryption
                 : 0 );
 
-
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
-        static_assert( radio_t::size >= advertising_t::maximum_required_advertising_buffer, "buffer to small" );
+        static_assert( radio_t::size >= advertising_t::maximum_required_advertising_buffer(), "buffer to small" );
 
         const device_address            address_;
         unsigned                        current_channel_index_;
@@ -571,40 +580,42 @@ namespace link_layer {
         device_address remote_address;
         const bool connection_request_received = this->handle_adv_receive( receive, remote_address );
 
-        if ( connection_request_received
-          && channels_.reset( &receive.buffer[ 30 ], receive.buffer[ 35 ] & 0x1f )
-          && parse_timing_parameters_from_connect_request( receive ) )
+        if ( connection_request_received )
         {
-            state_                    = state::connecting;
-            current_channel_index_    = 0;
-            conn_event_counter_       = 0;
-            cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( receive ) + device_sleep_clock_accuracy::accuracy_ppm;
-            timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
-            used_features_            = supported_features;
-            connection_parameters_request_pending_ = false;
-            connection_parameters_request_running_ = false;
+            const std::uint8_t* const body = layout_t::body( receive ).first;
 
-            this->set_access_address_and_crc_init(
-                read_32( &receive.buffer[ 14 ] ),
-                read_24( &receive.buffer[ 18 ] ) );
+            if ( channels_.reset( &body[ 28 ], body[ 33 ] & 0x1f )
+              && parse_timing_parameters_from_connect_request( body ) )
+            {
+                state_                    = state::connecting;
+                current_channel_index_    = 0;
+                conn_event_counter_       = 0;
+                cumulated_sleep_clock_accuracy_ = sleep_clock_accuracy( body ) + device_sleep_clock_accuracy::accuracy_ppm;
+                timeouts_til_connection_lost_   = num_windows_til_timeout - 1;
+                used_features_            = supported_features;
+                connection_parameters_request_pending_ = false;
+                connection_parameters_request_running_ = false;
 
-            const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
-                  delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
+                this->set_access_address_and_crc_init( read_32( &body[ 12 ] ), read_24( &body[ 16 ] ) );
 
-            window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+                const delta_time window_start = transmit_window_offset_ - transmit_window_offset_.ppm( cumulated_sleep_clock_accuracy_ );
+                      delta_time window_end   = transmit_window_offset_ + transmit_window_size_;
 
-            this->reset();
-            this->schedule_connection_event(
-                channels_.data_channel( current_channel_index_ ),
-                window_start,
-                window_end,
-                connection_interval_ );
+                window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
-            this->connection_request( connection_addresses( address_, remote_address ) );
-            this->handle_stop_advertising();
+                this->reset();
+                this->schedule_connection_event(
+                    channels_.data_channel( current_channel_index_ ),
+                    window_start,
+                    window_end,
+                    connection_interval_ );
 
-            connection_details_ = connection_details_t( std::size_t{ details::mtu_size< Options... >::mtu } );
-            connection_details_.remote_connection_created( remote_address );
+                this->connection_request( connection_addresses( address_, remote_address ) );
+                this->handle_stop_advertising();
+
+                connection_details_ = connection_details_t( std::size_t{ details::mtu_size< Options... >::mtu } );
+                connection_details_.remote_connection_created( remote_address );
+            }
         }
     }
 
@@ -762,12 +773,13 @@ namespace link_layer {
 
         if ( notification.first != connection_details_t::entry_type::empty )
         {
-            std::size_t out_size = out_buffer.size - all_header_size;
+            std::size_t   out_size = out_buffer.size - all_header_size - layout_t::data_channel_pdu_memory_size( 0 );
+            std::uint8_t* out_body = layout_t::body( out_buffer ).first;
 
             if ( notification.first == connection_details_t::entry_type::notification )
             {
                 server_->notification_output(
-                    &out_buffer.buffer[ all_header_size ],
+                    &out_body[ l2cap_header_size ],
                     out_size,
                     connection_details_,
                     notification.second
@@ -776,7 +788,7 @@ namespace link_layer {
             else
             {
                 server_->indication_output(
-                    &out_buffer.buffer[ all_header_size ],
+                    &out_body[ l2cap_header_size ],
                     out_size,
                     connection_details_,
                     notification.second
@@ -790,12 +802,13 @@ namespace link_layer {
 
             if ( out_size )
             {
-                out_buffer.buffer[ 0 ] = lld_data_pdu_code;
-                out_buffer.buffer[ 1 ] = static_cast< std::uint8_t >( out_size + l2cap_header_size );
-                out_buffer.buffer[ 2 ] = static_cast< std::uint8_t >( out_size );
-                out_buffer.buffer[ 3 ] = 0;
-                out_buffer.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_att_channel );
-                out_buffer.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_att_channel >> 8 );
+                fill< layout_t >( out_buffer, {
+                    lld_data_pdu_code,
+                    static_cast< std::uint8_t >( out_size + l2cap_header_size ),
+                    static_cast< std::uint8_t >( out_size ),
+                    0,
+                    static_cast< std::uint8_t >( l2cap_att_channel ),
+                    static_cast< std::uint8_t >( l2cap_att_channel >> 8 ) } );
 
                 this->commit_transmit_buffer( out_buffer );
             }
@@ -811,19 +824,20 @@ namespace link_layer {
         if ( out_buffer.empty() )
             return;
 
-        std::size_t out_size = out_buffer.size - all_header_size;
-        this->signaling_channel_output(
-            &out_buffer.buffer[ all_header_size ],
-            out_size );
+        std::size_t   out_size = out_buffer.size - all_header_size - layout_t::data_channel_pdu_memory_size( 0 );
+        std::uint8_t* out_body = layout_t::body( out_buffer ).first;
+
+        this->signaling_channel_output( &out_body[ l2cap_header_size ], out_size );
 
         if ( out_size )
         {
-            out_buffer.buffer[ 0 ] = lld_data_pdu_code;
-            out_buffer.buffer[ 1 ] = static_cast< std::uint8_t >( out_size + l2cap_header_size );
-            out_buffer.buffer[ 2 ] = static_cast< std::uint8_t >( out_size );
-            out_buffer.buffer[ 3 ] = 0;
-            out_buffer.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_signaling_channel );
-            out_buffer.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 );
+            fill< layout_t >( out_buffer, {
+                lld_data_pdu_code,
+                static_cast< std::uint8_t >( out_size + l2cap_header_size ),
+                static_cast< std::uint8_t >( out_size ),
+                0,
+                static_cast< std::uint8_t >( l2cap_signaling_channel ),
+                static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 ) } );
 
             this->commit_transmit_buffer( out_buffer );
         }
@@ -847,7 +861,7 @@ namespace link_layer {
         connection_parameters_request_pending_ = false;
         connection_parameters_request_running_ = true;
 
-        out_buffer.fill( {
+        fill< layout_t >( out_buffer, {
             ll_control_pdu_code, 24, LL_CONNECTION_PARAM_REQ,
             static_cast< std::uint8_t >( proposed_interval_min_ ),
             static_cast< std::uint8_t >( proposed_interval_min_ >> 8 ),
@@ -887,13 +901,13 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    unsigned link_layer< Server, ScheduledRadio, Options... >::sleep_clock_accuracy( const read_buffer& receive ) const
+    unsigned link_layer< Server, ScheduledRadio, Options... >::sleep_clock_accuracy( const std::uint8_t* received_body ) const
     {
         static constexpr std::uint16_t inaccuracy_ppm[ 8 ] = {
             500, 250, 150, 100, 75, 50, 30, 20
         };
 
-        return inaccuracy_ppm[ ( receive.buffer[ 35 ] >> 5 & 0x7 )  ];
+        return inaccuracy_ppm[ ( received_body[ 33 ] >> 5 & 0x7 )  ];
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -915,15 +929,15 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const read_buffer& valid_connect_request )
+    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body )
     {
         static constexpr auto       us_per_digits = 1250;
 
-        transmit_window_size_   = delta_time( valid_connect_request.buffer[ 21 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16( &valid_connect_request.buffer[ 22 ] ) * us_per_digits + us_per_digits );
-        connection_interval_    = delta_time( read_16( &valid_connect_request.buffer[ 24 ] ) * us_per_digits );
-        slave_latency_          = read_16( &valid_connect_request.buffer[ 26 ] );
-        timeout_value_          = read_16( &valid_connect_request.buffer[ 28 ] );
+        transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
+        transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
+        connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
+        slave_latency_          = read_16( &valid_connect_request_body[ 24 ] );
+        timeout_value_          = read_16( &valid_connect_request_body[ 26 ] );
         delta_time timeout      = delta_time( timeout_value_ * 10000 );
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
@@ -932,15 +946,15 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connection_update_request( const write_buffer& valid_update_request )
+    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_update_request )
     {
         static constexpr auto       us_per_digits = 1250;
 
-        transmit_window_size_   = delta_time( valid_update_request.buffer[ 3 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16( &valid_update_request.buffer[ 4 ] ) * us_per_digits );
-        connection_interval_    = delta_time( read_16( &valid_update_request.buffer[ 6 ] ) * us_per_digits );
-        slave_latency_          = read_16( &valid_update_request.buffer[ 8 ] );
-        timeout_value_          = read_16( &valid_update_request.buffer[ 10 ] );
+        transmit_window_size_   = delta_time( valid_update_request[ 1 ] * us_per_digits );
+        transmit_window_offset_ = delta_time( read_16( &valid_update_request[ 2 ] ) * us_per_digits );
+        connection_interval_    = delta_time( read_16( &valid_update_request[ 4 ] ) * us_per_digits );
+        slave_latency_          = read_16( &valid_update_request[ 6 ] );
+        timeout_value_          = read_16( &valid_update_request[ 8 ] );
         delta_time timeout      = delta_time( timeout_value_ * 10000 );
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
@@ -980,7 +994,8 @@ namespace link_layer {
 
             if ( output.size )
             {
-                const auto llid = pdu.buffer[ 0 ] & 0x03;
+                const auto llid = layout_t::header( pdu ) & 0x03;
+
                 if ( llid == ll_control_pdu_code )
                 {
                     result = handle_ll_control_data( pdu, output );
@@ -1013,7 +1028,7 @@ namespace link_layer {
 
             if ( output.size )
             {
-                output.fill( {
+                fill< layout_t >( output, {
                     ll_control_pdu_code, 2,
                     LL_TERMINATE_IND, connection_terminated_by_local_host
                 } );
@@ -1034,15 +1049,19 @@ namespace link_layer {
 
         assert( write.size >= radio_t::min_buffer_size );
 
-        if ( ( pdu.buffer[ 0 ] & 0x3 ) == ll_control_pdu_code )
+        const std::uint8_t* const body       = layout_t::body( pdu ).first;
+        const std::uint16_t       header     = layout_t::header( pdu );
+              std::uint8_t* const write_body = layout_t::body( write ).first;
+
+        if ( ( header & 0x3 ) == ll_control_pdu_code )
         {
 
-            const std::uint8_t size   = pdu.buffer[ 1 ];
-            const std::uint8_t opcode = size > 0 ? pdu.buffer[ 2 ] : 0xff;
+            const std::uint8_t size   = header >> 8;
+            const std::uint8_t opcode = size > 0 ? *body : 0xff;
 
             if ( opcode == LL_CONNECTION_UPDATE_REQ && size == 12 )
             {
-                defered_conn_event_counter_ = read_16( &pdu.buffer[ 12 ] );
+                defered_conn_event_counter_ = read_16( &body[ 10 ] );
                 commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000
@@ -1062,17 +1081,17 @@ namespace link_layer {
             }
             else if ( opcode == LL_VERSION_IND && size == 6 )
             {
-                if ( pdu.buffer[ 3 ] <= LL_VERSION_40 )
+                if ( body[ 1 ] <= LL_VERSION_40 )
                     used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
 
-                write.fill( {
+                fill< layout_t >( write, {
                     ll_control_pdu_code, 6, LL_VERSION_IND,
                     LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
                 } );
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {
-                defered_conn_event_counter_ = read_16( &pdu.buffer[ 8 ] );
+                defered_conn_event_counter_ = read_16( &body[ 6 ] );
                 commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - conn_event_counter_ ) & 0x8000 )
@@ -1086,20 +1105,20 @@ namespace link_layer {
             }
             else if ( opcode == LL_PING_REQ && size == 1 )
             {
-                write.fill( { ll_control_pdu_code, 1, LL_PING_RSP } );
+                fill< layout_t >( write, { ll_control_pdu_code, 1, LL_PING_RSP } );
             }
             else if ( opcode == LL_FEATURE_REQ && size == 9 )
             {
-                used_features_ = used_features_ & pdu.buffer[ 3 ];
+                used_features_ = used_features_ & body[ 1 ];
 
-                write.fill( {
+                fill< layout_t >( write, {
                     ll_control_pdu_code, 9,
                     LL_FEATURE_RSP,
                     used_features_,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
             }
-            else if ( opcode == LL_UNKNOWN_RSP && size == 2 && pdu.buffer[ 3 ] == LL_CONNECTION_PARAM_REQ )
+            else if ( opcode == LL_UNKNOWN_RSP && size == 2 && body[ 1 ] == LL_CONNECTION_PARAM_REQ )
             {
                 if ( connection_parameters_request_running_ )
                 {
@@ -1120,16 +1139,16 @@ namespace link_layer {
             }
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
             {
-                write.fill( { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
+                fill< layout_t >( write, { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
 
-                std::copy( &pdu.buffer[ 3 ], &pdu.buffer[ 3 + size - 1 ], &write.buffer[ 3 ] );
+                std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
             }
             else if ( this->handle_encryption_pdus( opcode, size, pdu, write ) )
             {
             }
             else if ( opcode != LL_UNKNOWN_RSP )
             {
-                write.fill( { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
+                fill< layout_t >( write, { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
             }
             else
             {
@@ -1146,74 +1165,55 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& input, const read_buffer& output )
     {
-        const std::uint8_t  pdu_size      = input.buffer[ 1 ];
-        const std::uint16_t l2cap_size    = read_16( &input.buffer[ 2 ] );
-        const std::uint16_t l2cap_channel = read_16( &input.buffer[ 4 ] );
+        const std::uint16_t input_header    = layout_t::header( input );
+        const std::uint8_t* const input_body= layout_t::body( input ).first;
+        const std::uint8_t  pdu_size        = input_header >> 8;
+
+        const std::uint16_t l2cap_size      = read_16( &input_body[ 0 ] );
+        const std::uint16_t l2cap_channel   = read_16( &input_body[ 2 ] );
 
         if ( pdu_size - l2cap_header_size != l2cap_size )
             return ll_result::disconnect;
 
+        std::size_t   out_size   = output.size - l2cap_header_size - layout_t::data_channel_pdu_memory_size( 0 );
+        std::uint8_t* out_body   = layout_t::body( output ).first;
+
         if ( l2cap_channel == l2cap_att_channel )
         {
-            std::size_t att_size = output.size - all_header_size;
-
-            server_->l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], att_size, connection_details_ );
+            server_->l2cap_input( &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size, connection_details_ );
 
             // in case the ATT input changed the MTU size:
-            this->max_rx_size( connection_details_.negotiated_mtu() + all_header_size );
-            this->max_tx_size( connection_details_.negotiated_mtu() + all_header_size );
-
-            if ( att_size )
-            {
-                output.buffer[ 0 ] = lld_data_pdu_code;
-                output.buffer[ 1 ] = static_cast< std::uint8_t >( att_size + l2cap_header_size );
-                output.buffer[ 2 ] = static_cast< std::uint8_t >( att_size );
-                output.buffer[ 3 ] = 0;
-                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_att_channel );
-                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_att_channel >> 8 );
-
-                this->commit_transmit_buffer( output );
-            }
+            this->max_rx_size( connection_details_.negotiated_mtu() + l2cap_header_size + layout_t::data_channel_pdu_memory_size( 0 ) );
+            this->max_tx_size( connection_details_.negotiated_mtu() + l2cap_header_size + layout_t::data_channel_pdu_memory_size( 0 ) );
         }
         else if ( l2cap_channel == l2cap_sm_channel )
         {
-            std::size_t sm_size = output.size - all_header_size;
-
-            static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size, connection_details_, *this );
+            static_cast< security_manager_t& >( *this ).l2cap_input( &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size, connection_details_, *this );
 
             // in case the pairing status changed
             connection_details_.pairing_status( connection_details_.local_device_pairing_status() );
-
-            if ( sm_size )
-            {
-                output.buffer[ 0 ] = lld_data_pdu_code;
-                output.buffer[ 1 ] = static_cast< std::uint8_t >( sm_size + l2cap_header_size );
-                output.buffer[ 2 ] = static_cast< std::uint8_t >( sm_size );
-                output.buffer[ 3 ] = 0;
-                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_sm_channel );
-                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_sm_channel >> 8 );
-
-                this->commit_transmit_buffer( output );
-            }
         }
         else if ( l2cap_channel == l2cap_signaling_channel )
         {
-            std::size_t signaling_size = output.size - all_header_size;
-
             this->signaling_channel_input(
-                &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], signaling_size );
+                &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size );
+        }
+        else
+        {
+            out_size = 0;
+        }
 
-            if ( signaling_size )
-            {
-                output.buffer[ 0 ] = lld_data_pdu_code;
-                output.buffer[ 1 ] = static_cast< std::uint8_t >( signaling_size + l2cap_header_size );
-                output.buffer[ 2 ] = static_cast< std::uint8_t >( signaling_size );
-                output.buffer[ 3 ] = 0;
-                output.buffer[ 4 ] = static_cast< std::uint8_t >( l2cap_signaling_channel );
-                output.buffer[ 5 ] = static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 );
+        if ( out_size )
+        {
+            fill< layout_t >( output, {
+                lld_data_pdu_code,
+                static_cast< std::uint8_t >( out_size + l2cap_header_size ),
+                static_cast< std::uint8_t >( out_size ),
+                0,
+                static_cast< std::uint8_t >( l2cap_channel ),
+                static_cast< std::uint8_t >( l2cap_channel >> 8 ) } );
 
-                this->commit_transmit_buffer( output );
-            }
+            this->commit_transmit_buffer( output );
         }
 
         return ll_result::go_ahead;
@@ -1226,16 +1226,17 @@ namespace link_layer {
 
         if ( !defered_ll_control_pdu_.empty() && defered_conn_event_counter_ == conn_event_counter_ )
         {
-            const std::uint8_t opcode = defered_ll_control_pdu_.buffer[ 2 ];
+            const std::uint8_t* body   = layout_t::body( defered_ll_control_pdu_ ).first;
+            const std::uint8_t  opcode = body[ 0 ];
 
             if ( opcode == LL_CHANNEL_MAP_REQ )
             {
-                channels_.reset( &defered_ll_control_pdu_.buffer[ 3 ] );
+                channels_.reset( &body[ 1 ] );
             }
             else if ( opcode == LL_CONNECTION_UPDATE_REQ )
             {
                 connection_interval_old_ = connection_interval_;
-                if ( parse_timing_parameters_from_connection_update_request( defered_ll_control_pdu_ ) )
+                if ( parse_timing_parameters_from_connection_update_request( body ) )
                 {
                     timeouts_til_connection_lost_ = 0;
                     state_ = state::connection_update;

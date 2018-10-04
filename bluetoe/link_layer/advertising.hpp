@@ -6,6 +6,7 @@
 #include <bluetoe/link_layer/buffer.hpp>
 #include <bluetoe/link_layer/delta_time.hpp>
 #include <bluetoe/link_layer/meta_types.hpp>
+#include <bluetoe/link_layer/default_pdu_layout.hpp>
 
 /**
  * @file bluetoe/link_layer/advertising.hpp
@@ -43,34 +44,47 @@ namespace link_layer {
             static constexpr std::uint8_t   adv_scan_ind_pdu_type_code  = 6;
             static constexpr std::uint8_t   scan_response_pdu_type_code = 4;
             static constexpr std::size_t    address_length              = 6;
-            static constexpr std::size_t    maximum_adv_request_size    = 34 + advertising_pdu_header_size;
+            static constexpr std::size_t    maximum_adv_request_size    = 34;
 
+            template < typename Layout >
             static bool is_valid_scan_request( const read_buffer& receive, const device_address& addr )
             {
-                static constexpr std::size_t  scan_request_size = 2 * address_length + advertising_pdu_header_size;
+                static constexpr std::size_t  scan_request_size = 2 * address_length;
                 static constexpr std::uint8_t scan_request_code = 0x03;
 
-                bool result = receive.size == scan_request_size
-                    && ( receive.buffer[ 1 ] & 0x3f ) == scan_request_size - advertising_pdu_header_size
-                    && ( receive.buffer[ 0 ] & 0x0f ) == scan_request_code;
+                const std::uint16_t header = Layout::header( receive );
 
-                result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
-                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_rxaddr_field ) != 0 );
+                bool result = receive.size == Layout::data_channel_pdu_memory_size( scan_request_size )
+                    && ( ( header >> 8 ) & 0x3f ) == scan_request_size
+                    && ( header & 0x0f ) == scan_request_code;
+
+                if ( result )
+                {
+                    const auto body = Layout::body( receive );
+                    result = result && std::equal( &body.begin[ address_length ], &body.begin[ 2 * address_length ], addr.begin() );
+                    result = result && addr.is_random() == ( ( header & header_rxaddr_field ) != 0 );
+                }
 
                 return result;
             }
 
+            template < typename Layout >
             static bool is_valid_connect_request( const read_buffer& receive, const device_address& addr )
             {
-                static constexpr std::size_t  connect_request_size = 34 + advertising_pdu_header_size;
+                static constexpr std::size_t  connect_request_size = 34;
                 static constexpr std::uint8_t connect_request_code = 0x05;
 
-                bool result = receive.size == connect_request_size
-                        && ( receive.buffer[ 1 ] & 0x3f ) == connect_request_size - advertising_pdu_header_size
-                        && ( receive.buffer[ 0 ] & 0x0f ) == connect_request_code;
+                if ( receive.size != Layout::data_channel_pdu_memory_size( connect_request_size ) )
+                    return false;
 
-                result = result && std::equal( &receive.buffer[ 8 ], &receive.buffer[ 14 ], addr.begin() );
-                result = result && addr.is_random() == ( ( receive.buffer[ 0 ] & header_rxaddr_field ) != 0 );
+                const std::uint16_t header = Layout::header( receive );
+                const auto          body   = Layout::body( receive ).first;
+
+                bool result = ( ( header >> 8 ) & 0x3f ) == connect_request_size
+                           && ( header & 0x0f ) == connect_request_code;
+
+                result = result && std::equal( &body[ address_length ], &body[ 2 * address_length ], addr.begin() );
+                result = result && addr.is_random() == ( ( header & header_rxaddr_field ) != 0 );
 
                 return result;
             }
@@ -147,21 +161,27 @@ namespace link_layer {
         protected:
             read_buffer fill_advertising_data()
             {
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
                 const device_address& addr = link_layer().local_address();
 
-                std::uint8_t* const adv_data = advertising_buffer().buffer;
-                adv_data[ 0 ] = adv_ind_pdu_type_code;
+                // prevent assert() in layout_t::body
+                adv_size_ = address_length;
+
+                std::uint16_t header = adv_ind_pdu_type_code;
+                std::uint8_t* body   = layout_t::body( advertising_buffer() ).first;
 
                 if ( addr.is_random() )
-                    adv_data[ 0 ] |= header_txaddr_field;
+                    header |= header_txaddr_field;
 
-                adv_data[ 1 ] =
+                const std::size_t size =
                     address_length
-                  + link_layer().fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+                  + link_layer().fill_l2cap_advertising_data( &body[ address_length ], max_advertising_data_size );
 
-                adv_size_ = advertising_pdu_header_size + adv_data[ 1 ];
+                header   |= size << 8;
+                adv_size_ = layout_t::data_channel_pdu_memory_size( size );
 
-                std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
+                std::copy( addr.begin(), addr.end(), body );
+                layout_t::header( advertising_buffer(), header );
 
                 fill_advertising_response_data();
                 return advertising_buffer();
@@ -179,23 +199,39 @@ namespace link_layer {
 
             read_buffer advertising_receive_buffer()
             {
-                return read_buffer{ advertising_response_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return read_buffer{
+                    layout_t::data_channel_pdu_memory_size( max_advertising_data_size ) + advertising_response_buffer().buffer,
+                    layout_t::data_channel_pdu_memory_size( maximum_adv_request_size ) };
             }
 
             bool is_valid_scan_request( const read_buffer& receive ) const
             {
-                return details::advertising_type_base::is_valid_scan_request( receive, link_layer().local_address() );
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+                return details::advertising_type_base::is_valid_scan_request< layout_t >( receive, link_layer().local_address() );
             }
 
             bool is_valid_connect_request( const read_buffer& receive ) const
             {
-                return details::advertising_type_base::is_valid_connect_request( receive, link_layer().local_address() );
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+                return details::advertising_type_base::is_valid_connect_request< layout_t >( receive, link_layer().local_address() );
             }
 
-            static constexpr std::size_t    max_advertising_data_size   = 31;
-            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
-            static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+            static constexpr std::size_t maximum_required_advertising_buffer()
+            {
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                // 2 times maximum_adv_send_size, for the advertising data and the advertising response
+                // plus enough memory to store any received request
+                return 2 * layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )
+                         + layout_t::data_channel_pdu_memory_size( maximum_adv_request_size );
+            }
+
         private:
+
+            static constexpr std::size_t    max_advertising_data_size   = 31;
+            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + address_length;
 
             void fill_advertising_response_data()
             {
@@ -210,7 +246,12 @@ namespace link_layer {
 
             read_buffer advertising_response_buffer()
             {
-                return read_buffer{ advertising_buffer().buffer + maximum_adv_send_size, adv_response_size_ };
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return read_buffer{
+                    advertising_buffer().buffer + layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ),
+                    layout_t::data_channel_pdu_memory_size( adv_response_size_ )
+                };
             }
 
             LinkLayer& link_layer()
@@ -258,7 +299,6 @@ namespace link_layer {
         template < typename Type >
         void change_advertising();
 
-    public:
         /**
          * @brief sets the address to be used in the advertising
          *        PDU.
@@ -291,7 +331,11 @@ namespace link_layer {
         protected:
             read_buffer advertising_receive_buffer()
             {
-                return read_buffer{ advertising_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return read_buffer{
+                    advertising_buffer().buffer + layout_t::data_channel_pdu_memory_size( max_advertising_data_size ),
+                    layout_t::data_channel_pdu_memory_size( maximum_adv_request_size ) };
             }
 
             impl()
@@ -309,20 +353,24 @@ namespace link_layer {
                 }
 
                 const device_address& addr = link_layer().local_address();
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
                 std::uint8_t* const adv_data = advertising_buffer().buffer;
-                adv_data[ 0 ] = adv_direct_ind_pdu_type_code;
+                std::uint16_t header = adv_direct_ind_pdu_type_code;
 
                 if ( addr.is_random() )
-                    adv_data[ 0 ] |= header_txaddr_field;
+                    header |= header_txaddr_field;
 
                 if ( addr_.is_random() )
-                    adv_data[ 0 ] |= header_rxaddr_field;
+                    header |= header_rxaddr_field;
 
-                adv_data[ 1 ] = 2 * address_length;
+                header |= ( 2 * address_length ) << 8;
 
-                std::copy( addr.begin(), addr.end(), &adv_data[ advertising_pdu_header_size ] );
-                std::copy( addr_.begin(), addr_.end(), &adv_data[ advertising_pdu_header_size + address_length ] );
+                layout_t::header( adv_data, header );
+
+                const auto body = layout_t::body( advertising_buffer() );
+                std::copy( addr.begin(), addr.end(), &body.first[ 0 ] );
+                std::copy( addr_.begin(), addr_.end(), &body.first[ address_length ] );
 
                 return advertising_buffer();
             }
@@ -344,17 +392,29 @@ namespace link_layer {
 
             bool is_valid_connect_request( const read_buffer& receive ) const
             {
-                bool result = details::advertising_type_base::is_valid_connect_request( receive, link_layer().local_address() );
-                result = result && std::equal( &receive.buffer[ 2 ], &receive.buffer[ 8 ], addr_.begin() ) && addr_valid_;
-                result = result && addr_.is_random() == ( ( receive.buffer[ 0 ] & header_txaddr_field ) != 0 );
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                bool result = details::advertising_type_base::is_valid_connect_request< layout_t >( receive, link_layer().local_address() );
+                const auto body   = layout_t::body( receive ).first;
+                const auto header = layout_t::header( receive );
+
+                result = result && std::equal( &body[ 0 ], &body[ address_length ], addr_.begin() ) && addr_valid_;
+                result = result && addr_.is_random() == ( ( header & header_txaddr_field ) != 0 );
 
                 return result;
             }
 
-            static constexpr std::size_t    max_advertising_data_size   = 2 * address_length;
-            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size;
-            static constexpr std::size_t    maximum_required_advertising_buffer = maximum_adv_send_size + maximum_adv_request_size;
+            static constexpr std::size_t maximum_required_advertising_buffer()
+            {
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return layout_t::data_channel_pdu_memory_size( max_advertising_data_size )
+                     + layout_t::data_channel_pdu_memory_size( maximum_adv_request_size );
+            }
+
         private:
+
+            static constexpr std::size_t    max_advertising_data_size   = 2 * address_length;
 
             LinkLayer& link_layer()
             {
@@ -368,12 +428,9 @@ namespace link_layer {
 
             read_buffer advertising_buffer()
             {
-                return read_buffer{ link_layer().raw(), maximum_adv_send_size };
-            }
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
-            read_buffer advertising_response_buffer()
-            {
-                return read_buffer{ nullptr, 0 };
+                return read_buffer{ link_layer().raw(), layout_t::data_channel_pdu_memory_size( max_advertising_data_size ) };
             }
 
             device_address  addr_;
@@ -417,22 +474,26 @@ namespace link_layer {
         protected:
             read_buffer fill_advertising_data()
             {
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
                 fill_advertising_response_data();
                 const device_address& addr = link_layer().local_address();
 
-                std::uint8_t* const adv_data = advertising_buffer().buffer;
-                adv_data[ 0 ] = adv_scan_ind_pdu_type_code;
+                std::uint16_t header = adv_scan_ind_pdu_type_code;
+                std::uint8_t* body   = layout_t::body( advertising_buffer() ).first;
 
                 if ( addr.is_random() )
-                    adv_data[ 0 ] |= header_txaddr_field;
+                    header |= header_txaddr_field;
 
-                adv_data[ 1 ] =
+                const std::size_t size =
                     address_length
-                  + link_layer().fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+                  + link_layer().fill_l2cap_advertising_data( &body[ address_length ], max_advertising_data_size );
 
-                adv_size_ = advertising_pdu_header_size + adv_data[ 1 ];
+                header |= size << 8;
+                adv_size_ = layout_t::data_channel_pdu_memory_size( size );
 
-                std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
+                layout_t::header( advertising_buffer(), header );
+                std::copy( addr.begin(), addr.end(), body );
 
                 return advertising_buffer();
             }
@@ -462,11 +523,18 @@ namespace link_layer {
                 return false;
             }
 
-            static constexpr std::size_t    max_advertising_data_size   = 31;
-            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
-            static constexpr std::size_t    maximum_required_advertising_buffer = 2 * maximum_adv_send_size + maximum_adv_request_size;
+            static constexpr std::size_t maximum_required_advertising_buffer()
+            {
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return 2 * layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )
+                         + layout_t::data_channel_pdu_memory_size( maximum_adv_request_size );
+            }
 
         private:
+            static constexpr std::size_t    max_advertising_data_size   = 31;
+            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + address_length;
+
             void fill_advertising_response_data()
             {
                 adv_response_size_ = fill_empty_advertising_response_data(
@@ -534,20 +602,24 @@ namespace link_layer {
             read_buffer fill_advertising_data()
             {
                 const device_address& addr = link_layer().local_address();
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
-                std::uint8_t* const adv_data = advertising_buffer().buffer;
-                adv_data[ 0 ] = adv_nonconn_ind_pdu_type_code;
+                std::uint16_t header = adv_nonconn_ind_pdu_type_code;
+                std::uint8_t* body   = layout_t::body( advertising_buffer() ).first;
 
                 if ( addr.is_random() )
-                    adv_data[ 0 ] |= header_txaddr_field;
+                    header |= header_txaddr_field;
 
-                adv_data[ 1 ] =
+                const std::size_t size =
                     address_length
-                  + link_layer().fill_l2cap_advertising_data( &adv_data[ advertising_pdu_header_size + address_length ], max_advertising_data_size );
+                  + link_layer().fill_l2cap_advertising_data( &body[ address_length ], max_advertising_data_size );
 
-                adv_size_ = advertising_pdu_header_size + adv_data[ 1 ];
+                header |= size << 8;
 
-                std::copy( addr.begin(), addr.end(), &adv_data[ 2 ] );
+                adv_size_ = layout_t::data_channel_pdu_memory_size( size );
+
+                layout_t::header( advertising_buffer(), header );
+                std::copy( addr.begin(), addr.end(), body );
 
                 return advertising_buffer();
             }
@@ -577,10 +649,15 @@ namespace link_layer {
                 return false;
             }
 
-            static constexpr std::size_t    max_advertising_data_size   = 31;
-            static constexpr std::size_t    maximum_adv_send_size       = max_advertising_data_size + advertising_pdu_header_size + address_length;
-            static constexpr std::size_t    maximum_required_advertising_buffer = maximum_adv_send_size;
+            static constexpr std::size_t maximum_required_advertising_buffer()
+            {
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return layout_t::data_channel_pdu_memory_size( max_advertising_data_size + address_length );
+            }
+
         private:
+            static constexpr std::size_t    max_advertising_data_size   = 31;
 
             read_buffer advertising_buffer()
             {
@@ -593,7 +670,6 @@ namespace link_layer {
             }
 
             std::size_t                     adv_size_;
-
         };
         /** @endcond */
     };
@@ -956,7 +1032,12 @@ namespace link_layer {
 
                 if ( this->is_valid_connect_request( receive ) )
                 {
-                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+                    using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                    const std::uint8_t* const body   = layout_t::body( receive ).first;
+                    const std::uint16_t       header = layout_t::header( receive );
+
+                    remote_address = device_address( &body[ 0 ], header & 0x40 );
 
                     if ( link_layer.is_connection_request_in_filter( remote_address ) )
                         return true;
@@ -1031,6 +1112,11 @@ namespace link_layer {
             {
                 return false;
             }
+
+            static constexpr std::size_t maximum_required_advertising_buffer()
+            {
+                return 0;
+            }
          };
 
         template < typename LinkLayer, typename Options, typename Advertiser, typename Type, typename ... Types >
@@ -1081,7 +1167,25 @@ namespace link_layer {
                     ? adv_type::is_valid_connect_request( b )
                     : tail_type::is_valid_connect_request( b, selected -1 );
             }
+
+            static constexpr std::size_t maximum_required_advertising_buffer()
+            {
+                return own_maximum_required_advertising_buffer() > next_maximum_required_advertising_buffer()
+                    ? own_maximum_required_advertising_buffer()
+                    : next_maximum_required_advertising_buffer();
+            };
+
         private:
+            static constexpr std::size_t own_maximum_required_advertising_buffer()
+            {
+                return Type::template impl< LinkLayer, Advertiser >::maximum_required_advertising_buffer();
+            }
+
+            static constexpr std::size_t next_maximum_required_advertising_buffer()
+            {
+                return multipl_advertiser_base< LinkLayer, Options, Advertiser, Types... >::maximum_required_advertising_buffer();
+            }
+
             using adv_type  = typename Type::template impl< LinkLayer, Advertiser >;
             using tail_type = multipl_advertiser_base< LinkLayer, Options, Advertiser, Types... >;
         };
@@ -1101,8 +1205,6 @@ namespace link_layer {
             public start_stop_implementation< LinkLayer, std::tuple< FirstAdv, SecondAdv, Advertisings... >, Options... >
         {
         public:
-            static constexpr std::size_t maximum_required_advertising_buffer = 100;
-
             advertiser()
                 : selected_( 0 )
                 , proposal_( 0 )
@@ -1143,7 +1245,12 @@ namespace link_layer {
 
                 if ( this->is_valid_connect_request( receive, selected_ ) )
                 {
-                    remote_address = device_address( &receive.buffer[ 2 ], receive.buffer[ 0 ] & 0x40 );
+                    using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                    const std::uint8_t* const body   = layout_t::body( receive ).first;
+                    const std::uint16_t       header = layout_t::header( receive );
+
+                    remote_address = device_address( &body[ 0 ], header & 0x40 );
 
                     if ( link_layer.is_connection_request_in_filter( remote_address ) )
                         return true;

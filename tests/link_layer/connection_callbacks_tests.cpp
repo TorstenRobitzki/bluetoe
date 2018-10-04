@@ -83,21 +83,24 @@ using link_layer_only_connect_callback = mixin_reset_callbacks<
     unconnected_base<
         bluetoe::link_layer::connection_callbacks< only_connect_callback_t, only_connect_callback >,
         bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >,
-        bluetoe::link_layer::static_address< 0xc0, 0x0f, 0x15, 0x08, 0x11, 0x47 >
+        bluetoe::link_layer::static_address< 0xc0, 0x0f, 0x15, 0x08, 0x11, 0x47 >,
+        test::buffer_sizes
     >
 >;
 
 using link_layer_only_changed_callback = mixin_reset_callbacks<
     unconnected_base<
         bluetoe::link_layer::connection_callbacks< only_changed_callback_t, only_changed_callback >,
-        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >,
+        test::buffer_sizes
     >
 >;
 
 using link_layer_only_disconnect_callback = mixin_reset_callbacks<
     unconnected_base<
         bluetoe::link_layer::connection_callbacks< only_disconnect_callback_t, only_disconnect_callback >,
-        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >,
+        test::buffer_sizes
     >
 >;
 

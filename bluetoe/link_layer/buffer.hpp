@@ -49,6 +49,35 @@ namespace link_layer {
     };
 
     /**
+     * @brief fills the given buffer with the given data.
+     *
+     * The first two bytes of data are copied into the header of the buffer using the specified Layout.
+     * The remaining part of data is copied into the body of the buffer using the specified Layout.
+     *
+     * @sa read_buffer
+     * @sa default_pdu_layout
+     */
+    template < class Layout >
+    void fill( const read_buffer& buffer, std::initializer_list< std::uint8_t > data )
+    {
+        if ( data.size() >= 1 )
+        {
+            std::uint16_t header = *data.begin();
+
+            if ( data.size() >= 2 )
+                header |= *std::next( data.begin() ) << 8;
+
+            Layout::header( buffer, header );
+
+            if ( data.size() >= 3 )
+            {
+                std::uint8_t* body = Layout::body( buffer ).first;
+                std::copy( std::next( data.begin(), 2 ), std::end( data ), body );
+            }
+        }
+    }
+
+    /**
      * @brief type suitable to store the location and size of a chunk of
      *        memory that can be used to transmit to the radio
      */

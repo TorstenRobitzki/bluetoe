@@ -199,7 +199,7 @@ private:
 template < typename ... Options >
 using unconnected_base = unconnected_base_t< test::small_temperature_service, test::radio, Options... >;
 
-struct unconnected : unconnected_base<> {};
+struct unconnected : unconnected_base< bluetoe::link_layer::buffer_sizes< 61u, 61u > > {};
 
 template < typename ... Options >
 struct connecting_base : unconnected
@@ -215,7 +215,7 @@ struct connecting_base : unconnected
     }
 };
 
-using connecting = connecting_base<>;
+using connecting = connecting_base< bluetoe::link_layer::buffer_sizes< 61u, 61u > >;
 
 
 struct connected_and_timeout : unconnected

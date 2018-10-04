@@ -26,7 +26,7 @@ namespace {
         test::small_temperature_service gatt_server_;
     };
 
-    struct advertising : advertising_base<> {};
+    struct advertising : advertising_base< test::buffer_sizes > {};
 
     template < typename ... Options >
     struct advertising_and_connect_base : bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... >
@@ -58,7 +58,7 @@ namespace {
 
     };
 
-    struct advertising_and_connect : advertising_and_connect_base<> {};
+    struct advertising_and_connect : advertising_and_connect_base< test::buffer_sizes > {};
 
     static const auto filter_channel_37 = []( const test::advertising_data& a )
     {
@@ -151,7 +151,8 @@ BOOST_FIXTURE_TEST_CASE( correct_crc_init_is_used, advertising )
 /**
  * @test the advertising interval is 50ms plus a pseudo random interval of 0ms to 10ms
  */
-BOOST_FIXTURE_TEST_CASE( configured_advertising_interval_is_kept, advertising_base< bluetoe::link_layer::advertising_interval< 50 > > )
+using interval_50_ms = advertising_base< bluetoe::link_layer::advertising_interval< 50 >, test::buffer_sizes >;
+BOOST_FIXTURE_TEST_CASE( configured_advertising_interval_is_kept, interval_50_ms )
 {
     check_scheduling(
         filter_channel_37,
@@ -243,7 +244,6 @@ BOOST_FIXTURE_TEST_CASE( advertising_pdus_contain_the_address, advertising )
         [&]( const test::advertising_data& data )
         {
             const auto& pdu = data.transmitted_data;
-
             return pdu.size() >= 8 && bluetoe::link_layer::address( &pdu[ 2 ] ) == expected_address;
         },
         "advertising_pdus_contain_the_address"
@@ -349,7 +349,10 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
 
 BOOST_FIXTURE_TEST_CASE( after_beeing_connected_the_ll_starts_to_advertise_again, connected_and_timeout )
 {
+    BOOST_REQUIRE( !advertisings().empty() );
     auto const adv = advertisings().back();
+
+    BOOST_REQUIRE( !connection_events().empty() );
     auto const con = connection_events().back();
 
     BOOST_CHECK_GT( adv.schedule_time, con.schedule_time );
@@ -371,7 +374,8 @@ BOOST_FIXTURE_TEST_CASE( after_advertising_again_the_right_access_address_have_t
 
 using advertising_connectable_undirected_advertising  =
     advertising_base<
-        bluetoe::link_layer::connectable_undirected_advertising
+        bluetoe::link_layer::connectable_undirected_advertising,
+        test::buffer_sizes
     >;
 
 BOOST_FIXTURE_TEST_CASE( starting_advertising_connectable_undirected_advertising, advertising_connectable_undirected_advertising )
@@ -390,7 +394,8 @@ BOOST_AUTO_TEST_SUITE( connectable_directed_advertising )
 
 using advertising_connectable_directed_advertising  =
     advertising_base<
-        bluetoe::link_layer::connectable_directed_advertising
+        bluetoe::link_layer::connectable_directed_advertising,
+        test::buffer_sizes
     >;
 
 // an address is needed to start the advertising
@@ -569,7 +574,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( non_connectable_undirected_advertising )
 
 struct non_connectable_undirected_advertising :
-    bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::non_connectable_undirected_advertising >
+    bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::non_connectable_undirected_advertising, test::buffer_sizes >
 {
     test::small_temperature_service gatt_server_;
 };
@@ -646,7 +651,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( scannable_undirected_advertising )
 
 struct scannable_undirected_advertising :
-    bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::scannable_undirected_advertising >
+    bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, bluetoe::link_layer::scannable_undirected_advertising, test::buffer_sizes >
 {
     test::small_temperature_service gatt_server_;
 };
@@ -726,7 +731,8 @@ struct scannable_and_connectable_advertising :
     bluetoe::link_layer::link_layer<
         test::small_temperature_service, test::radio,
         bluetoe::link_layer::connectable_undirected_advertising,
-        bluetoe::link_layer::scannable_undirected_advertising
+        bluetoe::link_layer::scannable_undirected_advertising,
+        test::buffer_sizes
     >
 {
     test::small_temperature_service gatt_server_;
@@ -850,7 +856,8 @@ struct variable_interval_multiple_types :
         test::small_temperature_service, test::radio,
         bluetoe::link_layer::connectable_undirected_advertising,
         bluetoe::link_layer::scannable_undirected_advertising,
-        bluetoe::link_layer::variable_advertising_interval
+        bluetoe::link_layer::variable_advertising_interval,
+        test::buffer_sizes
     >
 {
     test::small_temperature_service gatt_server_;
@@ -894,7 +901,8 @@ BOOST_FIXTURE_TEST_CASE( changeable_to_30, variable_interval_multiple_types )
 struct variable_interval_single_type :
     bluetoe::link_layer::link_layer<
         test::small_temperature_service, test::radio,
-        bluetoe::link_layer::variable_advertising_interval
+        bluetoe::link_layer::variable_advertising_interval,
+        test::buffer_sizes
     >
 {
     test::small_temperature_service gatt_server_;
@@ -925,7 +933,8 @@ BOOST_AUTO_TEST_SUITE( no_auto_start_advertising )
 struct no_auto_start_single_type :
     bluetoe::link_layer::link_layer<
         test::small_temperature_service, test::radio,
-        bluetoe::link_layer::no_auto_start_advertising
+        bluetoe::link_layer::no_auto_start_advertising,
+        test::buffer_sizes
     >
 {
     test::small_temperature_service gatt_server_;
@@ -936,7 +945,8 @@ struct no_auto_start_multiple_type :
         test::small_temperature_service, test::radio,
         bluetoe::link_layer::no_auto_start_advertising,
         bluetoe::link_layer::connectable_undirected_advertising,
-        bluetoe::link_layer::scannable_undirected_advertising
+        bluetoe::link_layer::scannable_undirected_advertising,
+        test::buffer_sizes
     >
 {
     test::small_temperature_service gatt_server_;

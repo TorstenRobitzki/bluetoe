@@ -32,7 +32,7 @@ using namespace test;
  * LL Connection Parameters Request Procedure, than we should default to l2cap.
  */
 
-struct link_layer_with_signaling_channel : unconnected_base< bluetoe::l2cap::signaling_channel<> >
+struct link_layer_with_signaling_channel : unconnected_base< bluetoe::l2cap::signaling_channel<>, test::buffer_sizes >
 {
     link_layer_with_signaling_channel()
     {

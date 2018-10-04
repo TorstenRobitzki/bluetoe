@@ -8,14 +8,10 @@
 #include <algorithm>
 
 #include <bluetoe/link_layer/ring_buffer.hpp>
+#include <bluetoe/link_layer/default_pdu_layout.hpp>
 
 namespace bluetoe {
 namespace link_layer {
-
-    template < typename Radio >
-    struct pdu_layout_by_radio {
-        using pdu_layout = default_pdu_layout;
-    };
 
     /**
      * @brief ring buffers for ingoing and outgoing LL Data PDUs
