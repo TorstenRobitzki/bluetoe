@@ -190,8 +190,8 @@ namespace nrf51_details {
             ( 8 << RADIO_PCNF0_LFLEN_Pos ) |
             ( 0 << RADIO_PCNF0_S1LEN_Pos ) |
             ( encryption_possible
-                ? ( RADIO_PCNF0_S1INCL_Automatic << RADIO_PCNF0_S1INCL_Pos )
-                : ( RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos ) );
+                ? ( RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos )
+                : ( RADIO_PCNF0_S1INCL_Automatic << RADIO_PCNF0_S1INCL_Pos ) );
 
         NRF_RADIO->PCNF1 =
             ( RADIO_PCNF1_WHITEEN_Enabled << RADIO_PCNF1_WHITEEN_Pos ) |
