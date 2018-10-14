@@ -1,4 +1,4 @@
-#include <nrf51.hpp>
+#include <bluetoe/nrf51.hpp>
 
 #include <nrf.h>
 #include <core_cmInstr.h>

@@ -2,7 +2,7 @@ add_library(bluetoe_bindings_nrf51 STATIC
             nrf51.cpp)
 add_library(bluetoe::bindings::nrf51 ALIAS bluetoe_bindings_nrf51)
 
-target_include_directories(bluetoe_bindings_nrf51 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(bluetoe_bindings_nrf51 PUBLIC include)
 
 target_link_libraries(bluetoe_bindings_nrf51 PUBLIC bluetoe::utility bluetoe::sm bluetoe::iface bluetoe::linklayer PRIVATE toolchain::nrf51)
 target_compile_features(bluetoe_bindings_nrf51 PRIVATE cxx_std_11)

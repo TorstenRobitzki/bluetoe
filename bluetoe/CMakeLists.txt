@@ -7,6 +7,6 @@ add_subdirectory(utility)
 add_subdirectory(sm)
 add_subdirectory(services)
 if (CMAKE_CROSSCOMPILING)
-    add_subdirectory(bindings)
+    add_subdirectory(bindings/nrf51)
 endif ()
 

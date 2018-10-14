@@ -1,5 +1,5 @@
 #include <server.hpp>
-#include <nrf51.hpp>
+#include <bluetoe/nrf51.hpp>
 #include <nrf.h>
 
 using namespace bluetoe;
