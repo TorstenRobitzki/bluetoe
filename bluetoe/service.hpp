@@ -2,9 +2,9 @@
 #define BLUETOE_SERVICE_HPP
 
 #include <service_uuid.hpp>
-#include <attribute.hpp>
-#include <codes.hpp>
-#include <meta_tools.hpp>
+#include <bluetoe/attribute.hpp>
+#include <bluetoe/codes.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <uuid.hpp>
 #include <characteristic.hpp>
 #include <bits.hpp>

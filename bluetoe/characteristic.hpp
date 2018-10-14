@@ -2,10 +2,10 @@
 #define BLUETOE_CHARACTERISTIC_HPP
 
 #include <characteristic_value.hpp>
-#include <attribute.hpp>
-#include <codes.hpp>
+#include <bluetoe/attribute.hpp>
+#include <bluetoe/codes.hpp>
 #include <uuid.hpp>
-#include <meta_tools.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bits.hpp>
 #include <scattered_access.hpp>
 #include <service_uuid.hpp>

@@ -1,7 +1,7 @@
 #ifndef BLUETOE_FIND_NOTIFICATION_DATA_HPP
 #define BLUETOE_FIND_NOTIFICATION_DATA_HPP
 
-#include <meta_tools.hpp>
+#include <bluetoe/meta_tools.hpp>
 
 namespace bluetoe {
 namespace details {

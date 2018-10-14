@@ -1,7 +1,7 @@
 #ifndef BLUETOE_SERVER_HPP
 #define BLUETOE_SERVER_HPP
 
-#include <codes.hpp>
+#include <bluetoe/codes.hpp>
 #include <service.hpp>
 #include <bits.hpp>
 #include <filter.hpp>
@@ -9,7 +9,7 @@
 #include <adv_service_list.hpp>
 #include <slave_connection_interval_range.hpp>
 #include <server_meta_type.hpp>
-#include <client_characteristic_configuration.hpp>
+#include <bluetoe/client_characteristic_configuration.hpp>
 #include <write_queue.hpp>
 #include <gap_service.hpp>
 #include <appearance.hpp>

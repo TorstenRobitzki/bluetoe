@@ -13,10 +13,10 @@
 #include "white_list.hpp"
 #include "advertising.hpp"
 #include <meta_types.hpp>
-#include <attribute.hpp>
-#include <meta_tools.hpp>
+#include <bluetoe/attribute.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <security_manager.hpp>
-#include <codes.hpp>
+#include <bluetoe/codes.hpp>
 
 #include <algorithm>
 #include <cassert>

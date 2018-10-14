@@ -1,7 +1,7 @@
 #ifndef BLUETOE_FILTER_HPP
 #define BLUETOE_FILTER_HPP
 
-#include <attribute.hpp>
+#include <bluetoe/attribute.hpp>
 #include <bits.hpp>
 #include <uuid.hpp>
 #include <algorithm>

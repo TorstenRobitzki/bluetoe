@@ -1,7 +1,7 @@
 #ifndef BLUETOE_ATTRIBUTE_HPP
 #define BLUETOE_ATTRIBUTE_HPP
-#include <meta_tools.hpp>
-#include <client_characteristic_configuration.hpp>
+#include "meta_tools.hpp"
+#include "client_characteristic_configuration.hpp"
 #include <cstdint>
 #include <cstddef>
 #include <cassert>

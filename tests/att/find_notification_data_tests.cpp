@@ -2,7 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <server.hpp>
-#include <attribute.hpp>
+#include <bluetoe/attribute.hpp>
 #include <outgoing_priority.hpp>
 
 /*

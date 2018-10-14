@@ -1,7 +1,7 @@
 #ifndef BLUETOE_LINK_LAYER_ADVERTISING_HPP
 #define BLUETOE_LINK_LAYER_ADVERTISING_HPP
 
-#include <meta_tools.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include "address.hpp"
 #include "buffer.hpp"
 #include "delta_time.hpp"

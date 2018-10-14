@@ -5,7 +5,7 @@
 #include <boost/mpl/list.hpp>
 
 #include <bluetoe/link_layer.hpp>
-#include <meta_tools.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <server.hpp>
 #include "test_radio.hpp"
 #include "connected.hpp"

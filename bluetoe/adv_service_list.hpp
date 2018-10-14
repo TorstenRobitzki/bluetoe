@@ -1,9 +1,9 @@
 #ifndef BLUETOE_ADV_SERVICE_LIST_HPP
 #define BLUETOE_ADV_SERVICE_LIST_HPP
 
-#include <codes.hpp>
+#include <bluetoe/codes.hpp>
 #include <bits.hpp>
-#include <meta_tools.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <service_uuid.hpp>
 #include <meta_types.hpp>
 
