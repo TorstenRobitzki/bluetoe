@@ -1,5 +1,5 @@
 #include <server.hpp>
-#include <bluetoe/nrf51.hpp>
+#include <bluetoe/device.hpp>
 #include <nrf.h>
 
 using namespace bluetoe;
@@ -27,7 +27,7 @@ typedef server<
 
 blinky_server gatt;
 
-nrf51< blinky_server > gatt_srv;
+device< blinky_server > gatt_srv;
 
 int main()
 {

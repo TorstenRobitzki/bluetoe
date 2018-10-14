@@ -16,7 +16,7 @@ if(CMAKE_CROSSCOMPILING)
     target_link_libraries(startup_nrf51 PRIVATE toolchain::nrf51)
     add_library(startup::nrf51 ALIAS startup_nrf51)
     set_source_files_properties(
-            gcc_startup_nrf51_app.s
+            gcc_startup_nrf51.s
             COMPILE_FLAGS "-x assembler-with-cpp")
     add_custom_target(linker_script ALL
             COMMAND ${CMAKE_C_COMPILER} -E -P -x c

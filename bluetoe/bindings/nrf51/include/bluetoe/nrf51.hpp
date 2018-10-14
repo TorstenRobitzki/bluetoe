@@ -194,9 +194,6 @@ namespace bluetoe
             return start_connection_event( channel, start_receive, end_receive, read );
         }
     }
-
-    template < class Server, typename ... Options >
-    using nrf51 = link_layer::link_layer< Server, nrf51_details::scheduled_radio, Options... >;
 }
 
 #endif // include guard

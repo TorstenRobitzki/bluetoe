@@ -23,7 +23,7 @@ if (CMAKE_CROSSCOMPILING)
         add_dependencies(${target_name} linker_script)
         target_compile_options(${target_name} PRIVATE  )
         target_link_libraries(${target_name} PRIVATE bluetoe::iface
-                                             bluetoe::bindings::${SOC}
+                                             bluetoe::bindings::nrf51
                                              startup::${SOC}
                                              toolchain::${SOC}
                                 -lm -lstdc++ -lsupc++
