@@ -5,16 +5,16 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(bluetoe_examples CXX C)
 
 if (CMAKE_CROSSCOMPILING)
+    # include hardware specific compile options and definitions that must be apllied to the whole project
+    include(${SOC}_toolchain_support/platform.cmake)
     #set global compile options that are hardware independent, these will be used to build the applications (examples)
     #and will also be used to build bluetoe library
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-backtrace-limit=0 -fvisibility-inlines-hidden -fno-rtti -fno-exceptions")
-    # set global compiler options that are hardware dependent
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-m0 -mthumb -mabi=aapcs" )
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=cortex-m0 -mthumb -mabi=aapcs" )
-    #toolchain support targets
+    # add global compile options
+    add_compile_options(-ffunction-sections -fdata-sections)
+    #toolchain support targets, these are C and asm only, dont add cpp flags yet
     add_subdirectory(${SOC}_toolchain_support)
+    #add global options to cpp targets
+    add_compile_options(-ftemplate-backtrace-limit=0 -fvisibility-inlines-hidden -fno-rtti -fno-exceptions)
     #bluetoe library
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/bluetoe)
     function(add_bluetoe_example target_name)
