@@ -1,7 +1,4 @@
 if(CMAKE_CROSSCOMPILING)
-    # set global compiler options that are hardware dependent
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-m0 -mthumb -mabi=aapcs" PARENT_SCOPE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=cortex-m0 -mthumb -mabi=aapcs" PARENT_SCOPE)
     # create an interface-only target to publish hardware specific options. Any target that
     # requires the hardware specific options need only to depend on this target
     add_library(toolchain_nrf51 INTERFACE)
@@ -12,7 +9,6 @@ if(CMAKE_CROSSCOMPILING)
     target_compile_definitions(toolchain_nrf51 INTERFACE NRF51)
 
     enable_language(ASM)
-    enable_language(C)
     add_library(startup_nrf51 STATIC
             gcc_startup_nrf51.s
             system_nrf51422.c
