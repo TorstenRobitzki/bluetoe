@@ -7,7 +7,7 @@
 #include <initializer_list>
 #include <algorithm>
 
-#include <ring_buffer.hpp>
+#include "ring_buffer.hpp"
 
 namespace bluetoe {
 namespace link_layer {

@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <cassert>
 
-#include <link_layer.hpp>
+#include <bluetoe/link_layer.hpp>
 
 #include "test_radio.hpp"
 #include "test_servers.hpp"

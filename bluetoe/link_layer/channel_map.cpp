@@ -1,4 +1,4 @@
-#include <channel_map.hpp>
+#include <bluetoe/channel_map.hpp>
 #include <cassert>
 
 namespace bluetoe {

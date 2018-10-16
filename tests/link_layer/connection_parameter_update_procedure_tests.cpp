@@ -4,8 +4,8 @@
 #include "buffer_io.hpp"
 #include "connected.hpp"
 
-#include <link_layer.hpp>
-#include <l2cap_signaling_channel.hpp>
+#include <bluetoe/link_layer.hpp>
+#include <bluetoe/l2cap_signaling_channel.hpp>
 
 
 using namespace test;

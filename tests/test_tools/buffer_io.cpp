@@ -1,7 +1,7 @@
 #include "buffer_io.hpp"
 #include "hexdump.hpp"
 
-#include <buffer.hpp>
+#include <bluetoe/buffer.hpp>
 #include <ostream>
 
 namespace bluetoe {
