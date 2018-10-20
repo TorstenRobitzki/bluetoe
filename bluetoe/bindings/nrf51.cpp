@@ -220,6 +220,13 @@ namespace nrf51_details {
         NRF_RADIO->TIFS      = 150;
     }
 
+    static int pdu_gap_required_by_encryption()
+    {
+        return NRF_RADIO->PCNF0 & ( RADIO_PCNF0_S1INCL_Include << RADIO_PCNF0_S1INCL_Pos )
+            ? 1
+            : 0;
+    }
+
     static void init_timer()
     {
         nrf_timer->MODE        = TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos;
@@ -398,8 +405,10 @@ namespace nrf51_details {
         if ( ( receive_buffer_.buffer[ 0 ] & pdu_type_mask ) != scan_request_pdu_type )
             return false;
 
-        if ( !std::equal( &receive_buffer_.buffer[ pdu_header_size + addr_size ], &receive_buffer_.buffer[ pdu_header_size + 2 * addr_size ],
-            &response_data_.buffer[ pdu_header_size ] ) )
+        const int pdu_gap = pdu_gap_required_by_encryption();
+
+        if ( !std::equal( &receive_buffer_.buffer[ pdu_header_size + addr_size + pdu_gap ], &receive_buffer_.buffer[ pdu_header_size + 2 * addr_size + pdu_gap ],
+            &response_data_.buffer[ pdu_header_size + pdu_gap ] ) )
             return false;
 
         // in the scan request, the randomness is stored in RxAdd, in the scan response, it's stored in
@@ -408,7 +417,7 @@ namespace nrf51_details {
         if ( !static_cast< bool >( receive_buffer_.buffer[ 0 ] & rx_add_mask ) == scanner_addres_is_random )
             return false;
 
-        const link_layer::device_address scanner( &receive_buffer_.buffer[ pdu_header_size ], scanner_addres_is_random );
+        const link_layer::device_address scanner( &receive_buffer_.buffer[ pdu_header_size + pdu_gap ], scanner_addres_is_random );
 
         return callbacks_.is_scan_request_in_filter_callback( scanner );
     }
