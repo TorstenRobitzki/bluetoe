@@ -713,7 +713,10 @@ namespace nrf51_details {
         {
             assert( reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ) == receive_buffer_.buffer );
 
-            receive_buffer_.size = std::min< std::size_t >( receive_buffer_.size, ( receive_buffer_.buffer[ 1 ] & 0x3f ) + 2 );
+            receive_buffer_.size = std::min< std::size_t >(
+                receive_buffer_.size,
+                ( receive_buffer_.buffer[ 1 ] & 0x3f ) + 2 + pdu_gap_required_by_encryption()
+            );
             received_ = false;
 
             callbacks_.adv_received( receive_buffer_ );
