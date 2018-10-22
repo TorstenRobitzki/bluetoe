@@ -104,6 +104,7 @@ add_example(cycling_speed_and_cadence)
 add_example(blinky)
 add_example(blinky_without_encryption)
 add_example(bootloader)
+add_example(scheduled_radio_tests)
 
 set_target_properties(bootloader.elf PROPERTIES
     LINK_FLAGS "-T ${CMAKE_CURRENT_LIST_DIR}/bootloader.ld -Wl,-Map -Wl,bootloader.map")
