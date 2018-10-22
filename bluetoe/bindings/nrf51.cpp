@@ -828,6 +828,8 @@ namespace nrf51_details {
             std::uint8_t data[ 3 * 16 ];
         } ecb_scratch_data;
 
+        nrf_aes->ECBDATAPTR = reinterpret_cast< std::uint32_t >( &ecb_scratch_data.data[ 0 ] );
+
         std::copy( key.rbegin(), key.rend(), &ecb_scratch_data.data[ 0 ] );
         std::copy( data.rbegin(), data.rend(), &ecb_scratch_data.data[ 16 ] );
 
