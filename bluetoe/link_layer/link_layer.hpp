@@ -110,7 +110,7 @@ namespace link_layer {
             {
             public:
                 impl()
-                    : no_key_( true )
+                    : has_key_( false )
                     , encryption_in_progress_( false )
                 {}
 
@@ -141,8 +141,7 @@ namespace link_layer {
                         std::tie( has_key_, key ) = that().connection_details_.find_key( ediv, rand );
 
                         // setup encryption
-                        if ( has_key_ )
-                            std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
+                        std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
 
                         std::uint8_t* write_body = layout_t::body( write ).first;
                         bluetoe::details::write_64bit( &write_body[ 1 ], skds );
