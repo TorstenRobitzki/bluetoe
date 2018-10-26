@@ -1,8 +1,7 @@
-#include <bluetoe/services/bootloader.hpp>
 #include <bluetoe/server.hpp>
-#include <bluetoe/bindings/nrf51.hpp>
-#include <bluetoe/link_layer/connection_event_callback.hpp>
-
+#include <bluetoe/device.hpp>
+#include <bluetoe/services/bootloader.hpp>
+#include <bluetoe/connection_event_callback.hpp>
 #include <nrf.h>
 
 static constexpr std::size_t    flash_page_size    = 1024;
@@ -92,7 +91,7 @@ struct address_generator {
 
 gatt_definition gatt_server;
 
-bluetoe::nrf51<
+bluetoe::device<
     gatt_definition,
     bluetoe::link_layer::buffer_sizes< flash_page_size * 3, flash_page_size * 3 >,
     bluetoe::link_layer::connection_event_callback< gatt_definition, gatt_server, erase_page_time_ms >,

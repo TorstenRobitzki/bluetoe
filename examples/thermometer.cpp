@@ -1,7 +1,5 @@
-#include <bluetoe/bindings/nrf51.hpp>
-#include <bluetoe/link_layer/options.hpp>
 #include <bluetoe/server.hpp>
-
+#include <bluetoe/device.hpp>
 #include <nrf.h>
 
 std::int32_t temperature_value = 0x12345678;
@@ -25,7 +23,7 @@ typedef bluetoe::server<
 void start_temperatur_messurement();
 
 small_temperature_service                   gatt;
-bluetoe::nrf51<
+bluetoe::device<
     small_temperature_service,
     bluetoe::link_layer::advertising_interval< 250u >,
     bluetoe::link_layer::static_address< 0xf0, 0xa6, 0xd5, 0x4f, 0x60, 0x0b >

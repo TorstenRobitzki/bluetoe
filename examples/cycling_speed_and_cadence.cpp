@@ -1,6 +1,6 @@
-#include <bluetoe/bindings/nrf51.hpp>
-#include <bluetoe/services/csc.hpp>
 #include <bluetoe/server.hpp>
+#include <bluetoe/device.hpp>
+#include <bluetoe/services/csc.hpp>
 #include <bluetoe/sensor_location.hpp>
 #include <nrf.h>
 
@@ -49,7 +49,7 @@ void handler::set_cumulative_wheel_revolutions( std::uint32_t new_value )
     gatt.confirm_cumulative_wheel_revolutions( gatt );
 }
 
-bluetoe::nrf51< bicycle > server;
+bluetoe::device< bicycle > server;
 
 void init_bike_hardware();
 
