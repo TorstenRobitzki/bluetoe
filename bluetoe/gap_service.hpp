@@ -2,9 +2,9 @@
 #define BLUETOE_GAP_SERVICE_HPP
 
 #include <cstdint>
-#include <service.hpp>
-#include <appearance.hpp>
-#include <server_name.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/appearance.hpp>
+#include <bluetoe/server_name.hpp>
 
 namespace bluetoe {
 

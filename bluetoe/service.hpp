@@ -1,15 +1,15 @@
 #ifndef BLUETOE_SERVICE_HPP
 #define BLUETOE_SERVICE_HPP
 
-#include <service_uuid.hpp>
+#include <bluetoe/service_uuid.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/meta_tools.hpp>
-#include <uuid.hpp>
-#include <characteristic.hpp>
-#include <bits.hpp>
-#include <find_notification_data.hpp>
-#include <outgoing_priority.hpp>
+#include <bluetoe/uuid.hpp>
+#include <bluetoe/characteristic.hpp>
+#include <bluetoe/bits.hpp>
+#include <bluetoe/find_notification_data.hpp>
+#include <bluetoe/outgoing_priority.hpp>
 #include <cstddef>
 #include <cassert>
 #include <algorithm>

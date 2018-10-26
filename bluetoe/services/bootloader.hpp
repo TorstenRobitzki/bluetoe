@@ -1,8 +1,8 @@
 #ifndef BLUETOE_SERVICES_BOOTLOADER_HPP
 #define BLUETOE_SERVICES_BOOTLOADER_HPP
 
-#include <service.hpp>
-#include <mixin.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/mixin.hpp>
 #include <algorithm>
 
 /**

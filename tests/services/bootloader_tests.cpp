@@ -4,7 +4,7 @@
 #include <hexdump.hpp>
 #include <test_uuid.hpp>
 
-#include <server.hpp>
+#include <bluetoe/server.hpp>
 #include <bootloader.hpp>
 
 #define BOOST_TEST_MODULE

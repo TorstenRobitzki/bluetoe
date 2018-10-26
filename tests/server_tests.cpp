@@ -2,7 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 #include "test_servers.hpp"
 
-#include <server.hpp>
+#include <bluetoe/server.hpp>
 
 BOOST_AUTO_TEST_SUITE( characteristic_configuration )
 

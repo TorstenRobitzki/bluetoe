@@ -1,6 +1,6 @@
 #include <iostream>
 #include <array>
-#include <service.hpp>
+#include <bluetoe/service.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

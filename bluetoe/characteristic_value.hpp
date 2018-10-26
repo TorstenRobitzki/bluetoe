@@ -4,7 +4,7 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
-#include <meta_types.hpp>
+#include <bluetoe/meta_types.hpp>
 #include <type_traits>
 #include <climits>
 

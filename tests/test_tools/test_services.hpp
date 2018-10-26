@@ -1,8 +1,8 @@
 #ifndef BLUETOE_TESTS_TEST_SERVICES_HPP
 #define BLUETOE_TESTS_TEST_SERVICES_HPP
 
-#include <service.hpp>
-#include <characteristic.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/characteristic.hpp>
 
 namespace test {
     std::uint32_t global_temperature;

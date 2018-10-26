@@ -1,9 +1,9 @@
 #ifndef BLUETOE_TESTS_TEST_SERVERS_HPP
 #define BLUETOE_TESTS_TEST_SERVERS_HPP
 
-#include <server.hpp>
-#include <service.hpp>
-#include <characteristic.hpp>
+#include <bluetoe/server.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/characteristic.hpp>
 
 #include <initializer_list>
 #include <vector>

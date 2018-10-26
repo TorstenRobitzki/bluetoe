@@ -1,7 +1,7 @@
 #ifndef BLUETOE_APPEARANCE_HPP
 #define BLUETOE_APPEARANCE_HPP
 
-#include <meta_types.hpp>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
 

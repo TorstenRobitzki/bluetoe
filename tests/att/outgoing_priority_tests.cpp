@@ -1,10 +1,10 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <server.hpp>
-#include <service.hpp>
-#include <characteristic.hpp>
-#include <outgoing_priority.hpp>
+#include <bluetoe/server.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/characteristic.hpp>
+#include <bluetoe/outgoing_priority.hpp>
 
 /*
  * The purpose of this tests is to make sure, that lower_outgoing_priority and higher_outgoing_priority

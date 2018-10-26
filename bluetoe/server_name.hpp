@@ -1,7 +1,7 @@
 #ifndef BLUETOE_SERVER_NAME_HPP
 #define BLUETOE_SERVER_NAME_HPP
 
-#include <meta_types.hpp>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
 

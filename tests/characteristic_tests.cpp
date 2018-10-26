@@ -1,8 +1,8 @@
 #include <iostream>
 #include <cstdint>
 
-#include <characteristic.hpp>
-#include <service.hpp>
+#include <bluetoe/characteristic.hpp>
+#include <bluetoe/service.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 
 #define BOOST_TEST_MODULE

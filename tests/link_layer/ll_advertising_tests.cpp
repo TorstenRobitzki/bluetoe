@@ -6,7 +6,7 @@
 
 #include <bluetoe/link_layer.hpp>
 #include <bluetoe/meta_tools.hpp>
-#include <server.hpp>
+#include <bluetoe/server.hpp>
 #include "test_radio.hpp"
 #include "connected.hpp"
 #include "test_servers.hpp"

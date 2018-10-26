@@ -1,11 +1,11 @@
 #ifndef BLUETOE_SERVICES_CSC_HPP
 #define BLUETOE_SERVICES_CSC_HPP
 
-#include <service.hpp>
-#include <server.hpp>
-#include <sensor_location.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/server.hpp>
+#include <bluetoe/sensor_location.hpp>
 #include <bluetoe/meta_tools.hpp>
-#include <meta_types.hpp>
+#include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {
 

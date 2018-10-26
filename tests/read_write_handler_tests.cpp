@@ -1,10 +1,10 @@
 #include <iostream>
 #include <iterator>
 
-#include <characteristic_value.hpp>
-#include <characteristic.hpp>
-#include <service.hpp>
-#include <server.hpp>
+#include <bluetoe/characteristic_value.hpp>
+#include <bluetoe/characteristic.hpp>
+#include <bluetoe/service.hpp>
+#include <bluetoe/server.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
