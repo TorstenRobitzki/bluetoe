@@ -1,2 +1,4 @@
 add_and_register_test(cscs_tests)
-add_and_register_test(bootloader_tests test_gatt)
+add_and_register_test(bootloader_tests)
+target_link_libraries(bootloader_tests PRIVATE bluetoe::services)
+target_link_libraries(cscs_tests PRIVATE bluetoe::services)

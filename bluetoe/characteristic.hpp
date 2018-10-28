@@ -5,7 +5,7 @@
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/uuid.hpp>
-#include <bluetoe/options.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/scattered_access.hpp>
 #include <bluetoe/service_uuid.hpp>

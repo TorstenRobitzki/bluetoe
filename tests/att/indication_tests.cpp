@@ -2,7 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <bluetoe/server.hpp>
-#include "../test_servers.hpp"
+#include <test_servers.hpp>
 
 std::uint8_t value = 0x42;
 

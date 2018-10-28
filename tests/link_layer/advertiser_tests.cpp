@@ -4,8 +4,8 @@
 #include <boost/test/included/unit_test.hpp>
 #include <boost/mpl/list.hpp>
 
-#include <bluetoe/link_layer/advertising.hpp>
-#include <bluetoe/link_layer/white_list.hpp>
+#include <bluetoe/advertising.hpp>
+#include <bluetoe/white_list.hpp>
 
 template < bool Connect, bool Respond >
 struct link_layer_base

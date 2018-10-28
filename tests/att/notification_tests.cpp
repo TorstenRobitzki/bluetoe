@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/link_layer/notification_queue.hpp>
-#include "test_servers.hpp"
+#include <bluetoe/notification_queue.hpp>
+#include <test_servers.hpp>
 
 BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
