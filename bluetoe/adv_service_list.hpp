@@ -3,7 +3,7 @@
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/bits.hpp>
-#include <bluetoe/options.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/service_uuid.hpp>
 #include <bluetoe/meta_types.hpp>
 

@@ -1,8 +1,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/link_layer/link_layer.hpp>
-#include <bluetoe/link_layer/options.hpp>
+#include <bluetoe/link_layer.hpp>
 
 #include "connected.hpp"
 

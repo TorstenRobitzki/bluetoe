@@ -1,7 +1,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "test_gatt.hpp"
-#include "../hexdump.hpp"
+#include <hexdump.hpp>
 #include <iomanip>
 
 namespace test {

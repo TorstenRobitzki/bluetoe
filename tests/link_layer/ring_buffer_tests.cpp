@@ -1,4 +1,4 @@
-#include <bluetoe/link_layer/ring_buffer.hpp>
+#include <bluetoe/ring_buffer.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

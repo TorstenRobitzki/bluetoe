@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "test_servers.hpp"
-#include "test_services.hpp"
+#include <test_servers.hpp>
+#include <test_services.hpp>
 
 BOOST_AUTO_TEST_SUITE( read_by_group_type_errors )
 

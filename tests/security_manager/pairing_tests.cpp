@@ -1,10 +1,9 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/server.hpp>
-#include <bluetoe/sm/security_manager.hpp>
-
-#include "../test_servers.hpp"
+//#include <bluetoe/server.hpp>
+#include <security_manager.hpp>
+#include <test_servers.hpp>
 
 template < class Manager, std::size_t MTU = 27 >
 struct link_layer : Manager

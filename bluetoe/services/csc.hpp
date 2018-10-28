@@ -4,7 +4,7 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/server.hpp>
 #include <bluetoe/sensor_location.hpp>
-#include <bluetoe/options.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/meta_types.hpp>
 
 namespace bluetoe {

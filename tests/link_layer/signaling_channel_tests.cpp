@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
-#include <bluetoe/link_layer/l2cap_signaling_channel.hpp>
+#include <bluetoe/l2cap_signaling_channel.hpp>
 
 struct channel : bluetoe::l2cap::signaling_channel<>
 {

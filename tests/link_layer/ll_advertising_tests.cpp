@@ -4,12 +4,12 @@
 #include <boost/test/included/unit_test.hpp>
 #include <boost/mpl/list.hpp>
 
-#include <bluetoe/link_layer/link_layer.hpp>
-#include <bluetoe/link_layer/options.hpp>
+#include <bluetoe/link_layer.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/server.hpp>
 #include "test_radio.hpp"
 #include "connected.hpp"
-#include "../test_servers.hpp"
+#include "test_servers.hpp"
 
 #include <map>
 
