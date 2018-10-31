@@ -7,13 +7,6 @@ notifications:
     on_success: change
     on_failure: change
 
-before_install:
-  - sudo apt-get update
-  #- sudo apt-get install --yes cmake
-  - wget https://cmake.org/files/v3.11/cmake-3.11.4-Linux-x86_64.sh
-  - sudo mkdir /opt/cmake
-  - sudo sh cmake-3.11.4-Linux-x86_64.sh --prefix=/opt/cmake
-
 matrix:
   include:
     - compiler: gcc
@@ -75,6 +68,11 @@ after_success:
   # - ./publish-doxygen
 
 before_install:
+  - sudo apt-get update
+  #- sudo apt-get install --yes cmake
+  - wget https://cmake.org/files/v3.11/cmake-3.11.4-Linux-x86_64.sh
+  - sudo mkdir /opt/cmake
+  - sudo sh cmake-3.11.4-Linux-x86_64.sh --prefix=/opt/cmake
   - wget https://launchpad.net/%7Eboost-latest/+archive/ubuntu/ppa/+files/libboost1.55-dev_1.55.0-1ppa1%7Esaucy1_amd64.deb
   - sudo dpkg --install libboost1.55-dev_1.55.0-1ppa1~saucy1_amd64.deb
   - sudo apt-get update -qq
