@@ -53,8 +53,8 @@ script:
   - $COMPILER -v
   - mkdir build
   - cd build
-  - cmake --version
-  - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
+  - /opt/cmake/cmake --version
+  - /opt/cmake/cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
   - make
   - make build_examples
   - ctest --verbose
