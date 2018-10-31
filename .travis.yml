@@ -53,9 +53,9 @@ script:
   - $COMPILER -v
   - mkdir build
   - cd build
-  - ls -la /opt/cmake
-  - /opt/cmake/cmake --version
-  - /opt/cmake/cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
+  - ls -la /opt/cmake/bin
+  - /opt/cmake/bin/cmake --version
+  - /opt/cmake/bin/cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
   - make
   - make build_examples
   - ctest --verbose
