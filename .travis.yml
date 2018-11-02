@@ -56,7 +56,7 @@ script:
   - ls -la /opt/cmake/bin
   - /opt/cmake/bin/cmake --version
   - /opt/cmake/bin/cmake -DCMAKE_CXX_COMPILER=$COMPILER -DBLUETOE_EXCLUDE_SLOW_TESTS=1 ..
-  - make -j
+  - make
   - ctest --verbose
 
 after_success:
