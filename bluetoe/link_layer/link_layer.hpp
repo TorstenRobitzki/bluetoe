@@ -150,13 +150,21 @@ namespace link_layer {
                     else if ( opcode == LinkLayer::LL_START_ENC_RSP && size == 1 )
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
+                        that().start_transmit_encrypted();
                         that().connection_details_.is_encrypted( true );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
-                        that().stop_encryption();
+                        that().stop_receive_encrypted();
                         that().connection_details_.is_encrypted( false );
+                    }
+                    else if ( opcode == LinkLayer::LL_PAUSE_ENC_RSP && size == 1 )
+                    {
+                        that().stop_transmit_encrypted();
+                        that().connection_details_.is_encrypted( false );
+
+                        return false;
                     }
                     else
                     {
@@ -182,16 +190,25 @@ namespace link_layer {
                         fill< layout_t >( out_buffer, {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
-                        that().start_encryption();
+                        that().start_receive_encrypted();
+                        that().commit_transmit_buffer( out_buffer );
                     }
                     else
                     {
                         fill< layout_t >( out_buffer, {
                             LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
+
+                        that().commit_transmit_buffer( out_buffer );
                     }
 
-                    that().commit_transmit_buffer( out_buffer );
                     encryption_in_progress_ = false;
+                }
+
+                void reset_encryption()
+                {
+                    that().connection_details_.is_encrypted( false );
+                    that().stop_receive_encrypted();
+                    that().stop_transmit_encrypted();
                 }
 
             private:
@@ -211,6 +228,10 @@ namespace link_layer {
                 }
 
                 void transmit_pending_security_pdus()
+                {
+                }
+
+                void reset_encryption()
                 {
                 }
             };
@@ -704,6 +725,8 @@ namespace link_layer {
     {
         state_            = state::disconnecting;
         termination_send_ = false;
+
+        this->reset_encryption();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -953,8 +976,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::force_disconnect()
     {
+        this->reset_encryption();
         this->connection_closed( connection_details_, static_cast< radio_t& >( *this ) );
-
         start_advertising_impl();
     }
 

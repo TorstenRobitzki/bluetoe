@@ -357,7 +357,8 @@ namespace test {
             : key_( { { 0x00 } } )
             , skdm_( 0u )
             , ivm_( 0u )
-            , encryption_started_( false )
+            , reception_encrypted_( false )
+            , transmition_encrypted_( false )
         {
         }
 
@@ -401,14 +402,24 @@ namespace test {
             return { 0x3fac22107855aa56ul, 0x78563412 };
         }
 
-        void start_encryption()
+        void start_receive_encrypted()
         {
-            encryption_started_ = true;
+            reception_encrypted_ = true;
         }
 
-        void stop_encryption()
+        void start_transmit_encrypted()
         {
-            encryption_started_ = false;
+            transmition_encrypted_ = true;
+        }
+
+        void stop_receive_encrypted()
+        {
+            reception_encrypted_ = false;
+        }
+
+        void stop_transmit_encrypted()
+        {
+            transmition_encrypted_ = false;
         }
 
         // access to data provided for testing
@@ -427,16 +438,22 @@ namespace test {
             return ivm_;
         }
 
-        bool encryption_started() const
+        bool reception_encrypted() const
         {
-            return encryption_started_;
+            return reception_encrypted_;
+        }
+
+        bool transmition_encrypted() const
+        {
+            return transmition_encrypted_;
         }
 
     private:
         bluetoe::details::uint128_t key_;
         std::uint64_t               skdm_;
         std::uint32_t               ivm_;
-        bool                        encryption_started_;
+        bool                        reception_encrypted_;
+        bool                        transmition_encrypted_;
     };
 
     // implementation

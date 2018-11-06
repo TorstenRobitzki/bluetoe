@@ -148,6 +148,25 @@ BOOST_FIXTURE_TEST_CASE( ediv_and_rand_used, link_layer_with_security )
     BOOST_CHECK_EQUAL( test::rand, 0x7766554433221100u );
 }
 
+BOOST_FIXTURE_TEST_CASE( still_unencrytped_after_IVs_exchanged, link_layer_with_security )
+{
+    ll_control_pdu({
+        0x03,                                   // LL_ENC_REQ
+        0x00, 0x11, 0x22, 0x33,                 // Rand
+        0x44, 0x55, 0x66, 0x77,
+        0x34, 0x12,                             // EDIV
+        0x00, 0x10, 0x20, 0x30,                 // SKDm
+        0x40, 0x50, 0x60, 0x70,
+        0xab, 0xbc, 0x12, 0x34,                 // IVm
+    });
+
+    run();
+
+    BOOST_CHECK( !reception_encrypted() );
+    BOOST_CHECK( !transmition_encrypted() );
+}
+
+
 BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_with_security )
 {
     ll_control_pdu({
@@ -176,6 +195,9 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_wi
         0x0D,                                   // LL_REJECT_IND
         0x06                                    // ErrorCode
     }, 1, 1 );
+
+    BOOST_CHECK( !reception_encrypted() );
+    BOOST_CHECK( !transmition_encrypted() );
 }
 
 BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security )
@@ -211,7 +233,8 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security 
         0x05                                    // LL_START_ENC_REQ
     }, 1, 1 );
 
-    BOOST_CHECK( encryption_started() );
+    BOOST_CHECK( reception_encrypted() );
+    BOOST_CHECK( !transmition_encrypted() );
 }
 
 struct link_layer_with_encryption_setup : link_layer_with_security
@@ -247,7 +270,8 @@ BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption_setup )
         0x06                                    // LL_START_ENC_RSP
     }, 3 );
 
-    BOOST_CHECK( encryption_started() );
+    BOOST_CHECK( reception_encrypted() );
+    BOOST_CHECK( transmition_encrypted() );
 }
 
 struct link_layer_with_encryption : link_layer_with_encryption_setup
@@ -261,7 +285,7 @@ struct link_layer_with_encryption : link_layer_with_encryption_setup
     }
 };
 
-BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
+BOOST_FIXTURE_TEST_CASE( start_pause_encryption, link_layer_with_encryption )
 {
     ll_control_pdu({
         0x0A                                    // LL_PAUSE_ENC_REQ
@@ -275,5 +299,28 @@ BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
         0x0B                                    // LL_PAUSE_ENC_RSP
     }, 5 );
 
-    BOOST_CHECK( !encryption_started() );
+    BOOST_CHECK( !reception_encrypted() );
+    BOOST_CHECK( transmition_encrypted() );
+}
+
+BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
+{
+    ll_control_pdu({
+        0x0A                                    // LL_PAUSE_ENC_REQ
+    });
+    ll_empty_pdu();
+
+    ll_control_pdu({
+        0x0B                                    // LL_PAUSE_ENC_RSP
+    });
+
+    run();
+
+    expected_response( {
+        0x03, 0x01,
+        0x0B                                    // LL_PAUSE_ENC_RSP
+    }, 5 );
+
+    BOOST_CHECK( !reception_encrypted() );
+    BOOST_CHECK( !transmition_encrypted() );
 }
