@@ -182,7 +182,9 @@ namespace bluetoe
             >::type::mtu;
 
             static constexpr std::size_t l2cap_mtu      = att_mtu + 4;
-            static constexpr std::size_t scratch_size   = l2cap_mtu + 16;
+            // the value MAXPACKETSIZE from the documentation seems to be the maximum value, the size field can store,
+            // and is independent from the MTU size (https://devzone.nordicsemi.com/f/nordic-q-a/13123/what-is-actual-size-required-for-scratch-area-for-ccm-on-nrf52/50031#50031)
+            static constexpr std::size_t scratch_size   = 267;
             static constexpr std::size_t enrypted_size  = l2cap_mtu + 3 + 4;
 
             struct alignas( 4 ) scratch_area_t {
