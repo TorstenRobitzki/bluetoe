@@ -81,12 +81,6 @@ namespace bluetoe
 
             static constexpr bool hardware_supports_encryption = false;
 
-            bluetoe::link_layer::delta_time start_connection_event(
-                unsigned                        channel,
-                bluetoe::link_layer::delta_time start_receive,
-                bluetoe::link_layer::delta_time end_receive,
-                const link_layer::read_buffer&  receive_buffer );
-
             void increment_receive_packet_counter()
             {
             }
@@ -96,6 +90,12 @@ namespace bluetoe
             }
 
         protected:
+
+            bluetoe::link_layer::delta_time start_connection_event_impl(
+                unsigned                        channel,
+                bluetoe::link_layer::delta_time start_receive,
+                bluetoe::link_layer::delta_time end_receive,
+                const link_layer::read_buffer&  receive_buffer );
 
             void configure_encryption( bool receive, bool transmit );
 
@@ -152,6 +152,18 @@ namespace bluetoe
         protected:
             scheduled_radio_base_with_encryption_base( adv_callbacks& cbs, std::uint32_t scratch_area, std::uint32_t encrypted_area );
 
+            void load_transmit_packet_counter();
+
+            bluetoe::link_layer::delta_time start_connection_event(
+                unsigned                        channel,
+                bluetoe::link_layer::delta_time start_receive,
+                bluetoe::link_layer::delta_time end_receive,
+                const link_layer::read_buffer&  receive_buffer )
+            {
+                load_receive_packet_counter();
+                return start_connection_event_impl( channel, start_receive, end_receive, receive_buffer );
+            }
+
         public:
             static constexpr bool hardware_supports_encryption = true;
 
@@ -176,16 +188,7 @@ namespace bluetoe
             void start_transmit_encrypted();
             void stop_receive_encrypted();
             void stop_transmit_encrypted();
-        };
 
-        /*
-         * There are some data structures where the size depends on the configuration of the link layer (namely the
-         * maximum MTU size).
-         */
-        template < typename ... Options >
-        class scheduled_radio_base_with_encryption : public scheduled_radio_base_with_encryption_base
-        {
-        public:
             void increment_receive_packet_counter()
             {
                 rx_counter_.increment();
@@ -196,6 +199,20 @@ namespace bluetoe
                 tx_counter_.increment();
             }
 
+        private:
+            void load_receive_packet_counter();
+
+            counter     tx_counter_;
+            counter     rx_counter_;
+        };
+
+        /*
+         * There are some data structures where the size depends on the configuration of the link layer (namely the
+         * maximum MTU size).
+         */
+        template < typename ... Options >
+        class scheduled_radio_base_with_encryption : public scheduled_radio_base_with_encryption_base
+        {
         protected:
             scheduled_radio_base_with_encryption( adv_callbacks& cbs )
                 : scheduled_radio_base_with_encryption_base( cbs,
@@ -224,9 +241,25 @@ namespace bluetoe
             struct alignas( 4 ) encrypted_message_t {
                 std::uint8_t data[ enrypted_size ];
             } encrypted_message_;
+        };
 
-            counter     tx_counter_;
-            counter     rx_counter_;
+        class scheduled_radio_without_encryption_base : public scheduled_radio_base
+        {
+        protected:
+            bluetoe::link_layer::delta_time start_connection_event(
+                unsigned                        channel,
+                bluetoe::link_layer::delta_time start_receive,
+                bluetoe::link_layer::delta_time end_receive,
+                const link_layer::read_buffer&  receive_buffer )
+            {
+                return start_connection_event_impl( channel, start_receive, end_receive, receive_buffer );
+            }
+
+            scheduled_radio_without_encryption_base( adv_callbacks& cbs );
+
+            void load_transmit_packet_counter()
+            {
+            }
         };
 
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, typename Base >
@@ -279,6 +312,9 @@ namespace bluetoe
 
             link_layer::write_buffer received_data( const link_layer::read_buffer& b ) override
             {
+                // hack: this function is called after a PDU was received, thus it's safe to load the transmit packet counter here
+                this->load_transmit_packet_counter();
+
                 // this function is called within an ISR context, so no need to disable interrupts
                 return this->received( b );
             }
@@ -315,7 +351,7 @@ namespace bluetoe
     using nrf51_without_encryption = link_layer::link_layer<
         Server,
         nrf51_details::template scheduled_radio_factory<
-            nrf51_details::scheduled_radio_base
+            nrf51_details::scheduled_radio_without_encryption_base
         >::scheduled_radio,
         Options... >;
 
