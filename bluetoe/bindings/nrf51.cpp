@@ -147,6 +147,26 @@ namespace nrf51_details {
         void debug_adv_response() {}
 #   endif
 
+    counter::counter()
+        : low( 0 )
+        , high( 0 )
+    {
+    }
+
+    void counter::increment()
+    {
+        ++low;
+
+        if ( low == 0 )
+            ++high;
+    }
+
+    void counter::copy_to( std::uint8_t* target ) const
+    {
+        target  = details::write_32bit( target, low );
+        *target = high;
+    }
+
     /*
      * Frequency correction if NRF_FICR_Type has an OVERRIDEEN field
      */
@@ -628,6 +648,7 @@ namespace nrf51_details {
                     {
                         nrf_radio->PACKETPTR = encrypted_area_;
 
+                        nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
                         nrf_ccm->MODE   =
                               ( CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos )
                             | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
@@ -635,7 +656,6 @@ namespace nrf51_details {
                         nrf_ccm->INPTR  = reinterpret_cast< std::uint32_t >( trans.buffer );
 
                         NRF_PPI->CHENCLR = ( 1 << radio_address_ccm_crypt );
-                        nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
                     }
                     else
                     {

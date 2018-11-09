@@ -493,7 +493,10 @@ namespace link_layer {
 
             const std::uint16_t header = layout::header( next );
             if ( static_cast< bool >( header & sn_flag ) != nesn )
+            {
                 transmit_buffer_.pop_end( transmit_buffer() );
+                static_cast< Radio* >( this )->increment_transmit_packet_counter();
+            }
         }
     }
 
@@ -543,6 +546,7 @@ namespace link_layer {
                 if ( ( header & 0xff00 ) != 0 )
                 {
                     receive_buffer_.push_front( receive_buffer(), pdu );
+                    static_cast< Radio* >( this )->increment_receive_packet_counter();
                 }
             }
         }
