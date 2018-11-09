@@ -255,6 +255,9 @@ namespace link_layer {
          * @brief This function will be called by the scheduled radio when a PDU was received without error.
          *
          * The function returns the next buffer to be transmitted.
+         *
+         * This function will call increment_receive_packet_counter() and increment_transmit_packet_counter() on
+         * the Radio if the counter part of the encryption IV part have to be incremented.
          */
         write_buffer received( read_buffer );
 
