@@ -56,17 +56,21 @@ namespace test {
             return;
         }
 
-        const std::uint8_t  llid = pdu[ 0 ] & 3;
-        const bool          nesn = pdu[ 0 ] & 4;
-        const bool          sn   = pdu[ 0 ] & 8;
-        const bool          md   = pdu[ 0 ] & 16;
-        const bool          rfu  = pdu[ 0 ] & 0xe0;
+        const std::uint8_t  llid    = pdu[ 0 ] & 3;
+        const bool          nesn    = pdu[ 0 ] & 4;
+        const bool          sn      = pdu[ 0 ] & 8;
+        const bool          md      = pdu[ 0 ] & 16;
+        const bool          rfu     = pdu[ 0 ] & 0xe0;
+        const bool          enc     = pdu.encrypted;
 
         out << "llid: " << (int)llid;
         out << " ne: " << nesn << " sn: " << sn;
 
         if ( md )
             out << " md: 1";
+
+        if ( enc )
+            out << " enc: 1";
 
         if ( rfu )
             out << " rfu!!!";
@@ -81,6 +85,7 @@ namespace test {
     {
         out << "schedule_time: " << data.schedule_time << "; channel: " << data.channel
             << "\nstart_receive: " << data.start_receive << "; end_receive: " << data.end_receive << "; connection_interval: " << data.connection_interval
+            << "\nrx-encrypt: " << data.receive_encryption_at_start_of_event << "; tx-encrypt: " << data.transmit_encryption_at_start_of_event
             << "\nreceived_data:\n";
 
         for ( const auto& pdu: data.received_data )
@@ -547,10 +552,15 @@ namespace test {
         }
     }
 
+    void radio_base::check_connection_events( const std::function< bool ( const connection_event& ) >& check, const char* message )
+    {
+        check_connection_events( []( const connection_event& ) -> bool { return true; }, check, message );
+    }
+
     static const auto filter_l2cap = []( pdu_t& pdu ) -> bool {
         if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x03 ) == 0x02 )
         {
-            pdu.erase( pdu.begin(), pdu.begin() + 2 );
+            pdu.data.erase( pdu.data.begin(), pdu.data.begin() + 2 );
             return true;
         }
 
@@ -560,7 +570,7 @@ namespace test {
     static const auto filter_ll = []( pdu_t& pdu ) -> bool {
         if ( pdu.size() >= 2 && ( pdu[ 0 ] & 0x03 ) == 0x03 )
         {
-            pdu.erase( pdu.begin(), pdu.begin() + 2 );
+            pdu.data.erase( pdu.data.begin(), pdu.data.begin() + 2 );
             return true;
         }
 

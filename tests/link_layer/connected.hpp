@@ -111,7 +111,7 @@ public:
 
         BOOST_REQUIRE_EQUAL( event.transmitted_data.size(), 1u );
 
-        return event.transmitted_data[ 0 ];
+        return event.transmitted_data[ 0 ].data;
     }
 
     void check_single_ll_control_pdu( std::initializer_list< std::uint8_t > pdu, std::initializer_list< std::uint8_t > expected_response, const char* label )

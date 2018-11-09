@@ -137,7 +137,7 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_with_wrong_size, unconnected )
         0x07, 0x01
     };
 
-    auto response = connection_events().at( 1u ).transmitted_data.front();
+    auto response = connection_events().at( 1u ).transmitted_data.front().data;
     response.at( 0 ) &= 0x03;
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::end( response ), std::begin( expected_response ), std::end( expected_response ) );
@@ -174,7 +174,7 @@ BOOST_FIXTURE_TEST_CASE( link_layer_still_active_after_channel_map_request, setu
 
     // and the response is send with the 11th event
     BOOST_REQUIRE( !connection_events().at( 10 ).transmitted_data.empty() );
-    auto pdu = connection_events().at( 10 ).transmitted_data.front();
+    auto pdu = connection_events().at( 10 ).transmitted_data.front().data;
     BOOST_REQUIRE( !pdu.empty() );
     pdu[ 0 ] &= 0x3;
 

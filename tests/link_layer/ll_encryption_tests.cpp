@@ -162,10 +162,14 @@ BOOST_FIXTURE_TEST_CASE( still_unencrytped_after_IVs_exchanged, link_layer_with_
 
     run();
 
-    BOOST_CHECK( !reception_encrypted() );
-    BOOST_CHECK( !transmition_encrypted() );
+    check_connection_events(
+        []( const test::connection_event& evt ) -> bool {
+            return !evt.receive_encryption_at_start_of_event
+                && !evt.transmit_encryption_at_start_of_event;
+        },
+        "encrypted should not be enabled"
+    );
 }
-
 
 BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_with_security )
 {
@@ -196,8 +200,13 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_wi
         0x06                                    // ErrorCode
     }, 1, 1 );
 
-    BOOST_CHECK( !reception_encrypted() );
-    BOOST_CHECK( !transmition_encrypted() );
+    check_connection_events(
+        []( const test::connection_event& evt ) -> bool {
+            return !evt.receive_encryption_at_start_of_event
+                && !evt.transmit_encryption_at_start_of_event;
+        },
+        "encrypted should not be enabled"
+    );
 }
 
 BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security )
@@ -233,8 +242,14 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security 
         0x05                                    // LL_START_ENC_REQ
     }, 1, 1 );
 
-    BOOST_CHECK( reception_encrypted() );
-    BOOST_CHECK( !transmition_encrypted() );
+    BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
+
+    check_connection_events(
+        []( const test::connection_event& evt ) -> bool {
+            return !evt.transmit_encryption_at_start_of_event;
+        },
+        "transmission should not be encrypted"
+    );
 }
 
 struct link_layer_with_encryption_setup : link_layer_with_security
@@ -270,8 +285,8 @@ BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption_setup )
         0x06                                    // LL_START_ENC_RSP
     }, 3 );
 
-    BOOST_CHECK( reception_encrypted() );
-    BOOST_CHECK( transmition_encrypted() );
+    BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
+    BOOST_CHECK( connection_events().at( 3 ).transmit_encryption_at_start_of_event );
 }
 
 struct link_layer_with_encryption : link_layer_with_encryption_setup
@@ -299,8 +314,8 @@ BOOST_FIXTURE_TEST_CASE( start_pause_encryption, link_layer_with_encryption )
         0x0B                                    // LL_PAUSE_ENC_RSP
     }, 5 );
 
-    BOOST_CHECK( !reception_encrypted() );
-    BOOST_CHECK( transmition_encrypted() );
+    BOOST_CHECK( !connection_events().at( 5 ).receive_encryption_at_start_of_event );
+    BOOST_CHECK( connection_events().at( 5 ).transmit_encryption_at_start_of_event );
 }
 
 BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
@@ -321,6 +336,6 @@ BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
         0x0B                                    // LL_PAUSE_ENC_RSP
     }, 5 );
 
-    BOOST_CHECK( !reception_encrypted() );
-    BOOST_CHECK( !transmition_encrypted() );
+    BOOST_CHECK( !connection_events().at( 7 ).receive_encryption_at_start_of_event );
+    BOOST_CHECK( !connection_events().at( 7 ).transmit_encryption_at_start_of_event );
 }
