@@ -214,11 +214,11 @@ namespace details {
     struct extract_meta_type
     {
         template < class U >
-        static typename U::meta_type check( U* )  { return U::meta_type(); }
+        static typename U::meta_type check( U&& ) { return U::meta_type(); }
         static no_such_type          check( ... ) { return no_such_type(); }
 
-        typedef decltype( check( static_cast< T* >( nullptr ) ) ) meta_type;
-        typedef meta_type                                         type;
+        typedef decltype( check( std::declval< T >() ) ) meta_type;
+        typedef meta_type                                type;
         typedef typename not_type<
             typename std::is_same<
                 meta_type, no_such_type >::type >::type  has_meta_type;
