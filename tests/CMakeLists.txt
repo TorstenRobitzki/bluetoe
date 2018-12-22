@@ -3,6 +3,10 @@ find_package( Boost REQUIRED )
 
 add_compile_options(-Wall -pedantic -Wextra -Wfatal-errors)
 
+if (CXX_COMPILER_ID STREQUAL GNU OR CXX_COMPILER_ID STREQUAL Clang)
+    add_compile_options(-fsanitize=address)
+endif()
+
 add_subdirectory(test_tools)
 
 function(add_and_register_test test_runner)
