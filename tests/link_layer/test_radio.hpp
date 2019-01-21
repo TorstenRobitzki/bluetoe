@@ -425,6 +425,8 @@ namespace test {
             : key_( { { 0x00 } } )
             , skdm_( 0u )
             , ivm_( 0u )
+            , skds_( 0x3fac22107855aa56ul )
+            , ivs_( 0x78563412 )
         {
         }
 
@@ -458,6 +460,12 @@ namespace test {
             return stk;
         }
 
+        void setup_encryption_response( std::uint64_t SKDs, std::uint32_t IVs)
+        {
+            skds_ = SKDs;
+            ivs_  = IVs;
+        }
+
         std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t k, std::uint64_t skdm, std::uint32_t ivm )
         {
             skdm_ = skdm;
@@ -465,7 +473,7 @@ namespace test {
 
             key_ = k;
 
-            return { 0x3fac22107855aa56ul, 0x78563412 };
+            return { skds_, ivs_ };
         }
 
         void start_receive_encrypted()
@@ -508,6 +516,8 @@ namespace test {
         bluetoe::details::uint128_t key_;
         std::uint64_t               skdm_;
         std::uint32_t               ivm_;
+        std::uint64_t               skds_;
+        std::uint32_t               ivs_;
     };
 
     // implementation
