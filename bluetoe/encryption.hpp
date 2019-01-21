@@ -19,7 +19,7 @@ namespace bluetoe {
         struct requires_encryption_meta_type {};
         struct no_encryption_required_meta_type {};
         struct may_require_encryption_meta_type {};
-    };
+    }
 
     /**
      * @brief defines that access to characteristic(s) require an encrypted link without
