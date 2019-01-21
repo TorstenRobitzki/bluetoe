@@ -407,7 +407,7 @@ namespace bluetoe {
         if ( state.state() != pairing_state::pairing_confirmed )
             return error_response( sm_error_codes::unspecified_reason, output, out_size, state );
 
-        uint128_t mrand{};
+        uint128_t mrand;
         std::copy( &input[ 1 ], &input[ pairing_random_size ], mrand.begin() );
         const auto mconfirm = func.c1( { { 0 } }, mrand, state.c1_p1(), state.c1_p2() );
 
