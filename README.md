@@ -83,8 +83,8 @@ Characteristic Descriptor Value Read|Read Characteristic Descriptors|implemented
 <br/> |Read Long Characteristic Descriptors|implemented
 Characteristic Descriptor Value Write|Write Characteristic Descriptors|implemented
 <br/> |Write Long Characteristic Descriptors|implemented
-Cryptography|Encryption|not planned
-<br/> |Authentication|not planned
+Cryptography|Encryption|under construction
+<br/> |Authentication|planned
 
 This is the current state of implemented Advertising Data:
 

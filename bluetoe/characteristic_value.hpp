@@ -1,7 +1,7 @@
 #ifndef BLUETOE_CHARACTERISTIC_VALUE_HPP
 #define BLUETOE_CHARACTERISTIC_VALUE_HPP
 
-#include <bluetoe/options.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/meta_types.hpp>

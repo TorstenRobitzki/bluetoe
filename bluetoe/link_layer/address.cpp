@@ -1,4 +1,4 @@
-#include <bluetoe/link_layer/address.hpp>
+#include <bluetoe/address.hpp>
 #include <cassert>
 #include <algorithm>
 #include <iterator>

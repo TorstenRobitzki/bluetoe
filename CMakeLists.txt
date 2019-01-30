@@ -1,23 +1,24 @@
-cmake_minimum_required(VERSION 2.8.7)
+cmake_minimum_required(VERSION 3.10)
+# Prevent in source build, add this options before project keyword
+set(CMAKE_DISABLE_SOURCE_CHANGES ON)
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+project(lib_bluetoe CXX)
 
-enable_testing()
+add_library(bluetoe_iface INTERFACE)
+add_library(bluetoe::iface ALIAS bluetoe_iface)
+target_include_directories(bluetoe_iface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+add_subdirectory(bluetoe/link_layer)
+add_subdirectory(bluetoe/utility)
+add_subdirectory(bluetoe/sm)
+add_subdirectory(bluetoe/services)
 
-if (DEFINED NDEBUG)
-    add_definitions(-DNDEBUG=1)
+if (CMAKE_CROSSCOMPILING)
+    add_subdirectory(bluetoe/bindings/nrf51)
+endif ()
+
+if (NOT CMAKE_CROSSCOMPILING)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wextra -Wfatal-errors")
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    # using Clang
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    # using GCC
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif()
-
-add_subdirectory(bluetoe)
-add_subdirectory(tests)
-add_subdirectory(examples)

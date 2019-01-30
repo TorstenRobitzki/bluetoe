@@ -1,10 +1,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/server.hpp>
-#include <bluetoe/sm/security_manager.hpp>
-
 #include "test_sm.hpp"
+#include "test_servers.hpp"
 
 
 static const std::initializer_list< std::uint8_t > pairing_request = {

@@ -3,6 +3,8 @@
 
 #include "aes.h"
 #include <bluetoe/link_state.hpp>
+#include <bluetoe/security_manager.hpp>
+#include <bluetoe/address.hpp>
 
 namespace test {
 

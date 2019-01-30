@@ -1,9 +1,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/services/csc.hpp>
-
-#include "../test_servers.hpp"
+#include <csc.hpp>
+#include <test_servers.hpp>
 
 
 class data_handler

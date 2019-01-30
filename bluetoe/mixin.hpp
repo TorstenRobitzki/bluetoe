@@ -1,7 +1,7 @@
 #ifndef BLUETOE_MIXIN_HPP
 #define BLUETOE_MIXIN_HPP
 
-#include <bluetoe/options.hpp>
+#include <bluetoe/meta_tools.hpp>
 
 namespace bluetoe {
     template < typename ... T >

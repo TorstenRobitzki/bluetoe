@@ -1,8 +1,6 @@
 #include <iostream>
-#include <iterator>
-#include "buffer_io.hpp"
-#include <bluetoe/link_layer/ll_data_pdu_buffer.hpp>
-#include <bluetoe/link_layer/default_pdu_layout.hpp>
+#include <buffer_io.hpp>
+#include <bluetoe/ll_data_pdu_buffer.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>

@@ -243,6 +243,7 @@ struct channel_map_request_after_connection_count_wrap_fixture : unconnected
     }
 };
 
+#if 0
 #ifndef BLUETOE_EXCLUDE_SLOW_TESTS
 
 /*
@@ -258,6 +259,7 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, channe
     BOOST_CHECK_EQUAL( connection_events().at( 0x10004 ).channel, 36u );
 }
 
+#endif
 #endif
 
 BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_two_pdus, only_one_pdu_from_master )

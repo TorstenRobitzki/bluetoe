@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/sm/security_manager.hpp>
+#include <bluetoe/security_manager.hpp>
 #include "test_sm.hpp"
 
 /**
