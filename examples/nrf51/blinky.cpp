@@ -4,14 +4,15 @@
 
 using namespace bluetoe;
 
-static constexpr int io_pin = 21;
+// LED1 on a nRF52 eval board
+static constexpr int io_pin = 17;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
-    // the GPIO pin according to the received value: 0 = off, 1 = on
+    // on an nRF52 eval board, the pin is connected to the LED's cathode, this inverts the logic.
     NRF_GPIO->OUT = state
-        ? NRF_GPIO->OUT | ( 1 << io_pin )
-        : NRF_GPIO->OUT & ~( 1 << io_pin );
+        ? NRF_GPIO->OUT & ~( 1 << io_pin )
+        : NRF_GPIO->OUT | ( 1 << io_pin );
 
     return error_codes::success;
 }

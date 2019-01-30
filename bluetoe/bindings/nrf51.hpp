@@ -39,6 +39,7 @@ namespace bluetoe
             virtual link_layer::write_buffer received_data( const link_layer::read_buffer& ) = 0;
             virtual link_layer::write_buffer next_transmit() = 0;
             virtual link_layer::read_buffer allocate_receive_buffer() = 0;
+            virtual void load_transmit_counter() = 0;
 
             virtual bool is_scan_request_in_filter_callback( const link_layer::device_address& ) const = 0;
         };
@@ -255,7 +256,9 @@ namespace bluetoe
                 return start_connection_event_impl( channel, start_receive, end_receive, receive_buffer );
             }
 
-            scheduled_radio_without_encryption_base( adv_callbacks& cbs );
+            scheduled_radio_without_encryption_base( adv_callbacks& cbs ) : scheduled_radio_base( cbs, 0 )
+            {
+            }
 
             void load_transmit_packet_counter()
             {
@@ -312,9 +315,6 @@ namespace bluetoe
 
             link_layer::write_buffer received_data( const link_layer::read_buffer& b ) override
             {
-                // hack: this function is called after a PDU was received, thus it's safe to load the transmit packet counter here
-                this->load_transmit_packet_counter();
-
                 // this function is called within an ISR context, so no need to disable interrupts
                 return this->received( b );
             }
@@ -328,6 +328,11 @@ namespace bluetoe
             link_layer::read_buffer allocate_receive_buffer() override
             {
                 return buffer::allocate_receive_buffer();
+            }
+
+            void load_transmit_counter() override
+            {
+                this->load_transmit_packet_counter();
             }
 
             bool is_scan_request_in_filter_callback( const link_layer::device_address& addr ) const override
