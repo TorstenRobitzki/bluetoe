@@ -29,7 +29,6 @@ namespace nrf51_details {
 
     static constexpr std::size_t        radio_ready_ccm_ksgen           = 24;
     static constexpr std::size_t        radio_address_ccm_crypt         = 25;
-    static constexpr std::size_t        radio_address_capture1_ppi_channel = 26;
     static constexpr std::size_t        radio_end_capture2_ppi_channel  = 27;
     static constexpr std::size_t        compare0_txen_ppi_channel       = 20;
     static constexpr std::size_t        compare0_rxen_ppi_channel       = 21;
@@ -556,6 +555,7 @@ namespace nrf51_details {
             nrf_ccm->EVENTS_ENDCRYPT = 0;
             nrf_ccm->EVENTS_ERROR    = 0;
 
+            nrf_ccm->SHORTS      = 0;
             nrf_radio->PACKETPTR = encrypted_area_;
             nrf_ccm->OUTPTR      = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
             nrf_ccm->INPTR       = encrypted_area_;
@@ -584,7 +584,7 @@ namespace nrf51_details {
         // the hardware is wired to:
         // - start the receiving part of the radio, when the timer is equal to CC[ 0 ] (compare0_rxen_ppi_channel)
         // - when the radio ramped up for receiving, the receiving starts              (RADIO_SHORTS_READY_START_Msk)
-        // - when the PDU was receieved, the timer value is captured in CC[ 2 ]        (radio_address_capture1_ppi_channel)
+        // - when the PDU was receieved, the timer value is captured in CC[ 2 ]        (radio_end_capture2_ppi_channel)
         // - when a PDU is received, the radio is stopped                              (RADIO_SHORTS_END_DISABLE_Msk)
         // - if no PDU is received, and the timer reaches CC[ 1 ], the radio is stopped(compare1_disable_ppi_channel)
         nrf_radio->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
@@ -621,11 +621,15 @@ namespace nrf51_details {
         if ( nrf_radio->EVENTS_DISABLED )
         {
             nrf_radio->EVENTS_DISABLED = 0;
+            nrf_radio->EVENTS_READY    = 0;
 
             if ( state_ == state::evt_wait_connect )
             {
                 // no need to disable the radio via the timer anymore:
-                NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
+                NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel )
+                                 | ( 1 << compare1_disable_ppi_channel )
+                                 | ( 1 << radio_address_ccm_crypt );
+
                 // Transmission has been startet already, make sure, radio gets disabled
                 nrf_radio->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
@@ -642,27 +646,34 @@ namespace nrf51_details {
                         ? callbacks_.next_transmit()
                         : callbacks_.received_data( receive_buffer_ );
 
+                    // Hack to disable the more data flag, because this radio implementation is currently
+                    // not able to do this (but it should be possible with the given hardware).
                     const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
 
-                    if ( transmit_encrypted_ )
+                    if ( transmit_encrypted_ && trans.buffer[ 1 ] != 0 )
                     {
+                        callbacks_.load_transmit_counter();
+
                         nrf_radio->PACKETPTR = encrypted_area_;
 
                         nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
-                        nrf_ccm->MODE   =
+                        nrf_ccm->MODE    =
                               ( CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos )
                             | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
-                        nrf_ccm->OUTPTR = reinterpret_cast< std::uint32_t >( trans.buffer );
-                        nrf_ccm->INPTR  = encrypted_area_;
+                        nrf_ccm->OUTPTR  = encrypted_area_;
+                        nrf_ccm->INPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
+                        nrf_ccm->EVENTS_ENDKSGEN = 0;
 
                         NRF_PPI->CHENCLR = ( 1 << radio_address_ccm_crypt );
+                        nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( trans.size + 4 )<< RADIO_PCNF1_MAXLEN_Pos );
                     }
                     else
                     {
                         nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
+                        NRF_PPI->CHENCLR = ( 1 << radio_ready_ccm_ksgen ) | ( 1 << radio_address_ccm_crypt );
+                        nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
                     }
 
-                    nrf_radio->PCNF1       = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
 
                     state_   = state::evt_transmiting_closing;
 
@@ -678,6 +689,7 @@ namespace nrf51_details {
                 {
                     nrf_ccm->EVENTS_ERROR    = 0;
                     NRF_RADIO->SHORTS        = 0;
+                    NRF_RADIO->TASKS_STOP    = 1;
                     NRF_RADIO->TASKS_DISABLE = 1;
                     state_       = state::idle;
                     evt_timeout_ = true;
