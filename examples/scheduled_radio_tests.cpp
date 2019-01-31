@@ -1,4 +1,4 @@
-#include <bluetoe/bindings/nrf51.hpp>
+#include <bluetoe/nrf51.hpp>
 #include <cassert>
 #include <algorithm>
 
