@@ -1,1 +1,2 @@
 add_and_register_test(pairing_tests)
+add_and_register_test(pairing_request_tests)
