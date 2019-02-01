@@ -15,4 +15,4 @@ target_link_libraries(test_tools PRIVATE bluetoe::linklayer)
 target_compile_features(test_tools PRIVATE cxx_std_11)
 target_compile_definitions(test_tools PRIVATE "")
 
-
+set_property(TARGET test_tools PROPERTY C_STANDARD 99)
