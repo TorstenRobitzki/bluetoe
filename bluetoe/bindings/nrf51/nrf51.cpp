@@ -479,6 +479,13 @@ namespace nrf51_details {
         transmit_encrypted_ = transmit;
     }
 
+    static struct alignas( 4 ) ccm_data_struct_t {
+        std::uint8_t data[ 33 ];
+    } ccm_data_struct;
+
+    // hack to be able to reset the CCM with every connection event
+    static std::uint32_t scratch_area_save;
+
     link_layer::delta_time scheduled_radio_base::start_connection_event_impl(
         unsigned                        channel,
         bluetoe::link_layer::delta_time start_receive,
@@ -501,7 +508,6 @@ namespace nrf51_details {
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
 
-
         NRF_RADIO->INTENCLR    = 0xffffffff;
         nrf_timer->INTENCLR    = 0xffffffff;
 
@@ -517,20 +523,32 @@ namespace nrf51_details {
 
         if ( receive_encrypted_ )
         {
-            NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk )
-            | ( ( receive_buffer_.size + encryption_mic_size ) << RADIO_PCNF1_MAXLEN_Pos );
+            nrf_radio->PCNF1  = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk )
+                | ( ( receive_buffer_.size + encryption_mic_size ) << RADIO_PCNF1_MAXLEN_Pos );
+
+            // Reseting the CCM before every connection event seems to workaround a bug that
+            // Causes the CCM to start decrypting an incomming PDU, before it was actually received
+            // which causes overwriting the receive buffer, if the length field in the encrypted_area_
+            // was long enough.
+            // (https://devzone.nordicsemi.com/f/nordic-q-a/43656/what-causes-decryption-before-receiving)
+            nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Disabled;
+            nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled;
+            nrf_ccm->MODE   =
+                  ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
+                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
+            nrf_ccm->CNFPTR = reinterpret_cast< std::uintptr_t >( &ccm_data_struct );
+            nrf_ccm->INPTR = encrypted_area_;
+            nrf_ccm->OUTPTR = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+            nrf_ccm->SCRATCHPTR = scratch_area_save;
+            nrf_ccm->SHORTS = 0;
             nrf_ccm->EVENTS_ENDKSGEN = 0;
             nrf_ccm->EVENTS_ENDCRYPT = 0;
-            nrf_ccm->EVENTS_ERROR    = 0;
-
-            nrf_ccm->SHORTS      = 0;
+            nrf_ccm->EVENTS_ERROR = 0;
             nrf_radio->PACKETPTR = encrypted_area_;
-            nrf_ccm->OUTPTR      = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
-            nrf_ccm->INPTR       = encrypted_area_;
         }
         else
         {
-            NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+            nrf_radio->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
             nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
         }
@@ -631,6 +649,7 @@ namespace nrf51_details {
                         | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
                     nrf_ccm->OUTPTR  = encrypted_area_;
                     nrf_ccm->INPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
+                    nrf_ccm->SCRATCHPTR  = scratch_area_save;
 
                     nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( trans.size + encryption_mic_size )<< RADIO_PCNF1_MAXLEN_Pos );
 
@@ -826,10 +845,6 @@ namespace nrf51_details {
             | ( static_cast< std::uint64_t >( random_number32() ) << 32 );
     }
 
-    static struct alignas( 4 ) ccm_data_struct_t {
-        std::uint8_t data[ 33 ];
-    } ccm_data_struct;
-
     static constexpr std::size_t ccm_key_offset = 0;
     static constexpr std::size_t ccm_packet_counter_offset = 16;
     static constexpr std::size_t ccm_packet_counter_size   = 5;
@@ -841,6 +856,7 @@ namespace nrf51_details {
 
     static void init_ccm_data_structure( std::uint32_t scratch_area )
     {
+        scratch_area_save   = scratch_area;
         nrf_ccm->SCRATCHPTR = scratch_area;
         nrf_ccm->CNFPTR     = reinterpret_cast< std::uintptr_t >( &ccm_data_struct );
     }
@@ -977,9 +993,6 @@ namespace nrf51_details {
     {
         rx_counter_ = counter();
         nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
-        nrf_ccm->MODE   =
-              ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
-            | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
         configure_encryption( true, false );
     }
 
