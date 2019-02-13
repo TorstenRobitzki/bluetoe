@@ -86,7 +86,7 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
     {
         const std::size_t size = std::distance( begin, end );
 
-        auto buffer = this->allocate_transmit_buffer( size + 2 );
+        auto buffer = this->allocate_transmit_buffer( layout::data_channel_pdu_memory_size( size ) );
         assert( buffer.size == layout::data_channel_pdu_memory_size( size ) );
 
         layout::header( buffer, 1 | ( size << 8 ) );
@@ -678,7 +678,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK_EQUAL( std::size_t{ layout_overhead }, 2u );
     }
 
-    BOOST_FIXTURE_TEST_CASE( buffer_sizes, buffer_under_test )
+    BOOST_FIXTURE_TEST_CASE( default_buffer_sizes, buffer_under_test )
     {
         BOOST_CHECK_EQUAL( max_max_tx_size(), 29u );
         BOOST_CHECK_EQUAL( max_tx_size(), 29u );
@@ -686,7 +686,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK_EQUAL( max_rx_size(), 29u );
     }
 
-    BOOST_FIXTURE_TEST_CASE( large_buffer_sizes, large_buffer_under_test )
+    BOOST_FIXTURE_TEST_CASE( default_large_buffer_sizes, large_buffer_under_test )
     {
         BOOST_CHECK_EQUAL( max_max_tx_size(), 198u );
         BOOST_CHECK_EQUAL( max_tx_size(), 29u );
@@ -694,13 +694,52 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK_EQUAL( max_rx_size(), 29u );
     }
 
+    BOOST_FIXTURE_TEST_CASE( lower_bound_sizes, large_buffer_under_test )
+    {
+        max_tx_size( 29 );
+        max_rx_size( 29 );
+        BOOST_CHECK_EQUAL( max_tx_size(), 29 );
+        BOOST_CHECK_EQUAL( max_rx_size(), 29 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( upper_bound_sizes, large_buffer_under_test )
+    {
+        max_tx_size( 198 );
+        max_rx_size( 198 );
+        BOOST_CHECK_EQUAL( max_tx_size(), 198 );
+        BOOST_CHECK_EQUAL( max_rx_size(), 198 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( allocating_lower_bound_buffers, large_buffer_under_test )
+    {
+        const auto receive  = allocate_receive_buffer();
+        const auto transmit = allocate_transmit_buffer();
+        BOOST_CHECK( receive.buffer );
+        BOOST_CHECK( transmit.buffer );
+        BOOST_CHECK_EQUAL( receive.size, 31 );
+        BOOST_CHECK_EQUAL( transmit.size, 31 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( allocating_upper_bound_buffers, large_buffer_under_test )
+    {
+        max_tx_size( 198 );
+        max_rx_size( 198 );
+
+        const auto receive  = allocate_receive_buffer();
+        const auto transmit = allocate_transmit_buffer();
+        BOOST_CHECK( receive.buffer );
+        BOOST_CHECK( transmit.buffer );
+        BOOST_CHECK_EQUAL( receive.size, 200 );
+        BOOST_CHECK_EQUAL( transmit.size, 200 );
+    }
+
     BOOST_FIXTURE_TEST_CASE( make_sure_the_layout_is_applied_as_expected, buffer_under_test )
     {
         static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
         const std::size_t size = sizeof( pattern_a );
 
-        auto buffer = this->allocate_transmit_buffer( size + 2 );
-        BOOST_REQUIRE_EQUAL( buffer.size, layout::data_channel_pdu_memory_size( size ) );
+        auto buffer = this->allocate_transmit_buffer( size + 4 );
+        BOOST_REQUIRE_EQUAL( buffer.size, size + 4 );
 
         layout::header( buffer, 1 | ( size << 8 ) );
 
@@ -713,7 +752,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK( layout::body( buffer ).first == &buffer.buffer[ 3 ] );
         BOOST_CHECK_EQUAL_COLLECTIONS(
             std::begin( pattern_a ), std::end( pattern_a ),
-            &buffer.buffer[ 3 ], &buffer.buffer[ buffer.size -1 ] );
+            &buffer.buffer[ 3 ], &buffer.buffer[ buffer.size - 1 ] );
     }
 
     BOOST_FIXTURE_TEST_CASE( sending_data, buffer_under_test )
