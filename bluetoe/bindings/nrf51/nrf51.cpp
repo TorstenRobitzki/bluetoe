@@ -34,6 +34,7 @@ namespace nrf51_details {
     static constexpr std::size_t        compare1_disable_ppi_channel    = 22;
 
     static constexpr std::uint8_t       more_data_flag = 0x10;
+    static constexpr std::size_t        encryption_mic_size = 4;
 
     static constexpr unsigned           us_from_packet_start_to_address_end = ( 1 + 4 ) * 8;
     static constexpr unsigned           us_radio_rx_startup_time            = 138;
@@ -499,7 +500,7 @@ namespace nrf51_details {
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
-        NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+
 
         NRF_RADIO->INTENCLR    = 0xffffffff;
         nrf_timer->INTENCLR    = 0xffffffff;
@@ -516,6 +517,8 @@ namespace nrf51_details {
 
         if ( receive_encrypted_ )
         {
+            NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk )
+            | ( ( receive_buffer_.size + encryption_mic_size ) << RADIO_PCNF1_MAXLEN_Pos );
             nrf_ccm->EVENTS_ENDKSGEN = 0;
             nrf_ccm->EVENTS_ENDCRYPT = 0;
             nrf_ccm->EVENTS_ERROR    = 0;
@@ -527,6 +530,8 @@ namespace nrf51_details {
         }
         else
         {
+            NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
+
             nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
         }
 
@@ -627,7 +632,7 @@ namespace nrf51_details {
                     nrf_ccm->OUTPTR  = encrypted_area_;
                     nrf_ccm->INPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
 
-                    nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( trans.size + 4 )<< RADIO_PCNF1_MAXLEN_Pos );
+                    nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( trans.size + encryption_mic_size )<< RADIO_PCNF1_MAXLEN_Pos );
 
                     nrf_ccm->EVENTS_ENDKSGEN    = 0;
                     nrf_ccm->EVENTS_ENDCRYPT    = 0;
@@ -648,11 +653,10 @@ namespace nrf51_details {
                 // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
                 // In case, that the message was encrypted, there was a 4 byte MIC appended.
                 static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
-                static constexpr std::size_t encryption_mic  = 4;
                 std::size_t total_pdu_length = receive_buffer_.buffer[ 1 ] + ll_pdu_overhead;
 
                 if ( receive_encrypted_ && receive_buffer_.buffer[ 1 ] )
-                    total_pdu_length += encryption_mic;
+                    total_pdu_length += encryption_mic_size;
 
                 anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] - total_pdu_length * 8 );
             }
