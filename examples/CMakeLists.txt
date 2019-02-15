@@ -83,4 +83,4 @@ add_bluetoe_example(thermometer)
 add_bluetoe_example(cycling_speed_and_cadence)
 add_bluetoe_example(bootloader)
 add_bluetoe_example(scheduled_radio_tests)
-
+add_bluetoe_example(keyboard)
