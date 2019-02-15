@@ -9,7 +9,7 @@
 #include <bluetoe/ll_meta_types.hpp>
 
 /**
- * @file bluetoe/link_layer/advertising.hpp
+ * @file bluetoe/link_layer/include/bluetoe/advertising.hpp
  *
  * Design criterias for advertising:
  * - resonable default (connectable undirected adv.)

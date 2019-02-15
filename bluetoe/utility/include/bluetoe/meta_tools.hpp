@@ -17,9 +17,7 @@ namespace details {
         using type = T;
     };
 
-     /*
-      * Select A or B by Select. If Select == true, the result is A; B otherwise
-      */
+    /** @cond HIDDEN_SYMBOLS */
     template < bool Select >
     struct select_type_impl {
         template < typename A, typename B >
@@ -31,12 +29,16 @@ namespace details {
         template < typename A, typename B >
         using f = B;
     };
+    /** @endcond */
 
+     /**
+      * @brief Select A or B by Select. If Select == true, the result is A; B otherwise
+      */
     template < bool Select, typename A, typename B >
     using select_type = wrap< typename select_type_impl< Select >::template f< A, B > >;
 
-    /*
-     * Selects a template according to the given Select parameter. If select is true,
+    /**
+     * @brief Selects a template according to the given Select parameter. If select is true,
      * the result will be A; B otherwise
      *
      * The result is named type, but it is a template.
@@ -53,9 +55,7 @@ namespace details {
         using type = B< T1 >;
     };
 
-    /*
-     * return A if A is not Null, otherwise return B if B is not Null, otherwise Null
-     */
+    /** @cond HIDDEN_SYMBOLS */
     template < typename Null, typename A >
     struct or_type_impl {
         template < typename >
@@ -67,12 +67,16 @@ namespace details {
         template < typename B >
         using f = B;
     };
+    /** @endcond */
 
+    /**
+     * @brief return A if A is not Null, otherwise return B if B is not Null, otherwise Null
+     */
     template < typename Null, typename A, typename B >
     using or_type = wrap< typename or_type_impl< Null, A >::template f< B > >;
 
-    /*
-     *  add A to B
+    /**
+     * @brief add A to B
      */
     template < class A, class B >
     struct add_type

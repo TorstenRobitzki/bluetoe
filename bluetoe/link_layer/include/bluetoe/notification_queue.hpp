@@ -47,7 +47,9 @@ namespace link_layer {
     class notification_queue : public Mixin, details::notification_queue_impl_base< Sizes, 0 >
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         using entry_type = details::notification_queue_entry_type;
+        /** @endcond */
 
         /**
          * @brief constructs an empty notification_queue_impl

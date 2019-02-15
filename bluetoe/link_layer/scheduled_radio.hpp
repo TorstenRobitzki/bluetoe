@@ -47,7 +47,6 @@ namespace link_layer {
          * @param channel channel to transmit and to receive on
          * @param advertising_data the advertising data to be send out.
          * @param response_data the response data used to reply to a scan request, in case the request was in the white list.
-         * @param transmit data to be transmitted
          * @param when point in time, when the first bit of data should be started to be transmitted
          * @param receive buffer where the radio will copy the received data, before calling Callback::adv_receive().
          *        This buffer have to have at least room for two bytes.
@@ -71,7 +70,7 @@ namespace link_layer {
          *
          * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
          *
-         * @ret the distance from now to start_receive
+         * @return the distance from now to start_receive
          */
         bluetoe::link_layer::delta_time schedule_connection_event(
             unsigned                                    channel,
