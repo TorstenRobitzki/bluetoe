@@ -5,6 +5,7 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(lib_bluetoe CXX)
 
 add_library(bluetoe_iface INTERFACE)
+target_compile_features(bluetoe_iface INTERFACE cxx_std_11)
 add_library(bluetoe::iface ALIAS bluetoe_iface)
 target_include_directories(bluetoe_iface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
