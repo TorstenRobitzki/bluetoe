@@ -1,9 +1,9 @@
 #ifndef BLUETOE_TESTS_SERVICE_TEST_DISCOVERY_HPP
 #define BLUETOE_TESTS_SERVICE_TEST_DISCOVERY_HPP
 
-#include <test_servers.hpp>
-#include <hexdump.hpp>
-#include <test_uuid.hpp>
+#include "test_servers.hpp"
+#include "hexdump.hpp"
+#include "test_uuid.hpp"
 #include <ostream>
 #include <vector>
 
