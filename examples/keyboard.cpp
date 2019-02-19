@@ -4,10 +4,27 @@
 #include <bluetoe/services/dis.hpp>
 #include <bluetoe/services/hid.hpp>
 
-struct keyboard_handler {
+class keyboard_handler
+{
+public:
     int read_battery_level()
     {
         return 99;
+    }
+
+    std::uint8_t protocol_mode_write_handler( std::size_t write_size, const std::uint8_t* value )
+    {
+        (void)write_size;
+        (void)value;
+        return bluetoe::error_codes::success;
+    }
+
+    std::uint8_t protocol_mode_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    {
+        (void)read_size;
+        (void)out_buffer;
+        (void)out_size;
+        return bluetoe::error_codes::success;
     }
 
     std::uint8_t report_write_handler( std::size_t write_size, const std::uint8_t* value )
@@ -93,11 +110,12 @@ using device_info_service = bluetoe::device_information_service<
 >;
 
 using hid_service = bluetoe::service<
+    bluetoe::hid::service_uuid,
     bluetoe::characteristic<
         bluetoe::hid::protocol_mode_uuid,
-        bluetoe::write_without_response,
-        // remove write attribute
-        bluetoe::no_write_access
+        bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::protocol_mode_write_handler >,
+        bluetoe::mixin_read_handler< keyboard_handler, &keyboard_handler::protocol_mode_read_handler >,
+        bluetoe::only_write_without_response
     >,
     bluetoe::characteristic<
         bluetoe::hid::report_uuid,
@@ -129,15 +147,14 @@ using hid_service = bluetoe::service<
     bluetoe::characteristic<
         bluetoe::hid::hid_control_point_uuid,
         bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::control_point_write_handler >,
-        bluetoe::write_without_response,
-        // remove write attribute
-        bluetoe::no_write_access
+        bluetoe::only_write_without_response
     >
 >;
 
 using keyboard = bluetoe::server<
     battery_service,
     device_info_service,
+    hid_service,
     bluetoe::mixin< keyboard_handler >
 >;
 
