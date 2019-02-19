@@ -267,12 +267,10 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         BOOST_CHECK( buffer[ 0 ] == 0x95 );
     }
 
-
 BOOST_AUTO_TEST_SUITE_END()
 
 
 BOOST_AUTO_TEST_SUITE( characteristic_properties )
-
     BOOST_FIXTURE_TEST_CASE( by_default_an_attribute_is_readable_and_writeable, read_characteristic_properties< simple_char > )
     {
         BOOST_CHECK( properties & 0x02 );
@@ -351,6 +349,31 @@ BOOST_AUTO_TEST_SUITE( characteristic_properties )
     BOOST_FIXTURE_TEST_CASE( without_write_without_response, read_characteristic_properties< simple_char_with_indication > )
     {
         BOOST_CHECK_EQUAL( properties & 0x04, 0x00 );
+    }
+
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+        bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+        bluetoe::only_write_without_response,
+        bluetoe::no_read_access
+    > only_write_without_response_char;
+
+    BOOST_FIXTURE_TEST_CASE( only_with_write_without_response, read_characteristic_properties< only_write_without_response_char > )
+    {
+        BOOST_CHECK_EQUAL( properties & 0x04, 0x04 );
+        BOOST_CHECK_EQUAL( properties & 0x08, 0x00 );
+    }
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid< 0xD0B10674, 0x6DDD, 0x4B59, 0x89CA, 0xA009B78C956B >,
+        bluetoe::bind_characteristic_value< std::uint32_t, &simple_value >,
+        bluetoe::only_write_without_response
+    > only_write_without_response_and_read_char;
+
+    BOOST_FIXTURE_TEST_CASE( only_with_write_without_response_and_read, read_characteristic_properties< only_write_without_response_and_read_char > )
+    {
+        BOOST_CHECK_EQUAL( properties & 0x04, 0x04 );
+        BOOST_CHECK_EQUAL( properties & 0x08, 0x00 );
+        BOOST_CHECK_EQUAL( properties & 0x02, 0x02 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

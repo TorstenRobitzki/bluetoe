@@ -182,8 +182,30 @@ namespace bluetoe {
      * Write Without Response sub-procedure. In this case, a client can write to a characteristic
      * and will get no response from the GATT server. Don't use this property if there is any
      * need to respond with an error to a write attempt.
+     *
+     * @sa only_write_without_response
+     * @sa characteristic
      */
     struct write_without_response {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::client_characteristic_configuration_parameter,
+            details::characteristic_parameter_meta_type,
+            details::valid_characteristic_option_meta_type {};
+        /** @endcond */
+    };
+
+
+    /**
+     * @brief set only the Write Without Response Characteristic Property bit.
+     *
+     * Set the Write Without Response Characteristic property and resets the
+     * Write property of the given characteristic.
+     *
+     * @sa write_without_response
+     * @sa characteristic
+     */
+    struct only_write_without_response {
         /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
             details::client_characteristic_configuration_parameter,
@@ -215,6 +237,15 @@ namespace bluetoe {
                     : attribute_access_result::insufficient_encryption;
             }
         };
+
+        /*
+         * Base for value_implementations, providing common attributes and tests
+         */
+        template < typename ... Options >
+        struct value_impl_base
+        {
+           static constexpr bool has_only_write_without_response = details::has_option< only_write_without_response, Options... >::value;
+        };
     }
 
     /**
@@ -229,7 +260,7 @@ namespace bluetoe {
          * use a new type to mixin the options given to characteristic
          */
         template < typename ... Options >
-        class value_impl
+        class value_impl : public details::value_impl_base< Options... >
         {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
@@ -318,7 +349,7 @@ namespace bluetoe {
          * @cond HIDDEN_SYMBOLS
          */
         template < typename ... Options >
-        class value_impl
+        class value_impl : public details::value_impl_base< Options... >
         {
         public:
             static constexpr bool has_read_access  = !details::has_option< no_read_access, Options... >::value;
@@ -401,7 +432,7 @@ namespace bluetoe {
          * @cond HIDDEN_SYMBOLS
          */
         template < typename ... Options >
-        class value_impl
+        class value_impl : public details::value_impl_base< Options... >
         {
         public:
             static constexpr bool has_read_access  = true;
@@ -507,7 +538,7 @@ namespace bluetoe {
         struct value_handler_base {
 
             template < typename ... Options >
-            class value_impl
+            class value_impl : public details::value_impl_base< Options... >
             {
             public:
                 using read_handler_type = typename find_by_meta_type< characteristic_value_read_handler_meta_type, Options... >::type;
