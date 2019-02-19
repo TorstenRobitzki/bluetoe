@@ -151,7 +151,15 @@ using hid_service = bluetoe::service<
     >
 >;
 
+static const char name[] = "Bluetoe-Keyboard";
+
 using keyboard = bluetoe::server<
+    bluetoe::server_name< name >,
+    bluetoe::appearance::keyboard,
+    // by default, bluetoe would advertise all services
+    bluetoe::list_of_16_bit_service_uuids<
+        bluetoe::hid::service_uuid
+    >,
     battery_service,
     device_info_service,
     hid_service,
