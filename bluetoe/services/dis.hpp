@@ -130,12 +130,12 @@ namespace bluetoe {
 
                 static constexpr std::uint8_t data[ data_size ] = {
                     static_cast< std::uint8_t >( VendorIDSource ),
-                    VendorID && 0xff,
-                    VendorID >> 8,
-                    ProductID && 0xff,
-                    ProductID >> 8,
-                    ProductVersion && 0xff,
-                    ProductVersion >> 8
+                    static_cast< std::uint8_t >( VendorID & 0xff ),
+                    static_cast< std::uint8_t >( VendorID >> 8 ),
+                    static_cast< std::uint8_t >( ProductID & 0xff ),
+                    static_cast< std::uint8_t >( ProductID >> 8 ),
+                    static_cast< std::uint8_t >( ProductVersion & 0xff),
+                    static_cast< std::uint8_t >( ProductVersion >> 8 )
                 };
 
                 static constexpr std::uint8_t const * value()
