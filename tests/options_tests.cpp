@@ -310,6 +310,57 @@ BOOST_AUTO_TEST_CASE( find_all_by_meta_type )
         std::tuple< type1, type11 > >::value ) );
 }
 
+BOOST_AUTO_TEST_CASE( find_all_not_by_meta_type_empty_list )
+{
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_meta_type< int >::type, std::tuple<> >::value ) );
+}
+
+BOOST_AUTO_TEST_CASE( find_all_not_by_meta_type )
+{
+    // no resulting element
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type2, type3 >::type,
+        std::tuple< type2, type3 > >::value ) );
+
+    // one resulting element
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type2, type3, type1 >::type,
+        std::tuple< type2, type3 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type2, type1, type3 >::type,
+        std::tuple< type2, type3 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type1, type3, type2 >::type,
+        std::tuple< type3, type2 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type1 >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type1a, type3, type2 >::type,
+        std::tuple< type3, type2 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type12 >::type,
+        std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type11, type2, type3, type12, type1 >::type,
+        std::tuple< type2, type3 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type2, type1a, type11, type3 >::type,
+        std::tuple< type2, type3 > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::find_all_by_not_meta_type< meta1, type1, type3, type11, type2 >::type,
+        std::tuple< type3, type2 > >::value ) );
+}
+
 namespace {
     typedef std::vector< std::string > string_list;
 

@@ -338,6 +338,40 @@ namespace details {
     struct find_all_by_meta_type< MetaType, std::tuple< Types... > > : find_all_by_meta_type< MetaType, Types... > {};
 
     /*
+     * finds all types that has not the embedded meta_type
+     */
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct find_all_by_not_meta_type;
+
+    template <
+        typename MetaType >
+    struct find_all_by_not_meta_type< MetaType >
+    {
+        typedef std::tuple<> type;
+    };
+
+    template <
+        typename MetaType,
+        typename Type,
+        typename ... Types >
+    struct find_all_by_not_meta_type< MetaType, Type, Types... >
+    {
+        typedef extract_meta_type< Type > meta_type;
+        typedef typename select_type<
+            std::is_convertible< typename meta_type::type*, MetaType* >::value,
+            typename find_all_by_not_meta_type< MetaType, Types... >::type,
+            typename add_type< Type, typename find_all_by_not_meta_type< MetaType, Types... >::type >::type
+        >::type type;
+    };
+
+    template <
+        typename MetaType,
+        typename ... Types >
+    struct find_all_by_not_meta_type< MetaType, std::tuple< Types... > > : find_all_by_not_meta_type< MetaType, Types... > {};
+
+    /*
      * groups a list of types by there meta types
      *
      * Returns a std::tuple with as much elements as MetaTypes where given. Every element in the result is a tuple containing
