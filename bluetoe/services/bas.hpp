@@ -59,26 +59,36 @@ namespace bluetoe
                 }
             };
 
+            template < typename, typename >
+            struct service_impl;
+
+            template < typename Handler, typename ... Options >
+            struct service_impl< Handler, std::tuple< Options... > >
+            {
+                using type =
+                    bluetoe::service<
+                        service_uuid,
+                        bluetoe::characteristic<
+                            level_uuid,
+                            typename handler_impl< Handler >::read_handler,
+                            bluetoe::notify
+                        >,
+                        bluetoe::mixin< handler_impl< Handler > >,
+                        Options...
+                    >;
+            };
+
+
             template < typename ... Options >
             struct calculate_service {
                 using handler = typename bluetoe::details::find_by_meta_type< handler_tag, Options... >::type;
 
                 static_assert( !std::is_same< handler, bluetoe::details::no_such_type >::value, "bas::handler<> is required" );
 
-                using invalid_args = typename bluetoe::details::find_by_not_meta_type<
-                    valid_bas_service_option_tag, Options... >::type;
+                using other_args = typename bluetoe::details::find_all_by_not_meta_type<
+                    details::valid_bas_service_option_tag, Options... >::type;
 
-                static_assert( std::is_same< invalid_args, bluetoe::details::no_such_type >::value, "Invalid argument to battery_level<>" );
-
-                using type = bluetoe::service<
-                    service_uuid,
-                    bluetoe::characteristic<
-                        level_uuid,
-                        typename handler_impl< typename handler::type >::read_handler,
-                        bluetoe::notify
-                    >,
-                    bluetoe::mixin< handler_impl< typename handler::type > >
-                >;
+                using type = typename service_impl< typename handler::type, other_args >::type;
             };
             /** @endcond */
         }

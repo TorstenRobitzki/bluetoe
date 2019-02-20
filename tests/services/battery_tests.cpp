@@ -121,3 +121,33 @@ BOOST_FIXTURE_TEST_CASE( notifying_level, discovered_and_subscribed )
         33
     });
 }
+
+using server_with_encryption = bluetoe::server<
+    bluetoe::battery_level<
+        bluetoe::bas::handler< battery_handler >,
+        bluetoe::requires_encryption
+    >,
+    bluetoe::mixin< battery_handler >
+>;
+
+BOOST_FIXTURE_TEST_CASE( make_sure_other_service_args_are_forwarded, test::gatt_procedures< server_with_encryption > )
+{
+    const auto service = discover_primary_service_by_uuid< bluetoe::bas::service_uuid >();
+    BOOST_CHECK( service.starting_handle != service.ending_handle );
+
+    test::discovered_characteristic value_char = discover_characteristic_by_uuid< bluetoe::bas::level_uuid >( service );
+
+    l2cap_input({
+        0x0A,                       // read request
+        low( value_char.value_handle ),
+        high( value_char.value_handle )
+    });
+
+    expected_result( {
+        0x01,                       // error response
+        0x0A,                       // read request
+        low( value_char.value_handle ),
+        high( value_char.value_handle ),
+        0x02                        // Read Not Permitted
+    });
+}
