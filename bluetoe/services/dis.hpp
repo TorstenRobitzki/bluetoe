@@ -108,7 +108,7 @@ namespace bluetoe {
         /**
          * @brief enumeration that defines, the valid domain of a used vendor ID
          */
-        enum class vendor_id_source_t : uint8_t
+        enum class vendor_id_source_t : std::uint8_t
         {
             /**
              * Bluetooth SIG assigned Company Identifier value from the Assigned Numbers document
@@ -121,13 +121,52 @@ namespace bluetoe {
             usb         = 2
         };
 
+        namespace details {
+            /** @cond HIDDEN_SYMBOLS */
+            template < vendor_id_source_t VendorIDSource, std::uint16_t VendorID, std::uint16_t ProductID, std::uint16_t ProductVersion >
+            struct pnp_id_value : bluetoe::cstring_wrapper< pnp_id_value< VendorIDSource, VendorID, ProductID, ProductVersion > >
+            {
+                static constexpr std::size_t data_size = 7u;
+
+                static constexpr std::uint8_t data[ data_size ] = {
+                    static_cast< std::uint8_t >( VendorIDSource ),
+                    VendorID && 0xff,
+                    VendorID >> 8,
+                    ProductID && 0xff,
+                    ProductID >> 8,
+                    ProductVersion && 0xff,
+                    ProductVersion >> 8
+                };
+
+                static constexpr std::uint8_t const * value()
+                {
+
+                    static_assert( data_size == sizeof data, "" );
+
+                    return data;
+                }
+
+                static constexpr std::size_t size()
+                {
+                    return data_size;
+                }
+            };
+            /** @endcond */
+
+            template < vendor_id_source_t VendorIDSource, std::uint16_t VendorID, std::uint16_t ProductID, std::uint16_t ProductVersion >
+            constexpr std::uint8_t pnp_id_value< VendorIDSource, VendorID, ProductID, ProductVersion >::data[ data_size ];
+        }
+
         /**
-         * @TODO not implemeted
+         * @brief includes a PnP ID characteristic
          */
         template < vendor_id_source_t VendorIDSource, std::uint16_t VendorID, std::uint16_t ProductID, std::uint16_t ProductVersion >
-        struct pnp_id
-        {
-        };
+        using pnp_id =
+            bluetoe::characteristic<
+                details::pnp_id_value< VendorIDSource, VendorID, ProductID, ProductVersion >,
+                pnp_uuid
+            >
+        ;
     }
 
     /**
