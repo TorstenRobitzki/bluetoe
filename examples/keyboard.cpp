@@ -145,7 +145,11 @@ static constexpr char model_number[]      = "Model 1";
 
 using device_info_service = bluetoe::device_information_service<
     bluetoe::dis::manufacturer_name< manufacturer_name >,
-    bluetoe::dis::model_number< model_number >
+    bluetoe::dis::model_number< model_number >,
+    bluetoe::dis::pnp_id<
+        bluetoe::dis::vendor_id_source_t::bluetooth, 0x0269,
+        0x4711,
+        0x0000 >
 >;
 
 using hid_service = bluetoe::service<
@@ -206,7 +210,9 @@ using keyboard = bluetoe::server<
 >;
 
 keyboard gatt;
-bluetoe::device< keyboard > server;
+bluetoe::device<
+    keyboard,
+    bluetoe::link_layer::advertising_interval< 30u > > server;
 
 int main()
 {
