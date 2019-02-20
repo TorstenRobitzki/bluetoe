@@ -454,7 +454,7 @@ namespace bluetoe {
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
 
-                const char* value  = Text::value();
+                const char* value  = static_cast< const char* >( static_cast< const void* >( Text::value() ) );
                 std::size_t length = Text::size();
 
                 if ( args.buffer_offset > length )
@@ -513,9 +513,9 @@ namespace bluetoe {
     struct fixed_blob_value : cstring_wrapper< fixed_blob_value< Value, Size > >
     {
         /** @cond HIDDEN_SYMBOLS */
-        static constexpr char const * value()
+        static constexpr std::uint8_t const * value()
         {
-            return static_cast< const char * >( static_cast< const void* >( Value ) );
+            return Value;
         }
 
         static constexpr std::size_t size()
