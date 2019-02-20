@@ -7,6 +7,7 @@
 #include <bluetoe/meta_types.hpp>
 #include <type_traits>
 #include <climits>
+#include <cstring>
 
 namespace bluetoe {
 
@@ -423,7 +424,8 @@ namespace bluetoe {
     /**
      * @brief a constant string characteristic value
      *
-     * The type Text have to have a member value() that returns a const char*.
+     * The type Text have to have a member value() that returns a const char* or a const std::uint8_t*
+     * and a member size() that returns the length of the data.
      */
     template < class Text >
     struct cstring_wrapper
@@ -453,9 +455,7 @@ namespace bluetoe {
                     return details::attribute_access_result::write_not_permitted;
 
                 const char* value  = Text::value();
-                std::size_t length = 0;
-                for ( const char* v = value; *v; ++v, ++length )
-                    ;
+                std::size_t length = Text::size();
 
                 if ( args.buffer_offset > length )
                     return details::attribute_access_result::invalid_offset;
@@ -494,6 +494,33 @@ namespace bluetoe {
         static constexpr char const * value()
         {
             return name;
+        }
+
+        static constexpr std::size_t size()
+        {
+            return std::strlen( name );
+        }
+        /** @endcond */
+    };
+
+    /**
+     * @brief A fixed length and fixed value, read-only characteristic value
+     *
+     * @sa cstring_wrapper
+     * @sa cstring_value
+     */
+    template < const std::uint8_t* const Value, std::size_t Size >
+    struct fixed_blob_value : cstring_wrapper< fixed_blob_value< Value, Size > >
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static constexpr char const * value()
+        {
+            return static_cast< const char * >( static_cast< const void* >( Value ) );
+        }
+
+        static constexpr std::size_t size()
+        {
+            return Size;
         }
         /** @endcond */
     };

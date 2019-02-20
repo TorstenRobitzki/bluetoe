@@ -303,6 +303,27 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( fixed_blob_tests )
+
+    static const std::uint8_t blob[] = { 0x00, 0x12, 0x00, 0xab, 0x05 };
+
+    using blob_char = bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::fixed_blob_value< blob, sizeof( blob ) >
+    >;
+
+    BOOST_FIXTURE_TEST_CASE( read_only_attribute, read_characteristic_properties< blob_char > )
+    {
+        BOOST_CHECK_EQUAL( properties, 0x02 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( read_value, access_attributes< blob_char > )
+    {
+        compare_characteristic( { 0x00, 0x12, 0x00, 0xab, 0x05 }, 0xd0b1 );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE( encryption_tests )
 
     using fixed_value = bluetoe::characteristic<
@@ -322,6 +343,10 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
     struct cstring_holder {
         static constexpr const char* value() {
             return "Hallo";
+        }
+
+        static constexpr std::size_t size() {
+            return 5u;
         }
     };
 

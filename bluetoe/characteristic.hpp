@@ -156,6 +156,7 @@ namespace bluetoe {
      * @sa requires_encryption
      * @sa no_encryption_required
      * @sa may_require_encryption
+     * @sa fixed_blob_value
      */
     template < typename ... Options >
     class characteristic

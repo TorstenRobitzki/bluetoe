@@ -25,6 +25,11 @@ namespace bluetoe {
         {
             return name;
         }
+
+        static constexpr std::size_t size()
+        {
+            return std::strlen( name );
+        }
         /** @endcond */
     };
 
