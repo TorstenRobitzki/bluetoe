@@ -4,6 +4,25 @@
 #include <bluetoe/services/dis.hpp>
 #include <bluetoe/services/hid.hpp>
 
+#include <nrf.h>
+
+static constexpr std::uint32_t suspend_mode_led_pin = 17;
+
+void set_led( std::uint32_t pin, bool on )
+{
+    NRF_GPIO->OUT = on
+        ? NRF_GPIO->OUT & ~( 1 << pin )
+        : NRF_GPIO->OUT | ( 1 << pin );
+}
+
+void init_hardware()
+{
+    NRF_GPIO->PIN_CNF[ suspend_mode_led_pin ] =
+        ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
+        ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+
+}
+
  // shamless stolen from the Nordic examples
 static const std::uint8_t report_map_data[] =
 {
@@ -55,6 +74,12 @@ static const std::uint8_t report_map_data[] =
 class keyboard_handler
 {
 public:
+    keyboard_handler()
+        : mode_( protocol_mode::report )
+    {
+        set_led( suspend_mode_led_pin, false );
+    }
+
     int read_battery_level()
     {
         return 99;
@@ -62,16 +87,19 @@ public:
 
     std::uint8_t protocol_mode_write_handler( std::size_t write_size, const std::uint8_t* value )
     {
-        (void)write_size;
-        (void)value;
+        if ( write_size == 1 && ( *value == protocol_mode::boot || *value == protocol_mode::report ) )
+        {
+            mode_ = static_cast< decltype( mode_ ) >( *value );
+        }
+
         return bluetoe::error_codes::success;
     }
 
-    std::uint8_t protocol_mode_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    std::uint8_t protocol_mode_read_handler( std::size_t, std::uint8_t* out_buffer, std::size_t& out_size )
     {
-        (void)read_size;
-        (void)out_buffer;
-        (void)out_size;
+        *out_buffer = mode_;
+        out_size = 1;
+
         return bluetoe::error_codes::success;
     }
 
@@ -130,14 +158,39 @@ public:
 
     std::uint8_t control_point_write_handler( std::size_t write_size, const std::uint8_t* value )
     {
-        (void)write_size;
-        (void)value;
+        if ( write_size == 1 && ( *value == opcodes::suspend || *value == opcodes::exit_suspend ) )
+        {
+            set_led( suspend_mode_led_pin, *value == opcodes::suspend );
+        }
+
         return bluetoe::error_codes::success;
     }
+
+private:
+    struct protocol_mode
+    {
+        enum protocol_mode_t : std::uint8_t
+        {
+            boot   = 0x00,
+            report = 0x01
+        };
+    };
+
+    struct opcodes
+    {
+        enum : std::uint8_t
+        {
+            suspend      = 0x00,
+            exit_suspend = 0x01
+        };
+    };
+
+    protocol_mode::protocol_mode_t       mode_;
 };
 
 using battery_service = bluetoe::battery_level<
-    bluetoe::bas::handler< keyboard_handler >
+    bluetoe::bas::handler< keyboard_handler >,
+    bluetoe::requires_encryption
 >;
 
 static constexpr char manufacturer_name[] = "Torrox";
@@ -149,7 +202,8 @@ using device_info_service = bluetoe::device_information_service<
     bluetoe::dis::pnp_id<
         bluetoe::dis::vendor_id_source_t::bluetooth, 0x0269,
         0x4711,
-        0x0000 >
+        0x0000 >,
+    bluetoe::requires_encryption
 >;
 
 using hid_service = bluetoe::service<
@@ -191,7 +245,8 @@ using hid_service = bluetoe::service<
         bluetoe::hid::hid_control_point_uuid,
         bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::control_point_write_handler >,
         bluetoe::only_write_without_response
-    >
+    >,
+    bluetoe::requires_encryption
 >;
 
 static const char name[] = "Bluetoe-Keyboard";
@@ -216,6 +271,8 @@ bluetoe::device<
 
 int main()
 {
+    init_hardware();
+
     for ( ;; )
     {
         server.run( gatt );
