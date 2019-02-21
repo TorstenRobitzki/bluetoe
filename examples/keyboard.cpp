@@ -71,6 +71,13 @@ static const std::uint8_t report_map_data[] =
     0xC0              // End Collection (Application)
 };
 
+static const std::uint8_t hid_information[] =
+{
+    0x11, 0x01,         // USB HID Version 1.11
+    0x00,               // Hardware target country.
+    0x02,               // RemoteWake = false; NormallyConnectable = true
+};
+
 class keyboard_handler
 {
 public:
@@ -141,14 +148,6 @@ public:
     }
 
     std::uint8_t boot_output_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
-    {
-        (void)read_size;
-        (void)out_buffer;
-        (void)out_size;
-        return bluetoe::error_codes::success;
-    }
-
-    std::uint8_t hid_information_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
     {
         (void)read_size;
         (void)out_buffer;
@@ -239,7 +238,7 @@ using hid_service = bluetoe::service<
     >,
     bluetoe::characteristic<
         bluetoe::hid::hid_information_uuid,
-        bluetoe::mixin_read_handler< keyboard_handler, &keyboard_handler::hid_information_read_handler >
+        bluetoe::fixed_blob_value< hid_information, sizeof( hid_information ) >
     >,
     bluetoe::characteristic<
         bluetoe::hid::hid_control_point_uuid,
