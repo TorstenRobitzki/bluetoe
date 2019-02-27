@@ -13,6 +13,7 @@
 #include <bluetoe/server_meta_type.hpp>
 #include <bluetoe/meta_types.hpp>
 #include <bluetoe/encryption.hpp>
+#include <bluetoe/descriptor.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -470,6 +471,38 @@ namespace bluetoe {
             &generate_attribute< std::tuple< client_characteristic_configuration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >::access
         };
 
+        /*
+         * User Defined Descriptors
+         */
+        template < std::uint16_t UUID, const std::uint8_t* const Value, std::size_t Size, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server, typename ... Options >
+        struct generate_attribute< std::tuple< descriptor_parameter, descriptor< UUID, Value, Size > >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >
+        {
+            static const attribute attr;
+
+            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            {
+                if ( args.type != attribute_access_type::read )
+                    return attribute_access_result::write_not_permitted;
+
+                if ( args.buffer_offset > Size )
+                    return details::attribute_access_result::invalid_offset;
+
+                const std::size_t read_size = std::min( args.buffer_size, Size - args.buffer_offset );
+
+                std::copy( Value + args.buffer_offset, Value + args.buffer_offset + read_size, args.buffer );
+                args.buffer_size = read_size;
+
+                return attribute_access_result::success;
+            }
+
+        };
+
+        template < std::uint16_t UUID, const std::uint8_t* const Value, std::size_t Size, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server, typename ... Options >
+        constexpr attribute generate_attribute< std::tuple< descriptor_parameter, descriptor< UUID, Value, Size > >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >::attr {
+            UUID,
+            &generate_attribute< std::tuple< descriptor_parameter, descriptor< UUID, Value, Size > >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >::access
+        };
+
         template < typename Parmeters >
         struct are_client_characteristic_configuration_parameter : std::false_type {};
 
@@ -483,7 +516,8 @@ namespace bluetoe {
                     characteristic_declaration_parameter,
                     characteristic_value_declaration_parameter,
                     characteristic_user_description_parameter,
-                    client_characteristic_configuration_parameter
+                    client_characteristic_configuration_parameter,
+                    descriptor_parameter
                 >,
                 CCCDIndices,
                 // force the existens of an characteristic declaration, even without Options with this meta_type
@@ -499,7 +533,10 @@ namespace bluetoe {
             enum { number_of_user_descriptions =
                 count_by_meta_type< characteristic_user_description_parameter, Options... >::count != 0 ? 1 : 0 };
 
-            enum { number_of_attributes = 2 + number_of_client_configs + number_of_user_descriptions };
+            enum { number_of_descriptors =
+                count_by_meta_type< descriptor_parameter, Options...>::count };
+
+            enum { number_of_attributes = 2 + number_of_client_configs + number_of_user_descriptions + number_of_descriptors };
         };
 
         template < typename Characteristic >
