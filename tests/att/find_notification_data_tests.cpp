@@ -255,3 +255,21 @@ BOOST_AUTO_TEST_CASE( cccd_indices_with_some_priorities )
             std::tuple< int_c< 4 >, int_c< 3 >, int_c< 2 >, int_c< 1 >, int_c< 0 > > >::value
     ) );
 }
+
+BOOST_AUTO_TEST_CASE( multiple_characteristics_with_same_uuid )
+{
+    using server = bluetoe::server<
+        bluetoe::service<
+            A,
+            characteristic< A_a, &value_Aa >,
+            characteristic_without_cccd< A_a, &value_Ab >,
+            characteristic_without_cccd< A_a, &value_Ac >
+        >
+    >;
+
+    BOOST_CHECK( (
+        std::is_same<
+            server::cccd_indices,
+            std::tuple< int_c< 0 > > >::value
+    ) );
+}
