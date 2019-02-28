@@ -190,7 +190,6 @@ namespace bluetoe {
     struct write_without_response {
         /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
-            details::client_characteristic_configuration_parameter,
             details::characteristic_parameter_meta_type,
             details::valid_characteristic_option_meta_type {};
         /** @endcond */
@@ -209,7 +208,6 @@ namespace bluetoe {
     struct only_write_without_response {
         /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
-            details::client_characteristic_configuration_parameter,
             details::characteristic_parameter_meta_type,
             details::valid_characteristic_option_meta_type {};
         /** @endcond */
