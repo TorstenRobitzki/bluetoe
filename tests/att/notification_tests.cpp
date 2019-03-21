@@ -678,3 +678,116 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( double_used_uuid )
+
+    std::uint8_t value1 = 1;
+    std::uint8_t value2 = 2;
+
+    using first_char =
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x8C8B >,
+            bluetoe::bind_characteristic_value< std::uint8_t, &value1 >,
+            bluetoe::notify
+        >;
+
+    using second_char =
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x8C8B >,
+            bluetoe::bind_characteristic_value< std::uint8_t, &value2 >
+        >;
+
+    using service =
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x8C8B >,
+            first_char,
+            second_char
+        >;
+
+    using simple_server = bluetoe::server<
+        service,
+        bluetoe::no_gap_service_for_gatt_servers >;
+
+    BOOST_AUTO_TEST_CASE( attribute_numbers )
+    {
+        BOOST_CHECK_EQUAL( std::size_t{ first_char::number_of_attributes }, 3 );
+        BOOST_CHECK_EQUAL( std::size_t{ second_char::number_of_attributes }, 2 );
+        BOOST_CHECK_EQUAL( std::size_t{ service::number_of_attributes }, 6 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( expected_attributes_first_char, test::request_with_reponse< simple_server > )
+    {
+        /*
+         * first characteristic
+         */
+        l2cap_input( {
+            0x0A,                           // Read Request
+            0x02, 0x00                      // Handle
+        } );
+
+        expected_result( {
+            0x0B,                           // Read Response
+            0x1A,                           // Properties (read, write, and notify)
+            0x03, 0x00,                     // Value Handle
+            0x8B, 0x8C                      // UUID
+        } );
+
+        l2cap_input( {
+            0x0A,                           // Read Request
+            0x03, 0x00                      // Value Handle
+        } );
+
+        expected_result( {
+            0x0B,                           // Read Response
+            0x01                            // Value
+        } );
+
+        l2cap_input( {
+            0x0A,                           // Read Request
+            0x04, 0x00                      // CCCD Handle
+        } );
+
+        expected_result( {
+            0x0B,                           // Read Response
+            0x00, 0x00                      // Value
+        } );
+
+        /*
+         * second characteristic
+         */
+        l2cap_input( {
+            0x0A,                           // Read Request
+            0x05, 0x00                      // Handle
+        } );
+
+        expected_result( {
+            0x0B,                           // Read Response
+            0x0A,                           // Properties (read, write)
+            0x06, 0x00,                     // Value Handle
+            0x8B, 0x8C                      // UUID
+        } );
+
+        l2cap_input( {
+            0x0A,                           // Read Request
+            0x06, 0x00                      // Value Handle
+        } );
+
+        expected_result( {
+            0x0B,                           // Read Response
+            0x02                            // Value
+        } );
+
+        l2cap_input( {
+            0x0A,                           // Read Request
+            0x07, 0x00                      // invalid hande
+        } );
+
+        expected_result( {
+            0x01,                           // Error Response
+            0x0A,                           // Request Opcode
+            0x07, 0x00,                     // Handle
+            0x0A                            // Attribute Not Found
+        } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
