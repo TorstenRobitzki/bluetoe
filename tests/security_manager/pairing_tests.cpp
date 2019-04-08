@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
+#include <bluetoe/security_manager.hpp>
 #include "test_sm.hpp"
 #include "test_servers.hpp"
 

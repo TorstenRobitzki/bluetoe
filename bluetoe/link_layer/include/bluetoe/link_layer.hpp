@@ -15,7 +15,7 @@
 #include <bluetoe/meta_types.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/meta_tools.hpp>
-#include <security_manager.hpp>
+#include <bluetoe/security_manager.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/encryption.hpp>
 
