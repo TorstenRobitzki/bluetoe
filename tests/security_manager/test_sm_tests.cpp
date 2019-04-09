@@ -55,6 +55,44 @@ BOOST_FIXTURE_TEST_CASE( c1_test, test::security_functions )
         confirm.begin(), confirm.end(), expected.begin(), expected.end() );
 }
 
+// For example if the 128-bit value r1 is 0x000F0E0D0C0B0A091122334455667788 then r1’ is 0x1122334455667788.
+// If the 128-bit value r2 is 0x010203040506070899AABBCCDDEEFF00 then r2’ is 0x99AABBCCDDEEFF00.
+// For example, if the 64-bit value r1’ is 0x1122334455667788 and r2’ is 0x99AABBCCDDEEFF00 then
+// r’ is 0x112233445566778899AABBCCDDEEFF00.
+// For example if the 128-bit value k is 0x00000000000000000000000000000000
+// and the 128-bit value r' is 0x112233445566778899AABBCCDDEEFF00
+// then the output from the key generation function s1 is 0x9a1fe1f0e8b0f49b5b4216ae796da062.
+BOOST_FIXTURE_TEST_CASE( s1_test, test::security_functions )
+{
+    static const bluetoe::details::uint128_t k = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
+    // r1 = 0x000F0E0D0C0B0A091122334455667788
+    static const bluetoe::details::uint128_t r1 = {
+        0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x00
+    };
+
+    // r2 = 0x010203040506070899AABBCCDDEEFF00
+    static const bluetoe::details::uint128_t r2 = {
+        0x00, 0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99,
+        0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01
+    };
+
+    // 0x9a1fe1f0e8b0f49b5b4216ae796da062
+    static const bluetoe::details::uint128_t expected = {
+        0x62, 0xa0, 0x6d, 0x79, 0xae, 0x16, 0x42, 0x5b,
+        0x9b, 0xf4, 0xb0, 0xe8, 0xf0, 0xe1, 0x1f, 0x9a
+    };
+
+    const bluetoe::details::uint128_t key = s1( k, r1, r2 );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        key.begin(), key.end(), expected.begin(), expected.end() );
+}
+
 BOOST_FIXTURE_TEST_CASE( aes_test, test::security_functions )
 {
     const bluetoe::details::uint128_t key{{
