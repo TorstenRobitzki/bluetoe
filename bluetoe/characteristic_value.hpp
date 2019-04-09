@@ -216,6 +216,9 @@ namespace bluetoe {
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
+                if ( RequiresEncryption && !args.connection_security.is_encrypted )
+                    return details::attribute_access_result::insufficient_authentication;
+
                 if ( args.type == details::attribute_access_type::read )
                 {
                     return characteristic_value_read_access( args, std::integral_constant< bool, has_read_access >() );
@@ -381,6 +384,9 @@ namespace bluetoe {
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
+                if ( RequiresEncryption && !args.connection_security.is_encrypted )
+                    return details::attribute_access_result::insufficient_authentication;
+
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
 
@@ -495,6 +501,9 @@ namespace bluetoe {
                 template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
                 static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )
                 {
+                    if ( RequiresEncryption && !args.connection_security.is_encrypted )
+                        return details::attribute_access_result::insufficient_authentication;
+
                     if ( args.type == attribute_access_type::read )
                     {
                         return static_cast< attribute_access_result >(

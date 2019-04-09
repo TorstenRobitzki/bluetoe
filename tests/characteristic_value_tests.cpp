@@ -8,6 +8,7 @@
 #include "hexdump.hpp"
 #include "test_attribute_access.hpp"
 #include "test_characteristics.hpp"
+#include <boost/mpl/list.hpp>
 
 using cccd_indices = std::tuple<>;
 using suuid = bluetoe::service_uuid16< 0x4711 >;
@@ -302,7 +303,7 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( encryption_tests )
+BOOST_AUTO_TEST_SUITE( unpaired_encryption_tests )
 
     using fixed_value = bluetoe::characteristic<
         bluetoe::requires_encryption,
@@ -310,20 +311,58 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
         bluetoe::fixed_value< std::int8_t, 42 >
     >;
 
-    BOOST_FIXTURE_TEST_CASE( unpaired_encryption_required, access_attributes< fixed_value > )
+    std::uint8_t dummy_value = 42;
+
+    using bound_value = bluetoe::characteristic<
+        bluetoe::requires_encryption,
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::bind_characteristic_value< std::uint8_t, &dummy_value >
+    >;
+
+    struct cstring_holder {
+        static constexpr const char* value() {
+            return "Hallo";
+        }
+    };
+
+    using cstring_value = bluetoe::characteristic<
+        bluetoe::requires_encryption,
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::cstring_wrapper< cstring_holder >
+    >;
+
+    static std::uint8_t test_handler( std::size_t /* read_size */, std::uint8_t* /* out_buffer */, std::size_t& /* out_size */ )
     {
+        return bluetoe::error_codes::success;
+    }
+
+    /*
+     * All other handlers share the same base implementation
+     */
+    using other_handlers = bluetoe::characteristic<
+        bluetoe::requires_encryption,
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::free_read_handler< test_handler >
+    >;
+
+    typedef boost::mpl::list< fixed_value, bound_value, cstring_value, other_handlers > characteristic_types;
+
+    BOOST_AUTO_TEST_CASE_TEMPLATE( authentication_required, char_t, characteristic_types )
+    {
+        access_attributes< char_t > c;
+
         BOOST_CHECK_EQUAL(
-            static_cast< int >( read_characteristic_at( {}, 1, 0, 23 ) ),
+            static_cast< int >( c.read_characteristic_at( {}, 1, 0, 23 ) ),
             static_cast< int >( bluetoe::error_codes::insufficient_authentication ) );
     }
 
-    BOOST_FIXTURE_TEST_CASE( make_sure_access_rights_are_tested_first, access_attributes< fixed_value > )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( make_sure_access_rights_are_tested_first, char_t, characteristic_types )
     {
+        access_attributes< char_t > c;
 
+        BOOST_CHECK_EQUAL(
+            static_cast< int >( c.write_attribute_at( { 0x11 } ) ),
+            static_cast< int >( bluetoe::error_codes::insufficient_authentication ) );
     }
 
-    /* bind_characteristic_value
-    cstring_wrapper
-    other handler
-    */
 BOOST_AUTO_TEST_SUITE_END()
