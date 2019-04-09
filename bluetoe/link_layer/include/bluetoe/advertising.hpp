@@ -89,24 +89,28 @@ namespace link_layer {
                 return result;
             }
 
-            static std::size_t fill_empty_advertising_response_data( const device_address& addr, std::uint8_t* adv_response_buffer )
+            template < typename Layout >
+            static std::size_t fill_empty_advertising_response_data( const device_address& addr, read_buffer adv_response_buffer )
             {
-                adv_response_buffer[ 0 ] = scan_response_pdu_type_code;
+                std::uint16_t header = scan_response_pdu_type_code;
 
                 if ( addr.is_random() )
-                    adv_response_buffer[ 0 ] |= header_txaddr_field;
+                    header |= header_txaddr_field;
 
-                std::size_t adv_response_size = advertising_pdu_header_size + address_length;
+                static constexpr std::size_t empty_ad_size = 2;
+                std::size_t adv_response_size = advertising_pdu_header_size + address_length + empty_ad_size;
+                header |= ( adv_response_size - advertising_pdu_header_size ) << 8;
 
-                std::copy( addr.begin(), addr.end(), &adv_response_buffer[ 2 ] );
+                const auto body = Layout::body( adv_response_buffer );
+
+                std::copy( addr.begin(), addr.end(), body.first );
 
                 // add aditional empty AD to be visible to Nordic sniffer.
                 // Some stacks do not recognize the response without this empty AD.
-                adv_response_buffer[ adv_response_size ] = 0;
-                adv_response_buffer[ adv_response_size + 1 ] = 0;
-                adv_response_size += 2;
+                body.first[ adv_response_size - 2 ] = 0;
+                body.first[ adv_response_size - 1 ] = 0;
 
-                adv_response_buffer[ 1 ] = adv_response_size - advertising_pdu_header_size;
+                Layout::header( adv_response_buffer, header );
 
                 return adv_response_size;
             }
@@ -235,8 +239,10 @@ namespace link_layer {
 
             void fill_advertising_response_data()
             {
-                adv_response_size_ = fill_empty_advertising_response_data(
-                    link_layer().local_address(), advertising_response_buffer().buffer );
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                adv_response_size_ = fill_empty_advertising_response_data< layout_t >(
+                    link_layer().local_address(), advertising_response_buffer() );
             }
 
             read_buffer advertising_buffer()
@@ -537,8 +543,10 @@ namespace link_layer {
 
             void fill_advertising_response_data()
             {
-                adv_response_size_ = fill_empty_advertising_response_data(
-                    link_layer().local_address(), advertising_response_buffer().buffer );
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                adv_response_size_ = fill_empty_advertising_response_data< layout_t >(
+                    link_layer().local_address(), advertising_response_buffer() );
             }
 
             read_buffer advertising_buffer()
