@@ -8,6 +8,11 @@
 namespace bluetoe {
 namespace details {
 
+    /**
+     * @brief somehow stronger typed pointer to the beginning of the array where client configurations are stored.
+     *
+     * In opposite to client_characteristic_configurations<>, this class is not a template.
+     */
     class client_characteristic_configuration
     {
     public:
