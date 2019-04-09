@@ -199,6 +199,17 @@ namespace link_layer {
          */
         bool radio_is_scan_request_in_filter( const device_address& addr ) const;
     };
+        /**
+         * @brief start the encryption after the next connection event.
+         */
+        void start_encryption();
+
+        /**
+         * @brief stop encryption after the next connection event.
+         */
+        void stop_encryption();
+
+    };
 }
 
 }

@@ -332,6 +332,14 @@ namespace test {
     public:
         static constexpr bool hardware_supports_encryption = true;
 
+        radio_with_encryption()
+            : key_( { { 0x00 } } )
+            , skdm_( 0u )
+            , ivm_( 0u )
+            , encryption_started_( false )
+        {
+        }
+
         // Security functions
         bluetoe::details::uint128_t create_srand()
         {
@@ -361,6 +369,53 @@ namespace test {
         {
             return stk;
         }
+
+        std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t k, std::uint64_t skdm, std::uint32_t ivm )
+        {
+            skdm_ = skdm;
+            ivm_  = ivm;
+
+            key_ = k;
+
+            return { 0x3fac22107855aa56ul, 0x78563412 };
+        }
+
+        void start_encryption()
+        {
+            encryption_started_ = true;
+        }
+
+        void stop_encryption()
+        {
+            encryption_started_ = false;
+        }
+
+        // access to data provided for testing
+        bluetoe::details::uint128_t encryption_key() const
+        {
+            return key_;
+        }
+
+        std::uint64_t skdm() const
+        {
+            return skdm_;
+        }
+
+        std::uint32_t ivm() const
+        {
+            return ivm_;
+        }
+
+        bool encryption_started() const
+        {
+            return encryption_started_;
+        }
+
+    private:
+        bluetoe::details::uint128_t key_;
+        std::uint64_t               skdm_;
+        std::uint32_t               ivm_;
+        bool                        encryption_started_;
     };
 
     // implementation
@@ -472,7 +527,6 @@ namespace test {
             assert( count + 1 >= advertised_data_.size() + connection_events_.size() );
 
             new_scheduling_added = advertised_data_.size() + connection_events_.size() > count;
-
         } while ( now_ < eos_ && new_scheduling_added && wake_ups_ == 0 );
 
         if ( wake_ups_ )

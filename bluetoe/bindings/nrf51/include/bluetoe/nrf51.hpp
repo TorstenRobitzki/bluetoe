@@ -131,6 +131,8 @@ namespace bluetoe
                 bluetoe::link_layer::delta_time             end_receive,
                 bluetoe::link_layer::delta_time             connection_interval );
 
+            static constexpr bool hardware_supports_encryption = false;
+
         private:
             using buffer = bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack > >;
 
@@ -175,6 +177,7 @@ namespace bluetoe
             {
                 return static_cast< const CallBack* >( this )->is_scan_request_in_filter( addr );
             }
+
         };
 
         // implementation
