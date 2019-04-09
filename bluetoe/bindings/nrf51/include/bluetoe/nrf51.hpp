@@ -45,7 +45,7 @@ namespace bluetoe
                 const std::uint32_t context_;
             };
 
-            scheduled_radio_base( adv_callbacks&, bool encryption_possible );
+            scheduled_radio_base( adv_callbacks&, std::uint32_t encrypted_area );
             explicit scheduled_radio_base( adv_callbacks& );
 
             void schedule_advertisment(
@@ -68,13 +68,16 @@ namespace bluetoe
 
             static constexpr bool hardware_supports_encryption = false;
 
-        protected:
-            bluetoe::link_layer::delta_time start_connection_event_impl(
+            bluetoe::link_layer::delta_time start_connection_event(
                 unsigned                        channel,
                 bluetoe::link_layer::delta_time start_receive,
                 bluetoe::link_layer::delta_time end_receive,
-                const link_layer::read_buffer&  receive_buffer,
-                bool                            encrypted );
+                const link_layer::read_buffer&  receive_buffer );
+
+        protected:
+
+            void configure_encryption( bool receive, bool transmit );
+
         private:
 
             friend void ::RADIO_IRQHandler(void);
@@ -118,38 +121,16 @@ namespace bluetoe
 
             link_layer::read_buffer         receive_buffer_;
             link_layer::write_buffer        response_data_;
-            std::uint8_t                    empty_receive_[ 2 ];
-        };
-
-
-        class scheduled_radio_base_without_encryption_base : public scheduled_radio_base
-        {
-        protected:
-            scheduled_radio_base_without_encryption_base( adv_callbacks& cbs ) : scheduled_radio_base( cbs ) {}
-
-            bluetoe::link_layer::delta_time start_connection_event(
-                unsigned                        channel,
-                bluetoe::link_layer::delta_time start_receive,
-                bluetoe::link_layer::delta_time end_receive,
-                const link_layer::read_buffer&  receive_buffer )
-            {
-                return this->start_connection_event_impl( channel, start_receive, end_receive, receive_buffer, false );
-            }
+            std::uint8_t                    empty_receive_[ 3 ];
+            bool                            receive_encrypted_;
+            bool                            transmit_encrypted_;
+            std::uint32_t                   encrypted_area_;
         };
 
         class scheduled_radio_base_with_encryption_base : public scheduled_radio_base
         {
         protected:
             scheduled_radio_base_with_encryption_base( adv_callbacks& cbs, std::uint32_t scratch_area, std::uint32_t encrypted_area );
-
-            bluetoe::link_layer::delta_time start_connection_event(
-                unsigned                        channel,
-                bluetoe::link_layer::delta_time start_receive,
-                bluetoe::link_layer::delta_time end_receive,
-                const link_layer::read_buffer&  receive_buffer )
-            {
-                return this->start_connection_event_impl( channel, start_receive, end_receive, receive_buffer, encrypted_ );
-            }
 
         public:
             static constexpr bool hardware_supports_encryption = true;
@@ -171,13 +152,10 @@ namespace bluetoe
 
             std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
 
-            void start_encryption();
-
-            void stop_encryption();
-
-        private:
-            std::uint32_t   encrypted_area_;
-            bool            encrypted_;
+            void start_receive_encrypted();
+            void start_transmit_encrypted();
+            void stop_receive_encrypted();
+            void stop_transmit_encrypted();
         };
 
         /*
@@ -301,7 +279,7 @@ namespace bluetoe
     using nrf51_without_encryption = link_layer::link_layer<
         Server,
         nrf51_details::template scheduled_radio_factory<
-            nrf51_details::scheduled_radio_base_without_encryption_base
+            nrf51_details::scheduled_radio_base
         >::scheduled_radio,
         Options... >;
 

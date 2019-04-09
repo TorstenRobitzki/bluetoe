@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdint>
 #include <algorithm>
+#include <cstring>
 
 /*
  * Compile this with BLUETOE_NRF51_RADIO_DEBUG defined to enable debugging
@@ -147,7 +148,7 @@ namespace nrf51_details {
 #   endif
 
     /*
-     * Frequency correction if NRF_FICR_Type has a OVERRIDEEN field
+     * Frequency correction if NRF_FICR_Type has an OVERRIDEEN field
      */
     template < typename F, typename R >
     static auto override_correction(F* ficr, R* radio) -> decltype(F::OVERRIDEEN)
@@ -260,7 +261,7 @@ namespace nrf51_details {
         debug_leave_critical_section();
     }
 
-    scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs, bool encryption_possible )
+    scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs, std::uint32_t encrypted_area )
         : callbacks_( cbs )
         , timeout_( false )
         , received_( false )
@@ -268,6 +269,9 @@ namespace nrf51_details {
         , end_evt_( false )
         , wake_up_( 0 )
         , state_( state::idle )
+        , receive_encrypted_( false )
+        , transmit_encrypted_( false )
+        , encrypted_area_( encrypted_area )
     {
         // start high freuquence clock source if not done yet
         if ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
@@ -279,7 +283,7 @@ namespace nrf51_details {
         }
 
         init_debug();
-        init_radio( encryption_possible );
+        init_radio( encrypted_area_ != 0 );
         init_timer();
 
         instance = this;
@@ -497,14 +501,21 @@ namespace nrf51_details {
     {
     }
 
-    link_layer::delta_time scheduled_radio_base::start_connection_event_impl(
+    void scheduled_radio_base::configure_encryption( bool receive, bool transmit )
+    {
+        receive_encrypted_ = receive;
+        transmit_encrypted_ = transmit;
+    }
+
+    link_layer::delta_time scheduled_radio_base::start_connection_event(
         unsigned                        channel,
         bluetoe::link_layer::delta_time start_receive,
         bluetoe::link_layer::delta_time end_receive,
-        const link_layer::read_buffer&  receive_buffer,
-        bool                            encrypted )
+        const link_layer::read_buffer&  receive_buffer )
     {
-        while ((NRF_RADIO->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled);
+        while ((NRF_RADIO->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled)
+            ;
+
         assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
         assert( state_ == state::idle );
         assert( receive_buffer.buffer && receive_buffer.size >= 2u || receive_buffer.empty() );
@@ -517,12 +528,17 @@ namespace nrf51_details {
 
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
-        NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer.size << RADIO_PCNF1_MAXLEN_Pos );
+        NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
-        if ( encrypted )
+        if ( receive_encrypted_ )
         {
-            nrf_ccm->OUTPTR = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
-            nrf_ccm->INPTR  = nrf_radio->PACKETPTR;
+            nrf_ccm->EVENTS_ENDKSGEN = 0;
+            nrf_ccm->EVENTS_ENDCRYPT = 0;
+            nrf_ccm->EVENTS_ERROR    = 0;
+
+            nrf_radio->PACKETPTR = encrypted_area_;
+            nrf_ccm->OUTPTR      = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
+            nrf_ccm->INPTR       = encrypted_area_;
 
             nrf_ccm->MODE   =
                   ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
@@ -530,7 +546,7 @@ namespace nrf51_details {
         }
         else
         {
-            nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
+            nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
         }
 
         NRF_RADIO->INTENCLR    = 0xffffffff;
@@ -551,7 +567,7 @@ namespace nrf51_details {
         // - when the PDU was receieved, the timer value is captured in CC[ 2 ]        (radio_address_capture1_ppi_channel)
         // - when a PDU is received, the radio is stopped                              (RADIO_SHORTS_END_DISABLE_Msk)
         // - if no PDU is received, and the timer reaches CC[ 1 ], the radio is stopped(compare1_disable_ppi_channel)
-        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+        nrf_radio->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
         nrf_ccm->SHORTS        = 0;
 
         NRF_PPI->CHENCLR =
@@ -567,10 +583,10 @@ namespace nrf51_details {
             | ( 1 << compare1_disable_ppi_channel )
             | ( 1 << radio_end_capture2_ppi_channel );
 
-        if ( encrypted )
+        if ( receive_encrypted_ )
             NRF_PPI->CHENSET = ( 1 << radio_ready_ccm_ksgen ) | ( 1 << radio_address_ccm_crypt );
 
-        NRF_RADIO->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+        nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
         nrf_timer->CC[ 0 ] = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
         nrf_timer->CC[ 1 ] = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
@@ -582,23 +598,22 @@ namespace nrf51_details {
 
     void scheduled_radio_base::evt_radio_interrupt()
     {
-        if ( NRF_RADIO->EVENTS_DISABLED )
+        if ( nrf_radio->EVENTS_DISABLED )
         {
-            NRF_RADIO->EVENTS_DISABLED = 0;
+            nrf_radio->EVENTS_DISABLED = 0;
 
             if ( state_ == state::evt_wait_connect )
             {
                 // no need to disable the radio via the timer anymore:
                 NRF_PPI->CHENCLR = ( 1 << radio_end_capture2_ppi_channel ) | ( 1 << compare1_disable_ppi_channel );
                 // Transmission has been startet already, make sure, radio gets disabled
-                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
-
-                const bool encrypted = nrf_ccm->ENABLE & CCM_ENABLE_ENABLE_Msk;
+                nrf_radio->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
                 const bool timeout   = nrf_timer->EVENTS_COMPARE[ 1 ];
-                const bool crc_error = !timeout && ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
-                const bool mic_error = encrypted && ( nrf_ccm->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == CCM_MICSTATUS_MICSTATUS_CheckFailed;
-                const bool error     = timeout || crc_error || mic_error;
+                const bool crc_error = !timeout && ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
+                const bool mic_error = receive_encrypted_ && receive_buffer_.buffer[ 1 ] != 0 && ( nrf_ccm->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == CCM_MICSTATUS_MICSTATUS_CheckFailed;
+                const bool bus_error = receive_encrypted_ && nrf_ccm->EVENTS_ERROR;
+                const bool error     = timeout || crc_error || mic_error || bus_error;
 
                 if ( !error )
                 {
@@ -609,12 +624,14 @@ namespace nrf51_details {
 
                     const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
 
-                    if ( encrypted )
+                    if ( transmit_encrypted_ )
                     {
-                        nrf_ccm->MODE =
-                              ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
+                        nrf_radio->PACKETPTR = encrypted_area_;
+
+                        nrf_ccm->MODE   =
+                              ( CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos )
                             | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
-                        nrf_ccm->OUTPTR = NRF_RADIO->PACKETPTR;
+                        nrf_ccm->OUTPTR = encrypted_area_;
                         nrf_ccm->INPTR  = reinterpret_cast< std::uint32_t >( trans.buffer );
 
                         NRF_PPI->CHENCLR = ( 1 << radio_address_ccm_crypt );
@@ -622,10 +639,10 @@ namespace nrf51_details {
                     }
                     else
                     {
-                        NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
+                        nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
                     }
 
-                    NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
+                    nrf_radio->PCNF1       = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
 
                     state_   = state::evt_transmiting_closing;
 
@@ -639,18 +656,18 @@ namespace nrf51_details {
                 }
                 else
                 {
+                    nrf_ccm->EVENTS_ERROR    = 0;
                     NRF_RADIO->SHORTS        = 0;
                     NRF_RADIO->TASKS_DISABLE = 1;
                     state_       = state::idle;
                     evt_timeout_ = true;
+
+                    if ( timeout )
+                        debug_timeout();
+
+                    if ( crc_error )
+                        debug_crc_error();
                 }
-
-                if ( timeout )
-                    debug_timeout();
-
-                if ( crc_error )
-                    debug_crc_error();
-
             }
             else if ( state_ == state::evt_transmiting_closing )
             {
@@ -867,8 +884,7 @@ namespace nrf51_details {
 
     scheduled_radio_base_with_encryption_base::scheduled_radio_base_with_encryption_base(
         adv_callbacks& cbs, std::uint32_t scratch_area, std::uint32_t encrypted_area )
-        : scheduled_radio_base( cbs, true )
-        , encrypted_area_( encrypted_area )
+        : scheduled_radio_base( cbs, encrypted_area )
     {
         nrf_random->CONFIG = RNG_CONFIG_DERCEN_Msk;
         nrf_random->SHORTS = RNG_SHORTS_VALRDY_STOP_Msk;
@@ -933,21 +949,30 @@ namespace nrf51_details {
             aes( key, session_descriminator),
             static_cast< std::uint64_t >( ivm ) | ( static_cast< std::uint64_t >( ivs ) << 32 ) );
 
-        nrf_ccm->ENABLE         = CCM_ENABLE_ENABLE_Msk;
-
         return { skds, ivs };
     }
 
-    void scheduled_radio_base_with_encryption_base::start_encryption()
+    void scheduled_radio_base_with_encryption_base::start_receive_encrypted()
     {
-        encrypted_ = true;
-        nrf_radio->PACKETPTR = encrypted_area_;
+        nrf_ccm->ENABLE         = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
+        configure_encryption( true, false );
     }
 
-    void scheduled_radio_base_with_encryption_base::stop_encryption()
+    void scheduled_radio_base_with_encryption_base::start_transmit_encrypted()
     {
-        encrypted_ = false;
-        nrf_ccm->ENABLE = nrf_ccm->ENABLE & CCM_ENABLE_ENABLE_Msk;
+        configure_encryption( true, true );
+    }
+
+    void scheduled_radio_base_with_encryption_base::stop_receive_encrypted()
+    {
+        configure_encryption( false, true );
+    }
+
+    void scheduled_radio_base_with_encryption_base::stop_transmit_encrypted()
+    {
+        configure_encryption( false, false );
+        std::memset( &ccm_data_struct, 0, sizeof( ccm_data_struct ) );
+        nrf_ccm->ENABLE = nrf_ccm->ENABLE & ~CCM_ENABLE_ENABLE_Msk;
     }
 
 } // namespace nrf51_details
