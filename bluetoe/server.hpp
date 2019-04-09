@@ -218,7 +218,8 @@ namespace bluetoe {
         /**
          * @brief function to be called by a L2CAP implementation to provide the input from the L2CAP layer and the data assiziate with the connection
          */
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
+        template < typename ConnectionData >
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
         /**
          * @brief returns the advertising data to the L2CAP implementation
@@ -280,16 +281,23 @@ namespace bluetoe {
         bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
         bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
 
-        void handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
-        void handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
+        template < typename ConnectionData >
+        void handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
+        void handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        void handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        template < typename ConnectionData >
+        void handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
+        template < typename ConnectionData >
+        void handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
+        template < typename ConnectionData >
+        void handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
+        void handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        template < typename ConnectionData >
+        void handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
+        template < typename ConnectionData >
+        void handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
+        template < typename ConnectionData >
+        void handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
         void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
         template < typename WriteQueue >
@@ -373,7 +381,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    template < typename ConnectionData >
+    void server< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         // clip the output size to the negotiated mtu
         out_size = std::min< std::size_t >( out_size, connection.negotiated_mtu() );
@@ -389,10 +398,10 @@ namespace bluetoe {
             handle_exchange_mtu_request( input, in_size, output, out_size, connection );
             break;
         case details::att_opcodes::find_information_request:
-            handle_find_information_request( input, in_size, output, out_size, connection );
+            handle_find_information_request( input, in_size, output, out_size );
             break;
         case details::att_opcodes::find_by_type_value_request:
-            handle_find_by_type_value_request( input, in_size, output, out_size, connection );
+            handle_find_by_type_value_request( input, in_size, output, out_size );
             break;
         case details::att_opcodes::read_by_type_request:
             handle_read_by_type_request( input, in_size, output, out_size, connection );
@@ -404,7 +413,7 @@ namespace bluetoe {
             handle_read_blob_request( input, in_size, output, out_size, connection );
             break;
         case details::att_opcodes::read_by_group_type_request:
-            handle_read_by_group_type_request( input, in_size, output, out_size, connection );
+            handle_read_by_group_type_request( input, in_size, output, out_size );
             break;
         case details::att_opcodes::read_multiple_request:
             handle_read_multiple_request( input, in_size, output, out_size, connection );
@@ -639,7 +648,7 @@ namespace bluetoe {
         if ( connection.client_configurations().flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled &&
              out_size >= 3 )
         {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
             auto attr = attribute_at( data.handle() - 1 );
             auto rc   = attr.access( read, data.handle() );
 
@@ -672,7 +681,7 @@ namespace bluetoe {
         if ( connection.client_configurations().flags( details.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled &&
              out_size >= 3 )
         {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), this );
+            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
             auto attr = attribute_at( details.handle() - 1 );
             auto rc   = attr.access( read, details.handle() );
 
@@ -801,7 +810,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    template < typename ConnectionData >
+    void server< Options... >::handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         if ( in_size != 3 )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
@@ -820,7 +830,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    void server< Options... >::handle_find_information_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         std::uint16_t starting_handle, ending_handle;
 
@@ -908,7 +918,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    void server< Options... >::handle_find_by_type_value_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         std::uint16_t starting_handle, ending_handle;
 
@@ -934,14 +944,15 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    template < typename ConnectionData >
+    void server< Options... >::handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t handle;
 
         if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
             return;
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), this );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -956,7 +967,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    template < typename ConnectionData >
+    void server< Options... >::handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t handle;
 
@@ -965,7 +977,7 @@ namespace bluetoe {
 
         const std::uint16_t offset = details::read_16bit( input + 3 );
 
-        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations(), this );
+        auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations(), connection.security_attributes(), this );
         auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -996,7 +1008,7 @@ namespace bluetoe {
                 {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
-                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_, &server_ );
+                    auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_, security_, &server_ );
                     auto rc   = attr.access( read, handle );
 
                     if ( rc == details::attribute_access_result::success )
@@ -1018,13 +1030,17 @@ namespace bluetoe {
                 }
             }
 
-            collect_attributes( std::uint8_t* begin, std::uint8_t* end, const details::client_characteristic_configuration& config, Server& server )
+            collect_attributes( std::uint8_t* begin, std::uint8_t* end,
+                const details::client_characteristic_configuration& config,
+                const connection_security_attributes& security,
+                Server& server )
                 : begin_( begin )
                 , current_( begin )
                 , end_( end )
                 , size_( 0 )
                 , first_( true )
                 , config_( config )
+                , security_( security )
                 , server_( server )
             {
             }
@@ -1050,19 +1066,22 @@ namespace bluetoe {
             std::uint8_t    size_;
             bool            first_;
             details::client_characteristic_configuration config_;
+            connection_security_attributes security_;
             Server&         server_;
         };
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    template < typename ConnectionData >
+    void server< Options... >::handle_read_by_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t starting_handle, ending_handle;
 
         if ( !check_size_and_handle_range< 5 + 2, 5 + 16 >( input, in_size, output, out_size, starting_handle, ending_handle ) )
              return;
 
-        details::collect_attributes< server< Options... > > iterator( output + 2, output + out_size, connection.client_configurations(), *this );
+        details::collect_attributes< server< Options... > > iterator( output + 2, output + out_size,
+            connection.client_configurations(), connection.security_attributes(), *this );
 
         all_attributes( starting_handle, ending_handle, iterator, details::uuid_filter( input + 5, in_size == 5 + 16 ) );
 
@@ -1128,7 +1147,7 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& )
+    void server< Options... >::handle_read_by_group_type_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
     {
         std::uint16_t starting_handle, ending_handle;
 
@@ -1158,7 +1177,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* const output, std::size_t& out_size, connection_data& cc )
+    template < typename ConnectionData >
+    void server< Options... >::handle_read_multiple_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* const output, std::size_t& out_size, ConnectionData& cc )
     {
         if ( in_size < 5 || in_size % 2 == 0 )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
@@ -1183,7 +1203,7 @@ namespace bluetoe {
             if ( handle > number_of_attributes )
                 return error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
 
-            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations(), this );
+            auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations(), cc.security_attributes(), this );
             auto rc   = attribute_at( handle - 1 ).access( read, handle );
 
             if ( rc == details::attribute_access_result::success )
@@ -1201,7 +1221,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& connection )
+    template < typename ConnectionData >
+    void server< Options... >::handle_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         if ( in_size < 3 )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
@@ -1211,7 +1232,7 @@ namespace bluetoe {
         if ( !check_handle( input, in_size, output, out_size, handle ) )
             return;
 
-        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations(), this );
+        auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations(), connection.security_attributes(), this );
         auto rc    = attribute_at( handle - 1 ).access( write, handle );
 
         if ( rc == details::attribute_access_result::success )
@@ -1230,7 +1251,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& cc )
+    template < typename ConnectionData >
+    void server< Options... >::handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& cc )
     {
         // just like a write request
         handle_write_request( input, in_size, output, out_size, cc );
@@ -1302,7 +1324,8 @@ namespace bluetoe {
                 const uint16_t handle = details::read_handle( queue.first );
                 const uint16_t offset = details::read_16bit( queue.first + 2 );
 
-                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second, offset, client.client_configurations(), this );
+                auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second,
+                                offset, client.client_configurations(), client.security_attributes(), this );
                 auto rc    = attribute_at( handle -1 ).access( write, handle );
 
                 if ( rc != details::attribute_access_result::success )
@@ -1431,7 +1454,7 @@ namespace bluetoe {
     template < typename ... Options >
     void server< Options... >::write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration )
     {
-        // this is a little bit tricky: To save memory, details::attribute contains only 16 bit uuids as all
+        // this is a little bit tricky: To save memory, details::attribute contains only 16 bit uuids at all,
         // but the "Characteristic Value Declaration" contain 16 bit uuids. However, as the "Characteristic Value Declaration"
         // "is the first Attribute after the characteristic declaration", the attribute just in front of the
         // "Characteristic Value Declaration" contains the the 128 bit uuid.

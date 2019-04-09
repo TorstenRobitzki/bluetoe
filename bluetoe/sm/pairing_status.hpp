@@ -14,5 +14,34 @@ namespace bluetoe {
         authenticated_key,
         authenticated_key_with_secure_connection
     };
+
+    /**
+     * @brief the basic security attributes of a connection
+     */
+    struct connection_security_attributes
+    {
+        /**
+         * @brief true, if the connection is currently encrypted
+         */
+        bool                    is_encrypted;
+
+        /**
+         * @brief method that was used to exchange the long term key that is used in the connection
+         */
+        device_pairing_status   pairing_status;
+
+        constexpr connection_security_attributes()
+            : is_encrypted( false )
+            , pairing_status( device_pairing_status::no_key )
+        {
+        }
+
+        constexpr connection_security_attributes( bool encrypted, device_pairing_status status )
+            : is_encrypted( encrypted )
+            , pairing_status( status )
+        {
+        }
+
+    };
 }
 #endif

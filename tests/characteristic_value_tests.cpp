@@ -1,5 +1,6 @@
 #include <bluetoe/characteristic.hpp>
 #include <bluetoe/service.hpp>
+#include <bluetoe/encryption.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 
 #define BOOST_TEST_MODULE
@@ -10,7 +11,8 @@
 
 using cccd_indices = std::tuple<>;
 using suuid = bluetoe::service_uuid16< 0x4711 >;
-struct srv;
+
+using srv = bluetoe::server<>;
 
 BOOST_AUTO_TEST_SUITE( characteristic_value_access )
 
@@ -199,7 +201,10 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
     BOOST_FIXTURE_TEST_CASE( can_write_zero_bytes_at_the_end, writable_value_char )
     {
         std::uint8_t c;
-        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c, 4, bluetoe::details::client_characteristic_configuration(), nullptr );
+        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c, 4,
+            bluetoe::details::client_characteristic_configuration(),
+            bluetoe::connection_security_attributes(),
+            nullptr );
         auto rc    = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 ).access( write, 1 );
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
     }
@@ -207,7 +212,10 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
     BOOST_FIXTURE_TEST_CASE( can_write_last_byte, writable_value_char )
     {
         std::uint8_t c = 0xff;
-        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c + 1, 3, bluetoe::details::client_characteristic_configuration(), nullptr );
+        auto write = bluetoe::details::attribute_access_arguments::write( &c, &c + 1, 3,
+            bluetoe::details::client_characteristic_configuration(),
+            bluetoe::connection_security_attributes(),
+            nullptr );
         auto rc    = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 ).access( write, 1 );
 
         BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
@@ -292,4 +300,30 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
         attribute_by_type( 0x2902 );
     }
 
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( encryption_tests )
+
+    using fixed_value = bluetoe::characteristic<
+        bluetoe::requires_encryption,
+        bluetoe::characteristic_uuid16< 0xD0B1 >,
+        bluetoe::fixed_value< std::int8_t, 42 >
+    >;
+
+    BOOST_FIXTURE_TEST_CASE( unpaired_encryption_required, access_attributes< fixed_value > )
+    {
+        BOOST_CHECK_EQUAL(
+            static_cast< int >( read_characteristic_at( {}, 1, 0, 23 ) ),
+            static_cast< int >( bluetoe::error_codes::insufficient_authentication ) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( make_sure_access_rights_are_tested_first, access_attributes< fixed_value > )
+    {
+
+    }
+
+    /* bind_characteristic_value
+    cstring_wrapper
+    other handler
+    */
 BOOST_AUTO_TEST_SUITE_END()

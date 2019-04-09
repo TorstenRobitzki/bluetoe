@@ -2,8 +2,9 @@
 #define BLUETOE_TESTS_TEST_ATTRIBUTE_ACCESS_HPP
 
 #include <bluetoe/attribute.hpp>
+#include <bluetoe/server.hpp>
 
-template < typename Char >
+template < typename Char, typename Service = bluetoe::service< bluetoe::service_uuid16< 0x4711 >, Char >, typename Server = bluetoe::server< Service > >
 class access_attributes : public Char, public bluetoe::details::client_characteristic_configurations< Char::number_of_client_configs >
 {
 public:
@@ -13,7 +14,7 @@ public:
     {
         for ( int index = 0; index != this->number_of_attributes; ++index )
         {
-            const bluetoe::details::attribute value_attribute = this->template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( index );
+            const bluetoe::details::attribute value_attribute = attribute_at_impl( index );
 
             if ( value_attribute.uuid == type )
             {
@@ -28,7 +29,7 @@ public:
     {
         for ( int index = 0; index != this->number_of_attributes; ++index )
         {
-            const bluetoe::details::attribute value_attribute = this->template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( index );
+            const bluetoe::details::attribute value_attribute = attribute_at_impl( index );
 
             if ( value_attribute.uuid == type )
             {
@@ -45,7 +46,7 @@ public:
     {
         BOOST_REQUIRE(
             bluetoe::details::attribute_access_result::success
-                == read_characteristic_impl( input, this->template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( index ) ) );
+                == read_characteristic_impl( input, attribute_at_impl( index ) ) );
     }
 
     void compare_characteristic( const std::initializer_list< std::uint8_t >& input, std::uint16_t type )
@@ -59,15 +60,18 @@ public:
     bluetoe::details::attribute_access_result read_characteristic_at( const std::initializer_list< std::uint8_t >& input,
         std::size_t index, std::size_t offset, std::size_t buffer_size )
     {
-        return read_characteristic_impl( input, this->template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( index ), offset, buffer_size );
+        return read_characteristic_impl( input, attribute_at_impl( index ), offset, buffer_size );
     }
 
     bluetoe::details::attribute_access_result write_attribute_at( const std::uint8_t* begin, const std::uint8_t* end, std::size_t index = 1, std::size_t offset = 0 )
     {
         auto write = bluetoe::details::attribute_access_arguments::write(
-            begin, end, offset, bluetoe::details::client_characteristic_configuration(), nullptr );
+            begin, end, offset,
+            bluetoe::details::client_characteristic_configuration(),
+            bluetoe::connection_security_attributes(),
+            nullptr );
 
-        return this->template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( index ).access( write, index );
+        return attribute_at_impl( index ).access( write, index );
     }
 
     bluetoe::details::attribute_access_result write_attribute_at( const std::initializer_list< std::uint8_t >& input, std::size_t index = 1, std::size_t offset = 0 )
@@ -76,19 +80,28 @@ public:
     }
 
 private:
+    bluetoe::details::attribute attribute_at_impl( std::size_t idx )
+    {
+        return this->template attribute_at< cccd_indices, 0, Service, Server >( idx );
+    }
+
     bluetoe::details::attribute_access_result read_characteristic_impl(
         const std::initializer_list< std::uint8_t >& input,
         const bluetoe::details::attribute& value_attribute,
         std::size_t offset = 0,
         std::size_t buffer_size = 100 )
     {
-        const std::vector< std::uint8_t > values( input );
-
         std::uint8_t buffer[ 1000 ];
-        auto read = bluetoe::details::attribute_access_arguments::read( &buffer[ 0 ], &buffer[ buffer_size ], offset, this->client_configurations(), nullptr );
+        auto read = bluetoe::details::attribute_access_arguments::read(
+            &buffer[ 0 ], &buffer[ buffer_size ], offset,
+            this->client_configurations(),
+            bluetoe::connection_security_attributes(),
+            nullptr );
 
         auto result = value_attribute.access( read, 1 );
-        BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );
+
+        if ( result == bluetoe::details::attribute_access_result::success )
+            BOOST_REQUIRE_EQUAL_COLLECTIONS( input.begin(), input.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );
 
         return result;
     }

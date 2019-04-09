@@ -291,7 +291,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
-    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& sever )
+    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server )
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
 
@@ -304,7 +304,10 @@ namespace bluetoe {
 
             const details::attribute primary_service = attribute_at< CCCDIndices, ClientCharacteristicIndex, ServiceList, Server >( 0 );
 
-            auto read = details::attribute_access_arguments::read( output, end, 0, details::client_characteristic_configuration(), &sever );
+            auto read = details::attribute_access_arguments::read( output, end, 0,
+                            details::client_characteristic_configuration(),
+                            connection_security_attributes(),
+                            &server );
 
             if ( primary_service.access( read, 1 ) == details::attribute_access_result::success )
             {

@@ -12,6 +12,7 @@
 #include <bluetoe/attribute_generator.hpp>
 #include <bluetoe/server_meta_type.hpp>
 #include <bluetoe/meta_types.hpp>
+#include <bluetoe/encryption.hpp>
 
 #include <cstddef>
 #include <cassert>
@@ -340,6 +341,8 @@ namespace bluetoe {
         {
             // the characterist value has two configurable aspects: the uuid and the value. The value is defined in the charcteristic
             typedef typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid      uuid;
+            using char_t = characteristic< Options... >;
+            static constexpr bool requires_encryption = characteristic_requires_encryption< char_t, Service, Server >::value;
 
             static const attribute attr;
         };
@@ -349,7 +352,7 @@ namespace bluetoe {
             uuid::is_128bit
                 ? bits( details::gatt_uuids::internal_128bit_uuid )
                 : uuid::as_16bit(),
-            &characteristic< Options... >::value_type::template characteristic_value_access< Server, ClientCharacteristicIndex >
+            &characteristic< Options... >::value_type::template characteristic_value_access< Server, ClientCharacteristicIndex, requires_encryption >
         };
 
         /*

@@ -213,7 +213,7 @@ namespace bluetoe {
             static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
-            template < class Server, std::size_t ClientCharacteristicIndex >
+            template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
                 if ( args.type == details::attribute_access_type::read )
@@ -297,9 +297,12 @@ namespace bluetoe {
             static constexpr bool has_notification = details::has_option< notify, Options... >::value;
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
-            template < class Server, std::size_t ClientCharacteristicIndex  >
+            template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
+                if ( RequiresEncryption && !args.connection_security.is_encrypted )
+                    return details::attribute_access_result::insufficient_authentication;
+
                 if ( !has_read_access )
                     return details::attribute_access_result::read_not_permitted;
 
@@ -375,7 +378,7 @@ namespace bluetoe {
             static constexpr bool has_notification = false;
             static constexpr bool has_indication   = false;
 
-            template < class Server, std::size_t ClientCharacteristicIndex  >
+            template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
             static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
             {
                 if ( args.type != details::attribute_access_type::read )
@@ -489,7 +492,7 @@ namespace bluetoe {
 
                 static_assert( has_read_access || has_write_access || has_notification || has_indication, "Ups!");
 
-                template < class Server, std::size_t ClientCharacteristicIndex >
+                template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
                 static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )
                 {
                     if ( args.type == attribute_access_type::read )
