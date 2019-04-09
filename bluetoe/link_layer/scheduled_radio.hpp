@@ -298,6 +298,57 @@ namespace link_layer {
         void stop_encryption();
 
     };
+
+    /**
+     * @brief type that provides types and functions to access the differnt parts of a receiving PDU.
+     *
+     * There might be technical reasons, why an in memory PDU might differ in layout from an over the air PDU.
+     * This indirection is supposed to resolve such cases. (Currently, it's nrf51/52 that requires this).
+     *
+     * By default, bluetoe::link_layer::default_pdu_layout is used. To override this for a radio R, specialize
+     * bluetoe::link_layer::pdu_layout_by_radio for R to define an alias to the layout type to be used:
+     *
+     * @code
+     * template <>
+     * struct pdu_layout_by_radio< R > {
+     *     using pdu_layout = special_pdu_layout_required_by_R;
+     * };
+     *
+     */
+    struct pdu_layout {
+        /**
+         * @brief returns the header for advertising channel and for data channel PDUs.
+         */
+        static std::uint16_t header( const read_buffer& pdu );
+        static std::uint16_t header( const write_buffer& pdu );
+        static std::uint16_t header( const std::uint8_t* pdu );
+
+        /**
+         * @brief writes to the header of the given PDU
+         */
+        static void header( const read_buffer& pdu, std::uint16_t header_value );
+        static void header( std::uint8_t* pdu, std::uint16_t header_value );
+
+        /**
+         * @brief returns the writable body for advertising channel or for data channel PDUs.
+         */
+        static std::pair< std::uint8_t*, std::uint8_t* > body( const read_buffer& pdu );
+
+        /**
+         * @brief returns the readonly body for advertising channel or for data channel PDUs.
+         */
+        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const write_buffer& pdu );
+
+        /**
+         * @brief returns the size of the memory buffer that is required to keep a data channel PDU
+         *        in memory, with the given payload size (payload according to Vol.6; Part B; 2.4).
+         *
+         * This function have to be constexpr / evaluatable at compile time to allow static buffer
+         * size calculation.
+         */
+        static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size );
+    };
+
 }
 
 }
