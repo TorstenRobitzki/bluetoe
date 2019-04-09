@@ -68,7 +68,7 @@ public:
         auto write = bluetoe::details::attribute_access_arguments::write(
             begin, end, offset,
             bluetoe::details::client_characteristic_configuration(),
-            bluetoe::connection_security_attributes(),
+            security_,
             nullptr );
 
         return attribute_at_impl( index ).access( write, index );
@@ -77,6 +77,16 @@ public:
     bluetoe::details::attribute_access_result write_attribute_at( const std::initializer_list< std::uint8_t >& input, std::size_t index = 1, std::size_t offset = 0 )
     {
         return write_attribute_at( input.begin(), input.end(), index, offset );
+    }
+
+    access_attributes()
+        : security_()
+    {
+    }
+
+    explicit access_attributes( bluetoe::connection_security_attributes security )
+        : security_( security )
+    {
     }
 
 private:
@@ -95,7 +105,7 @@ private:
         auto read = bluetoe::details::attribute_access_arguments::read(
             &buffer[ 0 ], &buffer[ buffer_size ], offset,
             this->client_configurations(),
-            bluetoe::connection_security_attributes(),
+            security_,
             nullptr );
 
         auto result = value_attribute.access( read, 1 );
@@ -107,7 +117,7 @@ private:
     }
 
     using suuid = bluetoe::service_uuid16< 0x4711 >;
-    struct srv;
+    bluetoe::connection_security_attributes security_;
 };
 
 

@@ -41,7 +41,6 @@ namespace bluetoe {
             , pairing_status( status )
         {
         }
-
     };
 }
 #endif
