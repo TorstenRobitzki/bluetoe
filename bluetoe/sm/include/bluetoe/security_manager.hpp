@@ -115,11 +115,13 @@ namespace bluetoe {
                 state_data_.pairing_state.srand = srand;
             }
 
-            void pairing_confirm( const details::uint128_t& mconfirm )
+            void pairing_confirm( const std::uint8_t* mconfirm_begin, const std::uint8_t* mconfirm_end )
             {
                 assert( state_ == details::pairing_state::pairing_requested );
                 state_ = details::pairing_state::pairing_confirmed;
-                state_data_.pairing_state.mconfirm = mconfirm;
+
+                assert( static_cast< std::size_t >( mconfirm_end - mconfirm_begin ) == state_data_.pairing_state.mconfirm.max_size() );
+                std::copy( mconfirm_begin, mconfirm_end, state_data_.pairing_state.mconfirm.begin() );
             }
 
             void error_reset()
@@ -140,6 +142,11 @@ namespace bluetoe {
             const details::uint128_t& srand() const
             {
                 return state_data_.pairing_state.srand;
+            }
+
+            const details::uint128_t& mconfirm() const
+            {
+                return state_data_.pairing_state.mconfirm;
             }
 
         private:
@@ -172,6 +179,9 @@ namespace bluetoe {
 
         template < class OtherConnectionData, class SecurityFunctions >
         void handle_pairing_confirm( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+        template < class OtherConnectionData, class SecurityFunctions >
+        void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
         template < class OtherConnectionData >
         void error_response( details::sm_error_codes error_code, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& );
@@ -244,6 +254,9 @@ namespace bluetoe {
             case sm_opcodes::pairing_confirm:
                 handle_pairing_confirm( input, in_size, output, out_size, state, func );
                 break;
+            case sm_opcodes::pairing_random:
+                handle_pairing_random( input, in_size, output, out_size, state, func );
+                break;
             default:
                 error_response( sm_error_codes::command_not_supported, output, out_size, state );
         }
@@ -307,9 +320,6 @@ namespace bluetoe {
     void security_manager::handle_pairing_confirm(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
     {
-        (void)input;
-        (void)in_size;
-
         using namespace details;
 
         static constexpr std::size_t    request_size = 17;
@@ -320,11 +330,42 @@ namespace bluetoe {
         if ( state.state() != pairing_state::pairing_requested )
             return error_response( sm_error_codes::unspecified_reason, output, out_size, state );
 
+        // save mconfirm for later
+        state.pairing_confirm( &input[ 1 ], &input[ request_size ] );
+
         out_size = request_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_confirm );
 
-        const auto confirm = func.c1( { { 0 } }, state.srand(), state.c1_p1(), state.c1_p2() );
-        std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
+        const auto sconfirm = func.c1( { { 0 } }, state.srand(), state.c1_p1(), state.c1_p2() );
+        std::copy( sconfirm.begin(), sconfirm.end(), &output[ 1 ] );
+    }
+
+    template < class OtherConnectionData, class SecurityFunctions >
+    void security_manager::handle_pairing_random(
+        const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
+    {
+        using namespace details;
+
+        static constexpr std::size_t    pairing_random_size = 17;
+
+        if ( in_size != pairing_random_size )
+            return error_response( sm_error_codes::invalid_parameters, output, out_size, state );
+
+        if ( state.state() != pairing_state::pairing_confirmed )
+            return error_response( sm_error_codes::unspecified_reason, output, out_size, state );
+
+        uint128_t mrand{};
+        std::copy( &input[ 1 ], &input[ pairing_random_size ], mrand.begin() );
+        const auto mconfirm = func.c1( { { 0 } }, mrand, state.c1_p1(), state.c1_p2() );
+
+        if ( mconfirm != state.mconfirm() )
+            return error_response( sm_error_codes::confirm_value_failed, output, out_size, state );
+
+        out_size = pairing_random_size;
+        output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_random );
+
+        const auto srand = state.srand();
+        std::copy( srand.begin(), srand.end(), &output[ 1 ] );
     }
 
     template < class OtherConnectionData >
