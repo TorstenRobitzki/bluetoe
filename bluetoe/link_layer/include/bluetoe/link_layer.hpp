@@ -1155,6 +1155,7 @@ namespace link_layer {
             }
             else if ( this->handle_encryption_pdus( opcode, size, pdu, write ) )
             {
+                // all encryption PDU handled in handle_encryption_pdus()
             }
             else if ( opcode != LL_UNKNOWN_RSP )
             {
