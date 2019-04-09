@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_STATE_HPP
 
 #include <bluetoe/sm/pairing_status.hpp>
+#include <bluetoe/codes.hpp>
 
 namespace bluetoe {
 namespace details {

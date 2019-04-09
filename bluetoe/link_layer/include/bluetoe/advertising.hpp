@@ -2,11 +2,12 @@
 #define BLUETOE_LINK_LAYER_ADVERTISING_HPP
 
 #include <bluetoe/meta_tools.hpp>
-#include <bluetoe/ll_meta_types.hpp>
-#include "address.hpp"
-#include "buffer.hpp"
-#include "delta_time.hpp"
 #include <bluetoe/default_pdu_layout.hpp>
+#include <bluetoe/address.hpp>
+#include <bluetoe/buffer.hpp>
+#include <bluetoe/delta_time.hpp>
+#include <bluetoe/ll_meta_types.hpp>
+
 
 /**
  * @file bluetoe/link_layer/advertising.hpp

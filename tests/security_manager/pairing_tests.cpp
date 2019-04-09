@@ -5,6 +5,7 @@
 #include "test_sm.hpp"
 #include "test_servers.hpp"
 
+
 static const std::initializer_list< std::uint8_t > pairing_request = {
     0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00
 };

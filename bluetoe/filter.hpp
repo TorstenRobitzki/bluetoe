@@ -4,6 +4,7 @@
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/uuid.hpp>
+#include <bluetoe/codes.hpp>
 #include <algorithm>
 #include <iterator>
 

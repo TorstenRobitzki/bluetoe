@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cstdlib>
 
-#include "buffer.hpp"
+#include <bluetoe/buffer.hpp>
 #include <bluetoe/default_pdu_layout.hpp>
 
 namespace bluetoe {

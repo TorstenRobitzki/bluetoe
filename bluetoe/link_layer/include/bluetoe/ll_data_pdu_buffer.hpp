@@ -7,8 +7,8 @@
 #include <initializer_list>
 #include <algorithm>
 
-#include "ring_buffer.hpp"
 #include <bluetoe/default_pdu_layout.hpp>
+#include "ring_buffer.hpp"
 
 namespace bluetoe {
 namespace link_layer {
@@ -405,7 +405,7 @@ namespace link_layer {
         static constexpr std::uint8_t header_rfu_mask = 0xe0;
         static_cast< void >( header_rfu_mask );
 
-        // make sure, no RFU bits are set
+        // make sure, no NFU bits are set
         std::uint16_t header = layout::header( pdu );
         assert( ( header & header_rfu_mask ) == 0 );
 

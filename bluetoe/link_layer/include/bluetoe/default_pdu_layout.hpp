@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_DEFAULT_PDU_LAYOUT_HPP
 
 #include <bluetoe/bits.hpp>
+#include <bluetoe/buffer.hpp>
 
 namespace bluetoe {
 namespace link_layer {
