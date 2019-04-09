@@ -184,7 +184,8 @@ namespace nrf51_details {
         NRF_RADIO->PCNF0 =
             ( 1 << RADIO_PCNF0_S0LEN_Pos ) |
             ( 8 << RADIO_PCNF0_LFLEN_Pos ) |
-            ( 0 << RADIO_PCNF0_S1LEN_Pos );
+            ( 0 << RADIO_PCNF0_S1LEN_Pos ) |
+            ( RADIO_PCNF0_S1INCL_Automatic << RADIO_PCNF0_S1INCL_Pos );
 
         NRF_RADIO->PCNF1 =
             ( RADIO_PCNF1_WHITEEN_Enabled << RADIO_PCNF1_WHITEEN_Pos ) |
@@ -692,8 +693,10 @@ namespace nrf51_details {
         return NRF_FICR->DEVICEID[ 0 ];
     }
 
-    static NRF_RNG_Type* const          nrf_random            = NRF_RNG;
-    static NRF_ECB_Type* const          nrf_aes               = NRF_ECB;
+    // simply for easier debugging
+    static NRF_RNG_Type* const          nrf_random  = NRF_RNG;
+    static NRF_ECB_Type* const          nrf_aes     = NRF_ECB;
+    static NRF_CCM_Type* const          nrf_ccm     = NRF_CCM;
 
     static std::uint8_t random_number8()
     {
@@ -728,6 +731,32 @@ namespace nrf51_details {
     static struct alignas( 4 ) ecb_data_t {
         std::uint8_t data[ 3 * 16 ];
     } ecb_scratch_data;
+
+    static struct alignas( 4 ) ccm_data_struct_t {
+        std::uint8_t data[ 33 ];
+    } ccm_data_struct;
+
+    static constexpr std::size_t ccm_key_offset = 0;
+    static constexpr std::size_t ccm_packet_counter_offset = 16;
+    static constexpr std::size_t ccm_packet_counter_size   = 16;
+    static constexpr std::size_t ccm_direction_offset = 0;
+    static constexpr std::size_t ccm_iv_offset = 25;
+
+    static constexpr std::uint8_t slave_ccm_direction = 0;
+
+    static void init_ccm_data_structure()
+    {
+        ccm_data_struct.data[ ccm_direction_offset ] = slave_ccm_direction;
+    }
+
+    static void setup_ccm_data_structure( const bluetoe::details::uint128_t& key, std::uint64_t IV )
+    {
+        std::copy( key.begin(), key.end(), &ccm_data_struct.data[ ccm_key_offset ] );
+        std::fill( &ccm_data_struct.data[ ccm_packet_counter_offset ],
+            &ccm_data_struct.data[ ccm_packet_counter_offset + ccm_packet_counter_size ], 0 );
+
+        details::write_64bit( &ccm_data_struct.data[ ccm_iv_offset ], IV );
+    }
 
     static bluetoe::details::uint128_t aes( const bluetoe::details::uint128_t& key, const bluetoe::details::uint128_t& data )
     {
@@ -768,7 +797,10 @@ namespace nrf51_details {
     {
         nrf_random->CONFIG = RNG_CONFIG_DERCEN_Msk;
         nrf_random->SHORTS = RNG_SHORTS_VALRDY_STOP_Msk;
+
         nrf_aes->ECBDATAPTR = reinterpret_cast< std::uint32_t >( &ecb_scratch_data );
+
+        init_ccm_data_structure();
     }
 
     details::uint128_t scheduled_radio_base_with_encryption::create_srand()
@@ -817,8 +849,18 @@ namespace nrf51_details {
     std::pair< std::uint64_t, std::uint32_t > scheduled_radio_base_with_encryption::setup_encryption(
         bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm )
     {
-        (void)key;
-        return { skdm, ivm };
+        const std::uint64_t skds = random_number64();
+        const std::uint32_t ivs  = random_number32();
+
+        bluetoe::details::uint128_t session_descriminator;
+        details::write_64bit( &session_descriminator[ 0 ], skdm );
+        details::write_64bit( &session_descriminator[ 8 ], skds );
+
+        setup_ccm_data_structure(
+            aes( key, session_descriminator),
+            static_cast< std::uint64_t >( ivm ) | ( static_cast< std::uint64_t >( ivs ) << 32 ) );
+
+        return { skds, ivs };
     }
 
     void scheduled_radio_base_with_encryption::start_encryption()
