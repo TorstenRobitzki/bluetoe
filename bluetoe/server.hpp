@@ -16,6 +16,7 @@
 #include <bluetoe/mixin.hpp>
 #include <bluetoe/find_notification_data.hpp>
 #include <bluetoe/outgoing_priority.hpp>
+#include <bluetoe/link_state.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -89,51 +90,8 @@ namespace bluetoe {
          * The purpose of this class is to store all connection related data that must be keept per connection and must
          * be reset with a new connection.
          */
-        class connection_data : public details::client_characteristic_configurations< number_of_client_configs >
-        {
-        public:
-            /**
-             * @brief constructs a connection_data with the maximum transmission unit, the server can provide
-             */
-            explicit connection_data( std::uint16_t server_mtu, bool encrypted );
-
-            /**
-             * @brief returns the negotiated MTU
-             */
-            std::uint16_t negotiated_mtu() const;
-
-            /**
-             * @brief sets the MTU size of the connected client.
-             *
-             * The default is 23. Usually this function will be called by the server implementation as reaction
-             * of an "Exchange MTU Request".
-             * @post client_mtu() == mtu
-             */
-            void client_mtu( std::uint16_t mtu );
-
-            /**
-             * @brief returns the client MTU
-             *
-             * By default this returns 23 unless the client MTU was changed by call to client_mtu( std::size_t )
-             */
-            std::uint16_t client_mtu() const;
-
-            /**
-             * @brief returns the MTU of this server as provided in the c'tor
-             * @pre connection_data(X).server_mtu() == X
-             */
-            std::uint16_t server_mtu() const;
-
-            /**
-             * @brief returns true, if the connection is currently encrypted
-             */
-            bool is_entrypted() const;
-
-        private:
-            std::uint16_t   server_mtu_;
-            std::uint16_t   client_mtu_;
-            bool            encrypted_;
-        };
+        using connection_data = details::link_state<
+            details::client_characteristic_configurations< number_of_client_configs > >;
 
         /**
          * @brief a server takes no runtime construction parameters
@@ -1498,46 +1456,6 @@ namespace bluetoe {
     details::notification_data server< Options... >::find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const
     {
         return details::find_notification_data_in_list< notification_priority, services >::find_notification_data_by_index( client_characteristic_configuration_index );
-    }
-
-    template < typename ... Options >
-    server< Options... >::connection_data::connection_data( std::uint16_t server_mtu, bool encrypted )
-        : server_mtu_( server_mtu )
-        , client_mtu_( details::default_att_mtu_size )
-        , encrypted_( encrypted )
-    {
-        assert( server_mtu >= details::default_att_mtu_size );
-    }
-
-    template < typename ... Options >
-    std::uint16_t server< Options... >::connection_data::negotiated_mtu() const
-    {
-        return std::min( server_mtu_, client_mtu_ );
-    }
-
-    template < typename ... Options >
-    void server< Options... >::connection_data::client_mtu( std::uint16_t mtu )
-    {
-        assert( mtu >= details::default_att_mtu_size );
-        client_mtu_ = mtu;
-    }
-
-    template < typename ... Options >
-    std::uint16_t server< Options... >::connection_data::client_mtu() const
-    {
-        return client_mtu_;
-    }
-
-    template < typename ... Options >
-    std::uint16_t server< Options... >::connection_data::server_mtu() const
-    {
-        return server_mtu_;
-    }
-
-    template < typename ... Options >
-    bool server< Options... >::connection_data::is_entrypted() const
-    {
-        return encrypted_;
     }
 
     /** @endcond */
