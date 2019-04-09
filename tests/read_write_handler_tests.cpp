@@ -287,7 +287,7 @@ typedef typename boost::mpl::insert_range<
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_handlers, Attribute, all_read_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -299,7 +299,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_handlers, Attribute, all_read_hand
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_no_write_access_read_blob_handlers, Attribute, all_read_only_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
 
     auto access = bluetoe::details::attribute_access_arguments::write( test_read_value );
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::write_not_permitted );
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_no_write_access_read_blob_handlers, Attribut
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_with_offset, Attribute, read_blob_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
@@ -319,7 +319,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_blob_with_offset, Attribute, read_blob_
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_with_offset, Attribute, read_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
@@ -328,7 +328,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_with_offset, Attribute, read_handler_te
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_read_handler_characteristic_declaration_uuid, Attribute, read_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
 
     BOOST_CHECK_EQUAL( attr.uuid, 0x2803 );
 }
@@ -396,7 +396,7 @@ BOOST_FIXTURE_TEST_SUITE( test_write_handlers, reset_test_write_value )
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_handlers, Attribute, all_write_handler_tests )
 {
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
 
     auto access = bluetoe::details::attribute_access_arguments::write( fixture );
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::success );
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_handlers, Attribute, all_write_handler
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( test_no_read_access_to_write_handler, Attribute, all_write_only_handler_tests )
 {
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
     std::uint8_t    buffer[ 100 ];
 
     auto access = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
@@ -417,7 +417,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_blob_with_offset, Attribute, all_write
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
     static const std::uint8_t expected_value[] = { 0x00, 0x00, 0xaa, 0xbb, 0xcc };
 
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
 
     auto access = bluetoe::details::attribute_access_arguments::write( fixture, 2 );
 
@@ -429,7 +429,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( test_write_with_offset, Attribute, write_handler_
 {
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
 
-    const auto attr = Attribute::template attribute_at< cccd_indices, 0, suuid, srv >( 1 );
+    const auto attr = Attribute::template attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 1 );
     auto access = bluetoe::details::attribute_access_arguments::write( fixture, 2 );
 
     BOOST_CHECK( attr.access( access, 1 ) == bluetoe::details::attribute_access_result::attribute_not_long );
@@ -525,19 +525,19 @@ using writeable_char = bluetoe::characteristic<
     bluetoe::mixin_write_handler< write_mixin, &write_mixin::write_handler >
 >;
 
-using write_mixin_server = bluetoe::server<
+using write_mixin_service =
     bluetoe::service<
         bluetoe::service_uuid< 0xF8C90690, 0x3BFE, 0x4303, 0x8CE9, 0xC30C024987C8 >,
         writeable_char,
         bluetoe::mixin< write_mixin >
-    >
->;
+    >;
+using write_mixin_server = bluetoe::server< write_mixin_service >;
 
 BOOST_FIXTURE_TEST_CASE( write_to_mixin, write_mixin_server )
 {
     static const std::uint8_t fixture[] = { 0xaa, 0xbb, 0xcc };
 
-    const auto attr = writeable_char::attribute_at< cccd_indices, 0, bluetoe::characteristic_uuid16< 0x1234 >, write_mixin_server >( 1 );
+    const auto attr = writeable_char::attribute_at< cccd_indices, 0, write_mixin_service, write_mixin_server >( 1 );
     auto access = bluetoe::details::attribute_access_arguments::write( fixture );
     access.server = static_cast< write_mixin_server* >( this );
 
@@ -564,19 +564,19 @@ using readable_char = bluetoe::characteristic<
     bluetoe::mixin_read_handler< read_mixin, &read_mixin::read_handler >
 >;
 
-using read_mixin_server = bluetoe::server<
-    bluetoe::service<
-        bluetoe::service_uuid< 0xF8C90690, 0x3BFE, 0x4303, 0x8CE9, 0xC30C024987C8 >,
-        readable_char,
-        bluetoe::mixin< read_mixin >
-    >
+using read_mixin_service = bluetoe::service<
+    bluetoe::service_uuid< 0xF8C90690, 0x3BFE, 0x4303, 0x8CE9, 0xC30C024987C8 >,
+    readable_char,
+    bluetoe::mixin< read_mixin >
 >;
+
+using read_mixin_server = bluetoe::server< read_mixin_service >;
 
 BOOST_FIXTURE_TEST_CASE( read_from_mixin, read_mixin_server )
 {
     std::uint8_t buffer[ 100 ];
 
-    const auto attr = readable_char::attribute_at< cccd_indices, 0, bluetoe::characteristic_uuid16< 0x1234 >, read_mixin_server >( 1 );
+    const auto attr = readable_char::attribute_at< cccd_indices, 0, read_mixin_service, read_mixin_server >( 1 );
     auto read       = bluetoe::details::attribute_access_arguments::read( std::begin( buffer ), std::end( buffer ), 0, bluetoe::details::client_characteristic_configuration(), static_cast< read_mixin_server* >( this ) );
 
     static constexpr std::uint8_t expected[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };

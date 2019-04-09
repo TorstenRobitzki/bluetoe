@@ -158,14 +158,14 @@ namespace details {
     };
 
     /*
-     * Given that T is a tuple with elements that implement attribute_at< std::size_t, ServiceUUID >() and number_of_attributes, the type implements
+     * Given that T is a tuple with elements that implement attribute_at< std::size_t, Service >() and number_of_attributes, the type implements
      * attribute_at() for a list of attribute lists.
      */
-    template < typename T, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
+    template < typename T, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server >
     struct attribute_at_list;
 
-    template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server >
-    struct attribute_at_list< std::tuple<>, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >
+    template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server >
+    struct attribute_at_list< std::tuple<>, CCCDIndices, ClientCharacteristicIndex, Service, Server >
     {
         static details::attribute attribute_at( std::size_t )
         {
@@ -179,16 +179,16 @@ namespace details {
         typename ...Ts,
         typename CCCDIndices,
         std::size_t ClientCharacteristicIndex,
-        typename ServiceUUID,
+        typename Service,
         typename Server >
-    struct attribute_at_list< std::tuple< T, Ts... >, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >
+    struct attribute_at_list< std::tuple< T, Ts... >, CCCDIndices, ClientCharacteristicIndex, Service, Server >
     {
         static details::attribute attribute_at( std::size_t index )
         {
             if ( index < T::number_of_attributes )
-                return T::template attribute_at< CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server >( index );
+                return T::template attribute_at< CCCDIndices, ClientCharacteristicIndex, Service, Server >( index );
 
-            typedef details::attribute_at_list< std::tuple< Ts... >, CCCDIndices, ClientCharacteristicIndex + T::number_of_client_configs, ServiceUUID, Server > remaining_characteristics;
+            typedef details::attribute_at_list< std::tuple< Ts... >, CCCDIndices, ClientCharacteristicIndex + T::number_of_client_configs, Service, Server > remaining_characteristics;
 
             return remaining_characteristics::attribute_at( index - T::number_of_attributes );
         }

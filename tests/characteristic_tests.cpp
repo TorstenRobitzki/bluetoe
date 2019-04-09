@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE( even_the_simplest_characteristic_has_at_least_2_attributes
 
 BOOST_FIXTURE_TEST_CASE( the_first_attribute_is_the_characteristic_declaration, simple_char )
 {
-    const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+    const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
 
     BOOST_CHECK_EQUAL( char_declaration.uuid, 0x2803 );
 }
@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_has_a_length_of_19, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_has_a_length_of_17_with_offset_2, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
 
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_has_a_length_of_0_with_offset_19, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 19 );
 
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_returns_invalid_offset_when_read_behind_data, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 20 );
 
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_short_characteristic_declaration_has_a_length_of_5, short_uuid_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_short_characteristic_declaration_has_a_length_of_4_with_offset_1, short_uuid_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
 
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_short_characteristic_declaration_has_a_length_of_1_with_offset_4, short_uuid_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
 
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_contains_the_uuid, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_contains_the_uuid_at_offset_3, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 3 );
 
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_contains_the_value_handle, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_contains_the_value_handle_at_offset_1, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
 
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_contains_the_hibyte_of_the_value_handle_at_offset_2, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
 
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( read_char_declaration_buffer_to_small, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 17 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( read_char_declaration_buffer_to_small_with_offset_1, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 17 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
 
@@ -194,7 +194,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( the_characteristic_declaration_contains_the_16bit_uuid, short_uuid_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
@@ -206,7 +206,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( char_declaration_is_not_writable, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 4 ];
         auto write = bluetoe::details::attribute_access_arguments::write( buffer );
 
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( read_zero_bytes, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer;
 
         auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer, 0, bluetoe::details::client_characteristic_configuration(), nullptr );
@@ -227,7 +227,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( read_first_single_byte, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer;
 
         auto read = bluetoe::details::attribute_access_arguments::read( &buffer, &buffer + 1, 0, bluetoe::details::client_characteristic_configuration(), nullptr );
@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( read_two_bytes_second_byte_points_into_the_uuid, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 2 ];
 
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
 
     BOOST_FIXTURE_TEST_CASE( read_one_byte_from_the_uuid, simple_char )
     {
-        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, suuid, srv >( 0 );
+        const bluetoe::details::attribute char_declaration = attribute_at< cccd_indices, 0, bluetoe::service< suuid >, srv >( 0 );
         std::uint8_t buffer[ 1 ];
 
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 4 );
