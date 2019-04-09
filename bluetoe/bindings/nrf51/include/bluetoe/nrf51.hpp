@@ -3,6 +3,8 @@
 
 #include <bluetoe/link_layer.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
+#include <bluetoe/default_pdu_layout.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);
@@ -118,11 +120,12 @@ namespace bluetoe
             std::uint8_t                    empty_receive_[ 2 ];
         };
 
-        class scheduled_radio_base_with_encryption : public scheduled_radio_base
+        class scheduled_radio_base_with_encryption_base : public scheduled_radio_base
         {
-        public:
-            explicit scheduled_radio_base_with_encryption( adv_callbacks& cbs );
+        protected:
+            scheduled_radio_base_with_encryption_base( adv_callbacks& cbs, std::uint32_t scratch_area, std::uint32_t encrypted_area );
 
+        public:
             static constexpr bool hardware_supports_encryption = true;
 
             bluetoe::details::uint128_t create_srand();
@@ -145,95 +148,195 @@ namespace bluetoe
             void start_encryption();
 
             void stop_encryption();
+
         private:
+            std::uint32_t   encrypted_area_;
+        };
+
+        /*
+         * There are some data structures where the size depends on the configuration of the link layer (namely the
+         * maximum MTU size).
+         */
+        template < typename ... Options >
+        class scheduled_radio_base_with_encryption : public scheduled_radio_base_with_encryption_base
+        {
+        protected:
+            scheduled_radio_base_with_encryption( adv_callbacks& cbs )
+                : scheduled_radio_base_with_encryption_base( cbs,
+                    reinterpret_cast< std::uintptr_t >( &scratch_area_.data[ 0 ] ),
+                    reinterpret_cast< std::uintptr_t >( &encrypted_message_.data[ 0 ] ) )
+            {
+            }
+
+        private:
+            static constexpr std::size_t att_mtu = bluetoe::details::find_by_meta_type<
+                bluetoe::link_layer::details::mtu_size_meta_type,
+                Options...,
+                bluetoe::link_layer::max_mtu_size< bluetoe::details::default_att_mtu_size >
+            >::type::mtu;
+
+            static constexpr std::size_t l2cap_mtu      = att_mtu + 4;
+            static constexpr std::size_t scratch_size   = l2cap_mtu + 16;
+            static constexpr std::size_t enrypted_size  = l2cap_mtu + 3 + 4;
+
+            struct alignas( 4 ) scratch_area_t {
+                std::uint8_t data[ scratch_size ];
+            } scratch_area_;
+
+            struct alignas( 4 ) encrypted_message_t {
+                std::uint8_t data[ enrypted_size ];
+            } encrypted_message_;
+        };
+
+        template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, typename Base >
+        class scheduled_radio :
+            public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack, Base > >,
+            private adv_callbacks,
+            public Base
+        {
+        public:
+            scheduled_radio() : Base( static_cast< adv_callbacks& >( *this ) )
+            {
+            }
+
+            bluetoe::link_layer::delta_time schedule_connection_event(
+                unsigned                                    channel,
+                bluetoe::link_layer::delta_time             start_receive,
+                bluetoe::link_layer::delta_time             end_receive,
+                bluetoe::link_layer::delta_time             /* connection_interval */ )
+            {
+                link_layer::read_buffer read;
+                {
+                    class Base::lock_guard lock;
+                    read = buffer::allocate_receive_buffer();
+                }
+
+                return this->start_connection_event( channel, start_receive, end_receive, read );
+            }
+
+        private:
+            using buffer = bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack, Base > >;
+
+            void adv_received( const link_layer::read_buffer& receive ) override
+            {
+                static_cast< CallBack* >( this )->adv_received( receive );
+            }
+
+            void adv_timeout() override
+            {
+                static_cast< CallBack* >( this )->adv_timeout();
+            }
+
+            void timeout() override
+            {
+                static_cast< CallBack* >( this )->timeout();
+            }
+
+            void end_event() override
+            {
+                static_cast< CallBack* >( this )->end_event();
+            }
+
+            link_layer::write_buffer received_data( const link_layer::read_buffer& b ) override
+            {
+                // this function is called within an ISR context, so no need to disable interrupts
+                return this->received( b );
+            }
+
+            link_layer::write_buffer next_transmit() override
+            {
+                // this function is called within an ISR context, so no need to disable interrupts
+                return buffer::next_transmit();
+            }
+
+            link_layer::read_buffer allocate_receive_buffer() override
+            {
+                return buffer::allocate_receive_buffer();
+            }
+
+            bool is_scan_request_in_filter_callback( const link_layer::device_address& addr ) const override
+            {
+                return static_cast< const CallBack* >( this )->is_scan_request_in_filter( addr );
+            }
         };
 
         template < typename Base >
         struct scheduled_radio_factory
         {
             template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-            class scheduled_radio :
-                public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack > >,
-                private adv_callbacks,
-                public Base
-            {
-            public:
-                scheduled_radio() : Base( static_cast< adv_callbacks& >( *this ) )
+            using scheduled_radio = nrf51_details::scheduled_radio< TransmitSize, ReceiveSize, CallBack, Base >;
+        };
+    } // namespace nrf51_details
+
+    /*
+     * nrf51 without encryption
+     */
+    template < class Server, typename ... Options >
+    using nrf51_without_encryption = link_layer::link_layer<
+        Server,
+        nrf51_details::template scheduled_radio_factory<
+            nrf51_details::scheduled_radio_base
+        >::scheduled_radio,
+        Options... >;
+
+    /*
+     * nrf51 with encryption
+     */
+    template < class Server, typename ... Options >
+    using nrf51 = link_layer::link_layer<
+        Server,
+        nrf51_details::template scheduled_radio_factory<
+            nrf51_details::scheduled_radio_base_with_encryption< Options... >
+        >::template scheduled_radio,
+        Options... >;
+
+    namespace link_layer {
+
+        template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, typename ... Options >
+        struct pdu_layout_by_radio<
+            nrf51_details::scheduled_radio< TransmitSize, ReceiveSize, CallBack, nrf51_details::scheduled_radio_base_with_encryption< Options... > > >
+        {
+            /*
+             * When using encryption, the Radio and the AES CCM peripheral expect an "RFU" byte between LL header and
+             * payload.
+             */
+            struct pdu_layout : details::layout_base< pdu_layout > {
+                static constexpr std::size_t header_size = sizeof( std::uint16_t );
+
+                using bluetoe::link_layer::details::layout_base< pdu_layout >::header;
+
+                static std::uint16_t header( const std::uint8_t* pdu )
                 {
+                    return ::bluetoe::details::read_16bit( pdu );
                 }
 
-                bluetoe::link_layer::delta_time schedule_connection_event(
-                    unsigned                                    channel,
-                    bluetoe::link_layer::delta_time             start_receive,
-                    bluetoe::link_layer::delta_time             end_receive,
-                    bluetoe::link_layer::delta_time             /* connection_interval */ )
+                static void header( std::uint8_t* pdu, std::uint16_t header_value )
                 {
-                    link_layer::read_buffer read;
-                    {
-                        class Base::lock_guard lock;
-                        read = buffer::allocate_receive_buffer();
-                    }
-
-                    return this->start_connection_event( channel, start_receive, end_receive, read );
+                    ::bluetoe::details::write_16bit( pdu, header_value );
                 }
 
-            private:
-                using buffer = bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, scheduled_radio< TransmitSize, ReceiveSize, CallBack > >;
-
-                void adv_received( const link_layer::read_buffer& receive ) override
+                static std::pair< std::uint8_t*, std::uint8_t* > body( const read_buffer& pdu )
                 {
-                    static_cast< CallBack* >( this )->adv_received( receive );
+                    assert( pdu.size >= header_size );
+
+                    return { &pdu.buffer[ header_size + 1 ], &pdu.buffer[ pdu.size ] };
                 }
 
-                void adv_timeout() override
+                static std::pair< const std::uint8_t*, const std::uint8_t* > body( const write_buffer& pdu )
                 {
-                    static_cast< CallBack* >( this )->adv_timeout();
+                    assert( pdu.size >= header_size );
+
+                    return { &pdu.buffer[ header_size + 1 ], &pdu.buffer[ pdu.size ] };
                 }
 
-                void timeout() override
+                static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
                 {
-                    static_cast< CallBack* >( this )->timeout();
+                    return header_size + payload_size + 1;
                 }
-
-                void end_event() override
-                {
-                    static_cast< CallBack* >( this )->end_event();
-                }
-
-                link_layer::write_buffer received_data( const link_layer::read_buffer& b ) override
-                {
-                    // this function is called within an ISR context, so no need to disable interrupts
-                    return this->received( b );
-                }
-
-                link_layer::write_buffer next_transmit() override
-                {
-                    // this function is called within an ISR context, so no need to disable interrupts
-                    return buffer::next_transmit();
-                }
-
-                link_layer::read_buffer allocate_receive_buffer() override
-                {
-                    return buffer::allocate_receive_buffer();
-                }
-
-                bool is_scan_request_in_filter_callback( const link_layer::device_address& addr ) const override
-                {
-                    return static_cast< const CallBack* >( this )->is_scan_request_in_filter( addr );
-                }
-
             };
         };
+   }
 
-    }
-
-    template < class Server, typename ... Options >
-    using nrf51 = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
-        nrf51_details::scheduled_radio_base >::scheduled_radio, Options... >;
-
-    template < class Server, typename ... Options >
-    using nrf51_with_encryption = link_layer::link_layer< Server, nrf51_details::template scheduled_radio_factory<
-        nrf51_details::scheduled_radio_base_with_encryption >::scheduled_radio, Options... >;
-}
+} // namespace bluetoe
 
 #endif // include guard
