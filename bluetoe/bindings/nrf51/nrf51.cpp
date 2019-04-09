@@ -652,8 +652,8 @@ namespace nrf51_details {
                         nrf_ccm->MODE   =
                               ( CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos )
                             | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
-                        nrf_ccm->OUTPTR = encrypted_area_;
-                        nrf_ccm->INPTR  = reinterpret_cast< std::uint32_t >( trans.buffer );
+                        nrf_ccm->OUTPTR = reinterpret_cast< std::uint32_t >( trans.buffer );
+                        nrf_ccm->INPTR  = encrypted_area_;
 
                         NRF_PPI->CHENCLR = ( 1 << radio_address_ccm_crypt );
                     }
@@ -850,16 +850,22 @@ namespace nrf51_details {
         nrf_ccm->CNFPTR     = reinterpret_cast< std::uintptr_t >( &ccm_data_struct );
     }
 
+    // Note: While every function above the link layer uses low to high byte order inputs to the
+    // EAS function, the CCM, that encrypts the link layer trafic, uses high to low byte order.
+    // That's why the intput and output in aes_le() changeing the byte order. The result of the
+    // key deversification is the key for the CCM algorithm and thus have to be stored in high to
+    // low byte order.
+
     static void setup_ccm_data_structure( const bluetoe::details::uint128_t& key, std::uint64_t IV )
     {
-        std::copy( key.begin(), key.end(), &ccm_data_struct.data[ ccm_key_offset ] );
+        std::copy( key.rbegin(), key.rend(), &ccm_data_struct.data[ ccm_key_offset ] );
         std::fill( &ccm_data_struct.data[ ccm_packet_counter_offset ],
             &ccm_data_struct.data[ ccm_packet_counter_offset + ccm_packet_counter_size ], 0 );
 
         details::write_64bit( &ccm_data_struct.data[ ccm_iv_offset ], IV );
     }
 
-    static bluetoe::details::uint128_t aes( const bluetoe::details::uint128_t& key, const bluetoe::details::uint128_t& data )
+    static bluetoe::details::uint128_t aes_le( const bluetoe::details::uint128_t& key, const bluetoe::details::uint128_t& data )
     {
         static struct alignas( 4 ) ecb_data_t {
             std::uint8_t data[ 3 * 16 ];
@@ -938,9 +944,9 @@ namespace nrf51_details {
         const bluetoe::details::uint128_t& p2 ) const
     {
         // c1 (k, r, preq, pres, iat, rat, ia, ra) = e(k, e(k, r XOR p1) XOR p2)
-        const auto p1_ = aes( temp_key, xor_( rand, p1 ) );
+        const auto p1_ = aes_le( temp_key, xor_( rand, p1 ) );
 
-        return aes( temp_key, xor_( p1_, p2 ) );
+        return aes_le( temp_key, xor_( p1_, p2 ) );
     }
 
     bluetoe::details::uint128_t scheduled_radio_base_with_encryption_base::s1(
@@ -952,7 +958,7 @@ namespace nrf51_details {
         std::copy( &srand[ 0 ], &srand[ 8 ], &r[ 8 ] );
         std::copy( &mrand[ 0 ], &mrand[ 8 ], &r[ 0 ] );
 
-        return aes( temp_key, r );
+        return aes_le( temp_key, r );
     }
 
     std::pair< std::uint64_t, std::uint32_t > scheduled_radio_base_with_encryption_base::setup_encryption(
@@ -966,7 +972,7 @@ namespace nrf51_details {
         details::write_64bit( &session_descriminator[ 8 ], skds );
 
         setup_ccm_data_structure(
-            aes( key, session_descriminator),
+            aes_le( key, session_descriminator),
             static_cast< std::uint64_t >( ivm ) | ( static_cast< std::uint64_t >( ivs ) << 32 ) );
 
         return { skds, ivs };
