@@ -7,12 +7,12 @@
 namespace test {
 
     struct security_functions {
-        bluetoe::link_layer::device_address local_addr() const
+        bluetoe::link_layer::device_address local_address() const
         {
             return local_addr_;
         }
 
-        void local_addr( const bluetoe::link_layer::device_address& addr )
+        void local_address( const bluetoe::link_layer::device_address& addr )
         {
             local_addr_ = addr;
         }
@@ -119,13 +119,13 @@ namespace test {
         security_manager()
             : connection_data_( MTU, false )
         {
-            local_addr(
+            local_address(
                 bluetoe::link_layer::public_device_address({
                     0xb6, 0xb5, 0xb4, 0xb3, 0xb2, 0xb1
                 })
             );
 
-            remote_addr(
+            remote_address(
                 bluetoe::link_layer::random_device_address({
                     0xa6, 0xa5, 0xa4, 0xa3, 0xa2, 0xa1
                 })
@@ -156,12 +156,12 @@ namespace test {
         using connection_data_t = bluetoe::details::link_state<
             typename Manager::template connection_data< gatt_connection_details > >;
 
-        void local_addr( const bluetoe::link_layer::device_address& addr )
+        void local_address( const bluetoe::link_layer::device_address& addr )
         {
-            static_cast< security_functions& >( *this ).local_addr( addr );
+            static_cast< security_functions& >( *this ).local_address( addr );
         }
 
-        void remote_addr( const bluetoe::link_layer::device_address& addr )
+        void remote_address( const bluetoe::link_layer::device_address& addr )
         {
             connection_data_.remote_connection_created( addr );
         }

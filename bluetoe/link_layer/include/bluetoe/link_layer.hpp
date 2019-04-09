@@ -97,13 +97,19 @@ namespace link_layer {
             typedef typename list::template impl< Radio, LinkLayer > type;
         };
 
-        template < typename >
-        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer;
+        /*
+         * The Part of link layer, that handles security related stuff is
+         * factored out, to not have unnessary code, in case that no
+         * security relevant code is required
+         */
+        struct link_layer_security_impl
+        {
+        };
 
-        template <>
-        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
-            ::bluetoe::details::no_such_type
-        > {};
+        struct link_layer_no_security_impl
+        {
+        };
+
     }
 
     /**
@@ -147,7 +153,11 @@ namespace link_layer {
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >,
         private details::connection_callbacks< Server, Options... >::type,
-        private details::signaling_channel< Options... >::type
+        private details::signaling_channel< Options... >::type,
+        private bluetoe::details::select_type<
+                bluetoe::details::requires_encryption_support_t< Server >::value,
+                details::link_layer_security_impl,
+                details::link_layer_no_security_impl >::type
     {
     public:
         link_layer();
@@ -209,14 +219,6 @@ namespace link_layer {
          */
         const device_address& local_address() const;
     private:
-        static constexpr auto options_test = sizeof(
-            details::option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
-                typename ::bluetoe::details::find_by_not_meta_type<
-                    details::valid_link_layer_option_meta_type,
-                    Options...
-                >::type
-            > );
-
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
             details::buffer_sizes< Options... >::rx_size,
@@ -308,7 +310,10 @@ namespace link_layer {
 
         static constexpr std::uint8_t   supported_features =
             link_layer_feature::connection_parameters_request_procedure |
-            link_layer_feature::le_ping;
+            link_layer_feature::le_ping |
+            ( bluetoe::details::requires_encryption_support_t< Server >::value
+                ? link_layer_feature::le_encryption
+                : 0 );
 
 
         // TODO: calculate the actual needed buffer size for advertising, not the maximum

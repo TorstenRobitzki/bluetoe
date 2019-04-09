@@ -29,13 +29,13 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
     0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
 };
 
-template < typename ... Options >
-class unconnected_base : public bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... >
+template < typename Server, template < std::size_t, std::size_t, typename > class Radio, typename ... Options >
+class unconnected_base_t : public bluetoe::link_layer::link_layer< Server, Radio, Options... >
 {
 public:
-    typedef bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... > base;
+    typedef bluetoe::link_layer::link_layer< Server, Radio, Options... > base;
 
-    unconnected_base()
+    unconnected_base_t()
         : sequence_( 0 )
         , next_expected_sequence_( 0 )
     {
@@ -43,7 +43,7 @@ public:
 
     void run( unsigned times = 1 )
     {
-        test::small_temperature_service gatt_server_;
+        Server gatt_server_;
 
         for ( ; times; --times )
             base::run( gatt_server_ );
@@ -196,10 +196,13 @@ private:
     std::uint8_t next_expected_sequence_;
 };
 
+template < typename ... Options >
+using unconnected_base = unconnected_base_t< test::small_temperature_service, test::radio, Options... >;
+
 struct unconnected : unconnected_base<> {};
 
 template < typename ... Options >
-struct connecting_base : unconnected_base< Options... >
+struct connecting_base : unconnected
 {
     typedef bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... > base;
 

@@ -115,7 +115,7 @@ namespace bluetoe {
                 remote_addr_ = remote;
             }
 
-            const bluetoe::link_layer::device_address& remote_addr() const
+            const bluetoe::link_layer::device_address& remote_address() const
             {
                 return remote_addr_;
             }
@@ -333,8 +333,8 @@ namespace bluetoe {
         create_pairing_response( output, out_size );
 
         const details::uint128_t srand    = functions.create_srand();
-        const details::uint128_t p1       = c1_p1( input, output, state.remote_addr(), functions.local_addr() );
-        const details::uint128_t p2       = c1_p2( state.remote_addr(), functions.local_addr() );
+        const details::uint128_t p1       = c1_p1( input, output, state.remote_address(), functions.local_address() );
+        const details::uint128_t p2       = c1_p2( state.remote_address(), functions.local_address() );
 
         state.pairing_request( srand, p1, p2 );
     }
