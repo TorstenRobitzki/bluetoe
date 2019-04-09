@@ -34,7 +34,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
     respond_to(
         Channel::value,
         {
-            0xc5, 0x22,                         // header with wrong size
+            0xc5 ^ 0xff, 0x22 ^ 0xff,           // header with wrong size
+            0x00, 0x00,                         // gap required by the test radio layout
             0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
             0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
             0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
@@ -58,7 +59,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
     respond_to(
         Channel::value,
         {
-            0xc5, 0x21,                         // header with wrong size
+            0xc5 ^ 0xff, 0x21 ^ 0xff,           // header with wrong size
+            0x00, 0x00,                         // gap required by the test radio layout
             0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
             0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
             0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
@@ -322,7 +324,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
  * End at:
  *   ( 2000ms + 10ms ) + 350ppm = 2010703µs +-1µs
  */
-using local_device_with_100ppm = unconnected_base< bluetoe::link_layer::sleep_clock_accuracy_ppm< 100 > >;
+using local_device_with_100ppm = unconnected_base< bluetoe::link_layer::sleep_clock_accuracy_ppm< 100 >, test::buffer_sizes >;
 BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_device_with_100ppm )
 {
     respond_to(
@@ -548,7 +550,8 @@ BOOST_FIXTURE_TEST_CASE( connection_established_when_window_offset_equals_interv
 }
 
 using server_with_empty_white_list = unconnected_base<
-    bluetoe::link_layer::white_list< 1u >
+    bluetoe::link_layer::white_list< 1u >,
+    test::buffer_sizes
 >;
 
 BOOST_FIXTURE_TEST_CASE( connect_with_white_list_beeing_empty, server_with_empty_white_list )
@@ -576,7 +579,7 @@ BOOST_FIXTURE_TEST_CASE( connect_with_white_list_beeing_empty, server_with_empty
     BOOST_REQUIRE( !connection_events().empty() );
 }
 
-struct server_with_white_list : unconnected_base< bluetoe::link_layer::white_list< 1u > >
+struct server_with_white_list : unconnected_base< bluetoe::link_layer::white_list< 1u >, test::buffer_sizes >
 {
     server_with_white_list()
     {

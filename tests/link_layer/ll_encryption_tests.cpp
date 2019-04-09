@@ -75,7 +75,7 @@ namespace test {
     };
 }
 
-struct link_layer_with_security : unconnected_base_t< test::secret_service, test::radio_with_encryption, test::security_manager >
+struct link_layer_with_security : unconnected_base_t< test::secret_service, test::radio_with_encryption, test::security_manager, test::buffer_sizes >
 {
 
     link_layer_with_security()

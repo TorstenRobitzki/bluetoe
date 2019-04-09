@@ -4,7 +4,10 @@
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
+#include <bluetoe/default_pdu_layout.hpp>
+#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/security_manager.hpp>
+#include <bluetoe/link_layer.hpp>
 
 #include <vector>
 #include <functional>
@@ -265,6 +268,8 @@ namespace test {
         std::uint8_t    master_sequence_number_    = 0;
         std::uint8_t    master_ne_sequence_number_ = 0;
 
+        static constexpr std::size_t ll_header_size = 2;
+
         // end of simulations
         bluetoe::link_layer::delta_time eos_;
 
@@ -314,6 +319,14 @@ namespace test {
         static constexpr bool hardware_supports_encryption = false;
 
     private:
+        // converts from in memory layout to over the air layout
+        void copy_memory_to_air( const std::vector< std::uint8_t >& in_memory, bluetoe::link_layer::read_buffer& over_the_air );
+        void copy_air_to_memory( const std::vector< std::uint8_t >& over_the_air, bluetoe::link_layer::read_buffer& in_memory );
+
+        // converts from over the air layout to in memory layout
+        std::vector< std::uint8_t > air_to_memory( bluetoe::link_layer::write_buffer );
+        std::vector< std::uint8_t > memory_to_air( bluetoe::link_layer::write_buffer );
+
         bluetoe::link_layer::delta_time now_;
 
         void simulate_advertising_response();
@@ -325,6 +338,15 @@ namespace test {
         bool connection_event_response_;
         int  wake_ups_;
     };
+}
+
+namespace test {
+    /*
+     * The test radio uses a layout that requires more memory
+     *
+     * Use this buffer size during tests as default.
+     */
+    using buffer_sizes = bluetoe::link_layer::buffer_sizes< 61u, 61u >;
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     class radio_with_encryption : public radio< TransmitSize, ReceiveSize, CallBack >
@@ -459,7 +481,7 @@ namespace test {
             now_ + when,
             channel,
             when,
-            std::vector< std::uint8_t >( transmit.buffer, transmit.buffer + transmit.size ),
+            memory_to_air( transmit ),
             receive,
             access_address_,
             crc_init_
@@ -552,11 +574,8 @@ namespace test {
             }
             else
             {
-                const auto& received_data = response.second.received_data;
-                const std::size_t copy_size = std::min< std::size_t >( current.receive_buffer.size, received_data.size() );
-
-                std::copy( received_data.begin(), received_data.begin() + copy_size, current.receive_buffer.buffer );
-                current.receive_buffer.size = copy_size;
+                if ( current.receive_buffer.size > 0 )
+                    copy_air_to_memory( response.second.received_data, current.receive_buffer );
 
                 idle_ = true;
                 static_cast< CallBack* >( this )->adv_received( current.receive_buffer );
@@ -573,6 +592,8 @@ namespace test {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::simulate_connection_event_response()
     {
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio< TransmitSize, ReceiveSize, CallBack > >::pdu_layout;
+
         connection_event_response response = connection_events_response_.empty()
             ? connection_event_response()
             : connection_events_response_.front();
@@ -616,41 +637,171 @@ namespace test {
                     // what is the link layer going to receive?
                     if ( pdus.empty() )
                     {
-                        receive_buffer.buffer[ 0 ] = 1;
-                        receive_buffer.buffer[ 1 ] = 0;
+                        layout::header( receive_buffer.buffer, 0x0001 );
                     }
                     else
                     {
                         const auto pdu = pdus.front();
                         pdus.erase( pdus.begin() );
-                        std::copy( pdu.begin(), pdu.end(), receive_buffer.buffer );
+
+                        copy_air_to_memory( pdu, receive_buffer );
+
                         more_data = !pdus.empty();
                     }
 
-                    receive_buffer.buffer[ 0 ] &= ~( sn_flag | nesn_flag );
-                    receive_buffer.buffer[ 0 ] |= master_sequence_number_ | master_ne_sequence_number_;
+                    std::uint16_t header = layout::header( receive_buffer );
+                    header &= ~( sn_flag | nesn_flag );
+                    header |= master_sequence_number_ | master_ne_sequence_number_;
+                    layout::header( receive_buffer, header );
+
                     master_sequence_number_    ^= sn_flag;
                 }
 
                 if ( more_data && receive_buffer.size )
-                    receive_buffer.buffer[ 0 ] |= more_data_flag;
+                {
+                    const std::uint16_t header = layout::header( receive_buffer ) | more_data_flag;
+                    layout::header( receive_buffer, header );
+                }
 
                 auto response = this->received( receive_buffer );
 
-                more_data = more_data || ( response.buffer[ 0 ] & more_data_flag );
+                more_data = more_data || ( layout::header( response ) & more_data_flag );
                 master_ne_sequence_number_ ^= nesn_flag;
 
                 event.received_data.push_back(
-                    std::vector< std::uint8_t >( &receive_buffer.buffer[ 0 ], &receive_buffer.buffer[ 2 ] + receive_buffer.buffer[ 1 ] ) );
+                    memory_to_air( bluetoe::link_layer::write_buffer( receive_buffer ) ) );
 
                 event.transmitted_data.push_back(
-                    std::vector< std::uint8_t >( &response.buffer[ 0 ], &response.buffer[ 2 ] + response.buffer[ 1 ] ) );
+                    memory_to_air( response ) );
 
             } while ( more_data );
 
             static_cast< CallBack* >( this )->end_event();
         }
     }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::copy_memory_to_air( const std::vector< std::uint8_t >& in_memory, bluetoe::link_layer::read_buffer& over_the_air )
+    {
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio< TransmitSize, ReceiveSize, CallBack > >::pdu_layout;
+
+        const auto          body      = layout::body( bluetoe::link_layer::write_buffer( in_memory.data(), in_memory.size() ) );
+        const std::uint16_t header    = layout::header( in_memory.data() );
+        const std::size_t   body_size = std::min< std::size_t >( over_the_air.size - ll_header_size, std::distance( body.first, body.second ) );
+
+        bluetoe::details::write_16bit( over_the_air.buffer, header );
+        std::copy( body.first, body.first + body_size, over_the_air.buffer + ll_header_size );
+
+        over_the_air.size = body_size + ll_header_size;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    void radio< TransmitSize, ReceiveSize, CallBack >::copy_air_to_memory( const std::vector< std::uint8_t >& over_the_air, bluetoe::link_layer::read_buffer& in_memory )
+    {
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio< TransmitSize, ReceiveSize, CallBack > >::pdu_layout;
+
+        const std::uint16_t header = bluetoe::details::read_16bit( over_the_air.data() );
+        const std::size_t   size   = header >> 8;
+        const auto          body   = layout::body( in_memory );
+
+        const std::size_t   body_size = std::min< std::size_t >( size, std::distance( body.first, body.second ) );
+
+        layout::header( in_memory, header );
+        std::copy( over_the_air.data() + ll_header_size, over_the_air.data() + ll_header_size + body_size, body.first );
+
+        in_memory.size = layout::data_channel_pdu_memory_size( body_size );
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    std::vector< std::uint8_t > radio< TransmitSize, ReceiveSize, CallBack >::air_to_memory( bluetoe::link_layer::write_buffer air )
+    {
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio< TransmitSize, ReceiveSize, CallBack > >::pdu_layout;
+
+        const std::uint16_t header = bluetoe::details::read_16bit( air.buffer );
+        const std::size_t   size   = header >> 8;
+
+        std::vector< std::uint8_t > result( layout::data_channel_pdu_memory_size( size ) );
+
+        const auto          body   = layout::body( bluetoe::link_layer::read_buffer{ &result[ 0 ], result.size() } );
+
+        layout::header( &result[ 0 ], header );
+        std::copy( air.buffer + ll_header_size, air.buffer + ll_header_size + size, body.first );
+
+        return result;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    std::vector< std::uint8_t > radio< TransmitSize, ReceiveSize, CallBack >::memory_to_air( bluetoe::link_layer::write_buffer memory )
+    {
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio< TransmitSize, ReceiveSize, CallBack > >::pdu_layout;
+
+        const std::uint16_t header    = layout::header( memory );
+        const auto          body      = layout::body( memory );
+        const std::size_t   body_size = header >> 8;
+
+        std::vector< std::uint8_t > air( body_size + ll_header_size );
+        bluetoe::details::write_16bit( &air[ 0 ], header );
+        std::copy( body.first, body.first + body_size, &air[ ll_header_size ] );
+
+        return air;
+    }
+
+    struct pdu_layout : bluetoe::link_layer::details::layout_base< pdu_layout > {
+        static constexpr std::size_t header_size = sizeof( std::uint16_t );
+
+        using bluetoe::link_layer::details::layout_base< pdu_layout >::header;
+
+        static std::uint16_t header( const std::uint8_t* pdu )
+        {
+            return ::bluetoe::details::read_16bit( pdu ) ^ 0xffff;
+        }
+
+        static void header( std::uint8_t* pdu, std::uint16_t header_value )
+        {
+            ::bluetoe::details::write_16bit( pdu, header_value ^ 0xffff );
+        }
+
+        static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::link_layer::read_buffer& pdu )
+        {
+            assert( pdu.size >= header_size );
+
+            return { &pdu.buffer[ header_size + 2 ], &pdu.buffer[ pdu.size ] };
+        }
+
+        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::link_layer::write_buffer& pdu )
+        {
+            assert( pdu.size >= header_size );
+
+            return { &pdu.buffer[ header_size + 2 ], &pdu.buffer[ pdu.size ] };
+        }
+
+        static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
+        {
+            return header_size + payload_size + 2;
+        }
+    };
+
+}
+
+/*
+ * To make sure, that all parts of the library take the PDU layout into account, all tests are done
+ * with a special layout, where the header is inverted and where a gap (of 2 octets) between header and octets is inserted.
+ */
+namespace bluetoe {
+    namespace link_layer {
+
+        template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+        struct pdu_layout_by_radio< test::radio< TransmitSize, ReceiveSize, CallBack > >
+        {
+            using pdu_layout = test::pdu_layout;
+        };
+
+        template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+        struct pdu_layout_by_radio< test::radio_with_encryption< TransmitSize, ReceiveSize, CallBack > >
+        {
+            using pdu_layout = test::pdu_layout;
+        };
+   }
 }
 
 #endif // include guard

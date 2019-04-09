@@ -7,6 +7,8 @@
 #include <bluetoe/advertising.hpp>
 #include <bluetoe/white_list.hpp>
 
+#include "test_radio.hpp"
+
 template < bool Connect, bool Respond >
 struct link_layer_base
 {
@@ -49,6 +51,8 @@ struct link_layer_base
 
     std::uint8_t buffer_[ 1024 ];
     bool advertisment_scheduled;
+
+    using radio_t = test::radio< 100, 100, link_layer_base< Connect, Respond > >;
 };
 
 struct single_advertiser_without_white_list :
@@ -115,8 +119,10 @@ typedef boost::mpl::list<
 
 bluetoe::link_layer::read_buffer valid_connection_request()
 {
+    // the test PDU layout has the header inverted and 2 extra octets between header and body
     static const std::initializer_list< std::uint8_t > data = {
-        0xc5, 0x22,                         // header
+        0xc5 ^ 0xff, 0x22 ^ 0xff,           // header
+        0x12, 0x34,                         // extra bytes
         0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x49, // InitA: 49:f0:92:62:1c:3c (random)
         0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
         0x5a, 0xb3, 0x9a, 0xaf,             // Access Address

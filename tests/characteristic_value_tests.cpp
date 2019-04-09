@@ -348,7 +348,7 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
         bluetoe::free_read_handler< test_handler >
     >;
 
-    typedef boost::mpl::list< fixed_value, bound_value, cstring_value, other_handlers > characteristic_types;
+    using characteristic_types = boost::mpl::list< fixed_value, bound_value, cstring_value, other_handlers >;
 
     BOOST_AUTO_TEST_SUITE( unpaired_unencrypted )
 
