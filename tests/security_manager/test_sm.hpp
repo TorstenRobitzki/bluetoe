@@ -29,7 +29,7 @@ namespace test {
             return r;
         }
 
-        bluetoe::details::longterm_key_t create_ediv_and_rand()
+        bluetoe::details::longterm_key_t create_long_term_key()
         {
             bluetoe::details::longterm_key_t key = {
                 {{
@@ -45,18 +45,6 @@ namespace test {
             return key;
         }
 
-        bluetoe::details::uint128_t r( const bluetoe::details::uint128_t& a ) const
-        {
-            const bluetoe::details::uint128_t result{{
-                a[15], a[14], a[13], a[12],
-                a[11], a[10], a[ 9], a[ 8],
-                a[ 7], a[ 6], a[ 5], a[ 4],
-                a[ 3], a[ 2], a[ 1], a[ 0],
-            }};
-
-            return result;
-        }
-
         // Key generation function s1 for LE Legacy Pairing
         bluetoe::details::uint128_t s1(
             const bluetoe::details::uint128_t& stk,
@@ -68,6 +56,31 @@ namespace test {
             std::copy( &mrand[ 0 ], &mrand[ 8 ], &r[ 0 ] );
 
             return aes( stk, r );
+        }
+
+        bluetoe::details::uint128_t c1(
+            const bluetoe::details::uint128_t& temp_key,
+            const bluetoe::details::uint128_t& srand,
+            const bluetoe::details::uint128_t& p1,
+            const bluetoe::details::uint128_t& p2 ) const
+        {
+            // c1 (k, r, preq, pres, iat, rat, ia, ra) = e(k, e(k, r XOR p1) XOR p2)
+            const auto p1_ = aes( temp_key, xor_( srand, p1 ) );
+
+            return aes( temp_key, xor_( p1_, p2 ) );
+        }
+
+    protected:
+        bluetoe::details::uint128_t r( const bluetoe::details::uint128_t& a ) const
+        {
+            const bluetoe::details::uint128_t result{{
+                a[15], a[14], a[13], a[12],
+                a[11], a[10], a[ 9], a[ 8],
+                a[ 7], a[ 6], a[ 5], a[ 4],
+                a[ 3], a[ 2], a[ 1], a[ 0],
+            }};
+
+            return result;
         }
 
         bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const bluetoe::details::uint128_t& b ) const
@@ -96,18 +109,6 @@ namespace test {
             AES_ECB_encrypt( &ctx, &data[ 0 ] );
 
             return r( data );
-        }
-
-        bluetoe::details::uint128_t c1(
-            const bluetoe::details::uint128_t& temp_key,
-            const bluetoe::details::uint128_t& srand,
-            const bluetoe::details::uint128_t& p1,
-            const bluetoe::details::uint128_t& p2 ) const
-        {
-            // c1 (k, r, preq, pres, iat, rat, ia, ra) = e(k, e(k, r XOR p1) XOR p2)
-            const auto p1_ = aes( temp_key, xor_( srand, p1 ) );
-
-            return aes( temp_key, xor_( p1_, p2 ) );
         }
 
         bluetoe::link_layer::device_address local_addr_;

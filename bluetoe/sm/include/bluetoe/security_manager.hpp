@@ -18,7 +18,7 @@ namespace bluetoe {
 
         /**
          * @brief Tuple to store a longterm key along with
-         *        EDIV and Rand value to indientify them later.
+         *        EDIV and Rand value to identify them later.
          */
         struct longterm_key_t
         {
@@ -89,7 +89,7 @@ namespace bluetoe {
     }
 
     /**
-     * @brief Security manager implementation.
+     * @brief A Security manager implementation that supports legacy pairing.
      */
     class security_manager
     {

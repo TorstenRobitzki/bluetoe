@@ -198,6 +198,83 @@ namespace link_layer {
          * @brief returns true, if a scan request from the given address should be answered.
          */
         bool radio_is_scan_request_in_filter( const device_address& addr ) const;
+
+        /**
+         * @brief indication no support for encryption
+         */
+        static constexpr bool hardware_supports_encryption = false;
+    };
+
+    /**
+     * @brief extension of a scheduled_radio with functions to support encryption
+     *
+     * To allow the utilization of hardware support for certain cryptographical functions,
+     * this interface abstracts at a quite high level.
+     */
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    class scheduled_radio_with_encryption : public scheduled_radio< TransmitSize, ReceiveSize, CallBack >
+    {
+    public:
+        /**
+         * @brief indication support for encryption
+         */
+        static constexpr bool hardware_supports_encryption = true;
+
+        /**
+         * @brief Function to create the Srand according to 2.3.5.5 Part H, Vol 3, Core Spec
+         */
+        bluetoe::details::uint128_t create_srand();
+
+        /**
+         * @brief Function to create a random long term key and random Rand and EDIV values to identify this newly created key.
+         */
+        bluetoe::details::longterm_key_t create_long_term_key();
+
+        /**
+         * @brief Confirm value generation function c1 for LE Legacy Pairing
+         *
+         * @param temp_key the temporary key from the LE legacy pairing algorithm
+         * @param rand the value created by create_srand() or the
+         * @param p1 p1 = pres || preq || rat’ || iat’ (see 2.3.3 Confirm value generation function c1 for LE Legacy Pairing)
+         * @param p2 p2 = padding || ia || ra (see 2.3.3 Confirm value generation function c1 for LE Legacy Pairing)
+         *
+         * The function calculates the confirm value based on the slaves or masters random value (Srand or Mrand), the temporary
+         * key and the data in the pairing request and response.
+         */
+        bluetoe::details::uint128_t c1(
+            const bluetoe::details::uint128_t& temp_key,
+            const bluetoe::details::uint128_t& rand,
+            const bluetoe::details::uint128_t& p1,
+            const bluetoe::details::uint128_t& p2 ) const;
+
+        /**
+         * @brief Key generation function s1 for LE Legacy Pairing
+         *
+         * The key generation function s1 is used to generate the STK during the LE
+         * legacy pairing process.
+         *
+         * @param temp_key the temporary key from the LE legacy pairing algorithm
+         * @param srand The slave random value (Srand).
+         * @param mrand The master random value (Mrand).
+         */
+        bluetoe::details::uint128_t s1(
+            const bluetoe::details::uint128_t& temp_key,
+            const bluetoe::details::uint128_t& srand,
+            const bluetoe::details::uint128_t& mrand );
+
+        /**
+         * @brief setup the hardware with all data required for encryption
+         *
+         * The encryption is prepaired but not started jet.
+         * @param key long term or short term key to be used for encryption
+         * @param skdm The master’s portion of the session key diversifier.
+         * @param ivm The IVm field contains the master’s portion of the initialization vector.
+         *
+         * The function returns SKDs and IVs (the slaves portion of the session key diversifier and initialization vector),
+         * to be send to the master.
+         */
+        std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
+
     };
         /**
          * @brief start the encryption after the next connection event.
