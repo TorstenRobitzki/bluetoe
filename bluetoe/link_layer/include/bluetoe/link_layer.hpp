@@ -106,10 +106,11 @@ namespace link_layer {
         struct link_layer_security_impl
         {
             template < class LinkLayer >
-            struct impl
+            class impl
             {
+            public:
                 impl()
-                    : no_key_( true )
+                    : has_key_( false )
                     , encryption_in_progress_( false )
                 {}
 
@@ -118,7 +119,7 @@ namespace link_layer {
                     return static_cast< LinkLayer& >( *this );
                 }
 
-                bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write )
+                bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer write )
                 {
                     using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
@@ -137,14 +138,12 @@ namespace link_layer {
                               std::uint32_t ivs  = 0;
 
                         bluetoe::details::uint128_t key;
-                        std::tie( no_key_, key ) = that().connection_details_.find_key( ediv, rand );
-                        no_key_ = !no_key_;
+                        std::tie( has_key_, key ) = that().connection_details_.find_key( ediv, rand );
 
-                        // setup encryption, even when no key is available to create SKDs and IVs
+                        // setup encryption
                         std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
 
                         std::uint8_t* write_body = layout_t::body( write ).first;
-
                         bluetoe::details::write_64bit( &write_body[ 1 ], skds );
                         bluetoe::details::write_32bit( &write_body[ 9 ], ivs );
                     }
@@ -178,31 +177,25 @@ namespace link_layer {
                     if ( out_buffer.empty() )
                         return;
 
-                    if ( no_key_ )
-                    {
-                        no_key_                 = false;
-
-                        fill< layout_t >( out_buffer, {
-                            LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
-                    }
-                    else
+                    if ( has_key_ )
                     {
                         fill< layout_t >( out_buffer, {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
                         that().start_encryption();
                     }
+                    else
+                    {
+                        fill< layout_t >( out_buffer, {
+                            LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
+                    }
 
                     that().commit_transmit_buffer( out_buffer );
                     encryption_in_progress_ = false;
                 }
 
-                bool link_is_encrypted() const
-                {
-                    return encryption_in_progress_;
-                }
-
-                bool no_key_;
+            private:
+                bool has_key_;
                 bool encryption_in_progress_;
             };
         };
@@ -219,11 +212,6 @@ namespace link_layer {
 
                 void transmit_pending_security_pdus()
                 {
-                }
-
-                bool link_is_encrypted() const
-                {
-                    return false;
                 }
             };
         };
@@ -673,7 +661,7 @@ namespace link_layer {
         current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
         ++conn_event_counter_;
 
-        if( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
+        if ( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
         {
             force_disconnect();
         }
