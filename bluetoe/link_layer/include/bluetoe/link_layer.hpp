@@ -221,7 +221,7 @@ namespace link_layer {
         };
 
         template < class Server, class LinkLayer >
-        using select_link_layer_no_security_impl =
+        using select_link_layer_security_impl =
             typename bluetoe::details::select_type<
                 bluetoe::details::requires_encryption_support_t< Server >::value,
                 link_layer_security_impl,
@@ -240,7 +240,7 @@ namespace link_layer {
     /**
      * @brief link layer implementation
      *
-     * Implements a binding to a server by implementing a link layout on top of a ScheduleRadio device.
+     * Implements a binding to a server by implementing a link layer on top of a ScheduleRadio device.
      *
      * @sa connectable_undirected_advertising
      * @sa connectable_directed_advertising
@@ -279,7 +279,7 @@ namespace link_layer {
             Options... >,
         private details::connection_callbacks< Server, Options... >::type,
         private details::signaling_channel< Options... >::type,
-        private details::select_link_layer_no_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >
+        private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >
     {
     public:
         link_layer();
@@ -343,7 +343,7 @@ namespace link_layer {
 
     private:
 
-        friend details::select_link_layer_no_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
+        friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
 
         static constexpr auto options_test = sizeof(
             details::option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
