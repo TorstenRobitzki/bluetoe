@@ -2,6 +2,7 @@
 #define BLUETOE_TESTS_SECURITY_MANAGER_TEST_SM_HPP
 
 #include "aes.h"
+#include <bluetoe/link_state.hpp>
 
 namespace test {
 
@@ -16,7 +17,7 @@ namespace test {
             local_addr_ = addr;
         }
 
-        bluetoe::details::uint128_t create_srand() const
+        bluetoe::details::uint128_t create_srand()
         {
             const bluetoe::details::uint128_t r{{
                 0xE0, 0x2E, 0x70, 0xC6,
@@ -26,6 +27,22 @@ namespace test {
             }};
 
             return r;
+        }
+
+        bluetoe::details::longterm_key_t create_ediv_and_rand()
+        {
+            bluetoe::details::longterm_key_t key = {
+                {{
+                    0x00, 0x11, 0x22, 0x33,
+                    0x44, 0x55, 0x66, 0x77,
+                    0x88, 0x99, 0xaa, 0xbb,
+                    0xcc, 0xdd, 0xee, 0xff
+                }},
+                0xaabbccdd00112233,
+                0x1234
+            };
+
+            return key;
         }
 
         bluetoe::details::uint128_t r( const bluetoe::details::uint128_t& a ) const
@@ -38,6 +55,19 @@ namespace test {
             }};
 
             return result;
+        }
+
+        // Key generation function s1 for LE Legacy Pairing
+        bluetoe::details::uint128_t s1(
+            const bluetoe::details::uint128_t& stk,
+            const bluetoe::details::uint128_t& srand,
+            const bluetoe::details::uint128_t& mrand )
+        {
+            bluetoe::details::uint128_t r;
+            std::copy( &srand[ 0 ], &srand[ 8 ], &r[ 8 ] );
+            std::copy( &mrand[ 0 ], &mrand[ 8 ], &r[ 0 ] );
+
+            return aes( stk, r );
         }
 
         bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const bluetoe::details::uint128_t& b ) const
@@ -87,6 +117,7 @@ namespace test {
     struct security_manager : Manager, private security_functions
     {
         security_manager()
+            : connection_data_( MTU, false )
         {
             local_addr(
                 bluetoe::link_layer::public_device_address({
@@ -122,7 +153,8 @@ namespace test {
         }
 
         struct gatt_connection_details {};
-        using connection_data_t = typename Manager::template connection_data< gatt_connection_details >;
+        using connection_data_t = bluetoe::details::link_state<
+            typename Manager::template connection_data< gatt_connection_details > >;
 
         void local_addr( const bluetoe::link_layer::device_address& addr )
         {
@@ -134,6 +166,11 @@ namespace test {
             connection_data_.remote_connection_created( addr );
         }
 
+        const connection_data_t& connection_data() const
+        {
+            return connection_data_;
+
+        }
         connection_data_t connection_data_;
     };
 
@@ -182,6 +219,29 @@ namespace test {
                     0x96, 0xa2, 0xe7, 0x90,
                     0x53, 0xb2, 0x31, 0x06,
                     0xc9, 0xdd, 0xd4, 0xf8
+                }
+            );
+        }
+    };
+
+    struct pairing_random_exchanged : pairing_confirm_exchanged
+    {
+        pairing_random_exchanged()
+        {
+            expected(
+                {
+                    0x04,                   // opcode
+                    0xE0, 0x2E, 0x70, 0xC6,
+                    0x4E, 0x27, 0x88, 0x63,
+                    0x0E, 0x6F, 0xAD, 0x56,
+                    0x21, 0xD5, 0x83, 0x57
+                },
+                {
+                    0x04,                   // opcode
+                    0xE0, 0x2E, 0x70, 0xC6,
+                    0x4E, 0x27, 0x88, 0x63,
+                    0x0E, 0x6F, 0xAD, 0x56,
+                    0x21, 0xD5, 0x83, 0x57
                 }
             );
         }

@@ -8,10 +8,24 @@
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/address.hpp>
+#include <bluetoe/link_state.hpp>
 
 namespace bluetoe {
+
     namespace details {
+
         using uint128_t = std::array< std::uint8_t, 16 >;
+
+        /**
+         * @brief Tuple to store a longterm key along with
+         *        EDIV and Rand value to indientify them later.
+         */
+        struct longterm_key_t
+        {
+            std::array< std::uint8_t, 16 >  longterm_key;
+            std::uint64_t                   rand;
+            std::uint16_t                   ediv;
+        };
 
         struct security_manager_meta_type {};
 
@@ -61,7 +75,8 @@ namespace bluetoe {
         enum class pairing_state : std::uint8_t {
             idle,
             pairing_requested,
-            pairing_confirmed
+            pairing_confirmed,
+            pairing_completed,
         };
 
         inline void error_response( details::sm_error_codes error_code, std::uint8_t* output, std::size_t& out_size )
@@ -71,7 +86,6 @@ namespace bluetoe {
 
             out_size = 2;
         }
-
     }
 
     /**
@@ -124,6 +138,25 @@ namespace bluetoe {
                 std::copy( mconfirm_begin, mconfirm_end, state_data_.pairing_state.mconfirm.begin() );
             }
 
+            void pairing_completed( const details::uint128_t& short_term_key )
+            {
+                assert( state_ == details::pairing_state::pairing_confirmed );
+                state_ = details::pairing_state::pairing_completed;
+
+                state_data_.completed_state.short_term_key = short_term_key;
+            }
+
+            template < class T >
+            bool outgoing_security_manager_data_available( const bluetoe::details::link_state< T >& link ) const
+            {
+                return link.is_entrypted() && state_ != details::pairing_state::pairing_completed;
+            }
+/*
+            std::pair< bool, details::uint128_t > find_key( std::uint16_t kdiv, std::uint64_t rand )
+            {
+
+            }
+*/
             void error_reset()
             {
                 state_ = details::pairing_state::idle;
@@ -160,6 +193,10 @@ namespace bluetoe {
                     details::uint128_t srand;
                     details::uint128_t mconfirm;
                 }                                   pairing_state;
+
+                struct {
+                    details::uint128_t short_term_key;
+                }                                   completed_state;
             }                       state_data_;
         };
 
@@ -366,6 +403,9 @@ namespace bluetoe {
 
         const auto srand = state.srand();
         std::copy( srand.begin(), srand.end(), &output[ 1 ] );
+
+        const auto stk = func.s1( { { 0 } }, srand, mrand );
+        state.pairing_completed( stk );
     }
 
     template < class OtherConnectionData >
