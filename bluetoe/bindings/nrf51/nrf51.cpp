@@ -838,14 +838,14 @@ namespace nrf51_details {
     static constexpr std::size_t ccm_key_offset = 0;
     static constexpr std::size_t ccm_packet_counter_offset = 16;
     static constexpr std::size_t ccm_packet_counter_size   = 5;
-    static constexpr std::size_t ccm_direction_offset = 0;
+    static constexpr std::size_t ccm_direction_offset = 24;
     static constexpr std::size_t ccm_iv_offset = 25;
 
-    static constexpr std::uint8_t slave_ccm_direction = 0;
+    static constexpr std::uint8_t master_to_slave_ccm_direction = 0x01;
+    static constexpr std::uint8_t slave_to_master_ccm_direction = 0x00;
 
     static void init_ccm_data_structure( std::uint32_t scratch_area )
     {
-        ccm_data_struct.data[ ccm_direction_offset ] = slave_ccm_direction;
         nrf_ccm->SCRATCHPTR = scratch_area;
         nrf_ccm->CNFPTR     = reinterpret_cast< std::uintptr_t >( &ccm_data_struct );
     }
@@ -993,6 +993,8 @@ namespace nrf51_details {
     void scheduled_radio_base_with_encryption_base::stop_transmit_encrypted()
     {
         configure_encryption( false, false );
+
+        // remove key from memory
         std::memset( &ccm_data_struct, 0, sizeof( ccm_data_struct ) );
         nrf_ccm->ENABLE = nrf_ccm->ENABLE & ~CCM_ENABLE_ENABLE_Msk;
     }
@@ -1000,11 +1002,13 @@ namespace nrf51_details {
     void scheduled_radio_base_with_encryption_base::load_receive_packet_counter()
     {
         rx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
+        ccm_data_struct.data[ ccm_direction_offset ] = master_to_slave_ccm_direction;
     }
 
     void scheduled_radio_base_with_encryption_base::load_transmit_packet_counter()
     {
         tx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
+        ccm_data_struct.data[ ccm_direction_offset ] = slave_to_master_ccm_direction;
     }
 
 } // namespace nrf51_details
