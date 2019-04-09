@@ -527,7 +527,7 @@ namespace nrf51_details {
         transmit_encrypted_ = transmit;
     }
 
-    link_layer::delta_time scheduled_radio_base::start_connection_event(
+    link_layer::delta_time scheduled_radio_base::start_connection_event_impl(
         unsigned                        channel,
         bluetoe::link_layer::delta_time start_receive,
         bluetoe::link_layer::delta_time end_receive,
@@ -837,7 +837,7 @@ namespace nrf51_details {
 
     static constexpr std::size_t ccm_key_offset = 0;
     static constexpr std::size_t ccm_packet_counter_offset = 16;
-    static constexpr std::size_t ccm_packet_counter_size   = 16;
+    static constexpr std::size_t ccm_packet_counter_size   = 5;
     static constexpr std::size_t ccm_direction_offset = 0;
     static constexpr std::size_t ccm_iv_offset = 25;
 
@@ -974,12 +974,14 @@ namespace nrf51_details {
 
     void scheduled_radio_base_with_encryption_base::start_receive_encrypted()
     {
+        rx_counter_ = counter();
         nrf_ccm->ENABLE         = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
         configure_encryption( true, false );
     }
 
     void scheduled_radio_base_with_encryption_base::start_transmit_encrypted()
     {
+        tx_counter_ = counter();
         configure_encryption( true, true );
     }
 
@@ -993,6 +995,16 @@ namespace nrf51_details {
         configure_encryption( false, false );
         std::memset( &ccm_data_struct, 0, sizeof( ccm_data_struct ) );
         nrf_ccm->ENABLE = nrf_ccm->ENABLE & ~CCM_ENABLE_ENABLE_Msk;
+    }
+
+    void scheduled_radio_base_with_encryption_base::load_receive_packet_counter()
+    {
+        rx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
+    }
+
+    void scheduled_radio_base_with_encryption_base::load_transmit_packet_counter()
+    {
+        tx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
     }
 
 } // namespace nrf51_details
