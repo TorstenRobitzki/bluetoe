@@ -49,7 +49,64 @@ namespace test {
     std::ostream& operator<<( std::ostream& out, const advertising_data& data );
     std::ostream& operator<<( std::ostream& out, const std::vector< advertising_data >& data );
 
-    using pdu_t = std::vector< std::uint8_t >;
+    struct pdu_t {
+        std::vector< std::uint8_t > data;
+        bool                        encrypted;
+
+        using iterator       = std::vector< std::uint8_t >::iterator;
+        using const_iterator = std::vector< std::uint8_t >::const_iterator;
+
+        iterator begin()
+        {
+            return data.begin();
+        }
+
+        iterator end()
+        {
+            return data.end();
+        }
+
+        const_iterator begin() const
+        {
+            return data.begin();
+        }
+
+        const_iterator end() const
+        {
+            return data.end();
+        }
+
+        std::size_t size() const
+        {
+            return data.size();
+        }
+
+        std::uint8_t& operator[]( int index )
+        {
+            return data[ index ];
+        }
+
+        std::uint8_t operator[]( int index ) const
+        {
+            return data[ index ];
+        }
+
+        pdu_t( const std::vector< std::uint8_t > d )
+            : data( d )
+            , encrypted( false )
+        {}
+
+        pdu_t( const std::vector< std::uint8_t > d, bool enc )
+            : data( d )
+            , encrypted( enc )
+        {}
+
+        pdu_t( std::initializer_list< std::uint8_t > list )
+            : data( list )
+            , encrypted( false )
+        {}
+    };
+
     using pdu_list_t = std::vector< pdu_t >;
 
     std::ostream& operator<<( std::ostream& out, const pdu_t& data );
@@ -70,6 +127,9 @@ namespace test {
 
         pdu_list_t                          transmitted_data;
         pdu_list_t                          received_data;
+
+        bool                                receive_encryption_at_start_of_event;
+        bool                                transmit_encryption_at_start_of_event;
     };
 
     std::ostream& operator<<( std::ostream& out, const connection_event& );
@@ -210,6 +270,7 @@ namespace test {
         void add_connection_event_respond_timeout();
 
         void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
+        void check_connection_events( const std::function< bool ( const connection_event& ) >& check, const char* message );
 
         /**
          * @brief check that exacly one outgoing l2cap layer pdu matches the given pattern
@@ -248,6 +309,9 @@ namespace test {
         };
 
         static constexpr std::size_t radio_maximum_white_list_entries = 0;
+
+        void increment_receive_packet_counter() {}
+        void increment_transmit_packet_counter() {}
 
     protected:
         typedef std::vector< advertising_data > advertising_list;
@@ -337,6 +401,10 @@ namespace test {
         bool advertising_response_;
         bool connection_event_response_;
         int  wake_ups_;
+
+    protected:
+        bool reception_encrypted_;
+        bool transmition_encrypted_;
     };
 }
 
@@ -358,8 +426,6 @@ namespace test {
             : key_( { { 0x00 } } )
             , skdm_( 0u )
             , ivm_( 0u )
-            , reception_encrypted_( false )
-            , transmition_encrypted_( false )
         {
         }
 
@@ -405,22 +471,22 @@ namespace test {
 
         void start_receive_encrypted()
         {
-            reception_encrypted_ = true;
+            this->reception_encrypted_ = true;
         }
 
         void start_transmit_encrypted()
         {
-            transmition_encrypted_ = true;
+            this->transmition_encrypted_ = true;
         }
 
         void stop_receive_encrypted()
         {
-            reception_encrypted_ = false;
+            this->reception_encrypted_ = false;
         }
 
         void stop_transmit_encrypted()
         {
-            transmition_encrypted_ = false;
+            this->transmition_encrypted_ = false;
         }
 
         // access to data provided for testing
@@ -439,22 +505,10 @@ namespace test {
             return ivm_;
         }
 
-        bool reception_encrypted() const
-        {
-            return reception_encrypted_;
-        }
-
-        bool transmition_encrypted() const
-        {
-            return transmition_encrypted_;
-        }
-
     private:
         bluetoe::details::uint128_t key_;
         std::uint64_t               skdm_;
         std::uint32_t               ivm_;
-        bool                        reception_encrypted_;
-        bool                        transmition_encrypted_;
     };
 
     // implementation
@@ -474,6 +528,8 @@ namespace test {
         , advertising_response_( false )
         , connection_event_response_( false )
         , wake_ups_( 0 )
+        , reception_encrypted_( false )
+        , transmition_encrypted_( false )
     {
     }
 
@@ -526,7 +582,9 @@ namespace test {
             access_address_,
             crc_init_,
             pdu_list_t(),
-            pdu_list_t()
+            pdu_list_t(),
+            reception_encrypted_,
+            transmition_encrypted_
         };
 
         connection_events_.push_back( data );
@@ -661,7 +719,7 @@ namespace test {
                         const auto pdu = pdus.front();
                         pdus.erase( pdus.begin() );
 
-                        copy_air_to_memory( pdu, receive_buffer );
+                        copy_air_to_memory( pdu.data, receive_buffer );
 
                         more_data = !pdus.empty();
                     }
@@ -689,7 +747,7 @@ namespace test {
                     memory_to_air( bluetoe::link_layer::write_buffer( receive_buffer ) ) );
 
                 event.transmitted_data.push_back(
-                    memory_to_air( response ) );
+                    pdu_t( memory_to_air( response ), transmition_encrypted_ ) );
 
             } while ( more_data );
 

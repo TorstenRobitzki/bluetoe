@@ -14,6 +14,18 @@ namespace bluetoe
 {
     namespace nrf51_details
     {
+        /* Counter used for CCM */
+        struct counter {
+            std::uint32_t   low;
+            std::uint8_t    high;
+
+            // set to zero
+            counter();
+
+            void increment();
+            void copy_to( std::uint8_t* target ) const;
+        };
+
         // map compile time callbacks to runtime callbacks for faster development cycles.
         class adv_callbacks
         {
@@ -74,12 +86,19 @@ namespace bluetoe
                 bluetoe::link_layer::delta_time end_receive,
                 const link_layer::read_buffer&  receive_buffer );
 
+            void increment_receive_packet_counter()
+            {
+            }
+
+            void increment_transmit_packet_counter()
+            {
+            }
+
         protected:
 
             void configure_encryption( bool receive, bool transmit );
 
         private:
-
             friend void ::RADIO_IRQHandler(void);
             friend void ::TIMER0_IRQHandler(void);
 
@@ -165,6 +184,17 @@ namespace bluetoe
         template < typename ... Options >
         class scheduled_radio_base_with_encryption : public scheduled_radio_base_with_encryption_base
         {
+        public:
+            void increment_receive_packet_counter()
+            {
+                rx_counter_.increment();
+            }
+
+            void increment_transmit_packet_counter()
+            {
+                tx_counter_.increment();
+            }
+
         protected:
             scheduled_radio_base_with_encryption( adv_callbacks& cbs )
                 : scheduled_radio_base_with_encryption_base( cbs,
@@ -193,6 +223,9 @@ namespace bluetoe
             struct alignas( 4 ) encrypted_message_t {
                 std::uint8_t data[ enrypted_size ];
             } encrypted_message_;
+
+            counter     tx_counter_;
+            counter     rx_counter_;
         };
 
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, typename Base >

@@ -15,37 +15,67 @@
 
 #include "buffer_io.hpp"
 
-struct mock_radio {
-    class lock_guard
+static bool radio_locked = false;
+
+class lock_guard
+{
+public:
+    lock_guard()
     {
-    public:
-        lock_guard()
-        {
-            assert( !locked_ );
-            locked_ = true;
-        }
+        assert( !radio_locked );
+        radio_locked = true;
+    }
 
-        ~lock_guard()
-        {
-            locked_ = false;
-        }
+    ~lock_guard()
+    {
+        radio_locked = false;
+    }
 
-    private:
-        lock_guard( const lock_guard& ) = delete;
-        lock_guard& operator=( const lock_guard& ) = delete;
-
-        static bool locked_;
-    };
+private:
+    lock_guard( const lock_guard& ) = delete;
+    lock_guard& operator=( const lock_guard& ) = delete;
 };
 
-bool mock_radio::lock_guard::locked_ = false;
+template < std::size_t TransmitSize, std::size_t ReceiveSize >
+struct mock_radio : bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, mock_radio< TransmitSize, ReceiveSize > > {
+    using lock_guard = ::lock_guard;
 
-struct buffer : bluetoe::link_layer::ll_data_pdu_buffer< 100, 100, mock_radio > {};
+    void increment_receive_packet_counter()
+    {
+        ++receive_packet_counter_;
+    }
 
-template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-struct running_mode_impl : bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >
+    void increment_transmit_packet_counter()
+    {
+        ++transmit_packet_counter_;
+    }
+
+    int receive_packet_counter() const
+    {
+        return receive_packet_counter_;
+    }
+
+    int transmit_packet_counter() const
+    {
+        return transmit_packet_counter_;
+    }
+
+    int receive_packet_counter_;
+    int transmit_packet_counter_;
+
+    mock_radio()
+        : receive_packet_counter_( 0 )
+        , transmit_packet_counter_( 0 )
+    {
+    }
+};
+
+using buffer = mock_radio< 100, 100 >;
+
+template < std::size_t TransmitSize, std::size_t ReceiveSize, template < std::size_t, std::size_t > class Radio >
+struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
 {
-    using layout = typename bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::layout;
+    using layout = typename bluetoe::link_layer::pdu_layout_by_radio< Radio< TransmitSize, ReceiveSize > >::pdu_layout;
 
     running_mode_impl()
         : random( 42 ) // for testing, deterministic pseudo random is cool
@@ -515,7 +545,7 @@ BOOST_FIXTURE_TEST_CASE( getting_an_empty_pdu_must_not_result_in_changing_alloca
 }
 
 // buffer with default sizes.
-struct default_buffer : bluetoe::link_layer::ll_data_pdu_buffer< 3 * 29, 3 * 29, mock_radio >
+struct default_buffer : mock_radio< 3 * 29, 3 * 29 >
 {
     default_buffer()
     {
@@ -560,60 +590,65 @@ BOOST_FIXTURE_TEST_CASE( receive_wrap_around, default_buffer )
 
 namespace changed_pdu_layout
 {
-    struct mock_radio {
+    /*
+     * lets invert all bits in the header and use an extra byte in front and behind the payload
+     */
+    struct pdu_layout : bluetoe::link_layer::details::layout_base< pdu_layout > {
 
-        using lock_guard = ::mock_radio::lock_guard;
+        using bluetoe::link_layer::details::layout_base< pdu_layout >::header;
 
-        /*
-         * lets invert all bits in the header and use an extra byte in front and behind the payload
+        /**
+         * @brief returns the header for advertising channel and for data channel PDUs.
          */
-        struct pdu_layout : bluetoe::link_layer::details::layout_base< pdu_layout > {
+        static std::uint16_t header( const std::uint8_t* pdu )
+        {
+            return bluetoe::details::read_16bit( pdu ) ^ 0xffff;
+        }
 
-            using bluetoe::link_layer::details::layout_base< pdu_layout >::header;
+        /**
+         * @brief writes to the header of the given PDU
+         */
+        static void header( std::uint8_t* pdu, std::uint16_t header_value )
+        {
+            bluetoe::details::write_16bit( pdu, header_value ^ 0xffff );
+        }
 
-            /**
-             * @brief returns the header for advertising channel and for data channel PDUs.
-             */
-            static std::uint16_t header( const std::uint8_t* pdu )
-            {
-                return bluetoe::details::read_16bit( pdu ) ^ 0xffff;
-            }
+        /**
+         * @brief returns the writable body for advertising channel or for data channel PDUs.
+         */
+        static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::link_layer::read_buffer& pdu )
+        {
+            return {
+                &pdu.buffer[ sizeof( std::uint16_t ) + 1 ],
+                &pdu.buffer[ pdu.size - 1 ]
+            };
+        }
 
-            /**
-             * @brief writes to the header of the given PDU
-             */
-            static void header( std::uint8_t* pdu, std::uint16_t header_value )
-            {
-                bluetoe::details::write_16bit( pdu, header_value ^ 0xffff );
-            }
+        /**
+         * @brief returns the readonly body for advertising channel or for data channel PDUs.
+         */
+        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::link_layer::write_buffer& pdu )
+        {
+            return {
+                &pdu.buffer[ sizeof( std::uint16_t ) + 1 ],
+                &pdu.buffer[ pdu.size - 1 ]
+            };
+        }
 
-            /**
-             * @brief returns the writable body for advertising channel or for data channel PDUs.
-             */
-            static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::link_layer::read_buffer& pdu )
-            {
-                return {
-                    &pdu.buffer[ sizeof( std::uint16_t ) + 1 ],
-                    &pdu.buffer[ pdu.size - 1 ]
-                };
-            }
+        static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
+        {
+            return sizeof( std::uint16_t ) + 2 + payload_size;
+        }
+    };
 
-            /**
-             * @brief returns the readonly body for advertising channel or for data channel PDUs.
-             */
-            static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::link_layer::write_buffer& pdu )
-            {
-                return {
-                    &pdu.buffer[ sizeof( std::uint16_t ) + 1 ],
-                    &pdu.buffer[ pdu.size - 1 ]
-                };
-            }
+    template < std::size_t TransmitSize, std::size_t ReceiveSize >
+    struct mock_radio : bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, mock_radio< TransmitSize, ReceiveSize > >
+    {
+        using lock_guard = ::lock_guard;
 
-            static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
-            {
-                return sizeof( std::uint16_t ) + 2 + payload_size;
-            }
-        };
+        void increment_receive_packet_counter() {}
+
+        void increment_transmit_packet_counter() {}
     };
 }
 
@@ -624,9 +659,9 @@ namespace bluetoe
 {
     namespace link_layer
     {
-        template <>
-        struct pdu_layout_by_radio< changed_pdu_layout::mock_radio > {
-            using pdu_layout = typename changed_pdu_layout::mock_radio::pdu_layout;
+        template < std::size_t TransmitSize, std::size_t ReceiveSize >
+        struct pdu_layout_by_radio< changed_pdu_layout::mock_radio< TransmitSize, ReceiveSize > > {
+            using pdu_layout = changed_pdu_layout::pdu_layout;
         };
     }
 }
@@ -641,7 +676,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( make_sure_the_layout_is_used, buffer_under_test )
     {
-        BOOST_CHECK( ( std::is_same< changed_pdu_layout::mock_radio::pdu_layout, layout >::value ) );
+        BOOST_CHECK( ( std::is_same< changed_pdu_layout::pdu_layout, layout >::value ) );
         BOOST_CHECK_EQUAL( std::size_t{ layout_overhead }, 2u );
     }
 
@@ -755,6 +790,86 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
         receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, false );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( packet_counter_tests )
+
+    BOOST_FIXTURE_TEST_CASE( do_not_increment_when_receiving_empty_pdu, running_mode )
+    {
+        receive_pdu( {}, false, false );
+        receive_pdu( {}, true, true );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 0 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( increment_when_receiving_none_empty_pdu, running_mode )
+    {
+        receive_pdu( { 0x11 }, false, false );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( do_not_increment_when_receiving_unexpected_pdu, running_mode )
+    {
+        receive_pdu( { 0x11 }, false, false );
+        receive_pdu( { 0x11 }, false, true );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( multiple_receive_increments, running_mode )
+    {
+        receive_pdu( { 0x11 }, false, false ); // increment
+        receive_pdu( { 0x11 }, true, false );  // increment
+        receive_pdu( {}, false, false );       // not incremented because it's empty
+        receive_pdu( { 0x11 }, true, false );  // increment
+        receive_pdu( { 0x11 }, true, false );  // not incremented because it's resend
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 3 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( do_not_increment_when_sending_empty_pdu, running_mode )
+    {
+        const auto empty1 = next_transmit();
+        static_cast< void >( empty1 );
+
+        // incomming PDU acknowledges
+        auto incomming = allocate_receive_buffer();
+        incomming.buffer[ 0 ] = 1 | 4;
+        incomming.buffer[ 1 ] = 0;
+        received( incomming );
+
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( do_increment_when_send_pdu_was_acknowlaged, running_mode )
+    {
+        transmit_pdu( { 1 } );
+
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+
+        // incomming PDU acknowledges
+        auto incomming = allocate_receive_buffer();
+        incomming.buffer[ 0 ] = 1 | 4;
+        incomming.buffer[ 1 ] = 0;
+        received( incomming );
+
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( do_increment_when_resending_pdu, running_mode )
+    {
+        transmit_pdu( { 1 } );
+
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+
+        // incomming PDU acknowledges
+        auto incomming = allocate_receive_buffer();
+        incomming.buffer[ 0 ] = 1;
+        incomming.buffer[ 1 ] = 0;
+        received( incomming );
+
+        transmit_pdu( { 1 } );
+
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
