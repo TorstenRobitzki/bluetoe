@@ -252,6 +252,70 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security 
     );
 }
 
+/*
+  This is the "start encryption" example from the core spec (version 4.2); Vol. 6; Part C; 1
+
+    The following parameters are set to the fixed values below:
+    LTK = 0x4C68384139F574D836BCF34E9DFB01BF (MSO to LSO)
+    EDIV = 0x2474 (MSO to LSO)
+    RAND = 0xABCDEF1234567890 (MSO to LSO)
+    SKDm = 0xACBDCEDFE0F10213 (MSO to LSO)
+    SKDs = 0x0213243546576879 (MSO to LSO)
+    IVm = 0xBADCAB24 (MSO to LSO)
+    IVs = 0xDEAFBABE (MSO to LSO)
+
+ */
+BOOST_FIXTURE_TEST_CASE( start_encryption_example, link_layer_with_security )
+{
+    static const bluetoe::details::uint128_t example_long_term_key = { {
+        0x4C, 0x68, 0x38, 0x41,
+        0x39, 0xF5, 0x74, 0xD8,
+        0x36, 0xBC, 0xF3, 0x4E,
+        0x9D, 0xFB, 0x01, 0xBF
+    } };
+
+    test::key_vault = std::make_pair( true, example_long_term_key );
+    setup_encryption_response( 0x0213243546576879, 0xDEAFBABE );
+
+    ll_control_pdu({
+        0x03,                                   // LL_ENC_REQ
+        0x90, 0x78, 0x56, 0x34,                 // Rand
+        0x12, 0xef, 0xcd, 0xab,
+        0x74, 0x24,                             // EDIV
+        0x13, 0x02, 0xf1, 0xe0,                 // SKDm
+        0xdf, 0xce, 0xbd, 0xac,
+        0x24, 0xab, 0xdc, 0xba                  // IVm
+    });
+    ll_empty_pdu();
+
+    run();
+
+    const auto used_key = encryption_key();
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( used_key ), std::end( used_key ), std::begin( example_long_term_key ), std::end( example_long_term_key ) );
+
+    expected_response( {
+        0x03, 0x0d,
+        0x04,                                   // LL_ENC_RSP
+        0x79, 0x68, 0x57, 0x46,                 // SKDm
+        0x35, 0x24, 0x13, 0x02,
+        0xbe, 0xba, 0xaf, 0xde                  // IVm
+    } );
+
+    expected_response( {
+        0x03, 0x01,
+        0x05                                    // LL_START_ENC_REQ
+    }, 1, 1 );
+
+    BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
+
+    check_connection_events(
+        []( const test::connection_event& evt ) -> bool {
+            return !evt.transmit_encryption_at_start_of_event;
+        },
+        "transmission should not be encrypted"
+    );
+}
+
 struct link_layer_with_encryption_setup : link_layer_with_security
 {
     link_layer_with_encryption_setup()
