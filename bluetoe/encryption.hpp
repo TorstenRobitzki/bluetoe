@@ -13,12 +13,15 @@ namespace bluetoe {
     }
 
     /**
-     * @brief defines that access to characteristic(s) require an encrypted link.
+     * @brief defines that access to characteristic(s) require an encrypted link without
+     *        MITM Protection.
      *
      * Can be used on server, service or characteristic level to define that the access
      * to a characteristic requires an encrypted link. If the link is not encrypted,
      * when accessing the characteristic, Bluetoe replies with an ATT Insufficient Authorization
-     * error.
+     * error, if the requesting device is not paired and ATT Insufficient Encryption, if the
+     * device is paired, but the link is not encrypted.
+     * (see table 10.2 Vol 3, Part C, 10.3.1)
      *
      * If applied to a server or service definition, this definition applies to all containing
      * characteristics, where it can be overridden.

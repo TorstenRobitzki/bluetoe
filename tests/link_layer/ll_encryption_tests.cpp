@@ -2,6 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include "connected.hpp"
+#include <bluetoe/sm/pairing_status.hpp>
 
 namespace test {
     std::uint16_t secret_value;
@@ -55,6 +56,11 @@ namespace test {
 
             void remote_connection_created( const bluetoe::link_layer::device_address& )
             {
+            }
+
+            bluetoe::device_pairing_status local_device_pairing_status() const
+            {
+                return bluetoe::device_pairing_status::no_key;
             }
         };
 

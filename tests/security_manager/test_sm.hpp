@@ -118,7 +118,7 @@ namespace test {
     struct security_manager : Manager, private security_functions
     {
         security_manager()
-            : connection_data_( MTU, false )
+            : connection_data_( MTU )
         {
             local_address(
                 bluetoe::link_layer::public_device_address({

@@ -517,7 +517,7 @@ namespace link_layer {
         , current_channel_index_( first_advertising_channel )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
-        , connection_details_( std::size_t{ details::mtu_size< Options... >::mtu }, false )
+        , connection_details_( std::size_t{ details::mtu_size< Options... >::mtu } )
         , used_features_( supported_features )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
@@ -589,7 +589,7 @@ namespace link_layer {
             this->connection_request( connection_addresses( address_, remote_address ) );
             this->handle_stop_advertising();
 
-            connection_details_ = connection_details_t( std::size_t{ details::mtu_size< Options... >::mtu }, false );
+            connection_details_ = connection_details_t( std::size_t{ details::mtu_size< Options... >::mtu } );
             connection_details_.remote_connection_created( remote_address );
         }
     }
@@ -1166,6 +1166,9 @@ namespace link_layer {
             std::size_t sm_size = output.size - all_header_size;
 
             static_cast< security_manager_t& >( *this ).l2cap_input( &input.buffer[ all_header_size ], l2cap_size, &output.buffer[ all_header_size ], sm_size, connection_details_, *this );
+
+            // in case the pairing status changed
+            connection_details_.pairing_status( connection_details_.local_device_pairing_status() );
 
             if ( sm_size )
             {

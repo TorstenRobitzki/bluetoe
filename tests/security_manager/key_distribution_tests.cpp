@@ -9,7 +9,7 @@ struct void_{};
 
 BOOST_FIXTURE_TEST_CASE( no_distribution_over_unsecure_connection, test::pairing_random_exchanged )
 {
-    bluetoe::details::link_state< void_ > link( 23, false );
+    bluetoe::details::link_state< void_ > link( 23 );
     BOOST_CHECK( !connection_data().outgoing_security_manager_data_available( link ) );
 }
 
