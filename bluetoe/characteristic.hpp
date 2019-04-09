@@ -484,10 +484,10 @@ namespace bluetoe {
         struct count_characteristic_attributes
         {
             enum { number_of_client_configs =
-                count_by_meta_type< client_characteristic_configuration_parameter, Options... >::count ? 1 : 0 };
+                count_by_meta_type< client_characteristic_configuration_parameter, Options... >::count != 0 ? 1 : 0 };
 
             enum { number_of_user_descriptions =
-                count_by_meta_type< characteristic_user_description_parameter, Options... >::count ? 1 : 0 };
+                count_by_meta_type< characteristic_user_description_parameter, Options... >::count != 0 ? 1 : 0 };
 
             enum { number_of_attributes = 2 + number_of_client_configs + number_of_user_descriptions };
         };
