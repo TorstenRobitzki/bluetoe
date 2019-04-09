@@ -214,6 +214,14 @@ namespace link_layer {
                 link_layer_security_impl,
                 link_layer_no_security_impl
             >::type::template impl< LinkLayer >;
+
+        template < typename >
+        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer;
+
+        template <>
+        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
+            ::bluetoe::details::no_such_type
+        > {};
     }
 
     /**
@@ -321,7 +329,16 @@ namespace link_layer {
         const device_address& local_address() const;
 
     private:
+
         friend details::select_link_layer_no_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
+
+        static constexpr auto options_test = sizeof(
+            details::option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
+                typename ::bluetoe::details::find_by_not_meta_type<
+                    details::valid_link_layer_option_meta_type,
+                    Options...
+                >::type
+            > );
         typedef ScheduledRadio<
             details::buffer_sizes< Options... >::tx_size,
             details::buffer_sizes< Options... >::rx_size,

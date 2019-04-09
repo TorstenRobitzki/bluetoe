@@ -5,6 +5,7 @@
 #include <buffer.hpp>
 #include <address.hpp>
 #include <ll_data_pdu_buffer.hpp>
+#include <bluetoe/ll_data_pdu_buffer.hpp>
 
 namespace bluetoe {
 namespace link_layer {
