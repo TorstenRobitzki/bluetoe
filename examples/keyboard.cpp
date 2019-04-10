@@ -3,6 +3,7 @@
 #include <bluetoe/services/bas.hpp>
 #include <bluetoe/services/dis.hpp>
 #include <bluetoe/services/hid.hpp>
+#include <bluetoe/descriptor.hpp>
 
 #include <nrf.h>
 
@@ -110,14 +111,44 @@ public:
         return bluetoe::error_codes::success;
     }
 
-    std::uint8_t report_write_handler( std::size_t write_size, const std::uint8_t* value )
+    std::uint8_t input_report_write_handler( std::size_t write_size, const std::uint8_t* value )
     {
         (void)write_size;
         (void)value;
         return bluetoe::error_codes::success;
     }
 
-    std::uint8_t report_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    std::uint8_t input_report_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    {
+        (void)read_size;
+        (void)out_buffer;
+        (void)out_size;
+        return bluetoe::error_codes::success;
+    }
+
+    std::uint8_t output_report_write_handler( std::size_t write_size, const std::uint8_t* value )
+    {
+        (void)write_size;
+        (void)value;
+        return bluetoe::error_codes::success;
+    }
+
+    std::uint8_t output_report_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
+    {
+        (void)read_size;
+        (void)out_buffer;
+        (void)out_size;
+        return bluetoe::error_codes::success;
+    }
+
+    std::uint8_t feature_report_write_handler( std::size_t write_size, const std::uint8_t* value )
+    {
+        (void)write_size;
+        (void)value;
+        return bluetoe::error_codes::success;
+    }
+
+    std::uint8_t feature_report_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
     {
         (void)read_size;
         (void)out_buffer;
@@ -215,10 +246,23 @@ using hid_service = bluetoe::service<
     >,
     bluetoe::characteristic<
         bluetoe::hid::report_uuid,
-        bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::report_write_handler >,
-        bluetoe::mixin_read_handler< keyboard_handler, &keyboard_handler::report_read_handler >,
-        bluetoe::write_without_response,
+        bluetoe::hid::input_report_reference< 0 >,
+        bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::input_report_write_handler >,
+        bluetoe::mixin_read_handler< keyboard_handler, &keyboard_handler::input_report_read_handler >,
         bluetoe::notify
+    >,
+    bluetoe::characteristic<
+        bluetoe::hid::report_uuid,
+        bluetoe::hid::output_report_reference< 0 >,
+        bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::output_report_write_handler >,
+        bluetoe::mixin_read_handler< keyboard_handler, &keyboard_handler::output_report_read_handler >,
+        bluetoe::write_without_response
+    >,
+    bluetoe::characteristic<
+        bluetoe::hid::report_uuid,
+        bluetoe::hid::feature_report_reference< 0 >,
+        bluetoe::mixin_write_handler< keyboard_handler, &keyboard_handler::feature_report_write_handler >,
+        bluetoe::mixin_read_handler< keyboard_handler, &keyboard_handler::feature_report_read_handler >
     >,
     bluetoe::characteristic<
         bluetoe::hid::report_map_uuid,
