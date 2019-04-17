@@ -25,6 +25,8 @@ add_subdirectory(${BINDING}_toolchain_support)
 add_compile_options(-ftemplate-backtrace-limit=0 -fvisibility-inlines-hidden -fno-rtti -fno-exceptions)
 #bluetoe library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/bluetoe)
+# Some hardware abstractions, required by the examples
+add_subdirectory(hal)
 function(add_bluetoe_example target_name)
     add_executable(${target_name} ${target_name}.cpp runtime.cpp)
     set_target_properties(${target_name} PROPERTIES OUTPUT_NAME ${target_name}.elf)
@@ -34,6 +36,7 @@ function(add_bluetoe_example target_name)
                                          bluetoe::bindings::nrf51
                                          startup::${BINDING}
                                          toolchain::${BINDING}
+                                         example_hal
                             -lm -lstdc++ -lsupc++
                             -T${CMAKE_CURRENT_BINARY_DIR}/${BINDING}_toolchain_support/linker_script.ld
                             -Wl,--gc-sections -Wl,--warn-common

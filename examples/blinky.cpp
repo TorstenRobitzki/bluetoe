@@ -1,17 +1,13 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/device.hpp>
-#include <nrf.h>
+#include "hal/io.hpp"
 
 using namespace bluetoe;
-
-static constexpr int io_pin = 21;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
     // the GPIO pin according to the received value: 0 = off, 1 = on
-    NRF_GPIO->OUT = state
-        ? NRF_GPIO->OUT | ( 1 << io_pin )
-        : NRF_GPIO->OUT & ~( 1 << io_pin );
+    set_led( state );
 
     return error_codes::success;
 }
@@ -31,10 +27,7 @@ device< blinky_server > gatt_srv;
 
 int main()
 {
-    // Init GPIO pin
-    NRF_GPIO->PIN_CNF[ io_pin ] =
-        ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
-        ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+    init_led();
 
     for ( ;; )
         gatt_srv.run( gatt );
