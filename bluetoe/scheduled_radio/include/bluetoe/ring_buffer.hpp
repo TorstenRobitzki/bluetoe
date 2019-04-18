@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cstdlib>
 
-#include "buffer.hpp"
+#include <bluetoe/buffer.hpp>
 
 namespace bluetoe {
 namespace link_layer {

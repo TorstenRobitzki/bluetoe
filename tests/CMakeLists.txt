@@ -13,7 +13,15 @@ function(add_and_register_test test_runner)
     add_executable(${test_runner} ${test_runner}.cpp)
 
     target_include_directories(${test_runner} PRIVATE ${Boost_INCLUDE_DIR})
-    target_link_libraries(${test_runner} PRIVATE bluetoe::iface bluetoe::linklayer bluetoe::sm bluetoe::utility test::tools)
+    target_link_libraries(${test_runner}
+        PRIVATE
+            bluetoe::iface
+            bluetoe::linklayer
+            bluetoe::sm
+            bluetoe::utility
+            test::tools
+            ${ARGN}
+    )
     target_compile_features(${test_runner} PRIVATE cxx_std_11)
 
     if (BLUETOE_EXCLUDE_SLOW_TESTS)
