@@ -2,6 +2,9 @@ add_library(bluetoe_bindings_nrf51 STATIC
             nrf51.cpp)
 add_library(bluetoe::bindings::nrf51 ALIAS bluetoe_bindings_nrf51)
 
+# Currently nrf52 is equal to nrf51, which is wrong if one looks at the details
+add_library(bluetoe::bindings::nrf52 ALIAS bluetoe_bindings_nrf51)
+
 target_include_directories(bluetoe_bindings_nrf51 PUBLIC include)
 
 target_link_libraries(bluetoe_bindings_nrf51

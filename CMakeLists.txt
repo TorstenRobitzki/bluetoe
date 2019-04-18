@@ -7,16 +7,21 @@ project(lib_bluetoe CXX)
 add_library(bluetoe_iface INTERFACE)
 add_library(bluetoe::iface ALIAS bluetoe_iface)
 target_include_directories(bluetoe_iface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(bluetoe_iface INTERFACE cxx_std_11)
+
 
 add_subdirectory(bluetoe/link_layer)
 add_subdirectory(bluetoe/scheduled_radio)
+add_subdirectory(bluetoe/hci)
 add_subdirectory(bluetoe/utility)
 add_subdirectory(bluetoe/sm)
 add_subdirectory(bluetoe/services)
 
 if (CMAKE_CROSSCOMPILING)
     add_subdirectory(bluetoe/bindings/nrf51)
-endif ()
+endif()
+
+add_subdirectory(bluetoe/bindings/hci)
 
 if (NOT CMAKE_CROSSCOMPILING)
     enable_testing()
