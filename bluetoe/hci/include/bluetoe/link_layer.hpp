@@ -11,10 +11,11 @@ namespace hci {
      */
     template <
         class Server,
+        template < typename >
         class Transport,
         typename ... Options
     >
-    class link_layer
+    class link_layer : Transport< link_layer< Server, Transport, Options... > >
     {
     public:
         /**
@@ -53,7 +54,7 @@ namespace hci {
     };
 
     // implementation
-    template < class Server, class Transport, typename ... Options >
+    template < class Server, template < typename > class Transport, typename ... Options >
     void link_layer< Server, Transport, Options... >::run( Server& )
     {
     }

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 
 # Prevent in source build, add this options before project keyword
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
@@ -7,8 +7,7 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(bluetoe_examples CXX C)
 
 if (NOT BINDING)
-    message(ERROR " A binding must be defined. Use -DBINDING=nrf51. Current available bindings are nrf51, nrf52")
-    return()
+    message(FATAL_ERROR " A binding must be defined. Use -DBINDING=nrf51. Current available bindings are nrf51, nrf52")
 endif()
 
 set(supported_bindings nrf51 nrf52 hci_libusb)
@@ -86,6 +85,7 @@ else()
         target_link_libraries(${target_name}
             PRIVATE
                 bluetoe::bindings::${BINDING}
+                example_hal
         )
     endfunction()
 
