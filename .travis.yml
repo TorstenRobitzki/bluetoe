@@ -68,9 +68,9 @@ after_success:
 
 before_install:
   - sudo apt-get update -qq
-  - wget https://cmake.org/files/v3.11/cmake-3.11.4-Linux-x86_64.sh
+  - wget https://cmake.org/files/v3.14/cmake-3.14.2-Linux-x86_64.sh
   - mkdir /opt/cmake
-  - sh cmake-3.11.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+  - sh cmake-3.14.2-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
   - wget https://launchpad.net/%7Eboost-latest/+archive/ubuntu/ppa/+files/libboost1.55-dev_1.55.0-1ppa1%7Esaucy1_amd64.deb
   - sudo dpkg --install libboost1.55-dev_1.55.0-1ppa1~saucy1_amd64.deb
   # - openssl aes-256-cbc -K $encrypted_eb6359394db6_key -iv $encrypted_eb6359394db6_iv -in config/travisci_rsa.enc -out config/travisci_rsa -d

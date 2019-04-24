@@ -1,0 +1,5 @@
+add_library(bluetoe_scheduled_radio INTERFACE)
+add_library(bluetoe::scheduled_radio ALIAS bluetoe_scheduled_radio)
+
+target_include_directories(bluetoe_scheduled_radio INTERFACE include)
+target_compile_features(bluetoe_linklayer PRIVATE cxx_std_11)
