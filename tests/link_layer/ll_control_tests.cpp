@@ -3,7 +3,6 @@
 
 #include "connected.hpp"
 
-
 BOOST_FIXTURE_TEST_CASE( respond_with_an_unknown_rsp, unconnected )
 {
     check_single_ll_control_pdu(

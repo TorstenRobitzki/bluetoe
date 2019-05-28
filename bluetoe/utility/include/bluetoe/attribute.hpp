@@ -1,8 +1,9 @@
 #ifndef BLUETOE_ATTRIBUTE_HPP
 #define BLUETOE_ATTRIBUTE_HPP
-#include "meta_tools.hpp"
-#include "client_characteristic_configuration.hpp"
-#include <bluetoe/sm/pairing_status.hpp>
+
+#include <bluetoe/meta_tools.hpp>
+#include <bluetoe/client_characteristic_configuration.hpp>
+#include <bluetoe/pairing_status.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>

@@ -9,7 +9,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/address.hpp>
 #include <bluetoe/link_state.hpp>
-#include <bluetoe/sm/pairing_status.hpp>
+#include <bluetoe/pairing_status.hpp>
 
 namespace bluetoe {
 

@@ -4,7 +4,6 @@
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
-#include <bluetoe/meta_tools.hpp>
 #include <bluetoe/link_layer.hpp>
 
 #include <vector>

@@ -2,7 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include "connected.hpp"
-#include <bluetoe/sm/pairing_status.hpp>
+#include <bluetoe/pairing_status.hpp>
 
 namespace test {
     std::uint16_t secret_value;
