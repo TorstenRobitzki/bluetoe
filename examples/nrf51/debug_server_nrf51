@@ -1,2 +1,0 @@
-#!/bin/sh
-JLinkGDBServer -device nRF51422_xxAA -if SWD -speed 100 -select usb=480208075
