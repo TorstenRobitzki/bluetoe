@@ -3,8 +3,6 @@
 
 #include <bluetoe/link_layer.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
-#include <bluetoe/default_pdu_layout.hpp>
-#include <bluetoe/meta_tools.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);

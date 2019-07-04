@@ -128,7 +128,11 @@ namespace details {
         client_characteristic_configuration_indication_enabled   = 2
     };
 
-
+    inline std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )
+    {
+        *out = bits( opcode );
+        return out + 1;
+    }
 }
 
 

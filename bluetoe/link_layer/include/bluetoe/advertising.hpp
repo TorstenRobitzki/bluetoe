@@ -8,7 +8,6 @@
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_meta_types.hpp>
 
-
 /**
  * @file bluetoe/link_layer/advertising.hpp
  *

@@ -82,4 +82,5 @@ add_bluetoe_example(blinky_without_encryption)
 add_bluetoe_example(thermometer)
 add_bluetoe_example(cycling_speed_and_cadence)
 add_bluetoe_example(bootloader)
+add_bluetoe_example(scheduled_radio_tests)
 

@@ -1,7 +1,7 @@
 #ifndef BLUETOE_DEVICE_HPP
 #define BLUETOE_DEVICE_HPP
 
-#include "nrf51.hpp"
+#include <bluetoe/nrf51.hpp>
 
 namespace bluetoe
 {
@@ -13,7 +13,6 @@ namespace bluetoe
         >::template scheduled_radio,
         Options...
     >;
-
 }
 
 #endif //BLUETOE_DEVICE_HPP
