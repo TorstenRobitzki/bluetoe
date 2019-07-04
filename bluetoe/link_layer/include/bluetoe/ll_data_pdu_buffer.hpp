@@ -42,6 +42,11 @@ namespace link_layer {
          */
         ll_data_pdu_buffer();
 
+        /**
+         * @brief layout to be applied to each PDU.
+         *
+         * Basecally, this defined the overhead per PDU (layout_overhead).
+         */
         using layout = typename pdu_layout_by_radio< Radio >::pdu_layout;
 
         /**
@@ -62,11 +67,11 @@ namespace link_layer {
         static constexpr std::size_t    header_size     = 2u;
         static constexpr std::size_t    layout_overhead = layout::data_channel_pdu_memory_size( 0 ) - header_size;
 
-        static_assert( TransmitSize >= layout::data_channel_pdu_memory_size( min_buffer_size - header_size ),
-            "TransmitSize should at least be large enough to store one L2CAP PDU" );
+        static_assert( TransmitSize >= layout_overhead + min_buffer_size,
+            "TransmitSize should at least be large enough to store one L2CAP PDU plus overheader required by the hardware." );
 
-        static_assert( ReceiveSize >= layout::data_channel_pdu_memory_size( min_buffer_size - header_size ),
-            "ReceiveSize should at least be large enough to store one L2CAP PDU" );
+        static_assert( ReceiveSize >= layout_overhead + min_buffer_size,
+            "ReceiveSize should at least be large enough to store one L2CAP PDU plus overheader required by the hardware." );
 
         /**@{*/
         /**
@@ -188,7 +193,7 @@ namespace link_layer {
         read_buffer allocate_transmit_buffer( std::size_t size );
 
         /**
-         * @brief calls allocate_transmit_buffer( max_tx_size() );
+         * @brief calls allocate_transmit_buffer( max_tx_size() + layout_overhead );
          */
         read_buffer allocate_transmit_buffer();
 
@@ -396,7 +401,7 @@ namespace link_layer {
     {
         typename Radio::lock_guard lock;
 
-        return transmit_buffer_.alloc_front( transmit_buffer(), layout::data_channel_pdu_memory_size( size - ll_header_size ) );
+        return transmit_buffer_.alloc_front( transmit_buffer(), size );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -506,7 +511,7 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer()
     {
-        return allocate_transmit_buffer( max_tx_size_ );
+        return allocate_transmit_buffer( max_tx_size_ + layout_overhead );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
