@@ -32,6 +32,7 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 # Optimizations / Debug
 add_compile_options($<IF:$<CONFIG:Debug>,-O0,-Os>)
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:NDEBUG>)
+add_compile_definitions($<$<CONFIG:Debug>:BLUETOE_NRF51_RADIO_DEBUG>)
 
 # Regardles of build type: Debug informations just make it into the elf file, never into the final binary
 add_compile_options(-g)
