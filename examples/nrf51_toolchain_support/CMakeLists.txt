@@ -12,6 +12,8 @@ if(CMAKE_CROSSCOMPILING)
     target_include_directories(toolchain_nrf51 INTERFACE .)
     target_compile_definitions(toolchain_nrf51 INTERFACE NRF51)
 
+    add_compile_definitions($<$<CONFIG:Debug>:BLUETOE_NRF51_RADIO_DEBUG>)
+
     enable_language(ASM)
     add_library(startup_nrf51 STATIC
             gcc_startup_nrf51.s
@@ -19,6 +21,7 @@ if(CMAKE_CROSSCOMPILING)
             )
     target_link_libraries(startup_nrf51 PRIVATE toolchain::nrf51)
     add_library(startup::nrf51 ALIAS startup_nrf51)
+
     set_source_files_properties(
             gcc_startup_nrf51.s
             COMPILE_FLAGS "-x assembler-with-cpp")
@@ -45,9 +48,14 @@ if(CMAKE_CROSSCOMPILING)
         add_dependencies(${target} linker_script)
     endfunction()
 
+    if (DEFINED NRFJPROG_DEVICE)
+        message( WARNING "nrfjprog ${NRFJPROG_DEVICE} selected")
+        set(SELECT_JLINK_DEVICE --snr ${NRFJPROG_DEVICE} PARENT_SCOPE)
+    endif()
+
     function(define_flash_command target)
         add_custom_target(${target}.flash
-            COMMAND nrfjprog --chiperase --family NRF51 --program ${target}.hex
+            COMMAND nrfjprog --chiperase --family NRF51 ${SELECT_JLINK_DEVICE} --program ${target}.hex --verify --reset
             VERBATIM
             )
         add_dependencies(${target}.flash ${target}.artifacts)
