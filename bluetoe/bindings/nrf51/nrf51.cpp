@@ -27,7 +27,6 @@ namespace nrf51_details {
     static constexpr std::uint32_t      adv_reponse_timeout_us   = 152 + 42 * 8 + 20;
     static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
 
-    static constexpr std::size_t        radio_ready_ccm_ksgen           = 24;
     static constexpr std::size_t        radio_address_ccm_crypt         = 25;
     static constexpr std::size_t        radio_end_capture2_ppi_channel  = 27;
     static constexpr std::size_t        compare0_txen_ppi_channel       = 20;
@@ -42,20 +41,15 @@ namespace nrf51_details {
     static constexpr unsigned           connect_request_size                = 36;
 
 #   if defined BLUETOE_NRF51_RADIO_DEBUG
-        static constexpr int debug_pin_time_nr      = 17;
-        static constexpr int debug_pin_crc_error_nr = 18;
-        static constexpr int debug_pin_irs_nr       = 19;
-        static constexpr int debug_pin_cs_nr        = 20;
-        static constexpr int debug_pin_timer_irs_nr = 22;
-        static constexpr int debug_pin_transmit     = 23;
-        static constexpr int debug_pin_receive      = 24;
-        static constexpr int debug_pin_adv_response = 25;
+        static constexpr int debug_pin_end_crypt     = 20;
+        static constexpr int debug_pin_ready_disable = 22;
+        static constexpr int debug_pin_address_end   = 23;
+        static constexpr int debug_pin_keysteam      = 24;
 
         void init_debug()
         {
-            for ( auto pin : { debug_pin_time_nr, debug_pin_crc_error_nr, debug_pin_irs_nr,
-                debug_pin_cs_nr, debug_pin_timer_irs_nr, debug_pin_transmit, debug_pin_receive,
-                debug_pin_adv_response } )
+            for ( auto pin : { debug_pin_end_crypt, debug_pin_ready_disable,
+                                debug_pin_address_end, debug_pin_keysteam } )
             {
                 NRF_GPIO->PIN_CNF[ pin ] =
                     ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
@@ -64,9 +58,28 @@ namespace nrf51_details {
 
             NRF_GPIOTE->CONFIG[ 0 ] =
                 ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
-                ( debug_pin_transmit << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( debug_pin_address_end << GPIOTE_CONFIG_PSEL_Pos ) |
                 ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
                 ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+
+            NRF_GPIOTE->CONFIG[ 1 ] =
+                ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
+                ( debug_pin_keysteam << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
+                ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+
+            NRF_GPIOTE->CONFIG[ 2 ] =
+                ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
+                ( debug_pin_ready_disable << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
+                ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+
+            NRF_GPIOTE->CONFIG[ 3 ] =
+                ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
+                ( debug_pin_end_crypt << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
+                ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+
 
             NRF_PPI->CH[ 0 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_ADDRESS );
             NRF_PPI->CH[ 0 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 0 ] );
@@ -74,76 +87,23 @@ namespace nrf51_details {
             NRF_PPI->CH[ 1 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_END );
             NRF_PPI->CH[ 1 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 0 ] );
 
-            NRF_PPI->CHENSET = 0x3;
+            NRF_PPI->CH[ 2 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_CCM->EVENTS_ENDCRYPT );
+            NRF_PPI->CH[ 2 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 3 ] );
+
+            NRF_PPI->CH[ 3 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_CCM->EVENTS_ENDKSGEN );
+            NRF_PPI->CH[ 3 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_CLR[ 1 ] );
+
+            NRF_PPI->CH[ 4 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_READY );
+            NRF_PPI->CH[ 4 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 2 ] );
+
+            NRF_PPI->CH[ 5 ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_DISABLED );
+            NRF_PPI->CH[ 5 ].TEP = reinterpret_cast< std::uint32_t >( &NRF_GPIOTE->TASKS_OUT[ 2 ] );
+
+            NRF_PPI->CHENSET = 0x3f;
         }
 
-        void debug_end_radio()
-        {
-            NRF_GPIOTE->TASKS_CLR[0] = 1;
-        }
-
-        void pulse_debug_pin( int pin )
-        {
-            NRF_GPIO->OUTSET = 1 << pin;
-            NRF_GPIO->OUTCLR = 1 << pin;
-        }
-
-        void debug_timeout()
-        {
-            pulse_debug_pin( debug_pin_time_nr );
-        }
-
-        void debug_crc_error()
-        {
-            pulse_debug_pin( debug_pin_crc_error_nr );
-        }
-
-        void debug_enter_isr()
-        {
-            NRF_GPIO->OUTSET = 1 << debug_pin_irs_nr;
-        }
-
-        void debug_leave_isr()
-        {
-            NRF_GPIO->OUTCLR = 1 << debug_pin_irs_nr;
-        }
-
-        void debug_enter_timer_isr()
-        {
-            NRF_GPIO->OUTSET = 1 << debug_pin_timer_irs_nr;
-        }
-
-        void debug_leave_timer_isr()
-        {
-            NRF_GPIO->OUTCLR = 1 << debug_pin_timer_irs_nr;
-        }
-
-        void debug_enter_critical_section()
-        {
-            NRF_GPIO->OUTSET = 1 << debug_pin_cs_nr;
-        }
-
-        void debug_leave_critical_section()
-        {
-            NRF_GPIO->OUTCLR = 1 << debug_pin_cs_nr;
-        }
-
-        void debug_adv_response()
-        {
-            pulse_debug_pin( debug_pin_adv_response );
-        }
 #   else
         void init_debug() {}
-        void debug_end_radio() {}
-        void debug_timeout() {}
-        void debug_crc_error() {}
-        void debug_enter_isr() {}
-        void debug_leave_isr() {}
-        void debug_enter_timer_isr() {}
-        void debug_leave_timer_isr() {}
-        void debug_enter_critical_section() {}
-        void debug_leave_critical_section() {}
-        void debug_adv_response() {}
 #   endif
 
     counter::counter()
@@ -268,16 +228,12 @@ namespace nrf51_details {
     scheduled_radio_base::lock_guard::lock_guard()
         : context_( __get_PRIMASK() )
     {
-        debug_enter_critical_section();
-
         __disable_irq();
     }
 
     scheduled_radio_base::lock_guard::~lock_guard()
     {
         __set_PRIMASK( context_ );
-
-        debug_leave_critical_section();
     }
 
     scheduled_radio_base::scheduled_radio_base( adv_callbacks& cbs, std::uint32_t encrypted_area )
@@ -489,8 +445,6 @@ namespace nrf51_details {
 
                         NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( response_data_.buffer );
                         NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( response_data_.size << RADIO_PCNF1_MAXLEN_Pos );
-
-                        debug_adv_response();
                     }
                     else
                     {
@@ -511,8 +465,6 @@ namespace nrf51_details {
             }
 
             NRF_RADIO->EVENTS_PAYLOAD = 0;
-
-            debug_end_radio();
         }
     }
 
@@ -549,6 +501,19 @@ namespace nrf51_details {
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
         NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer_.size << RADIO_PCNF1_MAXLEN_Pos );
 
+        NRF_RADIO->INTENCLR    = 0xffffffff;
+        nrf_timer->INTENCLR    = 0xffffffff;
+
+        NRF_RADIO->EVENTS_END       = 0;
+        NRF_RADIO->EVENTS_DISABLED  = 0;
+        NRF_RADIO->EVENTS_READY     = 0;
+        NRF_RADIO->EVENTS_ADDRESS   = 0;
+        NRF_RADIO->EVENTS_CRCERROR  = 0;
+
+        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 2 ] = 0;
+
         if ( receive_encrypted_ )
         {
             nrf_ccm->EVENTS_ENDKSGEN = 0;
@@ -559,27 +524,11 @@ namespace nrf51_details {
             nrf_radio->PACKETPTR = encrypted_area_;
             nrf_ccm->OUTPTR      = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
             nrf_ccm->INPTR       = encrypted_area_;
-
-            nrf_ccm->MODE   =
-                  ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
-                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
         }
         else
         {
             nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer );
         }
-
-        NRF_RADIO->INTENCLR    = 0xffffffff;
-        nrf_timer->INTENCLR    = 0xffffffff;
-
-        NRF_RADIO->EVENTS_END       = 0;
-        NRF_RADIO->EVENTS_DISABLED  = 0;
-        NRF_RADIO->EVENTS_READY     = 0;
-        NRF_RADIO->EVENTS_ADDRESS   = 0;
-
-        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
-        nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
-        nrf_timer->EVENTS_COMPARE[ 2 ] = 0;
 
         // the hardware is wired to:
         // - start the receiving part of the radio, when the timer is equal to CC[ 0 ] (compare0_rxen_ppi_channel)
@@ -590,21 +539,35 @@ namespace nrf51_details {
         nrf_radio->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
         nrf_ccm->SHORTS        = 0;
 
-        NRF_PPI->CHENCLR =
-              ( 1 << compare0_txen_ppi_channel )
-            | ( 1 << compare0_rxen_ppi_channel )
-            | ( 1 << compare1_disable_ppi_channel )
-            | ( 1 << radio_end_capture2_ppi_channel )
-            | ( 1 << radio_ready_ccm_ksgen )
-            | ( 1 << radio_address_ccm_crypt );
-
-        NRF_PPI->CHENSET       =
-              ( 1 << compare0_rxen_ppi_channel )
-            | ( 1 << compare1_disable_ppi_channel )
-            | ( 1 << radio_end_capture2_ppi_channel );
-
         if ( receive_encrypted_ )
-            NRF_PPI->CHENSET = ( 1 << radio_ready_ccm_ksgen ) | ( 1 << radio_address_ccm_crypt );
+        {
+            NRF_PPI->CHENCLR =
+                  ( 1 << compare0_txen_ppi_channel );
+
+            NRF_PPI->CHENSET =
+                ( 1 << radio_address_ccm_crypt )
+              | ( 1 << compare0_rxen_ppi_channel )
+              | ( 1 << compare1_disable_ppi_channel )
+              | ( 1 << radio_end_capture2_ppi_channel );
+
+            nrf_ccm->TASKS_KSGEN = 1;
+            NRF_GPIOTE->TASKS_SET[ 1 ] = 1;
+        }
+        else
+        {
+            NRF_PPI->CHENCLR =
+                  ( 1 << compare0_txen_ppi_channel )
+                | ( 1 << compare0_rxen_ppi_channel )
+                | ( 1 << compare1_disable_ppi_channel )
+                | ( 1 << radio_end_capture2_ppi_channel )
+                | ( 1 << radio_address_ccm_crypt );
+
+            NRF_PPI->CHENSET       =
+                  ( 1 << compare0_rxen_ppi_channel )
+                | ( 1 << compare1_disable_ppi_channel )
+                | ( 1 << radio_end_capture2_ppi_channel );
+        }
+
 
         nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
@@ -637,7 +600,8 @@ namespace nrf51_details {
                 const bool crc_error = !timeout && ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
                 const bool mic_error = receive_encrypted_ && receive_buffer_.buffer[ 1 ] != 0 && ( nrf_ccm->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == CCM_MICSTATUS_MICSTATUS_CheckFailed;
                 const bool bus_error = receive_encrypted_ && nrf_ccm->EVENTS_ERROR;
-                const bool error     = timeout || crc_error || mic_error || bus_error;
+                //const bool not_decrypt = receive_encrypted_ && receive_buffer_.buffer[ 1 ] != 0 && nrf_ccm->EVENTS_ENDCRYPT == 0;
+                const bool error     = timeout || crc_error || mic_error || bus_error;//|| not_decrypt;
 
                 if ( !error )
                 {
@@ -662,15 +626,18 @@ namespace nrf51_details {
                             | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
                         nrf_ccm->OUTPTR  = encrypted_area_;
                         nrf_ccm->INPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
-                        nrf_ccm->EVENTS_ENDKSGEN = 0;
 
-                        NRF_PPI->CHENCLR = ( 1 << radio_address_ccm_crypt );
                         nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( trans.size + 4 )<< RADIO_PCNF1_MAXLEN_Pos );
+
+                        nrf_ccm->EVENTS_ENDKSGEN    = 0;
+                        nrf_ccm->EVENTS_ENDCRYPT    = 0;
+                        nrf_ccm->TASKS_KSGEN        = 1;
+                        NRF_GPIOTE->TASKS_SET[ 1 ]  = 1;
                     }
                     else
                     {
                         nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( trans.buffer );
-                        NRF_PPI->CHENCLR = ( 1 << radio_ready_ccm_ksgen ) | ( 1 << radio_address_ccm_crypt );
+                        NRF_PPI->CHENCLR = ( 1 << radio_address_ccm_crypt );
                         nrf_radio->PCNF1 = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( trans.size << RADIO_PCNF1_MAXLEN_Pos );
                     }
 
@@ -678,27 +645,36 @@ namespace nrf51_details {
                     state_   = state::evt_transmiting_closing;
 
                     // the timer was captured with the end event; the anchor is the start of the receiving.
-                    // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc
+                    // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
+                    // In case, that the message was encrypted, there was a 4 byte MIC appended.
                     static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
-                    const std::size_t total_pdu_length = receive_buffer_.buffer[ 1 ] + ll_pdu_overhead;
+                    static constexpr std::size_t encryption_mic  = 4;
+                    std::size_t total_pdu_length = receive_buffer_.buffer[ 1 ] + ll_pdu_overhead;
+
+                    if ( receive_encrypted_ && receive_buffer_.buffer[ 1 ] )
+                        total_pdu_length += encryption_mic;
+
                     anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] - total_pdu_length * 8 );
-                    debug_enter_timer_isr();
-                    debug_leave_timer_isr();
                 }
                 else
                 {
                     nrf_ccm->EVENTS_ERROR    = 0;
+                    nrf_ccm->SHORTS          = 0;
+
+                    NRF_PPI->CHENCLR =
+                          ( 1 << compare0_txen_ppi_channel )
+                        | ( 1 << compare0_rxen_ppi_channel )
+                        | ( 1 << compare1_disable_ppi_channel )
+                        | ( 1 << radio_end_capture2_ppi_channel )
+                        | ( 1 << radio_address_ccm_crypt );
+
                     NRF_RADIO->SHORTS        = 0;
                     NRF_RADIO->TASKS_STOP    = 1;
                     NRF_RADIO->TASKS_DISABLE = 1;
+                    nrf_ccm->TASKS_STOP      = 1;
+
                     state_       = state::idle;
                     evt_timeout_ = true;
-
-                    if ( timeout )
-                        debug_timeout();
-
-                    if ( crc_error )
-                        debug_crc_error();
                 }
             }
             else if ( state_ == state::evt_transmiting_closing )
@@ -993,7 +969,10 @@ namespace nrf51_details {
     void scheduled_radio_base_with_encryption_base::start_receive_encrypted()
     {
         rx_counter_ = counter();
-        nrf_ccm->ENABLE         = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
+        nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
+        nrf_ccm->MODE   =
+              ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
+            | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
         configure_encryption( true, false );
     }
 
@@ -1034,18 +1013,10 @@ namespace nrf51_details {
 
 extern "C" void RADIO_IRQHandler(void)
 {
-    bluetoe::nrf51_details::debug_enter_isr();
-
     bluetoe::nrf51_details::instance->radio_interrupt();
-
-    bluetoe::nrf51_details::debug_leave_isr();
 }
 
 extern "C" void TIMER0_IRQHandler(void)
 {
-    bluetoe::nrf51_details::debug_enter_timer_isr();
-
     bluetoe::nrf51_details::instance->timer_interrupt();
-
-    bluetoe::nrf51_details::debug_leave_timer_isr();
 }
