@@ -658,6 +658,10 @@ namespace nrf51_details {
                 }
                 else
                 {
+                    nrf_ccm->OUTPTR  = 0;
+                    nrf_ccm->INPTR   = 0;
+                    nrf_radio->PACKETPTR = 0;
+
                     nrf_ccm->EVENTS_ERROR    = 0;
                     nrf_ccm->SHORTS          = 0;
 
@@ -679,6 +683,10 @@ namespace nrf51_details {
             }
             else if ( state_ == state::evt_transmiting_closing )
             {
+                nrf_ccm->OUTPTR  = 0;
+                nrf_ccm->INPTR   = 0;
+                nrf_radio->PACKETPTR = 0;
+
                 state_   = state::idle;
                 end_evt_ = true;
             }
