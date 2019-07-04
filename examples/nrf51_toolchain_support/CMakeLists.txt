@@ -19,13 +19,12 @@ if(CMAKE_CROSSCOMPILING)
             )
     target_link_libraries(startup_nrf51 PRIVATE toolchain::nrf51)
     add_library(startup::nrf51 ALIAS startup_nrf51)
-
     set_source_files_properties(
             gcc_startup_nrf51.s
             COMPILE_FLAGS "-x assembler-with-cpp")
 
     add_custom_target(linker_script ALL
-            COMMAND ${CMAKE_C_COMPILER} -E -P -x c
+            COMMAND ${CMAKE_COMMAND} -E
             -MMD -MP -MT ${CMAKE_CURRENT_BINARY_DIR}/linker_script.ld -MF ${CMAKE_CURRENT_BINARY_DIR}/linker_script.ld
             -o ${CMAKE_CURRENT_BINARY_DIR}/linker_script.ld
             ${CMAKE_CURRENT_SOURCE_DIR}/nrf51_xxaa.ld
@@ -46,14 +45,9 @@ if(CMAKE_CROSSCOMPILING)
         add_dependencies(${target} linker_script)
     endfunction()
 
-    if (DEFINED NRFJPROG_DEVICE)
-        message( WARNING "nrfjprog ${NRFJPROG_DEVICE} selected")
-        set(SELECT_JLINK_DEVICE --snr ${NRFJPROG_DEVICE} PARENT_SCOPE)
-    endif()
-
     function(define_flash_command target)
         add_custom_target(${target}.flash
-            COMMAND nrfjprog --chiperase --family NRF51 ${SELECT_JLINK_DEVICE} --program ${target}.hex --verify --reset
+            COMMAND nrfjprog --chiperase --family NRF51 --program ${target}.hex
             VERBATIM
             )
         add_dependencies(${target}.flash ${target}.artifacts)
