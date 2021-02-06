@@ -368,13 +368,13 @@ namespace link_layer {
 
         friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
 
-        static constexpr auto options_test = sizeof(
+        static_assert( 0 <= sizeof(
             details::option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
                 typename ::bluetoe::details::find_by_not_meta_type<
                     details::valid_link_layer_option_meta_type,
                     Options...
                 >::type
-            > );
+            > ), "Option passed to the link layer, that is not a valid link_layer option." );
 
         // make sure, that the hardware supports encryption
         static constexpr bool encryption_required = bluetoe::details::requires_encryption_support_t< Server >::value;

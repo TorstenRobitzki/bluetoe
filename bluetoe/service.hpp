@@ -177,13 +177,13 @@ namespace bluetoe {
         template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
         static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server );
 
-        static constexpr auto options_test = sizeof(
+        static_assert( 0u <= sizeof(
             details::option_passed_to_service_that_is_not_a_valid_option_for_a_service<
                 typename details::find_by_not_meta_type<
                     details::valid_service_option_meta_type,
                     Options...
                 >::type
-            > );
+            > ), "Parameter passed to a service that is not a valid service option!" );
 
         /** @endcond */
     };
