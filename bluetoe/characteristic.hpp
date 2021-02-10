@@ -40,12 +40,6 @@ namespace bluetoe {
 
         template < typename Characteristic >
         struct sum_by_client_configs;
-
-        template < typename >
-        struct option_passed_to_characteristic_that_is_not_a_valid_option_for_a_characteristic;
-
-        template <>
-        struct option_passed_to_characteristic_that_is_not_a_valid_option_for_a_characteristic< no_such_type > {};
     }
 
     /**
@@ -192,13 +186,13 @@ namespace bluetoe {
 
         typedef typename base_value_type::template value_impl< Options... >                                         value_type;
 
-        static_assert( 0 <= sizeof(
-            details::option_passed_to_characteristic_that_is_not_a_valid_option_for_a_characteristic<
+        static_assert(
+            std::is_same<
                 typename details::find_by_not_meta_type<
                     details::valid_characteristic_option_meta_type,
                     Options...
-                >::type
-            > ), "Parameter passed to a characteristic that is not a valid characteristic option!" );
+                >::type, details::no_such_type >::value,
+            "Parameter passed to a characteristic that is not a valid characteristic option!" );
         /** @endcond */
     private:
         // the first two attributes are always the declaration, followed by the value

@@ -24,14 +24,6 @@
 #include <cassert>
 
 namespace bluetoe {
-    namespace details {
-        template < typename >
-        struct option_passed_to_server_that_is_not_a_valid_option_for_a_server;
-
-        template <>
-        struct option_passed_to_server_that_is_not_a_valid_option_for_a_server< no_such_type > {};
-    }
-
     /**
      * @brief Root of the declaration of a GATT server.
      *
@@ -321,13 +313,13 @@ namespace bluetoe {
         lcap_notification_callback_t l2cap_cb_;
         void*                        l2cap_arg_;
 
-        static_assert( 0 <= sizeof(
-            details::option_passed_to_server_that_is_not_a_valid_option_for_a_server<
+        static_assert(
+            std::is_same<
                 typename details::find_by_not_meta_type<
                     details::valid_server_option_meta_type,
                     Options...
-                >::type
-            > ), "Option passed to a server that is not a valid server option." );
+                >::type, details::no_such_type
+            >::value, "Option passed to a server that is not a valid server option." );
     protected: // for testing
         /** @cond HIDDEN_SYMBOLS */
 
