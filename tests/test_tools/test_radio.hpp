@@ -783,15 +783,13 @@ namespace test {
         using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio< TransmitSize, ReceiveSize, CallBack > >::pdu_layout;
 
         const std::uint16_t header = bluetoe::details::read_16bit( over_the_air.data() );
-        const std::size_t   size   = header >> 8;
+        const std::size_t   size   = std::min< std::size_t >( header >> 8, over_the_air.size() - ll_header_size );
         const auto          body   = layout::body( in_memory );
 
-        const std::size_t   body_size = std::min< std::size_t >( size, std::distance( body.first, body.second ) );
-
         layout::header( in_memory, header );
-        std::copy( over_the_air.data() + ll_header_size, over_the_air.data() + ll_header_size + body_size, body.first );
+        std::copy( over_the_air.data() + ll_header_size, over_the_air.data() + ll_header_size + size, body.first );
 
-        in_memory.size = layout::data_channel_pdu_memory_size( body_size );
+        in_memory.size = layout::data_channel_pdu_memory_size( size );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
