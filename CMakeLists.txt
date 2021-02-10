@@ -8,9 +8,19 @@ add_library(bluetoe_iface INTERFACE)
 add_library(bluetoe::iface ALIAS bluetoe_iface)
 target_include_directories(bluetoe_iface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
+# Link Layer implementation based on radio hardware
 add_subdirectory(bluetoe/link_layer)
+
+# Link Layer implementation based on HCI over some serial interface
+add_subdirectory(bluetoe/hci)
+
+# Utilities
 add_subdirectory(bluetoe/utility)
+
+# Security Manager
 add_subdirectory(bluetoe/sm)
+
+# Predefined Services (like DIS, CSC and so on)
 add_subdirectory(bluetoe/services)
 
 if (CMAKE_CROSSCOMPILING)
