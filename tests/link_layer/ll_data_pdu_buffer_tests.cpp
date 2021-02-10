@@ -698,16 +698,16 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
     {
         max_tx_size( 29 );
         max_rx_size( 29 );
-        BOOST_CHECK_EQUAL( max_tx_size(), 29 );
-        BOOST_CHECK_EQUAL( max_rx_size(), 29 );
+        BOOST_CHECK_EQUAL( max_tx_size(), 29u );
+        BOOST_CHECK_EQUAL( max_rx_size(), 29u );
     }
 
     BOOST_FIXTURE_TEST_CASE( upper_bound_sizes, large_buffer_under_test )
     {
         max_tx_size( 198 );
         max_rx_size( 198 );
-        BOOST_CHECK_EQUAL( max_tx_size(), 198 );
-        BOOST_CHECK_EQUAL( max_rx_size(), 198 );
+        BOOST_CHECK_EQUAL( max_tx_size(), 198u );
+        BOOST_CHECK_EQUAL( max_rx_size(), 198u );
     }
 
     BOOST_FIXTURE_TEST_CASE( allocating_lower_bound_buffers, large_buffer_under_test )
@@ -716,21 +716,21 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         const auto transmit = allocate_transmit_buffer();
         BOOST_CHECK( receive.buffer );
         BOOST_CHECK( transmit.buffer );
-        BOOST_CHECK_EQUAL( receive.size, 31 );
-        BOOST_CHECK_EQUAL( transmit.size, 31 );
+        BOOST_CHECK_EQUAL( receive.size, 31u );
+        BOOST_CHECK_EQUAL( transmit.size, 31u );
     }
 
     BOOST_FIXTURE_TEST_CASE( allocating_upper_bound_buffers, large_buffer_under_test )
     {
-        max_tx_size( 198 );
-        max_rx_size( 198 );
+        max_tx_size( 198u );
+        max_rx_size( 198u );
 
         const auto receive  = allocate_receive_buffer();
         const auto transmit = allocate_transmit_buffer();
         BOOST_CHECK( receive.buffer );
         BOOST_CHECK( transmit.buffer );
-        BOOST_CHECK_EQUAL( receive.size, 200 );
-        BOOST_CHECK_EQUAL( transmit.size, 200 );
+        BOOST_CHECK_EQUAL( receive.size, 200u );
+        BOOST_CHECK_EQUAL( transmit.size, 200u );
     }
 
     BOOST_FIXTURE_TEST_CASE( make_sure_the_layout_is_applied_as_expected, buffer_under_test )
@@ -874,14 +874,14 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         incomming.buffer[ 1 ] = 0;
         received( incomming );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( do_increment_when_send_pdu_was_acknowlaged, running_mode )
     {
         transmit_pdu( { 1 } );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
 
         // incomming PDU acknowledges
         auto incomming = allocate_receive_buffer();
@@ -889,14 +889,14 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         incomming.buffer[ 1 ] = 0;
         received( incomming );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 1u );
     }
 
     BOOST_FIXTURE_TEST_CASE( do_increment_when_resending_pdu, running_mode )
     {
         transmit_pdu( { 1 } );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
 
         // incomming PDU acknowledges
         auto incomming = allocate_receive_buffer();
@@ -906,7 +906,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
         transmit_pdu( { 1 } );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
