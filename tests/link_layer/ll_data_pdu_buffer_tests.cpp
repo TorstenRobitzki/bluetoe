@@ -874,14 +874,14 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         incomming.buffer[ 1 ] = 0;
         received( incomming );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
     }
 
     BOOST_FIXTURE_TEST_CASE( do_increment_when_send_pdu_was_acknowlaged, running_mode )
     {
         transmit_pdu( { 1 } );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
         // incomming PDU acknowledges
         auto incomming = allocate_receive_buffer();
@@ -889,14 +889,14 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         incomming.buffer[ 1 ] = 0;
         received( incomming );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 1u );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
     }
 
     BOOST_FIXTURE_TEST_CASE( do_increment_when_resending_pdu, running_mode )
     {
         transmit_pdu( { 1 } );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
         // incomming PDU acknowledges
         auto incomming = allocate_receive_buffer();
@@ -906,7 +906,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
         transmit_pdu( { 1 } );
 
-        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0u );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
