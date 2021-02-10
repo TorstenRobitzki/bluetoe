@@ -432,7 +432,13 @@ namespace bluetoe {
 
                     if ( args.buffer_offset == 0 )
                     {
-                        args.client_config.flags( cccd_position, read_16bit( &args.buffer[ 0 ] ) );
+                        std::uint8_t serialized_value[ flags_size ];
+                        write_16bit( &serialized_value[ 0 ], args.client_config.flags( cccd_position ) );
+
+                        const std::size_t write_size = std::min( args.buffer_size, flags_size - args.buffer_offset );
+                        std::copy( &args.buffer[ args.buffer_offset ], &args.buffer[ args.buffer_offset + write_size ], serialized_value );
+
+                        args.client_config.flags( cccd_position, read_16bit( &serialized_value[ 0 ] ) );
 
                         using subscription_callback =
                             typename find_by_meta_type<
