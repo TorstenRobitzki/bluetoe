@@ -226,7 +226,7 @@ static uint32_t ccm(uint128_t key, uint64_t counter, bool sent_by_master, uint64
         static_cast< std::uint8_t >( counter >> 16 ),   // Octet2 of packetCounter
         static_cast< std::uint8_t >( counter >> 24 ),   // Octet3 of packetCounter
         static_cast< std::uint8_t >( counter >> 32 |    // Bit 6 – Bit 0: Octet4 (7 most significant bits of packetCounter, with Bit 6 being the most significant bit)
-         sent_by_master ? 0x80 : 0x00 ),                // Bit7:directionBit
+            ( sent_by_master ? 0x80 : 0x00 ) ),         // Bit7:directionBit
         static_cast< std::uint8_t >( iv ),              // Octet0 (LSO) of IV
         static_cast< std::uint8_t >( iv >> 8 ),         // Octet1 of IV
         static_cast< std::uint8_t >( iv >> 16 ),        // Octet2 of IV
