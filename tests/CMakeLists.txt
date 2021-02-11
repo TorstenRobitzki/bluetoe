@@ -3,7 +3,7 @@ find_package( Boost REQUIRED )
 
 add_compile_options(-Wall -pedantic -Wextra -Wfatal-errors)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL AppleClang)
+if (CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL AppleClang)
     add_compile_options(-fsanitize=address)
     add_link_options(-fsanitize=address)
 endif()
