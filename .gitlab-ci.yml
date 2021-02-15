@@ -1,8 +1,45 @@
-before_script:
-    - apt-get update -qq
-    - c++ -v
+image: "registry.gitlab.com/obruns/bluetoe/ubuntu-build:1.0"
 
-tests:
+variables:
+    BOOST_TEST_COLOR_OUTPUT: 1
+    BOOST_TEST_LOG_LEVEL: "unit_scope"
+    BUILD_ON_TRAVIS: 1
+    NINJA_STATUS: "[%r %c %o %e (%s/%t)]"
+
+before_script:
+    - g++ --version
+    - clang++-6.0 --version
+    - cmake --version
+    - ninja --version
+
+.builder_template: &build_definition
     script:
-        - cd bluetoe
-        - mkdir build && cd build && cmake .. && make && ctest
+        - mkdir build
+        - cd build
+        - cmake .. -G Ninja -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_BUILD_TYPE=$MODE -DBLUETOE_EXCLUDE_SLOW_TESTS=1
+        - time timeout 1200 ninja -v
+        - time timeout 10 ctest --verbose
+
+clang-debug:
+    <<: *build_definition
+    variables:
+        COMPILER: clang++-6.0
+        MODE: Debug
+
+clang-release:
+    <<: *build_definition
+    variables:
+        COMPILER: clang++-6.0
+        MODE: Release
+
+gcc-debug:
+    <<: *build_definition
+    variables:
+        COMPILER: g++
+        MODE: Debug
+
+gcc-release:
+    <<: *build_definition
+    variables:
+        COMPILER: g++
+        MODE: Release
