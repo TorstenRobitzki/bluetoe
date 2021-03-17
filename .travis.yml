@@ -46,6 +46,7 @@ notifications:
 
 env:
     global:
+        COMPILER=g++
         BUILD_ON_TRAVIS=1
         BUILD_DOXYGEN_COMPILE=g++
 
