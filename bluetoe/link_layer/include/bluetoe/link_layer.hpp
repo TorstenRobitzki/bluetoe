@@ -1,19 +1,19 @@
 #ifndef BLUETOE_LINK_LAYER_LINK_LAYER_HPP
 #define BLUETOE_LINK_LAYER_LINK_LAYER_HPP
 
-#include "buffer.hpp"
-#include "delta_time.hpp"
-#include "ll_options.hpp"
-#include "address.hpp"
-#include "channel_map.hpp"
-#include "notification_queue.hpp"
-#include "connection_callbacks.hpp"
-#include "connection_event_callback.hpp"
-#include "l2cap_signaling_channel.hpp"
-#include "white_list.hpp"
-#include "advertising.hpp"
-#include <bluetoe/meta_types.hpp>
+#include <bluetoe/buffer.hpp>
+#include <bluetoe/delta_time.hpp>
+#include <bluetoe/ll_options.hpp>
+#include <bluetoe/address.hpp>
+#include <bluetoe/channel_map.hpp>
+#include <bluetoe/notification_queue.hpp>
+#include <bluetoe/connection_callbacks.hpp>
+#include <bluetoe/connection_event_callback.hpp>
+#include <bluetoe/l2cap_signaling_channel.hpp>
+#include <bluetoe/white_list.hpp>
+#include <bluetoe/advertising.hpp>
 #include <bluetoe/attribute.hpp>
+#include <bluetoe/meta_types.hpp>
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/security_manager.hpp>
 #include <bluetoe/codes.hpp>
@@ -243,14 +243,6 @@ namespace link_layer {
                 link_layer_security_impl,
                 link_layer_no_security_impl
             >::type::template impl< LinkLayer >;
-
-        template < typename >
-        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer;
-
-        template <>
-        struct option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
-            ::bluetoe::details::no_such_type
-        > {};
     }
 
     /**
@@ -368,13 +360,13 @@ namespace link_layer {
 
         friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
 
-        static constexpr auto options_test = sizeof(
-            details::option_passed_to_link_layer_that_is_not_a_valid_option_for_the_link_layer<
+        static_assert(
+            std::is_same<
                 typename ::bluetoe::details::find_by_not_meta_type<
                     details::valid_link_layer_option_meta_type,
                     Options...
-                >::type
-            > );
+                >::type, ::bluetoe::details::no_such_type >::value,
+            "Option passed to the link layer, that is not a valid link_layer option." );
 
         // make sure, that the hardware supports encryption
         static constexpr bool encryption_required = bluetoe::details::requires_encryption_support_t< Server >::value;

@@ -195,7 +195,6 @@ namespace bluetoe {
         /** @endcond */
     };
 
-
     /**
      * @brief set only the Write Without Response Characteristic Property bit.
      *

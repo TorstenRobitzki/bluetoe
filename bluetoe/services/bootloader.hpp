@@ -388,6 +388,7 @@ namespace bluetoe
 
                             this->reset();
                         }
+                        break;
                     case opc_read:
                         {
                             error         = error_codes::success;
@@ -405,6 +406,7 @@ namespace bluetoe
                                 return std::pair< std::uint8_t, bool >{ bluetoe::error_codes::success, false };
                             }
                         }
+                        break;
                     default:
                         return std::pair< std::uint8_t, bool >{ att_error_codes::invalid_opcode, false };
                     }

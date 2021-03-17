@@ -16,3 +16,5 @@ add_and_register_test(request_not_supported_tests)
 add_and_register_test(indication_tests)
 add_and_register_test(outgoing_priority_tests)
 add_and_register_test(descriptor_tests)
+
+target_link_libraries(notification_tests PRIVATE bluetoe::link_layer)

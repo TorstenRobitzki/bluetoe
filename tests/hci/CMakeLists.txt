@@ -1,0 +1,2 @@
+add_and_register_test(hci_advertising_tests)
+target_link_libraries(hci_advertising_tests PRIVATE bluetoe::hci)

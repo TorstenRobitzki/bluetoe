@@ -323,7 +323,7 @@ BOOST_FIXTURE_TEST_CASE( still_advertising_after_an_invalid_pdu, advertising_and
     respond_to(
         37, // channel
         {
-            0x03, 0x0C, // header
+            0x03, 0x06, // header
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06  // scanner address
             // missing advertiser address
         }

@@ -41,12 +41,6 @@ namespace bluetoe {
 
         template < typename Characteristic >
         struct sum_by_client_configs;
-
-        template < typename >
-        struct option_passed_to_characteristic_that_is_not_a_valid_option_for_a_characteristic;
-
-        template <>
-        struct option_passed_to_characteristic_that_is_not_a_valid_option_for_a_characteristic< no_such_type > {};
     }
 
     /**
@@ -195,13 +189,13 @@ namespace bluetoe {
 
         typedef typename base_value_type::template value_impl< Options... >                                         value_type;
 
-        static constexpr auto options_test = sizeof(
-            details::option_passed_to_characteristic_that_is_not_a_valid_option_for_a_characteristic<
+        static_assert(
+            std::is_same<
                 typename details::find_by_not_meta_type<
                     details::valid_characteristic_option_meta_type,
                     Options...
-                >::type
-            > );
+                >::type, details::no_such_type >::value,
+            "Parameter passed to a characteristic that is not a valid characteristic option!" );
         /** @endcond */
     private:
         // the first two attributes are always the declaration, followed by the value
@@ -446,7 +440,13 @@ namespace bluetoe {
 
                     if ( args.buffer_offset == 0 )
                     {
-                        args.client_config.flags( cccd_position, read_16bit( &args.buffer[ 0 ] ) );
+                        std::uint8_t serialized_value[ flags_size ];
+                        write_16bit( &serialized_value[ 0 ], args.client_config.flags( cccd_position ) );
+
+                        const std::size_t write_size = std::min( args.buffer_size, flags_size - args.buffer_offset );
+                        std::copy( &args.buffer[ args.buffer_offset ], &args.buffer[ args.buffer_offset + write_size ], serialized_value );
+
+                        args.client_config.flags( cccd_position, read_16bit( &serialized_value[ 0 ] ) );
 
                         using subscription_callback =
                             typename find_by_meta_type<

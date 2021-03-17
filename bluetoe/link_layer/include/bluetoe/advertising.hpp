@@ -478,6 +478,7 @@ namespace link_layer {
         class impl : protected details::advertising_type_base
         {
         protected:
+
             read_buffer fill_advertising_data()
             {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
@@ -506,17 +507,21 @@ namespace link_layer {
 
             read_buffer get_advertising_data()
             {
-                return advertising_buffer();
+                return read_buffer{ advertising_buffer().buffer, adv_size_ };
             }
 
             read_buffer get_advertising_response_data()
             {
-                return advertising_response_buffer();
+                return read_buffer{ advertising_response_buffer().buffer, adv_response_size_ };
             }
 
             read_buffer advertising_receive_buffer()
             {
-                return read_buffer{ advertising_response_buffer().buffer + maximum_adv_send_size, maximum_adv_request_size };
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                const auto prev_buffer = advertising_response_buffer();
+
+                return read_buffer{ prev_buffer.buffer + prev_buffer.size, layout_t::data_channel_pdu_memory_size( maximum_adv_request_size ) };
             }
 
             bool is_valid_scan_request( const read_buffer& receive ) const
@@ -551,12 +556,17 @@ namespace link_layer {
 
             read_buffer advertising_buffer()
             {
-                return read_buffer{ link_layer().raw(), adv_size_ };
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return read_buffer{ link_layer().raw(), layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };
             }
 
             read_buffer advertising_response_buffer()
             {
-                return read_buffer{ advertising_buffer().buffer + maximum_adv_send_size, adv_response_size_ };
+                using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+
+                return read_buffer{ link_layer().raw() + layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )
+                    , layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };
             }
 
             LinkLayer& link_layer()

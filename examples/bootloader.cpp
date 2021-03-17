@@ -86,7 +86,9 @@ struct address_generator {
         return bluetoe::link_layer::address::generate_static_random_address( ~r.static_random_address_seed() );
     }
 
-    typedef bluetoe::link_layer::details::device_address_meta_type meta_type;
+    struct meta_type :
+        bluetoe::link_layer::details::device_address_meta_type,
+        bluetoe::link_layer::details::valid_link_layer_option_meta_type {};
 };
 
 gatt_definition gatt_server;

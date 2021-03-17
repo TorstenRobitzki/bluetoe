@@ -5,7 +5,7 @@ namespace bluetoe {
 namespace link_layer {
 
     namespace details {
-       struct connection_event_callback_meta_type {};
+       struct connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
 
         struct default_connection_event_callback
         {

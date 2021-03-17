@@ -1,6 +1,8 @@
 add_library(test_gatt test_gatt.cpp)
-target_include_directories(test_gatt PUBLIC ../test_tools)
-target_link_libraries(test_gatt PUBLIC bluetoe::iface bluetoe::utility)
+target_include_directories(test_gatt PUBLIC
+    ../test_tools
+    ${Boost_INCLUDE_DIR})
+target_link_libraries(test_gatt PUBLIC bluetoe::iface bluetoe::utility test::tools)
 
 add_and_register_test(cscs_tests)
 add_and_register_test(bootloader_tests)

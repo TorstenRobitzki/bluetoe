@@ -1,10 +1,12 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES ARM_GCC_TOOL_PATH)
 
-if (NOT DEFINED ARM_GCC_TOOL_PATH)
-    message(FATAL_ERROR "To configure the arm-none-eabi-gcc correctly, please set ARM_GCC_TOOL_PATH to the path that contains the bin directory of your GCC installation.")
-elseif(NOT EXISTS ${tools}/bin)
-    message(FATAL_ERROR "To configure the arm-none-eabi-gcc correctly, please set ARM_GCC_TOOL_PATH to the path that contains the bin directory of your GCC installation.")
+if (NOT DEFINED ARM_GCC_TOOL_PATH OR NOT EXISTS ${ARM_GCC_TOOL_PATH}/bin)
+    message(FATAL_ERROR
+            "To configure the arm-none-eabi-gcc correctly, "
+            "please set ARM_GCC_TOOL_PATH to the path that "
+            "contains the bin directory of your GCC installation.")
+    return()
 endif()
 
 set(CMAKE_SYSTEM_PROCESSOR arm)
