@@ -1,5 +1,5 @@
 sudo: required
-dist: trusty
+dist: bionic
 language: cpp
 
 notifications:
@@ -15,8 +15,8 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
-      env: COMPILER=g++-4.9
+            - g++
+      env: COMPILER=g++
     # - compiler: gcc
     #   addons:
     #     apt:
@@ -47,7 +47,7 @@ matrix:
 env:
     global:
         BUILD_ON_TRAVIS=1
-        BUILD_DOXYGEN_COMPILE=g++-4.9
+        BUILD_DOXYGEN_COMPILE=g++
 
 script:
   - $COMPILER -v
