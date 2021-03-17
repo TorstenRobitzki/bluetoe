@@ -7,16 +7,16 @@ notifications:
     on_success: change
     on_failure: change
 
-matrix:
-  include:
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++
-      env: COMPILER=g++
+# matrix:
+#   include:
+    # - compiler: gcc
+    #   addons:
+    #     apt:
+    #       sources:
+    #         - ubuntu-toolchain-r-test
+    #       packages:
+    #         - g++
+    #   env: COMPILER=g++
     # - compiler: gcc
     #   addons:
     #     apt:
