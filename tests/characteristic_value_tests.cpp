@@ -303,13 +303,16 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+namespace {
+    const std::uint8_t test_blob[] = { 0x00, 0x12, 0x00, 0xab, 0x05 };
+}
+
 BOOST_AUTO_TEST_SUITE( fixed_blob_tests )
 
-    static const std::uint8_t blob[] = { 0x00, 0x12, 0x00, 0xab, 0x05 };
 
     using blob_char = bluetoe::characteristic<
         bluetoe::characteristic_uuid16< 0xD0B1 >,
-        bluetoe::fixed_blob_value< blob, sizeof( blob ) >
+        bluetoe::fixed_blob_value< test_blob, sizeof( test_blob ) >
     >;
 
     BOOST_FIXTURE_TEST_CASE( read_only_attribute, read_characteristic_properties< blob_char > )
