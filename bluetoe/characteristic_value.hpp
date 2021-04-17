@@ -1140,6 +1140,15 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief characteristic value binding for a control point
+     *
+     * This is intendet for control points that respond by an indication. If the bound handler returns { error_codes::success, true },
+     * an indication will be marked to be pending for this characteristic and as soon as there is a free slot in the ling layer,
+     * the read handler for this characteristic will be called to retrieve the intended value for the indication.
+     *
+     * @sa mixin_write_notification_control_point_handler
+     */
     template < class Mixin, std::pair< std::uint8_t, bool > (Mixin::*F)( std::size_t write_size, const std::uint8_t* value ), typename IndicationUUID >
     struct mixin_write_indication_control_point_handler : details::value_handler_base
     {
@@ -1173,6 +1182,12 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief characteristic value binding for a control point
+     *
+     * Similar to mixin_write_indication_control_point_handler but sends a notification in response.
+     * @sa mixin_write_indication_control_point_handler
+     */
     template < class Mixin, std::pair< std::uint8_t, bool > (Mixin::*F)( std::size_t write_size, const std::uint8_t* value ), typename NotificationUUID >
     struct mixin_write_notification_control_point_handler : details::value_handler_base
     {
@@ -1190,7 +1205,7 @@ namespace bluetoe {
             Server& server = *static_cast< Server* >( server_ptr );
             Mixin&  mixin  = static_cast< Mixin& >( server );
 
-            // as this is a indication control point, this thingy must be configured for indications
+            // as this is a notification control point, this thingy must be configured for notification
             if ( !server.template configured_for_notifications< NotificationUUID >( config ) )
                 return error_codes::cccd_improperly_configured;
 
