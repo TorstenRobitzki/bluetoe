@@ -280,6 +280,7 @@ namespace link_layer {
 
             bool queue_notification( std::size_t idx )
             {
+                static_cast< void >( idx );
                 assert( idx == 0 );
 
                 const bool result = state_ == empty;
@@ -292,6 +293,7 @@ namespace link_layer {
 
             bool queue_indication( std::size_t idx )
             {
+                static_cast< void >( idx );
                 assert( idx == 0 );
                 const bool result = state_ == empty;
 
