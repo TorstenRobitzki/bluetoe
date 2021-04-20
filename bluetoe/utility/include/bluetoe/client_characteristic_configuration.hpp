@@ -18,20 +18,17 @@ namespace details {
     public:
         constexpr client_characteristic_configuration()
             : data_( nullptr )
-            , size_( 0 )
         {
         }
 
-        constexpr explicit client_characteristic_configuration( std::uint8_t* data, std::size_t s )
+        constexpr explicit client_characteristic_configuration( std::uint8_t* data, std::size_t )
             : data_( data )
-            , size_( s )
         {
         }
 
         std::uint16_t flags( std::size_t index ) const
         {
             assert( data_ );
-            assert( index < size_ );
 
             return ( data_[ index / 4 ] >> shift( index ) ) & 0x3;
         }
@@ -39,7 +36,6 @@ namespace details {
         void flags( std::size_t index, std::uint16_t new_flags )
         {
             assert( data_ );
-            assert( index < size_ );
 
             // do not assert on new_flags as they might come from a client
             data_[ index / 4 ] = ( data_[ index / 4 ] & ~mask( index ) ) | ( ( new_flags & 0x03 ) << shift( index ) );
@@ -59,9 +55,6 @@ namespace details {
         }
 
         std::uint8_t*   data_;
-
-        // this member is purly for debugging and can be removed
-        std::size_t     size_;
     };
 
     /**
