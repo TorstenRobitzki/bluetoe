@@ -182,6 +182,7 @@ namespace bluetoe {
 
                 std::uint8_t update_sensor_location_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    static_cast< void >( read_size );
                     static const std::size_t response_size = 3;
                     assert( read_size >= response_size );
 
@@ -212,6 +213,7 @@ namespace bluetoe {
 
                 std::uint8_t csc_sensor_location( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    static_cast< void >( read_size );
                     assert( read_size > 0 );
 
                     *out_buffer = current_position_;
@@ -235,6 +237,7 @@ namespace bluetoe {
             public:
                 std::uint8_t request_supported_sensor_locations_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    static_cast< void >( read_size );
                     static const std::size_t response_size = 3;
                     assert( read_size >= response_size );
 
@@ -248,6 +251,7 @@ namespace bluetoe {
 
                 std::uint8_t update_sensor_location_opcode_response( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    static_cast< void >( read_size );
                     static const std::size_t response_size = 3;
                     assert( read_size >= response_size );
 
@@ -388,6 +392,7 @@ namespace bluetoe {
 
                 std::uint8_t csc_mesurement( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size )
                 {
+                    static_cast< void >( read_size );
                     assert( read_size >= max_response_size );
 
                     std::uint8_t* out_ptr = out_buffer + 1;
