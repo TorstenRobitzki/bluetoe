@@ -70,7 +70,7 @@ namespace link_layer {
          *
          * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
          *
-         * @return the distance from now to start_receive
+         * @return the distance from now to start_receive. If the scheduled event is already in the past, the function will return delta_time().
          */
         bluetoe::link_layer::delta_time schedule_connection_event(
             unsigned                                    channel,
