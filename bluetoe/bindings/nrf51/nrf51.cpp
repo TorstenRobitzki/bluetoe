@@ -45,12 +45,12 @@ namespace nrf51_details {
         static constexpr int debug_pin_end_crypt     = 20;
         static constexpr int debug_pin_ready_disable = 22;
         static constexpr int debug_pin_address_end   = 23;
-        static constexpr int debug_pin_keysteam      = 24;
+        static constexpr int debug_pin_keystream     = 24;
 
         void init_debug()
         {
             for ( auto pin : { debug_pin_end_crypt, debug_pin_ready_disable,
-                                debug_pin_address_end, debug_pin_keysteam } )
+                                debug_pin_address_end, debug_pin_keystream } )
             {
                 NRF_GPIO->PIN_CNF[ pin ] =
                     ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
@@ -65,7 +65,7 @@ namespace nrf51_details {
 
             NRF_GPIOTE->CONFIG[ 1 ] =
                 ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
-                ( debug_pin_keysteam << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( debug_pin_keystream << GPIOTE_CONFIG_PSEL_Pos ) |
                 ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
                 ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
 
