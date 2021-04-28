@@ -27,6 +27,9 @@ namespace nrf51_details {
     static constexpr std::uint32_t      adv_reponse_timeout_us   = 152 + 42 * 8 + 20;
     static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
 
+    // Time reserved to setup a connection event in µs
+    static constexpr std::uint32_t      setup_connection_event_limit_us = 500;
+
     static constexpr std::size_t        radio_address_ccm_crypt         = 25;
     static constexpr std::size_t        radio_end_capture2_ppi_channel  = 27;
     static constexpr std::size_t        compare0_txen_ppi_channel       = 20;
@@ -495,10 +498,25 @@ namespace nrf51_details {
         while ((NRF_RADIO->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled)
             ;
 
+        // Stop all interrupts so that the calculation, that enough CPU time is available to setup everything, will not
+        // be disturbed by any interrupt.
+        lock_guard lock;
+
         assert( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
         assert( state_ == state::idle );
         assert( receive_buffer.buffer && receive_buffer.size >= 2u || receive_buffer.empty() );
         assert( start_receive < end_receive );
+
+        nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
+        const std::uint32_t now   = nrf_timer->CC[ 3 ];
+        const std::uint32_t start_event = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
+        const std::uint32_t end_event   = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
+
+        if ( now + setup_connection_event_limit_us > start_event )
+        {
+            evt_timeout_ = true;
+            return link_layer::delta_time();
+        }
 
         state_                  = state::evt_wait_connect;
         receive_buffer_         = receive_buffer.empty()
@@ -594,12 +612,10 @@ namespace nrf51_details {
 
         nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
-        nrf_timer->CC[ 0 ] = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
-        nrf_timer->CC[ 1 ] = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
+        nrf_timer->CC[ 0 ] = start_event;
+        nrf_timer->CC[ 1 ] = end_event;
 
-        nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
-
-        return link_layer::delta_time::usec( nrf_timer->CC[ 0 ] - nrf_timer->CC[ 3 ] );
+        return link_layer::delta_time::usec( nrf_timer->CC[ 0 ] - now );
     }
 
     void scheduled_radio_base::evt_radio_interrupt()
