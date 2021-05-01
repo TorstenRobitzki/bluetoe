@@ -93,22 +93,25 @@ namespace link_layer {
             static std::size_t fill_empty_advertising_response_data( const device_address& addr, read_buffer adv_response_buffer )
             {
                 std::uint16_t header = scan_response_pdu_type_code;
+                static const std::uint8_t response[] = {
+                    0x0c, 0x16, 0x72, 0xfd, 0x10, 0x01, 0x00, 0x4e,
+                    0xb3, 0x42, 0x79, 0xa4, 0x99, 0x02, 0x0a, 0x08 };
 
                 if ( addr.is_random() )
                     header |= header_txaddr_field;
 
-                static constexpr std::size_t empty_ad_size = 2;
-                std::size_t adv_response_size = advertising_pdu_header_size + address_length + empty_ad_size;
+                std::size_t adv_response_size = advertising_pdu_header_size + address_length  + sizeof( response );
                 header |= ( adv_response_size - advertising_pdu_header_size ) << 8;
 
                 const auto body = Layout::body( adv_response_buffer );
 
                 std::copy( addr.begin(), addr.end(), body.first );
+                std::copy( std::begin( response ), std::end( response ), &body.first[ address_length ] );
 
-                // add aditional empty AD to be visible to Nordic sniffer.
-                // Some stacks do not recognize the response without this empty AD.
-                body.first[ adv_response_size - 2 ] = 0;
-                body.first[ adv_response_size - 1 ] = 0;
+                // // add aditional empty AD to be visible to Nordic sniffer.
+                // // Some stacks do not recognize the response without this empty AD.
+                // body.first[ adv_response_size - 2 ] = 0;
+                // body.first[ adv_response_size - 1 ] = 0;
 
                 Layout::header( adv_response_buffer, header );
 
