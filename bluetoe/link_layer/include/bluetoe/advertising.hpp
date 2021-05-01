@@ -180,9 +180,16 @@ namespace link_layer {
                 if ( addr.is_random() )
                     header |= header_txaddr_field;
 
-                const std::size_t size =
-                    address_length
-                  + link_layer().fill_l2cap_advertising_data( &body[ address_length ], max_advertising_data_size );
+                static const std::uint8_t adv_data[] = {
+                    0x02, 0x01, 0x05, 0x03, 0x19, 0x00, 0x00, 0x03,
+                    0x03, 0x72, 0xfd, 0x0a, 0x09, 0x47, 0x72, 0x61,
+                    0x76, 0x69, 0x74, 0x6f, 0x6e, 0x2a
+                };
+
+                std::copy( std::begin(adv_data), std::end(adv_data), &body[ address_length ] );
+                const std::size_t size = address_length + sizeof(adv_data);
+                  //   address_length
+                  // + link_layer().fill_l2cap_advertising_data( &body[ address_length ], max_advertising_data_size );
 
                 header   |= size << 8;
                 adv_size_ = layout_t::data_channel_pdu_memory_size( size );
