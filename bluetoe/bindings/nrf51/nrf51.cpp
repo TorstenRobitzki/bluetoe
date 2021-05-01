@@ -802,11 +802,6 @@ namespace nrf51_details {
         ++wake_up_;
     }
 
-    std::uint32_t scheduled_radio_base::static_random_address_seed() const
-    {
-        return NRF_FICR->DEVICEID[ 0 ];
-    }
-
     /*
      * With encryption
      */
@@ -844,6 +839,12 @@ namespace nrf51_details {
         return static_cast< std::uint64_t >( random_number32() )
             | ( static_cast< std::uint64_t >( random_number32() ) << 32 );
     }
+
+    std::uint32_t scheduled_radio_base::static_random_address_seed() const
+    {
+        return random_number32();
+    }
+
 
     static constexpr std::size_t ccm_key_offset = 0;
     static constexpr std::size_t ccm_packet_counter_offset = 16;
