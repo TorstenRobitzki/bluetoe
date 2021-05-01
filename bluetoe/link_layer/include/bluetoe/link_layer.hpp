@@ -468,6 +468,7 @@ namespace link_layer {
         };
 
         static constexpr std::uint8_t   supported_features =
+            link_layer_feature::connection_parameters_request_procedure |
             link_layer_feature::le_ping |
             ( bluetoe::details::requires_encryption_support_t< Server >::value
                 ? link_layer_feature::le_encryption
