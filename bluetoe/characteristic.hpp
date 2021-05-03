@@ -152,6 +152,8 @@ namespace bluetoe {
      * @sa no_encryption_required
      * @sa may_require_encryption
      * @sa fixed_blob_value
+     * @sa attribute_handle
+     * @sa attribute_handles
      */
     template < typename ... Options >
     class characteristic
@@ -263,7 +265,7 @@ namespace bluetoe {
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server, typename ... Options >
         struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >
         {
-            typedef typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid                             uuid;
+            typedef typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid     uuid;
             typedef typename characteristic< Options... >::value_type                                       value_type;
 
             static void fixup_auto_uuid( details::attribute_access_arguments& args )
@@ -284,7 +286,7 @@ namespace bluetoe {
             }
 
             /*
-             * the characteristic decalarion consists of 3 parts a Properties byte, two bytes index and 2 - 16 bytes UUID
+             * the characteristic decalarion consists of 3 parts a Properties byte, two bytes value handle and 2 - 16 bytes UUID
              */
             static details::attribute_access_result char_declaration_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
             {
@@ -305,6 +307,7 @@ namespace bluetoe {
                         ( value_type::has_indication   ? bits( details::gatt_characteristic_properties::indicate ) : 0 ) )
                 };
 
+                // TODO!!!!
                 // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
                 const std::uint8_t value_handle[] = {
                     static_cast< std::uint8_t >( ( attribute_handle +1 ) & 0xff ),

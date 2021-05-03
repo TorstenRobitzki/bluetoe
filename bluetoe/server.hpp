@@ -1350,6 +1350,7 @@ namespace bluetoe {
     template < class Iterator, class Filter >
     void server< Options... >::all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iter, const Filter& filter )
     {
+        // TODO: Incrementing might be very inefficient when handle are very sparse
         for ( ; starting_handle <= ending_handle && starting_handle <= number_of_attributes; ++starting_handle )
         {
             const details::attribute attr = attribute_at( starting_handle -1 );
