@@ -24,7 +24,6 @@
 namespace bluetoe {
 
     namespace details {
-        struct characteristic_meta_type {};
         struct characteristic_uuid_meta_type {};
 
         struct characteristic_declaration_parameter {};

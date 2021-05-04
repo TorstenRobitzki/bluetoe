@@ -1,6 +1,3 @@
-// delete me if you see me
-#include <iostream>
-
 #include <bluetoe/attribute_handle.hpp>
 #include <bluetoe/server.hpp>
 
@@ -187,3 +184,66 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_services, bluetoe::details
 
 BOOST_AUTO_TEST_SUITE_END()
 
+using server_with_multiple_fixed_services_and_characteristics = bluetoe::server<
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x020 >,
+        bluetoe::service_uuid16< 0x0816 >,
+        bluetoe::characteristic<
+            bluetoe::fixed_uint8_value< 0x42 >
+        >,
+        bluetoe::characteristic<
+            bluetoe::attribute_handle< 0x100 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::notify
+        >
+    >,
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x0815 >,
+        bluetoe::characteristic<
+            bluetoe::attribute_handle< 0x200 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::notify
+        >,
+        bluetoe::characteristic<
+            bluetoe::fixed_uint8_value< 0x42 >
+        >
+    >
+>;
+
+BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_services_and_characteristics, bluetoe::details::handle_index_mapping< server_with_multiple_fixed_services_and_characteristics > )
+
+    BOOST_AUTO_TEST_CASE( all_handles )
+    {
+        // first service
+        BOOST_CHECK_EQUAL( handle_by_index( 0 ), 0x020u );
+            // 2 Characteristics
+            BOOST_CHECK_EQUAL( handle_by_index( 1 ), 0x021u );
+            BOOST_CHECK_EQUAL( handle_by_index( 2 ), 0x022u );
+
+            BOOST_CHECK_EQUAL( handle_by_index( 3 ), 0x100u );
+            BOOST_CHECK_EQUAL( handle_by_index( 4 ), 0x101u );
+            BOOST_CHECK_EQUAL( handle_by_index( 5 ), 0x102u );
+
+        // second service
+        BOOST_CHECK_EQUAL( handle_by_index( 6 ), 0x103u );
+            // 2 Characteristics
+            BOOST_CHECK_EQUAL( handle_by_index( 7 ), 0x200u );
+            BOOST_CHECK_EQUAL( handle_by_index( 8 ), 0x201u );
+            BOOST_CHECK_EQUAL( handle_by_index( 9 ), 0x202u );
+
+            BOOST_CHECK_EQUAL( handle_by_index( 10 ), 0x203u );
+            BOOST_CHECK_EQUAL( handle_by_index( 11 ), 0x204u );
+
+        // GAP Service
+        BOOST_CHECK_EQUAL( handle_by_index( 12 ), 0x205u );
+            // 2 Characteristics
+            BOOST_CHECK_EQUAL( handle_by_index( 13 ), 0x206u );
+            BOOST_CHECK_EQUAL( handle_by_index( 14 ), 0x207u );
+
+            BOOST_CHECK_EQUAL( handle_by_index( 15 ), 0x208u );
+            BOOST_CHECK_EQUAL( handle_by_index( 16 ), 0x209u );
+
+        BOOST_CHECK_EQUAL( handle_by_index( 17 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

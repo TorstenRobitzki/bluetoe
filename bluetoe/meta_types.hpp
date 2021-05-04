@@ -25,6 +25,11 @@ namespace bluetoe {
          */
         struct service_meta_type {};
 
+        /*
+         * A characteristic declaration
+         */
+        struct characteristic_meta_type {};
+
     }
 }
 
