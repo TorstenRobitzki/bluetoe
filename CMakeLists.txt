@@ -5,6 +5,8 @@ set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(lib_bluetoe CXX)
 
+option(BLUETOE_BUILD_UNIT_TESTS "If true, unit test targets are added are build.")
+
 add_library(bluetoe_iface INTERFACE)
 target_compile_features(bluetoe_iface INTERFACE cxx_std_11)
 add_library(bluetoe::iface ALIAS bluetoe_iface)
