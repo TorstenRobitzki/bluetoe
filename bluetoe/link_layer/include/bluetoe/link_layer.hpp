@@ -419,6 +419,7 @@ namespace link_layer {
 
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       num_windows_til_timeout     = 5;
+        static constexpr auto           us_per_digits               = 1250;
 
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
         static constexpr std::uint8_t   lld_data_pdu_code           = 2;
@@ -915,7 +916,6 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::check_timing_paremeters( std::uint16_t slave_latency, delta_time timeout ) const
     {
-        static constexpr auto       us_per_digits = 1250;
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
@@ -933,8 +933,6 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body )
     {
-        static constexpr auto       us_per_digits = 1250;
-
         transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
@@ -950,8 +948,6 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_update_request )
     {
-        static constexpr auto       us_per_digits = 1250;
-
         transmit_window_size_   = delta_time( valid_update_request[ 1 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_update_request[ 2 ] ) * us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_update_request[ 4 ] ) * us_per_digits );
@@ -1270,7 +1266,7 @@ namespace link_layer {
     {
         return connection_details(
             channels_,
-            connection_interval_.usec() / 1250,
+            connection_interval_.usec() / us_per_digits,
             slave_latency_,
             timeout_value_,
             cumulated_sleep_clock_accuracy_ );
