@@ -710,9 +710,9 @@ BOOST_AUTO_TEST_SUITE( double_used_uuid )
 
     BOOST_AUTO_TEST_CASE( attribute_numbers )
     {
-        BOOST_CHECK_EQUAL( std::size_t{ first_char::number_of_attributes }, 3 );
-        BOOST_CHECK_EQUAL( std::size_t{ second_char::number_of_attributes }, 2 );
-        BOOST_CHECK_EQUAL( std::size_t{ service::number_of_attributes }, 6 );
+        BOOST_CHECK_EQUAL( std::size_t{ first_char::number_of_attributes }, 3u );
+        BOOST_CHECK_EQUAL( std::size_t{ second_char::number_of_attributes }, 2u );
+        BOOST_CHECK_EQUAL( std::size_t{ service::number_of_attributes }, 6u );
     }
 
     BOOST_FIXTURE_TEST_CASE( expected_attributes_first_char, test::request_with_reponse< simple_server > )
