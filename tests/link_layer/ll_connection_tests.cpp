@@ -365,6 +365,13 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_size, unconnec
     BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
+BOOST_FIXTURE_TEST_CASE( connection_update_request_window_size_0, unconnected )
+{
+    simulate_connection_update_request( *this, 5, 0, 40, 1, 25, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 17u );
+}
+
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_offset, unconnected )
 {
     simulate_connection_update_request( *this, 5, 206, 40, 1, 25, 6 );
