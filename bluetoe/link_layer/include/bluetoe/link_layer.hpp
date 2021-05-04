@@ -1120,7 +1120,8 @@ namespace link_layer {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
             }
-            else if ( opcode == LL_UNKNOWN_RSP && size == 2 && body[ 1 ] == LL_CONNECTION_PARAM_REQ )
+            else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 && body[ 1 ] == LL_CONNECTION_PARAM_REQ )
+                || opcode == LL_REJECT_IND )
             {
                 if ( connection_parameters_request_running_ )
                 {
@@ -1136,7 +1137,9 @@ namespace link_layer {
                     }
                 }
 
-                used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
+                if ( opcode == LL_UNKNOWN_RSP )
+                    used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
+
                 commit = false;
             }
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )

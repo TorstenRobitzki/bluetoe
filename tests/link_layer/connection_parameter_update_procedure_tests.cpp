@@ -196,3 +196,46 @@ BOOST_FIXTURE_TEST_CASE( if_ll_doesn_work_fallback_to_l2cap, link_layer_with_sig
         (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
     } );
 }
+
+BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_fallback_to_l2cap, link_layer_with_signaling_channel )
+{
+    ll_function_call(
+        [&](){
+            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
+        });
+
+    ll_empty_pdus(3);
+
+    ll_control_pdu( {
+        0x0D,                       // LL_REJECT_IND
+        0x1A                        // Unsupported Remote/LMP Feature (0x1a)
+    } );
+
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    // first tried with LL_CONNECTION_PARAM_REQ
+    check_outgoing_ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // min interval
+        20, 0x00,                   // max interval
+        3, 0x00,                    // latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    // as fallback, try l2cap
+    check_outgoing_l2cap_pdu( {
+        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
+        10, 0x00, 20, 0x00, 3, 0x00,
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
+    } );
+}
