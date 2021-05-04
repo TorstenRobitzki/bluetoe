@@ -923,7 +923,6 @@ namespace link_layer {
 
         return transmit_window_size_ <= maximum_transmit_window_offset
             && transmit_window_size_ <= connection_interval_
-            && ( transmit_window_offset_ - delta_time( us_per_digits ) ) <= connection_interval_
             && timeout >= minimum_connection_timeout
             && timeout <= maximum_connection_timeout
             && timeout >= ( slave_latency + 1 ) * 2 * connection_interval_
@@ -933,6 +932,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body )
     {
+        const delta_time transmit_window_offset = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits );
+
         transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
@@ -942,7 +943,7 @@ namespace link_layer {
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
-        return check_timing_paremeters( slave_latency_, timeout );
+        return transmit_window_offset <= connection_interval_ && check_timing_paremeters( slave_latency_, timeout );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -957,7 +958,7 @@ namespace link_layer {
 
         max_timeouts_til_connection_lost_ = timeout / connection_interval_;
 
-        return check_timing_paremeters( slave_latency_, timeout );
+        return transmit_window_offset_ <= connection_interval_ && check_timing_paremeters( slave_latency_, timeout );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
