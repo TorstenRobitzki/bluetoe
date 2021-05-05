@@ -6,11 +6,13 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cassert>
 
 namespace bluetoe {
 
     namespace details {
         struct attribute_handle_meta_type {};
+        struct attribute_handles_meta_type {};
     }
 
     /**
@@ -54,7 +56,16 @@ namespace bluetoe {
     struct attribute_handles
     {
         /** @cond HIDDEN_SYMBOLS */
+        static constexpr std::uint16_t declaration_handle = Declaration;
+        static constexpr std::uint16_t value_handle       = Value;
+        static constexpr std::uint16_t cccd_handle        = CCCD;
+
+        static_assert( value_handle > declaration_handle, "value handle has to be larger than declaration handle" );
+        static_assert( cccd_handle > declaration_handle || cccd_handle == 0, "CCCD handle has to be larger than declaration handle" );
+        static_assert( cccd_handle > value_handle || cccd_handle == 0, "CCCD handle has to be larger than value handle" );
+
         struct meta_type :
+            details::attribute_handles_meta_type,
             details::valid_characteristic_option_meta_type {};
         /** @endcond */
     };
@@ -73,22 +84,82 @@ namespace bluetoe {
         static constexpr std::uint16_t invalid_attribute_handle = 0;
         static constexpr std::size_t   invalid_attribute_index  = ~0;
 
+        /*
+         * select one of attribute_handle< H > or attribute_handle< H, B, C >
+         */
+        template < std::uint16_t Default, class, class >
+        struct select_attribute_handles
+        {
+            static constexpr std::uint16_t declaration_handle = Default;
+            static constexpr std::uint16_t value_handle       = Default + 1;
+            static constexpr std::uint16_t cccd_handle        = Default + 2;
+        };
+
+        template < std::uint16_t Default, std::uint16_t AttributeHandleValue, typename T >
+        struct select_attribute_handles< Default, attribute_handle< AttributeHandleValue >, T >
+        {
+            static constexpr std::uint16_t declaration_handle = AttributeHandleValue;
+            static constexpr std::uint16_t value_handle       = AttributeHandleValue + 1;
+            static constexpr std::uint16_t cccd_handle        = AttributeHandleValue + 2;
+        };
+
+        template < std::uint16_t Default, typename T, std::uint16_t Declaration, std::uint16_t Value, std::uint16_t CCCD >
+        struct select_attribute_handles< Default, T, attribute_handles< Declaration, Value, CCCD > >
+        {
+            static constexpr std::uint16_t declaration_handle = Declaration;
+            static constexpr std::uint16_t value_handle       = Value;
+            static constexpr std::uint16_t cccd_handle        = CCCD == 0 ? Value + 1 : CCCD;
+        };
+
+        template < std::uint16_t Default, std::uint16_t AttributeHandleValue, std::uint16_t Declaration, std::uint16_t Value, std::uint16_t CCCD >
+        struct select_attribute_handles< Default, attribute_handle< AttributeHandleValue >, attribute_handles< Declaration, Value, CCCD > >
+        {
+            static_assert( Declaration == Value, "either attribute_handle<> or attribute_handles<> can be used as characteristic<> option, not both." );
+        };
+
         template < std::uint16_t StartHandle, std::uint16_t StartIndex, typename ... Options >
         struct characteristic_index_mapping
         {
             using characteristic_t = ::bluetoe::characteristic< Options... >;
 
-            using declaration_handle_t = typename find_by_meta_type< attribute_handle_meta_type, Options..., attribute_handle< StartHandle > >::type;
-            static constexpr std::uint16_t declaration_handle = declaration_handle_t::attribute_handle_value;
+            using attribute_handles_t = select_attribute_handles< StartHandle,
+                typename find_by_meta_type< attribute_handle_meta_type, Options... >::type,
+                typename find_by_meta_type< attribute_handles_meta_type, Options... >::type
+            >;
 
-            static_assert( declaration_handle >= StartHandle, "attribute_handle<> can only be used to create increasing attribute handles." );
+            static_assert( attribute_handles_t::declaration_handle >= StartHandle, "attribute_handle<> can only be used to create increasing attribute handles." );
 
-            static constexpr std::uint16_t end_handle   = declaration_handle + characteristic_t::number_of_attributes;
+            static constexpr std::uint16_t end_handle   = characteristic_t::number_of_attributes == 2
+                ? attribute_handles_t::value_handle + 1
+                : attribute_handles_t::cccd_handle + ( characteristic_t::number_of_attributes - 2 );
             static constexpr std::uint16_t end_index    = StartIndex + characteristic_t::number_of_attributes;
 
             std::uint16_t characteristic_attribute_handle_by_index( std::size_t index )
             {
-                return declaration_handle + ( index - StartIndex );
+                static constexpr std::size_t declaration_position = 0;
+                static constexpr std::size_t value_position       = 1;
+                static constexpr std::size_t cccd_position        = 2;
+
+                const std::size_t relative_index = index - StartIndex;
+
+                assert( relative_index < characteristic_t::number_of_attributes );
+
+                switch ( relative_index )
+                {
+                    case declaration_position:
+                        return attribute_handles_t::declaration_handle;
+                        break;
+
+                    case value_position:
+                        return attribute_handles_t::value_handle;
+                        break;
+
+                    case cccd_position:
+                        return attribute_handles_t::cccd_handle;
+                        break;
+                }
+
+                return relative_index - cccd_position + attribute_handles_t::cccd_handle;
             }
         };
 

@@ -247,3 +247,132 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_services_and_characteristi
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+
+using server_with_multiple_fixed_attributes_handles = bluetoe::server<
+    bluetoe::no_gap_service_for_gatt_servers,
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x020 >,
+        bluetoe::service_uuid16< 0x0816 >,
+
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x50, 0x52 >,
+            bluetoe::fixed_uint8_value< 0x42 >
+        >,
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x60, 0x62, 0x64 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::notify
+        >
+    >,
+    bluetoe::service<
+        bluetoe::service_uuid16< 0x0815 >,
+        bluetoe::characteristic<
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::notify
+        >,
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x100, 0x101 >,
+            bluetoe::fixed_uint8_value< 0x42 >
+        >
+    >
+>;
+
+BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, bluetoe::details::handle_index_mapping< server_with_multiple_fixed_attributes_handles > )
+
+    BOOST_AUTO_TEST_CASE( all_handles )
+    {
+        // first service
+        BOOST_CHECK_EQUAL( handle_by_index( 0 ), 0x020u );
+            // 2 Characteristics
+            BOOST_CHECK_EQUAL( handle_by_index( 1 ), 0x050u );
+            BOOST_CHECK_EQUAL( handle_by_index( 2 ), 0x052u );
+
+            BOOST_CHECK_EQUAL( handle_by_index( 3 ), 0x060u );
+            BOOST_CHECK_EQUAL( handle_by_index( 4 ), 0x062u );
+            BOOST_CHECK_EQUAL( handle_by_index( 5 ), 0x064u );
+
+        // second service
+        BOOST_CHECK_EQUAL( handle_by_index( 6 ), 0x065u );
+            // 2 Characteristics
+            BOOST_CHECK_EQUAL( handle_by_index( 7 ), 0x066u );
+            BOOST_CHECK_EQUAL( handle_by_index( 8 ), 0x067u );
+            BOOST_CHECK_EQUAL( handle_by_index( 9 ), 0x068u );
+
+            BOOST_CHECK_EQUAL( handle_by_index( 10 ), 0x100u );
+            BOOST_CHECK_EQUAL( handle_by_index( 11 ), 0x101u );
+
+        BOOST_CHECK_EQUAL( handle_by_index( 12 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+static const char char_name[] = "Foo";
+static const std::uint8_t descriptor_data[] = { 0x08, 0x15 };
+
+using server_with_additional_descriptors = bluetoe::server<
+    bluetoe::no_gap_service_for_gatt_servers,
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x020 >,
+        bluetoe::service_uuid16< 0x0816 >,
+
+        // Characteristic with CCCD and Characteristic User Description without fixed CCCD
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x50, 0x52 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::characteristic_name< char_name >,
+            bluetoe::notify
+        >,
+        // Characteristic with CCCD and Characteristic User Description and user descriptor with fixed CCCD
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x60, 0x62, 0x64 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::characteristic_name< char_name >,
+            bluetoe::descriptor< 0x1722, descriptor_data, sizeof( descriptor_data ) >,
+            bluetoe::notify
+        >,
+        // No descriptors, no fixup
+        bluetoe::characteristic<
+            bluetoe::fixed_uint8_value< 0x42 >
+        >,
+        // Characteristic Characteristic User Description without fixed CCCD
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x70, 0x80 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::characteristic_name< char_name >
+        >
+    >
+>;
+
+BOOST_FIXTURE_TEST_SUITE( mapping_server_with_additional_descriptors, bluetoe::details::handle_index_mapping< server_with_additional_descriptors > )
+
+    BOOST_AUTO_TEST_CASE( all_handles )
+    {
+        // first service
+        BOOST_CHECK_EQUAL( handle_by_index( 0 ), 0x020u );
+            // Declaration, Value, CCCD, User Description
+            BOOST_CHECK_EQUAL( handle_by_index( 1 ), 0x050u );
+            BOOST_CHECK_EQUAL( handle_by_index( 2 ), 0x052u );
+            BOOST_CHECK_EQUAL( handle_by_index( 3 ), 0x053u );
+            BOOST_CHECK_EQUAL( handle_by_index( 4 ), 0x054u );
+
+            // Declaration, Value, CCCD, User Description
+            BOOST_CHECK_EQUAL( handle_by_index( 5 ), 0x060u );
+            BOOST_CHECK_EQUAL( handle_by_index( 6 ), 0x062u );
+            BOOST_CHECK_EQUAL( handle_by_index( 7 ), 0x064u );
+            BOOST_CHECK_EQUAL( handle_by_index( 8 ), 0x065u );
+            BOOST_CHECK_EQUAL( handle_by_index( 9 ), 0x066u );
+
+            // Declaration, Value without fixup
+            BOOST_CHECK_EQUAL( handle_by_index( 10 ), 0x067u );
+            BOOST_CHECK_EQUAL( handle_by_index( 11 ), 0x068u );
+
+            // Declaration, Value, User Description
+            BOOST_CHECK_EQUAL( handle_by_index( 12 ), 0x070u );
+            BOOST_CHECK_EQUAL( handle_by_index( 13 ), 0x080u );
+            BOOST_CHECK_EQUAL( handle_by_index( 14 ), 0x081u );
+
+        BOOST_CHECK_EQUAL( handle_by_index( 15 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
