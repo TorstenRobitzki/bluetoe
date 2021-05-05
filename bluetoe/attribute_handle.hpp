@@ -134,7 +134,7 @@ namespace bluetoe {
                 : attribute_handles_t::cccd_handle + ( characteristic_t::number_of_attributes - 2 );
             static constexpr std::uint16_t end_index    = StartIndex + characteristic_t::number_of_attributes;
 
-            std::uint16_t characteristic_attribute_handle_by_index( std::size_t index )
+            static std::uint16_t characteristic_attribute_handle_by_index( std::size_t index )
             {
                 static constexpr std::size_t declaration_position = 0;
                 static constexpr std::size_t value_position       = 1;
@@ -169,7 +169,7 @@ namespace bluetoe {
         template < std::uint16_t StartHandle, std::uint16_t StartIndex >
         struct interate_characteristic_index_mappings< StartHandle, StartIndex, std::tuple<> >
         {
-            std::uint16_t attribute_handle_by_index( std::size_t )
+            static std::uint16_t attribute_handle_by_index( std::size_t )
             {
                 return invalid_attribute_handle;
             }
@@ -192,7 +192,7 @@ namespace bluetoe {
             static constexpr std::uint16_t last_characteristic_end_handle =
                 next_characteristic_mapping< StartHandle, StartIndex, std::tuple< Chars... >, Options... >::last_characteristic_end_handle;
 
-            std::uint16_t attribute_handle_by_index( std::size_t index )
+            static std::uint16_t attribute_handle_by_index( std::size_t index )
             {
                 if ( index < characteristic_index_mapping< StartHandle, StartIndex, Options... >::end_index )
                     return characteristic_index_mapping< StartHandle, StartIndex, Options... >::characteristic_attribute_handle_by_index( index );
@@ -230,12 +230,12 @@ namespace bluetoe {
             static constexpr std::uint16_t end_handle   = next_char_mapping< StartHandle, StartIndex, Options... >::last_characteristic_end_handle;
             static constexpr std::uint16_t end_index    = StartIndex + service_t::number_of_attributes;
 
-            std::uint16_t characteristic_handle_by_index( std::size_t index )
+            static std::uint16_t characteristic_handle_by_index( std::size_t index )
             {
                 if ( index == StartIndex )
                     return service_handle;
 
-                return this->attribute_handle_by_index( index );
+                return next_char_mapping< StartHandle, StartIndex, Options... >::attribute_handle_by_index( index );
             }
         };
 
@@ -248,7 +248,7 @@ namespace bluetoe {
         template < std::uint16_t StartHandle, std::uint16_t StartIndex >
         struct interate_service_index_mappings< StartHandle, StartIndex, std::tuple<> >
         {
-            std::uint16_t service_handle_by_index( std::size_t )
+            static std::uint16_t service_handle_by_index( std::size_t )
             {
                 return invalid_attribute_handle;
             }
@@ -266,7 +266,7 @@ namespace bluetoe {
             : service_index_mapping< StartHandle, StartIndex, Options... >
             , next_service_mapping< StartHandle, StartIndex, std::tuple< Services... >, Options... >
         {
-            std::uint16_t service_handle_by_index( std::size_t index )
+            static std::uint16_t service_handle_by_index( std::size_t index )
             {
                 if ( index < service_index_mapping< StartHandle, StartIndex, Options... >::end_index )
                     return service_index_mapping< StartHandle, StartIndex, Options... >::characteristic_handle_by_index( index );
@@ -288,13 +288,9 @@ namespace bluetoe {
             static constexpr std::size_t   invalid_attribute_index  = ::bluetoe::details::invalid_attribute_index;
             static constexpr std::uint16_t invalid_attribute_handle = ::bluetoe::details::invalid_attribute_handle;
 
-            std::size_t index_by_handle( std::uint16_t attribute_handle ) {
-                return attribute_handle - 1;
-            }
-
-            std::uint16_t handle_by_index( std::size_t index )
+            static std::uint16_t handle_by_index( std::size_t index )
             {
-                return this->service_handle_by_index( index );
+                return interate_service_index_mappings< 1u, 0u, typename ::bluetoe::server< Options... >::services >::service_handle_by_index( index );
             }
         };
 

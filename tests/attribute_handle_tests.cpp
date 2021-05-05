@@ -10,6 +10,30 @@
 
 #include "test_servers.hpp"
 #include "test_attribute_access.hpp"
+#include "attribute_io.hpp"
+
+template < typename Server >
+struct fixture
+{
+    std::uint16_t handle_by_index( std::size_t index )
+    {
+        return bluetoe::details::handle_index_mapping< Server >::handle_by_index( index );
+    }
+
+    void check_attribute( std::size_t index, std::initializer_list< std::uint8_t > value )
+    {
+        std::uint8_t value_buffer[ 100 ];
+        Server srv;
+        auto access = bluetoe::details::attribute_access_arguments::read( value_buffer, 0 );
+
+        const auto result = srv.attribute_at( index ).access( access, index );
+        BOOST_CHECK_EQUAL( result, bluetoe::details::attribute_access_result::success );
+
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            value.begin(), value.end(),
+            &value_buffer[ 0 ], &value_buffer[ access.buffer_size ] );
+    }
+};
 
 using server_with_single_fixed_service = bluetoe::server<
     bluetoe::no_gap_service_for_gatt_servers,
@@ -22,11 +46,24 @@ using server_with_single_fixed_service = bluetoe::server<
     >
 >;
 
-BOOST_FIXTURE_TEST_SUITE( mapping_single_fixed_service, bluetoe::details::handle_index_mapping< server_with_single_fixed_service > )
+
+BOOST_FIXTURE_TEST_SUITE( mapping_single_fixed_service, fixture< server_with_single_fixed_service > )
 
     BOOST_AUTO_TEST_CASE( service_handle )
     {
         BOOST_CHECK_EQUAL( handle_by_index( 0 ), 0x0100u );
+    }
+
+    BOOST_AUTO_TEST_CASE( attribute_values )
+    {
+        check_attribute( 0, {
+            0x15, 0x08              // 0x0815 service UUID
+        } );
+        check_attribute( 1, {
+            0x02,                   // Properties: Read
+            0x02, 0x01,             // Characteristic Value Attribute Handle: 0x0102
+            0x15, 0x08
+        } );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -41,11 +78,23 @@ using server_with_single_not_fixed_service = bluetoe::server<
     >
 >;
 
-BOOST_FIXTURE_TEST_SUITE( mapping_single_service, bluetoe::details::handle_index_mapping< server_with_single_not_fixed_service > )
+BOOST_FIXTURE_TEST_SUITE( mapping_single_service, fixture< server_with_single_not_fixed_service > )
 
     BOOST_AUTO_TEST_CASE( service_handle )
     {
         BOOST_CHECK_EQUAL( handle_by_index( 0 ), 1u );
+    }
+
+    BOOST_AUTO_TEST_CASE( attribute_values )
+    {
+        check_attribute( 0, {
+            0x15, 0x08              // 0x0815 service UUID
+        } );
+        check_attribute( 1, {
+            0x02,                   // Properties: Read
+            0x03, 0x00,             // Characteristic Value Attribute Handle: 0x0003
+            0x15, 0x08
+        } );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -59,7 +108,7 @@ using server_with_gap_service_service = bluetoe::server<
     >
 >;
 
-BOOST_FIXTURE_TEST_SUITE( mapping_single_service_with_gap, bluetoe::details::handle_index_mapping< server_with_gap_service_service > )
+BOOST_FIXTURE_TEST_SUITE( mapping_single_service_with_gap, fixture< server_with_gap_service_service > )
 
     BOOST_AUTO_TEST_CASE( all_handles )
     {
@@ -278,7 +327,7 @@ using server_with_multiple_fixed_attributes_handles = bluetoe::server<
     >
 >;
 
-BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, bluetoe::details::handle_index_mapping< server_with_multiple_fixed_attributes_handles > )
+BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixture< server_with_multiple_fixed_attributes_handles > )
 
     BOOST_AUTO_TEST_CASE( all_handles )
     {
@@ -303,6 +352,30 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, blueto
             BOOST_CHECK_EQUAL( handle_by_index( 11 ), 0x101u );
 
         BOOST_CHECK_EQUAL( handle_by_index( 12 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+    BOOST_AUTO_TEST_CASE( attribute_values )
+    {
+        // first service
+        check_attribute( 0, {
+            0x16, 0x08              // 0x0815 service UUID
+        } );
+
+        // first characteristic
+        // check_attribute( 1, {
+        //     0x02,                   // Properties: Read
+        //     0x52, 0x00,             // Characteristic Value Attribute Handle: 0x0052
+        //     0x16, 0x08
+        // } );
+        // check_attribute( 2, { 0x42 } ); // Value
+
+        // // second characteristic
+        // check_attribute( 1, {
+        //     0x02,                   // Properties: Read
+        //     0x52, 0x00,             // Characteristic Value Attribute Handle: 0x0052
+        //     0x16, 0x08
+        // } );
+        // check_attribute( 2, { 0x42 } ); // Value
     }
 
 BOOST_AUTO_TEST_SUITE_END()

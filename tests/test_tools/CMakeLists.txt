@@ -5,6 +5,7 @@ enable_language(C)
 add_library(test_tools STATIC
         aes.c
         address_io.cpp
+        attribute_io.cpp
         test_uuid.cpp
         test_servers.cpp
         hexdump.cpp
