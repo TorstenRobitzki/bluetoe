@@ -20,6 +20,16 @@ struct fixture
         return bluetoe::details::handle_index_mapping< Server >::handle_by_index( index );
     }
 
+    std::size_t index_by_handle( std::uint16_t handle )
+    {
+        return bluetoe::details::handle_index_mapping< Server >::index_by_handle( handle );
+    }
+
+    static std::size_t first_index_by_handle( std::uint16_t handle )
+    {
+        return bluetoe::details::handle_index_mapping< Server >::first_index_by_handle( handle );
+    }
+
     void check_attribute( std::size_t index, std::initializer_list< std::uint8_t > value )
     {
         std::uint8_t value_buffer[ 100 ];
@@ -52,6 +62,9 @@ BOOST_FIXTURE_TEST_SUITE( mapping_single_fixed_service, fixture< server_with_sin
     BOOST_AUTO_TEST_CASE( service_handle )
     {
         BOOST_CHECK_EQUAL( handle_by_index( 0 ), 0x0100u );
+        BOOST_CHECK_EQUAL( handle_by_index( 1 ), 0x0101u );
+        BOOST_CHECK_EQUAL( handle_by_index( 2 ), 0x0102u );
+        BOOST_CHECK_EQUAL( handle_by_index( 3 ), bluetoe::details::invalid_attribute_handle );
     }
 
     BOOST_AUTO_TEST_CASE( attribute_values )
@@ -64,6 +77,20 @@ BOOST_FIXTURE_TEST_SUITE( mapping_single_fixed_service, fixture< server_with_sin
             0x02, 0x01,             // Characteristic Value Attribute Handle: 0x0102
             0x15, 0x08
         } );
+    }
+
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x010 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x100 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x101 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x102 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x103 ), bluetoe::details::invalid_attribute_index );
+    }
+
+    BOOST_AUTO_TEST_CASE( invalid_handles )
+    {
+        BOOST_CHECK_EQUAL( index_by_handle( 1 ), bluetoe::details::invalid_attribute_index );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -97,6 +124,16 @@ BOOST_FIXTURE_TEST_SUITE( mapping_single_service, fixture< server_with_single_no
         } );
     }
 
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x00 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x01 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x02 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x03 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x04 ), bluetoe::details::invalid_attribute_index );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x05 ), bluetoe::details::invalid_attribute_index );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 using server_with_gap_service_service = bluetoe::server<
@@ -123,6 +160,20 @@ BOOST_FIXTURE_TEST_SUITE( mapping_single_service_with_gap, fixture< server_with_
         BOOST_CHECK_EQUAL( handle_by_index( 6 ), 7u );
         BOOST_CHECK_EQUAL( handle_by_index( 7 ), 8u );
         BOOST_CHECK_EQUAL( handle_by_index( 8 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x00 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x01 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x02 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x03 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x04 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x05 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x06 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x07 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x08 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x09 ), bluetoe::details::invalid_attribute_index );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -152,6 +203,20 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_gap_and_one_fixed_service, bluetoe::detai
         BOOST_CHECK_EQUAL( handle_by_index( 6 ), 0x016u );
         BOOST_CHECK_EQUAL( handle_by_index( 7 ), 0x017u );
         BOOST_CHECK_EQUAL( handle_by_index( 8 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x0F ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x10 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x11 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x12 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x13 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x14 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x15 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x16 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x17 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x18 ), bluetoe::details::invalid_attribute_index );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -192,6 +257,24 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_partial_fixed_services, bluetoe::details:
         BOOST_CHECK_EQUAL( handle_by_index( 11 ), bluetoe::details::invalid_attribute_handle );
     }
 
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x000 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x001 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x002 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x003 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x004 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x010 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x011 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x012 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x013 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x014 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x015 ), 8u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x016 ), 9u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x017 ), 10u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x018 ), bluetoe::details::invalid_attribute_index );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 using server_with_multiple_fixed_services = bluetoe::server<
@@ -229,6 +312,24 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_services, bluetoe::details
         BOOST_CHECK_EQUAL( handle_by_index( 9 ), 0x106u );
         BOOST_CHECK_EQUAL( handle_by_index( 10 ), 0x107u );
         BOOST_CHECK_EQUAL( handle_by_index( 11 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x000 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x020 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x021 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x022 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x023 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x100 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x101 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x102 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x103 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x104 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x105 ), 8u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x106 ), 9u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x107 ), 10u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x108 ), bluetoe::details::invalid_attribute_index );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -295,6 +396,31 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_services_and_characteristi
         BOOST_CHECK_EQUAL( handle_by_index( 17 ), bluetoe::details::invalid_attribute_handle );
     }
 
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x01f ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x020 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x021 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x022 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x023 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x100 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x101 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x102 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x103 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x104 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x200 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x201 ), 8u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x202 ), 9u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x203 ), 10u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x204 ), 11u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x205 ), 12u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x206 ), 13u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x207 ), 14u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x208 ), 15u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x209 ), 16u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x20a ), bluetoe::details::invalid_attribute_index );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 
@@ -352,6 +478,30 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixtur
             BOOST_CHECK_EQUAL( handle_by_index( 11 ), 0x101u );
 
         BOOST_CHECK_EQUAL( handle_by_index( 12 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x01f ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x020 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x021 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x050 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x051 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x052 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x053 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x060 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x061 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x062 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x063 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x064 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x065 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x066 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x067 ), 8u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x068 ), 9u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x069 ), 10u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x100 ), 10u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x101 ), 11u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x102 ), bluetoe::details::invalid_attribute_index );
     }
 
     BOOST_AUTO_TEST_CASE( attribute_values )
@@ -446,6 +596,35 @@ BOOST_FIXTURE_TEST_SUITE( mapping_server_with_additional_descriptors, bluetoe::d
             BOOST_CHECK_EQUAL( handle_by_index( 14 ), 0x081u );
 
         BOOST_CHECK_EQUAL( handle_by_index( 15 ), bluetoe::details::invalid_attribute_handle );
+    }
+
+    BOOST_AUTO_TEST_CASE( handle_to_index )
+    {
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x01f ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x020 ), 0u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x021 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x050 ), 1u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x051 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x052 ), 2u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x053 ), 3u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x054 ), 4u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x055 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x060 ), 5u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x061 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x062 ), 6u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x063 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x064 ), 7u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x065 ), 8u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x066 ), 9u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x067 ), 10u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x068 ), 11u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x069 ), 12u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x070 ), 12u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x071 ), 13u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x07F ), 13u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x080 ), 13u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x081 ), 14u );
+        BOOST_CHECK_EQUAL( first_index_by_handle( 0x082 ), bluetoe::details::invalid_attribute_index );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

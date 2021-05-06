@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cassert>
+#include <algorithm>
 
 namespace bluetoe {
 
@@ -134,12 +135,12 @@ namespace bluetoe {
                 : attribute_handles_t::cccd_handle + ( characteristic_t::number_of_attributes - 2 );
             static constexpr std::uint16_t end_index    = StartIndex + characteristic_t::number_of_attributes;
 
+            static constexpr std::size_t declaration_position = 0;
+            static constexpr std::size_t value_position       = 1;
+            static constexpr std::size_t cccd_position        = 2;
+
             static std::uint16_t characteristic_attribute_handle_by_index( std::size_t index )
             {
-                static constexpr std::size_t declaration_position = 0;
-                static constexpr std::size_t value_position       = 1;
-                static constexpr std::size_t cccd_position        = 2;
-
                 const std::size_t relative_index = index - StartIndex;
 
                 assert( relative_index < characteristic_t::number_of_attributes );
@@ -161,6 +162,20 @@ namespace bluetoe {
 
                 return relative_index - cccd_position + attribute_handles_t::cccd_handle;
             }
+
+            static std::size_t characteristic_attribute_index_by_handle( std::uint16_t handle )
+            {
+                if ( handle <= attribute_handles_t::declaration_handle )
+                    return StartIndex + declaration_position;
+
+                if ( handle <= attribute_handles_t::value_handle )
+                    return StartIndex + value_position;
+
+                if ( handle <= attribute_handles_t::cccd_handle )
+                    return StartIndex + cccd_position;
+
+                return StartIndex + cccd_position + handle - attribute_handles_t::cccd_handle;
+            }
         };
 
         template < std::uint16_t StartHandle, std::uint16_t StartIndex, typename CharacteristicList >
@@ -172,6 +187,11 @@ namespace bluetoe {
             static std::uint16_t attribute_handle_by_index( std::size_t )
             {
                 return invalid_attribute_handle;
+            }
+
+            static std::size_t attribute_index_by_handle( std::uint16_t )
+            {
+                return invalid_attribute_index;
             }
 
             static constexpr std::uint16_t last_characteristic_end_handle = StartHandle;
@@ -192,12 +212,22 @@ namespace bluetoe {
             static constexpr std::uint16_t last_characteristic_end_handle =
                 next_characteristic_mapping< StartHandle, StartIndex, std::tuple< Chars... >, Options... >::last_characteristic_end_handle;
 
+            using next = characteristic_index_mapping< StartHandle, StartIndex, Options... >;
+
             static std::uint16_t attribute_handle_by_index( std::size_t index )
             {
-                if ( index < characteristic_index_mapping< StartHandle, StartIndex, Options... >::end_index )
-                    return characteristic_index_mapping< StartHandle, StartIndex, Options... >::characteristic_attribute_handle_by_index( index );
+                if ( index < next::end_index )
+                    return next::characteristic_attribute_handle_by_index( index );
 
                 return next_characteristic_mapping< StartHandle, StartIndex, std::tuple< Chars... >, Options... >::attribute_handle_by_index( index );
+            }
+
+            static std::size_t attribute_index_by_handle( std::uint16_t handle )
+            {
+                if ( handle < next::end_handle )
+                    return next::characteristic_attribute_index_by_handle( handle );
+
+                return next_characteristic_mapping< StartHandle, StartIndex, std::tuple< Chars... >, Options... >::attribute_index_by_handle( handle );
             }
         };
 
@@ -237,6 +267,14 @@ namespace bluetoe {
 
                 return next_char_mapping< StartHandle, StartIndex, Options... >::attribute_handle_by_index( index );
             }
+
+            static std::size_t characteristic_first_index_by_handle( std::uint16_t handle )
+            {
+                if ( handle <= service_handle )
+                    return StartIndex;
+
+                return next_char_mapping< StartHandle, StartIndex, Options... >::attribute_index_by_handle( handle );
+            }
         };
 
         /*
@@ -251,6 +289,11 @@ namespace bluetoe {
             static std::uint16_t service_handle_by_index( std::size_t )
             {
                 return invalid_attribute_handle;
+            }
+
+            static std::size_t service_first_index_by_handle( std::uint16_t )
+            {
+                return invalid_attribute_index;
             }
         };
 
@@ -273,10 +316,22 @@ namespace bluetoe {
 
                 return next_service_mapping< StartHandle, StartIndex, std::tuple< Services... >, Options... >::service_handle_by_index( index );
             }
+
+            static std::size_t service_first_index_by_handle( std::uint16_t handle )
+            {
+                if ( handle < service_index_mapping< StartHandle, StartIndex, Options... >::end_handle )
+                    return service_index_mapping< StartHandle, StartIndex, Options... >::characteristic_first_index_by_handle( handle );
+
+                return next_service_mapping< StartHandle, StartIndex, std::tuple< Services... >, Options... >::service_first_index_by_handle( handle );
+            }
         };
 
         /*
          * Interface, providing function to map from 0-based attribute index to ATT attribute handle and vice versa
+         *
+         * An attribute index is a 0-based into an array of all attributes contained in a server. Accessing the
+         * attribute by table is very fast. If neither attribute_handle<> or attribute_handles<> is used, the mapping
+         * is trivial and an index I is mapped to a handle I + 1.
          */
         template < typename Server >
         struct handle_index_mapping;
@@ -288,9 +343,27 @@ namespace bluetoe {
             static constexpr std::size_t   invalid_attribute_index  = ::bluetoe::details::invalid_attribute_index;
             static constexpr std::uint16_t invalid_attribute_handle = ::bluetoe::details::invalid_attribute_handle;
 
+            using iterator = interate_service_index_mappings< 1u, 0u, typename ::bluetoe::server< Options... >::services >;
+
             static std::uint16_t handle_by_index( std::size_t index )
             {
-                return interate_service_index_mappings< 1u, 0u, typename ::bluetoe::server< Options... >::services >::service_handle_by_index( index );
+                return iterator::service_handle_by_index( index );
+            }
+
+            /**
+             * @brief attribute index for a given handle
+             *
+             * Returns the index to the attribute with the lowest handle that is
+             * equal or larger than the given handle.
+             */
+            static std::size_t first_index_by_handle( std::uint16_t handle )
+            {
+                return iterator::service_first_index_by_handle( handle );
+            }
+
+            static std::size_t index_by_handle( std::uint16_t /*handle */)
+            {
+                return invalid_attribute_index;
             }
         };
 
