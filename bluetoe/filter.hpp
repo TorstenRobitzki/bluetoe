@@ -35,14 +35,14 @@ namespace details {
             }
         }
 
-        bool operator()( std::uint16_t, const attribute& attr ) const
+        bool operator()( std::size_t attribute_index, const attribute& attr ) const
         {
             if ( is_128bit_ )
             {
                 if ( attr.uuid == bits( gatt_uuids::internal_128bit_uuid ) )
                 {
                     auto compare = attribute_access_arguments::compare_128bit_uuid( bytes_ );
-                    return attr.access( compare, 1 ) == attribute_access_result::uuid_equal;
+                    return attr.access( compare, attribute_index ) == attribute_access_result::uuid_equal;
                 }
                 else
                 {
@@ -81,7 +81,7 @@ namespace details {
     template < std::uint64_t UUID, typename Check >
     struct uuid16_filter< uuid16< UUID, Check > >
     {
-        constexpr bool operator()( std::uint16_t, const attribute& attr ) const
+        constexpr bool operator()( std::size_t, const attribute& attr ) const
         {
             return attr.uuid == UUID;
         }
@@ -92,7 +92,7 @@ namespace details {
      */
     struct all_uuid_filter
     {
-        constexpr bool operator()( std::uint16_t, const details::attribute& ) const
+        constexpr bool operator()( std::size_t, const details::attribute& ) const
         {
             return true;
         }

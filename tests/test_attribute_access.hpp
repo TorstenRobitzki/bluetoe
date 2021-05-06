@@ -107,7 +107,7 @@ private:
             security_,
             nullptr );
 
-        auto result = value_attribute.access( read, 1 );
+        auto result = value_attribute.access( read, 0 );
 
         if ( result == bluetoe::details::attribute_access_result::success )
             BOOST_REQUIRE_EQUAL_COLLECTIONS( input.begin(), input.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );

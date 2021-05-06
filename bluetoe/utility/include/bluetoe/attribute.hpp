@@ -166,7 +166,7 @@ namespace details {
         }
     };
 
-    typedef attribute_access_result ( *attribute_access )( attribute_access_arguments&, std::uint16_t attribute_handle );
+    typedef attribute_access_result ( *attribute_access )( attribute_access_arguments&, std::size_t attribute_index );
 
     /*
      * An attribute is an uuid combined with a mean of how to access the attributes
