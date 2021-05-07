@@ -988,7 +988,7 @@ namespace bluetoe {
         const std::uint16_t offset = details::read_16bit( input + 3 );
 
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations(), connection.security_attributes(), this );
-        auto rc   = attribute_at( handle - 1 ).access( read, handle );
+        auto rc   = attribute_at( index ).access( read, index );
 
         if ( rc == details::attribute_access_result::success )
         {
