@@ -42,6 +42,7 @@ if ( BLUETOE_BUILD_UNIT_TESTS )
     add_and_register_test(gap_service_tests)
     add_and_register_test(read_write_handler_tests)
     add_and_register_test(encryption_tests)
+    add_and_register_test(attribute_handle_tests)
 
     add_subdirectory(att)
     add_subdirectory(link_layer)
