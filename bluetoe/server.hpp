@@ -962,7 +962,7 @@ namespace bluetoe {
             return;
 
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-        auto rc   = attribute_at( handle - 1 ).access( read, handle - 1 );
+        auto rc   = attribute_at( index ).access( read, index );
 
         if ( rc == details::attribute_access_result::success )
         {

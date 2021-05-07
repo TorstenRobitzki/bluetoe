@@ -83,4 +83,52 @@ BOOST_FIXTURE_TEST_CASE( read_first_part_of_blob, test::request_with_reponse< bl
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
+static const char char_name_foo[] = "Foo";
+static const char char_name_bar[] = "Bar";
+static const std::uint8_t descriptor_data[] = { 0x08, 0x15 };
+
+using server_with_fixed_handles = bluetoe::server<
+    bluetoe::no_gap_service_for_gatt_servers,
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x020 >,
+        bluetoe::service_uuid16< 0x0815 >,
+
+        // Characteristic with CCCD and Characteristic User Description without fixed CCCD
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1516 >,
+            bluetoe::attribute_handles< 0x50, 0x52 >,
+            bluetoe::fixed_uint8_value< 0x42 >,
+            bluetoe::characteristic_name< char_name_foo >,
+            bluetoe::notify
+        >,
+        // Characteristic with CCCD and Characteristic User Description and user descriptor with fixed CCCD
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1517 >,
+            bluetoe::attribute_handles< 0x60, 0x62, 0x64 >,
+            bluetoe::fixed_uint8_value< 0x43 >,
+            bluetoe::characteristic_name< char_name_bar >,
+            bluetoe::descriptor< 0x1722, descriptor_data, sizeof( descriptor_data ) >,
+            bluetoe::notify
+        >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( read_characteristic_values, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input( { 0x0A, 0x52, 0x00 } );
+    expected_result( { 0X0B, 0x42 } );
+
+    l2cap_input( { 0x0A, 0x62, 0x00 } );
+    expected_result( { 0X0B, 0x43 } );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_characteristic_declarations, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input( { 0x0A, 0x50, 0x00 } );
+    expected_result( { 0X0B, 0x12, 0x52, 0x00, 0x16, 0x15 } );
+
+    l2cap_input( { 0x0A, 0x60, 0x00 } );
+    expected_result( { 0X0B, 0x12, 0x62, 0x00, 0x17, 0x15 } );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
