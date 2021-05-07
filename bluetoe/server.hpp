@@ -1389,7 +1389,11 @@ namespace bluetoe {
                 , filter_( filter )
                 , found_( found )
             {
-
+                // if the ending_handle does not point to a specific handle, the last attribute befor that is ment.
+                if ( ending_index_ != details::invalid_attribute_index && details::handle_index_mapping< Server >::handle_by_index( ending_index_ ) != ending_handle )
+                {
+                    --ending_index_;
+                }
             }
 
             template< typename Service >
