@@ -555,7 +555,9 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixtur
 
 BOOST_AUTO_TEST_SUITE_END()
 
-static const char char_name[] = "Foo";
+static const char char_name_foo[] = "Foo";
+static const char char_name_bar[] = "Bar";
+static const char char_name_baz[] = "Baz";
 static const std::uint8_t descriptor_data[] = { 0x08, 0x15 };
 
 using server_with_additional_descriptors = bluetoe::server<
@@ -566,28 +568,32 @@ using server_with_additional_descriptors = bluetoe::server<
 
         // Characteristic with CCCD and Characteristic User Description without fixed CCCD
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1516 >,
             bluetoe::attribute_handles< 0x50, 0x52 >,
             bluetoe::fixed_uint8_value< 0x42 >,
-            bluetoe::characteristic_name< char_name >,
+            bluetoe::characteristic_name< char_name_foo >,
             bluetoe::notify
         >,
         // Characteristic with CCCD and Characteristic User Description and user descriptor with fixed CCCD
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1517 >,
             bluetoe::attribute_handles< 0x60, 0x62, 0x64 >,
             bluetoe::fixed_uint8_value< 0x43 >,
-            bluetoe::characteristic_name< char_name >,
+            bluetoe::characteristic_name< char_name_bar >,
             bluetoe::descriptor< 0x1722, descriptor_data, sizeof( descriptor_data ) >,
             bluetoe::notify
         >,
         // No descriptors, no fixup
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1518 >,
             bluetoe::fixed_uint8_value< 0x44 >
         >,
         // Characteristic Characteristic User Description without fixed CCCD
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x1519 >,
             bluetoe::attribute_handles< 0x70, 0x80 >,
             bluetoe::fixed_uint8_value< 0x45 >,
-            bluetoe::characteristic_name< char_name >
+            bluetoe::characteristic_name< char_name_baz >
         >
     >
 >;
@@ -652,9 +658,11 @@ BOOST_FIXTURE_TEST_SUITE( mapping_server_with_additional_descriptors, fixture< s
         BOOST_CHECK_EQUAL( first_index_by_handle( 0x082 ), bluetoe::details::invalid_attribute_index );
     }
 
+    /*
+     * This test tests, that the descriptors are in the expected order within the characteristic
+     */
     BOOST_AUTO_TEST_CASE( attribute_values )
     {
-#if 0
         // first service
         check_attribute( 0, {
             0x15, 0x08              // 0x0815 service UUID
@@ -664,21 +672,60 @@ BOOST_FIXTURE_TEST_SUITE( mapping_server_with_additional_descriptors, fixture< s
         check_attribute( 1, {
             0x12,                   // Properties: Read, Notify
             0x52, 0x00,             // Characteristic Value Attribute Handle: 0x0052
-            0x15, 0x08
+            0x16, 0x15              // UUID
         } );
-        check_attribute( 2, { 0x42 } ); // Value
-        check_attribute( 3, { 0x00, 0x00 } ); // CCCD
-        check_attribute( 4, { 'F', 'o', 'o' } ); // Characteristic User Description
-        // second characteristic
-        check_attribute( 1, {
-            0x02,                   // Properties: Read
-            0x52, 0x00,             // Characteristic Value Attribute Handle: 0x0052
-            0x16, 0x08
+        check_attribute( 2, {
+            0x42                    // Value
         } );
-        check_attribute( 2, { 0x42 } ); // Value
+        check_attribute( 3, {
+            0x00, 0x00              // CCCD
+        } );
+        check_attribute( 4, {
+            'F', 'o', 'o'           // Characteristic User Description
+        } );
 
-#endif
-    }
+        // second characteristic
+        check_attribute( 5, {
+            0x12,                   // Properties: Read, Notify
+            0x62, 0x00,             // Characteristic Value Attribute Handle: 0x0062
+            0x17, 0x15              // UUID
+        } );
+        check_attribute( 6, {
+            0x43                    // Value
+        } );
+        check_attribute( 7, {
+            0x00, 0x00              // CCCD
+        } );
+        check_attribute( 8, {
+            'B', 'a', 'r'           // Characteristic User Description
+        } );
+        check_attribute( 9, {
+            0x08, 0x15              // User defined descriptor
+        } );
+
+        // third characteristic
+        check_attribute( 10, {
+            0x02,                   // Properties: Read
+            0x68, 0x00,             // Characteristic Value Attribute Handle: 0x0068
+            0x18, 0x15              // UUID
+        } );
+        check_attribute( 11, {
+            0x44                    // Value
+        } );
+
+        // forth characteristic
+        check_attribute( 12, {
+            0x02,                   // Properties: Read
+            0x80, 0x00,             // Characteristic Value Attribute Handle: 0x0070
+            0x19, 0x15              // UUID
+        } );
+        check_attribute( 13, {
+            0x45                    // Value
+        } );
+        check_attribute( 14, {
+            'B', 'a', 'z'           // Characteristic User Description
+        } );
+   }
 
 
 BOOST_AUTO_TEST_SUITE_END()

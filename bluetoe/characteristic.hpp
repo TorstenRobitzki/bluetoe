@@ -518,10 +518,12 @@ namespace bluetoe {
         struct generate_characteristic_attributes : generate_attributes<
                 std::tuple< Options... >,
                 std::tuple<
+                    // The order of this list defines the order of the attributes in the characteristic
+                    // Other attribute_handle<> and attribute_handles<> depend on this order.
                     characteristic_declaration_parameter,
                     characteristic_value_declaration_parameter,
-                    characteristic_user_description_parameter,
                     client_characteristic_configuration_parameter,
+                    characteristic_user_description_parameter,
                     descriptor_parameter
                 >,
                 CCCDIndices,
