@@ -1210,11 +1210,12 @@ namespace bluetoe {
             if ( handle == 0 )
                 return error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
 
-            if ( handle > number_of_attributes )
-                return error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
+            const std::size_t index = handle_mapping::index_by_handle( handle );
+            if ( index == details::invalid_attribute_index )
+                return error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
 
             auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations(), cc.security_attributes(), this );
-            auto rc   = attribute_at( handle - 1 ).access( read, handle - 1 );
+            auto rc   = attribute_at( index ).access( read, index );
 
             if ( rc == details::attribute_access_result::success )
             {
