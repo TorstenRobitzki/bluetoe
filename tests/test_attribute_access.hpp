@@ -56,8 +56,7 @@ public:
                 == read_characteristic_impl( input, attribute_by_type( type ) ) );
     }
 
-    // @TODO: proper name would be "read_attribute_at"
-    bluetoe::details::attribute_access_result read_characteristic_at( const std::initializer_list< std::uint8_t >& input,
+    bluetoe::details::attribute_access_result read_attribute_at( const std::initializer_list< std::uint8_t >& input,
         std::size_t index, std::size_t offset, std::size_t buffer_size )
     {
         return read_characteristic_impl( input, attribute_at_impl( index ), offset, buffer_size );
@@ -108,7 +107,7 @@ private:
             security_,
             nullptr );
 
-        auto result = value_attribute.access( read, 1 );
+        auto result = value_attribute.access( read, 0 );
 
         if ( result == bluetoe::details::attribute_access_result::success )
             BOOST_REQUIRE_EQUAL_COLLECTIONS( input.begin(), input.end(), &read.buffer[ 0 ], &read.buffer[ read.buffer_size ] );

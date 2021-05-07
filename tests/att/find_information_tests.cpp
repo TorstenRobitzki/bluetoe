@@ -163,3 +163,100 @@ BOOST_FIXTURE_TEST_CASE( response_will_contain_one_whole_tuples, request_with_re
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE( server_with_fixed_attributes )
+
+    static const char char_name_foo[] = "Foo";
+    static const char char_name_bar[] = "Bar";
+    static const char char_name_baz[] = "Baz";
+    static const std::uint8_t descriptor_data[] = { 0x08, 0x15 };
+
+    using server_with_additional_descriptors = bluetoe::server<
+        bluetoe::no_gap_service_for_gatt_servers,
+        bluetoe::service<
+            bluetoe::attribute_handle< 0x020 >,
+            bluetoe::service_uuid16< 0x0815 >,
+
+            // Characteristic with CCCD and Characteristic User Description without fixed CCCD
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x1516 >,
+                bluetoe::attribute_handles< 0x50, 0x52 >,
+                bluetoe::fixed_uint8_value< 0x42 >,
+                bluetoe::characteristic_name< char_name_foo >,
+                bluetoe::notify
+            >,
+            // Characteristic with CCCD and Characteristic User Description and user descriptor with fixed CCCD
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x1517 >,
+                bluetoe::attribute_handles< 0x60, 0x62, 0x64 >,
+                bluetoe::fixed_uint8_value< 0x43 >,
+                bluetoe::characteristic_name< char_name_bar >,
+                bluetoe::descriptor< 0x1722, descriptor_data, sizeof( descriptor_data ) >,
+                bluetoe::notify
+            >,
+            // No descriptors, no fixup
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x1518 >,
+                bluetoe::fixed_uint8_value< 0x44 >
+            >,
+            // Characteristic Characteristic User Description without fixed CCCD
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x1519 >,
+                bluetoe::attribute_handles< 0x70, 0x80 >,
+                bluetoe::fixed_uint8_value< 0x45 >,
+                bluetoe::characteristic_name< char_name_baz >
+            >
+        >
+    >;
+
+    using fixture = test::request_with_reponse< server_with_additional_descriptors, 200 >;
+    BOOST_FIXTURE_TEST_CASE( find_all, fixture )
+    {
+        l2cap_input({
+            0x04,           // Find Information Request
+            0x01, 0x00,     // 0x0001
+            0xff, 0xff      // 0xffff
+        });
+
+        expected_result({
+            0x05, 0x01,
+            // first characteristic
+            0x20, 0x00,     // 0x0020 ->
+            0x00, 0x28,     // 0x2800
+            0x50, 0x00,     // 0x0050 ->
+            0x03, 0x28,     // 0x2803 Characteristic Declaration
+            0x52, 0x00,     // 0x0052 ->
+            0x16, 0x15,     // 0x1516
+            0x53, 0x00,     // 0x0053 ->
+            0x02, 0x29,     // 0x2902 «Client Characteristic Configuration»
+            0x54, 0x00,     // 0x0054 ->
+            0x01, 0x29,     // 0x2901 «Characteristic User Description»
+            // second characteristic
+            0x60, 0x00,     // 0x0060 ->
+            0x03, 0x28,     // 0x2803 Characteristic Declaration
+            0x62, 0x00,     // 0x0062 ->
+            0x17, 0x15,     // 0x1517
+            0x64, 0x00,     // 0x0064 ->
+            0x02, 0x29,     // 0x2902 «Client Characteristic Configuration»
+            0x65, 0x00,     // 0x0065 ->
+            0x01, 0x29,     // 0x2901 «Characteristic User Description»
+            0x66, 0x00,     // 0x0066 ->
+            0x22, 0x17,     // 0x1722
+            // third characteristic
+            0x67, 0x00,     // 0x0067 ->
+            0x03, 0x28,     // 0x2803 Characteristic Declaration
+            0x68, 0x00,     // 0x0068 ->
+            0x18, 0x15,     // 0x1518
+            // forth characteristic
+            0x70, 0x00,     // 0x0070 ->
+            0x03, 0x28,     // 0x2803 Characteristic Declaration
+            0x80, 0x00,     // 0x0080 ->
+            0x19, 0x15,     // 0x1519
+            0x81, 0x00,     // 0x0065 ->
+            0x01, 0x29,     // 0x2901 «Characteristic User Description»
+
+
+        });
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+

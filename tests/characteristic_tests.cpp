@@ -139,9 +139,9 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 0 );
 
-        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 0x1234 ) );
+        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 0 ) );
 
-        static const std::uint8_t expected_handle[] = { 0x35, 0x12 };
+        static const std::uint8_t expected_handle[] = { 0x02, 0x00 };
         BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_handle ), std::end( expected_handle ), &buffer[ 1 ], &buffer[ 3 ] );
     }
 
@@ -151,9 +151,9 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 1 );
 
-        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 0x1234 ) );
+        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 0 ) );
 
-        static const std::uint8_t expected_handle[] = { 0x35, 0x12 };
+        static const std::uint8_t expected_handle[] = { 0x02, 0x00 };
         BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_handle ), std::end( expected_handle ), &buffer[ 0 ], &buffer[ 2 ] );
     }
 
@@ -163,9 +163,9 @@ BOOST_AUTO_TEST_SUITE( characteristic_declaration_access )
         std::uint8_t buffer[ 100 ];
         auto read = bluetoe::details::attribute_access_arguments::read( buffer, 2 );
 
-        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 0x1234 ) );
+        BOOST_CHECK( bluetoe::details::attribute_access_result::success == char_declaration.access( read, 0 ) );
 
-        BOOST_CHECK_EQUAL( buffer[ 0 ], 0x12 );
+        BOOST_CHECK_EQUAL( buffer[ 0 ], 0x00 );
     }
 
     BOOST_FIXTURE_TEST_CASE( read_char_declaration_buffer_to_small, simple_char )

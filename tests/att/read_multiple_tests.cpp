@@ -27,12 +27,12 @@ BOOST_FIXTURE_TEST_CASE( the_second_handle_is_invalid, test::small_temperature_s
 
 BOOST_FIXTURE_TEST_CASE( the_first_handle_is_unknown, test::small_temperature_service_with_response<> )
 {
-    BOOST_CHECK( check_error_response( { 0x0E, 0x02, 0x80, 0x03, 0x00, 0x04, 0x00 }, 0x0E, 0x8002, 0x0A ) );
+    BOOST_CHECK( check_error_response( { 0x0E, 0x02, 0x80, 0x03, 0x00, 0x04, 0x00 }, 0x0E, 0x8002, 0x01 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( the_second_handle_is_unknown, test::small_temperature_service_with_response<> )
 {
-    BOOST_CHECK( check_error_response( { 0x0E, 0x02, 0x00, 0x03, 0x00, 0xf4, 0xff }, 0x0E, 0xfff4, 0x0A ) );
+    BOOST_CHECK( check_error_response( { 0x0E, 0x02, 0x00, 0x03, 0x00, 0xf4, 0xff }, 0x0E, 0xfff4, 0x01 ) );
 }
 
 typedef bluetoe::server<
@@ -102,4 +102,57 @@ BOOST_FIXTURE_TEST_CASE( already_the_last_but_one_attribute_gets_clipped, test::
     } );
 }
 
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( read_multiple_fixed )
+
+    using server = bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::fixed_uint8_value< 0x10 >
+            >,
+            bluetoe::characteristic<
+                bluetoe::attribute_handles< 0x1213, 0x1314 >,
+                bluetoe::fixed_uint8_value< 0x20 >,
+                bluetoe::notify
+            >
+        >
+    >;
+
+    BOOST_FIXTURE_TEST_CASE( read_all_values_and_cccds, test::request_with_reponse< server > )
+    {
+        l2cap_input( {
+            0x0E,
+            0x03, 0x00,
+            0x14, 0x13,
+            0x15, 0x13
+        } );
+
+        expected_result( {
+            0x0F,
+            0x10,
+            0x20,
+            0x00, 0x00
+        } );
+
+    }
+
+    BOOST_FIXTURE_TEST_CASE( invalid_handle, test::request_with_reponse< server > )
+    {
+        l2cap_input( {
+            0x0E,
+            0x03, 0x00,
+            0x14, 0x13,
+            0x50, 0x12
+        } );
+
+        expected_result( {
+            0x01,
+            0x0E,
+            0x50, 0x12,
+            0x01
+        } );
+
+    }
 BOOST_AUTO_TEST_SUITE_END()

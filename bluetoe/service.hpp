@@ -5,6 +5,7 @@
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/meta_tools.hpp>
+#include <bluetoe/meta_types.hpp>
 #include <bluetoe/uuid.hpp>
 #include <bluetoe/characteristic.hpp>
 #include <bluetoe/bits.hpp>
@@ -23,8 +24,6 @@ namespace bluetoe {
     };
 
     namespace details {
-        struct service_meta_type {};
-
         struct is_secondary_service_meta_type {};
         struct include_service_meta_type {};
         struct service_defintion_tag {};
@@ -86,6 +85,21 @@ namespace bluetoe {
     };
 
     /**
+     * @brief value of the first attribute handle used in a service or characteristic
+     *
+     * @sa service
+     */
+    template < std::uint16_t Handle >
+    class start_handle
+    {
+    public:
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::valid_service_option_meta_type {};
+        /** @endcond */
+    };
+
+    /**
      * @brief a service with zero or more characteristics
      *
      * In GATT, a service groups a set of characteristics to something that is usefull as a group. For example, having a quadcopter, it would
@@ -127,6 +141,7 @@ namespace bluetoe {
      * @sa service_uuid16
      * @sa include_service
      * @sa requires_encryption
+     * @sa attribute_handle
      */
     template < typename ... Options >
     class service
@@ -351,7 +366,7 @@ namespace bluetoe {
         template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceUUID, typename Server, typename ... Options >
         struct generate_attribute< service_defintion_tag, CCCDIndices, ClientCharacteristicIndex, ServiceUUID, Server, Options... >
         {
-            static attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            static attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
                 typedef typename find_by_meta_type< service_uuid_meta_type, Options... >::type uuid;
 
@@ -408,7 +423,7 @@ namespace bluetoe {
 
             typedef service_handles< service_list, included_service > handles;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
                 static constexpr std::uint8_t value[] = {
                     handles::service_attribute_handle & 0xff,
@@ -461,7 +476,7 @@ namespace bluetoe {
 
             typedef service_handles< service_list, included_service > handles;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
                 static constexpr std::uint8_t value[] = {
                     handles::service_attribute_handle & 0xff,

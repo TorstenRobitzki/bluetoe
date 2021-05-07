@@ -265,13 +265,13 @@ BOOST_AUTO_TEST_SUITE( fixed_value_tests )
 
     BOOST_FIXTURE_TEST_CASE( read_with_offset, access_attributes< fixed_32bit > )
     {
-        BOOST_CHECK( read_characteristic_at( { 0x12, 0x15, 0x08 }, 1, 1, 3 )
+        BOOST_CHECK( read_attribute_at( { 0x12, 0x15, 0x08 }, 1, 1, 3 )
             == bluetoe::details::attribute_access_result::success );
     }
 
     BOOST_FIXTURE_TEST_CASE( read_truncated_with_offset, access_attributes< fixed_32bit > )
     {
-        BOOST_CHECK( read_characteristic_at( { 0x12, 0x15 }, 1, 1, 2 )
+        BOOST_CHECK( read_attribute_at( { 0x12, 0x15 }, 1, 1, 2 )
             == bluetoe::details::attribute_access_result::success );
     }
 
@@ -385,7 +385,7 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
             access_attributes< char_t > c;
 
             BOOST_CHECK_EQUAL(
-                static_cast< int >( c.read_characteristic_at( {}, 1, 0, 23 ) ),
+                static_cast< int >( c.read_attribute_at( {}, 1, 0, 23 ) ),
                 static_cast< int >( bluetoe::error_codes::insufficient_authentication ) );
         }
 
@@ -410,7 +410,7 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
             access_attributes< char_t > c( paired_unencrypted_sec );
 
             BOOST_CHECK_EQUAL(
-                static_cast< int >( c.read_characteristic_at( {}, 1, 0, 23 ) ),
+                static_cast< int >( c.read_attribute_at( {}, 1, 0, 23 ) ),
                 static_cast< int >( bluetoe::error_codes::insufficient_encryption ) );
         }
 
@@ -438,28 +438,28 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
         BOOST_FIXTURE_TEST_CASE( reading_fixed_value, paired_encrypted_access_attributes< fixed_value > )
         {
             BOOST_CHECK_EQUAL(
-                static_cast< int >( read_characteristic_at( { 42 }, 1, 0, 23 ) ),
+                static_cast< int >( read_attribute_at( { 42 }, 1, 0, 23 ) ),
                 static_cast< int >( bluetoe::error_codes::success ) );
         }
 
         BOOST_FIXTURE_TEST_CASE( reading_bound_value, paired_encrypted_access_attributes< bound_value > )
         {
             BOOST_CHECK_EQUAL(
-                static_cast< int >( read_characteristic_at( { 43 }, 1, 0, 23 ) ),
+                static_cast< int >( read_attribute_at( { 43 }, 1, 0, 23 ) ),
                 static_cast< int >( bluetoe::error_codes::success ) );
         }
 
         BOOST_FIXTURE_TEST_CASE( reading_const_string_value, paired_encrypted_access_attributes< cstring_value > )
         {
             BOOST_CHECK_EQUAL(
-                static_cast< int >( read_characteristic_at( { 'H', 'a', 'l', 'l', 'o' }, 1, 0, 23 ) ),
+                static_cast< int >( read_attribute_at( { 'H', 'a', 'l', 'l', 'o' }, 1, 0, 23 ) ),
                 static_cast< int >( bluetoe::error_codes::success ) );
         }
 
         BOOST_FIXTURE_TEST_CASE( reading_other_handlers_value, paired_encrypted_access_attributes< other_handlers > )
         {
             BOOST_CHECK_EQUAL(
-                static_cast< int >( read_characteristic_at( { 44 }, 1, 0, 23 ) ),
+                static_cast< int >( read_attribute_at( { 44 }, 1, 0, 23 ) ),
                 static_cast< int >( bluetoe::error_codes::success ) );
         }
 

@@ -176,4 +176,106 @@ BOOST_FIXTURE_TEST_CASE( discover_multiple_primary_service_by_16_bit_service_uui
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_response ), std::end( expected_response ) );
 }
 
+using server_with_fixed_handles = bluetoe::server<
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x100 >,
+        bluetoe::service_uuid16< 0xFF45 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::fixed_uint8_value< 0x42 >
+        >
+    >,
+    bluetoe::service<
+        bluetoe::service_uuid16< 0xFF45 >,
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x200, 0x220 >,
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::fixed_uint8_value< 0x42 >
+        >
+    >,
+    bluetoe::service<
+        bluetoe::service_uuid16< 0xFF45 >,
+        bluetoe::attribute_handle< 0x2244 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::fixed_uint8_value< 0x42 >
+        >
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( find_with_fixed_attribute_handles, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input({
+        0x06,       // Find By Type Value Request
+        0x01, 0x00, // First requested handle number
+        0xFF, 0xFF, // Last requested handle number
+        0x00, 0x28, // 2 octet UUID to find
+        0x45, 0xFF  // Service UUID
+    });
+
+    expected_result( {
+        0x07,
+        0x00, 0x01,     // 0x100 -
+        0x02, 0x01,     // 0x102
+        0x03, 0x01,     // 0x103 -
+        0x20, 0x02,     // 0x220
+        0x44, 0x22,     // 0x2244 -
+        0x46, 0x22      // 0x2246
+    } );
+}
+
+BOOST_FIXTURE_TEST_CASE( find_in_gap, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input({
+        0x06,       // Find By Type Value Request
+        0x00, 0x03, // First requested handle number
+        0x00, 0x04, // Last requested handle number
+        0x00, 0x28, // 2 octet UUID to find
+        0x45, 0xFF  // Service UUID
+    });
+
+    expected_result( {
+        0x01,           // Error Response
+        0x06,           // The request that generated this error response
+        0x00, 0x03,     // The attribute handle that generated this error response
+        0x0A            // Attribute Not Found
+    } );
+}
+
+BOOST_FIXTURE_TEST_CASE( find_exactely_two_groups, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input({
+        0x06,       // Find By Type Value Request
+        0x03, 0x01, // First requested handle number
+        0x44, 0x22, // Last requested handle number
+        0x00, 0x28, // 2 octet UUID to find
+        0x45, 0xFF  // Service UUID
+    });
+
+    expected_result( {
+        0x07,
+        0x03, 0x01,     // 0x103 -
+        0x20, 0x02,     // 0x220
+        0x44, 0x22,     // 0x2244 -
+        0x46, 0x22      // 0x2246
+    } );
+}
+
+BOOST_FIXTURE_TEST_CASE( find_exactely_not_the_first_and_last_service, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input({
+        0x06,       // Find By Type Value Request
+        0x03, 0x01, // First requested handle number
+        0x43, 0x22, // Last requested handle number
+        0x00, 0x28, // 2 octet UUID to find
+        0x45, 0xFF  // Service UUID
+    });
+
+    expected_result( {
+        0x07,
+        0x03, 0x01,     // 0x103 -
+        0x20, 0x02      // 0x220
+    } );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

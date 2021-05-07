@@ -814,26 +814,22 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
     template < typename T >
     bool         free_write_handler< T >::handler_called;
 
-
     template < class T >
-    struct fixture :
-        free_write_handler< T >,
+    using free_write_characteristic =
         bluetoe::characteristic<
             bluetoe::characteristic_uuid16< 0x1245 >,
             bluetoe::free_write_handler<
                 T, &free_write_handler< T >::handler
             >
-        >
-    {
-    };
+        >;
 
-    template < typename World >
-    struct test_valid_value : access_attributes< World >
+    template < typename T >
+    struct test_valid_value : access_attributes< free_write_characteristic< T > >
     {
         template< typename Pair >
         void each()
         {
-            this->init();
+            free_write_handler< T >::init();
 
             using Input          = typename std::tuple_element< 0, Pair >::type;
             using ExpectedOutput = typename std::tuple_element< 1, Pair >::type;
@@ -841,8 +837,8 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
             const std::vector< std::uint8_t > data = Input::values();
 
             BOOST_CHECK( this->write_attribute_at( &data[ 0 ], &data[ data.size() ] ) == bluetoe::details::attribute_access_result::success );
-            BOOST_CHECK_EQUAL( ExpectedOutput::value, this->written_value );
-            BOOST_CHECK( this->handler_called );
+            BOOST_CHECK_EQUAL( ExpectedOutput::value, free_write_handler< T >::written_value );
+            BOOST_CHECK( free_write_handler< T >::handler_called );
         }
     };
 
@@ -851,23 +847,21 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
         using Type          = typename std::tuple_element< 0, Fixtures >::type;
         using ValidValues   = typename std::tuple_element< 1, Fixtures >::type;
 
-        fixture< Type > world;
-
-        bluetoe::details::for_< ValidValues >::each( test_valid_value< fixture< Type > >() );
+        bluetoe::details::for_< ValidValues >::each( test_valid_value< Type >() );
     }
 
-    template < typename World >
-    struct test_wrong_size : access_attributes< World >
+    template < typename T >
+    struct test_wrong_size : access_attributes< free_write_characteristic< T > >
     {
         template< typename Input >
         void each()
         {
-            this->init();
+            free_write_handler< T >::init();
 
             const std::vector< std::uint8_t > data = Input::values();
 
             BOOST_CHECK( this->write_attribute_at( &data[ 0 ], &data[ data.size() ] ) == bluetoe::details::attribute_access_result::invalid_attribute_value_length );
-            BOOST_CHECK( !this->handler_called );
+            BOOST_CHECK( !free_write_handler< T >::handler_called );
         }
     };
 
@@ -876,19 +870,17 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
         using Type          = typename std::tuple_element< 0, Fixtures >::type;
         using InValidValues = typename std::tuple_element< 2, Fixtures >::type;
 
-        fixture< Type > world;
-
-        bluetoe::details::for_< InValidValues >::each( test_wrong_size< fixture< Type > >() );
+        bluetoe::details::for_< InValidValues >::each( test_wrong_size< Type >() );
     }
 
-    template < typename World >
-    struct test_return_value : access_attributes< World >
+    template < typename T >
+    struct test_return_value : access_attributes< free_write_characteristic< T > >
     {
         template< typename Pair >
         void each()
         {
-            this->init();
-            this->result = 42;
+            free_write_handler< T >::init();
+            free_write_handler< T >::result = 42;
 
             using Input          = typename std::tuple_element< 0, Pair >::type;
 
@@ -903,9 +895,7 @@ BOOST_AUTO_TEST_SUITE( free_write_handler )
         using Type          = typename std::tuple_element< 0, Fixtures >::type;
         using ValidValues   = typename std::tuple_element< 1, Fixtures >::type;
 
-        fixture< Type > world;
-
-        bluetoe::details::for_< ValidValues >::each( test_return_value< fixture< Type > >() );
+        bluetoe::details::for_< ValidValues >::each( test_return_value< Type >() );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

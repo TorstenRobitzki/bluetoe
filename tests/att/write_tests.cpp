@@ -78,3 +78,36 @@ BOOST_FIXTURE_TEST_CASE( write_full_data_part, test::request_with_reponse< small
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( write_requests_with_fixed_handles )
+
+std::uint32_t value = 0x0000;
+
+typedef bluetoe::server<
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x4444 >,
+        bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+            bluetoe::bind_characteristic_value< decltype( value ), &value >
+        >
+    >
+> small_value_server;
+
+BOOST_FIXTURE_TEST_CASE( write_full_data, test::request_with_reponse< small_value_server > )
+{
+    value = 0x3512;
+    l2cap_input( { 0x12, 0x46, 0x44, 0x01, 0x02, 0x03, 0x04 } );
+    expected_result( { 0x13 } );
+    BOOST_CHECK_EQUAL( value, 0x04030201u );
+}
+
+BOOST_FIXTURE_TEST_CASE( write_full_data_part, test::request_with_reponse< small_value_server > )
+{
+    value = 0x44332211;
+    l2cap_input( { 0x12, 0x46, 0x44, 0x01, 0x02, 0x03 } );
+    expected_result( { 0x13 } );
+    BOOST_CHECK_EQUAL( value, 0x44030201u );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

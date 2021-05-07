@@ -3,6 +3,7 @@
 
 #include <bluetoe/characteristic_value.hpp>
 #include <bluetoe/attribute.hpp>
+#include <bluetoe/attribute_handle.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/uuid.hpp>
 #include <bluetoe/meta_tools.hpp>
@@ -24,7 +25,6 @@
 namespace bluetoe {
 
     namespace details {
-        struct characteristic_meta_type {};
         struct characteristic_uuid_meta_type {};
 
         struct characteristic_declaration_parameter {};
@@ -152,6 +152,8 @@ namespace bluetoe {
      * @sa no_encryption_required
      * @sa may_require_encryption
      * @sa fixed_blob_value
+     * @sa attribute_handle
+     * @sa attribute_handles
      */
     template < typename ... Options >
     class characteristic
@@ -263,7 +265,7 @@ namespace bluetoe {
         template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server, typename ... Options >
         struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >
         {
-            typedef typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid                             uuid;
+            typedef typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid     uuid;
             typedef typename characteristic< Options... >::value_type                                       value_type;
 
             static void fixup_auto_uuid( details::attribute_access_arguments& args )
@@ -284,9 +286,9 @@ namespace bluetoe {
             }
 
             /*
-             * the characteristic decalarion consists of 3 parts a Properties byte, two bytes index and 2 - 16 bytes UUID
+             * the characteristic decalarion consists of 3 parts: a Properties byte, two bytes value handle and 2 or 16 bytes UUID
              */
-            static details::attribute_access_result char_declaration_access( details::attribute_access_arguments& args, std::uint16_t attribute_handle )
+            static details::attribute_access_result char_declaration_access( details::attribute_access_arguments& args, std::size_t attribute_index )
             {
                 if ( args.type != details::attribute_access_type::read )
                     return details::attribute_access_result::write_not_permitted;
@@ -305,10 +307,13 @@ namespace bluetoe {
                         ( value_type::has_indication   ? bits( details::gatt_characteristic_properties::indicate ) : 0 ) )
                 };
 
-                // the Characteristic Value Declaration must follow directly behind this attribute and has, thus the next handle
+                const std::uint16_t value_attribute_handle = handle_index_mapping< Server >::handle_by_index( attribute_index + 1 );
+
+                assert( value_attribute_handle != details::invalid_attribute_handle );
+
                 const std::uint8_t value_handle[] = {
-                    static_cast< std::uint8_t >( ( attribute_handle +1 ) & 0xff ),
-                    static_cast< std::uint8_t >( ( attribute_handle +1 ) >> 8 )
+                    static_cast< std::uint8_t >( value_attribute_handle & 0xff ),
+                    static_cast< std::uint8_t >( value_attribute_handle >> 8 )
                 };
 
                 static constexpr auto data_size = sizeof( properties ) + sizeof( value_handle ) + sizeof( uuid::bytes );
@@ -365,7 +370,7 @@ namespace bluetoe {
         {
             static const attribute attr;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
                 const std::size_t str_len   = std::strlen( Name );
 
@@ -405,7 +410,7 @@ namespace bluetoe {
             static const attribute attr;
             using uuid   = typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
                 static constexpr std::size_t flags_size = 2;
                 std::uint8_t buffer[ flags_size ];
@@ -479,7 +484,7 @@ namespace bluetoe {
         {
             static const attribute attr;
 
-            static details::attribute_access_result access( attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
                 if ( args.type != attribute_access_type::read )
                     return attribute_access_result::write_not_permitted;
@@ -513,10 +518,12 @@ namespace bluetoe {
         struct generate_characteristic_attributes : generate_attributes<
                 std::tuple< Options... >,
                 std::tuple<
+                    // The order of this list defines the order of the attributes in the characteristic
+                    // Other attribute_handle<> and attribute_handles<> depend on this order.
                     characteristic_declaration_parameter,
                     characteristic_value_declaration_parameter,
-                    characteristic_user_description_parameter,
                     client_characteristic_configuration_parameter,
+                    characteristic_user_description_parameter,
                     descriptor_parameter
                 >,
                 CCCDIndices,

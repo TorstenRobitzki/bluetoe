@@ -268,7 +268,7 @@ namespace bluetoe {
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::size_t )
             {
                 const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
 
@@ -357,7 +357,7 @@ namespace bluetoe {
             static constexpr bool has_indication   = details::has_option< indicate, Options... >::value;
 
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::size_t )
             {
                 const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
 
@@ -441,7 +441,7 @@ namespace bluetoe {
             static constexpr bool has_indication   = false;
 
             template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption  >
-            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::uint16_t )
+            static details::attribute_access_result characteristic_value_access( details::attribute_access_arguments& args, std::size_t )
             {
                 const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
 
@@ -585,7 +585,7 @@ namespace bluetoe {
                 static_assert( has_read_access || has_write_access || has_notification || has_indication, "Ups!");
 
                 template < class Server, std::size_t ClientCharacteristicIndex, bool RequiresEncryption >
-                static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::uint16_t /* attribute_handle */ )
+                static attribute_access_result characteristic_value_access( attribute_access_arguments& args, std::size_t /* attribute_index */ )
                 {
                     const auto security_result = details::encryption_requirements< RequiresEncryption >::check( args.connection_security );
 

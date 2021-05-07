@@ -172,3 +172,50 @@ BOOST_FIXTURE_TEST_CASE( queue_is_release_after_an_error_occured, server_fixture
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+
+BOOST_AUTO_TEST_SUITE( execute_write_with_fixed_attribute_handles )
+
+    std::array< std::uint8_t, 16 > value = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88 };
+
+    using value_server = bluetoe::server<
+        bluetoe::shared_write_queue< 100 >,
+        bluetoe::service<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::attribute_handles< 0x030, 0x40 >,
+                bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+                bluetoe::bind_characteristic_value< decltype( value ), &value >
+            >
+        >
+    >;
+
+    BOOST_FIXTURE_TEST_CASE( write, test::request_with_reponse< value_server > )
+    {
+        // write
+        l2cap_input( { 0x16, 0x40, 0x00, 0x02, 0x00, 0xaa, 0xbb, 0xcc } );
+        expected_result( { 0x17, 0x40, 0x00, 0x02, 0x00, 0xaa, 0xbb, 0xcc } );
+
+        static const std::array< std::uint8_t, 16 > unchanged = { {
+            0x11, 0x22, 0x33, 0x44,
+            0x55, 0x66, 0x77, 0x88,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00
+        } };
+
+        BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( value ), std::end( value ), std::begin( unchanged ), std::end( unchanged ) );
+
+        // execute
+        l2cap_input( { 0x18, 0x01 } );
+
+        static const std::array< std::uint8_t, 16 > changed = { {
+            0x11, 0x22, 0xaa, 0xbb,
+            0xcc, 0x66, 0x77, 0x88,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00
+        } };
+
+        BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( value ), std::end( value ), std::begin( changed ), std::end( changed ) );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

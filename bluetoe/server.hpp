@@ -17,6 +17,7 @@
 #include <bluetoe/find_notification_data.hpp>
 #include <bluetoe/outgoing_priority.hpp>
 #include <bluetoe/link_state.hpp>
+#include <bluetoe/attribute_handle.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -73,6 +74,9 @@ namespace bluetoe {
             "Only one of bluetoe::higher_outgoing_priority<> or bluetoe::lower_outgoing_priority<> per server allowed!" );
 
         using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
+
+        using handle_mapping = details::handle_index_mapping< server< Options... > >;
+
         /** @endcond */
 
         /**
@@ -270,8 +274,8 @@ namespace bluetoe {
         bool check_size_and_handle_range( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& starting_handle, std::uint16_t& ending_handle );
 
         template < std::size_t A, std::size_t B = A >
-        bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
-        bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
+        bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index );
+        bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index );
 
         template < typename ConnectionData >
         void handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
@@ -305,9 +309,12 @@ namespace bluetoe {
         template < class Iterator, class Filter = details::all_uuid_filter >
         bool all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
 
-        std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
+        std::uint8_t* collect_handle_uuid_tuples( std::size_t start, std::size_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
+
+        // mapping of a last handle to a valid attribute index
+        std::size_t last_handle_index( std::uint16_t ending_handle );
 
         // data
         lcap_notification_callback_t l2cap_cb_;
@@ -641,13 +648,13 @@ namespace bluetoe {
              out_size >= 3 )
         {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-            auto attr = attribute_at( data.handle() - 1 );
-            auto rc   = attr.access( read, data.handle() );
+            auto attr = attribute_at( data.attribute_table_index() );
+            auto rc   = attr.access( read, data.attribute_table_index() );
 
             if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::notification );
-                details::write_handle( output +1, data.handle() );
+                details::write_handle( output +1, handle_mapping::handle_by_index( data.attribute_table_index() ) );
             }
 
             out_size = 3 + read.buffer_size;
@@ -674,13 +681,13 @@ namespace bluetoe {
              out_size >= 3 )
         {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-            auto attr = attribute_at( details.handle() - 1 );
-            auto rc   = attr.access( read, details.handle() );
+            auto attr = attribute_at( details.attribute_table_index() );
+            auto rc   = attr.access( read, details.attribute_table_index() );
 
             if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::indication );
-                details::write_handle( output +1, details.handle() );
+                details::write_handle( output +1, handle_mapping::handle_by_index( details.attribute_table_index() ) );
             }
 
             out_size = 3 + read.buffer_size;
@@ -759,7 +766,7 @@ namespace bluetoe {
             return false;
         }
 
-        if ( starting_handle > number_of_attributes )
+        if ( handle_mapping::first_index_by_handle( starting_handle ) == details::invalid_attribute_index )
         {
             error_response( *input, details::att_error_codes::attribute_not_found, starting_handle, output, out_size );
             return false;
@@ -770,7 +777,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < std::size_t A, std::size_t B >
-    bool server< Options... >::check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    bool server< Options... >::check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index )
     {
         if ( in_size != A && in_size != B )
         {
@@ -778,11 +785,11 @@ namespace bluetoe {
             return false;
         }
 
-        return check_handle( input, in_size, output, out_size, handle );
+        return check_handle( input, in_size, output, out_size, handle, index );
     }
 
     template < typename ... Options >
-    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index )
     {
         handle = details::read_handle( &input[ 1 ] );
 
@@ -792,7 +799,9 @@ namespace bluetoe {
             return false;
         }
 
-        if ( handle > number_of_attributes )
+        index = handle_mapping::index_by_handle( handle );
+
+        if ( index == details::invalid_attribute_index )
         {
             error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
             return false;
@@ -829,7 +838,14 @@ namespace bluetoe {
         if ( !check_size_and_handle_range< 5u >( input, in_size, output, out_size, starting_handle, ending_handle ) )
             return;
 
-        const bool only_16_bit_uuids = attribute_at( starting_handle -1 ).uuid != bits( details::gatt_uuids::internal_128bit_uuid );
+        const std::size_t start_index = handle_mapping::first_index_by_handle( starting_handle );
+        const bool only_16_bit_uuids = attribute_at( start_index ).uuid != bits( details::gatt_uuids::internal_128bit_uuid );
+
+        std::size_t ending_index = handle_mapping::first_index_by_handle( ending_handle );
+
+        // if the ending handle points not on an existing attribute, the search will end at the next, lower handle
+        if ( ending_index != details::invalid_attribute_index && handle_mapping::handle_by_index( ending_index ) != ending_handle )
+            --ending_index;
 
         std::uint8_t*        write_ptr = &output[ 0 ];
         std::uint8_t* const  write_end = write_ptr + out_size;
@@ -848,7 +864,7 @@ namespace bluetoe {
 
         }
 
-        write_ptr = collect_handle_uuid_tuples( starting_handle, ending_handle, only_16_bit_uuids, write_ptr, write_end );
+        write_ptr = collect_handle_uuid_tuples( start_index, ending_index, only_16_bit_uuids, write_ptr, write_end );
 
         out_size = write_ptr - &output[ 0 ];
     }
@@ -885,12 +901,12 @@ namespace bluetoe {
             }
 
             template < typename Service >
-            bool operator()( std::uint16_t handle, const details::attribute& )
+            bool operator()( std::uint16_t start_handle, std::uint16_t end_handle, const details::attribute& )
             {
                 if ( end_ -  current_ >= 4 )
                 {
-                    current_ = details::write_handle( current_, handle );
-                    current_ = details::write_handle( current_, handle + Service::number_of_attributes - 1 );
+                    current_ = details::write_handle( current_, start_handle );
+                    current_ = details::write_handle( current_, end_handle );
 
                     return true;
                 }
@@ -923,7 +939,7 @@ namespace bluetoe {
 
         details::collect_find_by_type_groups iterator( output + 1 , output + out_size );
 
-        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter< server< Options... > >( &input[ 7 ], input + in_size, *this ) ) )
+        if ( all_services_by_group( starting_handle, ending_handle, iterator, details::value_filter< server< Options... > >( &input[ 7 ], &input[ in_size ], *this ) ) )
         {
             *output  = bits( details::att_opcodes::find_by_type_value_response );
             out_size = iterator.size() + 1;
@@ -940,12 +956,13 @@ namespace bluetoe {
     void server< Options... >::handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
+        if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-        auto rc   = attribute_at( handle - 1 ).access( read, handle );
+        auto rc   = attribute_at( index ).access( read, index );
 
         if ( rc == details::attribute_access_result::success )
         {
@@ -963,14 +980,15 @@ namespace bluetoe {
     void server< Options... >::handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_size_and_handle< 5 >( input, in_size, output, out_size, handle ) )
+        if ( !check_size_and_handle< 5 >( input, in_size, output, out_size, handle, index ) )
             return;
 
         const std::uint16_t offset = details::read_16bit( input + 3 );
 
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, offset, connection.client_configurations(), connection.security_attributes(), this );
-        auto rc   = attribute_at( handle - 1 ).access( read, handle );
+        auto rc   = attribute_at( index ).access( read, index );
 
         if ( rc == details::attribute_access_result::success )
         {
@@ -991,7 +1009,7 @@ namespace bluetoe {
         template < typename Server >
         struct collect_attributes
         {
-            void operator()( std::uint16_t handle, const details::attribute& attr )
+            void operator()( std::size_t index, const details::attribute& attr )
             {
                 static constexpr std::size_t maximum_pdu_size = 253u;
                 static constexpr std::size_t header_size      = 2u;
@@ -1001,7 +1019,7 @@ namespace bluetoe {
                     const std::size_t max_data_size = std::min< std::size_t >( end_ - current_, maximum_pdu_size + header_size ) - header_size;
 
                     auto read = attribute_access_arguments::read( current_ + header_size, current_ + header_size + max_data_size, 0, config_, security_, &server_ );
-                    auto rc   = attr.access( read, handle );
+                    auto rc   = attr.access( read, index );
 
                     if ( rc == details::attribute_access_result::success )
                     {
@@ -1015,7 +1033,7 @@ namespace bluetoe {
 
                         if ( read.buffer_size + header_size == size_ )
                         {
-                            current_ = details::write_handle( current_, handle );
+                            current_ = details::write_handle( current_, handle_index_mapping< Server >::handle_by_index( index ) );
                             current_ += static_cast< std::uint8_t >( read.buffer_size );
                         }
                     }
@@ -1192,11 +1210,12 @@ namespace bluetoe {
             if ( handle == 0 )
                 return error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
 
-            if ( handle > number_of_attributes )
-                return error_response( opcode, details::att_error_codes::attribute_not_found, handle, output, out_size );
+            const std::size_t index = handle_mapping::index_by_handle( handle );
+            if ( index == details::invalid_attribute_index )
+                return error_response( opcode, details::att_error_codes::invalid_handle, handle, output, out_size );
 
             auto read = details::attribute_access_arguments::read( out_ptr, end_output, 0, cc.client_configurations(), cc.security_attributes(), this );
-            auto rc   = attribute_at( handle - 1 ).access( read, handle );
+            auto rc   = attribute_at( index ).access( read, index );
 
             if ( rc == details::attribute_access_result::success )
             {
@@ -1220,12 +1239,13 @@ namespace bluetoe {
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_handle( input, in_size, output, out_size, handle ) )
+        if ( !check_handle( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-        auto rc    = attribute_at( handle - 1 ).access( write, handle );
+        auto rc    = attribute_at( index ).access( write, index );
 
         if ( rc == details::attribute_access_result::success )
         {
@@ -1267,12 +1287,13 @@ namespace bluetoe {
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_handle( input, in_size, output, out_size, handle ) )
+        if ( !check_handle( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto write = details::attribute_access_arguments::check_write( this );
-        auto rc    = attribute_at( handle - 1 ).access( write, handle );
+        auto rc    = attribute_at( index ).access( write, index );
 
         if ( rc == details::attribute_access_result::write_not_permitted )
             return error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
@@ -1310,15 +1331,16 @@ namespace bluetoe {
         const std::uint8_t execute_flag = input[ 1 ];
         if ( execute_flag )
         {
-
             for ( std::pair< std::uint8_t*, std::size_t > queue = this->first_write_queue_element( client ); queue.first; queue = this->next_write_queue_element( queue.first, client ) )
             {
-                const uint16_t handle = details::read_handle( queue.first );
-                const uint16_t offset = details::read_16bit( queue.first + 2 );
+                const std::uint16_t handle = details::read_handle( queue.first );
+                const std::uint16_t offset = details::read_16bit( queue.first + 2 );
+
+                const std::size_t attribute_index = handle_mapping::index_by_handle( handle );
 
                 auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second,
                                 offset, client.client_configurations(), client.security_attributes(), this );
-                auto rc    = attribute_at( handle -1 ).access( write, handle );
+                auto rc    = attribute_at( attribute_index ).access( write, attribute_index );
 
                 if ( rc != details::attribute_access_result::success )
                 {
@@ -1346,16 +1368,20 @@ namespace bluetoe {
             l2cap_cb_( details::notification_data(), l2cap_arg_, confirmation );
     }
 
+
     template < typename ... Options >
     template < class Iterator, class Filter >
     void server< Options... >::all_attributes( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iter, const Filter& filter )
     {
-        for ( ; starting_handle <= ending_handle && starting_handle <= number_of_attributes; ++starting_handle )
-        {
-            const details::attribute attr = attribute_at( starting_handle -1 );
+        const std::size_t last_index = last_handle_index( ending_handle );
 
-            if ( filter( starting_handle, attr ) )
-                iter( starting_handle, attr );
+        // TODO: Incrementing might be very inefficient when handle are very sparse
+        for ( std::size_t index = handle_mapping::first_index_by_handle( starting_handle ); index <= last_index; ++index )
+        {
+            const details::attribute attr = attribute_at( index );
+
+            if ( filter( index, attr ) )
+                iter( index, attr );
         }
     }
 
@@ -1364,35 +1390,45 @@ namespace bluetoe {
         struct services_by_group
         {
             services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator& iterator, const Filter& filter, bool& found )
-                : starting_handle_( starting_handle )
-                , ending_handle_( ending_handle )
-                , index_( 1 )
+                : starting_index_( details::handle_index_mapping< Server >::first_index_by_handle( starting_handle ) )
+                , ending_index_( details::handle_index_mapping< Server >::first_index_by_handle( ending_handle ) )
+                , index_( 0 )
                 , iterator_( iterator )
                 , filter_( filter )
                 , found_( found )
             {
-
+                // if the ending_handle does not point to a specific handle, the last attribute befor that is ment.
+                if ( ending_index_ != details::invalid_attribute_index && details::handle_index_mapping< Server >::handle_by_index( ending_index_ ) != ending_handle )
+                {
+                    --ending_index_;
+                }
             }
 
             template< typename Service >
             void each()
             {
-                if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
+                if ( ( starting_index_ != details::invalid_attribute_index && starting_index_ <= index_ )
+                    && ( index_ <= ending_index_ || ending_index_ == details::invalid_attribute_index ) )
                 {
-                    const details::attribute& attr = Server::attribute_at( index_ - 1 );
+                    const details::attribute& attr = Server::attribute_at( index_ );
+
+                    using mapping = details::handle_index_mapping< Server >;
 
                     if ( filter_( index_, attr ) )
                     {
-                        found_ = iterator_.template operator()< Service >( index_, attr ) || found_;
+                        found_ = iterator_.template operator()< Service >(
+                            mapping::handle_by_index( index_ ),
+                            mapping::handle_by_index( index_ + Service::number_of_attributes - 1 ),
+                            attr ) || found_;
                     }
                 }
 
                 index_ += Service::number_of_attributes;
             }
 
-            std::uint16_t   starting_handle_;
-            std::uint16_t   ending_handle_;
-            std::uint16_t   index_;
+            std::size_t     starting_index_;
+            std::size_t     ending_index_;
+            std::size_t     index_;
             Iterator&       iterator_;
             const Filter&   filter_;
             bool&           found_;
@@ -1411,21 +1447,21 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    std::uint8_t* server< Options... >::collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* out, std::uint8_t* out_end )
+    std::uint8_t* server< Options... >::collect_handle_uuid_tuples( std::size_t start, std::size_t end, bool only_16_bit, std::uint8_t* out, std::uint8_t* out_end )
     {
         const std::size_t size_per_tuple = only_16_bit
             ? 2 + 2
             : 2 + 16;
 
-        for ( ; start <= end && start <= number_of_attributes
+        for ( ; ( start <= end || end == details::invalid_attribute_index ) && start < number_of_attributes
             && static_cast< std::size_t >( out_end - out ) >= size_per_tuple; ++start )
         {
-            const details::attribute attr = attribute_at( start -1 );
+            const details::attribute attr = attribute_at( start );
             const bool is_16_bit_uuids    = attr.uuid != bits( details::gatt_uuids::internal_128bit_uuid );
 
             if ( only_16_bit == is_16_bit_uuids )
             {
-                details::write_handle( out, start );
+                details::write_handle( out, handle_mapping::handle_by_index( start ) );
 
                 if ( is_16_bit_uuids )
                 {
@@ -1433,7 +1469,7 @@ namespace bluetoe {
                 }
                 else
                 {
-                    write_128bit_uuid( out + 2, attribute_at( start -2 ) );
+                    write_128bit_uuid( out + 2, attribute_at( start - 1 ) );
                 }
 
                 out += size_per_tuple;
@@ -1459,6 +1495,16 @@ namespace bluetoe {
         assert( read.buffer_size == sizeof( buffer ) );
 
         std::copy( &read.buffer[ 3 ], &read.buffer[ 3 + 16 ], out );
+    }
+
+    template < typename ... Options >
+    std::size_t server< Options... >::last_handle_index( std::uint16_t ending_handle )
+    {
+        const std::size_t mapped = handle_mapping::first_index_by_handle( ending_handle );
+
+        return mapped == details::invalid_attribute_index
+            ? number_of_attributes - 1
+            : mapped;
     }
 
     template < typename ... Options >
