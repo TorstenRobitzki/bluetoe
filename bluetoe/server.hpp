@@ -1280,12 +1280,12 @@ namespace bluetoe {
 
         std::uint16_t handle;
         std::size_t   index;
-// @TODO BUG
+
         if ( !check_handle( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto write = details::attribute_access_arguments::check_write( this );
-        auto rc    = attribute_at( handle - 1 ).access( write, handle );
+        auto rc    = attribute_at( index ).access( write, index );
 
         if ( rc == details::attribute_access_result::write_not_permitted )
             return error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
@@ -1323,15 +1323,16 @@ namespace bluetoe {
         const std::uint8_t execute_flag = input[ 1 ];
         if ( execute_flag )
         {
-
             for ( std::pair< std::uint8_t*, std::size_t > queue = this->first_write_queue_element( client ); queue.first; queue = this->next_write_queue_element( queue.first, client ) )
             {
-                const uint16_t handle = details::read_handle( queue.first );
-                const uint16_t offset = details::read_16bit( queue.first + 2 );
+                const std::uint16_t handle = details::read_handle( queue.first );
+                const std::uint16_t offset = details::read_16bit( queue.first + 2 );
+
+                const std::size_t attribute_index = handle_mapping::index_by_handle( handle );
 
                 auto write = details::attribute_access_arguments::write( queue.first + 4 , queue.first + queue.second,
                                 offset, client.client_configurations(), client.security_attributes(), this );
-                auto rc    = attribute_at( handle -1 ).access( write, handle );
+                auto rc    = attribute_at( attribute_index ).access( write, attribute_index );
 
                 if ( rc != details::attribute_access_result::success )
                 {
