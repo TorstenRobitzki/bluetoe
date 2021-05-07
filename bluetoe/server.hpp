@@ -309,7 +309,7 @@ namespace bluetoe {
         template < class Iterator, class Filter = details::all_uuid_filter >
         bool all_services_by_group( std::uint16_t starting_handle, std::uint16_t ending_handle, Iterator&, const Filter& filter = details::all_uuid_filter() );
 
-        std::uint8_t* collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
+        std::uint8_t* collect_handle_uuid_tuples( std::size_t start, std::size_t end, bool only_16_bit, std::uint8_t* output, std::uint8_t* output_end );
 
         static void write_128bit_uuid( std::uint8_t* out, const details::attribute& char_declaration );
 
@@ -838,7 +838,14 @@ namespace bluetoe {
         if ( !check_size_and_handle_range< 5u >( input, in_size, output, out_size, starting_handle, ending_handle ) )
             return;
 
-        const bool only_16_bit_uuids = attribute_at( starting_handle -1 ).uuid != bits( details::gatt_uuids::internal_128bit_uuid );
+        const std::size_t start_index = handle_mapping::first_index_by_handle( starting_handle );
+        const bool only_16_bit_uuids = attribute_at( start_index ).uuid != bits( details::gatt_uuids::internal_128bit_uuid );
+
+        std::size_t ending_index = handle_mapping::first_index_by_handle( ending_handle );
+
+        // if the ending handle points not on an existing attribute, the search will end at the next, lower handle
+        if ( ending_index != details::invalid_attribute_index && handle_mapping::handle_by_index( ending_index ) != ending_handle )
+            --ending_index;
 
         std::uint8_t*        write_ptr = &output[ 0 ];
         std::uint8_t* const  write_end = write_ptr + out_size;
@@ -857,7 +864,7 @@ namespace bluetoe {
 
         }
 
-        write_ptr = collect_handle_uuid_tuples( starting_handle, ending_handle, only_16_bit_uuids, write_ptr, write_end );
+        write_ptr = collect_handle_uuid_tuples( start_index, ending_index, only_16_bit_uuids, write_ptr, write_end );
 
         out_size = write_ptr - &output[ 0 ];
     }
@@ -1439,21 +1446,21 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    std::uint8_t* server< Options... >::collect_handle_uuid_tuples( std::uint16_t start, std::uint16_t end, bool only_16_bit, std::uint8_t* out, std::uint8_t* out_end )
+    std::uint8_t* server< Options... >::collect_handle_uuid_tuples( std::size_t start, std::size_t end, bool only_16_bit, std::uint8_t* out, std::uint8_t* out_end )
     {
         const std::size_t size_per_tuple = only_16_bit
             ? 2 + 2
             : 2 + 16;
 
-        for ( ; start <= end && start <= number_of_attributes
+        for ( ; ( start <= end || end == details::invalid_attribute_index ) && start < number_of_attributes
             && static_cast< std::size_t >( out_end - out ) >= size_per_tuple; ++start )
         {
-            const details::attribute attr = attribute_at( start -1 );
+            const details::attribute attr = attribute_at( start );
             const bool is_16_bit_uuids    = attr.uuid != bits( details::gatt_uuids::internal_128bit_uuid );
 
             if ( only_16_bit == is_16_bit_uuids )
             {
-                details::write_handle( out, start );
+                details::write_handle( out, handle_mapping::handle_by_index( start ) );
 
                 if ( is_16_bit_uuids )
                 {
@@ -1461,7 +1468,7 @@ namespace bluetoe {
                 }
                 else
                 {
-                    write_128bit_uuid( out + 2, attribute_at( start -2 ) );
+                    write_128bit_uuid( out + 2, attribute_at( start - 1 ) );
                 }
 
                 out += size_per_tuple;
