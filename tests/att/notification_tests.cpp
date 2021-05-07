@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         notify( value );
 
         BOOST_CHECK( notification.valid() );
-        BOOST_CHECK_EQUAL( notification.handle(), 3 );
+        BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
         BOOST_CHECK_EQUAL( notification_type, simple_server::notification );
     }
 
@@ -144,6 +144,37 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         expected_output( value_b1, {}, con2 );
 
     }
+
+
+    std::uint8_t fixed_value = 0xaa;
+
+    using fixed_server = bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x8C8B >,
+            bluetoe::characteristic<
+                bluetoe::attribute_handles< 0x100, 0x110, 0x120 >,
+                bluetoe::characteristic_uuid16< 0x8C8B >,
+                bluetoe::bind_characteristic_value< std::uint8_t, &fixed_value >,
+                bluetoe::notify
+            >
+        >
+    >;
+
+    BOOST_FIXTURE_TEST_CASE( correct_handle_when_handles_are_fixed, test::request_with_reponse< fixed_server > )
+    {
+        // configure handle 0x120
+        l2cap_input( { 0x12, 0x20, 0x01, 0x01, 0x00 } );
+        expected_result( { 0x13 } );
+
+        notify< bluetoe::characteristic_uuid16< 0x8C8B > >();
+
+        BOOST_CHECK( notification.valid() );
+        BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
+        BOOST_CHECK_EQUAL( notification_type, fixed_server::notification );
+
+        expected_output( notification, { 0x1B, 0x10, 0x01, 0xaa } );
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
@@ -191,7 +222,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
         notify< bluetoe::characteristic_uuid16< 0x1111 > >();
 
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification.handle(), 3 );
+        BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 0u );
         BOOST_CHECK_EQUAL( notification_type, server::notification );
     }
@@ -201,7 +232,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
         notify< bluetoe::characteristic_uuid16< 0x2222 > >();
 
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification.handle(), 8 );
+        BOOST_CHECK_EQUAL( notification.attribute_table_index(), 7u );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1u );
         BOOST_CHECK_EQUAL( notification_type, server::notification );
     }

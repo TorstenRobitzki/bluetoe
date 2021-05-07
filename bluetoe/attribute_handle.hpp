@@ -361,9 +361,13 @@ namespace bluetoe {
                 return iterator::service_first_index_by_handle( handle );
             }
 
-            static std::size_t index_by_handle( std::uint16_t /*handle */)
+            static std::size_t index_by_handle( std::uint16_t handle )
             {
-                return invalid_attribute_index;
+                std::size_t result = first_index_by_handle( handle );
+                if ( result != invalid_attribute_index && handle_by_index( result ) != handle )
+                    result = invalid_attribute_index;
+
+                return result;
             }
         };
 

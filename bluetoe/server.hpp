@@ -274,8 +274,8 @@ namespace bluetoe {
         bool check_size_and_handle_range( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& starting_handle, std::uint16_t& ending_handle );
 
         template < std::size_t A, std::size_t B = A >
-        bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
-        bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle );
+        bool check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index );
+        bool check_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index );
 
         template < typename ConnectionData >
         void handle_exchange_mtu_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
@@ -648,13 +648,13 @@ namespace bluetoe {
              out_size >= 3 )
         {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-            auto attr = attribute_at( data.handle() - 1 );
-            auto rc   = attr.access( read, data.handle() );
+            auto attr = attribute_at( data.attribute_table_index() );
+            auto rc   = attr.access( read, data.attribute_table_index() );
 
             if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::notification );
-                details::write_handle( output +1, data.handle() );
+                details::write_handle( output +1, handle_mapping::handle_by_index( data.attribute_table_index() ) );
             }
 
             out_size = 3 + read.buffer_size;
@@ -681,13 +681,13 @@ namespace bluetoe {
              out_size >= 3 )
         {
             auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-            auto attr = attribute_at( details.handle() - 1 );
-            auto rc   = attr.access( read, details.handle() );
+            auto attr = attribute_at( details.attribute_table_index() );
+            auto rc   = attr.access( read, details.attribute_table_index() );
 
             if ( rc == details::attribute_access_result::success )
             {
                 *output = bits( details::att_opcodes::indication );
-                details::write_handle( output +1, details.handle() );
+                details::write_handle( output +1, handle_mapping::handle_by_index( details.attribute_table_index() ) );
             }
 
             out_size = 3 + read.buffer_size;
@@ -777,7 +777,7 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < std::size_t A, std::size_t B >
-    bool server< Options... >::check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    bool server< Options... >::check_size_and_handle( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index )
     {
         if ( in_size != A && in_size != B )
         {
@@ -785,11 +785,11 @@ namespace bluetoe {
             return false;
         }
 
-        return check_handle( input, in_size, output, out_size, handle );
+        return check_handle( input, in_size, output, out_size, handle, index );
     }
 
     template < typename ... Options >
-    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle )
+    bool server< Options... >::check_handle( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, std::uint16_t& handle, std::size_t& index )
     {
         handle = details::read_handle( &input[ 1 ] );
 
@@ -799,7 +799,9 @@ namespace bluetoe {
             return false;
         }
 
-        if ( handle > number_of_attributes )
+        index = handle_mapping::index_by_handle( handle );
+
+        if ( index == details::invalid_attribute_index )
         {
             error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
             return false;
@@ -947,8 +949,9 @@ namespace bluetoe {
     void server< Options... >::handle_read_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle ) )
+        if ( !check_size_and_handle< 3 >( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto read = details::attribute_access_arguments::read( output + 1, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
@@ -970,8 +973,9 @@ namespace bluetoe {
     void server< Options... >::handle_read_blob_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
     {
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_size_and_handle< 5 >( input, in_size, output, out_size, handle ) )
+        if ( !check_size_and_handle< 5 >( input, in_size, output, out_size, handle, index ) )
             return;
 
         const std::uint16_t offset = details::read_16bit( input + 3 );
@@ -1227,12 +1231,13 @@ namespace bluetoe {
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         std::uint16_t handle;
+        std::size_t   index;
 
-        if ( !check_handle( input, in_size, output, out_size, handle ) )
+        if ( !check_handle( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto write = details::attribute_access_arguments::write( input + 3, input + in_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-        auto rc    = attribute_at( handle - 1 ).access( write, handle );
+        auto rc    = attribute_at( index ).access( write, index );
 
         if ( rc == details::attribute_access_result::success )
         {
@@ -1274,8 +1279,9 @@ namespace bluetoe {
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
 
         std::uint16_t handle;
-
-        if ( !check_handle( input, in_size, output, out_size, handle ) )
+        std::size_t   index;
+// @TODO BUG
+        if ( !check_handle( input, in_size, output, out_size, handle, index ) )
             return;
 
         auto write = details::attribute_access_arguments::check_write( this );
