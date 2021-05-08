@@ -1375,7 +1375,6 @@ namespace bluetoe {
     {
         const std::size_t last_index = last_handle_index( ending_handle );
 
-        // TODO: Incrementing might be very inefficient when handle are very sparse
         for ( std::size_t index = handle_mapping::first_index_by_handle( starting_handle ); index <= last_index; ++index )
         {
             const details::attribute attr = attribute_at( index );
