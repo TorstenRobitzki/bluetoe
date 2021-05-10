@@ -17,11 +17,11 @@ namespace details {
             >::type;
         };
 
-        template < typename Characteristic, std::uint16_t Offset, int Prio >
+        template < typename Characteristic, std::size_t Offset, int Prio >
         struct characteristic_with_service_attribute_offset
         {
             using characteristic_t = Characteristic;
-            static constexpr std::uint16_t service_offset = Offset;
+            static constexpr std::size_t   service_offset = Offset;
             static constexpr int           priority       = Prio;
         };
 
@@ -30,30 +30,30 @@ namespace details {
             static constexpr std::size_t number_of_attributes = 0;
         };
 
-        template < typename Characteristic, std::uint16_t FirstAttributesHandle, int Prio >
-        struct characteristic_handle_pair
+        template < typename Characteristic, std::size_t FirstAttributesIndex, int Prio >
+        struct characteristic_index_pair
         {
             using characteristic_t = Characteristic;
-            static constexpr std::uint16_t first_attribute_handle = FirstAttributesHandle;
-            static constexpr int           priority               = Prio;
+            static constexpr std::size_t   first_attribute_index = FirstAttributesIndex;
+            static constexpr int           priority              = Prio;
         };
 
         template < typename Characteristics, typename Characteristic >
-        struct add_handle_to_characteristic
+        struct add_index_to_characteristic
         {
-            using last = typename last_type< Characteristics, impl::characteristic_handle_pair< impl::preudo_first_char, 1, 0 > >::type;
+            using last = typename last_type< Characteristics, impl::characteristic_index_pair< impl::preudo_first_char, 0, 0 > >::type;
 
-            static constexpr std::size_t attribute_handle = last::first_attribute_handle + last::characteristic_t::number_of_attributes + Characteristic::service_offset;
+            static constexpr std::size_t attribute_handle = last::first_attribute_index + last::characteristic_t::number_of_attributes + Characteristic::service_offset;
 
             using type = typename add_type<
                 Characteristics,
-                impl::characteristic_handle_pair< typename Characteristic::characteristic_t, attribute_handle, Characteristic::priority >
+                impl::characteristic_index_pair< typename Characteristic::characteristic_t, attribute_handle, Characteristic::priority >
             >::type;
         };
 
         struct attribute_at
         {
-            constexpr attribute_at( std::uint16_t& r, std::size_t i )
+            constexpr attribute_at( std::size_t& r, std::size_t i )
                 : result( r )
                 , index( i )
             {}
@@ -63,13 +63,13 @@ namespace details {
             {
                 if ( index == 0 )
                 {
-                    result = O::first_attribute_handle + 1;
+                    result = O::first_attribute_index;
                 }
 
                 --index;
             }
 
-            std::uint16_t&  result;
+            std::size_t&    result;
             std::size_t     index;
         };
 
@@ -150,18 +150,18 @@ namespace details {
 
         using services                               = Services;
         using all_characteristics                    = typename fold_left< services, characteristics_from_service >::type;
-        using characteristics_with_attribute_handles = typename fold_left< all_characteristics, impl::add_handle_to_characteristic >::type;
-        using characteristics_only_with_cccd         = typename fold_left< characteristics_with_attribute_handles, impl::filter_characteristics_with_cccd >::type;
+        using characteristics_with_attribute_indizes = typename fold_left< all_characteristics, impl::add_index_to_characteristic >::type;
+        using characteristics_only_with_cccd         = typename fold_left< characteristics_with_attribute_indizes, impl::filter_characteristics_with_cccd >::type;
         using characteristics_with_cccd_position     = typename fold_left< characteristics_only_with_cccd, impl::add_cccd_position >::type;
         using characteristics_sorted_by_priority     = typename stable_sort< impl::order_by_prio, characteristics_with_cccd_position >::type;
         using characteristics_with_cccd_handle       = typename fold_left< characteristics_sorted_by_priority, impl::add_cccd_handle >::type;
 
-        static notification_data find_notification_data_by_index( std::size_t index )
+        static notification_data find_notification_data_by_index( std::size_t notification_index )
         {
-            std::uint16_t attribute = 0;
-            for_< characteristics_sorted_by_priority >::each( impl::attribute_at( attribute, index ) );
+            std::size_t attribute_index = 0;
+            for_< characteristics_sorted_by_priority >::each( impl::attribute_at( attribute_index, notification_index ) );
 
-            return notification_data( attribute, index );
+            return notification_data( attribute_index + 1, notification_index );
         }
 
         struct attribute_value
@@ -176,7 +176,7 @@ namespace details {
             void each()
             {
                 if ( O::characteristic_t::value_type::is_this( value ) )
-                    result = notification_data( O::first_attribute_handle + 1, index );
+                    result = notification_data( O::first_attribute_index + 1, index );
 
                 ++index;
             }
@@ -218,7 +218,7 @@ namespace details {
 
         static notification_data data()
         {
-            return notification_data( char_infos::first_attribute_handle + 1, char_infos::cccd_handle );
+            return notification_data( char_infos::first_attribute_index + 1, char_infos::cccd_handle );
         }
     };
 

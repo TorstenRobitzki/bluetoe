@@ -6,7 +6,7 @@
 #include <bluetoe/outgoing_priority.hpp>
 
 /*
- * A notification index is key to a characteristic that is configured to allow notifications or indications.
+ * A notification index is a key to a characteristic that is configured to allow notifications or indications.
  * higher_outgoing_priority and lower_outgoing_priority lead to none linear distribution of the notification indexes over
  * all characeteristics. The characteristics are stable sorted by priority and then numerated (started by 0).
  */

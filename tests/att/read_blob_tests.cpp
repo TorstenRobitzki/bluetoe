@@ -66,6 +66,7 @@ typedef bluetoe::server<
     bluetoe::service<
         bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
         bluetoe::characteristic<
+            bluetoe::attribute_handle< 0x0815 >,
             bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
             bluetoe::bind_characteristic_value< decltype( const_blob ), &const_blob >
         >
@@ -74,7 +75,7 @@ typedef bluetoe::server<
 
 BOOST_FIXTURE_TEST_CASE( read_starting_at_0, test::request_with_reponse< blob_server > )
 {
-    l2cap_input( { 0x0C, 0x03, 0x00, 0x00, 0x00 } );
+    l2cap_input( { 0x0C, 0x16, 0x08, 0x00, 0x00 } );
     expected_result( {
         0x0D,
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -85,13 +86,13 @@ BOOST_FIXTURE_TEST_CASE( read_starting_at_0, test::request_with_reponse< blob_se
 
 BOOST_FIXTURE_TEST_CASE( read_starting_at_50, test::request_with_reponse< blob_server > )
 {
-    l2cap_input( { 0x0C, 0x03, 0x00, 0x32, 0x00 } );
+    l2cap_input( { 0x0C, 0x16, 0x08, 0x32, 0x00 } );
     expected_result( { 0x0D } );
 }
 
 BOOST_FIXTURE_TEST_CASE( read_starting_at_10, test::request_with_reponse< blob_server > )
 {
-    l2cap_input( { 0x0C, 0x03, 0x00, 0x0A, 0x00 } );
+    l2cap_input( { 0x0C, 0x16, 0x08, 0x0A, 0x00 } );
     expected_result( {
         0x0D,
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,

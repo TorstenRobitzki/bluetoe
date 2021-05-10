@@ -4,6 +4,7 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/client_characteristic_configuration.hpp>
 #include <bluetoe/pairing_status.hpp>
+#include <bluetoe/attribute_handle.hpp>
 
 #include <cstdint>
 #include <cstddef>
@@ -166,7 +167,7 @@ namespace details {
         }
     };
 
-    typedef attribute_access_result ( *attribute_access )( attribute_access_arguments&, std::uint16_t attribute_handle );
+    typedef attribute_access_result ( *attribute_access )( attribute_access_arguments&, std::size_t attribute_index );
 
     /*
      * An attribute is an uuid combined with a mean of how to access the attributes
@@ -268,14 +269,14 @@ namespace details {
     {
     public:
         notification_data()
-            : att_handle_( 0 )
+            : attribute_table_index_( details::invalid_attribute_index )
             , client_characteristic_configuration_index_( 0 )
         {
             assert( !valid() );
         }
 
-        notification_data( std::uint16_t value_attribute_handle, std::size_t client_characteristic_configuration_index )
-            : att_handle_( value_attribute_handle )
+        notification_data( std::size_t value_attribute_index, std::size_t client_characteristic_configuration_index )
+            : attribute_table_index_( value_attribute_index )
             , client_characteristic_configuration_index_( client_characteristic_configuration_index )
         {
             assert( valid() );
@@ -283,14 +284,20 @@ namespace details {
 
         bool valid() const
         {
-            return att_handle_ != 0;
+            return attribute_table_index_ != details::invalid_attribute_index;
         }
 
-        std::uint16_t handle() const
+        /**
+         * @brief The index of the value attribute in the nofied characteristic
+         */
+        std::size_t attribute_table_index() const
         {
-            return att_handle_;
+            return attribute_table_index_;
         }
 
+        /**
+         * @brief index into the client characteristic configuration
+         */
         std::size_t client_characteristic_configuration_index() const
         {
             return client_characteristic_configuration_index_;
@@ -301,11 +308,12 @@ namespace details {
          */
         void clear()
         {
-            att_handle_ = 0;
+            attribute_table_index_ = details::invalid_attribute_index;
             client_characteristic_configuration_index_ = 0;
         }
+
     private:
-        std::uint16_t   att_handle_;
+        std::size_t     attribute_table_index_;
         std::size_t     client_characteristic_configuration_index_;
     };
 
