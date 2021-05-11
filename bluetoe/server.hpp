@@ -1177,6 +1177,7 @@ namespace bluetoe {
                 , index_( starting_index )
                 , starting_handle_( starting_handle )
                 , ending_handle_( ending_handle )
+                , stoped_( false )
                 , first_( true )
                 , is_128bit_uuid_( true )
                 , attribute_data_size_( attribute_data_size )
@@ -1187,13 +1188,18 @@ namespace bluetoe {
             template< typename Service >
             void each()
             {
-                if ( starting_handle_ <= index_ && index_ <= ending_handle_ )
+                if ( !stoped_ && starting_handle_ <= index_ && index_ <= ending_handle_ )
                 {
                     if ( first_ )
                     {
                         is_128bit_uuid_         = Service::uuid::is_128bit;
                         first_                  = false;
                         attribute_data_size_    = is_128bit_uuid_ ? 16 + 4 : 2 + 4;
+                    }
+                    // stop reading once, there is a service with a different UUID size, which would cause a gap
+                    else if ( is_128bit_uuid_ != Service::uuid::is_128bit )
+                    {
+                        stoped_ = true;
                     }
 
                     /// TODO: ClientCharacteristicIndex is derivable from Service and ServiceList, if 0 is used,
@@ -1209,6 +1215,7 @@ namespace bluetoe {
                   std::uint16_t   index_;
             const std::uint16_t   starting_handle_;
             const std::uint16_t   ending_handle_;
+                  bool            stoped_;
                   bool            first_;
                   bool            is_128bit_uuid_;
                   std::uint8_t&   attribute_data_size_;
