@@ -123,8 +123,8 @@ Device Filtering||implemented
 Connections|Single Connection|implemented
 <br/> |Multiple Connection|not planned
 Connection|Slave Latency|planned
-Feature Support|LE Encryption|planned
-<br/> |Connection Parameters Request Procedure|planned
+Feature Support|LE Encryption|implemented
+<br/> |Connection Parameters Request Procedure|implemented
 <br/> |Extended Reject Indication|planned
 <br/> |Slave-initiated Features Exchange|planned
 <br/> |LE Ping|implemented
