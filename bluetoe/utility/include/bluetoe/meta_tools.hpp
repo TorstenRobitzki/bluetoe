@@ -139,16 +139,6 @@ namespace details {
 
     // two types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
     template <
-        template < typename > class Templ,
-        typename Type
-     >
-    struct remove_if_equal< std::tuple< Templ< Type > >, Templ< wildcard > >
-    {
-        typedef std::tuple<> type;
-    };
-
-    // two types are equal if they are both templates and the Zero type has it's parameters replaces with wildcards
-    template <
         template < typename ... > class Templ,
         typename Type
      >
