@@ -7,6 +7,8 @@
 #include <bluetoe/service_uuid.hpp>
 #include <bluetoe/meta_types.hpp>
 
+#include <algorithm>
+
 namespace bluetoe {
 
     namespace details {

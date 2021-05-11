@@ -223,6 +223,11 @@ namespace bluetoe {
         std::size_t advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
 
+        /**
+         * @brief returns the scan response data to the L2CAP implementation
+         */
+        std::size_t scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
+
         enum notification_type {
             notification,
             indication,
@@ -315,6 +320,16 @@ namespace bluetoe {
 
         // mapping of a last handle to a valid attribute index
         std::size_t last_handle_index( std::uint16_t ending_handle );
+
+        std::size_t advertising_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const details::no_such_type& ) const;
+
+        template < class T >
+        std::size_t advertising_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& ) const;
+
+        std::size_t scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const details::no_such_type& ) const;
+
+        template < class T >
+        std::size_t scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& ) const;
 
         // data
         lcap_notification_callback_t l2cap_cb_;
@@ -480,6 +495,23 @@ namespace bluetoe {
     template < typename ... Options >
     std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size ) const
     {
+        return advertising_data_impl( begin, buffer_size,
+                    typename details::find_by_meta_type<
+                        details::advertising_data_meta_type,
+                        Options...
+                    >::type() );
+    }
+
+    template < typename ... Options >
+    template < class Advertiser >
+    std::size_t server< Options... >::advertising_data_impl( std::uint8_t* begin, std::size_t buffer_size, const Advertiser& advertiser ) const
+    {
+        return advertiser.advertising_data( begin, buffer_size );
+    }
+
+    template < typename ... Options >
+    std::size_t server< Options... >::advertising_data_impl( std::uint8_t* begin, std::size_t buffer_size, const details::no_such_type& ) const
+    {
         std::uint8_t* const end = begin + buffer_size;
 
         if ( buffer_size >= 3 )
@@ -530,6 +562,34 @@ namespace bluetoe {
         }
 
         return buffer_size - ( end - begin );
+    }
+
+    template < typename ... Options >
+    std::size_t server< Options... >::scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const
+    {
+        return scan_response_data_impl( buffer, buffer_size,
+                    typename details::find_by_meta_type<
+                        details::scan_response_data_meta_type,
+                        Options...
+                    >::type() );
+    }
+
+    template < typename ... Options >
+    std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t /* buffer_size */, const details::no_such_type& ) const
+    {
+        // add aditional empty AD to be visible to Nordic sniffer.
+        // Some stacks do not recognize the response without this empty AD.
+        buffer[ 0 ] = 0;
+        buffer[ 1 ] = 0;
+
+        return 2;
+    }
+
+    template < typename ... Options >
+    template < class T >
+    std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& responder ) const
+    {
+        return responder.scan_response_data( buffer, buffer_size );
     }
 
     template < typename ... Options >

@@ -6,6 +6,7 @@
 
 #include <bluetoe/link_layer.hpp>
 #include <bluetoe/meta_tools.hpp>
+#include <bluetoe/custom_advertising.hpp>
 #include <bluetoe/server.hpp>
 #include "test_radio.hpp"
 #include "connected.hpp"
@@ -1085,5 +1086,57 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( stop_count_down, LinkLayer, all_fixtures )
 
     BOOST_CHECK_GT( link_layer.advertisings().size(), 550u );
 }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( advertising_custom_data )
+
+    static const std::uint8_t custom_advertising_data[] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+
+    static const std::uint8_t custom_response_data[] = {
+        0x11, 0x22, 0x33, 0x44, 0x55
+    };
+
+    using server = bluetoe::extend_server<
+        test::small_temperature_service,
+        bluetoe::custom_advertising_data< sizeof( custom_advertising_data ), custom_advertising_data >,
+        bluetoe::custom_scan_response_data< sizeof( custom_response_data ), custom_response_data >
+    >;
+
+    template < typename ... Options >
+    struct custom_advertising : bluetoe::link_layer::link_layer< server, test::radio, Options... >
+    {
+        custom_advertising()
+        {
+            this->run( gatt_server_ );
+        }
+
+        server gatt_server_;
+    };
+
+    BOOST_FIXTURE_TEST_CASE( advertisng_data, custom_advertising<> )
+    {
+        run( gatt_server_ );
+
+        const std::uint8_t expected[] = {
+            0x40, 0x0d,                         // Header
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // data
+            0x07
+        };
+
+        check_scheduling(
+            [&]( const test::advertising_data& data )
+            {
+                const auto& pdu = data.transmitted_data;
+
+                return pdu.size() == sizeof( expected )
+                    && std::equal( pdu.begin(), pdu.end(), std::begin( expected ) );
+            },
+            "advertsing data"
+        );
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

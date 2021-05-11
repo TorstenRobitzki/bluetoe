@@ -240,9 +240,23 @@ namespace link_layer {
             void fill_advertising_response_data()
             {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
+                const device_address& addr = link_layer().local_address();
 
-                adv_response_size_ = fill_empty_advertising_response_data< layout_t >(
-                    link_layer().local_address(), advertising_response_buffer() );
+                std::uint16_t header = scan_response_pdu_type_code;
+                std::uint8_t* body   = layout_t::body( advertising_response_buffer() ).first;
+
+                if ( addr.is_random() )
+                    header |= header_txaddr_field;
+
+                const std::size_t size =
+                    address_length
+                  + link_layer().fill_l2cap_scan_response_data( &body[ address_length ], max_advertising_data_size );
+
+                header   |= size << 8;
+                adv_response_size_ = layout_t::data_channel_pdu_memory_size( size );
+
+                std::copy( addr.begin(), addr.end(), body );
+                layout_t::header( advertising_response_buffer(), header );
             }
 
             read_buffer advertising_buffer()

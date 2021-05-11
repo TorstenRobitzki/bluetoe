@@ -30,6 +30,15 @@ namespace bluetoe {
          */
         struct characteristic_meta_type {};
 
+        /*
+         * A server parameter that defines how advertising data is created
+         */
+        struct advertising_data_meta_type {};
+
+        /*
+         * A server parameter that defines how the response to a scan request is created
+         */
+        struct scan_response_data_meta_type {};
     }
 }
 

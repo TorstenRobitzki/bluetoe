@@ -345,6 +345,11 @@ namespace link_layer {
         std::size_t fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
         /**
+         * @brief fills the given buffer with l2cap scan response payload
+         */
+        std::size_t fill_l2cap_scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
+
+        /**
          * @brief returns the own local device address
          */
         const device_address& local_address() const;
@@ -1301,6 +1306,12 @@ namespace link_layer {
     std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const
     {
         return server_->advertising_data( buffer, buffer_size );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const
+    {
+        return server_->scan_response_data( buffer, buffer_size );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

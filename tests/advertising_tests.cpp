@@ -1,7 +1,8 @@
+#include <bluetoe/custom_advertising.hpp>
+#include <bluetoe/adv_service_list.hpp>
+
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
-
-#include <bluetoe/adv_service_list.hpp>
 
 #include "test_servers.hpp"
 
@@ -10,6 +11,15 @@ void expected_advertising( std::initializer_list< std::uint8_t > expected, const
 {
     std::vector< std::uint8_t > buffer( buffer_size );
     const std::size_t size = server.advertising_data( &*buffer.begin(), buffer.size() );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + size, expected.begin(), expected.end() );
+}
+
+template < class Server >
+void expected_scan_response( std::initializer_list< std::uint8_t > expected, const Server& server, std::size_t buffer_size = 31 )
+{
+    std::vector< std::uint8_t > buffer( buffer_size );
+    const std::size_t size = server.scan_response_data( &*buffer.begin(), buffer.size() );
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( buffer ), std::begin( buffer ) + size, expected.begin(), expected.end() );
 }
@@ -318,6 +328,38 @@ BOOST_FIXTURE_TEST_CASE( specific_range_encoding, specifed_range )
         0x02, 0x01, 0x06,
         0x05, 0x12, 0x02, 0x01, 0x03, 0x02,
         0x00, 0x00
+    }, *this );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( slave_connection_interval_range )
+
+static const std::uint8_t custom_advertising_data[] = {
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+};
+
+static const std::uint8_t custom_response_data[] = {
+    0x11, 0x22, 0x33, 0x44, 0x55
+};
+
+using custom_advertising = bluetoe::extend_server<
+    test::small_temperature_service,
+    bluetoe::custom_advertising_data< sizeof( custom_advertising_data ), custom_advertising_data >,
+    bluetoe::custom_scan_response_data< sizeof( custom_response_data ), custom_response_data >
+>;
+
+BOOST_FIXTURE_TEST_CASE( custom_advertising_test, custom_advertising )
+{
+    expected_advertising( {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    }, *this );
+}
+
+BOOST_FIXTURE_TEST_CASE( custom_scan_response_test, custom_advertising )
+{
+    expected_scan_response( {
+        0x11, 0x22, 0x33, 0x44, 0x55
     }, *this );
 }
 
