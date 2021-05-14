@@ -765,7 +765,12 @@ namespace link_layer {
                 window_end,
                 connection_interval_ );
 
-        connection_event_callback::call_connection_event_callback( time_till_next_event );
+        // Do not call the connection callback, if the last connection timed out, as this could be an indication for
+        // the callback constantly consuming too much CPU time
+        if ( max_timeouts_til_connection_lost_ == timeouts_til_connection_lost_ )
+        {
+            connection_event_callback::call_connection_event_callback( time_till_next_event );
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
