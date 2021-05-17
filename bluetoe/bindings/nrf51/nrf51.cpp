@@ -45,15 +45,16 @@ namespace nrf51_details {
     static constexpr unsigned           connect_request_size                = 36;
 
 #   if defined BLUETOE_NRF51_RADIO_DEBUG
-        static constexpr int debug_pin_end_crypt     = 20;
-        static constexpr int debug_pin_ready_disable = 22;
-        static constexpr int debug_pin_address_end   = 23;
-        static constexpr int debug_pin_keystream     = 24;
+        static constexpr int debug_pin_end_crypt     = 11;
+        static constexpr int debug_pin_ready_disable = 13;
+        static constexpr int debug_pin_address_end   = 15;
+        static constexpr int debug_pin_keystream     = 17;
+        static constexpr int debug_pin_debug         = 6;
 
         void init_debug()
         {
             for ( auto pin : { debug_pin_end_crypt, debug_pin_ready_disable,
-                                debug_pin_address_end, debug_pin_keystream } )
+                                debug_pin_address_end, debug_pin_keystream, debug_pin_debug } )
             {
                 NRF_GPIO->PIN_CNF[ pin ] =
                     ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
@@ -821,6 +822,38 @@ namespace nrf51_details {
     std::uint32_t scheduled_radio_base::static_random_address_seed() const
     {
         return NRF_FICR->DEVICEID[ 0 ];
+    }
+
+    void scheduled_radio_base::nrf_flash_memory_access_begin()
+    {
+        lock_guard lock;
+
+        nrf_ccm->OUTPTR  = 0;
+        nrf_ccm->INPTR   = 0;
+        nrf_radio->PACKETPTR = 0;
+
+        nrf_ccm->EVENTS_ERROR    = 0;
+        nrf_ccm->SHORTS          = 0;
+
+        NRF_PPI->CHENCLR =
+              ( 1 << compare0_txen_ppi_channel )
+            | ( 1 << compare0_rxen_ppi_channel )
+            | ( 1 << compare1_disable_ppi_channel )
+            | ( 1 << radio_end_capture2_ppi_channel )
+            | ( 1 << radio_address_ccm_crypt );
+
+        NRF_RADIO->SHORTS        = 0;
+        NRF_RADIO->TASKS_STOP    = 1;
+        NRF_RADIO->TASKS_DISABLE = 1;
+        nrf_ccm->TASKS_STOP      = 1;
+
+        state_       = state::idle;
+    }
+
+    void scheduled_radio_base::nrf_flash_memory_access_end()
+    {
+        // this kicks the CPU out of the loop in run() and requests the link layer to setup the next connection event
+        evt_timeout_ = true;
     }
 
     /*

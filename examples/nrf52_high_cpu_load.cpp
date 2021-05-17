@@ -32,7 +32,7 @@ typedef server<
     >
 > blinky_server;
 
-static constexpr std::uint32_t in_callback_io_pin = 25;
+static constexpr std::uint32_t in_callback_io_pin = 5;
 static NRF_TIMER_Type& delay_timer = *NRF_TIMER1;
 
 static void init_hardware()
@@ -49,35 +49,19 @@ static void init_hardware()
 
     delay_timer.TASKS_STOP = 1;
     delay_timer.EVENTS_COMPARE[0] = 0;
+
+    // disable cache
+    NRF_NVMC->ICACHECNF = 0;
+    // Disable Blockprotection
+    NRF_BPROT->DISABLEINDEBUG = BPROT_DISABLEINDEBUG_DISABLEINDEBUG_Msk;
 }
 
 template < typename T, T& Obj >
 struct load_connection_event_callback
 {
-    static void call_connection_event_callback( const bluetoe::link_layer::delta_time& time_till_next_event )
-    {
-        NRF_GPIO->OUTSET = ( 1 << in_callback_io_pin );
-        static int count = 0;
+    static void call_connection_event_callback( const bluetoe::link_layer::delta_time& time_till_next_event );
 
-        ++count;
-
-        // every once in a while lets consume more CPU time than time_till_next_event
-        if ( count == 5 )
-        {
-            count = 0;
-            delay_timer.CC[ 0 ] = 80 * 1000;
-            delay_timer.TASKS_START = 1;
-
-            for ( ; !delay_timer.EVENTS_COMPARE[0] ; )
-                ;
-
-            delay_timer.EVENTS_COMPARE[0] = 0;
-        }
-
-        NRF_GPIO->OUTCLR = ( 1 << in_callback_io_pin );
-    }
-
-    typedef bluetoe::link_layer::details::connection_event_callback_meta_type meta_type;
+    using meta_type = bluetoe::link_layer::details::connection_event_callback_meta_type;
 };
 
 blinky_server gatt;
@@ -86,6 +70,49 @@ device<
     blinky_server,
     load_connection_event_callback< blinky_server, gatt >
  > gatt_srv;
+
+template < typename T, T& Obj >
+void load_connection_event_callback< T, Obj >::call_connection_event_callback( const bluetoe::link_layer::delta_time& time_till_next_event )
+{
+    NRF_GPIO->OUTSET = ( 1 << in_callback_io_pin );
+    static int count = 0;
+
+    ++count;
+
+    // every once in a while lets consume more CPU time than time_till_next_event
+    if ( count == 5 )
+    {
+        delay_timer.CC[ 0 ] = 80 * 1000;
+        delay_timer.TASKS_START = 1;
+
+        for ( ; !delay_timer.EVENTS_COMPARE[0] ; )
+            ;
+
+        delay_timer.EVENTS_COMPARE[0] = 0;
+    }
+    // Or lets utilize / stop the CPU by eraseing a flash page
+    else if ( count == 10 )
+    {
+        count = 0;
+        gatt_srv.nrf_flash_memory_access_begin();
+
+        while ( NRF_NVMC->READY == NVMC_READY_READY_Busy )
+            ;
+
+        NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Een;
+        __ISB();
+        __DSB();
+
+        NRF_NVMC->ERASEPAGE = 0x10000;
+
+        while ( NRF_NVMC->READY == NVMC_READY_READY_Busy )
+            ;
+
+        gatt_srv.nrf_flash_memory_access_end();
+    }
+
+    NRF_GPIO->OUTCLR = ( 1 << in_callback_io_pin );
+}
 
 int main()
 {

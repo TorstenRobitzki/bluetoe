@@ -87,6 +87,14 @@ namespace bluetoe
             {
             }
 
+            /**
+             * @brief experimental interface to be called from a connection event callback
+             *
+             * To be called, once the CPU will be stopped due to flash memory eraseing.
+             */
+            void nrf_flash_memory_access_begin();
+            void nrf_flash_memory_access_end();
+
         protected:
 
             bluetoe::link_layer::delta_time start_connection_event_impl(
