@@ -641,12 +641,12 @@ namespace nrf51_details {
             const bool mic_error = receive_encrypted_ && receive_buffer_.buffer[ 1 ] != 0 && ( nrf_ccm->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == CCM_MICSTATUS_MICSTATUS_CheckFailed;
             const bool bus_error = receive_encrypted_ && nrf_ccm->EVENTS_ERROR;
             const bool not_decrypt = receive_encrypted_ && receive_buffer_.buffer[ 1 ] != 0 && nrf_ccm->EVENTS_ENDCRYPT == 0;
-            const bool error     = timeout || crc_error || mic_error || bus_error || not_decrypt;
+            const bool receive_error = timeout || crc_error || bus_error || not_decrypt;
 
-            if ( !error )
+            if ( !receive_error )
             {
                 // switch to transmission
-                const auto trans = receive_buffer_.buffer == &empty_receive_[ 0 ]
+                const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || mic_error )
                     ? callbacks_.next_transmit()
                     : callbacks_.received_data( receive_buffer_ );
 
