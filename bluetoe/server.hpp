@@ -1174,9 +1174,9 @@ namespace bluetoe {
             collect_primary_services( std::uint8_t*& output, std::uint8_t* end, std::uint16_t starting_index, std::uint16_t starting_handle, std::uint16_t ending_handle, std::uint8_t& attribute_data_size, Server& server )
                 : output_( output )
                 , end_( end )
-                , index_( starting_index )
-                , starting_handle_( starting_handle )
-                , ending_handle_( ending_handle )
+                , index_( details::handle_index_mapping< Server >::first_index_by_handle( starting_index ) )
+                , starting_index_( details::handle_index_mapping< Server >::first_index_by_handle( starting_handle ) )
+                , ending_index_( ending_handle )
                 , stoped_( false )
                 , first_( true )
                 , is_128bit_uuid_( true )
@@ -1188,7 +1188,9 @@ namespace bluetoe {
             template< typename Service >
             void each()
             {
-                if ( !stoped_ && starting_handle_ <= index_ && index_ <= ending_handle_ )
+                if ( !stoped_
+                    && ( starting_index_ != details::invalid_attribute_index && starting_index_ <= index_ )
+                    && ( index_ <= ending_index_ || ending_index_ == details::invalid_attribute_index ) )
                 {
                     if ( first_ )
                     {
@@ -1212,9 +1214,9 @@ namespace bluetoe {
 
                   std::uint8_t*&  output_;
                   std::uint8_t*   end_;
-                  std::uint16_t   index_;
-            const std::uint16_t   starting_handle_;
-            const std::uint16_t   ending_handle_;
+                  std::size_t     index_;
+            const std::size_t     starting_index_;
+            const std::size_t     ending_index_;
                   bool            stoped_;
                   bool            first_;
                   bool            is_128bit_uuid_;
@@ -1238,7 +1240,7 @@ namespace bluetoe {
         std::uint8_t* const end   = output + out_size;
 
         begin = details::write_opcode( begin, details::att_opcodes::read_by_group_type_response );
-        ++begin; // gap for the size
+        ++begin; // room in the output for the size
 
         std::uint8_t* const data_begin = begin;
         details::for_< services >::each( details::collect_primary_services< cccd_indices, services, server< Options... > >( begin, end, 1, starting_handle, ending_handle, *(begin -1 ), *this ) );

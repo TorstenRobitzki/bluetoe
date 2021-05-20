@@ -184,7 +184,7 @@ namespace bluetoe {
          * @brief assembles one data packet for a "Read by Group Type Response"
          */
         template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server = void >
-        static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server );
+        static std::uint8_t* read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::size_t starting_index, bool is_128bit_filter, Server& server );
 
         static_assert( std::is_same<
                 typename details::find_by_not_meta_type<
@@ -299,16 +299,17 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ServiceList, typename Server >
-    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::uint16_t starting_index, bool is_128bit_filter, Server& server )
+    std::uint8_t* service< Options... >::read_primary_service_response( std::uint8_t* output, std::uint8_t* end, std::size_t starting_index, bool is_128bit_filter, Server& server )
     {
         const std::size_t attribute_data_size = is_128bit_filter ? 16 + 4 : 2 + 4;
+        using mapping = typename Server::handle_mapping;
 
         if ( is_128bit_filter == uuid::is_128bit && static_cast< std::size_t >( end - output ) >= attribute_data_size )
         {
             std::uint8_t* const old_output = output;
 
-            output = details::write_handle( output, starting_index );
-            output = details::write_handle( output, starting_index + number_of_attributes -1 );
+            output = details::write_handle( output, mapping::handle_by_index( starting_index ) );
+            output = details::write_handle( output, mapping::handle_by_index( starting_index + number_of_attributes -1 ) );
 
             const details::attribute primary_service = attribute_at< CCCDIndices, ClientCharacteristicIndex, ServiceList, Server >( 0 );
 

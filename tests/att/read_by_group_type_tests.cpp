@@ -230,4 +230,34 @@ BOOST_FIXTURE_TEST_CASE( output_to_small_to_read_all_services, test::request_wit
     BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
 }
 
+using server_with_fixed_handles = bluetoe::server<
+    bluetoe::service<
+        bluetoe::attribute_handle< 0x0100 >,
+        bluetoe::service_uuid16< 0x1801 >,
+        bluetoe::characteristic<
+            bluetoe::attribute_handles< 0x1000, 0x2000, 0x3000 >,
+            bluetoe::characteristic_uuid16< 0x2A05 >,
+            bluetoe::indicate,
+            bluetoe::fixed_uint32_value< 0xFFFF0001 >
+        >
+    >,
+    test::cycling_speed_and_cadence_service,
+    bluetoe::no_gap_service_for_gatt_servers
+>;
+
+BOOST_FIXTURE_TEST_CASE( discover_services_with_fixed_handles, test::request_with_reponse< server_with_fixed_handles > )
+{
+    l2cap_input( { 0x10, 0x01, 0x00, 0xff, 0xff, 0x00, 0x28 } );
+
+    static const std::uint8_t expected_result[] = {
+        0x11, 0x06,                 // response code, size
+        0x00, 0x01, 0x00, 0x30,
+        0x01, 0x18,
+        0x01, 0x30, 0x05, 0x30,
+        0x16, 0x18
+    };
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( &response[ 0 ], &response[ response_size ], std::begin( expected_result ), std::end( expected_result ) );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
