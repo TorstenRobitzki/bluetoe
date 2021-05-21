@@ -410,8 +410,16 @@ namespace bluetoe {
             static const attribute attr;
             using uuid   = typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid;
 
+            using char_t = characteristic< Options... >;
+            static constexpr bool requires_encryption = characteristic_requires_encryption< char_t, Service, Server >::value;
+
             static details::attribute_access_result access( attribute_access_arguments& args, std::size_t )
             {
+                const auto security_result = details::encryption_requirements< requires_encryption >::check( args.connection_security );
+
+                if ( security_result != details::attribute_access_result::success )
+                    return security_result;
+
                 static constexpr std::size_t flags_size = 2;
                 std::uint8_t buffer[ flags_size ];
 

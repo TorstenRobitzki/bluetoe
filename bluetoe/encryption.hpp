@@ -26,7 +26,7 @@ namespace bluetoe {
      *        MITM Protection.
      *
      * Can be used on server, service or characteristic level to define that the access
-     * to a characteristic requires an encrypted link. If the link is not encrypted,
+     * to a characteristic value or CCCD, requires an encrypted link. If the link is not encrypted,
      * when accessing the characteristic, Bluetoe replies with an ATT Insufficient Authorization
      * error, if the requesting device is not paired and ATT Insufficient Encryption, if the
      * device is paired, but the link is not encrypted.

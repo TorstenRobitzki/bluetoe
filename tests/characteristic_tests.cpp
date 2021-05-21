@@ -608,6 +608,45 @@ BOOST_AUTO_TEST_SUITE( client_characteristic_configuration )
         BOOST_REQUIRE( attribute_by_type( 0x2902 ).access( write, 0 ) == bluetoe::details::attribute_access_result::invalid_offset );
     }
 
+    typedef bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x0815 >,
+        bluetoe::bind_characteristic_value< char, &simple_value >,
+        bluetoe::requires_encryption,
+        bluetoe::notify
+    > indicated_char_requires_encryption;
+
+    BOOST_FIXTURE_TEST_CASE( write_requires_encryption_insufficient_authentication, access_attributes< indicated_char_requires_encryption > )
+    {
+        static const std::uint8_t bytes_to_write[] = { 0x01, 0x00 };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( bytes_to_write, 0, client_configurations(),
+            bluetoe::connection_security_attributes( false, bluetoe::device_pairing_status::no_key ) );
+        auto rc    = attribute_by_type( 0x2902 ).access( write, 0 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::insufficient_authentication );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_requires_encryption_insufficient_encryption, access_attributes< indicated_char_requires_encryption > )
+    {
+        static const std::uint8_t bytes_to_write[] = { 0x01, 0x00 };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( bytes_to_write, 0, client_configurations(),
+            bluetoe::connection_security_attributes( false, bluetoe::device_pairing_status::unauthenticated_key ) );
+        auto rc    = attribute_by_type( 0x2902 ).access( write, 0 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::insufficient_encryption );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( write_requires_encryption_success, access_attributes< indicated_char_requires_encryption > )
+    {
+        static const std::uint8_t bytes_to_write[] = { 0x01, 0x00 };
+
+        auto write = bluetoe::details::attribute_access_arguments::write( bytes_to_write, 0, client_configurations(),
+            bluetoe::connection_security_attributes( true, bluetoe::device_pairing_status::unauthenticated_key ) );
+        auto rc    = attribute_by_type( 0x2902 ).access( write, 0 );
+
+        BOOST_CHECK( rc == bluetoe::details::attribute_access_result::success );
+    }
 
 BOOST_AUTO_TEST_SUITE_END()
 
