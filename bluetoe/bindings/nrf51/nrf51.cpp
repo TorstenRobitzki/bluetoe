@@ -17,6 +17,7 @@ namespace nrf51_details {
     static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
     static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
     static NRF_CCM_Type* const          nrf_ccm              = NRF_CCM;
+    static NRF_AAR_Type* const          nrf_aar              = NRF_AAR;
     static NVIC_Type* const             nvic                 = NVIC;
     static NRF_PPI_Type* const          nrf_ppi              = NRF_PPI;
     static scheduled_radio_base*        instance             = nullptr;
@@ -34,6 +35,7 @@ namespace nrf51_details {
     static constexpr std::size_t        compare0_txen_ppi_channel       = 20;
     static constexpr std::size_t        compare0_rxen_ppi_channel       = 21;
     static constexpr std::size_t        compare1_disable_ppi_channel    = 22;
+    static constexpr std::size_t        radio_bcmatch_aar_start_channel = 23;
 
     static constexpr std::uint8_t       more_data_flag = 0x10;
     static constexpr std::size_t        encryption_mic_size = 4;
@@ -42,6 +44,9 @@ namespace nrf51_details {
     static constexpr unsigned           us_radio_rx_startup_time            = 138;
     static constexpr unsigned           us_radio_tx_startup_time            = 140;
     static constexpr unsigned           connect_request_size                = 36;
+
+    // position of the connecting address (AdvA)
+    static constexpr unsigned           connect_addr_offset                 = 2 + 6;
 
 #   if defined BLUETOE_NRF51_RADIO_DEBUG
         static constexpr int debug_pin_end_crypt     = 11;
@@ -195,7 +200,8 @@ namespace nrf51_details {
               ( 1 << compare0_txen_ppi_channel )
             | ( 1 << compare0_rxen_ppi_channel )
             | ( 1 << compare1_disable_ppi_channel )
-            | ( 1 << radio_end_capture2_ppi_channel );
+            | ( 1 << radio_end_capture2_ppi_channel )
+            | ( 1 << radio_bcmatch_aar_start_channel );
 
         // The polynomial has the form of x^24 +x^10 +x^9 +x^6 +x^4 +x^3 +x+1
         NRF_RADIO->CRCPOLY   = 0x100065B;
@@ -298,6 +304,8 @@ namespace nrf51_details {
         return 80;
     }
 
+    static bool identity_resolving_enabled = false;
+
     void scheduled_radio_base::schedule_advertisment(
             unsigned                        channel,
             const link_layer::write_buffer& advertising_data,
@@ -323,7 +331,7 @@ namespace nrf51_details {
         NRF_RADIO->FREQUENCY   = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV = channel & 0x3F;
 
-        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
+        NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk | RADIO_SHORTS_ADDRESS_BCSTART_Msk;
         NRF_RADIO->PACKETPTR   = reinterpret_cast< std::uint32_t >( advertising_data.buffer );
         NRF_RADIO->PCNF1       = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( send_size << RADIO_PCNF1_MAXLEN_Pos );
 
@@ -335,6 +343,15 @@ namespace nrf51_details {
         NRF_RADIO->EVENTS_READY     = 0;
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_PAYLOAD   = 0;
+
+        if ( identity_resolving_enabled )
+        {
+            nrf_aar->EVENTS_END         = 0;
+            nrf_aar->EVENTS_RESOLVED    = 0;
+            nrf_aar->EVENTS_NOTRESOLVED = 0;
+
+            nrf_aar->ADDRPTR = reinterpret_cast< std::uint32_t >( receive_buffer_.buffer ) + connect_addr_offset;
+        }
 
         NRF_PPI->CHENCLR = ( 1 << compare0_rxen_ppi_channel );
         NRF_PPI->CHENSET =
@@ -381,6 +398,15 @@ namespace nrf51_details {
         static constexpr int          addr_size             = 6;
         static constexpr std::uint8_t tx_add_mask           = 0x40;
         static constexpr std::uint8_t rx_add_mask           = 0x80;
+
+        if ( identity_resolving_enabled )
+        {
+            while ( !nrf_aar->EVENTS_END )
+                ;
+
+            if ( nrf_aar->EVENTS_NOTRESOLVED )
+                return false;
+        }
 
         if ( receive_buffer_.buffer[ 1 ] != scan_request_size )
             return false;
@@ -583,7 +609,8 @@ namespace nrf51_details {
         if ( receive_encrypted_ )
         {
             NRF_PPI->CHENCLR =
-                  ( 1 << compare0_txen_ppi_channel );
+                  ( 1 << compare0_txen_ppi_channel )
+                | ( 1 << radio_bcmatch_aar_start_channel );
 
             NRF_PPI->CHENSET =
                 ( 1 << radio_address_ccm_crypt )
@@ -601,7 +628,8 @@ namespace nrf51_details {
                 | ( 1 << compare0_rxen_ppi_channel )
                 | ( 1 << compare1_disable_ppi_channel )
                 | ( 1 << radio_end_capture2_ppi_channel )
-                | ( 1 << radio_address_ccm_crypt );
+                | ( 1 << radio_address_ccm_crypt )
+                | ( 1 << radio_bcmatch_aar_start_channel );
 
             NRF_PPI->CHENSET       =
                   ( 1 << compare0_rxen_ppi_channel )
@@ -1074,6 +1102,28 @@ namespace nrf51_details {
     {
         tx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
         ccm_data_struct.data[ ccm_direction_offset ] = slave_to_master_ccm_direction;
+    }
+
+    void scheduled_radio_base_with_encryption_base::set_identity_resolving_key( const details::identity_resolving_key_t& irk )
+    {
+        static details::identity_resolving_key_t irk_storage;
+        irk_storage = irk;
+
+        identity_resolving_enabled = true;
+
+        // disable CCM
+        nrf_ccm->ENABLE   = CCM_ENABLE_ENABLE_Disabled;
+        nrf_ccm->INTENCLR = 0xFFFFFFFF;
+        nrf_ppi->CHENCLR  = ( 1 << radio_address_ccm_crypt );
+
+        // setup AAR
+        nrf_ppi->CHENSET    = ( 1 << radio_bcmatch_aar_start_channel );
+        nrf_radio->BCC      = 16 + 2 * ( 6 * 8 );
+        nrf_aar->SCRATCHPTR = scratch_area_save;
+        nrf_aar->IRKPTR     = reinterpret_cast< std::uint32_t >( &irk_storage );
+        nrf_aar->NIRK       = 1;
+
+        nrf_aar->ENABLE     = AAR_ENABLE_ENABLE_Msk;
     }
 
 } // namespace nrf51_details

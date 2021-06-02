@@ -15,6 +15,7 @@ namespace bluetoe {
 
     namespace details {
 
+        using identity_resolving_key_t = std::array< std::uint8_t, 16 >;
         using uint128_t = std::array< std::uint8_t, 16 >;
 
         /**
