@@ -39,6 +39,9 @@ namespace link_layer {
          */
         static random_device_address generate_static_random_address( std::uint32_t seed );
 
+        template < typename HashFunc >
+        static random_device_address generate_resolvable_private_address( const std::uint8_t* irk, std::uint32_t random, HashFunc hash_func );
+
         /**
          * @brief prints this in a human readable manner
          */
@@ -74,6 +77,8 @@ namespace link_layer {
          */
         const_iterator end() const;
     private:
+        static std::uint32_t create_prand( std::uint32_t rand );
+
         static constexpr std::size_t address_size_in_bytes = 6;
         std::uint8_t value_[ address_size_in_bytes ];
 
@@ -114,6 +119,42 @@ namespace link_layer {
         bool is_public() const
         {
             return !is_random_;
+        }
+
+        /**
+         *  @brief returns true, if the given address is a static device address
+         *
+         * @pre is_random() == true
+         */
+        bool is_static() const
+        {
+            return ( *( end() - 1 ) & 0xC0 ) == 0xC0;
+        }
+
+        /**
+         * @brief returns true, if the given address is not a static device address
+         *
+         * @pre is_random() == true
+         */
+        bool is_private() const
+        {
+            const auto v = *( end() - 1 ) & 0xC0;
+            return v == 0x40 || v == 0x00;
+        }
+
+        /**
+         * @brief returns true, if the given address is private and resolvable
+         *
+         * @pre is_random() == true
+         */
+        bool is_resolvable() const
+        {
+            return ( *( end() - 1 ) & 0xC0 ) == 0x40;
+        }
+
+        bool is_random_resolvable() const
+        {
+            return is_random() && is_resolvable();
         }
 
         using address::operator==;
@@ -213,6 +254,23 @@ namespace link_layer {
         explicit random_device_address( const std::uint8_t* initial_values )
             : device_address( initial_values, true ) {}
     };
+
+    template < typename HashFunc >
+    random_device_address address::generate_resolvable_private_address( const std::uint8_t* irk, std::uint32_t random, HashFunc hash_func )
+    {
+        const std::uint32_t prand = create_prand( random );
+        const std::uint32_t hash = hash_func( irk, prand );
+
+        std::uint8_t initial_values[ address_size_in_bytes ] = {
+            static_cast<uint8_t>( prand >> 16 ),
+            static_cast<uint8_t>( prand >> 8 ),
+            static_cast<uint8_t>( prand ),
+            static_cast<uint8_t>( hash >> 16 ),
+            static_cast<uint8_t>( hash >> 8 ),
+            static_cast<uint8_t>( hash ) };
+
+        return random_device_address( initial_values );
+    }
 
 }
 

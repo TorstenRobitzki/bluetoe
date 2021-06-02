@@ -60,6 +60,17 @@ namespace link_layer {
         return std::end( value_ );
     }
 
+    std::uint32_t address::create_prand( std::uint32_t rand )
+    {
+        rand = ( rand & 0x007fffff ) | 0x00400000;
+
+        // random part of prand should not contain only 0s or 1s
+        if ( rand == 0x007fffff || rand == 0x00400000 )
+            rand = rand ^ 0x01;
+
+        return rand;
+    }
+
     device_address::device_address()
         : address()
         , is_random_( true )
@@ -76,5 +87,7 @@ namespace link_layer {
     {
         return !( *this == rhs );
     }
+
+
 }
 }
