@@ -205,6 +205,14 @@ namespace bluetoe
                 tx_counter_.increment();
             }
 
+            /**
+             * @brief sets an IRK filter for incomming scan requests and connection requests
+             *
+             * Has to be called when the radio is not in a connection or after disconnected.
+             * Experimental!
+             */
+            void set_identity_resolving_key( const details::identity_resolving_key_t& irk );
+
         private:
             void load_receive_packet_counter();
 
