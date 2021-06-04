@@ -59,6 +59,7 @@ namespace bluetoe {
                     ServiceChangedCharDeclarationHandle,
                     ServiceChangedCharValueHandle,
                     ServiceChangedCahrCCCDHandle >,
+                service_changed_uuid,
                 indicate,
                 no_read_access,
                 fixed_uint32_value< 0xFFFF0001 >
