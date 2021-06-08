@@ -24,7 +24,6 @@ namespace bluetoe {
         using service_changed_characteristic = characteristic<
             service_changed_uuid,
             indicate,
-            no_read_access,
             fixed_uint32_value< 0xFFFF0001 >
         >;
 
@@ -61,7 +60,6 @@ namespace bluetoe {
                     ServiceChangedCahrCCCDHandle >,
                 service_changed_uuid,
                 indicate,
-                no_read_access,
                 fixed_uint32_value< 0xFFFF0001 >
             >
         >;
