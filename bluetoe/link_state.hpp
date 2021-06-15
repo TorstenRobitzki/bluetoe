@@ -56,8 +56,10 @@ namespace details {
 
         /**
          * @brief set the current encryption status
+         *
+         * Returns true, if the value changed.
          */
-        void is_encrypted( bool encrypted );
+        bool is_encrypted( bool encrypted );
 
         /**
          * @brief returns the pairing state of the local device with the remote device for this link
@@ -125,9 +127,12 @@ namespace details {
     }
 
     template < class ATTState >
-    void link_state< ATTState >::is_encrypted( bool encrypted )
+    bool link_state< ATTState >::is_encrypted( bool encrypted )
     {
+        const bool result = encrypted_ != encrypted;
         encrypted_ = encrypted;
+
+        return result;
     }
 
     template < class ATTState >
