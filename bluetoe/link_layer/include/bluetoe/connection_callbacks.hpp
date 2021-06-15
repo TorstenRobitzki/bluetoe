@@ -183,7 +183,7 @@ namespace link_layer {
                     Radio& ) {}
 
                 template < class Radio >
-                void connection_changed(  const bluetoe::link_layer::connection_details&, typename Server::connection_data&, Radio& ) {}
+                void connection_changed(  const bluetoe::link_layer::connection_details&, typename Server::connection_data&, typename Server::connection_data&, Radio& ) {}
 
                 template < class Radio >
                 void connection_closed( typename Server::connection_data&, Radio& ) {}

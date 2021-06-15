@@ -122,6 +122,9 @@ namespace link_layer {
                 {
                     using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
+                    bool encryption_changed = false;
+                    bool result = true;
+
                     if ( opcode == LinkLayer::LL_ENC_REQ && size == 23 )
                     {
                         encryption_in_progress_ = true;
@@ -150,27 +153,30 @@ namespace link_layer {
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
                         that().start_transmit_encrypted();
-                        that().connection_details_.is_encrypted( true );
+                        encryption_changed = that().connection_details_.is_encrypted( true );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
                         that().stop_receive_encrypted();
-                        that().connection_details_.is_encrypted( false );
+                        encryption_changed = that().connection_details_.is_encrypted( false );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_RSP && size == 1 )
                     {
                         that().stop_transmit_encrypted();
-                        that().connection_details_.is_encrypted( false );
+                        encryption_changed = that().connection_details_.is_encrypted( false );
 
-                        return false;
+                        result = false;
                     }
                     else
                     {
-                        return false;
+                        result = false;
                     }
 
-                    return true;
+                    if ( encryption_changed )
+                        that().connection_changed( that().details(), that().connection_details_, static_cast< typename LinkLayer::radio_t& >( that() ) );
+
+                    return result;
                 }
 
                 void transmit_pending_security_pdus()
