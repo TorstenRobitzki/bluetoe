@@ -715,9 +715,13 @@ namespace bluetoe {
             {
                 *output = bits( details::att_opcodes::notification );
                 details::write_handle( output +1, handle_mapping::handle_by_index( data.attribute_table_index() ) );
-            }
 
-            out_size = 3 + read.buffer_size;
+                out_size = 3 + read.buffer_size;
+            }
+            else
+            {
+                out_size = 0;
+            }
         }
         else
         {
@@ -748,9 +752,13 @@ namespace bluetoe {
             {
                 *output = bits( details::att_opcodes::indication );
                 details::write_handle( output +1, handle_mapping::handle_by_index( details.attribute_table_index() ) );
-            }
 
-            out_size = 3 + read.buffer_size;
+                out_size = 3 + read.buffer_size;
+            }
+            else
+            {
+                out_size = 0;
+            }
         }
         else
         {
