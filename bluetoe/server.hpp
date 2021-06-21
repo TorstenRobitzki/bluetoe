@@ -408,6 +408,11 @@ namespace bluetoe {
 
         switch ( opcode )
         {
+        // do not respond to an error response:
+        case details::att_opcodes::error_response:
+            out_size = 0;
+            break;
+
         case details::att_opcodes::exchange_mtu_request:
             handle_exchange_mtu_request( input, in_size, output, out_size, connection );
             break;
