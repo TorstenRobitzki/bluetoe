@@ -194,9 +194,7 @@ namespace link_layer {
                     }
                     else
                     {
-                        fill< layout_t >( out_buffer, {
-                            LinkLayer::ll_control_pdu_code, 2, LinkLayer::LL_REJECT_IND, LinkLayer::err_pin_or_key_missing } );
-
+                        that().reject( LinkLayer::LL_ENC_REQ, LinkLayer::err_pin_or_key_missing, out_buffer );
                         that().commit_transmit_buffer( out_buffer );
                     }
 
@@ -401,6 +399,7 @@ namespace link_layer {
         void transmit_notifications();
         void transmit_signaling_channel_output();
         void transmit_pending_control_pdus();
+        void reject( std::uint8_t opcode, std::uint8_t error_code, read_buffer& output );
 
         static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
 
@@ -445,6 +444,7 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_REJECT_IND               = 0x0D;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_REQ     = 0x0F;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
+        static constexpr std::uint8_t   LL_REJECT_IND_EXT           = 0x11;
         static constexpr std::uint8_t   LL_PING_REQ                 = 0x12;
         static constexpr std::uint8_t   LL_PING_RSP                 = 0x13;
 
@@ -475,6 +475,7 @@ namespace link_layer {
 
         static constexpr std::uint8_t   supported_features =
             link_layer_feature::connection_parameters_request_procedure |
+            link_layer_feature::extended_reject_indication |
             link_layer_feature::le_ping |
             ( bluetoe::details::requires_encryption_support_t< Server >::value
                 ? link_layer_feature::le_encryption
@@ -893,6 +894,21 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::reject( std::uint8_t opcode, std::uint8_t error_code, read_buffer& output )
+    {
+        if ( used_features_ & link_layer_feature::extended_reject_indication )
+        {
+            fill< layout_t >( output, {
+                ll_control_pdu_code, 3, LL_REJECT_IND_EXT, opcode, error_code } );
+        }
+        else
+        {
+            fill< layout_t >( output, {
+                ll_control_pdu_code, 2, LL_REJECT_IND, error_code } );
+        }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type )
     {
         auto& confirmation_queue = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( usr_arg )->connection_details_;
@@ -1128,7 +1144,8 @@ namespace link_layer {
                 } );
             }
             else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 && body[ 1 ] == LL_CONNECTION_PARAM_REQ )
-                || opcode == LL_REJECT_IND )
+                || opcode == LL_REJECT_IND
+                || ( opcode == LL_REJECT_IND_EXT && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
             {
                 if ( connection_parameters_request_running_ )
                 {
