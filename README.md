@@ -1,38 +1,40 @@
 # Bluetoe [![Build Status](https://travis-ci.org/TorstenRobitzki/bluetoe.svg?branch=master)](https://travis-ci.org/TorstenRobitzki/bluetoe) [![Join the chat at https://gitter.im/TorstenRobitzki/bluetoe](https://badges.gitter.im/TorstenRobitzki/bluetoe.svg)](https://gitter.im/TorstenRobitzki/bluetoe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/TorstenRobitzki/bluetoe.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/TorstenRobitzki/bluetoe/context:cpp)
 ## Overview
 
-Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is a complete example of a small GATT server, that allows a client to controll an IO pin, running on a nrf51422:
+Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is a complete example of a small GATT server, that allows a client to controll an IO pin, running on a nrf52832:
 
     #include <bluetoe/server.hpp>
-    #include <bluetoe/bindings/nrf51.hpp>
+    #include <bluetoe/device.hpp>
     #include <nrf.h>
 
     using namespace bluetoe;
 
-    static constexpr int io_pin = 19;
+    // LED1 on a nRF52 eval board
+    static constexpr int io_pin = 17;
 
     static std::uint8_t io_pin_write_handler( bool state )
     {
-        // the GPIO pin according to the received value: 0 = off, 1 = on
+        // on an nRF52 eval board, the pin is connected to the LED's cathode, this inverts the logic.
         NRF_GPIO->OUT = state
-            ? NRF_GPIO->OUT | ( 1 << io_pin )
-            : NRF_GPIO->OUT & ~( 1 << io_pin );
+            ? NRF_GPIO->OUT & ~( 1 << io_pin )
+            : NRF_GPIO->OUT | ( 1 << io_pin );
 
         return error_codes::success;
     }
 
-    typedef server<
+    using blinky_server = server<
         service<
             service_uuid< 0xC11169E1, 0x6252, 0x4450, 0x931C, 0x1B43A318783B >,
             characteristic<
+                requires_encryption,
                 free_write_handler< bool, io_pin_write_handler >
             >
         >
-    > blinky_server;
+    >;
 
     blinky_server gatt;
 
-    nrf51< blinky_server > gatt_srv;
+    device< blinky_server > gatt_srv;
 
     int main()
     {
@@ -51,7 +53,7 @@ http://torstenrobitzki.github.io/bluetoe/
 
 ## L2CAP
 
-Bluetoe ships with its own link layer. Currently a link layer based on the nrf51422 is under construction and is already usable. The link layer implementation will be based and tested on an abstract device, called a scheduled radio and should be easily ported to similar hardware. As Bluetoe is a GATT server implementation, only that parts of the link layer are implemented, that are nessary. Bluetoe can easily adapted to any other existing L2CAP implementation (based on HCI for example).
+Bluetoe ships with its own link layer. Currently a link layer based on the nrf52832 is implemented and usable. The link layer implementation will be based and tested on an abstract device, called a scheduled radio and should be easily ported to similar hardware. As Bluetoe is a GATT server implementation, only that parts of the link layer are implemented, that are nessary. Bluetoe can easily adapted to any other existing L2CAP implementation (based on HCI for example).
 
 ## Current State
 
