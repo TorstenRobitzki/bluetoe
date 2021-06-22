@@ -263,3 +263,59 @@ BOOST_AUTO_TEST_CASE( service_requires_encryption_by_default_but_characteristic 
     BOOST_CHECK(( !bluetoe::details::characteristic_requires_encryption< char_1, service_1, server >::value ));
     BOOST_CHECK(( !bluetoe::details::characteristic_requires_encryption< char_no_enc, service_2, server >::value ));
 }
+
+BOOST_AUTO_TEST_CASE( server_may_require_encryption )
+{
+    using service = bluetoe::service<
+        service_uuid,
+        char_1
+    >;
+
+    using server = bluetoe::server<
+        bluetoe::may_require_encryption,
+        service
+    >;
+
+    BOOST_CHECK( bluetoe::details::requires_encryption_support_t< server >::value );
+    BOOST_CHECK(( !bluetoe::details::characteristic_requires_encryption< char_1, service, server >::value ));
+}
+
+BOOST_AUTO_TEST_CASE( service_may_require_encryption )
+{
+    using service = bluetoe::service<
+        bluetoe::may_require_encryption,
+        service_uuid,
+        char_1
+    >;
+
+    using server = bluetoe::server<
+        bluetoe::no_encryption_required,
+        service
+    >;
+
+    BOOST_CHECK( bluetoe::details::requires_encryption_support_t< server >::value );
+    BOOST_CHECK(( !bluetoe::details::characteristic_requires_encryption< char_1, service, server >::value ));
+}
+
+BOOST_AUTO_TEST_CASE( characteristic_may_require_encryption )
+{
+    using char_1 = bluetoe::characteristic<
+        bluetoe::bind_characteristic_value< decltype( dummy_val ), &dummy_val >,
+        char_uuid,
+        bluetoe::may_require_encryption
+    >;
+
+    using service = bluetoe::service<
+        bluetoe::no_encryption_required,
+        service_uuid,
+        char_1
+    >;
+
+    using server = bluetoe::server<
+        bluetoe::no_encryption_required,
+        service
+    >;
+
+    BOOST_CHECK( bluetoe::details::requires_encryption_support_t< server >::value );
+    BOOST_CHECK(( !bluetoe::details::characteristic_requires_encryption< char_1, service, server >::value ));
+}
