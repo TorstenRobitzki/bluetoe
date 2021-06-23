@@ -256,22 +256,26 @@ namespace bluetoe {
 
             static_assert( !std::is_same< uuid, no_such_type >::value, "If instanciating a characteristic<> for testing, please provide a UUID." );
 
-            static constexpr bool auto_generated_uuid = std::is_same< char_uuid, no_such_type >::value;
+            static constexpr bool auto_generated_uuid   = std::is_same< char_uuid, no_such_type >::value;
         };
 
         /*
          * Characteristic declaration
          */
-        template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server, typename ... Options >
-        struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >
+        template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... ServiceOptions, typename Server, typename ... Options >
+        struct generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, service< ServiceOptions...>, Server, Options... >
         {
-            typedef typename characteristic_or_service_uuid< typename Service::uuid, Options... >::uuid     uuid;
-            typedef typename characteristic< Options... >::value_type                                       value_type;
+            using characteristic_or_service_uuid_t = characteristic_or_service_uuid< typename service< ServiceOptions... >::uuid, Options... >;
+            using uuid       = typename characteristic_or_service_uuid_t::uuid;
+            using value_type = typename characteristic< Options... >::value_type;
 
             static void fixup_auto_uuid( details::attribute_access_arguments& args )
             {
-                // needs a 16 bit characteristic index!!!
-                std::uint16_t char_index = 1;
+                using characteristics_t = typename find_all_by_meta_type<
+                    details::characteristic_meta_type,
+                    ServiceOptions... >::type;
+
+                std::uint16_t char_index = index_of< characteristic< Options... >, characteristics_t >::value + 1;
 
                 static constexpr std::size_t uuid_offset = 3;
 
@@ -308,7 +312,6 @@ namespace bluetoe {
                 };
 
                 const std::uint16_t value_attribute_handle = handle_index_mapping< Server >::handle_by_index( attribute_index + 1 );
-
                 assert( value_attribute_handle != details::invalid_attribute_handle );
 
                 const std::uint8_t value_handle[] = {
@@ -323,7 +326,7 @@ namespace bluetoe {
 
                 details::scattered_read_access( args.buffer_offset, properties, value_handle, uuid::bytes, args.buffer, args.buffer_size );
 
-                if ( characteristic_or_service_uuid< typename Service::uuid, Options... >::auto_generated_uuid )
+                if ( characteristic_or_service_uuid_t::auto_generated_uuid )
                     fixup_auto_uuid( args );
 
                 args.buffer_size = std::min< std::size_t >( data_size - args.buffer_offset, args.buffer_size );
@@ -334,10 +337,10 @@ namespace bluetoe {
             static const attribute attr;
         };
 
-        template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename Service, typename Server, typename ... Options >
-        const attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >::attr {
+        template < typename ... AttrOptions, typename CCCDIndices, std::size_t ClientCharacteristicIndex, typename ... ServiceOptions, typename Server, typename ... Options >
+        const attribute generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, service< ServiceOptions... > , Server, Options... >::attr {
             bits( details::gatt_uuids::characteristic ),
-            &generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >::char_declaration_access
+            &generate_attribute< std::tuple< characteristic_declaration_parameter, AttrOptions... >, CCCDIndices, ClientCharacteristicIndex, service< ServiceOptions... >, Server, Options... >::char_declaration_access
         };
 
         /*
@@ -515,12 +518,6 @@ namespace bluetoe {
             UUID,
             &generate_attribute< std::tuple< descriptor_parameter, descriptor< UUID, Value, Size > >, CCCDIndices, ClientCharacteristicIndex, Service, Server, Options... >::access
         };
-
-        template < typename Parmeters >
-        struct are_client_characteristic_configuration_parameter : std::false_type {};
-
-        template < typename ... Ts >
-        struct are_client_characteristic_configuration_parameter< std::tuple< client_characteristic_configuration_parameter, Ts... > > : std::true_type {};
 
         template < typename CCCDIndices, typename ... Options >
         struct generate_characteristic_attributes : generate_attributes<
