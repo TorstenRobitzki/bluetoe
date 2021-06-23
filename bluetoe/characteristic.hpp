@@ -257,6 +257,9 @@ namespace bluetoe {
             static_assert( !std::is_same< uuid, no_such_type >::value, "If instanciating a characteristic<> for testing, please provide a UUID." );
 
             static constexpr bool auto_generated_uuid   = std::is_same< char_uuid, no_such_type >::value;
+            static constexpr bool serice_uuid_is_16_bit = count_by_meta_type< details::service_uuid_16_meta_type, ServiceUUID >::count;
+
+            static_assert( !( auto_generated_uuid && serice_uuid_is_16_bit ), "No support for automatic generated characteristic UUIDs, if the containing service has not 128 bit UUID" );
         };
 
         /*

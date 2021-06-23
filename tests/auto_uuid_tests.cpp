@@ -26,10 +26,12 @@ BOOST_AUTO_TEST_SUITE( implicit_characteristic_uuid )
         bluetoe::characteristic<
             bluetoe::bind_characteristic_value< decltype( z_pos ), &z_pos >
         >,
-        bluetoe::service_uuid< 0xD7E08435, 0xA713, 0x4A51, 0x92DB, 0x004A8C63B6F8 >
-    >;
 
-    using srv = bluetoe::server< auto_uuid_service >;
+        bluetoe::service_uuid< 0xD7E08435, 0xA713, 0x4A51, 0x92DB, 0x004A8C63B6F8 >
+
+        // if this is changed to a 16 bit UUID, it should not compile
+        //bluetoe::service_uuid16< 0x0815 >
+    >;
 
     BOOST_FIXTURE_TEST_CASE( check_expected_number_of_attributes, auto_uuid_service )
     {
@@ -54,7 +56,7 @@ BOOST_AUTO_TEST_SUITE( implicit_characteristic_uuid )
             std::uint8_t uuid[ 16 ] = { 0 };
 
             auto read = blued::attribute_access_arguments::read( uuid, 3 );
-            auto attr = attribute_at< std::tuple<>, 0, std::tuple< auto_uuid_service >, srv >( attribute_indices[ attribute_index ] );
+            auto attr = attribute_at< std::tuple<>, 0, std::tuple< auto_uuid_service >, bluetoe::server< auto_uuid_service > >( attribute_indices[ attribute_index ] );
 
             auto result = attr.access( read, attribute_indices[ attribute_index ] );
             BOOST_CHECK( result == blued::attribute_access_result::success );
@@ -62,5 +64,6 @@ BOOST_AUTO_TEST_SUITE( implicit_characteristic_uuid )
             BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( expected_char_uuid ), std::end( expected_char_uuid ), std::begin( uuid ), std::begin( uuid ) + read.buffer_size );
         }
     }
+
 
 BOOST_AUTO_TEST_SUITE_END()

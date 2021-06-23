@@ -344,6 +344,7 @@ using pizza_service = bluetoe::service<
     pizza_service_uuid,
     bluetoe::include_service< beverages_service_uuid >,
     bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1234 >,
         bluetoe::fixed_uint8_value< 0x42 >
     >
 >;
@@ -351,6 +352,7 @@ using pizza_service = bluetoe::service<
 using beverages_service = bluetoe::service<
     beverages_service_uuid,
     bluetoe::characteristic<
+        bluetoe::characteristic_uuid16< 0x1235 >,
         bluetoe::fixed_uint8_value< 0x42 >
     >
 >;

@@ -53,6 +53,7 @@ using server_with_single_fixed_service = bluetoe::server<
         bluetoe::attribute_handle< 0x0100 >,
         bluetoe::service_uuid16< 0x0815 >,
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0816 >,
             bluetoe::fixed_uint8_value< 0x42 >
         >
     >
@@ -77,7 +78,7 @@ BOOST_FIXTURE_TEST_SUITE( mapping_single_fixed_service, fixture< server_with_sin
         check_attribute( 1, {
             0x02,                   // Properties: Read
             0x02, 0x01,             // Characteristic Value Attribute Handle: 0x0102
-            0x15, 0x08
+            0x16, 0x08              // Characteristic UUID
         } );
     }
 
@@ -111,6 +112,7 @@ using server_with_single_not_fixed_service = bluetoe::server<
     bluetoe::service<
         bluetoe::service_uuid16< 0x0815 >,
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0816 >,
             bluetoe::fixed_uint8_value< 0x42 >
         >
     >
@@ -131,7 +133,7 @@ BOOST_FIXTURE_TEST_SUITE( mapping_single_service, fixture< server_with_single_no
         check_attribute( 1, {
             0x02,                   // Properties: Read
             0x03, 0x00,             // Characteristic Value Attribute Handle: 0x0003
-            0x15, 0x08
+            0x16, 0x08              // Characteristic UUID
         } );
     }
 
@@ -541,10 +543,12 @@ using server_with_multiple_fixed_attributes_handles = bluetoe::server<
         bluetoe::service_uuid16< 0x0816 >,
 
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0816 >,
             bluetoe::attribute_handles< 0x50, 0x52 >,
             bluetoe::fixed_uint8_value< 0x42 >
         >,
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0817 >,
             bluetoe::attribute_handles< 0x60, 0x62, 0x64 >,
             bluetoe::fixed_uint8_value< 0x43 >,
             bluetoe::notify
@@ -553,10 +557,12 @@ using server_with_multiple_fixed_attributes_handles = bluetoe::server<
     bluetoe::service<
         bluetoe::service_uuid16< 0x0815 >,
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0816 >,
             bluetoe::fixed_uint8_value< 0x44 >,
             bluetoe::notify
         >,
         bluetoe::characteristic<
+            bluetoe::characteristic_uuid16< 0x0818 >,
             bluetoe::attribute_handles< 0x100, 0x101 >,
             bluetoe::fixed_uint8_value< 0x45 >
         >
@@ -649,7 +655,7 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixtur
         check_attribute( 1, {
             0x02,                   // Properties: Read
             0x52, 0x00,             // Characteristic Value Attribute Handle: 0x0052
-            0x16, 0x08
+            0x16, 0x08              // Characteristic UUID
         } );
         check_attribute( 2, { 0x42 } ); // Value
 
@@ -657,7 +663,7 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixtur
         check_attribute( 3, {
             0x12,                   // Properties: Read, Notify
             0x62, 0x00,             // Characteristic Value Attribute Handle: 0x0062
-            0x16, 0x08
+            0x17, 0x08              // Characteristic UUID
         } );
         check_attribute( 4, { 0x43 } ); // Value
         check_attribute( 5, { 0x00, 0x00 } ); // CCCD configuration
@@ -671,7 +677,7 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixtur
         check_attribute( 7, {
             0x12,                   // Properties: Read, Notify
             0x67, 0x00,             // Characteristic Value Attribute Handle: 0x0067
-            0x15, 0x08
+            0x16, 0x08              // Characteristic UUID
         } );
         check_attribute( 8, { 0x44 } ); // Value
         check_attribute( 9, { 0x00, 0x00 } ); // CCCD configuration
@@ -680,7 +686,7 @@ BOOST_FIXTURE_TEST_SUITE( mapping_with_multiple_fixed_attributes_handles, fixtur
         check_attribute( 10, {
             0x02,                   // Properties: Read
             0x01, 0x01,             // Characteristic Value Attribute Handle: 0x0101
-            0x15, 0x08
+            0x18, 0x08              // Characteristic UUID
         } );
         check_attribute( 11, { 0x45 } ); // Value
     }
