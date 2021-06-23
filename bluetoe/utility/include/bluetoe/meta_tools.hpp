@@ -404,7 +404,7 @@ namespace details {
     };
 
     /**
-     * @brief just like group_by_meta_types, but the result has all std::pair<> removed
+     * @brief just like group_by_meta_types, but the result has all std::tuple<> removed
      */
     template <
         typename Types,
