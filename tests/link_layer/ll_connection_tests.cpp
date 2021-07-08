@@ -407,6 +407,91 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_instance, unconnected
     BOOST_CHECK_EQUAL( connection_events().size(), 1u );
 }
 
+/*
+ * Test starts by having a LL_CONNECTION_UPDATE_REQ at the instances connection event,
+ * the server does not send a PDU. The slave still have to maintain the connection and
+ * have to listen for the master the next but one connection interval.
+ *
+ * The masters clock accuracy is 50ppm and the slave is configured with
+ * the default of 500ppm (in sum 550ppm).
+ */
+BOOST_FIXTURE_TEST_CASE( connection_update_missing_master_pdu_at_instannce, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( 6, 3, 6, 66, 198, 6 );
+    add_empty_pdus( *this, 5 );
+    add_connection_event_respond_timeout();
+    add_empty_pdus( *this, 5 );
+
+    run();
+
+    const auto next        = connection_events().at( 7 );
+
+    // transmitWindowSize   = 7.5ms
+    // transmitWindowOffset = 3.75ms
+    // connIntervalOLD      = 30ms
+    // connIntervalnew      = 7.5ms
+
+    // connIntervalOLD + transmitWindowOffset + connIntervalnew
+    bluetoe::link_layer::delta_time window_start( 3750 + 7500 + 30000 );
+    // connIntervalOLD + transmitWindowOffset + connIntervalnew + transmitWindowSize
+    bluetoe::link_layer::delta_time window_end = window_start + bluetoe::link_layer::delta_time( 7500 );
+
+    window_start -= window_start.ppm( 550 );
+    window_end   += window_end.ppm( 550 );
+
+    BOOST_REQUIRE_LT( window_start, window_end );
+
+    BOOST_CHECK_EQUAL( next.start_receive, window_start );
+    BOOST_CHECK_EQUAL( next.end_receive, window_end );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_update_missing_master_pdu_before_and_at_instannce, unconnected )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    add_connection_update_request( 6, 3, 6, 66, 198, 6 );
+    add_empty_pdus( *this, 4 );
+    add_connection_event_respond_timeout();
+    add_connection_event_respond_timeout();
+    add_empty_pdus( *this, 5 );
+
+    run();
+
+    const auto before      = connection_events().at( 5 );
+    const auto at_instance = connection_events().at( 6 );
+    const auto behind      = connection_events().at( 7 );
+
+    // transmitWindowSize   = 7.5ms
+    // transmitWindowOffset = 3.75ms
+    // connIntervalOLD      = 30ms
+    // connIntervalnew      = 7.5ms
+
+    // the first missing connection event was scheduled at connIntervalOLD based on prior connection events
+    // ancor point.
+
+    // connIntervalOLD + transmitWindowOffset + connIntervalnew
+    bluetoe::link_layer::delta_time window_start( 30000 );
+    // connIntervalOLD + transmitWindowOffset + connIntervalnew + transmitWindowSize
+    bluetoe::link_layer::delta_time window_end = window_start;
+
+    BOOST_CHECK_EQUAL( before.start_receive, window_start - window_start.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( before.end_receive, window_end + window_end.ppm( 550 ) );
+
+    // the next connection event is then the instance
+    window_start = bluetoe::link_layer::delta_time( 3750 + 30000 + 30000 );
+    window_end   = window_start + bluetoe::link_layer::delta_time( 7500 );
+
+    BOOST_CHECK_EQUAL( at_instance.start_receive, window_start - window_start.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( at_instance.end_receive, window_end + window_end.ppm( 550 ) );
+
+    // the event after the missing event at instance is moved further by connIntervalnew
+    window_start += bluetoe::link_layer::delta_time( 7500 );
+    window_end   = window_start + bluetoe::link_layer::delta_time( 7500 );
+
+    BOOST_CHECK_EQUAL( behind.start_receive, window_start - window_start.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( behind.end_receive, window_end + window_end.ppm( 550 ) );
+}
+
 BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
