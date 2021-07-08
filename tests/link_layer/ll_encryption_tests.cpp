@@ -108,7 +108,7 @@ BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request_with_security_enabled, l
     expected_response( {
         0x03, 0x09,
         0x09,
-        0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     } );
 }
 
@@ -195,8 +195,9 @@ BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_wi
     } );
 
     expected_response( {
-        0x03, 0x02,
-        0x0D,                                   // LL_REJECT_IND
+        0x03, 0x03,
+        0x11,                                   // LL_REJECT_IND_EXT
+        0x03,                                   // LL_ENC_REQ
         0x06                                    // ErrorCode
     }, 1, 1 );
 

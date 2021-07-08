@@ -107,11 +107,15 @@ namespace bluetoe {
     /**
      * @brief defines that a characteristic may require encyption
      *
-     * The declaration forces bluetoe add the required code for encrypting
+     * The declaration forces bluetoe to add the required code for supporting encrypted
      * links. Basecally this means that a custom characterstic read or write handler
      * may require encryption under specific circumstances.
      *
      * This option can be passed to a server, service or a characteristic declaration.
+     *
+     * @attention For characteristic value bindings that determine the ATT error code
+     *            on their own, this basecally mean, that the characteristic does _not_
+     *            require encryption!
      *
      * @sa requires_encryption
      * @sa no_encryption_required
@@ -154,8 +158,10 @@ namespace bluetoe {
         struct encryption_default
         {
             static bool constexpr require_encryption =
-                details::has_option< requires_encryption, Options... >::value
-             || details::has_option< may_require_encryption, Options... >::value;
+                details::has_option< requires_encryption, Options... >::value;
+
+            static bool constexpr may_require =
+                details::has_option< may_require_encryption, Options... >::value;
 
             static bool constexpr require_not_encryption =
                  details::has_option< no_encryption_required, Options... >::value;
@@ -171,11 +177,12 @@ namespace bluetoe {
                 ( require_encryption && !require_not_encryption )
              || ( !require_encryption && !require_not_encryption && Default );
 
+            static bool constexpr maybe = value || may_require;
         };
 
         template < typename ... Options, bool Default >
         struct requires_encryption_support_t< bluetoe::server< Options... >, Default > {
-            static bool constexpr default_val = encryption_default< Default, Options... >::value;
+            static bool constexpr default_val = encryption_default< Default, Options... >::maybe;
 
             static bool constexpr value =
                 requires_encryption_support_t<
@@ -185,7 +192,7 @@ namespace bluetoe {
 
         template < typename ... Options, bool Default >
         struct requires_encryption_support_t< bluetoe::service< Options... >, Default > {
-            static bool constexpr default_val = encryption_default< Default, Options... >::value;
+            static bool constexpr default_val = encryption_default< Default, Options... >::maybe;
 
             static bool constexpr value =
                 requires_encryption_support_t<
@@ -196,7 +203,7 @@ namespace bluetoe {
         template < typename ... Options, bool Default >
         struct requires_encryption_support_t< bluetoe::characteristic< Options... >, Default > {
             // @TODO the default for a characteristic should always be true
-            static bool constexpr value = encryption_default< Default, Options... >::value;
+            static bool constexpr value = encryption_default< Default, Options... >::maybe;
         };
 
         template < typename Characteristic, typename Service, typename Server >

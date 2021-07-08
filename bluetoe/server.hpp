@@ -408,6 +408,11 @@ namespace bluetoe {
 
         switch ( opcode )
         {
+        // do not respond to an error response:
+        case details::att_opcodes::error_response:
+            out_size = 0;
+            break;
+
         case details::att_opcodes::exchange_mtu_request:
             handle_exchange_mtu_request( input, in_size, output, out_size, connection );
             break;
@@ -715,9 +720,13 @@ namespace bluetoe {
             {
                 *output = bits( details::att_opcodes::notification );
                 details::write_handle( output +1, handle_mapping::handle_by_index( data.attribute_table_index() ) );
-            }
 
-            out_size = 3 + read.buffer_size;
+                out_size = 3 + read.buffer_size;
+            }
+            else
+            {
+                out_size = 0;
+            }
         }
         else
         {
@@ -748,9 +757,13 @@ namespace bluetoe {
             {
                 *output = bits( details::att_opcodes::indication );
                 details::write_handle( output +1, handle_mapping::handle_by_index( details.attribute_table_index() ) );
-            }
 
-            out_size = 3 + read.buffer_size;
+                out_size = 3 + read.buffer_size;
+            }
+            else
+            {
+                out_size = 0;
+            }
         }
         else
         {

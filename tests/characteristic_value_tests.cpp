@@ -465,4 +465,23 @@ BOOST_AUTO_TEST_SUITE( encryption_tests )
 
     BOOST_AUTO_TEST_SUITE_END()
 
+    BOOST_AUTO_TEST_SUITE( may_require_encrytion_tests )
+
+        using maybe_char = bluetoe::characteristic<
+            bluetoe::may_require_encryption,
+            bluetoe::characteristic_uuid16< 0xD0B1 >,
+            bluetoe::free_read_handler< test_handler >
+        >;
+
+        BOOST_AUTO_TEST_CASE( read_maybe_encrypted )
+        {
+            access_attributes< maybe_char > c;
+
+            BOOST_CHECK_EQUAL(
+                static_cast< int >( c.read_attribute_at( { 44 }, 1, 0, 23 ) ),
+                static_cast< int >( bluetoe::error_codes::success ) );
+        }
+
+    BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

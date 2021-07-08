@@ -210,3 +210,36 @@ BOOST_AUTO_TEST_SUITE( notify_on_subscription )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( access_error )
+
+    std::uint8_t error( std::size_t, std::uint8_t*, std::size_t& )
+    {
+        // something != bluetoe::error_codes::success;
+        return bluetoe::error_codes::invalid_pdu;
+    }
+
+    using server = bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x1234 >,
+            bluetoe::characteristic<
+                bluetoe::free_read_handler< &error >,
+                bluetoe::characteristic_uuid16< 0x0001 >,
+                bluetoe::indicate
+            >
+        >
+    >;
+
+    BOOST_FIXTURE_TEST_CASE( read_error, test::request_with_reponse< server > )
+    {
+        l2cap_input( { 0x12, 0x04, 0x00, 0x02, 0x00 } );
+
+        std::uint8_t output_buffer[ 50 ];
+        std::size_t  output_size = sizeof( output_buffer );
+
+        indication_output( output_buffer, output_size , connection, 0 );
+
+        BOOST_CHECK_EQUAL( output_size, 0u );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
