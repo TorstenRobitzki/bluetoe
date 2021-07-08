@@ -675,7 +675,8 @@ namespace link_layer {
 
         if ( state_ != state::disconnecting )
         {
-            state_                        = state::connected;
+            state_                = state::connected;
+            transmit_window_size_ = delta_time();
         }
 
         current_channel_index_        = ( current_channel_index_ + 1 ) % first_advertising_channel;
@@ -734,20 +735,21 @@ namespace link_layer {
         delta_time window_start;
         delta_time window_end;
 
-        if ( state_ == state::connecting || state_ == state::connection_update )
-        {
-            window_start = transmit_window_offset_ + time_till_next_event_;
-            window_end   = window_start + transmit_window_size_;
-
-            window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
-            window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
-        }
-        else
+        // optimization to calculate the deviation only once for the symetrical case
+        if ( transmit_window_size_.zero() )
         {
             const delta_time window_size   = time_till_next_event_.ppm( cumulated_sleep_clock_accuracy_ );
 
             window_start  = time_till_next_event_ - window_size;
             window_end    = time_till_next_event_ + window_size;
+        }
+        else
+        {
+            window_start = time_till_next_event_ + transmit_window_offset_;
+            window_end   = window_start + transmit_window_size_;
+
+            window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
+            window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
         }
 
         const delta_time time_till_next_event = this->schedule_connection_event(
@@ -756,8 +758,8 @@ namespace link_layer {
                 window_end,
                 connection_interval_ );
 
-        // Do not call the connection callback, if the last connection timed out, as this could be an indication for
-        // the callback constantly consuming too much CPU time
+        // Do not call the connection callback, if the last connection event timed out, as this could be an
+        // indication for the callback constantly consuming too much CPU time
         if ( time_till_next_event_ > connection_interval_ )
         {
             connection_event_callback::call_connection_event_callback( time_till_next_event );
