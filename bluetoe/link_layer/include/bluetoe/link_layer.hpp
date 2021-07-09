@@ -766,7 +766,7 @@ namespace link_layer {
 
         // Do not call the connection callback, if the last connection event timed out, as this could be an
         // indication for the callback constantly consuming too much CPU time
-        if ( time_till_next_event_ > connection_interval_ )
+        if ( time_till_next_event_ == connection_interval_ )
         {
             connection_event_callback::call_connection_event_callback( time_till_next_event );
         }
