@@ -31,7 +31,7 @@ if (CMAKE_CROSSCOMPILING)
     add_subdirectory(bluetoe/bindings/nrf51)
 endif ()
 
-if (NOT CMAKE_CROSSCOMPILING)
+if (NOT CMAKE_CROSSCOMPILING AND BLUETOE_BUILD_UNIT_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
