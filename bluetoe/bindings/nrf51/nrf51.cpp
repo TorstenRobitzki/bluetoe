@@ -27,7 +27,8 @@ namespace nrf51_details {
     static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
 
     // Time reserved to setup a connection event in µs
-    static constexpr std::uint32_t      setup_connection_event_limit_us = 500;
+    // time measured to setup a connection event, using GCC 8.3.1 with -O0 is 12µs
+    static constexpr std::uint32_t      setup_connection_event_limit_us = 50;
 
     static constexpr std::size_t        radio_address_ccm_crypt         = 25;
     static constexpr std::size_t        radio_end_capture2_ppi_channel  = 27;
@@ -510,7 +511,7 @@ namespace nrf51_details {
         nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
         const std::uint32_t now   = nrf_timer->CC[ 3 ];
         const std::uint32_t start_event = start_receive.usec() + anchor_offset_.usec() - us_radio_rx_startup_time;
-        const std::uint32_t end_event   = end_receive.usec() + anchor_offset_.usec() + 1000; // TODO: 1000: must depend on transmit size.
+        const std::uint32_t end_event   = end_receive.usec() + anchor_offset_.usec() + 500; // TODO: 500: must depend on receive size.
 
         if ( now + setup_connection_event_limit_us > start_event )
         {
