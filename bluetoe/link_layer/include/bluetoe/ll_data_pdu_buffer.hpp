@@ -23,7 +23,7 @@ namespace link_layer {
      * The buffer has three interfaces:
      * - one to access the transmit buffer from the link layer
      * - one to access the receive buffer from the link layer
-     * - one to access the both buffers from the radio hardware
+     * - one to access both buffers from the radio hardware
      *
      * This type is intendet to be inherited by the scheduled radio so that the
      * ll_data_pdu_buffer can access the nessary radio interface by casting this to Radio*

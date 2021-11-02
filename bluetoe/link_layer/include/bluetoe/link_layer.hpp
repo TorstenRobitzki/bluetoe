@@ -462,7 +462,7 @@ namespace link_layer {
         static constexpr std::uint16_t  l2cap_sm_channel            = 6;
 
         static constexpr std::size_t    l2cap_header_size           = 4;
-        static constexpr std::size_t    all_header_size             = 6;
+        static constexpr std::size_t    all_header_size             = l2cap_header_size + layout_t::header_size;
 
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
 
