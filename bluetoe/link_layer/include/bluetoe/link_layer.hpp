@@ -186,7 +186,7 @@ namespace link_layer {
                     if ( !encryption_in_progress_ )
                         return;
 
-                    auto out_buffer = that().allocate_transmit_buffer();
+                    auto out_buffer = that().allocate_ll_transmit_buffer();
                     if ( out_buffer.empty() )
                         return;
 
@@ -196,12 +196,12 @@ namespace link_layer {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
                         that().start_receive_encrypted();
-                        that().commit_transmit_buffer( out_buffer );
+                        that().commit_ll_transmit_buffer( out_buffer );
                     }
                     else
                     {
                         that().reject( LinkLayer::LL_ENC_REQ, LinkLayer::err_pin_or_key_missing, out_buffer );
-                        that().commit_transmit_buffer( out_buffer );
+                        that().commit_ll_transmit_buffer( out_buffer );
                     }
 
                     encryption_in_progress_ = false;
@@ -776,7 +776,7 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::transmit_notifications()
     {
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_transmit_buffer();
+        auto out_buffer = this->allocate_ll_transmit_buffer();
 
         if ( out_buffer.empty() )
             return;
@@ -822,7 +822,7 @@ namespace link_layer {
                     static_cast< std::uint8_t >( l2cap_att_channel ),
                     static_cast< std::uint8_t >( l2cap_att_channel >> 8 ) } );
 
-                this->commit_transmit_buffer( out_buffer );
+                this->commit_ll_transmit_buffer( out_buffer );
             }
         }
     }
@@ -831,7 +831,7 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::transmit_signaling_channel_output()
     {
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_transmit_buffer();
+        auto out_buffer = this->allocate_ll_transmit_buffer();
 
         if ( out_buffer.empty() )
             return;
@@ -851,7 +851,7 @@ namespace link_layer {
                 static_cast< std::uint8_t >( l2cap_signaling_channel ),
                 static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 ) } );
 
-            this->commit_transmit_buffer( out_buffer );
+            this->commit_ll_transmit_buffer( out_buffer );
         }
     }
 
@@ -862,7 +862,7 @@ namespace link_layer {
             return;
 
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_transmit_buffer();
+        auto out_buffer = this->allocate_ll_transmit_buffer();
 
         if ( out_buffer.empty() )
         {
@@ -888,7 +888,7 @@ namespace link_layer {
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff } );
 
-        this->commit_transmit_buffer( out_buffer );
+        this->commit_ll_transmit_buffer( out_buffer );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1007,9 +1007,9 @@ namespace link_layer {
         if ( result != ll_result::go_ahead || !defered_ll_control_pdu_.empty() )
             return result;
 
-        for ( auto pdu = this->next_received(); pdu.size != 0; )
+        for ( auto pdu = this->next_ll_received(); pdu.size != 0; )
         {
-            auto output = this->allocate_transmit_buffer();
+            auto output = this->allocate_ll_transmit_buffer();
 
             if ( output.size )
             {
@@ -1024,8 +1024,8 @@ namespace link_layer {
                     result = handle_l2cap( pdu, output );
                 }
 
-                this->free_received();
-                pdu = this->next_received();
+                this->free_ll_received();
+                pdu = this->next_ll_received();
             }
             else
             {
@@ -1043,7 +1043,7 @@ namespace link_layer {
 
         if ( state_ == state::disconnecting && !termination_send_ )
         {
-            auto output = this->allocate_transmit_buffer();
+            auto output = this->allocate_ll_transmit_buffer();
 
             if ( output.size )
             {
@@ -1052,7 +1052,7 @@ namespace link_layer {
                     LL_TERMINATE_IND, connection_terminated_by_local_host
                 } );
 
-                this->commit_transmit_buffer( output );
+                this->commit_ll_transmit_buffer( output );
                 termination_send_ = true;
             }
         }
@@ -1180,7 +1180,7 @@ namespace link_layer {
             }
 
             if ( commit )
-                this->commit_transmit_buffer( write );
+                this->commit_ll_transmit_buffer( write );
         }
 
         return result;
@@ -1237,7 +1237,7 @@ namespace link_layer {
                 static_cast< std::uint8_t >( l2cap_channel ),
                 static_cast< std::uint8_t >( l2cap_channel >> 8 ) } );
 
-            this->commit_transmit_buffer( output );
+            this->commit_ll_transmit_buffer( output );
         }
 
         return ll_result::go_ahead;

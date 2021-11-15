@@ -14,15 +14,17 @@ namespace bluetoe {
 namespace link_layer {
 
     /**
-     * @brief ring buffers for ingoing and outgoing LL Data PDUs
+     * @brief ring buffers for ingoing and outgoing LL Data PDUs and fragmented L2CAP SDUs
      *
      * The buffer has two modes:
      * - Stopped mode: In this mode, the internal buffer can be accessed
-     * - running mode: The buffer is used to communicate between the link layer and the scheduled radio
+     * - running mode: The buffer is used to communicate between the link layer / L2CAP layer and the scheduled radio
      *
-     * The buffer has three interfaces:
+     * The buffer has 5 interfaces:
      * - one to access the transmit buffer from the link layer
      * - one to access the receive buffer from the link layer
+     * - one to access the transmit buffer from the L2CAP layer
+     * - one to access the receive buffer from the L2CAP layer
      * - one to access both buffers from the radio hardware
      *
      * This type is intendet to be inherited by the scheduled radio so that the
@@ -167,7 +169,7 @@ namespace link_layer {
          * Receive and transmit buffers are empty. Sequence numbers are reseted.
          * max_rx_size() is set to default
          *
-         * @post next_received().empty()
+         * @post next_ll_received().empty()
          * @post max_rx_size() == 29u
          */
         void reset();
@@ -186,29 +188,29 @@ namespace link_layer {
          * To indicate that the allocated memory is filled with data to be send, commit_transmit_buffer() must be called.
          * The size parameter is the sum of the payload + header.
          *
-         * @post r = allocate_transmit_buffer( n ); r.size == 0 || r.size == n
+         * @post r = allocate_ll_transmit_buffer( n ); r.size == 0 || r.size == n
          * @pre  buffer is in running mode
          * @pre size <= max_tx_size()
          */
-        read_buffer allocate_transmit_buffer( std::size_t size );
+        read_buffer allocate_ll_transmit_buffer( std::size_t size );
 
         /**
-         * @brief calls allocate_transmit_buffer( max_tx_size() + layout_overhead );
+         * @brief calls allocate_ll_transmit_buffer( max_tx_size() + layout_overhead );
          */
-        read_buffer allocate_transmit_buffer();
+        read_buffer allocate_ll_transmit_buffer();
 
         /**
          * @brief indicates that prior allocated memory is now ready for transmission
          *
-         * To send a PDU, first allocate_transmit_buffer() have to be called, with the maximum size
+         * To send a PDU, first allocate_ll_transmit_buffer() have to be called, with the maximum size
          * need to assemble the PDU. Then commit_transmit_buffer() have to be called with the
          * size that the PDU is really filled with at the begining of the buffer.
          *
-         * @pre a buffer must have been allocated by a call to allocate_transmit_buffer()
+         * @pre a buffer must have been allocated by a call to allocate_ll_transmit_buffer()
          * @pre size
          * @pre buffer is in running mode
          */
-        void commit_transmit_buffer( read_buffer );
+        void commit_ll_transmit_buffer( read_buffer );
 
         /**@}*/
 
@@ -222,18 +224,18 @@ namespace link_layer {
          *
          * If there is no PDU in the receive buffer, an empty PDU will be returned (size == 0 ).
          * The returned PDU is not removed from the buffer. To remove the buffer after it is
-         * not used any more, free_received() must be called.
+         * not used any more, free_ll_received() must be called.
          *
          * @pre buffer is in running mode
          */
-        write_buffer next_received() const;
+        write_buffer next_ll_received() const;
 
         /**
          * @brief removes the oldest PDU from the receive buffer.
-         * @pre next_received() was called without free_received() beeing called.
+         * @pre next_ll_received() was called without free_ll_received() beeing called.
          * @pre buffer is in running mode
          */
-        void free_received();
+        void free_ll_received();
 
         /**@}*/
 
@@ -397,7 +399,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer( std::size_t size )
+    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_ll_transmit_buffer( std::size_t size )
     {
         typename Radio::lock_guard lock;
 
@@ -405,7 +407,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer pdu )
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_ll_transmit_buffer( read_buffer pdu )
     {
         static constexpr std::uint8_t header_rfu_mask = 0xe0;
         static_cast< void >( header_rfu_mask );
@@ -509,13 +511,13 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer()
+    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_ll_transmit_buffer()
     {
-        return allocate_transmit_buffer( max_tx_size_ + layout_overhead );
+        return allocate_ll_transmit_buffer( max_tx_size_ + layout_overhead );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_received() const
+    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_ll_received() const
     {
         typename Radio::lock_guard lock;
 
@@ -523,7 +525,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::free_received()
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::free_ll_received()
     {
         typename Radio::lock_guard lock;
 
