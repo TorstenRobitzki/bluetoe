@@ -1207,8 +1207,8 @@ namespace link_layer {
             server_->l2cap_input( &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size, connection_details_ );
 
             // in case the ATT input changed the MTU size:
-            this->max_rx_size( connection_details_.negotiated_mtu() + all_header_size );
-            this->max_tx_size( connection_details_.negotiated_mtu() + all_header_size );
+            this->current_ll_pdu_receive_size( connection_details_.negotiated_mtu() + all_header_size );
+            this->current_ll_pdu_transmit_size( connection_details_.negotiated_mtu() + all_header_size );
         }
         else if ( l2cap_channel == l2cap_sm_channel )
         {

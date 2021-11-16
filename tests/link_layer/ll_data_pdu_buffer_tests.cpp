@@ -182,52 +182,52 @@ BOOST_FIXTURE_TEST_CASE( layout_overhead_is_zero, buffer )
 
 BOOST_FIXTURE_TEST_CASE( default_max_rx_size_is_29, buffer )
 {
-    BOOST_CHECK_EQUAL( max_rx_size(), 29u );
+    BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( max_rx_size_can_be_changed, buffer )
 {
-    max_rx_size( 100u );
-    BOOST_CHECK_EQUAL( max_rx_size(), 100u );
+    current_ll_pdu_receive_size( 100u );
+    BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 100u );
 }
 
 BOOST_FIXTURE_TEST_CASE( max_rx_is_reset_to_29, buffer )
 {
-    max_rx_size( 100u );
+    current_ll_pdu_receive_size( 100u );
     reset();
 
-    BOOST_CHECK_EQUAL( max_rx_size(), 29u );
+    BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( an_allocated_receive_buffer_must_be_max_rx_in_size, running_mode )
 {
     const auto pdu = allocate_receive_buffer();
-    BOOST_CHECK_EQUAL( pdu.size, max_rx_size() );
+    BOOST_CHECK_EQUAL( pdu.size, current_ll_pdu_receive_size() );
 }
 
 BOOST_FIXTURE_TEST_CASE( default_max_tx_size_is_29, buffer )
 {
-    BOOST_CHECK_EQUAL( max_tx_size(), 29u );
+    BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( max_tx_size_can_be_changed, buffer )
 {
-    max_tx_size( 100u );
-    BOOST_CHECK_EQUAL( max_tx_size(), 100u );
+    current_ll_pdu_transmit_size( 100u );
+    BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 100u );
 }
 
 BOOST_FIXTURE_TEST_CASE( max_tx_is_reset_to_29, buffer )
 {
-    max_tx_size( 100u );
+    current_ll_pdu_transmit_size( 100u );
     reset();
 
-    BOOST_CHECK_EQUAL( max_tx_size(), 29u );
+    BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
 }
 
 BOOST_FIXTURE_TEST_CASE( an_allocated_transmit_buffer_must_be_max_tx_in_size, running_mode )
 {
     const auto pdu = allocate_ll_transmit_buffer();
-    BOOST_CHECK_EQUAL( pdu.size, max_tx_size() );
+    BOOST_CHECK_EQUAL( pdu.size, current_ll_pdu_transmit_size() );
 }
 
 
@@ -273,23 +273,23 @@ BOOST_FIXTURE_TEST_CASE( a_received_not_empty_pdu_is_accessable_from_the_link_la
 
 BOOST_FIXTURE_TEST_CASE( if_half_buffer_size_is_used_as_max_rx_size_two_pdu_should_fit_into_the_buffer, running_mode )
 {
-    max_rx_size( max_max_rx_size() / 2 );
+    current_ll_pdu_receive_size( max_ll_pdu_receive_size() / 2 );
 
     auto read = allocate_receive_buffer();
-    BOOST_CHECK_EQUAL( read.size, max_max_rx_size() / 2 );
+    BOOST_CHECK_EQUAL( read.size, max_ll_pdu_receive_size() / 2 );
 
     // make buffer as used
-    read.buffer[ 1 ] = max_max_rx_size() / 2 - 2;
+    read.buffer[ 1 ] = max_ll_pdu_receive_size() / 2 - 2;
     received( read );
 
-    BOOST_CHECK_EQUAL( allocate_receive_buffer().size, max_max_rx_size() / 2 );
+    BOOST_CHECK_EQUAL( allocate_receive_buffer().size, max_ll_pdu_receive_size() / 2 );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_buffer_size_is_used_as_max_rx_size_one_pdu_should_fit_into_the_buffer, running_mode )
 {
-    max_rx_size( max_max_rx_size() );
+    current_ll_pdu_receive_size( max_ll_pdu_receive_size() );
 
-    BOOST_CHECK_EQUAL( allocate_receive_buffer().size, max_max_rx_size() );
+    BOOST_CHECK_EQUAL( allocate_receive_buffer().size, max_ll_pdu_receive_size() );
 }
 
 BOOST_FIXTURE_TEST_SUITE( move_random_data_through_the_buffer, running_mode )
@@ -299,7 +299,7 @@ using intt = std::integral_constant< std::size_t, V >;
 
 typedef boost::mpl::list<
     //          max_rx_size  min payload  max payload
-    std::tuple< intt< 29 >,  intt< 1 >,   intt< 25 > >
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 27 > >
     // std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
     // std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
     // std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
@@ -317,7 +317,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
     const std::size_t min_size          = std::tuple_element< 1, sizes >::type::value;
     const std::size_t max_size          = std::tuple_element< 2, sizes >::type::value;
 
-    max_rx_size( max_rx_size_value );
+    current_ll_pdu_receive_size( max_rx_size_value );
 
     auto emergency_counter = 2 * test_data.size();
     bool sequence_number   = false;
@@ -427,7 +427,7 @@ BOOST_FIXTURE_TEST_CASE( sequence_number_and_next_sequence_number_must_be_0_for_
 
 BOOST_FIXTURE_TEST_CASE( only_one_transmitbuffer_entry_allocatable, running_mode )
 {
-    max_tx_size( 100 );
+    current_ll_pdu_transmit_size( 100 );
 
     auto write1 = allocate_ll_transmit_buffer();
     write1.buffer[ 0 ] = 0;
@@ -680,34 +680,34 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( default_buffer_sizes, buffer_under_test )
     {
-        BOOST_CHECK_EQUAL( max_max_tx_size(), 29u );
-        BOOST_CHECK_EQUAL( max_tx_size(), 29u );
-        BOOST_CHECK_EQUAL( max_max_rx_size(), 29u );
-        BOOST_CHECK_EQUAL( max_rx_size(), 29u );
+        BOOST_CHECK_EQUAL( max_ll_pdu_transmit_size(), 29u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
+        BOOST_CHECK_EQUAL( max_ll_pdu_receive_size(), 29u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
     }
 
     BOOST_FIXTURE_TEST_CASE( default_large_buffer_sizes, large_buffer_under_test )
     {
-        BOOST_CHECK_EQUAL( max_max_tx_size(), 198u );
-        BOOST_CHECK_EQUAL( max_tx_size(), 29u );
-        BOOST_CHECK_EQUAL( max_max_rx_size(), 198u );
-        BOOST_CHECK_EQUAL( max_rx_size(), 29u );
+        BOOST_CHECK_EQUAL( max_ll_pdu_transmit_size(), 198u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
+        BOOST_CHECK_EQUAL( max_ll_pdu_receive_size(), 198u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
     }
 
     BOOST_FIXTURE_TEST_CASE( lower_bound_sizes, large_buffer_under_test )
     {
-        max_tx_size( 29 );
-        max_rx_size( 29 );
-        BOOST_CHECK_EQUAL( max_tx_size(), 29u );
-        BOOST_CHECK_EQUAL( max_rx_size(), 29u );
+        current_ll_pdu_transmit_size( 29 );
+        current_ll_pdu_receive_size( 29 );
+        BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
     }
 
     BOOST_FIXTURE_TEST_CASE( upper_bound_sizes, large_buffer_under_test )
     {
-        max_tx_size( 198 );
-        max_rx_size( 198 );
-        BOOST_CHECK_EQUAL( max_tx_size(), 198u );
-        BOOST_CHECK_EQUAL( max_rx_size(), 198u );
+        current_ll_pdu_transmit_size( 198 );
+        current_ll_pdu_receive_size( 198 );
+        BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 198u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 198u );
     }
 
     BOOST_FIXTURE_TEST_CASE( allocating_lower_bound_buffers, large_buffer_under_test )
@@ -722,8 +722,8 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( allocating_upper_bound_buffers, large_buffer_under_test )
     {
-        max_tx_size( 198u );
-        max_rx_size( 198u );
+        current_ll_pdu_transmit_size( 198u );
+        current_ll_pdu_receive_size( 198u );
 
         const auto receive  = allocate_receive_buffer();
         const auto transmit = allocate_ll_transmit_buffer();
