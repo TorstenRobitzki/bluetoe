@@ -74,6 +74,12 @@ namespace link_layer {
         }
     };
 
+    /**
+     * @brief this template is ment to be specialized for a given Radio to define the layout
+     *        used by that radio.
+     *
+     * Without specialization, default_pdu_layout is applied for a Radio.
+     */
     template < typename Radio >
     struct pdu_layout_by_radio {
         using pdu_layout = default_pdu_layout;
