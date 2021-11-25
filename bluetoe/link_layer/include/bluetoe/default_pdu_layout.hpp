@@ -68,6 +68,9 @@ namespace link_layer {
             return { &pdu.buffer[ header_size ], &pdu.buffer[ pdu.size ] };
         }
 
+        /**
+         * @brief calculates the overall PDU size from the payload size
+         */
         static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
         {
             return header_size + payload_size;

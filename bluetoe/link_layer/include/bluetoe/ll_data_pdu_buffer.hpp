@@ -17,6 +17,8 @@ namespace link_layer {
     class ll_data_buffer_sizes
     {
     public:
+        ll_data_buffer_sizes();
+
         /**
          * @brief layout to be applied to each PDU.
          *
@@ -27,7 +29,7 @@ namespace link_layer {
         /**
          * @brief the minimum size an element in the buffer can have (header size + payload size).
          */
-        static constexpr std::size_t    min_buffer_size = 29;
+        static constexpr std::size_t    min_ll_pdu_size = 29;
 
         /**
          * @brief the maximum size an element in the buffer can have (header size + payload size).
@@ -37,27 +39,29 @@ namespace link_layer {
         static constexpr std::size_t    header_size     = 2u;
         static constexpr std::size_t    layout_overhead = layout_t::data_channel_pdu_memory_size( 0 ) - header_size;
 
-        static_assert( TransmitSize >= layout_overhead + min_buffer_size,
+        static_assert( TransmitSize >= layout_overhead + min_ll_pdu_size,
             "TransmitSize should at least be large enough to store one L2CAP PDU plus overheader required by the hardware." );
 
-        static_assert( ReceiveSize >= layout_overhead + min_buffer_size,
+        static_assert( ReceiveSize >= layout_overhead + min_ll_pdu_size,
             "ReceiveSize should at least be large enough to store one L2CAP PDU plus overheader required by the hardware." );
 
 
         /**@{*/
         /**
-         * @name buffer sizes
+         * @name link layer buffer sizes
          */
 
         /**
          * @brief returns the maximum link layer PDU receive size
          *
          * That is, the maximum PDU size that can be received through the link layer.
-         * This will be at least 29 + layout_overhead (to cover the minimum ATT MTU size of 23) and at maximum 255 + layout_overhead.
+         * This will be at least 29 (to cover the minimum ATT MTU size of 23) and at maximum 255.
          */
         constexpr std::size_t max_ll_pdu_receive_size() const
         {
-            return ReceiveSize - layout_overhead;
+            return ReceiveSize - layout_overhead  > max_ll_pdu_size
+                ? max_ll_pdu_size
+                : ReceiveSize - layout_overhead;
         }
 
         /**
@@ -70,13 +74,13 @@ namespace link_layer {
         /**
          * @brief set the maximum receive size
          *
-         * The used size must be smaller or equal max_ll_pdu_receive_size, smaller than 251 and larger or equal to 29.
+         * The used size must be smaller or equal tp max_ll_pdu_receive_size, smaller than 251 and larger or equal to 29.
          * The memory is best used, when ReceiveSize divided by max_size + layout_overhead results in an integer. That integer is
          * then the number of PDUs that can be buffered on the receivin side.
          *
          * By default the function will return 29.
          *
-         * @post max_rx_size() == max_size
+         * @post current_ll_pdu_receive_size() == max_size
          */
         void current_ll_pdu_receive_size( std::size_t max_size );
 
@@ -87,7 +91,9 @@ namespace link_layer {
          */
         constexpr std::size_t max_ll_pdu_transmit_size() const
         {
-            return TransmitSize - ( layout_t::data_channel_pdu_memory_size( 0 ) - 2 );
+            return TransmitSize - layout_overhead  > max_ll_pdu_size
+                ? max_ll_pdu_size
+                : TransmitSize - layout_overhead;
         }
 
         /**
@@ -106,16 +112,46 @@ namespace link_layer {
          *
          * By default the function will return 29.
          *
-         * @post max_tx_size() == max_size
+         * @post current_ll_pdu_transmit_size() == max_size
          */
         void current_ll_pdu_transmit_size( std::size_t max_size );
+
+        /**@}*/
+
+        /**@{*/
+        /**
+         * @name L2CAP layer buffer sizes
+         */
+
+        /**
+         * @brief the maximum buffer size that can be allocated for a (potentially) fragmented outgoing L2CAP SDU.
+         *
+         * As there is no guaranty that higher LL PDU sizes are used in the link layer, the function assumes,
+         * that SDUs are fragemented using 29 byte large LL PDUs.
+         */
+        constexpr std::size_t max_l2cap_sdu_receive_size() const
+        {
+            return ReceiveSize - layout_overhead;
+        }
+
+        /**
+         * @brief the maximum buffer size that can be allocated for a (potentially) fragmented incomming L2CAP SDU.
+         *
+         * As there is no guaranty that higher LL PDU sizes are used in the link layer, the function assumes,
+         * that SDUs are fragemented using 29 byte large LL PDUs.
+         */
+        constexpr std::size_t max_l2cap_sdu_transmit_size() const
+        {
+            return TransmitSize - layout_overhead;
+        }
 
         /**@}*/
 
         /**
          * @brief reset current buffer sizes to a minium.
          *
-         * @post max_rx_size() == 29u
+         * @post current_ll_pdu_receive_size() == 29u
+         * @post current_ll_pdu_transmit_size() == 29u
          */
         void reset_buffer_sizes();
 
@@ -131,11 +167,10 @@ namespace link_layer {
      * - Stopped mode: In this mode, the internal buffer can be accessed
      * - running mode: The buffer is used to communicate between the link layer / L2CAP layer and the scheduled radio
      *
-     * The buffer has 5 interfaces:
+     * The buffer has 4 interfaces:
      * - one to access the transmit buffer from the link layer
-     * - one to access the receive buffer from the link layer
      * - one to access the transmit buffer from the L2CAP layer
-     * - one to access the receive buffer from the L2CAP layer
+     * - one to access the receive buffer from the link layer / L2CAP layer
      * - one to access both buffers from the radio hardware
      *
      * This type is intendet to be inherited by the scheduled radio so that the
@@ -147,6 +182,9 @@ namespace link_layer {
      * an overhead per PDU.
      *
      * The buffer handles L2CAP fragmentation and defragmentation.
+     *
+     * While L2CAP SDUs are passed to the buffer at once. If the size of the
+     * SDU is less than or equal to current_ll_pdu_transmit_size(), no fragmentation is required.
      */
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     class ll_data_pdu_buffer : public ll_data_buffer_sizes< TransmitSize, ReceiveSize, typename pdu_layout_by_radio< Radio >::pdu_layout >
@@ -208,14 +246,16 @@ namespace link_layer {
          * To indicate that the allocated memory is filled with data to be send, commit_transmit_buffer() must be called.
          * The size parameter is the sum of the payload + header.
          *
-         * @post r = allocate_ll_transmit_buffer( n ); r.size == 0 || r.size == n
+         * If the layout of the Radio requires additonal overhead, the returned buffer will be larger.
+         *
+         * @post r = allocate_ll_transmit_buffer( n ); r.size == 0 || r.size >= n
          * @pre  buffer is in running mode
          * @pre size <= max_tx_size()
          */
         read_buffer allocate_ll_transmit_buffer( std::size_t size );
 
         /**
-         * @brief calls allocate_ll_transmit_buffer( max_tx_size() + layout_overhead );
+         * @brief calls allocate_ll_transmit_buffer( current_ll_pdu_transmit_size() );
          */
         read_buffer allocate_ll_transmit_buffer();
 
@@ -223,11 +263,10 @@ namespace link_layer {
          * @brief indicates that prior allocated memory is now ready for transmission
          *
          * To send a PDU, first allocate_ll_transmit_buffer() have to be called, with the maximum size
-         * need to assemble the PDU. Then commit_transmit_buffer() have to be called with the
+         * need to assemble the PDU. Then commit_ll_transmit_buffer() have to be called with the
          * size that the PDU is really filled with at the begining of the buffer.
          *
          * @pre a buffer must have been allocated by a call to allocate_ll_transmit_buffer()
-         * @pre size
          * @pre buffer is in running mode
          */
         void commit_ll_transmit_buffer( read_buffer );
@@ -247,30 +286,46 @@ namespace link_layer {
          */
         read_buffer allocate_l2cap_transmit_buffer( std::size_t size );
 
+        /**
+         * @brief indicates that prior allocated memory is now ready for transmission
+         *
+         * To send a L2CAP SDU, first allocate_l2cap_transmit_buffer() have to be called, with the maximum size
+         * need to assemble the SDU. Then commit_l2cap_transmit_buffer() have to be called with the
+         * size that the SDU is really filled with at the begining of the buffer.
+         *
+         * @pre a buffer must have been allocated by a call to allocate_l2cap_transmit_buffer()
+         * @pre buffer is in running mode
+         */
+        void commit_l2cap_transmit_buffer( read_buffer );
+
         /**@}*/
 
         /**@{*/
         /**
-         * @name Interface to access the receive buffer from the link layer
+         * @name Interface to access the receive buffer from the link layer / L2CAP layer
+         *
+         * The differenciation between link layer and L2CAP layer have to be made on calling side.
          */
 
         /**
-         * @brief returns the oldest PDU out of the receive buffer.
+         * @brief returns the oldest link layer PDU or L2CAP SDU out of the receive buffer.
          *
-         * If there is no PDU in the receive buffer, an empty PDU will be returned (size == 0 ).
+         * If there is no oldest received PDU/SDU, an empty PDU will be returned (size == 0 ).
          * The returned PDU is not removed from the buffer. To remove the buffer after it is
-         * not used any more, free_ll_received() must be called.
+         * not used any more, free_ll_l2cap_received() must be called.
          *
          * @pre buffer is in running mode
+         *
+         * @sa free_ll_l2cap_received()
          */
-        write_buffer next_ll_received() const;
+        write_buffer next_ll_l2cap_received() const;
 
         /**
          * @brief removes the oldest PDU from the receive buffer.
          * @pre next_ll_received() was called without free_ll_received() beeing called.
          * @pre buffer is in running mode
          */
-        void free_ll_received();
+        void free_ll_l2cap_received();
 
         /**@}*/
 
@@ -335,7 +390,10 @@ namespace link_layer {
 
         bool                    sequence_number_;
         bool                    next_expected_sequence_number_;
+
+        // an empty LL PDU to be send, if the transmission buffer is empty
         uint8_t                 empty_[ layout_t::data_channel_pdu_memory_size( 0 ) ];
+        // the last LL PDU that was handed to the radio for transmission was the empty_ buffer
         bool                    next_empty_;
         bool                    empty_sequence_number_;
 
@@ -374,6 +432,13 @@ namespace link_layer {
     ///////////////////////////////////////
     // ll_data_buffer_sizes implementation
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Layout  >
+    ll_data_buffer_sizes< TransmitSize, ReceiveSize, Layout >::ll_data_buffer_sizes()
+        : current_ll_pdu_receive_size_(min_ll_pdu_size)
+        , current_ll_pdu_transmit_size_(min_ll_pdu_size)
+    {
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Layout  >
     std::size_t ll_data_buffer_sizes< TransmitSize, ReceiveSize, Layout >::current_ll_pdu_receive_size() const
     {
         return current_ll_pdu_receive_size_;
@@ -383,7 +448,7 @@ namespace link_layer {
     void ll_data_buffer_sizes< TransmitSize, ReceiveSize, Layout >::current_ll_pdu_receive_size( std::size_t max_size )
     {
         assert( max_size <= max_ll_pdu_receive_size() );
-        assert( max_size >= min_buffer_size );
+        assert( max_size >= min_ll_pdu_size );
 
         current_ll_pdu_receive_size_ = max_size;
     }
@@ -398,7 +463,7 @@ namespace link_layer {
     void ll_data_buffer_sizes< TransmitSize, ReceiveSize, Layout >::current_ll_pdu_transmit_size( std::size_t max_size )
     {
         assert( max_size <= max_ll_pdu_receive_size() );
-        assert( max_size >= min_buffer_size );
+        assert( max_size >= min_ll_pdu_size );
 
         current_ll_pdu_transmit_size_ = max_size;
     }
@@ -406,8 +471,8 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Layout  >
     void ll_data_buffer_sizes< TransmitSize, ReceiveSize, Layout >::reset_buffer_sizes()
     {
-        current_ll_pdu_receive_size_   = min_buffer_size;
-        current_ll_pdu_transmit_size_  = min_buffer_size;
+        current_ll_pdu_receive_size_   = min_ll_pdu_size;
+        current_ll_pdu_transmit_size_  = min_ll_pdu_size;
     }
 
     ///////////////////////////////////////
@@ -444,7 +509,7 @@ namespace link_layer {
     {
         typename Radio::lock_guard lock;
 
-        return transmit_buffer_.alloc_front( transmit_buffer(), size );
+        return transmit_buffer_.alloc_front( transmit_buffer(), size + this->layout_overhead );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -469,6 +534,18 @@ namespace link_layer {
         sequence_number_ = !sequence_number_;
 
         transmit_buffer_.push_front( transmit_buffer(), pdu );
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_l2cap_transmit_buffer( std::size_t size )
+    {
+        return allocate_ll_transmit_buffer( size );
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_l2cap_transmit_buffer( read_buffer pdu )
+    {
+        commit_ll_transmit_buffer( pdu );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -554,11 +631,11 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_ll_transmit_buffer()
     {
-        return allocate_ll_transmit_buffer( this->current_ll_pdu_transmit_size() + this->layout_overhead );
+        return allocate_ll_transmit_buffer( this->current_ll_pdu_transmit_size() );
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_ll_received() const
+    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_ll_l2cap_received() const
     {
         typename Radio::lock_guard lock;
 
@@ -566,7 +643,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::free_ll_received()
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::free_ll_l2cap_received()
     {
         typename Radio::lock_guard lock;
 
@@ -576,7 +653,7 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_receive_buffer() const
     {
-        const std::size_t raw_buffer_size = layout_t::data_channel_pdu_memory_size( this->current_ll_pdu_receive_size() - ll_header_size );
+        const std::size_t raw_buffer_size = layout_t::data_channel_pdu_memory_size( this->current_ll_pdu_receive_size() - ll_header_size ) ;
 
         return receive_buffer_.alloc_front( const_cast< std::uint8_t* >( receive_buffer() ), raw_buffer_size );
     }

@@ -55,7 +55,7 @@ namespace link_layer {
          * If there is not enough room for size bytes in the ring buffer, the function will return an
          * empty read_buffer.
          *
-         * @pre size > Layout::data_channel_pdu_memory_size( 0 )
+         * @pre size >= Layout::data_channel_pdu_memory_size( 0 )
          * @pre buffer must point to an array of at least Size bytes
          */
         Buffer alloc_front( std::uint8_t* buffer, std::size_t size ) const;

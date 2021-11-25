@@ -1,10 +1,7 @@
-#include <iostream>
-#include <buffer_io.hpp>
-#include <bluetoe/ll_data_pdu_buffer.hpp>
-
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
-#include <boost/mpl/list.hpp>
+
+#include <bluetoe/ll_data_pdu_buffer.hpp>
 
 #include <initializer_list>
 #include <random>
@@ -12,6 +9,7 @@
 #include <type_traits>
 
 #include "buffer_io.hpp"
+#include "test_layout.hpp"
 
 static bool radio_locked = false;
 
@@ -82,23 +80,23 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
     }
 
     template < class Iter >
-    void transmit_pdu( Iter begin, Iter end )
+    void transmit_ll_pdu( Iter body_begin, Iter body_end )
     {
-        const std::size_t size = std::distance( begin, end );
-
-        auto buffer = this->allocate_ll_transmit_buffer( layout::data_channel_pdu_memory_size( size ) );
+        const std::size_t size = std::distance( body_begin, body_end );
+        // Allocate for body plus LL header
+        auto buffer = this->allocate_ll_transmit_buffer( size + 2 );
         assert( buffer.size == layout::data_channel_pdu_memory_size( size ) );
 
         layout::header( buffer, 1 | ( size << 8 ) );
 
-        std::copy( begin, end, layout::body( buffer ).first );
+        std::copy( body_begin, body_end, layout::body( buffer ).first );
 
         this->commit_ll_transmit_buffer( buffer );
     }
 
-    void transmit_pdu( std::initializer_list< std::uint8_t > pdu )
+    void transmit_ll_pdu( std::initializer_list< std::uint8_t > pdu )
     {
-        transmit_pdu( std::begin( pdu ), std::end( pdu ) );
+        transmit_ll_pdu( std::begin( pdu ), std::end( pdu ) );
     }
 
     template < class Iter >
@@ -159,7 +157,7 @@ struct one_element_in_transmit_buffer : running_mode
 {
     one_element_in_transmit_buffer()
     {
-       transmit_pdu( { 0x34 } );
+       transmit_ll_pdu( { 0x34 } );
     }
 };
 
@@ -249,7 +247,7 @@ BOOST_FIXTURE_TEST_CASE( if_only_empty_pdus_are_received_the_buffer_will_never_o
 
 BOOST_FIXTURE_TEST_CASE( at_startup_the_receive_buffer_should_be_empty, running_mode )
 {
-    BOOST_CHECK_EQUAL( next_ll_received().size, 0u );
+    BOOST_CHECK_EQUAL( next_ll_l2cap_received().size, 0u );
 }
 
 struct received_pdu : running_mode
@@ -266,7 +264,7 @@ struct received_pdu : running_mode
 
 BOOST_FIXTURE_TEST_CASE( a_received_not_empty_pdu_is_accessable_from_the_link_layer, received_pdu )
 {
-    const auto received = next_ll_received();
+    const auto received = next_ll_l2cap_received();
 
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( simple_pdu ), std::end( simple_pdu ), received.buffer, received.buffer + received.size );
 }
@@ -297,14 +295,14 @@ BOOST_FIXTURE_TEST_SUITE( move_random_data_through_the_buffer, running_mode )
 template < std::size_t V >
 using intt = std::integral_constant< std::size_t, V >;
 
-typedef boost::mpl::list<
+using test_sizes = std::tuple<
     //          max_rx_size  min payload  max payload
-    std::tuple< intt< 29 >,  intt< 1 >,   intt< 27 > >
-    // std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
-    // std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
-    // std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
-    // std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >
-> test_sizes;
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 27 > >,
+    std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
+    std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
+    std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >
+>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_sizes )
 {
@@ -353,7 +351,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
         // if there is no more room left, I simulate the receiving of an pdu
         else
         {
-            auto next = next_ll_received();
+            auto next = next_ll_l2cap_received();
             BOOST_REQUIRE_NE( next.size, 0u );
             BOOST_REQUIRE_NE( next.buffer[ 1 ], 0u );
 
@@ -362,11 +360,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
             BOOST_REQUIRE_EQUAL( receive_sizes.back(), transmit_sizes[ receive_sizes.size() - 1 ] );
 
             received_data.insert( received_data.end(), &next.buffer[ 2 ], &next.buffer[ 2 ] + next.buffer[ 1 ] );
-            free_ll_received();
+            free_ll_l2cap_received();
         }
     }
 
-    for ( auto next = next_ll_received(); next.size; next = next_ll_received(), --emergency_counter )
+    for ( auto next = next_ll_l2cap_received(); next.size; next = next_ll_l2cap_received(), --emergency_counter )
     {
         BOOST_REQUIRE( emergency_counter );
         receive_sizes.push_back( next.buffer[ 1 ] );
@@ -374,7 +372,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_
         BOOST_REQUIRE_EQUAL( receive_sizes.back(), transmit_sizes[ receive_sizes.size() - 1 ] );
 
         received_data.insert( received_data.end(), &next.buffer[ 2 ], &next.buffer[ 2 ] + next.buffer[ 1 ] );
-        free_ll_received();
+        free_ll_l2cap_received();
     }
 
     BOOST_CHECK_EQUAL_COLLECTIONS( test_data.begin(), test_data.end(), received_data.begin(), received_data.end() );
@@ -446,7 +444,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_not_set_if_only_one_element_is_in_the
 
 BOOST_FIXTURE_TEST_CASE( more_data_flag_is_set_if_there_is_more_than_one_element_in_the_transmit_buffer, one_element_in_transmit_buffer )
 {
-    transmit_pdu( { 0x01 } );
+    transmit_ll_pdu( { 0x01 } );
 
     auto transmit = next_transmit();
     BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & 0x10, 0x10 );
@@ -458,7 +456,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
     auto first = next_transmit();
     BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0x10, 0 );
 
-    transmit_pdu( { 0x01, 0x02, 0x03, 0x04 } );
+    transmit_ll_pdu( { 0x01, 0x02, 0x03, 0x04 } );
 
     auto next = next_transmit();
 
@@ -471,10 +469,10 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
 
 BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowladged, running_mode )
 {
-    transmit_pdu( { 1 } );
-    transmit_pdu( { 2 } );
-    transmit_pdu( { 3 } );
-    transmit_pdu( { 4 } );
+    transmit_ll_pdu( { 1 } );
+    transmit_ll_pdu( { 2 } );
+    transmit_ll_pdu( { 3 } );
+    transmit_ll_pdu( { 4 } );
 
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 1u );
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 1u );
@@ -506,7 +504,7 @@ BOOST_FIXTURE_TEST_CASE( received_pdu_with_LLID_0_is_ignored, running_mode )
 
     received( pdu );
 
-    BOOST_CHECK_EQUAL( next_ll_received().size, 0u );
+    BOOST_CHECK_EQUAL( next_ll_l2cap_received().size, 0u );
 }
 
 BOOST_FIXTURE_TEST_CASE( received_pdus_are_ignored_when_they_are_resent, running_mode )
@@ -514,10 +512,10 @@ BOOST_FIXTURE_TEST_CASE( received_pdus_are_ignored_when_they_are_resent, running
     receive_pdu( { 1 }, false, false );
     receive_pdu( { 2 }, false, false );
 
-    BOOST_CHECK_EQUAL( next_ll_received().buffer[ 2 ], 1u );
-    free_ll_received();
+    BOOST_CHECK_EQUAL( next_ll_l2cap_received().buffer[ 2 ], 1u );
+    free_ll_l2cap_received();
 
-    BOOST_CHECK_EQUAL( next_ll_received().size, 0u );
+    BOOST_CHECK_EQUAL( next_ll_l2cap_received().size, 0u );
 }
 
 BOOST_FIXTURE_TEST_CASE( with_every_new_received_pdu_a_new_sequence_is_expected, running_mode )
@@ -562,15 +560,15 @@ struct default_buffer : mock_radio< 3 * 29, 3 * 29 >
 
         if ( pdu.size() == 2 )
         {
-            BOOST_CHECK( !next_ll_received().size );
+            BOOST_CHECK( !next_ll_l2cap_received().size );
         }
         else
         {
-            BOOST_CHECK( next_ll_received().size );
-            free_ll_received();
+            BOOST_CHECK( next_ll_l2cap_received().size );
+            free_ll_l2cap_received();
         }
 
-        BOOST_CHECK( !next_ll_received().size );
+        BOOST_CHECK( !next_ll_l2cap_received().size );
     }
 
     bluetoe::link_layer::read_buffer buffer;
@@ -671,6 +669,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     using buffer_under_test = running_mode_impl< 31, 31, changed_pdu_layout::mock_radio >;
     using large_buffer_under_test = running_mode_impl< 200, 200, changed_pdu_layout::mock_radio >;
+    using very_large_buffer_under_test = running_mode_impl< 2000, 2000, changed_pdu_layout::mock_radio >;
 
     BOOST_FIXTURE_TEST_CASE( make_sure_the_layout_is_used, buffer_under_test )
     {
@@ -684,6 +683,8 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
         BOOST_CHECK_EQUAL( max_ll_pdu_receive_size(), 29u );
         BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
+        BOOST_CHECK_EQUAL( max_l2cap_sdu_receive_size(), 29u );
+        BOOST_CHECK_EQUAL( max_l2cap_sdu_transmit_size(), 29u );
     }
 
     BOOST_FIXTURE_TEST_CASE( default_large_buffer_sizes, large_buffer_under_test )
@@ -691,6 +692,14 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         BOOST_CHECK_EQUAL( max_ll_pdu_transmit_size(), 198u );
         BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
         BOOST_CHECK_EQUAL( max_ll_pdu_receive_size(), 198u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( default_very_large_buffer_sizes, very_large_buffer_under_test )
+    {
+        BOOST_CHECK_EQUAL( max_ll_pdu_transmit_size(), 255u );
+        BOOST_CHECK_EQUAL( current_ll_pdu_transmit_size(), 29u );
+        BOOST_CHECK_EQUAL( max_ll_pdu_receive_size(), 255u );
         BOOST_CHECK_EQUAL( current_ll_pdu_receive_size(), 29u );
     }
 
@@ -738,8 +747,8 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
         const std::size_t size = sizeof( pattern_a );
 
-        auto buffer = this->allocate_ll_transmit_buffer( size + 4 );
-        BOOST_REQUIRE_EQUAL( buffer.size, size + 4 );
+        auto buffer = this->allocate_ll_transmit_buffer( size + 2 );
+        BOOST_REQUIRE_EQUAL( buffer.size, size + 2 + 2 );
 
         layout::header( buffer, 1 | ( size << 8 ) );
 
@@ -759,7 +768,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
     {
         static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
 
-        transmit_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
+        transmit_ll_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
 
         auto transmit = next_transmit();
 
@@ -775,7 +784,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
         receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
 
-        auto received = next_ll_received();
+        auto received = next_ll_l2cap_received();
 
         BOOST_REQUIRE( received.size );
         BOOST_CHECK_EQUAL( received.buffer[ 1 ] ^ 0xff , 5 );
@@ -790,11 +799,11 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
         receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
 
-        auto received = next_ll_received();
+        auto received = next_ll_l2cap_received();
         BOOST_REQUIRE( received.size );
 
-        auto next_ll_received = allocate_receive_buffer();
-        BOOST_REQUIRE( !next_ll_received.size );
+        auto next_ll_l2cap_received = allocate_receive_buffer();
+        BOOST_REQUIRE( !next_ll_l2cap_received.size );
     }
 
     BOOST_FIXTURE_TEST_CASE( receiving_multiple_data_large, large_buffer_under_test )
@@ -805,7 +814,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
         receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
         receive_pdu( std::begin( pattern_b ), std::end( pattern_b ), false, true );
 
-        auto received = next_ll_received();
+        auto received = next_ll_l2cap_received();
         BOOST_REQUIRE( received.size );
     }
 
@@ -813,7 +822,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
     {
         static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
 
-        transmit_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
+        transmit_ll_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
         receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
         BOOST_CHECK_EQUAL( next_transmit().size, 2u + 2u );
@@ -823,7 +832,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
     {
         static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
 
-        transmit_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
+        transmit_ll_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
         receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, false );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
@@ -879,7 +888,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
     BOOST_FIXTURE_TEST_CASE( do_increment_when_send_pdu_was_acknowlaged, running_mode )
     {
-        transmit_pdu( { 1 } );
+        transmit_ll_pdu( { 1 } );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
@@ -894,7 +903,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
     BOOST_FIXTURE_TEST_CASE( do_increment_when_resending_pdu, running_mode )
     {
-        transmit_pdu( { 1 } );
+        transmit_ll_pdu( { 1 } );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
@@ -904,9 +913,67 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         incomming.buffer[ 1 ] = 0;
         received( incomming );
 
-        transmit_pdu( { 1 } );
+        transmit_ll_pdu( { 1 } );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
     }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( l2cap_buffer_sizes_tests )
+
+    using layout_0 = test::layout_with_overhead< 0 >;
+    using layout_1 = test::layout_with_overhead< 1 >;
+    using layout_5 = test::layout_with_overhead< 5 >;
+
+    using sizes_29_29_0 = bluetoe::link_layer::ll_data_buffer_sizes< 29, 29, layout_0 >;
+
+    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_without_layout_overheader, sizes_29_29_0)
+    {
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 29u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 29u);
+        BOOST_CHECK_EQUAL(current_ll_pdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 29u);
+    }
+
+    using sizes_30_30_1 = bluetoe::link_layer::ll_data_buffer_sizes< 30, 30, layout_1 >;
+
+    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_with_layout_overheader, sizes_30_30_1)
+    {
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 29u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 29u);
+        BOOST_CHECK_EQUAL(current_ll_pdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 29u);
+    }
+
+    using sizes_35_40_1 = bluetoe::link_layer::ll_data_buffer_sizes< 35, 40, layout_5 >;
+
+    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_with_large_layout_overheader, sizes_35_40_1)
+    {
+        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 35u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 30u);
+        BOOST_CHECK_EQUAL(current_ll_pdu_receive_size(), 29u);
+        BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 29u);
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 35u);
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 30u);
+    }
+
+    BOOST_FIXTURE_TEST_CASE(curren_ll_buffer_sizes_can_be_changed, sizes_35_40_1)
+    {
+        current_ll_pdu_receive_size(max_ll_pdu_receive_size());
+        BOOST_CHECK_EQUAL(current_ll_pdu_receive_size(), 35u);
+        current_ll_pdu_transmit_size(max_ll_pdu_transmit_size());
+        BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 30u);
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( l2cap_fragmentation_tests )
+
+
 
 BOOST_AUTO_TEST_SUITE_END()
