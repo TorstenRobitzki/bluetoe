@@ -926,9 +926,10 @@ BOOST_AUTO_TEST_SUITE( l2cap_buffer_sizes_tests )
     using layout_1 = test::layout_with_overhead< 1 >;
     using layout_5 = test::layout_with_overhead< 5 >;
 
-    using sizes_29_29_0 = bluetoe::link_layer::ll_data_buffer_sizes< 29, 29, layout_0 >;
+    using sizes_58_57_0 = bluetoe::link_layer::ll_data_buffer_sizes< 58, 57, layout_0 >;
 
-    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_without_layout_overheader, sizes_29_29_0)
+    // If the buffer only provides the minimum buffer size, then fragmentation is not possible
+    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_without_layout_overheader, sizes_58_57_0)
     {
         BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 29u);
         BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 29u);
@@ -938,18 +939,57 @@ BOOST_AUTO_TEST_SUITE( l2cap_buffer_sizes_tests )
         BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 29u);
     }
 
-    using sizes_30_30_1 = bluetoe::link_layer::ll_data_buffer_sizes< 30, 30, layout_1 >;
+    using sizes_70_80_1 = bluetoe::link_layer::ll_data_buffer_sizes< 71, 80, layout_1 >;
 
-    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_with_layout_overheader, sizes_30_30_1)
+    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_with_layout_overheader, sizes_70_80_1)
     {
-        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 29u);
-        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 29u);
-        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 29u);
-        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 29u);
+        // the first PDU will be 29 + 1 and from the remain 10 bytes, 7 bytes could be
+        // used for a second fragment
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 36u);
+        // the first PDU will be 29 + 1 and from the remain 6 bytes, 3 bytes could be
+        // used for a second fragment
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 32u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 39u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 35u);
         BOOST_CHECK_EQUAL(current_ll_pdu_receive_size(), 29u);
         BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 29u);
     }
 
+    using sizes_200_250_5 = bluetoe::link_layer::ll_data_buffer_sizes< 250, 200, layout_5 >;
+
+    BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_with_layout_overheader_and_large_buffer_sizes, sizes_200_250_5)
+    {
+        // the first PDU will be 29 + 5 and from the remain 66 bytes, one full fragment can be used to transport
+        // 27 bytes (with an overhead of 7 bytes [addition LL header + 5 bytes overhead]). The remaining 32 bytes
+        // can be used to transport addional 25 bytes of the L2CAP SDU
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 81u);
+        // the first PDU will be 29 + 5 and from the remain 91 bytes, 2 full fragment can be used to transport
+        // 27 bytes (with an overhead of 7 bytes [addition LL header + 5 bytes overhead]). The remaining 23 bytes
+        // can be used to transport addional 16 bytes of the L2CAP SDU
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 99u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 95u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 120u);
+    }
+
+    using sizes_501_666_1 = bluetoe::link_layer::ll_data_buffer_sizes< 501, 666, layout_1 >;
+
+    BOOST_FIXTURE_TEST_CASE( having_buffer_sizes_above_255_ll_pdu_sizes_must_be_clipped, sizes_501_666_1 )
+    {
+        // the first PDU will be 29 + 1 and from the remain 303 bytes, 10 full fragment can be used to transport
+        // 27 bytes (with an overhead of 3 bytes [addition LL header + 1 bytes overhead]). The remaining 3 bytes
+        // can not be used to transport addional bytes of the L2CAP SDU.
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_receive_size(), 299u);
+        // the first PDU will be 29 + 1 and from the remain 221 bytes, 7 full fragment can be used to transport
+        // 27 bytes (with an overhead of 3 bytes [addition LL header + 1 bytes overhead]). The remaining 11 bytes
+        // can be used to transport addional 8 bytes of the L2CAP SDU
+        BOOST_CHECK_EQUAL(max_l2cap_sdu_transmit_size(), 226u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_receive_size(), 255u);
+        BOOST_CHECK_EQUAL(max_ll_pdu_transmit_size(), 250u);
+    }
+
+#if 0
+    // As soon as the buffer sizes rise above the size of a single LL PDU, L2CAP fragmentation will be possible.
+    // For a fragmented L2CAP
     using sizes_35_40_1 = bluetoe::link_layer::ll_data_buffer_sizes< 35, 40, layout_5 >;
 
     BOOST_FIXTURE_TEST_CASE(minimum_buffer_sizes_with_large_layout_overheader, sizes_35_40_1)
@@ -969,11 +1009,39 @@ BOOST_AUTO_TEST_SUITE( l2cap_buffer_sizes_tests )
         current_ll_pdu_transmit_size(max_ll_pdu_transmit_size());
         BOOST_CHECK_EQUAL(current_ll_pdu_transmit_size(), 30u);
     }
-
+#endif
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( l2cap_fragmentation_tests )
+#if 0
+BOOST_AUTO_TEST_SUITE( receive_fragmented_l2cap_sdu )
 
+    BOOST_FIXTURE_TEST_CASE( missing_second_pdu )
+    {
+    }
 
+    BOOST_FIXTURE_TEST_CASE( missing_last_pdu )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( receiving_a_fragmented_sdu )
+    {
+    }
+
+    /*
+     * If fragments are too small, the overhead will add up so that
+     * the received SDU can not be stored.
+     */
+    BOOST_FIXTURE_TEST_CASE( receiving_fragmented_sdu_in_too_much_pdus )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( receiving_sdu_wrapped_in_ring_buffer )
+    {
+    }
+
+    BOOST_FIXTURE_TEST_CASE( receiving_mix_of_pdus_and_fragmented_sdus )
+    {
+    }
 
 BOOST_AUTO_TEST_SUITE_END()
+#endif

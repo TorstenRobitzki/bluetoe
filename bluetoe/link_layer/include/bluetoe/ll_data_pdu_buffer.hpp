@@ -13,6 +13,21 @@
 namespace bluetoe {
 namespace link_layer {
 
+    /**
+     * @brief size book keeping and calculations
+     *
+     * The buffer have to store either link layer PDUs or L2CAP SDUs. For link layer control
+     * PDUs, there is a minimum size of 29 bytes, that is defined by the set of supported LL control
+     * procedures (29 -> Version 4.2). The minimum L2CAP size depends on the feature set. Without
+     * LESC a MTU size of 23 is requires, with LESC, the minimum MTU size would be 65 (Vol 3, Part H, 3.2.)
+     *
+     * This class calculates the maximum LL PDU sizes that are possible with the given Buffer sizes and the
+     * maxmim L2CAP SDUs that are possible with the given buffer sizes. It's then up to a different layer to
+     * check that against the requirements of the given feature set.
+     *
+     * Currently, the underlying ring buffer can devide the used buffer in two ranges, even when the buffer is empty.
+     * As a result of that, the buffer size needs to be at least double of the required size.
+     */
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Layout  >
     class ll_data_buffer_sizes
     {
@@ -39,13 +54,6 @@ namespace link_layer {
         static constexpr std::size_t    header_size     = 2u;
         static constexpr std::size_t    layout_overhead = layout_t::data_channel_pdu_memory_size( 0 ) - header_size;
 
-        static_assert( TransmitSize >= layout_overhead + min_ll_pdu_size,
-            "TransmitSize should at least be large enough to store one L2CAP PDU plus overheader required by the hardware." );
-
-        static_assert( ReceiveSize >= layout_overhead + min_ll_pdu_size,
-            "ReceiveSize should at least be large enough to store one L2CAP PDU plus overheader required by the hardware." );
-
-
         /**@{*/
         /**
          * @name link layer buffer sizes
@@ -59,9 +67,9 @@ namespace link_layer {
          */
         constexpr std::size_t max_ll_pdu_receive_size() const
         {
-            return ReceiveSize - layout_overhead  > max_ll_pdu_size
+            return half_receive_size - layout_overhead  > max_ll_pdu_size
                 ? max_ll_pdu_size
-                : ReceiveSize - layout_overhead;
+                : half_receive_size - layout_overhead;
         }
 
         /**
@@ -91,9 +99,9 @@ namespace link_layer {
          */
         constexpr std::size_t max_ll_pdu_transmit_size() const
         {
-            return TransmitSize - layout_overhead  > max_ll_pdu_size
+            return half_transmit_size - layout_overhead  > max_ll_pdu_size
                 ? max_ll_pdu_size
-                : TransmitSize - layout_overhead;
+                : half_transmit_size - layout_overhead;
         }
 
         /**
@@ -131,7 +139,9 @@ namespace link_layer {
          */
         constexpr std::size_t max_l2cap_sdu_receive_size() const
         {
-            return ReceiveSize - layout_overhead;
+            // if L2CAP PDUs have to be fragmented, at worst, they have to be fragmented into small 29 byte LL PDUs
+            // every fragment will add layout_overhead and header_size
+            return min_ll_pdu_size + num_full_received_fragments * (min_ll_pdu_size - header_size) + last_received_fragment_size;
         }
 
         /**
@@ -142,7 +152,7 @@ namespace link_layer {
          */
         constexpr std::size_t max_l2cap_sdu_transmit_size() const
         {
-            return TransmitSize - layout_overhead;
+            return min_ll_pdu_size + num_full_transmit_fragments * (min_ll_pdu_size - header_size) + last_transmit_fragment_size;
         }
 
         /**@}*/
@@ -156,6 +166,31 @@ namespace link_layer {
         void reset_buffer_sizes();
 
     private:
+        /** @cond HIDDEN_SYMBOLS */
+        // if size of the buffer is odd, the larger half is what limits the pdu size
+        static constexpr std::size_t half_receive_size              = ( ReceiveSize + 1 ) / 2;
+        static constexpr std::size_t half_transmit_size             = ( TransmitSize + 1 ) / 2;
+        // The number of full PDUs in a fragmented L2CAP SDU (beside the first one)
+        static constexpr std::size_t num_full_received_fragments    =
+            ( half_receive_size - min_ll_pdu_size - layout_overhead ) / (min_ll_pdu_size + layout_overhead);
+        static constexpr std::size_t num_full_transmit_fragments    =
+            ( half_transmit_size - min_ll_pdu_size - layout_overhead ) / (min_ll_pdu_size + layout_overhead);
+        // What remains, after storing the full fragments
+        static constexpr std::size_t remaining_received_size        =
+            half_receive_size - num_full_received_fragments * (min_ll_pdu_size + layout_overhead) - (min_ll_pdu_size + layout_overhead);
+        static constexpr std::size_t remaining_transmit_size        =
+            half_transmit_size - num_full_transmit_fragments * (min_ll_pdu_size + layout_overhead) - (min_ll_pdu_size + layout_overhead);
+        // If the remaining size exceeds the header and layout overhead, it can be used to extend the fragmented L2CAP size
+        static constexpr std::size_t last_received_fragment_size    =
+            remaining_received_size > (header_size + layout_overhead)
+                ? remaining_received_size - (header_size + layout_overhead)
+                : 0;
+        static constexpr std::size_t last_transmit_fragment_size    =
+            remaining_transmit_size > (header_size + layout_overhead)
+                ? remaining_transmit_size - (header_size + layout_overhead)
+                : 0;
+        /** @endcond */
+
         std::size_t current_ll_pdu_receive_size_;
         std::size_t current_ll_pdu_transmit_size_;
     };
