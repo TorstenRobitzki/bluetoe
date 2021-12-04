@@ -357,7 +357,7 @@ BOOST_AUTO_TEST_SUITE( receive_buffer_for_mtu_size_larger_than_23_bytes )
 BOOST_AUTO_TEST_SUITE_END()
 
 // All Tests are done with a layout that has an extra byte between header and body
-BOOST_AUTO_TEST_SUITE( transmit_buffer_for_mtu_size_larger_than_23_bytes )
+BOOST_AUTO_TEST_SUITE( transmit_l2cap_sdus )
 
     BOOST_FIXTURE_TEST_CASE( allocating_buffer, buffer_under_test )
     {
@@ -407,7 +407,7 @@ BOOST_AUTO_TEST_SUITE( transmit_buffer_for_mtu_size_larger_than_23_bytes )
         write_l2cap_size( buffer, 100 );
         commit_l2cap_transmit_buffer( buffer );
 
-        const auto buffer2 = allocate_ll_transmit_buffer( 30 );
+        const auto buffer2 = allocate_ll_transmit_buffer( 27 );
 
         BOOST_CHECK_EQUAL( buffer2.size, 30u );
         BOOST_CHECK( buffer2.buffer != nullptr );
@@ -423,17 +423,17 @@ BOOST_AUTO_TEST_SUITE( transmit_buffer_for_mtu_size_larger_than_23_bytes )
         commit_l2cap_transmit_buffer( buffer );
 
         // there is still one PDU missing to send the entire L2CAP SDU
-        BOOST_CHECK_EQUAL( allocate_ll_transmit_buffer( 30 ).size, 0u );
+        BOOST_CHECK_EQUAL( allocate_ll_transmit_buffer( 27 ).size, 0u );
         BOOST_CHECK_EQUAL( allocate_l2cap_transmit_buffer( 23 ).size, 0u );
 
         // If the entire L2CAP SDU is written, the L2CAP buffer can be used again,
         // but still no LL PDU available
         add_free_ll_pdus(1);
-        BOOST_CHECK_EQUAL( allocate_ll_transmit_buffer( 30 ).size, 0u );
+        BOOST_CHECK_EQUAL( allocate_ll_transmit_buffer( 27 ).size, 0u );
         BOOST_CHECK_EQUAL( allocate_l2cap_transmit_buffer( 23 ).size, 30u );
 
         add_free_ll_pdus(1);
-        BOOST_CHECK_EQUAL( allocate_ll_transmit_buffer( 30 ).size, 30u );
+        BOOST_CHECK_EQUAL( allocate_ll_transmit_buffer( 27 ).size, 30u );
         BOOST_CHECK_EQUAL( allocate_l2cap_transmit_buffer( 23 ).size, 30u );
     }
 
@@ -535,6 +535,27 @@ BOOST_AUTO_TEST_SUITE( transmit_buffer_for_mtu_size_larger_than_23_bytes )
             0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
             0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87
         }), per_element() );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( transmit_ll_pdus )
+
+    BOOST_FIXTURE_TEST_CASE( allocating_buffer, buffer_under_test )
+    {
+        add_free_ll_pdus(1);
+
+        const auto b1 = allocate_ll_transmit_buffer( 27 );
+        BOOST_CHECK_EQUAL( b1.size, 27u + 2u + 1u );
+
+        // allocate_ll_transmit_buffer is idempotent
+        const auto b2 = allocate_ll_transmit_buffer( 27 );
+        BOOST_CHECK_EQUAL( b2.size, 27u + 2u + 1u );
+
+        commit_ll_transmit_buffer( b2 );
+
+        const auto b3 = allocate_ll_transmit_buffer( 27 );
+        BOOST_CHECK_EQUAL( b3.size, 0u );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

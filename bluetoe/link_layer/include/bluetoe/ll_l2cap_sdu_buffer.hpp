@@ -161,7 +161,7 @@ namespace link_layer {
     {
         try_send_pdus();
 
-        return this->allocate_transmit_buffer( payload_size );
+        return this->allocate_transmit_buffer( payload_size + ll_overhead );
     }
 
     template < class BufferedRadio, std::size_t MTUSize >
@@ -174,6 +174,12 @@ namespace link_layer {
         transmit_size_              = size;
 
         try_send_pdus();
+    }
+
+    template < class BufferedRadio, std::size_t MTUSize >
+    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::commit_ll_transmit_buffer( read_buffer buffer )
+    {
+        this->commit_transmit_buffer( buffer );
     }
 
     template < class BufferedRadio, std::size_t MTUSize >
