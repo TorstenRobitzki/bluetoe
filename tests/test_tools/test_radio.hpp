@@ -4,6 +4,7 @@
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
+#include <bluetoe/ll_l2cap_sdu_buffer.hpp>
 #include <bluetoe/link_layer.hpp>
 
 #include <vector>
@@ -348,7 +349,7 @@ namespace test {
      * @brief test implementation of the link_layer::scheduled_radio interface, that simulates receiving and transmitted data
      */
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    class radio : public radio_base, public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, radio< TransmitSize, ReceiveSize, CallBack > >
+    class radio : public radio_base, public bluetoe::link_layer::ll_l2cap_sdu_buffer< bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, radio< TransmitSize, ReceiveSize, CallBack > >, bluetoe::details::default_att_mtu_size >
     {
     public:
         /**

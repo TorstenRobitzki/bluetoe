@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include "ll_meta_types.hpp"
+#include <bluetoe/codes.hpp>
 
 namespace bluetoe {
 
@@ -41,6 +42,11 @@ namespace l2cap {
          * the function will return false.
          */
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
+
+        /**
+         * @brief supported MTU size
+         */
+        constexpr std::size_t signaling_channel_mtu_size() const;
 
         /** @cond HIDDEN_SYMBOLS */
         struct meta_type :
@@ -97,6 +103,14 @@ namespace l2cap {
         bool connection_parameter_update_request( std::uint16_t, std::uint16_t, std::uint16_t, std::uint16_t )
         {
             return false;
+        }
+
+        /**
+         * @brief supported MTU size
+         */
+        constexpr std::size_t signaling_channel_mtu_size() const
+        {
+            return bluetoe::details::default_att_mtu_size;
         }
 
         /** @cond HIDDEN_SYMBOLS */
@@ -177,6 +191,12 @@ namespace l2cap {
         }
 
         return false;
+    }
+
+    template < typename ... Options >
+    constexpr std::size_t signaling_channel< Options... >::signaling_channel_mtu_size() const
+    {
+        return bluetoe::details::default_att_mtu_size;
     }
 
     template < typename ... Options >
