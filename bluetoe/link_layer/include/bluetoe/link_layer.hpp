@@ -3,6 +3,7 @@
 
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>
+#include <bluetoe/ll_l2cap_sdu_buffer.hpp>
 #include <bluetoe/ll_options.hpp>
 #include <bluetoe/address.hpp>
 #include <bluetoe/channel_map.hpp>
@@ -273,17 +274,23 @@ namespace link_layer {
         typename ... Options
     >
     class link_layer :
-        public ScheduledRadio<
-            details::buffer_sizes< Options... >::tx_size,
-            details::buffer_sizes< Options... >::rx_size,
-            link_layer< Server, ScheduledRadio, Options... >
-        >,
-        public details::security_manager< Server, Options... >::type,
-        public details::white_list<
+        public bluetoe::link_layer::ll_l2cap_sdu_buffer<
             ScheduledRadio<
                 details::buffer_sizes< Options... >::tx_size,
                 details::buffer_sizes< Options... >::rx_size,
                 link_layer< Server, ScheduledRadio, Options... >
+            >,
+            details::mtu_size< Options... >::mtu
+        >,
+        public details::security_manager< Server, Options... >::type,
+        public details::white_list<
+            bluetoe::link_layer::ll_l2cap_sdu_buffer<
+                ScheduledRadio<
+                    details::buffer_sizes< Options... >::tx_size,
+                    details::buffer_sizes< Options... >::rx_size,
+                    link_layer< Server, ScheduledRadio, Options... >
+                >,
+                details::mtu_size< Options... >::mtu
             >,
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
@@ -360,9 +367,10 @@ namespace link_layer {
         const device_address& local_address() const;
 
         using radio_t = ScheduledRadio<
-            details::buffer_sizes< Options... >::tx_size,
-            details::buffer_sizes< Options... >::rx_size,
-            link_layer< Server, ScheduledRadio, Options... > >;
+                details::buffer_sizes< Options... >::tx_size,
+                details::buffer_sizes< Options... >::rx_size,
+                link_layer< Server, ScheduledRadio, Options... >
+        >;
 
         using layout_t = typename pdu_layout_by_radio< radio_t >::pdu_layout;
 
