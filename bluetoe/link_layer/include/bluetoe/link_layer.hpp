@@ -187,8 +187,7 @@ namespace link_layer {
                     if ( !encryption_in_progress_ )
                         return;
 
-                    // TODO: MTU Size depends on the support for LESC
-                    auto out_buffer = that().allocate_l2cap_transmit_buffer( bluetoe::details::default_att_mtu_size );
+                    auto out_buffer = that().allocate_ll_transmit_buffer( LinkLayer::maximum_ll_payload_size );
                     if ( out_buffer.empty() )
                         return;
 
@@ -198,12 +197,12 @@ namespace link_layer {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
                         that().start_receive_encrypted();
-                        that().commit_l2cap_transmit_buffer( out_buffer );
+                        that().commit_ll_transmit_buffer( out_buffer );
                     }
                     else
                     {
                         that().reject( LinkLayer::LL_ENC_REQ, LinkLayer::err_pin_or_key_missing, out_buffer );
-                        that().commit_l2cap_transmit_buffer( out_buffer );
+                        that().commit_ll_transmit_buffer( out_buffer );
                     }
 
                     encryption_in_progress_ = false;
@@ -1222,10 +1221,6 @@ namespace link_layer {
         if ( l2cap_channel == l2cap_att_channel )
         {
             server_->l2cap_input( &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size, connection_details_ );
-
-            // in case the ATT input changed the MTU size:
-            this->max_rx_size( connection_details_.negotiated_mtu() + all_header_size );
-            this->max_tx_size( connection_details_.negotiated_mtu() + all_header_size );
         }
         else if ( l2cap_channel == l2cap_sm_channel )
         {
