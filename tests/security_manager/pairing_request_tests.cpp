@@ -1,5 +1,3 @@
-#include <iostream>
-
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
@@ -10,11 +8,16 @@
 template < class Manager, std::size_t MTU = 27 >
 using sm = test::security_manager< Manager, MTU >;
 
-BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manager > )
+using security_managers_under_test = std::tuple<
+    sm< bluetoe::legacy_security_manager >,
+    sm< bluetoe::lesc_security_manager, 65u > >;
 
-    BOOST_AUTO_TEST_CASE( empty_request )
+BOOST_AUTO_TEST_SUITE( invalid_pairing_requests )
+
+    BOOST_AUTO_TEST_CASE_TEMPLATE( empty_request, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
             },
             {
@@ -24,9 +27,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_opcode )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_opcode, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x55
             },
@@ -37,9 +41,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( no_parameters )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( no_parameters, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01            // Pairing Request
             },
@@ -50,9 +55,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_IO_Capability )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_IO_Capability, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x05,           // IO Capability RFU
@@ -70,9 +76,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_OOB_data_flag )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_OOB_data_flag, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x03,           // IO Capability NoInputNoOutput
@@ -90,9 +97,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_AuthReq )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_AuthReq, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x03,           // IO Capability NoInputNoOutput
@@ -110,9 +118,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_Encryption_Key_Size )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_Encryption_Key_Size, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x03,           // IO Capability NoInputNoOutput
@@ -130,9 +139,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_Encryption_Key_Size_II )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_Encryption_Key_Size_II, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x03,           // IO Capability NoInputNoOutput
@@ -150,9 +160,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_Initiator_Key_Distribution )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_Initiator_Key_Distribution, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x03,           // IO Capability NoInputNoOutput
@@ -170,9 +181,10 @@ BOOST_FIXTURE_TEST_SUITE( invalid_pairing_requests, sm< bluetoe::security_manage
         );
     }
 
-    BOOST_AUTO_TEST_CASE( invalid_Responder_Key_Distribution )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_Responder_Key_Distribution, Manager, security_managers_under_test )
     {
-        expected(
+        Manager mng;
+        mng.expected(
             {
                 0x01,           // Pairing Request
                 0x03,           // IO Capability NoInputNoOutput
@@ -209,3 +221,25 @@ BOOST_FIXTURE_TEST_CASE( not_in_idle_state, test::pairing_features_exchanged )
             }
         );
 }
+
+using lesc_only_security_manager = sm< bluetoe::lesc_security_manager, 65u >;
+
+BOOST_FIXTURE_TEST_CASE( legacy_not_supported, lesc_only_security_manager )
+{
+    expected(
+        {
+            0x01,           // Pairing Request
+            0x01,           // IO Capability NoInputNoOutput
+            0x00,           // OOB data flag (data not present)
+            0x00,           // AuthReq, SC not set!
+            0x10,           // Maximum Encryption Key Size (16)
+            0x07,           // Initiator Key Distribution
+            0x07,           // Responder Key Distribution (RFU)
+        },
+        {
+            0x05,           // Pairing Failed
+            0x05            // Pairing Not Supported
+        }
+    );
+}
+

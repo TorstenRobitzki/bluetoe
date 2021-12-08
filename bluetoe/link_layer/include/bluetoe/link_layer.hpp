@@ -48,7 +48,7 @@ namespace link_layer {
         struct security_manager {
             using default_sm = typename bluetoe::details::select_type<
                 bluetoe::details::requires_encryption_support_t< Server >::value,
-                bluetoe::security_manager,
+                bluetoe::legacy_security_manager,
                 bluetoe::no_security_manager
             >::type;
 

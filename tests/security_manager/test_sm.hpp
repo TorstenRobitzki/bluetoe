@@ -177,7 +177,7 @@ namespace test {
         connection_data_t connection_data_;
     };
 
-    struct pairing_features_exchanged : security_manager< bluetoe::security_manager, 27 >
+    struct pairing_features_exchanged : security_manager< bluetoe::legacy_security_manager, 27 >
     {
         pairing_features_exchanged()
         {

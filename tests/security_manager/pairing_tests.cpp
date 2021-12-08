@@ -22,7 +22,7 @@ BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, sm< bluetoe::no_securit
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, sm< bluetoe::security_manager > )
+BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, sm< bluetoe::legacy_security_manager > )
 {
     expected(
         pairing_request,
@@ -50,7 +50,7 @@ BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, sm< bluetoe::security_manage
  *
  * Verify that the IUT is able to perform the Just Works pairing procedure correctly when acting as slave, responder.
  */
-BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, sm< bluetoe::security_manager > )
+BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, sm< bluetoe::legacy_security_manager > )
 {
     /*
     expected(
