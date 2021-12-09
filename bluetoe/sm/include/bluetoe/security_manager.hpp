@@ -97,11 +97,11 @@ namespace bluetoe {
         }
 
         template < class OtherConnectionData >
-        class security_connection_data : public OtherConnectionData
+        class legacy_security_connection_data : public OtherConnectionData
         {
         public:
             template < class ... Args >
-            security_connection_data( Args&&... args )
+            legacy_security_connection_data( Args&&... args )
                 : OtherConnectionData( args... )
                 , state_( details::pairing_state::idle )
             {}
@@ -211,6 +211,46 @@ namespace bluetoe {
             }                       state_data_;
         };
 
+        template < class OtherConnectionData >
+        class lesc_security_connection_data : public OtherConnectionData
+        {
+        public:
+            template < class ... Args >
+            lesc_security_connection_data( Args&&... args )
+                : OtherConnectionData( args... )
+            {}
+
+            details::pairing_state state() const
+            {
+                return state_;
+            }
+
+            void remote_connection_created( const bluetoe::link_layer::device_address& remote )
+            {
+                remote_addr_ = remote;
+            }
+
+            const bluetoe::link_layer::device_address& remote_address() const
+            {
+                return remote_addr_;
+            }
+
+            void error_reset()
+            {
+                state_ = details::pairing_state::idle;
+            }
+
+            void pairing_requested()
+            {
+                assert( state_ == details::pairing_state::idle );
+                state_ = details::pairing_state::pairing_requested;
+            }
+
+        private:
+            bluetoe::link_layer::device_address remote_addr_;
+            details::pairing_state              state_;
+        };
+
         // features required by legacy and by lesc pairing
         template < template < class OtherConnectionData > class ConnectionData >
         class security_manager_base_base
@@ -274,7 +314,7 @@ namespace bluetoe {
     /**
      * @brief A Security manager implementation that supports legacy pairing.
      */
-    using legacy_security_manager = legacy_security_manager_base< details::security_connection_data >;
+    using legacy_security_manager = legacy_security_manager_base< details::legacy_security_connection_data >;
 
     template < template < class OtherConnectionData > class ConnectionData >
     class lesc_security_manager_base : private details::security_manager_base_base< ConnectionData >
@@ -308,7 +348,7 @@ namespace bluetoe {
     /**
      * @brief A Security manager that implements LESC pairing.
      */
-    using lesc_security_manager = lesc_security_manager_base< details::security_connection_data >;
+    using lesc_security_manager = lesc_security_manager_base< details::lesc_security_connection_data >;
 
     /**
      * @brief current default implementation of the security manager, that actievly rejects every pairing attempt.
@@ -590,6 +630,7 @@ namespace bluetoe {
         if ( ( auth_req & static_cast< std::uint8_t >( authentication_requirements_flags::secure_connections ) ) == 0 )
             return this->error_response( sm_error_codes::pairing_not_supported, output, out_size, state );
 
+        state.pairing_requested();
         create_pairing_response( output, out_size );
     }
 
@@ -600,6 +641,9 @@ namespace bluetoe {
     {
         if ( in_size != public_key_exchange_size )
             return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
+
+        if ( state.state() != details::pairing_state::pairing_requested )
+            return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
 
         assert( out_size >= public_key_exchange_size );
 
