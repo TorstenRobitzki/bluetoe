@@ -5,12 +5,9 @@
 
 #include "test_sm.hpp"
 
-template < class Manager, std::size_t MTU = 27 >
-using sm = test::security_manager< Manager, MTU >;
-
 using security_managers_under_test = std::tuple<
-    sm< bluetoe::legacy_security_manager >,
-    sm< bluetoe::lesc_security_manager, 65u > >;
+    test::legacy_security_manager<>,
+    test::lesc_security_manager<> >;
 
 BOOST_AUTO_TEST_SUITE( invalid_pairing_requests )
 
@@ -203,7 +200,7 @@ BOOST_AUTO_TEST_SUITE( invalid_pairing_requests )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_FIXTURE_TEST_CASE( not_in_idle_state, test::pairing_features_exchanged )
+BOOST_FIXTURE_TEST_CASE( not_in_idle_state, test::legacy_pairing_features_exchanged )
 {
         expected(
             {
@@ -222,9 +219,7 @@ BOOST_FIXTURE_TEST_CASE( not_in_idle_state, test::pairing_features_exchanged )
         );
 }
 
-using lesc_only_security_manager = sm< bluetoe::lesc_security_manager, 65u >;
-
-BOOST_FIXTURE_TEST_CASE( legacy_not_supported, lesc_only_security_manager )
+BOOST_FIXTURE_TEST_CASE( legacy_not_supported, test::lesc_security_manager<> )
 {
     expected(
         {

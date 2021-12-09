@@ -5,7 +5,7 @@
 
 #include "test_sm.hpp"
 
-BOOST_FIXTURE_TEST_CASE( wrong_state, test::pairing_features_exchanged )
+BOOST_FIXTURE_TEST_CASE( wrong_state, test::legacy_pairing_features_exchanged )
 {
     expected(
         {
@@ -22,7 +22,7 @@ BOOST_FIXTURE_TEST_CASE( wrong_state, test::pairing_features_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( wrong_size, test::pairing_confirm_exchanged )
+BOOST_FIXTURE_TEST_CASE( wrong_size, test::legacy_pairing_confirm_exchanged )
 {
     expected(
         {
@@ -39,7 +39,7 @@ BOOST_FIXTURE_TEST_CASE( wrong_size, test::pairing_confirm_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( wrong_size_II, test::pairing_confirm_exchanged )
+BOOST_FIXTURE_TEST_CASE( wrong_size_II, test::legacy_pairing_confirm_exchanged )
 {
     expected(
         {
@@ -57,7 +57,7 @@ BOOST_FIXTURE_TEST_CASE( wrong_size_II, test::pairing_confirm_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( incorrect_confirm_value, test::pairing_confirm_exchanged )
+BOOST_FIXTURE_TEST_CASE( incorrect_confirm_value, test::legacy_pairing_confirm_exchanged )
 {
     expected(
         {
@@ -74,7 +74,7 @@ BOOST_FIXTURE_TEST_CASE( incorrect_confirm_value, test::pairing_confirm_exchange
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_confirm_value, test::pairing_confirm_exchanged )
+BOOST_FIXTURE_TEST_CASE( correct_confirm_value, test::legacy_pairing_confirm_exchanged )
 {
     expected(
         {

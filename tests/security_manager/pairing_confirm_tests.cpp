@@ -5,10 +5,7 @@
 
 #include "test_sm.hpp"
 
-template < class Manager, std::size_t MTU = 27 >
-using sm = test::security_manager< Manager, MTU >;
-
-BOOST_FIXTURE_TEST_CASE( invalid_state, sm< bluetoe::legacy_security_manager > )
+BOOST_FIXTURE_TEST_CASE( invalid_state, test::legacy_security_manager<> )
 {
     expected(
         {
@@ -25,7 +22,7 @@ BOOST_FIXTURE_TEST_CASE( invalid_state, sm< bluetoe::legacy_security_manager > )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_size, test::pairing_features_exchanged )
+BOOST_FIXTURE_TEST_CASE( invalid_size, test::legacy_pairing_features_exchanged )
 {
     expected(
         {
@@ -38,7 +35,7 @@ BOOST_FIXTURE_TEST_CASE( invalid_size, test::pairing_features_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_size_II, test::pairing_features_exchanged )
+BOOST_FIXTURE_TEST_CASE( invalid_size_II, test::legacy_pairing_features_exchanged )
 {
     expected(
         {
@@ -74,7 +71,7 @@ BOOST_FIXTURE_TEST_CASE( invalid_size_II, test::pairing_features_exchanged )
  * changed:
  * 56 bit pres is 0x00001000000302
  */
-BOOST_FIXTURE_TEST_CASE( correct_paring_request, sm< bluetoe::legacy_security_manager > )
+BOOST_FIXTURE_TEST_CASE( correct_paring_request, test::legacy_security_manager<> )
 {
     expected(
         {

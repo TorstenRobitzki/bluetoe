@@ -12,7 +12,7 @@
  * 128-bit value r is 0x5783D52156AD6F0E6388274EC6702EE0
  * 128-bit output from the c1 function is 0x1e1e3fef878988ead2a74dc5bef13b86
  */
-BOOST_FIXTURE_TEST_CASE( c1_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( c1_test, test::legacy_security_functions )
 {
     const bluetoe::details::uint128_t p1{{
         0x01, 0x00, 0x01, 0x01,
@@ -62,7 +62,7 @@ BOOST_FIXTURE_TEST_CASE( c1_test, test::security_functions )
 // For example if the 128-bit value k is 0x00000000000000000000000000000000
 // and the 128-bit value r' is 0x112233445566778899AABBCCDDEEFF00
 // then the output from the key generation function s1 is 0x9a1fe1f0e8b0f49b5b4216ae796da062.
-BOOST_FIXTURE_TEST_CASE( s1_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( s1_test, test::legacy_security_functions )
 {
     static const bluetoe::details::uint128_t k = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -93,7 +93,7 @@ BOOST_FIXTURE_TEST_CASE( s1_test, test::security_functions )
         key.begin(), key.end(), expected.begin(), expected.end() );
 }
 
-BOOST_FIXTURE_TEST_CASE( aes_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( aes_test, test::legacy_security_functions )
 {
     const bluetoe::details::uint128_t key{{
         0x0f, 0x0e, 0x0d, 0x0c,
@@ -122,7 +122,7 @@ BOOST_FIXTURE_TEST_CASE( aes_test, test::security_functions )
         output.begin(), output.end(), expected.begin(), expected.end() );
 }
 
-BOOST_FIXTURE_TEST_CASE( xor_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( xor_test, test::legacy_security_functions )
 {
     const bluetoe::details::uint128_t p1{{
         0x01, 0x00, 0x01, 0x01,

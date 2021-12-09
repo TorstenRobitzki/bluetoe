@@ -2,13 +2,15 @@
 #define BLUETOE_TESTS_SECURITY_MANAGER_TEST_SM_HPP
 
 #include "aes.h"
+#include "uECC.h"
 #include <bluetoe/link_state.hpp>
 #include <bluetoe/security_manager.hpp>
 #include <bluetoe/address.hpp>
 
 namespace test {
 
-    struct security_functions {
+    struct security_functions_base
+    {
         bluetoe::link_layer::device_address local_address() const
         {
             return local_addr_;
@@ -19,6 +21,12 @@ namespace test {
             local_addr_ = addr;
         }
 
+    private:
+        bluetoe::link_layer::device_address local_addr_;
+    };
+
+    struct legacy_security_functions : security_functions_base
+    {
         bluetoe::details::uint128_t create_srand()
         {
             const bluetoe::details::uint128_t r{{
@@ -112,12 +120,46 @@ namespace test {
 
             return r( data );
         }
-
-        bluetoe::link_layer::device_address local_addr_;
     };
 
-    template < class Manager, std::size_t MTU = 27 >
-    struct security_manager : Manager, private security_functions
+    struct lesc_security_functions : security_functions_base
+    {
+        bool is_valid_public_key( const std::uint8_t* public_key ) const
+        {
+            return uECC_valid_public_key( public_key );
+        }
+
+        bluetoe::details::ecdh_public_key_t generate_public_key()
+        {
+            static const bluetoe::details::ecdh_public_key_t test_key = {
+                {
+                    // Public Key X
+                    0x20, 0xb0, 0x03, 0xd2,
+                    0xf2, 0x97, 0xbe, 0x2c,
+                    0x5e, 0x2c, 0x83, 0xa7,
+                    0xe9, 0xf9, 0xa5, 0xb9,
+                    0xef, 0xf4, 0x91, 0x11,
+                    0xac, 0xf4, 0xfd, 0xdb,
+                    0xcc, 0x03, 0x01, 0x48,
+                    0x0e, 0x35, 0x9d, 0xe6,
+                    // Public Key Y
+                    0xdc, 0x80, 0x9c, 0x49,
+                    0x65, 0x2a, 0xeb, 0x6d,
+                    0x63, 0x32, 0x9a, 0xbf,
+                    0x5a, 0x52, 0x15, 0x5c,
+                    0x76, 0x63, 0x45, 0xc2,
+                    0x8f, 0xed, 0x30, 0x24,
+                    0x74, 0x1c, 0x8e, 0xd0,
+                    0x15, 0x89, 0xd2, 0x8b
+                }
+            };
+
+            return test_key;
+        }
+    };
+
+    template < class Manager, class SecurityFunctions, std::size_t MTU = 27 >
+    struct security_manager : Manager, private SecurityFunctions
     {
         security_manager()
             : connection_data_( MTU )
@@ -148,7 +190,7 @@ namespace test {
             std::size_t  size = MTU;
 
             this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size,
-                connection_data_, static_cast< security_functions& >( *this ) );
+                connection_data_, static_cast< SecurityFunctions& >( *this ) );
 
             BOOST_CHECK_EQUAL_COLLECTIONS(
                 expected_output.begin(), expected_output.end(),
@@ -161,7 +203,7 @@ namespace test {
 
         void local_address( const bluetoe::link_layer::device_address& addr )
         {
-            static_cast< security_functions& >( *this ).local_address( addr );
+            static_cast< SecurityFunctions& >( *this ).local_address( addr );
         }
 
         void remote_address( const bluetoe::link_layer::device_address& addr )
@@ -177,9 +219,15 @@ namespace test {
         connection_data_t connection_data_;
     };
 
-    struct pairing_features_exchanged : security_manager< bluetoe::legacy_security_manager, 27 >
+    template < std::size_t MTU = 23 >
+    using legacy_security_manager = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU >;
+
+    template < std::size_t MTU = 65 >
+    using lesc_security_manager = security_manager< bluetoe::lesc_security_manager, test::lesc_security_functions, MTU >;
+
+    struct legacy_pairing_features_exchanged : security_manager< bluetoe::legacy_security_manager, legacy_security_functions >
     {
-        pairing_features_exchanged()
+        legacy_pairing_features_exchanged()
         {
             expected(
                 {
@@ -204,9 +252,36 @@ namespace test {
         }
     };
 
-    struct pairing_confirm_exchanged : pairing_features_exchanged
+    struct lesc_pairing_features_exchanged : security_manager< bluetoe::lesc_security_manager, lesc_security_functions, 65 >
     {
-        pairing_confirm_exchanged()
+        lesc_pairing_features_exchanged()
+        {
+            expected(
+                {
+                    0x01,           // Pairing Request
+                    0x01,           // IO Capability NoInputNoOutput
+                    0x00,           // OOB data flag (data not present)
+                    0x08,           // AuthReq, SC = 1
+                    0x10,           // Maximum Encryption Key Size (16)
+                    0x07,           // Initiator Key Distribution
+                    0x07,           // Responder Key Distribution (RFU)
+                },
+                {
+                    0x02,           // response
+                    0x03,           // NoInputNoOutput
+                    0x00,           // OOB Authentication data not present
+                    0x08,           // Bonding, MITM = 0, SC = 1, Keypress = 0
+                    0x10,           // Maximum Encryption Key Size
+                    0x00,           // LinkKey
+                    0x00            // LinkKey
+                }
+            );
+        }
+    };
+
+    struct legacy_pairing_confirm_exchanged : legacy_pairing_features_exchanged
+    {
+        legacy_pairing_confirm_exchanged()
         {
             expected(
                 {
@@ -227,9 +302,9 @@ namespace test {
         }
     };
 
-    struct pairing_random_exchanged : pairing_confirm_exchanged
+    struct legacy_pairing_random_exchanged : legacy_pairing_confirm_exchanged
     {
-        pairing_random_exchanged()
+        legacy_pairing_random_exchanged()
         {
             expected(
                 {

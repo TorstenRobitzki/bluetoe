@@ -208,7 +208,6 @@ namespace link_layer {
          */
         static constexpr std::size_t radio_package_overhead = 0;
 
-
         /**
          * @brief indication no support for encryption
          */
@@ -226,9 +225,19 @@ namespace link_layer {
     {
     public:
         /**
-         * @brief indication support for encryption
+         * @brief indicates the support for LESC pairing
          */
-        static constexpr bool hardware_supports_encryption = true;
+        static constexpr bool hardware_supports_lesc_pairing = false;
+
+        /**
+         * @brief indicates the support for legacy pairing
+         */
+        static constexpr bool hardware_supports_legacy_pairing = true;
+
+        /**
+         * @brief indication no support for encryption
+         */
+        static constexpr bool hardware_supports_encryption = hardware_supports_lesc_pairing || hardware_supports_legacy_pairing;
 
         /**
          * @brief Function to create the Srand according to 2.3.5.5 Part H, Vol 3, Core Spec
@@ -284,6 +293,11 @@ namespace link_layer {
          * to be send to the master.
          */
         std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
+
+        /**
+         * features required for LESC
+         */
+        bool is_valid_public_key( const std::uint8_t* public_key ) const;
 
         /**
          * @brief start the encryption of received PDUs with the next connection event.

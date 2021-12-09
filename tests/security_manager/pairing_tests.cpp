@@ -5,38 +5,81 @@
 #include "test_servers.hpp"
 
 
-static const std::initializer_list< std::uint8_t > pairing_request = {
+static const std::initializer_list< std::uint8_t > no_lesc_pairing_request = {
     0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00
 };
 
-template < class Manager, std::size_t MTU = 27 >
-using sm = test::security_manager< Manager, MTU >;
+static const std::initializer_list< std::uint8_t > lesc_pairing_request = {
+    0x01, 0x00, 0x00, 0x08, 0x07, 0x00, 0x00
+};
 
-BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, sm< bluetoe::no_security_manager > )
+using no_security_sm = test::security_manager< bluetoe::no_security_manager, test::lesc_security_functions, 27 >;
+
+BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, no_security_sm )
 {
     expected(
-        pairing_request,
+        no_lesc_pairing_request,
         {
             0x05, 0x05
         }
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, sm< bluetoe::legacy_security_manager > )
-{
-    expected(
-        pairing_request,
-        {
-            0x02,   // response
-            0x03,   // NoInputNoOutput
-            0x00,   // OOB Authentication data not present
-            0x00,   // Bonding, MITM = 0, SC = 0, Keypress = 0
-            0x10,   // Maximum Encryption Key Size
-            0x00,   // LinkKey
-            0x00    // LinkKey
-        }
-    );
-}
+BOOST_FIXTURE_TEST_SUITE( legacy_pairing, test::legacy_security_manager<> )
+
+    BOOST_AUTO_TEST_CASE( by_default_no_oob_no_lesc )
+    {
+        expected(
+            no_lesc_pairing_request,
+            {
+                0x02,   // response
+                0x03,   // NoInputNoOutput
+                0x00,   // OOB Authentication data not present
+                0x00,   // Bonding, MITM = 0, SC = 0, Keypress = 0
+                0x10,   // Maximum Encryption Key Size
+                0x00,   // LinkKey
+                0x00    // LinkKey
+            }
+        );
+    }
+
+    BOOST_AUTO_TEST_CASE( no_lesc_event_when_the_initiater_is_asking_for_it )
+    {
+        expected(
+            lesc_pairing_request,
+            {
+                0x02,   // response
+                0x03,   // NoInputNoOutput
+                0x00,   // OOB Authentication data not present
+                0x00,   // Bonding, MITM = 0, SC = 0, Keypress = 0
+                0x10,   // Maximum Encryption Key Size
+                0x00,   // LinkKey
+                0x00    // LinkKey
+            }
+        );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE( lesc_pairing, test::lesc_security_manager<> )
+
+    BOOST_AUTO_TEST_CASE( by_default_no_oob_but_lesc )
+    {
+        expected(
+            lesc_pairing_request,
+            {
+                0x02,   // response
+                0x03,   // NoInputNoOutput
+                0x00,   // OOB Authentication data not present
+                0x08,   // Bonding, MITM = 0, SC = 1, Keypress = 0
+                0x10,   // Maximum Encryption Key Size
+                0x00,   // LinkKey
+                0x00    // LinkKey
+            }
+        );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
 
 /**
  * SM/SLA/PROT/BV-02-C [SMP Time Out – IUT Responder]
@@ -50,7 +93,7 @@ BOOST_FIXTURE_TEST_CASE( by_default_no_oob_no_lesc, sm< bluetoe::legacy_security
  *
  * Verify that the IUT is able to perform the Just Works pairing procedure correctly when acting as slave, responder.
  */
-BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, sm< bluetoe::legacy_security_manager > )
+BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_security_manager<> )
 {
     /*
     expected(

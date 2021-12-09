@@ -16,8 +16,10 @@ namespace bluetoe {
 
     namespace details {
 
-        using identity_resolving_key_t = std::array< std::uint8_t, 16 >;
-        using uint128_t = std::array< std::uint8_t, 16 >;
+        using identity_resolving_key_t  = std::array< std::uint8_t, 16 >;
+        using uint128_t                 = std::array< std::uint8_t, 16 >;
+
+        using ecdh_public_key_t         = std::array< std::uint8_t, 64 >;
 
         /**
          * @brief Tuple to store a longterm key along with
@@ -291,9 +293,13 @@ namespace bluetoe {
         static constexpr std::uint8_t   min_max_key_size = 7;
         static constexpr std::uint8_t   max_max_key_size = 16;
         static constexpr std::size_t    pairing_req_resp_size = 7;
+        static constexpr std::size_t    public_key_exchange_size = 65;
 
         template < class OtherConnectionData, class SecurityFunctions >
         void handle_pairing_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+        template < class OtherConnectionData, class SecurityFunctions >
+        void handle_pairing_public_key( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
         void create_pairing_response( std::uint8_t* output, std::size_t& out_size );
         /** @endcond */
@@ -541,6 +547,9 @@ namespace bluetoe {
             case sm_opcodes::pairing_request:
                 handle_pairing_request( input, in_size, output, out_size, state, func );
                 break;
+            case sm_opcodes::pairing_public_key:
+                handle_pairing_public_key( input, in_size, output, out_size, state, func );
+                break;
             default:
                 this->error_response( sm_error_codes::command_not_supported, output, out_size, state );
         }
@@ -585,6 +594,26 @@ namespace bluetoe {
     }
 
     template < template < class OtherConnectionData > class ConnectionData >
+    template < class OtherConnectionData, class SecurityFunctions >
+    void lesc_security_manager_base< ConnectionData >::handle_pairing_public_key(
+        const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
+    {
+        if ( in_size != public_key_exchange_size )
+            return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
+
+        assert( out_size >= public_key_exchange_size );
+
+        if ( !functions.is_valid_public_key( &input[ 1 ] ) )
+            return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
+
+        output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_public_key );
+
+        out_size = public_key_exchange_size;
+        const auto& pub_key = functions.generate_public_key();
+        std::copy( pub_key.begin(), pub_key.end(), &output[ 1 ] );
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData >
     inline void lesc_security_manager_base< ConnectionData >::create_pairing_response( std::uint8_t* output, std::size_t& out_size )
     {
         using namespace details;
@@ -593,7 +622,7 @@ namespace bluetoe {
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_response );
         output[ 1 ] = static_cast< std::uint8_t >( io_capabilities::no_input_no_output );
         output[ 2 ] = 0;
-        output[ 3 ] = 0;
+        output[ 3 ] = static_cast< std::uint8_t >( authentication_requirements_flags::secure_connections );
         output[ 4 ] = max_max_key_size;
         output[ 5 ] = 0;
         output[ 6 ] = 0;

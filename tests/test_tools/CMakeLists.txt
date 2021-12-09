@@ -10,7 +10,9 @@ add_library(test_tools STATIC
         test_servers.cpp
         hexdump.cpp
         test_radio.cpp
-        buffer_io.cpp)
+        buffer_io.cpp
+        uECC.c)
+
 add_library(test::tools ALIAS test_tools)
 
 target_include_directories(test_tools PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -20,3 +22,5 @@ target_compile_features(test_tools PRIVATE cxx_std_11)
 target_compile_definitions(test_tools PRIVATE "")
 
 set_property(TARGET test_tools PROPERTY C_STANDARD 99)
+set_source_files_properties(uECC.c PROPERTIES COMPILE_FLAGS -Wno-unused-variable)
+set_source_files_properties(uECC.c PROPERTIES COMPILE_DEFINITIONS uECC_CURVE=uECC_secp256r1)
