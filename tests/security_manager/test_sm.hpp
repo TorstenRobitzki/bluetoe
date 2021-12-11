@@ -8,7 +8,6 @@
 #include <bluetoe/address.hpp>
 
 namespace test {
-
     struct security_functions_base
     {
         bluetoe::link_layer::device_address local_address() const
@@ -21,6 +20,69 @@ namespace test {
             local_addr_ = addr;
         }
 
+        bluetoe::details::uint128_t aes( bluetoe::details::uint128_t key, bluetoe::details::uint128_t data ) const
+        {
+            key  = r( key );
+            data = r( data );
+
+            AES_ctx ctx;
+            AES_init_ctx( &ctx, &key[ 0 ] );
+
+            AES_ECB_encrypt( &ctx, &data[ 0 ] );
+
+            return r( data );
+        }
+
+        bluetoe::details::uint128_t aes( bluetoe::details::uint128_t key, const std::uint8_t* data ) const
+        {
+            bluetoe::details::uint128_t input;
+            std::copy(data, data + 16u, input.begin());
+
+            return aes( key, input );
+        }
+
+    protected:
+        bluetoe::details::uint128_t r( const bluetoe::details::uint128_t& a ) const
+        {
+            const bluetoe::details::uint128_t result{{
+                a[15], a[14], a[13], a[12],
+                a[11], a[10], a[ 9], a[ 8],
+                a[ 7], a[ 6], a[ 5], a[ 4],
+                a[ 3], a[ 2], a[ 1], a[ 0],
+            }};
+
+            return result;
+        }
+
+        bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const bluetoe::details::uint128_t& b ) const
+        {
+            std::transform(
+                a.begin(), a.end(),
+                b.begin(),
+                a.begin(),
+                []( std::uint8_t a, std::uint8_t b ) -> std::uint8_t
+                {
+                    return a xor b;
+                }
+            );
+
+            return a;
+        }
+
+        bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const std::uint8_t* b ) const
+        {
+            std::transform(
+                a.begin(), a.end(),
+                b,
+                a.begin(),
+                []( std::uint8_t a, std::uint8_t b ) -> std::uint8_t
+                {
+                    return a xor b;
+                }
+            );
+
+            return a;
+        }
     private:
         bluetoe::link_layer::device_address local_addr_;
     };
@@ -93,33 +155,6 @@ namespace test {
             return result;
         }
 
-        bluetoe::details::uint128_t xor_( bluetoe::details::uint128_t a, const bluetoe::details::uint128_t& b ) const
-        {
-            std::transform(
-                a.begin(), a.end(),
-                b.begin(),
-                a.begin(),
-                []( std::uint8_t a, std::uint8_t b ) -> std::uint8_t
-                {
-                    return a xor b;
-                }
-            );
-
-            return a;
-        }
-
-        bluetoe::details::uint128_t aes( bluetoe::details::uint128_t key, bluetoe::details::uint128_t data ) const
-        {
-            key  = r( key );
-            data = r( data );
-
-            AES_ctx ctx;
-            AES_init_ctx( &ctx, &key[ 0 ] );
-
-            AES_ECB_encrypt( &ctx, &data[ 0 ] );
-
-            return r( data );
-        }
     };
 
     struct lesc_security_functions : security_functions_base
@@ -156,6 +191,56 @@ namespace test {
 
             return test_key;
         }
+
+        bluetoe::details::uint128_t left_shift(const bluetoe::details::uint128_t& input)
+        {
+            bluetoe::details::uint128_t output;
+
+            std::uint8_t overflow = 0;
+            for ( std::size_t i = 0; i != input.size(); ++i )
+            {
+                output[ i ] = ( input[i] << 1 ) | overflow;
+                overflow = ( input[ i ] & 0x80 ) ? 1 : 0;
+            }
+
+            return output;
+        }
+
+        bluetoe::details::uint128_t aes_cmac_k2_subkey_generation( const bluetoe::details::uint128_t& key )
+        {
+            const bluetoe::details::uint128_t zero = {{ 0x00 }};
+            const bluetoe::details::uint128_t C    = {{ 0x87 }};
+
+            const bluetoe::details::uint128_t k0 = aes( key, zero );
+
+            const bluetoe::details::uint128_t k1 = ( k0.back() & 0x80 ) == 0
+                ? left_shift(k0)
+                : xor_( left_shift(k0), C );
+
+            const bluetoe::details::uint128_t k2 = ( k1.back() & 0x80 ) == 0
+                ? left_shift(k1)
+                : xor_( left_shift(k1), C );
+
+            return k2;
+        }
+
+        bluetoe::details::uint128_t f4( const std::array< std::uint8_t, 32 >& u, const std::array< std::uint8_t, 32 >& v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z )
+        {
+            const bluetoe::details::uint128_t m4 = {{
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x80, z
+            }};
+
+            auto t0 = aes( k, &u[16] );
+            auto t1 = aes( k, xor_( t0, &u[0] ) );
+            auto t2 = aes( k, xor_( t1, &v[16] ) );
+            auto t3 = aes( k, xor_( t2, &v[0] ) );
+
+            return aes( k, xor_( t3, xor_( aes_cmac_k2_subkey_generation( k ), m4 ) ) );
+        }
+
     };
 
     template < class Manager, class SecurityFunctions, std::size_t MTU = 27 >
@@ -320,6 +405,57 @@ namespace test {
                     0x4E, 0x27, 0x88, 0x63,
                     0x0E, 0x6F, 0xAD, 0x56,
                     0x21, 0xD5, 0x83, 0x57
+                }
+            );
+        }
+    };
+
+    struct lesc_public_key_exchanged : lesc_pairing_features_exchanged
+    {
+        lesc_public_key_exchanged()
+        {
+            expected(
+                {
+                    0x0C,                   // Pairing Public Key
+                    // Public Key X
+                    0x20, 0xb0, 0x03, 0xd2,
+                    0xf2, 0x97, 0xbe, 0x2c,
+                    0x5e, 0x2c, 0x83, 0xa7,
+                    0xe9, 0xf9, 0xa5, 0xb9,
+                    0xef, 0xf4, 0x91, 0x11,
+                    0xac, 0xf4, 0xfd, 0xdb,
+                    0xcc, 0x03, 0x01, 0x48,
+                    0x0e, 0x35, 0x9d, 0xe6,
+                    // Public Key Y
+                    0xdc, 0x80, 0x9c, 0x49,
+                    0x65, 0x2a, 0xeb, 0x6d,
+                    0x63, 0x32, 0x9a, 0xbf,
+                    0x5a, 0x52, 0x15, 0x5c,
+                    0x76, 0x63, 0x45, 0xc2,
+                    0x8f, 0xed, 0x30, 0x24,
+                    0x74, 0x1c, 0x8e, 0xd0,
+                    0x15, 0x89, 0xd2, 0x8b
+                },
+                {
+                    0x0C,                   // Pairing Public Key
+                    // Public Key X
+                    0x20, 0xb0, 0x03, 0xd2,
+                    0xf2, 0x97, 0xbe, 0x2c,
+                    0x5e, 0x2c, 0x83, 0xa7,
+                    0xe9, 0xf9, 0xa5, 0xb9,
+                    0xef, 0xf4, 0x91, 0x11,
+                    0xac, 0xf4, 0xfd, 0xdb,
+                    0xcc, 0x03, 0x01, 0x48,
+                    0x0e, 0x35, 0x9d, 0xe6,
+                    // Public Key Y
+                    0xdc, 0x80, 0x9c, 0x49,
+                    0x65, 0x2a, 0xeb, 0x6d,
+                    0x63, 0x32, 0x9a, 0xbf,
+                    0x5a, 0x52, 0x15, 0x5c,
+                    0x76, 0x63, 0x45, 0xc2,
+                    0x8f, 0xed, 0x30, 0x24,
+                    0x74, 0x1c, 0x8e, 0xd0,
+                    0x15, 0x89, 0xd2, 0x8b
                 }
             );
         }
