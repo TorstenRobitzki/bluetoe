@@ -21,6 +21,7 @@ namespace bluetoe {
 
         using ecdh_public_key_t         = std::array< std::uint8_t, 64 >;
         using ecdh_private_key_t        = std::array< std::uint8_t, 32 >;
+        using ecdh_shared_secret_t      = std::array< std::uint8_t, 32 >;
 
         /**
          * @brief Tuple to store a longterm key along with

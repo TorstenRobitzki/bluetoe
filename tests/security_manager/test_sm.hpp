@@ -241,6 +241,25 @@ namespace test {
             return nonce;
         }
 
+        bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key )
+        {
+            bluetoe::details::ecdh_private_key_t shared_secret;
+            bluetoe::details::ecdh_private_key_t priv_key;
+            bluetoe::details::ecdh_public_key_t  pub_key;
+            std::reverse_copy( public_key, public_key + 32, pub_key.begin() );
+            std::reverse_copy( public_key + 32, public_key + 64, pub_key.begin() + 32 );
+            std::reverse_copy( private_key, private_key + 32, priv_key.begin() );
+
+            const int rc = uECC_shared_secret( pub_key.data(), priv_key.data(), shared_secret.data() );
+            static_cast< void >( rc );
+            assert( rc == 1 );
+
+            bluetoe::details::ecdh_shared_secret_t result;
+            std::reverse_copy( shared_secret.begin(), shared_secret.end(), result.begin() );
+
+            return result;
+        }
+
         bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z )
         {
             const bluetoe::details::uint128_t m4 = {{
