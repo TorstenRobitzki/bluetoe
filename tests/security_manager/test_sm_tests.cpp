@@ -256,7 +256,7 @@ BOOST_FIXTURE_TEST_CASE( f4_test, test::lesc_security_functions )
         0xf1, 0x16, 0xc9, 0xf2
     }};
 
-    const bluetoe::details::uint128_t output = f4( u, v, x, z );
+    const bluetoe::details::uint128_t output = f4( u.data(), v.data(), x, z );
 
     BOOST_CHECK_EQUAL_COLLECTIONS(
         output.begin(), output.end(), expected.begin(), expected.end() );
