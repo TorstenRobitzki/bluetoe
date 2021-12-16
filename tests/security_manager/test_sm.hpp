@@ -211,7 +211,7 @@ namespace test {
             return output;
         }
 
-        bluetoe::details::uint128_t aes_cmac_k2_subkey_generation( const bluetoe::details::uint128_t& key )
+        bluetoe::details::uint128_t aes_cmac_k1_subkey_generation( const bluetoe::details::uint128_t& key )
         {
             const bluetoe::details::uint128_t zero = {{ 0x00 }};
             const bluetoe::details::uint128_t C    = {{ 0x87 }};
@@ -222,6 +222,14 @@ namespace test {
                 ? left_shift(k0)
                 : xor_( left_shift(k0), C );
 
+            return k1;
+        }
+
+        bluetoe::details::uint128_t aes_cmac_k2_subkey_generation( const bluetoe::details::uint128_t& key )
+        {
+            const bluetoe::details::uint128_t C    = {{ 0x87 }};
+
+            const bluetoe::details::uint128_t k1 = aes_cmac_k1_subkey_generation( key );
             const bluetoe::details::uint128_t k2 = ( k1.back() & 0x80 ) == 0
                 ? left_shift(k1)
                 : xor_( left_shift(k1), C );
@@ -277,6 +285,73 @@ namespace test {
             return aes( k, xor_( t3, xor_( aes_cmac_k2_subkey_generation( k ), m4 ) ) );
         }
 
+        std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
+            const bluetoe::details::ecdh_shared_secret_t dh_key,
+            const std::uint8_t* nonce_central,
+            const std::uint8_t* nonce_periperal,
+            const bluetoe::link_layer::device_address& addr_controller,
+            const bluetoe::link_layer::device_address& addr_peripheral )
+        {
+            // all 4 blocks are allocated in revers order to make it easier to copy data that overlaps
+            // two blocks
+            std::uint8_t buffer[ 64 ] = { 0 };
+
+            static const std::uint8_t m0_fill[] = {
+                0x65, 0x6c, 0x74, 0x62
+            };
+
+            static const std::uint8_t m3_fill[] = {
+                0x80, 0x00, 0x01
+            };
+
+            std::copy( std::begin( m0_fill ), std::end( m0_fill ), &buffer[ 11 + 48 ] );
+            std::copy( std::begin( m3_fill ), std::end( m3_fill ), &buffer[ 10 ] );
+
+            std::copy( nonce_central, nonce_central + 16, &buffer[ 32 + 11 ] );
+            std::copy( nonce_periperal, nonce_periperal + 16, &buffer[ 16 + 11 ] );
+
+            buffer[ 16 + 10 ] = addr_controller.is_random() ? 1 : 0;
+            std::copy( addr_controller.begin(), addr_controller.end(), &buffer[ 16 + 4 ] );
+            buffer[ 16 + 3 ] = addr_peripheral.is_random() ? 1 : 0;
+            std::copy( addr_peripheral.begin(), addr_peripheral.end(), &buffer[ 13 ] );
+
+            const bluetoe::details::uint128_t key     = f5_key( dh_key );
+            const bluetoe::details::uint128_t mac_key = f5_cmac( key, buffer );
+            // increment counter
+            buffer[ 15 + 48 ] = 1;
+            const bluetoe::details::uint128_t ltk     = f5_cmac( key, buffer );
+
+            return { mac_key, ltk };
+        }
+
+    private:
+        bluetoe::details::uint128_t f5_cmac(
+            const bluetoe::details::uint128_t& key,
+            const std::uint8_t* buffer )
+        {
+            const std::uint8_t* m0 = &buffer[ 48 ];
+            const std::uint8_t* m1 = &buffer[ 32 ];
+            const std::uint8_t* m2 = &buffer[ 16 ];
+            const std::uint8_t* m3 = &buffer[ 0 ];
+
+            auto t0 = aes( key, m0 );
+            auto t1 = aes( key, xor_( t0, m1 ) );
+            auto t2 = aes( key, xor_( t1, m2 ) );
+
+            return aes( key, xor_( t2, xor_( aes_cmac_k2_subkey_generation( key ), m3 ) ) );
+        }
+
+        bluetoe::details::uint128_t f5_key( const bluetoe::details::ecdh_shared_secret_t dh_key )
+        {
+            static const bluetoe::details::uint128_t salt = {{
+                0xBE, 0x83, 0x60, 0x5A, 0xDB, 0x0B, 0x37, 0x60,
+                0x38, 0xA5, 0xF5, 0xAA, 0x91, 0x83, 0x88, 0x6C
+            }};
+
+            auto t0 = aes( salt, &dh_key[ 16 ] );
+
+            return aes( salt, xor_( t0, xor_( aes_cmac_k1_subkey_generation( salt ), &dh_key[ 0 ] ) ) );
+        }
     };
 
     template < class Manager, class SecurityFunctions, std::size_t MTU = 27 >
