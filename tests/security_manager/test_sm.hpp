@@ -287,8 +287,8 @@ namespace test {
 
         std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
             const bluetoe::details::ecdh_shared_secret_t dh_key,
-            const std::uint8_t* nonce_central,
-            const std::uint8_t* nonce_periperal,
+            const bluetoe::details::uint128_t& nonce_central,
+            const bluetoe::details::uint128_t& nonce_periperal,
             const bluetoe::link_layer::device_address& addr_controller,
             const bluetoe::link_layer::device_address& addr_peripheral )
         {
@@ -307,8 +307,8 @@ namespace test {
             std::copy( std::begin( m0_fill ), std::end( m0_fill ), &buffer[ 11 + 48 ] );
             std::copy( std::begin( m3_fill ), std::end( m3_fill ), &buffer[ 10 ] );
 
-            std::copy( nonce_central, nonce_central + 16, &buffer[ 32 + 11 ] );
-            std::copy( nonce_periperal, nonce_periperal + 16, &buffer[ 16 + 11 ] );
+            std::copy( nonce_central.begin(), nonce_central.end(), &buffer[ 32 + 11 ] );
+            std::copy( nonce_periperal.begin(), nonce_periperal.end(), &buffer[ 16 + 11 ] );
 
             buffer[ 16 + 10 ] = addr_controller.is_random() ? 1 : 0;
             std::copy( addr_controller.begin(), addr_controller.end(), &buffer[ 16 + 4 ] );
@@ -329,13 +329,13 @@ namespace test {
             const bluetoe::details::uint128_t& n1,
             const bluetoe::details::uint128_t& n2,
             const bluetoe::details::uint128_t& r,
-            const std::uint8_t* io_caps,
+            const bluetoe::details::io_capabilities_t& io_caps,
             const bluetoe::link_layer::device_address& addr_controller,
             const bluetoe::link_layer::device_address& addr_peripheral )
         {
             std::uint8_t m4_m3[ 32 ] = { 0 };
 
-            std::copy( io_caps, io_caps + 3, &m4_m3[ 16 + 13 ] );
+            std::copy( io_caps.begin(), io_caps.end(), &m4_m3[ 16 + 13 ] );
             m4_m3[ 16 + 12 ] = addr_controller.is_random() ? 1 : 0;
             std::copy( addr_controller.begin(), addr_controller.end(), &m4_m3[ 22 ] );
             m4_m3[ 16 + 5 ] = addr_peripheral.is_random() ? 1 : 0;
@@ -415,6 +415,21 @@ namespace test {
             std::size_t  size = MTU;
 
             BOOST_CHECK( !this->security_manager_output_available( connection_data_ ) );
+
+            this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size,
+                connection_data_, static_cast< SecurityFunctions& >( *this ) );
+
+            BOOST_CHECK_EQUAL_COLLECTIONS(
+                expected_output.begin(), expected_output.end(),
+                &buffer[ 0 ], &buffer[ size ] );
+        }
+
+        void expected_ignoring_output_available(
+            std::initializer_list< std::uint8_t > input,
+            std::initializer_list< std::uint8_t > expected_output )
+        {
+            std::uint8_t buffer[ MTU ];
+            std::size_t  size = MTU;
 
             this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size,
                 connection_data_, static_cast< SecurityFunctions& >( *this ) );
@@ -629,6 +644,29 @@ namespace test {
                     0xaa, 0x41, 0x1b, 0x45,
                     0x15, 0x8d, 0x58, 0xff,
                     0x73, 0x9b, 0x81, 0xd1
+                }
+            );
+        }
+    };
+
+    struct lesc_pairing_random_exchanged : lesc_pairing_confirmed
+    {
+        lesc_pairing_random_exchanged()
+        {
+            expected(
+                {
+                    0x04,           // Pairing Random
+                    0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00
+                },
+                {
+                    0x04,           // Pairing Random
+                    0xab, 0xae, 0x2b, 0x71,
+                    0xec, 0xb2, 0xff, 0xff,
+                    0x3e, 0x73, 0x77, 0xd1,
+                    0x54, 0x84, 0xcb, 0xd5
                 }
             );
         }

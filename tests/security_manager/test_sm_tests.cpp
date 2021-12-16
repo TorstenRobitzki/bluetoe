@@ -371,7 +371,7 @@ BOOST_FIXTURE_TEST_CASE( f5_test, test::lesc_security_functions )
     bluetoe::details::uint128_t mac_key;
     bluetoe::details::uint128_t ltk;
 
-    std::tie( mac_key, ltk ) = f5( dh_key, nonce_central.data(), nonce_periperal.data(), addr_controller, addr_peripheral );
+    std::tie( mac_key, ltk ) = f5( dh_key, nonce_central, nonce_periperal, addr_controller, addr_peripheral );
 
     const bluetoe::details::uint128_t expected_mac_key = {{
         0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
@@ -424,7 +424,9 @@ BOOST_FIXTURE_TEST_CASE( f6_test, test::lesc_security_functions )
         0x54, 0xbb, 0x53, 0xb4, 0x3b, 0x34, 0xa3, 0x12
     }};
 
-    static const std::uint8_t io_caps[] = { 0x02, 0x01, 0x01 };
+    static const bluetoe::details::io_capabilities_t io_caps = {{
+        0x02, 0x01, 0x01
+    }};
 
     static const bluetoe::link_layer::public_device_address addr_controller({
         0xce, 0xbf, 0x37, 0x37, 0x12, 0x56

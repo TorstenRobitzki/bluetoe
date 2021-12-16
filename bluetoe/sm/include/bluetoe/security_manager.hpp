@@ -23,6 +23,8 @@ namespace bluetoe {
         using ecdh_private_key_t        = std::array< std::uint8_t, 32 >;
         using ecdh_shared_secret_t      = std::array< std::uint8_t, 32 >;
 
+        using io_capabilities_t         = std::array< std::uint8_t, 3 >;
+
         /**
          * @brief Tuple to store a longterm key along with
          *        EDIV and Rand value to identify them later.
@@ -90,7 +92,9 @@ namespace bluetoe {
             idle,
             pairing_requested,
             public_keys_exchanged,
-            pairing_confirm_send
+            pairing_confirm_send,
+            pairing_random_exchanged,
+            pairing_completed
         };
 
         enum class authentication_requirements_flags : std::uint8_t {
@@ -250,10 +254,11 @@ namespace bluetoe {
                 state_ = details::lesc_pairing_state::idle;
             }
 
-            void pairing_requested()
+            void pairing_requested( const io_capabilities_t& remote_io_caps )
             {
                 assert( state_ == details::lesc_pairing_state::idle );
                 state_ = details::lesc_pairing_state::pairing_requested;
+                remote_io_caps_ = remote_io_caps;
             }
 
             void public_key_exchanged(
@@ -277,9 +282,30 @@ namespace bluetoe {
                 state_ = details::lesc_pairing_state::pairing_confirm_send;
             }
 
+            void pairing_random_exchanged( const std::uint8_t* remote_nonce )
+            {
+                assert( state_ == details::lesc_pairing_state::pairing_confirm_send );
+                state_ = details::lesc_pairing_state::pairing_random_exchanged;
+
+                std::copy( remote_nonce, remote_nonce + 16, remote_nonce_.begin() );
+            }
+
+            void pairing_completed( const details::uint128_t& long_term_key )
+            {
+                assert( state_ == details::lesc_pairing_state::pairing_random_exchanged );
+                state_ = details::lesc_pairing_state::pairing_completed;
+
+                long_term_key_ = long_term_key;
+            }
+
             const uint128_t& local_nonce() const
             {
                 return local_nonce_;
+            }
+
+            const uint128_t& remote_nonce() const
+            {
+                return remote_nonce_;
             }
 
             const std::uint8_t* local_public_key_x() const
@@ -292,7 +318,22 @@ namespace bluetoe {
                 return remote_public_key_.data();
             }
 
+            const std::uint8_t* remote_public_key() const
+            {
+                return remote_public_key_.data();
+            }
+
+            const std::uint8_t* local_private_key() const
+            {
+                return local_private_key_.data();
+            }
+
+            const io_capabilities_t& remote_io_caps() const
+            {
+                return remote_io_caps_;
+            }
         private:
+
             bluetoe::link_layer::device_address remote_addr_;
             details::lesc_pairing_state         state_;
 
@@ -300,6 +341,9 @@ namespace bluetoe {
             ecdh_public_key_t                   local_public_key_;
             ecdh_public_key_t                   remote_public_key_;
             uint128_t                           local_nonce_;
+            uint128_t                           remote_nonce_;
+            io_capabilities_t                   remote_io_caps_;
+            uint128_t                           long_term_key_;
         };
 
         // features required by legacy and by lesc pairing
@@ -399,6 +443,7 @@ namespace bluetoe {
         static constexpr std::size_t    public_key_exchange_size = 65;
         static constexpr std::size_t    pairing_confirm_size     = 17;
         static constexpr std::size_t    pairing_random_size      = 17;
+        static constexpr std::size_t    pairing_dhkey_check_size = 17;
 
         template < class OtherConnectionData, class SecurityFunctions >
         void handle_pairing_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
@@ -411,6 +456,10 @@ namespace bluetoe {
         template < class OtherConnectionData, class SecurityFunctions >
         void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
+        template < class OtherConnectionData, class SecurityFunctions >
+        void handle_pairing_dhkey_check( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+        details::io_capabilities_t local_io_caps() const;
         /** @endcond */
     };
 
@@ -681,6 +730,9 @@ namespace bluetoe {
             case sm_opcodes::pairing_random:
                 handle_pairing_random( input, in_size, output, out_size, state, func );
                 break;
+            case sm_opcodes::pairing_dhkey_check:
+                handle_pairing_dhkey_check( input, in_size, output, out_size, state, func );
+                break;
             default:
                 this->error_response( sm_error_codes::command_not_supported, output, out_size, state );
         }
@@ -747,7 +799,8 @@ namespace bluetoe {
         if ( ( auth_req & static_cast< std::uint8_t >( authentication_requirements_flags::secure_connections ) ) == 0 )
             return this->error_response( sm_error_codes::pairing_not_supported, output, out_size, state );
 
-        state.pairing_requested();
+        const io_capabilities_t remote_io_caps = {{ auth_req, oob_data_flag, io_capability }};
+        state.pairing_requested( remote_io_caps );
         create_pairing_response( output, out_size );
     }
 
@@ -782,28 +835,75 @@ namespace bluetoe {
     {
         using namespace details;
 
+        const io_capabilities_t io_caps = local_io_caps();
         out_size = pairing_req_resp_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_response );
-        output[ 1 ] = static_cast< std::uint8_t >( io_capabilities::no_input_no_output );
-        output[ 2 ] = 0;
-        output[ 3 ] = static_cast< std::uint8_t >( authentication_requirements_flags::secure_connections );
+        output[ 1 ] = io_caps[ 0 ];
+        output[ 2 ] = io_caps[ 1 ];
+        output[ 3 ] = io_caps[ 2 ];
         output[ 4 ] = max_max_key_size;
         output[ 5 ] = 0;
         output[ 6 ] = 0;
     }
 
     template < template < class OtherConnectionData > class ConnectionData >
+    details::io_capabilities_t lesc_security_manager_base< ConnectionData >::local_io_caps() const
+    {
+        return {{
+            static_cast< std::uint8_t >( details::io_capabilities::no_input_no_output ),
+            0,
+            static_cast< std::uint8_t >( details::authentication_requirements_flags::secure_connections ) }};
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData >
     template < class OtherConnectionData, class SecurityFunctions >
-    void lesc_security_manager_base< ConnectionData >::handle_pairing_random( const std::uint8_t*, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& )
+    void lesc_security_manager_base< ConnectionData >::handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& )
     {
         if ( in_size != pairing_random_size )
             return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
+
+        if ( state.state() != details::lesc_pairing_state::pairing_confirm_send )
+            return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
 
         const auto& nonce = state.local_nonce();
 
         out_size = pairing_random_size;
         output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_random );
         std::copy( nonce.begin(), nonce.end(), &output[ 1 ] );
+
+        state.pairing_random_exchanged( input + 1 );
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData >
+    template < class OtherConnectionData, class SecurityFunctions >
+    void lesc_security_manager_base< ConnectionData >::handle_pairing_dhkey_check( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
+    {
+        if ( in_size != pairing_dhkey_check_size )
+            return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
+
+        if ( state.state() != details::lesc_pairing_state::pairing_random_exchanged )
+            return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
+
+        const details::ecdh_shared_secret_t dh_key = functions.p256( state.local_private_key(), state.remote_public_key() );
+
+        details::uint128_t mac_key;
+        details::uint128_t ltk;
+        static const details::uint128_t zero = {{ 0 }};
+
+        std::tie( mac_key, ltk ) = functions.f5( dh_key, state.remote_nonce(), state.local_nonce(), state.remote_address(), functions.local_address() );
+
+        const auto calc_ea = functions.f6( mac_key, state.remote_nonce(), state.local_nonce(), zero, state.remote_io_caps(), state.remote_address(), functions.local_address() );
+
+        if ( !std::equal( calc_ea.begin(), calc_ea.end(), &input[ 1 ] ) )
+            return this->error_response( details::sm_error_codes::dhkey_check_failed, output, out_size, state );
+
+        const auto eb = functions.f6( mac_key, state.local_nonce(), state.remote_nonce(), zero, local_io_caps(), functions.local_address(), state.remote_address() );
+
+        out_size = pairing_dhkey_check_size;
+        output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_dhkey_check );
+        std::copy( eb.begin(), eb.end(), &output[ 1 ] );
+
+        state.pairing_completed( ltk );
     }
 
     template < class OtherConnectionData, class SecurityFunctions >
@@ -825,4 +925,5 @@ namespace bluetoe {
 
     /** @endcond */
 }
-#endif
+
+#endif // include guard

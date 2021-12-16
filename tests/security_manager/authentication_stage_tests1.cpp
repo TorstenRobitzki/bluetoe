@@ -53,6 +53,23 @@ BOOST_FIXTURE_TEST_CASE( pairing_random_too_large, test::lesc_pairing_confirmed 
     );
 }
 
+BOOST_FIXTURE_TEST_CASE( pairing_random_wrong_state, test::lesc_public_key_exchanged )
+{
+    expected_ignoring_output_available(
+        {
+            0x04,           // Pairing Random
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        },
+        {
+            0x05,           // Pairing Failed
+            0x08,           // Unspecified Reason
+        }
+    );
+}
+
 BOOST_FIXTURE_TEST_CASE( pairing_random, test::lesc_pairing_confirmed )
 {
     // Na, Nb
@@ -60,10 +77,10 @@ BOOST_FIXTURE_TEST_CASE( pairing_random, test::lesc_pairing_confirmed )
         // initiator nonce is not part of the Pairing confirm value)
         {
             0x04,           // Pairing Random
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00
+            0xcf, 0xc4, 0x3d, 0xff,
+            0xf7, 0x83, 0x65, 0x21,
+            0x6e, 0x5f, 0xa7, 0x25,
+            0xcc, 0xe7, 0xe8, 0xa6
         },
         {
             0x04,           // Pairing Random
