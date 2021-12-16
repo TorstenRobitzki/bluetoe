@@ -324,6 +324,35 @@ namespace test {
             return { mac_key, ltk };
         }
 
+        bluetoe::details::uint128_t f6(
+            const bluetoe::details::uint128_t& key,
+            const bluetoe::details::uint128_t& n1,
+            const bluetoe::details::uint128_t& n2,
+            const bluetoe::details::uint128_t& r,
+            const std::uint8_t* io_caps,
+            const bluetoe::link_layer::device_address& addr_controller,
+            const bluetoe::link_layer::device_address& addr_peripheral )
+        {
+            std::uint8_t m4_m3[ 32 ] = { 0 };
+
+            std::copy( io_caps, io_caps + 3, &m4_m3[ 16 + 13 ] );
+            m4_m3[ 16 + 12 ] = addr_controller.is_random() ? 1 : 0;
+            std::copy( addr_controller.begin(), addr_controller.end(), &m4_m3[ 22 ] );
+            m4_m3[ 16 + 5 ] = addr_peripheral.is_random() ? 1 : 0;
+            std::copy( addr_peripheral.begin(), addr_peripheral.end(), &m4_m3[ 15 ] );
+            m4_m3[ 14 ] = 0x80;
+
+            const std::uint8_t* m3 = &m4_m3[ 16 ];
+            const std::uint8_t* m4 = &m4_m3[ 0 ];
+
+            auto t0 = aes( key, n1 );
+            auto t1 = aes( key, xor_( t0, n2 ) );
+            auto t2 = aes( key, xor_( t1, r ) );
+            auto t3 = aes( key, xor_( t2, m3 ) );
+
+            return aes( key, xor_( t3, xor_( aes_cmac_k2_subkey_generation( key ), m4 ) ) );
+        }
+
     private:
         bluetoe::details::uint128_t f5_cmac(
             const bluetoe::details::uint128_t& key,
