@@ -171,8 +171,13 @@ namespace bluetoe
             }
 
         public:
-            static constexpr bool hardware_supports_encryption = true;
+            static constexpr bool hardware_supports_lesc_pairing    = true;
+            static constexpr bool hardware_supports_legacy_pairing  = true;
+            static constexpr bool hardware_supports_encryption      = hardware_supports_lesc_pairing || hardware_supports_legacy_pairing;
 
+            /**
+             * security tool box required by legacy pairing
+             */
             bluetoe::details::uint128_t create_srand();
 
             bluetoe::details::longterm_key_t create_long_term_key();
@@ -188,6 +193,38 @@ namespace bluetoe
                 const bluetoe::details::uint128_t& srand,
                 const bluetoe::details::uint128_t& mrand );
 
+            /**
+             * security tool box required by LESC pairing
+             */
+            bool is_valid_public_key( const std::uint8_t* public_key ) const;
+
+            std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
+
+            bluetoe::details::uint128_t select_random_nonce();
+
+            bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
+
+            bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
+
+            std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
+                const bluetoe::details::ecdh_shared_secret_t dh_key,
+                const bluetoe::details::uint128_t& nonce_central,
+                const bluetoe::details::uint128_t& nonce_periperal,
+                const bluetoe::link_layer::device_address& addr_controller,
+                const bluetoe::link_layer::device_address& addr_peripheral );
+
+            bluetoe::details::uint128_t f6(
+                const bluetoe::details::uint128_t& key,
+                const bluetoe::details::uint128_t& n1,
+                const bluetoe::details::uint128_t& n2,
+                const bluetoe::details::uint128_t& r,
+                const bluetoe::details::io_capabilities_t& io_caps,
+                const bluetoe::link_layer::device_address& addr_controller,
+                const bluetoe::link_layer::device_address& addr_peripheral );
+
+            /**
+             * Functions required by the link layer
+             */
             std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
 
             void start_receive_encrypted();
