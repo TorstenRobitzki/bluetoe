@@ -254,6 +254,21 @@ namespace bluetoe {
                 state_ = details::lesc_pairing_state::idle;
             }
 
+            device_pairing_status local_device_pairing_status() const
+            {
+                return state_ == details::lesc_pairing_state::pairing_completed
+                    ? bluetoe::device_pairing_status::unauthenticated_key
+                    : bluetoe::device_pairing_status::no_key;
+            }
+
+            std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
+            {
+                if ( ediv == 0 && rand == 0 )
+                    return { true, long_term_key_ };
+
+                return std::pair< bool, details::uint128_t >{};
+            }
+
             void pairing_requested( const io_capabilities_t& remote_io_caps )
             {
                 assert( state_ == details::lesc_pairing_state::idle );
@@ -332,8 +347,8 @@ namespace bluetoe {
             {
                 return remote_io_caps_;
             }
-        private:
 
+        private:
             bluetoe::link_layer::device_address remote_addr_;
             details::lesc_pairing_state         state_;
 
@@ -379,6 +394,8 @@ namespace bluetoe {
 
             template < class OtherConnectionData, class SecurityFunctions >
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+            constexpr std::size_t security_manager_channel_mtu_size() const;
 
             struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
                                 details::security_manager_meta_type {};
@@ -426,6 +443,8 @@ namespace bluetoe {
 
             template < class OtherConnectionData, class SecurityFunctions >
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+            constexpr std::size_t security_manager_channel_mtu_size() const;
 
             struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
                                 details::security_manager_meta_type {};
@@ -492,6 +511,7 @@ namespace bluetoe {
             {
                 return bluetoe::device_pairing_status::no_key;
             }
+
         };
 
         template < class OtherConnectionData, class SecurityFunctions >
@@ -502,6 +522,8 @@ namespace bluetoe {
 
         template < class OtherConnectionData, class SecurityFunctions >
         void l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+        constexpr std::size_t security_manager_channel_mtu_size() const;
 
         struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
                             details::security_manager_meta_type {};
@@ -555,6 +577,12 @@ namespace bluetoe {
     template < class OtherConnectionData, class SecurityFunctions >
     void details::legacy_security_manager_base< ConnectionData >::l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData >
+    constexpr std::size_t details::legacy_security_manager_base< ConnectionData >::security_manager_channel_mtu_size() const
+    {
+        return default_att_mtu_size;
     }
 
     template < template < class OtherConnectionData > class ConnectionData >
@@ -763,6 +791,12 @@ namespace bluetoe {
     }
 
     template < template < class OtherConnectionData > class ConnectionData >
+    constexpr std::size_t details::lesc_security_manager_base< ConnectionData >::security_manager_channel_mtu_size() const
+    {
+        return public_key_exchange_size;
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData >
     template < class OtherConnectionData, class SecurityFunctions >
     void details::lesc_security_manager_base< ConnectionData >::handle_pairing_request(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& /* functions */ )
@@ -797,7 +831,7 @@ namespace bluetoe {
         if ( ( auth_req & static_cast< std::uint8_t >( authentication_requirements_flags::secure_connections ) ) == 0 )
             return this->error_response( sm_error_codes::pairing_not_supported, output, out_size, state );
 
-        const io_capabilities_t remote_io_caps = {{ auth_req, oob_data_flag, io_capability }};
+        const io_capabilities_t remote_io_caps = {{ io_capability, oob_data_flag, auth_req }};
         state.pairing_requested( remote_io_caps );
         create_pairing_response( output, out_size );
     }
@@ -919,6 +953,11 @@ namespace bluetoe {
     template < class OtherConnectionData, class SecurityFunctions >
     void no_security_manager::l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
+    }
+
+    constexpr std::size_t no_security_manager::security_manager_channel_mtu_size() const
+    {
+        return 0;
     }
 
     /** @endcond */

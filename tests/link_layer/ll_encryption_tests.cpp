@@ -69,6 +69,22 @@ namespace test {
         {
         }
 
+        template < class OtherConnectionData >
+        bool security_manager_output_available( connection_data< OtherConnectionData >& ) const
+        {
+            return false;
+        }
+
+        template < class OtherConnectionData, class SecurityFunctions >
+        void l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
+        {
+        }
+
+        constexpr std::size_t security_manager_channel_mtu_size() const
+        {
+            return 0;
+        }
+
         struct meta_type :
             bluetoe::details::security_manager_meta_type,
             bluetoe::link_layer::details::valid_link_layer_option_meta_type {};

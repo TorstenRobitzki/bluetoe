@@ -5,7 +5,7 @@
 using namespace bluetoe;
 
 // LED1 on a nRF52 eval board
-static constexpr int io_pin = 17;
+static constexpr int io_pin = 13;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
@@ -29,7 +29,10 @@ using blinky_server = server<
 
 blinky_server gatt;
 
-device< blinky_server > gatt_srv;
+device<
+    blinky_server,
+    link_layer::buffer_sizes< 200, 200 >,
+    link_layer::max_mtu_size< 65 > > gatt_srv;
 
 int main()
 {
