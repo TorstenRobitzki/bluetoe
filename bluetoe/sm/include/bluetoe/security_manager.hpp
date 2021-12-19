@@ -479,16 +479,48 @@ namespace bluetoe {
 
     /**
      * @brief A Security manager implementation that supports legacy pairing.
+     *
+     * The legacy_security_manager supports legacy pairing. To do so, the security manager needs a hardware binding
+     * that supports the required cryptographical primities. Usually this is the SM implementation with the least resource
+     * costs.
+     *
+     * @sa lesc_security_manager
+     * @sa security_manager
+     * @sa no_security_manager
      */
     using legacy_security_manager = details::legacy_security_manager_base< details::legacy_security_connection_data >;
 
     /**
-     * @brief A Security manager that implements LESC pairing.
+     * @brief A Security manager that implements onlly LESC pairing.
+     *
+     * This is the current default. The SM will reject every attempt to pair to the device without
+     * LE Secure Connections.
+     *
+     * @sa legacy_security_manager
+     * @sa security_manager
+     * @sa no_security_manager
      */
     using lesc_security_manager = details::lesc_security_manager_base< details::lesc_security_connection_data >;
 
+
     /**
-     * @brief current default implementation of the security manager, that actievly rejects every pairing attempt.
+     * @brief A security manager that implpementes the full set of pairing methods (Legacy and LESC)
+     *
+     * @sa legacy_security_manager
+     * @sa lesc_security_manager
+     * @sa no_security_manager
+     */
+    struct security_manager {};
+
+    /**
+     * @brief implementation of the security manager, that actievly rejects every pairing attempt.
+     *
+     * Use this option, if you are sure, that you are not going to require encryption at all or if the
+     * required security measures are implemented on the application level.
+     *
+     * @sa legacy_security_manager
+     * @sa lesc_security_manager
+     * @sa security_manager
      */
     class no_security_manager
     {
