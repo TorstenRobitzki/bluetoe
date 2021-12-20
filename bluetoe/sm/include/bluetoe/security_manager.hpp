@@ -12,6 +12,7 @@
 #include <bluetoe/pairing_status.hpp>
 #include <bluetoe/ll_meta_types.hpp>
 #include <bluetoe/oob_authentication.hpp>
+#include <bluetoe/meta_tools.hpp>
 
 namespace bluetoe {
 
@@ -362,9 +363,13 @@ namespace bluetoe {
             uint128_t                           long_term_key_;
         };
 
+
         // features required by legacy and by lesc pairing
         template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-        class security_manager_base_base
+        class security_manager_base_base : protected details::find_by_meta_type<
+            details::oob_authentication_callback_meta_type,
+            Options...,
+            details::no_oob_authentication >::type
         {
         protected:
             template < class OtherConnectionData >
@@ -378,9 +383,8 @@ namespace bluetoe {
             }
         };
 
-
         template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-        class legacy_security_manager_base : private details::security_manager_base_base< ConnectionData >
+        class legacy_security_manager_base : private details::security_manager_base_base< ConnectionData, Options... >
         {
         public:
             /** @cond HIDDEN_SYMBOLS */
@@ -413,6 +417,8 @@ namespace bluetoe {
             template < class OtherConnectionData, class SecurityFunctions >
             void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
+            uint128_t temporary_key() const;
+
             details::uint128_t c1_p1(
                 const std::uint8_t* input, const std::uint8_t* output,
                 const bluetoe::link_layer::device_address& initiating_device,
@@ -426,7 +432,7 @@ namespace bluetoe {
         };
 
         template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-        class lesc_security_manager_base : private details::security_manager_base_base< ConnectionData >
+        class lesc_security_manager_base : private details::security_manager_base_base< ConnectionData, Options... >
         {
         public:
             /** @cond HIDDEN_SYMBOLS */
@@ -670,6 +676,8 @@ namespace bluetoe {
             return this->error_response( sm_error_codes::invalid_parameters, output, out_size, state );
         }
 
+        this->request_oob_data_presents_for_remote_device( state.remote_address() );
+
         create_pairing_response( output, out_size );
 
         const details::uint128_t srand    = functions.create_srand();
@@ -682,10 +690,15 @@ namespace bluetoe {
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     inline void details::legacy_security_manager_base< ConnectionData, Options... >::create_pairing_response( std::uint8_t* output, std::size_t& out_size )
     {
+        static constexpr std::uint8_t oob_authentication_data_not_present                = 0x00;
+        static constexpr std::uint8_t oob_authentication_data_from_remote_device_present = 0x01;
+
         out_size = pairing_req_resp_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_response );
         output[ 1 ] = static_cast< std::uint8_t >( io_capabilities::no_input_no_output );
-        output[ 2 ] = 0;
+        output[ 2 ] = this->has_oob_data_for_remote_device()
+            ? oob_authentication_data_from_remote_device_present
+            : oob_authentication_data_not_present;
         output[ 3 ] = 0;
         output[ 4 ] = max_max_key_size;
         output[ 5 ] = 0;
@@ -713,7 +726,7 @@ namespace bluetoe {
         out_size = request_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_confirm );
 
-        const auto sconfirm = func.c1( { { 0 } }, state.srand(), state.c1_p1(), state.c1_p2() );
+        const auto sconfirm = func.c1( temporary_key(), state.srand(), state.c1_p1(), state.c1_p2() );
         std::copy( sconfirm.begin(), sconfirm.end(), &output[ 1 ] );
     }
 
@@ -734,7 +747,8 @@ namespace bluetoe {
 
         uint128_t mrand;
         std::copy( &input[ 1 ], &input[ pairing_random_size ], mrand.begin() );
-        const auto mconfirm = func.c1( { { 0 } }, mrand, state.c1_p1(), state.c1_p2() );
+        const uint128_t temp_key = temporary_key();
+        const auto mconfirm = func.c1( temp_key, mrand, state.c1_p1(), state.c1_p2() );
 
         if ( mconfirm != state.mconfirm() )
             return this->error_response( sm_error_codes::confirm_value_failed, output, out_size, state );
@@ -745,8 +759,16 @@ namespace bluetoe {
         const auto srand = state.srand();
         std::copy( srand.begin(), srand.end(), &output[ 1 ] );
 
-        const auto stk = func.s1( { { 0 } }, srand, mrand );
+        const auto stk = func.s1( temp_key, srand, mrand );
         state.pairing_completed( stk );
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key() const
+    {
+        return this->has_oob_data_for_remote_device()
+            ? this->get_oob_data_for_last_remote_device()
+            : uint128_t( { 0 } );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >

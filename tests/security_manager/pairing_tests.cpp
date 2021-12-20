@@ -4,7 +4,6 @@
 #include "test_sm.hpp"
 #include "test_servers.hpp"
 
-
 static const std::initializer_list< std::uint8_t > no_lesc_pairing_request = {
     0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00
 };
@@ -95,7 +94,6 @@ BOOST_AUTO_TEST_SUITE_END()
  */
 BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_security_manager<> )
 {
-    /*
     expected(
         {
             0x01,       // Pairing request
@@ -116,7 +114,6 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_securit
             0x00        // Responder Key Distribution
         }
     );
-    */
 }
 
 /**
@@ -153,11 +150,62 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_securit
  * Verify that the IUT handles the invalid passkey entry pairing procedure correctly as responder.
  */
 
+struct oob_cb_t {
+    static const std::array< std::uint8_t, 16 > oob_data;
+
+    std::pair< bool, std::array< std::uint8_t, 16 > > sm_oob_authentication_data(
+        const bluetoe::link_layer::device_address& address )
+    {
+        obb_requesting_remote_address = address;
+
+        return { true, oob_data };
+    }
+
+    bluetoe::link_layer::device_address obb_requesting_remote_address;
+} oob_cb;
+
+const std::array< std::uint8_t, 16 > oob_cb_t::oob_data = {{
+        0xF1, 0x50, 0xA0, 0xAE,
+        0xB7, 0xAA, 0xBA, 0xC8,
+        0x19, 0x22, 0xB6, 0x15,
+        0x4C, 0x23, 0x94, 0x7A
+    }};
+
+using legacy_security_manager_with_oob = test::legacy_security_manager< 23, bluetoe::oob_authentication_callback< oob_cb_t, oob_cb > >;
+
 /**
  * SM/SLA/OOB/BV-02-C [IUT Responder – Both sides have OOB data – Success]
  *
  * Verify that the IUT performs the OOB pairing procedure correctly as responder.
  */
+BOOST_FIXTURE_TEST_CASE( IUT_Responder_Both_sides_have_OOB_data_Success, legacy_security_manager_with_oob )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x03,       // NoInputNoOutput
+            0x01,       // OOB Authentication data from remote device present
+            0x00,       // No Bonding, No MITM
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x03,       // NoInputNoOutput
+            0x01,       // OOB Authentication data from remote device present
+            0x00,       // No Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+
+    BOOST_CHECK_EQUAL( oob_cb.obb_requesting_remote_address,
+        bluetoe::link_layer::random_device_address({ 0xa6, 0xa5, 0xa4, 0xa3, 0xa2, 0xa1 }) );
+
+    expected_pairing_confirm_with_tk( oob_cb_t::oob_data );
+}
 
 /**
  * SM/SLA/OOB/BV-04-C [IUT Responder – Only IUT has OOB data – Success]

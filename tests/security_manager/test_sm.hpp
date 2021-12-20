@@ -408,20 +408,30 @@ namespace test {
         }
 
         void expected(
-            std::initializer_list< std::uint8_t > input,
-            std::initializer_list< std::uint8_t > expected_output )
+            std::vector< std::uint8_t > input,
+            std::vector< std::uint8_t > expected_output )
         {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
 
             BOOST_CHECK( !this->security_manager_output_available( connection_data_ ) );
 
-            this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size,
+            this->l2cap_input( input.data(), input.size(), &buffer[ 0 ], size,
                 connection_data_, static_cast< SecurityFunctions& >( *this ) );
 
             BOOST_CHECK_EQUAL_COLLECTIONS(
                 expected_output.begin(), expected_output.end(),
                 &buffer[ 0 ], &buffer[ size ] );
+        }
+
+        void expected(
+            std::initializer_list< std::uint8_t > in,
+            std::initializer_list< std::uint8_t > out )
+        {
+            std::vector< std::uint8_t > input( in.begin(), in.end() );
+            std::vector< std::uint8_t > output( out.begin(), out.end() );
+
+            expected( input, output );
         }
 
         void expected_ignoring_output_available(
@@ -472,19 +482,53 @@ namespace test {
         const connection_data_t& connection_data() const
         {
             return connection_data_;
-
         }
+
+        void expected_pairing_confirm_with_tk( const std::array< std::uint8_t, 16 >& tk_value )
+        {
+            const bluetoe::details::uint128_t central_pairing_random = {{
+                0xE0, 0x2E, 0x70, 0xC6,
+                0x4E, 0x27, 0x88, 0x63,
+                0x0E, 0x6F, 0xAD, 0x56,
+                0x21, 0xD5, 0x83, 0x57
+            }};
+
+            std::vector< std::uint8_t > pairing_confirm_request( 17, 0x03 ); // Pairing Confirm
+            const auto central_pairing_confirm = this->c1( tk_value, central_pairing_random, connection_data_.c1_p1(), connection_data_.c1_p2() );
+            std::copy( central_pairing_confirm.begin(), central_pairing_confirm.end(), &pairing_confirm_request[ 1 ] );
+
+            std::vector< std::uint8_t > pairing_confirm_response( 17, 0x03 ); // Pairing Confirm
+            const auto sconfirm = this->c1( tk_value, connection_data_.srand(), connection_data_.c1_p1(), connection_data_.c1_p2() );
+            std::copy( sconfirm.begin(), sconfirm.end(), &pairing_confirm_response[ 1 ] );
+
+            // Paring Confirm
+            expected( pairing_confirm_request, pairing_confirm_response );
+
+            std::vector< std::uint8_t > pairing_random_request( 17, 0x04 ); // Pairing Random
+            std::copy( central_pairing_random.begin(), central_pairing_random.end(), &pairing_random_request[ 1 ] );
+
+            std::vector< std::uint8_t > pairing_random_response( 17, 0x04 ); // Pairing Random
+            const auto srand = connection_data_.srand();
+            std::copy( srand.begin(), srand.end(), &pairing_random_response[ 1 ] );
+
+            // Paring Random
+            expected( pairing_random_request, pairing_random_response );
+
+            const auto expected_stk = this->s1( tk_value, connection_data_.srand(), central_pairing_random );
+            const auto stored_stk   = connection_data_.find_key( 0, 0 );
+
+            BOOST_REQUIRE( stored_stk.first );
+            BOOST_CHECK_EQUAL_COLLECTIONS( expected_stk.begin(), expected_stk.end(), stored_stk.second.begin(), stored_stk.second.end() );
+        }
+
         connection_data_t connection_data_;
     };
 
-    template < std::size_t MTU = 23 >
-    using legacy_security_manager = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU >;
+    template < std::size_t MTU = 23, typename ...Options >
+    using legacy_security_manager = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU, Options... >;
 
-    template < std::size_t MTU = 23 >
-    using legacy_security_manager_with_oob = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU >;
-
-    template < std::size_t MTU = 65 >
-    using lesc_security_manager = security_manager< bluetoe::lesc_security_manager, test::lesc_security_functions, MTU >;
+    template < std::size_t MTU = 65, typename ...Options >
+    using lesc_security_manager = security_manager< bluetoe::lesc_security_manager, test::lesc_security_functions, MTU, Options... >;
 
     struct legacy_pairing_features_exchanged : security_manager< bluetoe::legacy_security_manager, legacy_security_functions >
     {

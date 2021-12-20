@@ -49,12 +49,12 @@ namespace bluetoe {
             std::tie( oob_data_present_, oob_data_ ) = Obj.sm_oob_authentication_data( address );
         }
 
-        bool has_oob_data_for_remote_device()
+        bool has_oob_data_for_remote_device() const
         {
             return oob_data_present_;
         }
 
-        oob_authentication_data_t get_oob_data_for_last_remote_device()
+        oob_authentication_data_t get_oob_data_for_last_remote_device() const
         {
             return oob_data_;
         };
@@ -77,15 +77,20 @@ namespace bluetoe {
             {
             }
 
-            bool has_oob_data_for_remote_device()
+            bool has_oob_data_for_remote_device() const
             {
                 return false;
             }
 
-            std::array< std::uint8_t, 16 > get_oob_data_for_last_remote_device()
+            std::array< std::uint8_t, 16 > get_oob_data_for_last_remote_device() const
             {
                 return std::array< std::uint8_t, 16 >{{ 0 }};
             };
+
+            struct meta_type :
+                details::oob_authentication_callback_meta_type,
+                link_layer::details::valid_link_layer_option_meta_type {};
+
         };
     }
 }
