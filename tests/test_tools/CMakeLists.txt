@@ -11,6 +11,7 @@ add_library(test_tools STATIC
         hexdump.cpp
         test_radio.cpp
         buffer_io.cpp
+        pairing_status_io.cpp
         uECC.c)
 
 add_library(test::tools ALIAS test_tools)

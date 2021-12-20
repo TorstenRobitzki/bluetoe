@@ -99,6 +99,12 @@ namespace bluetoe {
             pairing_completed
         };
 
+        enum class legacy_pairing_algorithm : std::uint8_t {
+            just_works,
+            oob_authentication,
+            passkey_entry
+        };
+
         enum class authentication_requirements_flags : std::uint8_t {
             secure_connections      = 0x08
         };
@@ -178,7 +184,8 @@ namespace bluetoe {
 
             void error_reset()
             {
-                state_ = details::legacy_pairing_state::idle;
+                state_     = details::legacy_pairing_state::idle;
+                algorithm_ = details::legacy_pairing_algorithm::just_works;
             }
 
             const details::uint128_t& c1_p1() const
@@ -201,16 +208,30 @@ namespace bluetoe {
                 return state_data_.pairing_state.mconfirm;
             }
 
+            void pairing_algorithm( details::legacy_pairing_algorithm algo )
+            {
+                algorithm_ = algo;
+            }
+
+            details::legacy_pairing_algorithm pairing_algorithm() const
+            {
+                return algorithm_;
+            }
+
             device_pairing_status local_device_pairing_status() const
             {
-                return state_ == details::legacy_pairing_state::pairing_completed
-                    ? bluetoe::device_pairing_status::unauthenticated_key
-                    : bluetoe::device_pairing_status::no_key;
+                if ( state_ != details::legacy_pairing_state::pairing_completed )
+                    return bluetoe::device_pairing_status::no_key;
+
+                return algorithm_ == details::legacy_pairing_algorithm::just_works
+                    ? device_pairing_status::unauthenticated_key
+                    : device_pairing_status::authenticated_key;
             }
 
         private:
-            bluetoe::link_layer::device_address remote_addr_;
+            link_layer::device_address          remote_addr_;
             details::legacy_pairing_state       state_;
+            details::legacy_pairing_algorithm   algorithm_;
 
             union {
                 struct {
@@ -417,7 +438,10 @@ namespace bluetoe {
             template < class OtherConnectionData, class SecurityFunctions >
             void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
-            uint128_t temporary_key() const;
+            template < class OtherConnectionData >
+            uint128_t temporary_key( connection_data< OtherConnectionData >& ) const;
+
+            details::legacy_pairing_algorithm select_pairing_algorithm( std::uint8_t io_capability, std::uint8_t oob_data_flag, std::uint8_t auth_req, bool has_oob_data );
 
             details::uint128_t c1_p1(
                 const std::uint8_t* input, const std::uint8_t* output,
@@ -677,6 +701,7 @@ namespace bluetoe {
         }
 
         this->request_oob_data_presents_for_remote_device( state.remote_address() );
+        state.pairing_algorithm( select_pairing_algorithm( io_capability, oob_data_flag, auth_req, this->has_oob_data_for_remote_device() ) );
 
         create_pairing_response( output, out_size );
 
@@ -726,7 +751,7 @@ namespace bluetoe {
         out_size = request_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_confirm );
 
-        const auto sconfirm = func.c1( temporary_key(), state.srand(), state.c1_p1(), state.c1_p2() );
+        const auto sconfirm = func.c1( temporary_key( state ), state.srand(), state.c1_p1(), state.c1_p2() );
         std::copy( sconfirm.begin(), sconfirm.end(), &output[ 1 ] );
     }
 
@@ -747,7 +772,7 @@ namespace bluetoe {
 
         uint128_t mrand;
         std::copy( &input[ 1 ], &input[ pairing_random_size ], mrand.begin() );
-        const uint128_t temp_key = temporary_key();
+        const uint128_t temp_key = temporary_key( state );
         const auto mconfirm = func.c1( temp_key, mrand, state.c1_p1(), state.c1_p2() );
 
         if ( mconfirm != state.mconfirm() )
@@ -764,11 +789,22 @@ namespace bluetoe {
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key() const
+    template < class OtherConnectionData >
+    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key( connection_data< OtherConnectionData >& state ) const
     {
-        return this->has_oob_data_for_remote_device()
+        const auto algo = state.pairing_algorithm();
+
+        return algo == legacy_pairing_algorithm::oob_authentication
             ? this->get_oob_data_for_last_remote_device()
             : uint128_t( { 0 } );
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    details::legacy_pairing_algorithm details::legacy_security_manager_base< ConnectionData, Options... >::select_pairing_algorithm( std::uint8_t /* io_capability */, std::uint8_t oob_data_flag, std::uint8_t /* auth_req */, bool has_oob_data )
+    {
+        return oob_data_flag && has_oob_data
+            ? details::legacy_pairing_algorithm::oob_authentication
+            : details::legacy_pairing_algorithm::just_works;
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >

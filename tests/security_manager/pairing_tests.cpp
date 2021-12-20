@@ -3,6 +3,7 @@
 
 #include "test_sm.hpp"
 #include "test_servers.hpp"
+#include "pairing_status_io.hpp"
 
 static const std::initializer_list< std::uint8_t > no_lesc_pairing_request = {
     0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00
@@ -114,6 +115,9 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_securit
             0x00        // Responder Key Distribution
         }
     );
+
+    expected_pairing_confirm_with_tk( {{ 0 }} );
+    BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::unauthenticated_key );
 }
 
 /**
@@ -205,6 +209,8 @@ BOOST_FIXTURE_TEST_CASE( IUT_Responder_Both_sides_have_OOB_data_Success, legacy_
         bluetoe::link_layer::random_device_address({ 0xa6, 0xa5, 0xa4, 0xa3, 0xa2, 0xa1 }) );
 
     expected_pairing_confirm_with_tk( oob_cb_t::oob_data );
+
+    BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::authenticated_key );
 }
 
 /**
@@ -226,6 +232,71 @@ BOOST_FIXTURE_TEST_CASE( IUT_Responder_Both_sides_have_OOB_data_Success, legacy_
  * Verify that the IUT performs the pairing procedure correctly as responder if only the Lower Tester has OOB
  * data and supports the Just Works pairing method
  */
+BOOST_FIXTURE_TEST_CASE( IUT_Responder__Only_Lower_Tester_has_OOB_data__Lower_Tester_also_supports_Just_Works, test::legacy_security_manager<> )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x03,       // NoInputNoOutput
+            0x01,       // OOB Authentication data from remote device present
+            0x00,       // No Bonding, No MITM
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x03,       // NoInputNoOutput
+            0x00,       // no OOB Authentication data
+            0x00,       // No Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+
+    expected_pairing_confirm_with_tk( {{ 0 }} );
+    BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::unauthenticated_key );
+}
+
+struct no_oob_cb_t {
+    std::pair< bool, std::array< std::uint8_t, 16 > > sm_oob_authentication_data(
+        const bluetoe::link_layer::device_address& )
+    {
+
+        return { false, {{0}} };
+    }
+} no_oob_cb;
+
+using legacy_security_manager_with_no_oob = test::legacy_security_manager< 23,
+    bluetoe::oob_authentication_callback< no_oob_cb_t, no_oob_cb > >;
+
+BOOST_FIXTURE_TEST_CASE( IUT_Responder__Only_Lower_Tester_has_OOB_data__Lower_Tester_also_supports_Just_Works_II, test::legacy_security_manager<> )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x03,       // NoInputNoOutput
+            0x01,       // OOB Authentication data from remote device present
+            0x00,       // No Bonding, No MITM
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x03,       // NoInputNoOutput
+            0x00,       // no OOB Authentication data
+            0x00,       // No Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+
+    expected_pairing_confirm_with_tk( {{ 0 }} );
+    BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::unauthenticated_key );
+}
 
 /**
  * SM/SLA/OOB/BV-10-C [IUT Responder – Only IUT has OOB data – Lower Tester also supports Just Works]
@@ -233,6 +304,31 @@ BOOST_FIXTURE_TEST_CASE( IUT_Responder_Both_sides_have_OOB_data_Success, legacy_
  * Verify that the IUT performs the pairing procedure correctly as responder if only the IUT has
  * OOB data and the Lower Tester supports the Just Works pairing method.
  */
+BOOST_FIXTURE_TEST_CASE( IUT_Responder__Only_IUT_has_OOB_data__Lower_Tester_also_supports_Just_Works, legacy_security_manager_with_oob )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x03,       // NoInputNoOutput
+            0x00,       // no OOB Authentication data
+            0x00,       // No Bonding, No MITM
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x03,       // NoInputNoOutput
+            0x01,       // OOB Authentication data from remote device present
+            0x00,       // No Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+
+    expected_pairing_confirm_with_tk( {{ 0 }} );
+}
 
 /**
  * SM/SLA/OOB/BI-02-C [IUT Responder – Both sides have different OOB data – Failure]
