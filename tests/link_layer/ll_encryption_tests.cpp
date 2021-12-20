@@ -37,53 +37,58 @@ namespace test {
      */
     struct security_manager
     {
-        template < class OtherConnectionData >
-        class connection_data : public OtherConnectionData
+        template < typename ... >
+        class impl
         {
         public:
-            template < class ... Args >
-            connection_data( Args&&... args )
-                : OtherConnectionData( args... )
-            {}
-
-            std::pair< bool, bluetoe::details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
+            template < class OtherConnectionData >
+            class connection_data : public OtherConnectionData
             {
-                ::test::ediv = ediv;
-                ::test::rand = rand;
+            public:
+                template < class ... Args >
+                connection_data( Args&&... args )
+                    : OtherConnectionData( args... )
+                {}
 
-                return key_vault;
+                std::pair< bool, bluetoe::details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
+                {
+                    ::test::ediv = ediv;
+                    ::test::rand = rand;
+
+                    return key_vault;
+                }
+
+                void remote_connection_created( const bluetoe::link_layer::device_address& )
+                {
+                }
+
+                bluetoe::device_pairing_status local_device_pairing_status() const
+                {
+                    return bluetoe::device_pairing_status::no_key;
+                }
+            };
+
+            template < class OtherConnectionData, class SecurityFunctions >
+            void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
+            {
             }
 
-            void remote_connection_created( const bluetoe::link_layer::device_address& )
+            template < class OtherConnectionData >
+            bool security_manager_output_available( connection_data< OtherConnectionData >& ) const
+            {
+                return false;
+            }
+
+            template < class OtherConnectionData, class SecurityFunctions >
+            void l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
             {
             }
 
-            bluetoe::device_pairing_status local_device_pairing_status() const
+            constexpr std::size_t security_manager_channel_mtu_size() const
             {
-                return bluetoe::device_pairing_status::no_key;
+                return 0;
             }
         };
-
-        template < class OtherConnectionData, class SecurityFunctions >
-        void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
-        {
-        }
-
-        template < class OtherConnectionData >
-        bool security_manager_output_available( connection_data< OtherConnectionData >& ) const
-        {
-            return false;
-        }
-
-        template < class OtherConnectionData, class SecurityFunctions >
-        void l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
-        {
-        }
-
-        constexpr std::size_t security_manager_channel_mtu_size() const
-        {
-            return 0;
-        }
 
         struct meta_type :
             bluetoe::details::security_manager_meta_type,

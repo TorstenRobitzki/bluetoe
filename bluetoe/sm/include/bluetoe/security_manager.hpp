@@ -11,6 +11,7 @@
 #include <bluetoe/link_state.hpp>
 #include <bluetoe/pairing_status.hpp>
 #include <bluetoe/ll_meta_types.hpp>
+#include <bluetoe/oob_authentication.hpp>
 
 namespace bluetoe {
 
@@ -362,7 +363,7 @@ namespace bluetoe {
         };
 
         // features required by legacy and by lesc pairing
-        template < template < class OtherConnectionData > class ConnectionData >
+        template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
         class security_manager_base_base
         {
         protected:
@@ -378,7 +379,7 @@ namespace bluetoe {
         };
 
 
-        template < template < class OtherConnectionData > class ConnectionData >
+        template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
         class legacy_security_manager_base : private details::security_manager_base_base< ConnectionData >
         {
         public:
@@ -396,9 +397,6 @@ namespace bluetoe {
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
             constexpr std::size_t security_manager_channel_mtu_size() const;
-
-            struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
-                                details::security_manager_meta_type {};
         private:
             static constexpr std::uint8_t   min_max_key_size = 7;
             static constexpr std::uint8_t   max_max_key_size = 16;
@@ -427,7 +425,7 @@ namespace bluetoe {
             /** @endcond */
         };
 
-        template < template < class OtherConnectionData > class ConnectionData >
+        template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
         class lesc_security_manager_base : private details::security_manager_base_base< ConnectionData >
         {
         public:
@@ -446,8 +444,6 @@ namespace bluetoe {
 
             constexpr std::size_t security_manager_channel_mtu_size() const;
 
-            struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
-                                details::security_manager_meta_type {};
         private:
             static constexpr std::uint8_t   min_max_key_size = 7;
             static constexpr std::uint8_t   max_max_key_size = 16;
@@ -488,7 +484,17 @@ namespace bluetoe {
      * @sa security_manager
      * @sa no_security_manager
      */
-    using legacy_security_manager = details::legacy_security_manager_base< details::legacy_security_connection_data >;
+    class legacy_security_manager
+    {
+    public:
+        /** @cond HIDDEN_SYMBOLS */
+        template < typename ... Options >
+        using impl = details::legacy_security_manager_base< details::legacy_security_connection_data, Options... >;
+
+        struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
+                            details::security_manager_meta_type {};
+        /** @endcond */
+    };
 
     /**
      * @brief A Security manager that implements onlly LESC pairing.
@@ -500,7 +506,17 @@ namespace bluetoe {
      * @sa security_manager
      * @sa no_security_manager
      */
-    using lesc_security_manager = details::lesc_security_manager_base< details::lesc_security_connection_data >;
+    class lesc_security_manager
+    {
+    public:
+        /** @cond HIDDEN_SYMBOLS */
+        template < typename ... Options >
+        using impl = details::lesc_security_manager_base< details::lesc_security_connection_data, Options... >;
+
+        struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
+                            details::security_manager_meta_type {};
+        /** @endcond */
+    };
 
 
     /**
@@ -526,36 +542,41 @@ namespace bluetoe {
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
-        template < class OtherConnectionData >
-        class connection_data : public OtherConnectionData
+        template < typename ... >
+        class impl
         {
         public:
-            template < class ... Args >
-            connection_data( Args&&... args )
-                : OtherConnectionData( args... )
-            {}
-
-            void remote_connection_created( const bluetoe::link_layer::device_address& )
+            template < class OtherConnectionData >
+            class connection_data : public OtherConnectionData
             {
-            }
+            public:
+                template < class ... Args >
+                connection_data( Args&&... args )
+                    : OtherConnectionData( args... )
+                {}
 
-            device_pairing_status local_device_pairing_status() const
-            {
-                return bluetoe::device_pairing_status::no_key;
-            }
+                void remote_connection_created( const bluetoe::link_layer::device_address& )
+                {
+                }
 
+                device_pairing_status local_device_pairing_status() const
+                {
+                    return bluetoe::device_pairing_status::no_key;
+                }
+
+            };
+
+            template < class OtherConnectionData, class SecurityFunctions >
+            void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+            template < class OtherConnectionData >
+            bool security_manager_output_available( connection_data< OtherConnectionData >& ) const;
+
+            template < class OtherConnectionData, class SecurityFunctions >
+            void l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+            constexpr std::size_t security_manager_channel_mtu_size() const;
         };
-
-        template < class OtherConnectionData, class SecurityFunctions >
-        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
-
-        template < class OtherConnectionData >
-        bool security_manager_output_available( connection_data< OtherConnectionData >& ) const;
-
-        template < class OtherConnectionData, class SecurityFunctions >
-        void l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
-
-        constexpr std::size_t security_manager_channel_mtu_size() const;
 
         struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
                             details::security_manager_meta_type {};
@@ -566,9 +587,9 @@ namespace bluetoe {
      * Implementation
      */
     /** @cond HIDDEN_SYMBOLS */
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::legacy_security_manager_base< ConnectionData >::l2cap_input(
+    void details::legacy_security_manager_base< ConnectionData, Options... >::l2cap_input(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
     {
         using namespace bluetoe::details;
@@ -598,28 +619,28 @@ namespace bluetoe {
         }
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData >
-    bool details::legacy_security_manager_base< ConnectionData >::security_manager_output_available( connection_data< OtherConnectionData >& ) const
+    bool details::legacy_security_manager_base< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& ) const
     {
         return false;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::legacy_security_manager_base< ConnectionData >::l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
+    void details::legacy_security_manager_base< ConnectionData, Options... >::l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    constexpr std::size_t details::legacy_security_manager_base< ConnectionData >::security_manager_channel_mtu_size() const
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    constexpr std::size_t details::legacy_security_manager_base< ConnectionData, Options... >::security_manager_channel_mtu_size() const
     {
         return default_att_mtu_size;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::legacy_security_manager_base< ConnectionData >::handle_pairing_request(
+    void details::legacy_security_manager_base< ConnectionData, Options... >::handle_pairing_request(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
         using namespace details;
@@ -658,8 +679,8 @@ namespace bluetoe {
         state.pairing_request( srand, p1, p2 );
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    inline void details::legacy_security_manager_base< ConnectionData >::create_pairing_response( std::uint8_t* output, std::size_t& out_size )
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    inline void details::legacy_security_manager_base< ConnectionData, Options... >::create_pairing_response( std::uint8_t* output, std::size_t& out_size )
     {
         out_size = pairing_req_resp_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_response );
@@ -671,9 +692,9 @@ namespace bluetoe {
         output[ 6 ] = 0;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::legacy_security_manager_base< ConnectionData >::handle_pairing_confirm(
+    void details::legacy_security_manager_base< ConnectionData, Options... >::handle_pairing_confirm(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
     {
         using namespace details;
@@ -696,9 +717,9 @@ namespace bluetoe {
         std::copy( sconfirm.begin(), sconfirm.end(), &output[ 1 ] );
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::legacy_security_manager_base< ConnectionData >::handle_pairing_random(
+    void details::legacy_security_manager_base< ConnectionData, Options... >::handle_pairing_random(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
     {
         using namespace details;
@@ -728,8 +749,8 @@ namespace bluetoe {
         state.pairing_completed( stk );
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    inline details::uint128_t details::legacy_security_manager_base< ConnectionData >::c1_p1(
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    inline details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::c1_p1(
         const std::uint8_t* input, const std::uint8_t* output,
         const bluetoe::link_layer::device_address& initiating_device,
         const bluetoe::link_layer::device_address& responding_device )
@@ -744,8 +765,8 @@ namespace bluetoe {
         return result;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    inline details::uint128_t details::legacy_security_manager_base< ConnectionData >::c1_p2(
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    inline details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::c1_p2(
         const bluetoe::link_layer::device_address& initiating_device,
         const bluetoe::link_layer::device_address& responding_device )
     {
@@ -761,9 +782,9 @@ namespace bluetoe {
         return result;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::lesc_security_manager_base< ConnectionData >::l2cap_input(
+    void details::lesc_security_manager_base< ConnectionData, Options... >::l2cap_input(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& func )
     {
         using namespace bluetoe::details;
@@ -796,16 +817,16 @@ namespace bluetoe {
         }
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData >
-    bool details::lesc_security_manager_base< ConnectionData >::security_manager_output_available( connection_data< OtherConnectionData >& state ) const
+    bool details::lesc_security_manager_base< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& state ) const
     {
         return state.state() == details::lesc_pairing_state::public_keys_exchanged;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::lesc_security_manager_base< ConnectionData >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
+    void details::lesc_security_manager_base< ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
         assert( state.state() == details::lesc_pairing_state::public_keys_exchanged );
 
@@ -822,15 +843,15 @@ namespace bluetoe {
         state.pairing_confirm_send();
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    constexpr std::size_t details::lesc_security_manager_base< ConnectionData >::security_manager_channel_mtu_size() const
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    constexpr std::size_t details::lesc_security_manager_base< ConnectionData, Options... >::security_manager_channel_mtu_size() const
     {
         return public_key_exchange_size;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::lesc_security_manager_base< ConnectionData >::handle_pairing_request(
+    void details::lesc_security_manager_base< ConnectionData, Options... >::handle_pairing_request(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& /* functions */ )
     {
         using namespace details;
@@ -868,9 +889,9 @@ namespace bluetoe {
         create_pairing_response( output, out_size );
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::lesc_security_manager_base< ConnectionData >::handle_pairing_public_key(
+    void details::lesc_security_manager_base< ConnectionData, Options... >::handle_pairing_public_key(
         const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
         if ( in_size != public_key_exchange_size )
@@ -894,8 +915,8 @@ namespace bluetoe {
         std::copy( keys.first.begin(), keys.first.end(), &output[ 1 ] );
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    inline void details::lesc_security_manager_base< ConnectionData >::create_pairing_response( std::uint8_t* output, std::size_t& out_size )
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    inline void details::lesc_security_manager_base< ConnectionData, Options... >::create_pairing_response( std::uint8_t* output, std::size_t& out_size )
     {
         using namespace details;
 
@@ -910,8 +931,8 @@ namespace bluetoe {
         output[ 6 ] = 0;
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
-    details::io_capabilities_t details::lesc_security_manager_base< ConnectionData >::local_io_caps() const
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    details::io_capabilities_t details::lesc_security_manager_base< ConnectionData, Options... >::local_io_caps() const
     {
         return {{
             static_cast< std::uint8_t >( details::io_capabilities::no_input_no_output ),
@@ -919,9 +940,9 @@ namespace bluetoe {
             static_cast< std::uint8_t >( details::authentication_requirements_flags::secure_connections ) }};
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::lesc_security_manager_base< ConnectionData >::handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& )
+    void details::lesc_security_manager_base< ConnectionData, Options... >::handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& )
     {
         if ( in_size != pairing_random_size )
             return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
@@ -938,9 +959,9 @@ namespace bluetoe {
         state.pairing_random_exchanged( input + 1 );
     }
 
-    template < template < class OtherConnectionData > class ConnectionData >
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::lesc_security_manager_base< ConnectionData >::handle_pairing_dhkey_check( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
+    void details::lesc_security_manager_base< ConnectionData, Options... >::handle_pairing_dhkey_check( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
         if ( in_size != pairing_dhkey_check_size )
             return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
@@ -970,24 +991,28 @@ namespace bluetoe {
         state.pairing_completed( ltk );
     }
 
+    template < typename ...Os >
     template < class OtherConnectionData, class SecurityFunctions >
-    void no_security_manager::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& )
+    void no_security_manager::impl< Os... >::l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
         error_response( details::sm_error_codes::pairing_not_supported, output, out_size );
     }
 
+    template < typename ...Os >
     template < class OtherConnectionData >
-    bool no_security_manager::security_manager_output_available( connection_data< OtherConnectionData >& ) const
+    bool no_security_manager::impl< Os... >::security_manager_output_available( connection_data< OtherConnectionData >& ) const
     {
         return false;
     }
 
+    template < typename ...Os >
     template < class OtherConnectionData, class SecurityFunctions >
-    void no_security_manager::l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
+    void no_security_manager::impl< Os... >::l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
     {
     }
 
-    constexpr std::size_t no_security_manager::security_manager_channel_mtu_size() const
+    template < typename ...Os >
+    constexpr std::size_t no_security_manager::impl< Os... >::security_manager_channel_mtu_size() const
     {
         return 0;
     }

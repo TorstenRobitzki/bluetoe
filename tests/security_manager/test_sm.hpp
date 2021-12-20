@@ -383,8 +383,8 @@ namespace test {
         }
     };
 
-    template < class Manager, class SecurityFunctions, std::size_t MTU = 27 >
-    struct security_manager : Manager, private SecurityFunctions
+    template < class Manager, class SecurityFunctions, std::size_t MTU = 27, typename ...Options >
+    struct security_manager : Manager::template impl< Options... >, private SecurityFunctions
     {
         security_manager()
             : connection_data_( MTU )
@@ -455,8 +455,9 @@ namespace test {
         }
 
         struct gatt_connection_details {};
+        using manager_type = typename Manager::template impl< Options... >;
         using connection_data_t = bluetoe::details::link_state<
-            typename Manager::template connection_data< gatt_connection_details > >;
+            typename manager_type::template connection_data< gatt_connection_details > >;
 
         void local_address( const bluetoe::link_layer::device_address& addr )
         {
@@ -478,6 +479,9 @@ namespace test {
 
     template < std::size_t MTU = 23 >
     using legacy_security_manager = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU >;
+
+    template < std::size_t MTU = 23 >
+    using legacy_security_manager_with_oob = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU >;
 
     template < std::size_t MTU = 65 >
     using lesc_security_manager = security_manager< bluetoe::lesc_security_manager, test::lesc_security_functions, MTU >;

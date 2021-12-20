@@ -52,10 +52,12 @@ namespace link_layer {
                 bluetoe::no_security_manager
             >::type;
 
-            using type = typename bluetoe::details::find_by_meta_type<
+            using impl = typename bluetoe::details::find_by_meta_type<
                 bluetoe::details::security_manager_meta_type,
                 Options...,
                 default_sm >::type;
+
+            using type = typename impl::template impl< Options... >;
         };
 
         template < typename ... Options >

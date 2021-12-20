@@ -78,6 +78,7 @@ function(add_bluetoe_example target_name)
 endfunction()
 
 add_bluetoe_example(blinky)
+add_bluetoe_example(blinky_with_oob)
 add_bluetoe_example(blinky_without_encryption)
 add_bluetoe_example(thermometer)
 add_bluetoe_example(cycling_speed_and_cadence)
