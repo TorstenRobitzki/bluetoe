@@ -13,6 +13,7 @@
 #include <bluetoe/ll_meta_types.hpp>
 #include <bluetoe/oob_authentication.hpp>
 #include <bluetoe/meta_tools.hpp>
+#include <bluetoe/io_capabilities.hpp>
 
 namespace bluetoe {
 
@@ -74,15 +75,6 @@ namespace bluetoe {
             pairing_keypress_notification
         };
 
-        enum class io_capabilities : std::uint8_t {
-            display_only,
-            display_yes_no,
-            keyboard_only,
-            no_input_no_output,
-            keyboard_display,
-            last = keyboard_display
-        };
-
         enum class legacy_pairing_state : std::uint8_t {
             idle,
             pairing_requested,
@@ -97,12 +89,6 @@ namespace bluetoe {
             pairing_confirm_send,
             pairing_random_exchanged,
             pairing_completed
-        };
-
-        enum class legacy_pairing_algorithm : std::uint8_t {
-            just_works,
-            oob_authentication,
-            passkey_entry
         };
 
         enum class authentication_requirements_flags : std::uint8_t {
@@ -228,6 +214,16 @@ namespace bluetoe {
                     : device_pairing_status::authenticated_key;
             }
 
+            template < class SecurityFunctions >
+            details::uint128_t passkey( SecurityFunctions& func )
+            {
+                if ( state_ == details::legacy_pairing_state::pairing_confirmed )
+                {
+                    state_data_.pairing_state.passkey = func.create_passkey();
+                }
+
+                return state_data_.pairing_state.passkey;
+            }
         private:
             link_layer::device_address          remote_addr_;
             details::legacy_pairing_state       state_;
@@ -239,6 +235,7 @@ namespace bluetoe {
                     details::uint128_t c1_p2;
                     details::uint128_t srand;
                     details::uint128_t mconfirm;
+                    details::uint128_t passkey;
                 }                                   pairing_state;
 
                 struct {
@@ -405,7 +402,7 @@ namespace bluetoe {
         };
 
         template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-        class legacy_security_manager_base : private details::security_manager_base_base< ConnectionData, Options... >
+        class legacy_security_manager_base : private security_manager_base_base< ConnectionData, Options... >
         {
         public:
             /** @cond HIDDEN_SYMBOLS */
@@ -427,6 +424,8 @@ namespace bluetoe {
             static constexpr std::uint8_t   max_max_key_size = 16;
             static constexpr std::size_t    pairing_req_resp_size = 7;
 
+            using io_device_t = io_capabilities_matrix< Options... >;
+
             template < class OtherConnectionData, class SecurityFunctions >
             void handle_pairing_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
@@ -438,8 +437,8 @@ namespace bluetoe {
             template < class OtherConnectionData, class SecurityFunctions >
             void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
-            template < class OtherConnectionData >
-            uint128_t temporary_key( connection_data< OtherConnectionData >& ) const;
+            template < class OtherConnectionData, class SecurityFunctions >
+            uint128_t temporary_key( connection_data< OtherConnectionData >&, SecurityFunctions& ) const;
 
             details::legacy_pairing_algorithm select_pairing_algorithm( std::uint8_t io_capability, std::uint8_t oob_data_flag, std::uint8_t auth_req, bool has_oob_data );
 
@@ -456,7 +455,7 @@ namespace bluetoe {
         };
 
         template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-        class lesc_security_manager_base : private details::security_manager_base_base< ConnectionData, Options... >
+        class lesc_security_manager_base : private security_manager_base_base< ConnectionData, Options... >
         {
         public:
             /** @cond HIDDEN_SYMBOLS */
@@ -720,7 +719,7 @@ namespace bluetoe {
 
         out_size = pairing_req_resp_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_response );
-        output[ 1 ] = static_cast< std::uint8_t >( io_capabilities::no_input_no_output );
+        output[ 1 ] = static_cast< std::uint8_t >( io_device_t::get_io_capabilities() );
         output[ 2 ] = this->has_oob_data_for_remote_device()
             ? oob_authentication_data_from_remote_device_present
             : oob_authentication_data_not_present;
@@ -751,7 +750,10 @@ namespace bluetoe {
         out_size = request_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_confirm );
 
-        const auto sconfirm = func.c1( temporary_key( state ), state.srand(), state.c1_p1(), state.c1_p2() );
+        const auto temp_key = temporary_key( state, func );
+        io_device_t::sm_pairing_numeric_output( temp_key );
+
+        const auto sconfirm = func.c1( temp_key, state.srand(), state.c1_p1(), state.c1_p2() );
         std::copy( sconfirm.begin(), sconfirm.end(), &output[ 1 ] );
     }
 
@@ -772,7 +774,7 @@ namespace bluetoe {
 
         uint128_t mrand;
         std::copy( &input[ 1 ], &input[ pairing_random_size ], mrand.begin() );
-        const uint128_t temp_key = temporary_key( state );
+        const uint128_t temp_key = temporary_key( state, func );
         const auto mconfirm = func.c1( temp_key, mrand, state.c1_p1(), state.c1_p2() );
 
         if ( mconfirm != state.mconfirm() )
@@ -789,22 +791,33 @@ namespace bluetoe {
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-    template < class OtherConnectionData >
-    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key( connection_data< OtherConnectionData >& state ) const
+    template < class OtherConnectionData, class SecurityFunctions >
+    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key( connection_data< OtherConnectionData >& state, SecurityFunctions& func ) const
     {
         const auto algo = state.pairing_algorithm();
 
-        return algo == legacy_pairing_algorithm::oob_authentication
-            ? this->get_oob_data_for_last_remote_device()
-            : uint128_t( { 0 } );
+        switch ( algo )
+        {
+            case legacy_pairing_algorithm::oob_authentication:
+                return this->get_oob_data_for_last_remote_device();
+
+            case legacy_pairing_algorithm::passkey_entry_display:
+                return state.passkey( func );
+
+            default:
+                break;
+        }
+
+        return uint128_t( { 0 } );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
-    details::legacy_pairing_algorithm details::legacy_security_manager_base< ConnectionData, Options... >::select_pairing_algorithm( std::uint8_t /* io_capability */, std::uint8_t oob_data_flag, std::uint8_t /* auth_req */, bool has_oob_data )
+    details::legacy_pairing_algorithm details::legacy_security_manager_base< ConnectionData, Options... >::select_pairing_algorithm( std::uint8_t io_capability, std::uint8_t oob_data_flag, std::uint8_t /* auth_req */, bool has_oob_data )
     {
-        return oob_data_flag && has_oob_data
-            ? details::legacy_pairing_algorithm::oob_authentication
-            : details::legacy_pairing_algorithm::just_works;
+        if ( oob_data_flag && has_oob_data )
+            return details::legacy_pairing_algorithm::oob_authentication;
+
+        return io_device_t::select_legacy_pairing_algorithm( io_capability );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -992,8 +1005,10 @@ namespace bluetoe {
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     details::io_capabilities_t details::lesc_security_manager_base< ConnectionData, Options... >::local_io_caps() const
     {
+        using io_capabilities_t = io_capabilities_matrix< Options... >;
+
         return {{
-            static_cast< std::uint8_t >( details::io_capabilities::no_input_no_output ),
+            static_cast< std::uint8_t >( io_capabilities_t::get_io_capabilities() ),
             0,
             static_cast< std::uint8_t >( details::authentication_requirements_flags::secure_connections ) }};
     }

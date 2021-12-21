@@ -3,6 +3,7 @@
 
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/ll_meta_types.hpp>
+#include <bluetoe/bits.hpp>
 
 namespace bluetoe
 {
@@ -18,6 +19,13 @@ namespace bluetoe
             no_input_no_output      = 0x03,
             keyboard_display        = 0x04,
             last = keyboard_display
+        };
+
+        enum class legacy_pairing_algorithm : std::uint8_t {
+            just_works,
+            oob_authentication,
+            passkey_entry_display,
+            passkey_entry_input
         };
 
     }
@@ -110,6 +118,30 @@ namespace bluetoe
             return details::io_capabilities::keyboard_only;
         }
 
+        static details::legacy_pairing_algorithm select_legacy_pairing_algorithm( const pairing_no_input&, details::io_capabilities /* io_capability */ )
+        {
+            return details::legacy_pairing_algorithm::just_works;
+        }
+
+        template < typename T, T& Obj >
+        static details::legacy_pairing_algorithm select_legacy_pairing_algorithm( const pairing_yes_no< T, Obj >&, details::io_capabilities /* io_capability */ )
+        {
+            return details::legacy_pairing_algorithm::just_works;
+        }
+
+        template < typename T, T& Obj >
+        static details::legacy_pairing_algorithm select_legacy_pairing_algorithm( const pairing_keyboard< T, Obj >&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::no_input_no_output )
+                return details::legacy_pairing_algorithm::just_works;
+
+            return details::legacy_pairing_algorithm::passkey_entry_input;
+        }
+
+        static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& )
+        {
+        }
+
         struct meta_type :
             details::pairing_output_capabilty_meta_type,
             link_layer::details::valid_link_layer_option_meta_type {};
@@ -146,6 +178,40 @@ namespace bluetoe
         static details::io_capabilities get_io_capabilities( const pairing_keyboard< O, Other >& )
         {
             return details::io_capabilities::keyboard_display;
+        }
+
+        static details::legacy_pairing_algorithm select_legacy_pairing_algorithm( const pairing_no_input&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::keyboard_only || io_capability == details::io_capabilities::keyboard_display )
+                return details::legacy_pairing_algorithm::passkey_entry_display;
+
+            return details::legacy_pairing_algorithm::just_works;
+        }
+
+        template < typename O, O& Other >
+        static details::legacy_pairing_algorithm select_legacy_pairing_algorithm( const pairing_yes_no< O, Other >&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::keyboard_only || io_capability == details::io_capabilities::keyboard_display )
+                return details::legacy_pairing_algorithm::passkey_entry_display;
+
+            return details::legacy_pairing_algorithm::just_works;
+        }
+
+        template < typename O, O& Other >
+        static details::legacy_pairing_algorithm select_legacy_pairing_algorithm( const pairing_keyboard< O, Other >&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::no_input_no_output )
+                return details::legacy_pairing_algorithm::just_works;
+
+            if ( io_capability == details::io_capabilities::keyboard_only )
+                return details::legacy_pairing_algorithm::passkey_entry_display;
+
+            return details::legacy_pairing_algorithm::passkey_entry_input;
+        }
+
+        static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& key )
+        {
+            Obj.sm_pairing_numeric_output( static_cast< int >( details::read_32bit( key.data() ) ) );
         }
 
         struct meta_type :
@@ -200,8 +266,22 @@ namespace bluetoe
             {
                 return output_capabilities::get_io_capabilities(input_capabilities());
             }
-        };
 
+            static legacy_pairing_algorithm select_legacy_pairing_algorithm( std::uint8_t io_capability )
+            {
+                return select_legacy_pairing_algorithm( static_cast< io_capabilities >( io_capability ) );
+            }
+
+            static legacy_pairing_algorithm select_legacy_pairing_algorithm( io_capabilities io_capability )
+            {
+                return output_capabilities::select_legacy_pairing_algorithm( input_capabilities(), io_capability );
+            }
+
+            static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& temp_key )
+            {
+                output_capabilities::sm_pairing_numeric_output( temp_key );
+            }
+        };
     }
 }
 

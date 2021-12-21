@@ -101,6 +101,18 @@ namespace test {
             return r;
         }
 
+        bluetoe::details::uint128_t create_passkey()
+        {
+            const bluetoe::details::uint128_t r{{
+                0xC7, 0x4c, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00
+            }};
+
+            return r;
+        }
+
         bluetoe::details::longterm_key_t create_long_term_key()
         {
             bluetoe::details::longterm_key_t key = {
