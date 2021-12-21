@@ -41,6 +41,11 @@ namespace bluetoe
     struct pairing_no_input
     {
         /** @cond HIDDEN_SYMBOLS */
+        static std::array< std::uint8_t, 16 > sm_pairing_passkey()
+        {
+            return {{0}};
+        }
+
         struct meta_type :
             details::pairing_input_capabilty_meta_type,
             link_layer::details::valid_link_layer_option_meta_type {};
@@ -64,6 +69,11 @@ namespace bluetoe
     struct pairing_yes_no
     {
         /** @cond HIDDEN_SYMBOLS */
+        static std::array< std::uint8_t, 16 > sm_pairing_passkey()
+        {
+            return {{0}};
+        }
+
         struct meta_type :
             details::pairing_input_capabilty_meta_type,
             link_layer::details::valid_link_layer_option_meta_type {};
@@ -89,6 +99,14 @@ namespace bluetoe
     struct pairing_keyboard
     {
         /** @cond HIDDEN_SYMBOLS */
+        static std::array< std::uint8_t, 16 > sm_pairing_passkey()
+        {
+            std::array< std::uint8_t, 16 > result = {{ 0 }};
+            details::write_32bit( result.data(), Obj.sm_pairing_passkey() );
+
+            return result;
+        }
+
         struct meta_type :
             details::pairing_input_capabilty_meta_type,
             link_layer::details::valid_link_layer_option_meta_type {};
@@ -280,6 +298,11 @@ namespace bluetoe
             static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& temp_key )
             {
                 output_capabilities::sm_pairing_numeric_output( temp_key );
+            }
+
+            static std::array< std::uint8_t, 16 > sm_pairing_passkey()
+            {
+                return input_capabilities::sm_pairing_passkey();
             }
         };
     }

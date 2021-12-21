@@ -167,16 +167,22 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Handle_AuthReq_flag_RFU_corre
  */
 
 struct pass_key_display_t {
-    pass_key_display_t() : displayed_pass_key( ~0 )
+    pass_key_display_t()
+        : displayed_pass_key( ~0 )
+        , called( false )
     {
     }
 
     void sm_pairing_numeric_output( int pass_key )
     {
+        BOOST_REQUIRE( !called );
+        called = true;
+
         displayed_pass_key = pass_key;
     }
 
     int displayed_pass_key;
+    bool called;
 } pass_key_display;
 
 using legacy_security_manager_with_display_only = test::legacy_security_manager< 23,
@@ -212,6 +218,53 @@ BOOST_FIXTURE_TEST_CASE( Passkey_Entry_IUT_Responder__Success, legacy_security_m
     BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::authenticated_key );
 }
 
+struct pairing_keyboard_handler_t
+{
+    pairing_keyboard_handler_t() : called( false )
+    {
+    }
+
+    int sm_pairing_passkey()
+    {
+        BOOST_REQUIRE( !called );
+        called = true;
+        return 19655;
+    }
+
+    bool called;
+} pairing_keyboard_handler;
+
+using legacy_security_manager_with_keyboard = test::legacy_security_manager< 23,
+    bluetoe::pairing_keyboard< pairing_keyboard_handler_t, pairing_keyboard_handler > >;
+
+BOOST_FIXTURE_TEST_CASE( Passkey_Entry_IUT_Responder__Success_II, legacy_security_manager_with_keyboard )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x04,       // KeyboardDisplay
+            0x00,       // OOB Authentication data not present
+            0x00,       // No Bonding, No MITM
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x02,       // KeyboardOnly
+            0x00,       // OOB Authentication data not present
+            0x00,       // No Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+
+    // passkey is ‘019655’
+    expected_pairing_confirm_with_tk( { { 0xC7, 0x4c } } );
+
+    BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::authenticated_key );
+}
 
 /**
  * SM/SLA/PKE/BV-05-C [Passkey Entry, IUT Responder – Lower Tester has insufficient security for Passkey Entry]

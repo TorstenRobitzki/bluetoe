@@ -214,14 +214,13 @@ namespace bluetoe {
                     : device_pairing_status::authenticated_key;
             }
 
-            template < class SecurityFunctions >
-            details::uint128_t passkey( SecurityFunctions& func )
+            void passkey( const details::uint128_t& key )
             {
-                if ( state_ == details::legacy_pairing_state::pairing_confirmed )
-                {
-                    state_data_.pairing_state.passkey = func.create_passkey();
-                }
+                state_data_.pairing_state.passkey = key;
+            }
 
+            details::uint128_t passkey() const
+            {
                 return state_data_.pairing_state.passkey;
             }
         private:
@@ -438,7 +437,10 @@ namespace bluetoe {
             void handle_pairing_random( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
             template < class OtherConnectionData, class SecurityFunctions >
-            uint128_t temporary_key( connection_data< OtherConnectionData >&, SecurityFunctions& ) const;
+            uint128_t create_temporary_key( connection_data< OtherConnectionData >&, SecurityFunctions& ) const;
+
+            template < class OtherConnectionData >
+            uint128_t temporary_key( const connection_data< OtherConnectionData >& ) const;
 
             details::legacy_pairing_algorithm select_pairing_algorithm( std::uint8_t io_capability, std::uint8_t oob_data_flag, std::uint8_t auth_req, bool has_oob_data );
 
@@ -749,7 +751,8 @@ namespace bluetoe {
         out_size = request_size;
         output[ 0 ] = static_cast< std::uint8_t >( sm_opcodes::pairing_confirm );
 
-        const auto temp_key = temporary_key( state, func );
+        const auto temp_key = create_temporary_key( state, func );
+
         io_device_t::sm_pairing_numeric_output( temp_key );
 
         const auto sconfirm = func.c1( temp_key, state.srand(), state.c1_p1(), state.c1_p2() );
@@ -773,7 +776,7 @@ namespace bluetoe {
 
         uint128_t mrand;
         std::copy( &input[ 1 ], &input[ pairing_random_size ], mrand.begin() );
-        const uint128_t temp_key = temporary_key( state, func );
+        const uint128_t temp_key = temporary_key( state );
         const auto mconfirm = func.c1( temp_key, mrand, state.c1_p1(), state.c1_p2() );
 
         if ( mconfirm != state.mconfirm() )
@@ -791,7 +794,7 @@ namespace bluetoe {
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key( connection_data< OtherConnectionData >& state, SecurityFunctions& func ) const
+    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::create_temporary_key( connection_data< OtherConnectionData >& state, SecurityFunctions& func ) const
     {
         const auto algo = state.pairing_algorithm();
 
@@ -801,7 +804,43 @@ namespace bluetoe {
                 return this->get_oob_data_for_last_remote_device();
 
             case legacy_pairing_algorithm::passkey_entry_display:
-                return state.passkey( func );
+            {
+                const auto key = func.create_passkey();
+                state.passkey( key );
+
+                return key;
+            }
+
+            case legacy_pairing_algorithm::passkey_entry_input:
+            {
+
+                const auto key = io_device_t::sm_pairing_passkey();
+                state.passkey( key );
+
+                return key;
+            }
+
+            default:
+                break;
+        }
+
+        return uint128_t( { 0 } );
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    template < class OtherConnectionData >
+    details::uint128_t details::legacy_security_manager_base< ConnectionData, Options... >::temporary_key( const connection_data< OtherConnectionData >& state ) const
+    {
+        const auto algo = state.pairing_algorithm();
+
+        switch ( algo )
+        {
+            case legacy_pairing_algorithm::oob_authentication:
+                return this->get_oob_data_for_last_remote_device();
+
+            case legacy_pairing_algorithm::passkey_entry_display:
+            case legacy_pairing_algorithm::passkey_entry_input:
+                return state.passkey();
 
             default:
                 break;
