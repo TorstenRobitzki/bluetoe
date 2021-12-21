@@ -127,6 +127,32 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_securit
  * bits set in the AuthReq flag. Reserved For Future Use bits are correctly handled when acting as
  * slave, responder.
  */
+BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Handle_AuthReq_flag_RFU_correctly, test::legacy_security_manager<> )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x03,       // NoInputNoOutput
+            0x00,       // OOB Authentication data not present
+            0xE0,       // MITM set to ‘0’ and all reserved bits are set to ‘1’
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x03,       // NoInputNoOutput
+            0x00,       // OOB Authentication data not present
+            0x00,       // No Bonding, MITM = 0, SC = 0, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+
+    expected_pairing_confirm_with_tk( {{ 0 }} );
+    BOOST_CHECK_EQUAL( connection_data().local_device_pairing_status(), bluetoe::device_pairing_status::unauthenticated_key );
+}
 
 /**
  * SM/SLA/JW/BI-02-C [Just Works, IUT Responder – Failure]

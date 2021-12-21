@@ -94,27 +94,6 @@ BOOST_AUTO_TEST_SUITE( invalid_pairing_requests )
         );
     }
 
-    BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_AuthReq, Manager, security_managers_under_test )
-    {
-        Manager mng;
-        mng.expected(
-            {
-                0x01,           // Pairing Request
-                0x03,           // IO Capability NoInputNoOutput
-                0x00,           // OOB data flag (data not present)
-                0x80,           // AuthReq (RFU)
-                0x10,           // Maximum Encryption Key Size (16)
-                0x00,           // Initiator Key Distribution
-                0x00,           // Responder Key Distribution
-
-            },
-            {
-                0x05,           // Pairing Failed
-                0x0A            // Invalid Parameters
-            }
-        );
-    }
-
     BOOST_AUTO_TEST_CASE_TEMPLATE( invalid_Encryption_Key_Size, Manager, security_managers_under_test )
     {
         Manager mng;

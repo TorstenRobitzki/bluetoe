@@ -682,7 +682,7 @@ namespace bluetoe {
 
         const std::uint8_t io_capability                = input[ 1 ];
         const std::uint8_t oob_data_flag                = input[ 2 ];
-        const std::uint8_t auth_req                     = input[ 3 ];
+        const std::uint8_t auth_req                     = input[ 3 ] & 0x1f;
         const std::uint8_t max_key_size                 = input[ 4 ];
         const std::uint8_t initiator_key_distribution   = input[ 5 ];
         const std::uint8_t responder_key_distribution   = input[ 6 ];
@@ -690,7 +690,6 @@ namespace bluetoe {
         if (
             ( io_capability > static_cast< std::uint8_t >( io_capabilities::last ) )
          || ( oob_data_flag & ~0x01 )
-         || ( auth_req & 0xC0 )
          || ( max_key_size < min_max_key_size || max_key_size > max_max_key_size )
          || ( initiator_key_distribution & 0xf0 )
          || ( responder_key_distribution & 0xf0 )
