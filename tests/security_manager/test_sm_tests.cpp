@@ -446,3 +446,59 @@ BOOST_FIXTURE_TEST_CASE( f6_test, test::lesc_security_functions )
 
     BOOST_CHECK_EQUAL_COLLECTIONS( check_value.begin(), check_value.end(), expected_check_value.begin(), expected_check_value.end() );
 }
+
+BOOST_FIXTURE_TEST_CASE( g2_test, test::lesc_security_functions )
+{
+    // D.5 g2 LE SC NUMERIC COMPARISON GENERATION FUNCTION
+    // U              20b003d2 f297be2c 5e2c83a7 e9f9a5b9
+    //                eff49111 acf4fddb cc030148 0e359de6
+    // V              55188b3d 32f6bb9a 900afcfb eed4e72a
+    //                59cb9ac2 f19d7cfb 6b4fdd49 f47fc5fd
+    // X              d5cb8454 d177733e ffffb2ec 712baeab
+    // Y              a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // M0             20b003d2 f297be2c 5e2c83a7 e9f9a5b9
+    // M1             eff49111 acf4fddb cc030148 0e359de6
+    // M2             55188b3d 32f6bb9a 900afcfb eed4e72a
+    // M3             59cb9ac2 f19d7cfb 6b4fdd49 f47fc5fd
+    // M4             a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // AES_CMAC       1536d18d e3d20df9 9b7044c1 2f9ed5ba
+    // g2             2f9ed5ba
+
+    const std::array< std::uint8_t, 32 > u = {{
+        0xe6, 0x9d, 0x35, 0x0e,
+        0x48, 0x01, 0x03, 0xcc,
+        0xdb, 0xfd, 0xf4, 0xac,
+        0x11, 0x91, 0xf4, 0xef,
+        0xb9, 0xa5, 0xf9, 0xe9,
+        0xa7, 0x83, 0x2c, 0x5e,
+        0x2c, 0xbe, 0x97, 0xf2,
+        0xd2, 0x03, 0xb0, 0x20
+    }};
+
+    const std::array< std::uint8_t, 32 > v = {{
+        0xfd, 0xc5, 0x7f, 0xf4,
+        0x49, 0xdd, 0x4f, 0x6b,
+        0xfb, 0x7c, 0x9d, 0xf1,
+        0xc2, 0x9a, 0xcb, 0x59,
+        0x2a, 0xe7, 0xd4, 0xee,
+        0xfb, 0xfc, 0x0a, 0x90,
+        0x9a, 0xbb, 0xf6, 0x32,
+        0x3d, 0x8b, 0x18, 0x55
+    }};
+
+    const bluetoe::details::uint128_t x = {{
+        0xab, 0xae, 0x2b, 0x71,
+        0xec, 0xb2, 0xff, 0xff,
+        0x3e, 0x73, 0x77, 0xd1,
+        0x54, 0x84, 0xcb, 0xd5
+    }};
+
+    const bluetoe::details::uint128_t y = {{
+        0xcf, 0xc4, 0x3d, 0xff,
+        0xf7, 0x83, 0x65, 0x21,
+        0x6e, 0x5f, 0xa7, 0x25,
+        0xcc, 0xe7, 0xe8, 0xa6
+    }};
+
+    BOOST_CHECK_EQUAL( g2( u.data(), v.data(), x, y ), 0x2f9ed5bau );
+}
