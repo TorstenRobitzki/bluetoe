@@ -28,6 +28,14 @@ namespace bluetoe
             passkey_entry_input
         };
 
+        enum class lesc_pairing_algorithm : std::uint8_t {
+            just_works,
+            oob_authentication,
+            passkey_entry_display,
+            passkey_entry_input,
+            numeric_comparison
+        };
+
     }
 
     /**
@@ -156,6 +164,26 @@ namespace bluetoe
             return details::legacy_pairing_algorithm::passkey_entry_input;
         }
 
+        static details::lesc_pairing_algorithm select_lesc_pairing_algorithm( const pairing_no_input&, details::io_capabilities )
+        {
+            return details::lesc_pairing_algorithm::just_works;
+        }
+
+        template < typename T, T& Obj >
+        static details::lesc_pairing_algorithm select_lesc_pairing_algorithm( const pairing_yes_no< T, Obj >&, details::io_capabilities )
+        {
+            return details::lesc_pairing_algorithm::just_works;
+        }
+
+        template < typename T, T& Obj >
+        static details::lesc_pairing_algorithm select_lesc_pairing_algorithm( const pairing_keyboard< T, Obj >&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::no_input_no_output )
+                return details::lesc_pairing_algorithm::just_works;
+
+            return details::lesc_pairing_algorithm::passkey_entry_input;
+        }
+
         static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& )
         {
         }
@@ -227,6 +255,41 @@ namespace bluetoe
             return details::legacy_pairing_algorithm::passkey_entry_input;
         }
 
+        static details::lesc_pairing_algorithm select_lesc_pairing_algorithm( const pairing_no_input&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::keyboard_only || io_capability == details::io_capabilities::keyboard_display )
+                return details::lesc_pairing_algorithm::passkey_entry_display;
+
+            return details::lesc_pairing_algorithm::just_works;
+        }
+
+        template < typename O, O& Other >
+        static details::lesc_pairing_algorithm select_lesc_pairing_algorithm( const pairing_yes_no< O, Other >&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::display_yes_no || io_capability == details::io_capabilities::keyboard_display )
+                return details::lesc_pairing_algorithm::numeric_comparison;
+
+            if ( io_capability == details::io_capabilities::keyboard_only )
+                return details::lesc_pairing_algorithm::passkey_entry_display;
+
+            return details::lesc_pairing_algorithm::just_works;
+        }
+
+        template < typename O, O& Other >
+        static details::lesc_pairing_algorithm select_lesc_pairing_algorithm( const pairing_keyboard< O, Other >&, details::io_capabilities io_capability )
+        {
+            if ( io_capability == details::io_capabilities::display_yes_no || io_capability == details::io_capabilities::keyboard_display )
+                return details::lesc_pairing_algorithm::numeric_comparison;
+
+            if ( io_capability == details::io_capabilities::display_only )
+                return details::lesc_pairing_algorithm::passkey_entry_input;
+
+            if ( io_capability == details::io_capabilities::keyboard_only )
+                return details::lesc_pairing_algorithm::passkey_entry_display;
+
+            return details::lesc_pairing_algorithm::just_works;
+        }
+
         static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& key )
         {
             Obj.sm_pairing_numeric_output( static_cast< int >( details::read_32bit( key.data() ) ) );
@@ -293,6 +356,11 @@ namespace bluetoe
             static legacy_pairing_algorithm select_legacy_pairing_algorithm( io_capabilities io_capability )
             {
                 return output_capabilities::select_legacy_pairing_algorithm( input_capabilities(), io_capability );
+            }
+
+            static lesc_pairing_algorithm select_lesc_pairing_algorithm( io_capabilities io_capability )
+            {
+                return output_capabilities::select_lesc_pairing_algorithm( input_capabilities(), io_capability );
             }
 
             static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& temp_key )
