@@ -54,6 +54,11 @@ namespace bluetoe
             return {{0}};
         }
 
+        static bool sm_pairing_request_yes_no()
+        {
+            return true;
+        }
+
         struct meta_type :
             details::pairing_input_capabilty_meta_type,
             link_layer::details::valid_link_layer_option_meta_type {};
@@ -80,6 +85,11 @@ namespace bluetoe
         static std::array< std::uint8_t, 16 > sm_pairing_passkey()
         {
             return {{0}};
+        }
+
+        static bool sm_pairing_request_yes_no()
+        {
+            return Obj.sm_pairing_yes_no();
         }
 
         struct meta_type :
@@ -185,6 +195,11 @@ namespace bluetoe
         }
 
         static void sm_pairing_numeric_output( const std::array< std::uint8_t, 16 >& )
+        {
+        }
+
+        template < class S, class F >
+        static void sm_pairing_numeric_compare_output( const S&, F& )
         {
         }
 
@@ -295,6 +310,18 @@ namespace bluetoe
             Obj.sm_pairing_numeric_output( static_cast< int >( details::read_32bit( key.data() ) ) );
         }
 
+        template < class S, class F >
+        static void sm_pairing_numeric_compare_output( const S& state, F& funcs )
+        {
+            const auto& Na = state.remote_nonce();
+            const auto& Nb = state.local_nonce();
+            const std::uint8_t* Pkax = state.remote_public_key_x();
+            const std::uint8_t* PKbx = state.local_public_key_x();
+
+            const auto pass_key = funcs.g2( Pkax, PKbx, Na, Nb );
+            Obj.sm_pairing_numeric_output( static_cast< int >( pass_key ) );
+        }
+
         struct meta_type :
             details::pairing_output_capabilty_meta_type,
             link_layer::details::valid_link_layer_option_meta_type {};
@@ -358,6 +385,11 @@ namespace bluetoe
                 return output_capabilities::select_legacy_pairing_algorithm( input_capabilities(), io_capability );
             }
 
+            static lesc_pairing_algorithm select_lesc_pairing_algorithm( std::uint8_t io_capability )
+            {
+                return select_lesc_pairing_algorithm( static_cast< io_capabilities >( io_capability ) );
+            }
+
             static lesc_pairing_algorithm select_lesc_pairing_algorithm( io_capabilities io_capability )
             {
                 return output_capabilities::select_lesc_pairing_algorithm( input_capabilities(), io_capability );
@@ -368,9 +400,20 @@ namespace bluetoe
                 output_capabilities::sm_pairing_numeric_output( temp_key );
             }
 
+            template < class S, class F >
+            static void sm_pairing_numeric_compare_output( const S& state, F& func )
+            {
+                output_capabilities::sm_pairing_numeric_compare_output( state, func );
+            }
+
             static std::array< std::uint8_t, 16 > sm_pairing_passkey()
             {
                 return input_capabilities::sm_pairing_passkey();
+            }
+
+            static bool sm_pairing_request_yes_no()
+            {
+                return input_capabilities::sm_pairing_request_yes_no();
             }
         };
     }

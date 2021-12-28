@@ -407,7 +407,7 @@ namespace test {
     };
 
     template < class Manager, class SecurityFunctions, std::size_t MTU = 27, typename ...Options >
-    struct security_manager : Manager::template impl< Options... >, private SecurityFunctions
+    struct security_manager : Manager::template impl< Options... >, public SecurityFunctions
     {
         security_manager()
             : connection_data_( MTU )

@@ -81,6 +81,61 @@ BOOST_FIXTURE_TEST_SUITE( lesc_pairing, test::lesc_security_manager<> )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+struct pass_key_display_t {
+    pass_key_display_t()
+        : displayed_pass_key( ~0 )
+        , called( false )
+    {
+    }
+
+    void sm_pairing_numeric_output( int pass_key )
+    {
+        BOOST_REQUIRE( !called );
+        called = true;
+
+        displayed_pass_key = pass_key;
+    }
+
+    int displayed_pass_key;
+    bool called;
+} pass_key_display;
+
+struct yes_no_input_t
+{
+    bool sm_pairing_yes_no()
+    {
+        return true;
+    }
+} yes_no_input;
+
+using lesc_security_manager_with_display_and_yes_no = test::lesc_security_manager< 65,
+    bluetoe::pairing_numeric_output< pass_key_display_t, pass_key_display >,
+    bluetoe::pairing_yes_no< yes_no_input_t, yes_no_input > >;
+
+BOOST_FIXTURE_TEST_CASE( lesc_numeric_comparison_pairing, lesc_security_manager_with_display_and_yes_no )
+{
+    expected(
+        {
+            0x01,       // Pairing request
+            0x01,       // DisplayYesNo
+            0x00,       // OOB Authentication data not present
+            0x08,       // No Bonding, No MITM, SC = 1
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        },
+        {
+            0x02,       // Pairing Response
+            0x01,       // DisplayYesNo
+            0x00,       // OOB Authentication data not present
+            0x08,       // No Bonding, MITM = 0, SC = 1, Keypress = 0
+            0x10,       // Maximum Encryption Key Size
+            0x00,       // Initiator Key Distribution
+            0x00        // Responder Key Distribution
+        }
+    );
+}
+
 /**
  * SM/SLA/PROT/BV-02-C [SMP Time Out – IUT Responder]
  *
@@ -165,25 +220,6 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Handle_AuthReq_flag_RFU_corre
  *
  * Verify that the IUT performs the Passkey Entry pairing procedure correctly as responder.
  */
-
-struct pass_key_display_t {
-    pass_key_display_t()
-        : displayed_pass_key( ~0 )
-        , called( false )
-    {
-    }
-
-    void sm_pairing_numeric_output( int pass_key )
-    {
-        BOOST_REQUIRE( !called );
-        called = true;
-
-        displayed_pass_key = pass_key;
-    }
-
-    int displayed_pass_key;
-    bool called;
-} pass_key_display;
 
 using legacy_security_manager_with_display_only = test::legacy_security_manager< 23,
     bluetoe::pairing_numeric_output< pass_key_display_t, pass_key_display > >;
