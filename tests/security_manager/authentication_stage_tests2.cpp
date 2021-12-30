@@ -93,5 +93,5 @@ BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_success, test::lesc_pairing_random_
         }
     );
 
-    BOOST_CHECK( connection_data().state() == bluetoe::details::lesc_pairing_state::pairing_completed );
+    BOOST_CHECK( connection_data().state() == bluetoe::details::sm_pairing_state::pairing_completed );
 }

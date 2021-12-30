@@ -87,7 +87,7 @@ namespace test {
         bluetoe::link_layer::device_address local_addr_;
     };
 
-    struct legacy_security_functions : security_functions_base
+    struct legacy_security_functions : virtual security_functions_base
     {
         bluetoe::details::uint128_t create_srand()
         {
@@ -169,7 +169,7 @@ namespace test {
 
     };
 
-    struct lesc_security_functions : security_functions_base
+    struct lesc_security_functions : virtual security_functions_base
     {
         bool is_valid_public_key( const std::uint8_t* public_key ) const
         {
@@ -406,10 +406,12 @@ namespace test {
         }
     };
 
+    struct all_security_functions : legacy_security_functions, lesc_security_functions {};
+
     template < class Manager, class SecurityFunctions, std::size_t MTU = 27, typename ...Options >
-    struct security_manager : Manager::template impl< Options... >, public SecurityFunctions
+    struct security_manager_base : Manager::template impl< Options... >, public SecurityFunctions
     {
-        security_manager()
+        security_manager_base()
             : connection_data_( MTU )
         {
             local_address(
@@ -548,12 +550,15 @@ namespace test {
     };
 
     template < std::size_t MTU = 23, typename ...Options >
-    using legacy_security_manager = security_manager< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU, Options... >;
+    using legacy_security_manager = security_manager_base< bluetoe::legacy_security_manager, test::legacy_security_functions, MTU, Options... >;
 
     template < std::size_t MTU = 65, typename ...Options >
-    using lesc_security_manager = security_manager< bluetoe::lesc_security_manager, test::lesc_security_functions, MTU, Options... >;
+    using lesc_security_manager = security_manager_base< bluetoe::lesc_security_manager, test::lesc_security_functions, MTU, Options... >;
 
-    struct legacy_pairing_features_exchanged : security_manager< bluetoe::legacy_security_manager, legacy_security_functions >
+    template < std::size_t MTU = 65, typename ...Options >
+    using security_manager = security_manager_base< bluetoe::security_manager, test::all_security_functions, MTU, Options... >;
+
+    struct legacy_pairing_features_exchanged : security_manager_base< bluetoe::legacy_security_manager, legacy_security_functions >
     {
         legacy_pairing_features_exchanged()
         {
@@ -580,7 +585,7 @@ namespace test {
         }
     };
 
-    struct lesc_pairing_features_exchanged : security_manager< bluetoe::lesc_security_manager, lesc_security_functions, 65 >
+    struct lesc_pairing_features_exchanged : security_manager_base< bluetoe::lesc_security_manager, lesc_security_functions, 65 >
     {
         lesc_pairing_features_exchanged()
         {

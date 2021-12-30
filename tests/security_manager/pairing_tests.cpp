@@ -5,7 +5,7 @@
 #include "test_servers.hpp"
 #include "pairing_status_io.hpp"
 
-static const std::initializer_list< std::uint8_t > no_lesc_pairing_request = {
+static const std::initializer_list< std::uint8_t > legacy_pairing_request = {
     0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00
 };
 
@@ -13,12 +13,16 @@ static const std::initializer_list< std::uint8_t > lesc_pairing_request = {
     0x01, 0x00, 0x00, 0x08, 0x07, 0x00, 0x00
 };
 
-using no_security_sm = test::security_manager< bluetoe::no_security_manager, test::lesc_security_functions, 27 >;
+using no_security_sm = test::security_manager_base< bluetoe::no_security_manager, test::lesc_security_functions, 27 >;
+
+using legacy_enabled_security_managers = std::tuple<
+    test::legacy_security_manager<>,
+    test::security_manager<> >;
 
 BOOST_FIXTURE_TEST_CASE( no_security_manager_no_pairing, no_security_sm )
 {
     expected(
-        no_lesc_pairing_request,
+        legacy_pairing_request,
         {
             0x05, 0x05
         }
@@ -30,7 +34,7 @@ BOOST_FIXTURE_TEST_SUITE( legacy_pairing, test::legacy_security_manager<> )
     BOOST_AUTO_TEST_CASE( by_default_no_oob_no_lesc )
     {
         expected(
-            no_lesc_pairing_request,
+            legacy_pairing_request,
             {
                 0x02,   // response
                 0x03,   // NoInputNoOutput
@@ -61,12 +65,59 @@ BOOST_FIXTURE_TEST_SUITE( legacy_pairing, test::legacy_security_manager<> )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_FIXTURE_TEST_SUITE( lesc_pairing, test::lesc_security_manager<> )
+BOOST_FIXTURE_TEST_SUITE( lesc_pairing_with_lesc_only_security_manager, test::lesc_security_manager<> )
 
     BOOST_AUTO_TEST_CASE( by_default_no_oob_but_lesc )
     {
         expected(
             lesc_pairing_request,
+            {
+                0x02,   // response
+                0x03,   // NoInputNoOutput
+                0x00,   // OOB Authentication data not present
+                0x08,   // Bonding, MITM = 0, SC = 1, Keypress = 0
+                0x10,   // Maximum Encryption Key Size
+                0x00,   // LinkKey
+                0x00    // LinkKey
+            }
+        );
+    }
+
+    BOOST_AUTO_TEST_CASE( reject_request_without_lesc )
+    {
+        expected(
+            legacy_pairing_request,
+            {
+                0x05,   // Pairing Failed
+                0x05    // Pairing not Supported
+            }
+        );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE( lesc_and_legacy_pairing, test::security_manager<> )
+
+    BOOST_AUTO_TEST_CASE( accept_legacy_pairing_request )
+    {
+        expected(
+            lesc_pairing_request,
+            {
+                0x02,   // response
+                0x03,   // NoInputNoOutput
+                0x00,   // OOB Authentication data not present
+                0x08,   // Bonding, MITM = 0, SC = 1, Keypress = 0
+                0x10,   // Maximum Encryption Key Size
+                0x00,   // LinkKey
+                0x00    // LinkKey
+            }
+        );
+    }
+
+    BOOST_AUTO_TEST_CASE( accept_lesc_pairing_request )
+    {
+        expected(
+            legacy_pairing_request,
             {
                 0x02,   // response
                 0x03,   // NoInputNoOutput
