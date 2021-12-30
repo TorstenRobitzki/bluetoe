@@ -5,11 +5,13 @@
 
 #include "test_sm.hpp"
 
-BOOST_FIXTURE_TEST_SUITE( pairing_public_key_exchange, test::lesc_pairing_features_exchanged )
+BOOST_AUTO_TEST_SUITE( pairing_public_key_exchange )
 
-    BOOST_AUTO_TEST_CASE( request_too_small )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( request_too_small, Manager, test::lesc_managers )
     {
-        expected(
+        test::lesc_pairing_features_exchanged< Manager > fixture;
+
+        fixture.expected(
             {
                 0x0C,           // Pairing Public Key
                 // Public Key X
@@ -39,9 +41,11 @@ BOOST_FIXTURE_TEST_SUITE( pairing_public_key_exchange, test::lesc_pairing_featur
     }
 
 
-    BOOST_AUTO_TEST_CASE( request_too_large )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( request_too_large, Manager, test::lesc_managers )
     {
-        expected(
+        test::lesc_pairing_features_exchanged< Manager > fixture;
+
+        fixture.expected(
             {
                 0x0C,           // Pairing Public Key
                 // Public Key X
@@ -71,9 +75,11 @@ BOOST_FIXTURE_TEST_SUITE( pairing_public_key_exchange, test::lesc_pairing_featur
         );
     }
 
-    BOOST_AUTO_TEST_CASE( key_not_on_valid_curve )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( key_not_on_valid_curve, Manager, test::lesc_managers )
     {
-        expected(
+        test::lesc_pairing_features_exchanged< Manager > fixture;
+
+        fixture.expected(
             {
                 0x0C,           // Pairing Public Key
                 // Public Key X
@@ -102,9 +108,11 @@ BOOST_FIXTURE_TEST_SUITE( pairing_public_key_exchange, test::lesc_pairing_featur
         );
     }
 
-    BOOST_AUTO_TEST_CASE( valid_key )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( valid_key, Manager, test::lesc_managers )
     {
-        expected(
+        test::lesc_pairing_features_exchanged< Manager > fixture;
+
+        fixture.expected(
             {
                 0x0C,                   // Pairing Public Key
                 // Public Key X
@@ -152,9 +160,11 @@ BOOST_FIXTURE_TEST_SUITE( pairing_public_key_exchange, test::lesc_pairing_featur
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_FIXTURE_TEST_CASE( not_expected_key_exchanged, test::lesc_security_manager<> )
+BOOST_AUTO_TEST_CASE_TEMPLATE( not_expected_key_exchanged, Manager, test::lesc_managers )
 {
-    expected(
+    test::security_manager_base< Manager, test::all_security_functions, 65 > fixture;
+
+    fixture.expected(
         {
             0x0C,                   // Pairing Public Key
             // Public Key X

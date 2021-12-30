@@ -585,11 +585,12 @@ namespace test {
         }
     };
 
-    struct lesc_pairing_features_exchanged : security_manager_base< bluetoe::lesc_security_manager, lesc_security_functions, 65 >
+    template < class Manager >
+    struct lesc_pairing_features_exchanged : security_manager_base< Manager, test::all_security_functions, 65 >
     {
         lesc_pairing_features_exchanged()
         {
-            expected(
+            this->expected(
                 {
                     0x01,           // Pairing Request
                     0x01,           // IO Capability NoInputNoOutput
@@ -658,11 +659,12 @@ namespace test {
         }
     };
 
-    struct lesc_public_key_exchanged : lesc_pairing_features_exchanged
+    template < class Manager >
+    struct lesc_public_key_exchanged : lesc_pairing_features_exchanged< Manager >
     {
         lesc_public_key_exchanged()
         {
-            expected(
+            this->expected(
                 {
                     0x0C,                   // Pairing Public Key
                     // Public Key X
@@ -709,11 +711,12 @@ namespace test {
         }
     };
 
-    struct lesc_pairing_confirmed : lesc_public_key_exchanged
+    template < class Manager >
+    struct lesc_pairing_confirmed : lesc_public_key_exchanged< Manager >
     {
         lesc_pairing_confirmed()
         {
-            expected(
+            this->expected(
                 {
                     0x03,           // Pairing Confirm
                     0x99, 0x57, 0x89, 0x9b,
@@ -725,11 +728,12 @@ namespace test {
         }
     };
 
-    struct lesc_pairing_random_exchanged : lesc_pairing_confirmed
+    template < class Manager >
+    struct lesc_pairing_random_exchanged : lesc_pairing_confirmed< Manager >
     {
         lesc_pairing_random_exchanged()
         {
-            expected(
+            this->expected(
                 {
                     0x04,           // Pairing Random
                     0x00, 0x00, 0x00, 0x00,
@@ -748,6 +752,10 @@ namespace test {
         }
     };
 
-}
+    using lesc_managers = std::tuple<
+        bluetoe::lesc_security_manager,
+        bluetoe::security_manager >;
+
+} // namespace test
 
 #endif

@@ -144,7 +144,7 @@ namespace bluetoe {
                 std::copy( mconfirm_begin, mconfirm_end, state_data_.pairing_state.mconfirm.begin() );
             }
 
-            void pairing_completed( const details::uint128_t& short_term_key )
+            void legacy_pairing_completed( const details::uint128_t& short_term_key )
             {
                 assert( state_ == details::sm_pairing_state::legacy_pairing_confirmed );
                 state_ = details::sm_pairing_state::pairing_completed;
@@ -322,7 +322,7 @@ namespace bluetoe {
                 std::copy( remote_nonce, remote_nonce + 16, remote_nonce_.begin() );
             }
 
-            void pairing_completed( const details::uint128_t& long_term_key )
+            void lesc_pairing_completed( const details::uint128_t& long_term_key )
             {
                 assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged );
                 state_ = details::sm_pairing_state::pairing_completed;
@@ -428,6 +428,16 @@ namespace bluetoe {
                 return state_data_.legacy_state.algorithm;
             }
 
+            void pairing_algorithm( details::lesc_pairing_algorithm algo )
+            {
+                state_data_.lesc_state.algorithm = algo;
+            }
+
+            details::lesc_pairing_algorithm lesc_pairing_algorithm() const
+            {
+                return state_data_.lesc_state.algorithm;
+            }
+
             void legacy_pairing_request( const details::uint128_t& srand, const details::uint128_t& p1, const details::uint128_t& p2 )
             {
                 assert( state_ == details::sm_pairing_state::idle );
@@ -446,12 +456,20 @@ namespace bluetoe {
                 std::copy( mconfirm_begin, mconfirm_end, state_data_.legacy_state.states.pairing_state.mconfirm.begin() );
             }
 
-            void pairing_completed( const details::uint128_t& short_term_key )
+            void legacy_pairing_completed( const details::uint128_t& short_term_key )
             {
                 assert( state_ == details::sm_pairing_state::legacy_pairing_confirmed );
                 state_ = details::sm_pairing_state::pairing_completed;
 
                 state_data_.legacy_state.states.completed_state.short_term_key = short_term_key;
+            }
+
+            void lesc_pairing_completed( const details::uint128_t& long_term_key )
+            {
+                assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged );
+                state_ = details::sm_pairing_state::pairing_completed;
+
+                state_data_.lesc_state.long_term_key_ = long_term_key;
             }
 
             const details::uint128_t& c1_p1() const
@@ -497,6 +515,27 @@ namespace bluetoe {
                 state_data_.lesc_state.local_public_key_  = local_public_key;
                 state_data_.lesc_state.local_nonce_       = nonce;
                 std::copy( remote_public_key, remote_public_key + state_data_.lesc_state.remote_public_key_.size(), state_data_.lesc_state.remote_public_key_.begin() );
+            }
+
+            void pairing_confirm_send()
+            {
+                assert( state_ == details::sm_pairing_state::lesc_public_keys_exchanged );
+                state_ = details::sm_pairing_state::lesc_pairing_confirm_send;
+            }
+
+            void pairing_random_exchanged( const std::uint8_t* remote_nonce )
+            {
+                assert( state_ == details::sm_pairing_state::lesc_pairing_confirm_send );
+                state_ = details::sm_pairing_state::lesc_pairing_random_exchanged;
+
+                std::copy( remote_nonce, remote_nonce + 16, state_data_.lesc_state.remote_nonce_.begin() );
+            }
+
+            void pairing_requested( const io_capabilities_t& remote_io_caps )
+            {
+                assert( state_ == details::sm_pairing_state::idle );
+                state_ = details::sm_pairing_state::lesc_pairing_requested;
+                state_data_.lesc_state.remote_io_caps_ = remote_io_caps;
             }
 
             const uint128_t& local_nonce() const
@@ -556,14 +595,14 @@ namespace bluetoe {
                 }                                           legacy_state;
 
                 struct {
-                    ecdh_private_key_t      local_private_key_;
-                    ecdh_public_key_t       local_public_key_;
-                    ecdh_public_key_t       remote_public_key_;
-                    uint128_t               local_nonce_;
-                    uint128_t               remote_nonce_;
-                    io_capabilities_t       remote_io_caps_;
-                    uint128_t               long_term_key_;
-                    lesc_pairing_algorithm  algorithm;
+                    ecdh_private_key_t          local_private_key_;
+                    ecdh_public_key_t           local_public_key_;
+                    ecdh_public_key_t           remote_public_key_;
+                    uint128_t                   local_nonce_;
+                    uint128_t                   remote_nonce_;
+                    io_capabilities_t           remote_io_caps_;
+                    uint128_t                   long_term_key_;
+                    enum lesc_pairing_algorithm algorithm;
                 }                                           lesc_state;
             } state_data_;
         };
@@ -973,7 +1012,7 @@ namespace bluetoe {
         std::copy( srand.begin(), srand.end(), &output[ 1 ] );
 
         const auto stk = func.s1( temp_key, srand, mrand );
-        state.pairing_completed( stk );
+        state.legacy_pairing_completed( stk );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1177,6 +1216,7 @@ namespace bluetoe {
             return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
 
         const auto& nonce = state.local_nonce();
+        state.pairing_random_exchanged( input + 1 );
 
         if ( state.lesc_pairing_algorithm() == lesc_pairing_algorithm::numeric_comparison )
         {
@@ -1189,8 +1229,6 @@ namespace bluetoe {
         out_size = pairing_random_size;
         output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_random );
         std::copy( nonce.begin(), nonce.end(), &output[ 1 ] );
-
-        state.pairing_random_exchanged( input + 1 );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1222,7 +1260,7 @@ namespace bluetoe {
         output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_dhkey_check );
         std::copy( eb.begin(), eb.end(), &output[ 1 ] );
 
-        state.pairing_completed( ltk );
+        state.lesc_pairing_completed( ltk );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1378,9 +1416,15 @@ namespace bluetoe {
             case sm_opcodes::pairing_confirm:
                 this->legacy_handle_pairing_confirm( input, in_size, output, out_size, state, func );
                 break;
-            // TODO
             case sm_opcodes::pairing_random:
-                this->legacy_handle_pairing_random( input, in_size, output, out_size, state, func );
+                if ( state.state() == sm_pairing_state::legacy_pairing_confirmed )
+                {
+                    this->legacy_handle_pairing_random( input, in_size, output, out_size, state, func );
+                }
+                else
+                {
+                    this->lesc_handle_pairing_random( input, in_size, output, out_size, state, func );
+                }
                 break;
             case sm_opcodes::pairing_public_key:
                 this->lesc_handle_pairing_public_key( input, in_size, output, out_size, state, func );
@@ -1395,17 +1439,28 @@ namespace bluetoe {
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData >
-    bool details::security_manager_impl< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& ) const
+    bool details::security_manager_impl< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& state ) const
     {
-        return false;
+        return state.state() == details::sm_pairing_state::lesc_public_keys_exchanged;
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
-    void details::security_manager_impl< ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& )
+    void details::security_manager_impl< ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
-(void)output;
-(void)out_size;
+        assert( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged );
+
+        const auto& Nb = state.local_nonce();
+        const std::uint8_t* Pkax = state.remote_public_key_x();
+        const std::uint8_t* PKbx = state.local_public_key_x();
+
+        const auto confirm = functions.f4( PKbx, Pkax, Nb, 0 );
+
+        out_size = this->pairing_confirm_size;
+        output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_confirm );
+        std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
+
+        state.pairing_confirm_send();
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1445,15 +1500,26 @@ namespace bluetoe {
         }
 
         this->request_oob_data_presents_for_remote_device( state.remote_address() );
-        state.pairing_algorithm( this->legacy_select_pairing_algorithm( io_capability, oob_data_flag, auth_req, this->has_oob_data_for_remote_device() ) );
+
+        const bool lesc_pairing = ( auth_req & static_cast< std::uint8_t >(authentication_requirements_flags::secure_connections ) );
+
+        if ( lesc_pairing )
+        {
+            const io_capabilities_t remote_io_caps = {{ io_capability, oob_data_flag, auth_req }};
+            state.pairing_algorithm( this->lesc_select_pairing_algorithm( io_capability, oob_data_flag, auth_req, this->has_oob_data_for_remote_device() ) );
+            state.pairing_requested( remote_io_caps );
+        }
+        else
+        {
+            state.pairing_algorithm( this->legacy_select_pairing_algorithm( io_capability, oob_data_flag, auth_req, this->has_oob_data_for_remote_device() ) );
+            const details::uint128_t srand    = functions.create_srand();
+            const details::uint128_t p1       = this->legacy_c1_p1( input, output, state.remote_address(), functions.local_address() );
+            const details::uint128_t p2       = this->legacy_c1_p2( state.remote_address(), functions.local_address() );
+
+            state.legacy_pairing_request( srand, p1, p2 );
+        }
 
         this->create_pairing_response( output, out_size, this->lesc_local_io_caps() );
-
-        const details::uint128_t srand    = functions.create_srand();
-        const details::uint128_t p1       = this->legacy_c1_p1( input, output, state.remote_address(), functions.local_address() );
-        const details::uint128_t p2       = this->legacy_c1_p2( state.remote_address(), functions.local_address() );
-
-        state.legacy_pairing_request( srand, p1, p2 );
     }
 
     // no_security_manager

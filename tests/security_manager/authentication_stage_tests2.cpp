@@ -5,9 +5,11 @@
 
 #include "test_sm.hpp"
 
-BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_too_small, test::lesc_pairing_random_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( pairing_dhkey_check_too_small, Manager, test::lesc_managers )
 {
-    expected(
+    test::lesc_pairing_random_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x0D,           // DHKey Check
             0x00, 0x00, 0x00, 0x00,
@@ -22,9 +24,11 @@ BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_too_small, test::lesc_pairing_rando
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_too_large, test::lesc_pairing_random_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( pairing_dhkey_check_too_large, Manager, test::lesc_managers )
 {
-    expected(
+    test::lesc_pairing_random_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x0D,           // DHKey Check
             0x00, 0x00, 0x00, 0x00,
@@ -40,9 +44,11 @@ BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_too_large, test::lesc_pairing_rando
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_wrong_state, test::lesc_pairing_confirmed )
+BOOST_AUTO_TEST_CASE_TEMPLATE( pairing_dhkey_check_wrong_state, Manager, test::lesc_managers )
 {
-    expected(
+    test::lesc_pairing_confirmed< Manager > fixture;
+
+    fixture.expected(
         {
             0x0D,           // DHKey Check
             0x00, 0x00, 0x00, 0x00,
@@ -57,9 +63,11 @@ BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_wrong_state, test::lesc_pairing_con
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_failed, test::lesc_pairing_random_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( pairing_dhkey_check_failed, Manager, test::lesc_managers )
 {
-    expected(
+    test::lesc_pairing_random_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x0D,           // DHKey Check
             0x8a, 0x66, 0x11, 0x68,
@@ -74,9 +82,11 @@ BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_failed, test::lesc_pairing_random_e
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_success, test::lesc_pairing_random_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( pairing_dhkey_check_success, Manager, test::lesc_managers )
 {
-    expected(
+    test::lesc_pairing_random_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x0D,           // DHKey Check
             0x68, 0xd6, 0x70, 0x63,
@@ -93,5 +103,5 @@ BOOST_FIXTURE_TEST_CASE( pairing_dhkey_check_success, test::lesc_pairing_random_
         }
     );
 
-    BOOST_CHECK( connection_data().state() == bluetoe::details::sm_pairing_state::pairing_completed );
+    BOOST_CHECK( fixture.connection_data().state() == bluetoe::details::sm_pairing_state::pairing_completed );
 }
