@@ -82,18 +82,18 @@ $(function() {
 <div class="line"><a name="l00010"></a><span class="lineno">   10</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristics, <span class="keyword">typename</span> Pair &gt;</div>
 <div class="line"><a name="l00011"></a><span class="lineno">   11</span>&#160;        <span class="keyword">struct </span>filter_characteristics_with_cccd</div>
 <div class="line"><a name="l00012"></a><span class="lineno">   12</span>&#160;        {</div>
-<div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;            <span class="keyword">using</span> type = <span class="keyword">typename</span> select_type&lt;</div>
+<div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;            <span class="keyword">using</span> type = <span class="keyword">typename</span> <a class="code" href="meta__tools_8hpp.html#a663ca79f5b8492b7fed7092b85373e3e">select_type</a>&lt;</div>
 <div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;                Pair::characteristic_t::number_of_client_configs,</div>
 <div class="line"><a name="l00015"></a><span class="lineno">   15</span>&#160;                <span class="keyword">typename</span> add_type&lt; Characteristics, Pair &gt;::type,</div>
 <div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160;                Characteristics</div>
 <div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160;            &gt;::type;</div>
 <div class="line"><a name="l00018"></a><span class="lineno">   18</span>&#160;        };</div>
 <div class="line"><a name="l00019"></a><span class="lineno">   19</span>&#160; </div>
-<div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic, std::u<span class="keywordtype">int</span>16_t Offset, <span class="keywordtype">int</span> Prio &gt;</div>
+<div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic, std::<span class="keywordtype">size_t</span> Offset, <span class="keywordtype">int</span> Prio &gt;</div>
 <div class="line"><a name="l00021"></a><span class="lineno">   21</span>&#160;        <span class="keyword">struct </span>characteristic_with_service_attribute_offset</div>
 <div class="line"><a name="l00022"></a><span class="lineno">   22</span>&#160;        {</div>
 <div class="line"><a name="l00023"></a><span class="lineno">   23</span>&#160;            <span class="keyword">using</span> characteristic_t = Characteristic;</div>
-<div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;            <span class="keyword">static</span> constexpr std::uint16_t service_offset = Offset;</div>
+<div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;            <span class="keyword">static</span> constexpr std::size_t   service_offset = Offset;</div>
 <div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;            <span class="keyword">static</span> constexpr <span class="keywordtype">int</span>           priority       = Prio;</div>
 <div class="line"><a name="l00026"></a><span class="lineno">   26</span>&#160;        };</div>
 <div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160; </div>
@@ -102,30 +102,30 @@ $(function() {
 <div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;            <span class="keyword">static</span> constexpr std::size_t number_of_attributes = 0;</div>
 <div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;        };</div>
 <div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160; </div>
-<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic, std::u<span class="keywordtype">int</span>16_t FirstAttributesHandle, <span class="keywordtype">int</span> Prio &gt;</div>
-<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;        <span class="keyword">struct </span>characteristic_handle_pair</div>
+<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristic, std::<span class="keywordtype">size_t</span> FirstAttributesIndex, <span class="keywordtype">int</span> Prio &gt;</div>
+<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;        <span class="keyword">struct </span>characteristic_index_pair</div>
 <div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;        {</div>
 <div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;            <span class="keyword">using</span> characteristic_t = Characteristic;</div>
-<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;            <span class="keyword">static</span> constexpr std::uint16_t first_attribute_handle = FirstAttributesHandle;</div>
-<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;            <span class="keyword">static</span> constexpr <span class="keywordtype">int</span>           priority               = Prio;</div>
+<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;            <span class="keyword">static</span> constexpr std::size_t   first_attribute_index = FirstAttributesIndex;</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;            <span class="keyword">static</span> constexpr <span class="keywordtype">int</span>           priority              = Prio;</div>
 <div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;        };</div>
 <div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160; </div>
 <div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;        <span class="keyword">template</span> &lt; <span class="keyword">typename</span> Characteristics, <span class="keyword">typename</span> Characteristic &gt;</div>
-<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;        <span class="keyword">struct </span>add_handle_to_characteristic</div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;        <span class="keyword">struct </span>add_index_to_characteristic</div>
 <div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;        {</div>
-<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;            <span class="keyword">using</span> last = <span class="keyword">typename</span> last_type&lt; Characteristics, impl::characteristic_handle_pair&lt; impl::preudo_first_char, 1, 0 &gt; &gt;::type;</div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;            <span class="keyword">using</span> last = <span class="keyword">typename</span> last_type&lt; Characteristics, impl::characteristic_index_pair&lt; impl::preudo_first_char, 0, 0 &gt; &gt;::type;</div>
 <div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160; </div>
-<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;            <span class="keyword">static</span> constexpr std::size_t attribute_handle = last::first_attribute_handle + last::characteristic_t::number_of_attributes + Characteristic::service_offset;</div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;            <span class="keyword">static</span> constexpr std::size_t attribute_handle = last::first_attribute_index + last::characteristic_t::number_of_attributes + Characteristic::service_offset;</div>
 <div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160; </div>
 <div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;            <span class="keyword">using</span> type = <span class="keyword">typename</span> add_type&lt;</div>
 <div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;                Characteristics,</div>
-<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;                impl::characteristic_handle_pair&lt; typename Characteristic::characteristic_t, attribute_handle, Characteristic::priority &gt;</div>
+<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;                impl::characteristic_index_pair&lt; typename Characteristic::characteristic_t, attribute_handle, Characteristic::priority &gt;</div>
 <div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;            &gt;::type;</div>
 <div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;        };</div>
 <div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160; </div>
 <div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;        <span class="keyword">struct </span>attribute_at</div>
 <div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;        {</div>
-<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;            constexpr attribute_at( std::uint16_t&amp; r, std::size_t i )</div>
+<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;            constexpr attribute_at( std::size_t&amp; r, std::size_t i )</div>
 <div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;                : result( r )</div>
 <div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;                , index( i )</div>
 <div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;            {}</div>
@@ -135,13 +135,13 @@ $(function() {
 <div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;            {</div>
 <div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;                <span class="keywordflow">if</span> ( index == 0 )</div>
 <div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;                {</div>
-<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;                    result = O::first_attribute_handle + 1;</div>
+<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;                    result = O::first_attribute_index;</div>
 <div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;                }</div>
 <div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160; </div>
 <div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;                --index;</div>
 <div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;            }</div>
 <div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160; </div>
-<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;            std::uint16_t&amp;  result;</div>
+<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;            std::size_t&amp;    result;</div>
 <div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;            std::size_t     index;</div>
 <div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;        };</div>
 <div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160; </div>
@@ -222,18 +222,18 @@ $(function() {
 <div class="line"><a name="l00150"></a><span class="lineno">  150</span>&#160; </div>
 <div class="line"><a name="l00151"></a><span class="lineno">  151</span>&#160;        <span class="keyword">using</span> services                               = Services;</div>
 <div class="line"><a name="l00152"></a><span class="lineno">  152</span>&#160;        <span class="keyword">using</span> all_characteristics                    = <span class="keyword">typename</span> fold_left&lt; services, characteristics_from_service &gt;::type;</div>
-<div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160;        <span class="keyword">using</span> characteristics_with_attribute_handles = <span class="keyword">typename</span> fold_left&lt; all_characteristics, impl::add_handle_to_characteristic &gt;::type;</div>
-<div class="line"><a name="l00154"></a><span class="lineno">  154</span>&#160;        <span class="keyword">using</span> characteristics_only_with_cccd         = <span class="keyword">typename</span> fold_left&lt; characteristics_with_attribute_handles, impl::filter_characteristics_with_cccd &gt;::type;</div>
+<div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160;        <span class="keyword">using</span> characteristics_with_attribute_indizes = <span class="keyword">typename</span> fold_left&lt; all_characteristics, impl::add_index_to_characteristic &gt;::type;</div>
+<div class="line"><a name="l00154"></a><span class="lineno">  154</span>&#160;        <span class="keyword">using</span> characteristics_only_with_cccd         = <span class="keyword">typename</span> fold_left&lt; characteristics_with_attribute_indizes, impl::filter_characteristics_with_cccd &gt;::type;</div>
 <div class="line"><a name="l00155"></a><span class="lineno">  155</span>&#160;        <span class="keyword">using</span> characteristics_with_cccd_position     = <span class="keyword">typename</span> fold_left&lt; characteristics_only_with_cccd, impl::add_cccd_position &gt;::type;</div>
 <div class="line"><a name="l00156"></a><span class="lineno">  156</span>&#160;        <span class="keyword">using</span> characteristics_sorted_by_priority     = <span class="keyword">typename</span> stable_sort&lt; impl::order_by_prio, characteristics_with_cccd_position &gt;::type;</div>
 <div class="line"><a name="l00157"></a><span class="lineno">  157</span>&#160;        <span class="keyword">using</span> characteristics_with_cccd_handle       = <span class="keyword">typename</span> fold_left&lt; characteristics_sorted_by_priority, impl::add_cccd_handle &gt;::type;</div>
 <div class="line"><a name="l00158"></a><span class="lineno">  158</span>&#160; </div>
-<div class="line"><a name="l00159"></a><span class="lineno">  159</span>&#160;        <span class="keyword">static</span> notification_data find_notification_data_by_index( std::size_t index )</div>
+<div class="line"><a name="l00159"></a><span class="lineno">  159</span>&#160;        <span class="keyword">static</span> notification_data find_notification_data_by_index( std::size_t notification_index )</div>
 <div class="line"><a name="l00160"></a><span class="lineno">  160</span>&#160;        {</div>
-<div class="line"><a name="l00161"></a><span class="lineno">  161</span>&#160;            std::uint16_t attribute = 0;</div>
-<div class="line"><a name="l00162"></a><span class="lineno">  162</span>&#160;            for_&lt; characteristics_sorted_by_priority &gt;::each( impl::attribute_at( attribute, index ) );</div>
+<div class="line"><a name="l00161"></a><span class="lineno">  161</span>&#160;            std::size_t attribute_index = 0;</div>
+<div class="line"><a name="l00162"></a><span class="lineno">  162</span>&#160;            for_&lt; characteristics_sorted_by_priority &gt;::each( impl::attribute_at( attribute_index, notification_index ) );</div>
 <div class="line"><a name="l00163"></a><span class="lineno">  163</span>&#160; </div>
-<div class="line"><a name="l00164"></a><span class="lineno">  164</span>&#160;            <span class="keywordflow">return</span> notification_data( attribute, index );</div>
+<div class="line"><a name="l00164"></a><span class="lineno">  164</span>&#160;            <span class="keywordflow">return</span> notification_data( attribute_index + 1, notification_index );</div>
 <div class="line"><a name="l00165"></a><span class="lineno">  165</span>&#160;        }</div>
 <div class="line"><a name="l00166"></a><span class="lineno">  166</span>&#160; </div>
 <div class="line"><a name="l00167"></a><span class="lineno">  167</span>&#160;        <span class="keyword">struct </span>attribute_value</div>
@@ -248,7 +248,7 @@ $(function() {
 <div class="line"><a name="l00176"></a><span class="lineno">  176</span>&#160;            <span class="keywordtype">void</span> each()</div>
 <div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;            {</div>
 <div class="line"><a name="l00178"></a><span class="lineno">  178</span>&#160;                <span class="keywordflow">if</span> ( O::characteristic_t::value_type::is_this( value ) )</div>
-<div class="line"><a name="l00179"></a><span class="lineno">  179</span>&#160;                    result = notification_data( O::first_attribute_handle + 1, index );</div>
+<div class="line"><a name="l00179"></a><span class="lineno">  179</span>&#160;                    result = notification_data( O::first_attribute_index + 1, index );</div>
 <div class="line"><a name="l00180"></a><span class="lineno">  180</span>&#160; </div>
 <div class="line"><a name="l00181"></a><span class="lineno">  181</span>&#160;                ++index;</div>
 <div class="line"><a name="l00182"></a><span class="lineno">  182</span>&#160;            }</div>
@@ -290,7 +290,7 @@ $(function() {
 <div class="line"><a name="l00218"></a><span class="lineno">  218</span>&#160; </div>
 <div class="line"><a name="l00219"></a><span class="lineno">  219</span>&#160;        <span class="keyword">static</span> notification_data data()</div>
 <div class="line"><a name="l00220"></a><span class="lineno">  220</span>&#160;        {</div>
-<div class="line"><a name="l00221"></a><span class="lineno">  221</span>&#160;            <span class="keywordflow">return</span> notification_data( char_infos::first_attribute_handle + 1, char_infos::cccd_handle );</div>
+<div class="line"><a name="l00221"></a><span class="lineno">  221</span>&#160;            <span class="keywordflow">return</span> notification_data( char_infos::first_attribute_index + 1, char_infos::cccd_handle );</div>
 <div class="line"><a name="l00222"></a><span class="lineno">  222</span>&#160;        }</div>
 <div class="line"><a name="l00223"></a><span class="lineno">  223</span>&#160;    };</div>
 <div class="line"><a name="l00224"></a><span class="lineno">  224</span>&#160; </div>
@@ -299,10 +299,11 @@ $(function() {
 <div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160; </div>
 <div class="line"><a name="l00228"></a><span class="lineno">  228</span>&#160;<span class="preprocessor">#endif</span></div>
 </div><!-- fragment --></div><!-- contents -->
+<div class="ttc" id="ameta__tools_8hpp_html_a663ca79f5b8492b7fed7092b85373e3e"><div class="ttname"><a href="meta__tools_8hpp.html#a663ca79f5b8492b7fed7092b85373e3e">bluetoe::details::select_type</a></div><div class="ttdeci">wrap&lt; typename select_type_impl&lt; Select &gt;::template f&lt; A, B &gt; &gt; select_type</div><div class="ttdoc">Select A or B by Select. If Select == true, the result is A; B otherwise.</div><div class="ttdef"><b>Definition:</b> meta_tools.hpp:38</div></div>
 <div class="ttc" id="ameta__tools_8hpp_html"><div class="ttname"><a href="meta__tools_8hpp.html">meta_tools.hpp</a></div></div>
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:38 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:20 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>

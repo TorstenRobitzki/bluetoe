@@ -88,11 +88,17 @@ $(function() {
 <li>alloc_front()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a4297cca971ef28eb256123c86aea8083">bluetoe::link_layer::pdu_ring_buffer&lt; Size, Buffer, Layout &gt;</a>
 </li>
+<li>allocate_l2cap_transmit_buffer()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a0150d85cc948a6edd3d1bfa2d963a171">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
+</li>
+<li>allocate_ll_transmit_buffer()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a43d4110523026458d8c9587b64ef7762">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
+</li>
 <li>allocate_receive_buffer()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a63c717dafa43b9d4854a01f668d15309">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
 </li>
 <li>allocate_transmit_buffer()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a02afffdc3c6fafc155fc2cfffa71fa28">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#aeddf12541649a13a98724c36c4672b7b">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
 </li>
 </ul>
 
@@ -123,6 +129,15 @@ $(function() {
 <li>clear_white_list()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a34aac63ab8c507b6575128c89061356c">bluetoe::link_layer::white_list&lt; Size &gt;</a>
 </li>
+<li>commit_l2cap_transmit_buffer()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#acd11302a1d1634cf2cd331564262e734">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
+</li>
+<li>commit_ll_transmit_buffer()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#ad49495c9cd6433e856fabfeb0dd57011">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
+</li>
+<li>commit_pending_l2cap_transmit_buffers()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a1a22d00e134c92fd6f1ae12139bd80a6">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
+</li>
 <li>commit_transmit_buffer()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a24b12c9254634104dfef838a81e40869">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
 </li>
@@ -142,7 +157,8 @@ $(function() {
 : <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html#a820c5a97a651f7a643937f752e28df31">bluetoe::link_layer::connection_details</a>
 </li>
 <li>connection_parameter_update_request()
-: <a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a29352d9ed6ce10093d562b3fdff565c1">bluetoe::l2cap::no_signaling_channel</a>
+: <a class="el" href="classbluetoe_1_1hci_1_1link__layer.html#aaa1a68e45b56584bcf181aea64f20ea3">bluetoe::hci::link_layer&lt; Server, Transport, Options &gt;</a>
+, <a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a29352d9ed6ce10093d562b3fdff565c1">bluetoe::l2cap::no_signaling_channel</a>
 , <a class="el" href="classbluetoe_1_1l2cap_1_1signaling__channel.html#af4e7738593dabf41f550444ad925ff47">bluetoe::l2cap::signaling_channel&lt; Options &gt;</a>
 , <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a8e8ee57ae01b7fd93299c5ccd3f51e56">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
 </li>
@@ -191,7 +207,8 @@ $(function() {
 : <a class="el" href="classbluetoe_1_1link__layer_1_1connectable__directed__advertising.html#ab7e0d5f4a88a80f2d11ed52d2027dbc2">bluetoe::link_layer::connectable_directed_advertising</a>
 </li>
 <li>disconnect()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a1b474599cc4c19e278f5b03edc762210">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
+: <a class="el" href="classbluetoe_1_1hci_1_1link__layer.html#ab8426f58bce73fedad29bbe16dbcdd01">bluetoe::hci::link_layer&lt; Server, Transport, Options &gt;</a>
+, <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a1b474599cc4c19e278f5b03edc762210">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
 </li>
 </ul>
 
@@ -215,7 +232,14 @@ $(function() {
 : <a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html#aebbab2c42edb964f1f85dc732731a0f1">bluetoe::link_layer::read_buffer</a>
 </li>
 <li>fill_l2cap_advertising_data()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#af460adb0d3d7a20aaa19a599b5c8c2b0">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
+: <a class="el" href="classbluetoe_1_1hci_1_1link__layer.html#a771e74f19072287864caa3dc8a831766">bluetoe::hci::link_layer&lt; Server, Transport, Options &gt;</a>
+, <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#af460adb0d3d7a20aaa19a599b5c8c2b0">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
+</li>
+<li>fill_l2cap_scan_response_data()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a37d908f87d6958ccbdff8187827d4ad9">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
+</li>
+<li>free_ll_l2cap_received()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a041ed304286955e90cbebc21df803bce">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
 </li>
 <li>free_received()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#ae8ca705319b23860aeabe4d6d19bd6e0">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
@@ -249,6 +273,9 @@ $(function() {
 <li>is_in_white_list()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#a9f2a75cb12d67633d5e6fd11156ecb8b">bluetoe::link_layer::white_list&lt; Size &gt;</a>
 </li>
+<li>is_private()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html#a0333188b6c48f8ed286bad15640b8b87">bluetoe::link_layer::device_address</a>
+</li>
 <li>is_public()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html#afee50efef4996f3db25b85f7c1ac8092">bluetoe::link_layer::device_address</a>
 </li>
@@ -257,8 +284,14 @@ $(function() {
 , <a class="el" href="structbluetoe_1_1link__layer_1_1random__static__address.html#abb3a309d6b1668ad84ddf96cbfae7a2b">bluetoe::link_layer::random_static_address</a>
 , <a class="el" href="structbluetoe_1_1link__layer_1_1static__address.html#a01923b3d444e6bc21b92dfac7ef376ad">bluetoe::link_layer::static_address&lt; A, B, C, D, E, F &gt;</a>
 </li>
+<li>is_resolvable()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html#a07c666e485342026f02b1b05bd706539">bluetoe::link_layer::device_address</a>
+</li>
 <li>is_scan_request_in_filter()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1white__list.html#ab2ec4d3d0111cd214ca506f608273474">bluetoe::link_layer::white_list&lt; Size &gt;</a>
+</li>
+<li>is_static()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html#ae71a9fa2c191c59435feab8a921db6dd">bluetoe::link_layer::device_address</a>
 </li>
 </ul>
 
@@ -271,7 +304,8 @@ $(function() {
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a58a5626d5702e9ee528f15d854df6556">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
 </li>
 <li>local_address()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1connection__addresses.html#a7fd351f8f553bb9c5d26c3953a68b759">bluetoe::link_layer::connection_addresses</a>
+: <a class="el" href="classbluetoe_1_1hci_1_1link__layer.html#af05e3b15ebfe4419a3200ffbc0a297cc">bluetoe::hci::link_layer&lt; Server, Transport, Options &gt;</a>
+, <a class="el" href="classbluetoe_1_1link__layer_1_1connection__addresses.html#a7fd351f8f553bb9c5d26c3953a68b759">bluetoe::link_layer::connection_addresses</a>
 , <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#aeb646c65ceaab630e7d25d2190149d6d">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
 </li>
 </ul>
@@ -306,6 +340,9 @@ $(function() {
 <li>next_end()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a544c126da407e991926f7fcc575eaaef">bluetoe::link_layer::pdu_ring_buffer&lt; Size, Buffer, Layout &gt;</a>
 </li>
+<li>next_ll_l2cap_received()
+: <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a18e3a3b0f1f8792fa853846a0e06671e">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; BufferedRadio, MTUSize &gt;</a>
+</li>
 <li>next_received()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a2622bd60da7022ce36d27f080d1c18ea">bluetoe::link_layer::ll_data_pdu_buffer&lt; TransmitSize, ReceiveSize, Radio &gt;</a>
 </li>
@@ -328,7 +365,7 @@ $(function() {
 <li>operator!=()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1address.html#a2a986a136cab36344760889baa870906">bluetoe::link_layer::address</a>
 , <a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#a04452f1702e652f2d61093990bf18ba7">bluetoe::link_layer::delta_time</a>
-, <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html#a2a986a136cab36344760889baa870906">bluetoe::link_layer::device_address</a>
+, <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html#ab3f7ba3f5b7af3b6b049c58617e2c07b">bluetoe::link_layer::device_address</a>
 </li>
 <li>operator*()
 : <a class="el" href="classbluetoe_1_1link__layer_1_1delta__time.html#ab1c512a44634ec4c612c3df2a1fd2512">bluetoe::link_layer::delta_time</a>
@@ -440,6 +477,7 @@ $(function() {
 </li>
 <li>run()
 : <a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a83d65c9b3ce7b57f675c5ba1826b8d2e">bluetoe::bootloader::bootloader_handler_prototype</a>
+, <a class="el" href="classbluetoe_1_1hci_1_1link__layer.html#ae276f19fbf84df5320db75ae3b72dcd0">bluetoe::hci::link_layer&lt; Server, Transport, Options &gt;</a>
 , <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a73a711903022c39039c9ffaa0c0553fe">bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</a>
 </li>
 </ul>
@@ -462,12 +500,16 @@ $(function() {
 : <a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#aa8de7e0f16d0fe91a611464992ff60ab">bluetoe::l2cap::no_signaling_channel</a>
 , <a class="el" href="classbluetoe_1_1l2cap_1_1signaling__channel.html#acf354a857c36bfcb7e6cc15b53079742">bluetoe::l2cap::signaling_channel&lt; Options &gt;</a>
 </li>
+<li>signaling_channel_mtu_size()
+: <a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a7d1c53d76ad2d18d2ee9f9f0295fe17d">bluetoe::l2cap::no_signaling_channel</a>
+, <a class="el" href="classbluetoe_1_1l2cap_1_1signaling__channel.html#a3070e21ba2d4ff9d079e1d69e4a6f55e">bluetoe::l2cap::signaling_channel&lt; Options &gt;</a>
+</li>
 <li>signaling_channel_output()
 : <a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#afbcd6842b63e6d88a753286482358a51">bluetoe::l2cap::no_signaling_channel</a>
 , <a class="el" href="classbluetoe_1_1l2cap_1_1signaling__channel.html#a4ec7054a6994060c4e2262a103c8dc77">bluetoe::l2cap::signaling_channel&lt; Options &gt;</a>
 </li>
 <li>start_advertising()
-: <a class="el" href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a72052a7ebfaeba9135a4c1a6298addd8">bluetoe::link_layer::no_auto_start_advertising</a>
+: <a class="el" href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a63e8dfefee7bd4dc89b0bf8819235860">bluetoe::link_layer::no_auto_start_advertising</a>
 </li>
 <li>start_flash()
 : <a class="el" href="classbluetoe_1_1bootloader_1_1bootloader__handler__prototype.html#a822957fcebcd248eb14ea05206ea61f6">bluetoe::bootloader::bootloader_handler_prototype</a>
@@ -515,7 +557,7 @@ $(function() {
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:39 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:21 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>

@@ -70,19 +70,31 @@ $(function() {
 <div class="title">bluetoe::mixin_write_indication_control_point_handler&lt; Mixin, F, IndicationUUID &gt; Struct Template Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
+
+<p>characteristic value binding for a control point  
+ <a href="structbluetoe_1_1mixin__write__indication__control__point__handler.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="characteristic__value_8hpp_source.html">bluetoe/characteristic_value.hpp</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for bluetoe::mixin_write_indication_control_point_handler&lt; Mixin, F, IndicationUUID &gt;:</div>
 <div class="dyncontent">
  <div class="center">
   <img src="structbluetoe_1_1mixin__write__indication__control__point__handler.png" alt=""/>
  </div></div>
-<hr/>The documentation for this struct was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><h3>template&lt;class Mixin, std::pair&lt; std::uint8_t, bool &gt;(Mixin::*)(std::size_t write_size, const std::uint8_t *value) F, typename IndicationUUID&gt;<br />
+struct bluetoe::mixin_write_indication_control_point_handler&lt; Mixin, F, IndicationUUID &gt;</h3>
+
+<p>characteristic value binding for a control point </p>
+<p>This is intendet for control points that respond by an indication. If the bound handler returns { <a class="el" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">error_codes::success</a>, true }, an indication will be marked to be pending for this characteristic and as soon as there is a free slot in the ling layer, the read handler for this characteristic will be called to retrieve the intended value for the indication.</p>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="structbluetoe_1_1mixin__write__notification__control__point__handler.html" title="characteristic value binding for a control point">mixin_write_notification_control_point_handler</a> </dd></dl>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>bluetoe/<a class="el" href="characteristic__value_8hpp_source.html">characteristic_value.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:39 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:20 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>

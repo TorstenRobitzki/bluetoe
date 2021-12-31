@@ -169,7 +169,7 @@ $(function() {
 <div class="line"><a name="l00174"></a><span class="lineno">  174</span>&#160;                <span class="keyword">using</span> prio  = <span class="keyword">typename</span> Sum::second_type;</div>
 <div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160; </div>
 <div class="line"><a name="l00176"></a><span class="lineno">  176</span>&#160;                <span class="comment">// Only sum up the priorities that are before ServiceUUID in UUIDs...</span></div>
-<div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;                <span class="keyword">using</span> sum   = <span class="keyword">typename</span> details::select_type&lt; found::value,</div>
+<div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;                <span class="keyword">using</span> sum   = <span class="keyword">typename</span> <a class="code" href="meta__tools_8hpp.html#a663ca79f5b8492b7fed7092b85373e3e">details::select_type</a>&lt; found::value,</div>
 <div class="line"><a name="l00178"></a><span class="lineno">  178</span>&#160;                    prio,</div>
 <div class="line"><a name="l00179"></a><span class="lineno">  179</span>&#160;                    <span class="keyword">typename</span> details::number_of_additional_priorities&lt; Services, ServiceUUID &gt;::type &gt;::type;</div>
 <div class="line"><a name="l00180"></a><span class="lineno">  180</span>&#160; </div>
@@ -237,7 +237,7 @@ $(function() {
 <div class="line"><a name="l00242"></a><span class="lineno">  242</span>&#160;        <span class="keyword">struct </span>numbers</div>
 <div class="line"><a name="l00243"></a><span class="lineno">  243</span>&#160;        {</div>
 <div class="line"><a name="l00244"></a><span class="lineno">  244</span>&#160;            <span class="keyword">template</span> &lt; <span class="keyword">typename</span> List, <span class="keyword">typename</span> Characteristic &gt;</div>
-<div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;            <span class="keyword">using</span> characteristics_with_cccd = details::select_type&lt;</div>
+<div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;            <span class="keyword">using</span> characteristics_with_cccd = <a class="code" href="meta__tools_8hpp.html#a663ca79f5b8492b7fed7092b85373e3e">details::select_type</a>&lt;</div>
 <div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;                    Characteristic::number_of_client_configs,</div>
 <div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;                    <span class="keyword">typename</span> details::add_type&lt; List, Characteristic &gt;::type,</div>
 <div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160;                    List &gt;;</div>
@@ -284,10 +284,11 @@ $(function() {
 </div><!-- fragment --></div><!-- contents -->
 <div class="ttc" id="astructbluetoe_1_1lower__outgoing__priority_html"><div class="ttname"><a href="structbluetoe_1_1lower__outgoing__priority.html">bluetoe::lower_outgoing_priority</a></div><div class="ttdoc">Defines priorities of notified or indicated characteristics.</div><div class="ttdef"><b>Definition:</b> outgoing_priority.hpp:284</div></div>
 <div class="ttc" id="astructbluetoe_1_1higher__outgoing__priority_html"><div class="ttname"><a href="structbluetoe_1_1higher__outgoing__priority.html">bluetoe::higher_outgoing_priority</a></div><div class="ttdoc">Defines priorities of notified or indicated characteristics.</div><div class="ttdef"><b>Definition:</b> outgoing_priority.hpp:160</div></div>
+<div class="ttc" id="ameta__tools_8hpp_html_a663ca79f5b8492b7fed7092b85373e3e"><div class="ttname"><a href="meta__tools_8hpp.html#a663ca79f5b8492b7fed7092b85373e3e">bluetoe::details::select_type</a></div><div class="ttdeci">wrap&lt; typename select_type_impl&lt; Select &gt;::template f&lt; A, B &gt; &gt; select_type</div><div class="ttdoc">Select A or B by Select. If Select == true, the result is A; B otherwise.</div><div class="ttdef"><b>Definition:</b> meta_tools.hpp:38</div></div>
 <div class="ttc" id="ameta__tools_8hpp_html"><div class="ttname"><a href="meta__tools_8hpp.html">meta_tools.hpp</a></div></div>
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:38 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:20 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>

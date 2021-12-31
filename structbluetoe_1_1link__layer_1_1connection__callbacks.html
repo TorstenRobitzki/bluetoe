@@ -81,16 +81,16 @@ struct bluetoe::link_layer::connection_callbacks&lt; T, Obj &gt;</h3>
 
 <p>provides a type and an instance to call connection related callbacks on. </p>
 <p>The parameter T have to be a class type with following optional none static member functions:</p>
-<p>template &lt; typename ConnectionData &gt; void ll_connection_established( const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html" title="data type to store details of an established link layer connection">bluetoe::link_layer::connection_details</a>&amp; details, const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__addresses.html" title="local and remote address of a connection">bluetoe::link_layer::connection_addresses</a>&amp; addresses, const ConnectionData&amp; connection );</p>
-<p>template &lt; typename ConnectionData &gt; void ll_connection_changed( const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html" title="data type to store details of an established link layer connection">bluetoe::link_layer::connection_details</a>&amp; details, const ConnectionData&amp; connection );</p>
-<p>template &lt; typename ConnectionData &gt; void ll_connection_closed( const ConnectionData&amp; connection ); </p>
+<p>template &lt; typename ConnectionData &gt; void ll_connection_established( const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html" title="data type to store details of an established link layer connection">bluetoe::link_layer::connection_details</a>&amp; details, const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__addresses.html" title="local and remote address of a connection">bluetoe::link_layer::connection_addresses</a>&amp; addresses, ConnectionData&amp; connection );</p>
+<p>template &lt; typename ConnectionData &gt; void ll_connection_changed( const <a class="el" href="classbluetoe_1_1link__layer_1_1connection__details.html" title="data type to store details of an established link layer connection">bluetoe::link_layer::connection_details</a>&amp; details, ConnectionData&amp; connection );</p>
+<p>template &lt; typename ConnectionData &gt; void ll_connection_closed( ConnectionData&amp; connection ); </p>
 </div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>bluetoe/link_layer/include/bluetoe/<a class="el" href="connection__callbacks_8hpp_source.html">connection_callbacks.hpp</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:39 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:20 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>

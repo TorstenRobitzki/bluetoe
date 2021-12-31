@@ -77,8 +77,9 @@ $(function() {
 <p><code>#include &lt;<a class="el" href="encryption_8hpp_source.html">bluetoe/encryption.hpp</a>&gt;</code></p>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>defines that a characteristic may require encyption </p>
-<p>The declaration forces bluetoe add the required code for encrypting links. Basecally this means that a custom characterstic read or write handler may require encryption under specific circumstances.</p>
+<p>The declaration forces bluetoe to add the required code for supporting encrypted links. Basecally this means that a custom characterstic read or write handler may require encryption under specific circumstances.</p>
 <p>This option can be passed to a server, service or a characteristic declaration.</p>
+<dl class="section attention"><dt>Attention</dt><dd>For characteristic value bindings that determine the ATT error code on their own, this basecally mean, that the characteristic does <em>not</em> require encryption!</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="structbluetoe_1_1requires__encryption.html" title="defines that access to characteristic(s) require an encrypted link without MITM Protection.">requires_encryption</a> </dd>
 <dd>
 <a class="el" href="structbluetoe_1_1no__encryption__required.html" title="defines that access to characteristic(s) does not require an encrypted link.">no_encryption_required</a> </dd></dl>
@@ -88,7 +89,7 @@ $(function() {
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:39 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:20 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>

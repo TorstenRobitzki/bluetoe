@@ -77,7 +77,7 @@ $(function() {
 <p><code>#include &lt;<a class="el" href="encryption_8hpp_source.html">bluetoe/encryption.hpp</a>&gt;</code></p>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>defines that access to characteristic(s) require an encrypted link without MITM Protection. </p>
-<p>Can be used on server, service or characteristic level to define that the access to a characteristic requires an encrypted link. If the link is not encrypted, when accessing the characteristic, Bluetoe replies with an ATT Insufficient Authorization error, if the requesting device is not paired and ATT Insufficient Encryption, if the device is paired, but the link is not encrypted. (see table 10.2 Vol 3, Part C, 10.3.1)</p>
+<p>Can be used on server, service or characteristic level to define that the access to a characteristic value or CCCD, requires an encrypted link. If the link is not encrypted, when accessing the characteristic, Bluetoe replies with an ATT Insufficient Authorization error, if the requesting device is not paired and ATT Insufficient Encryption, if the device is paired, but the link is not encrypted. (see table 10.2 Vol 3, Part C, 10.3.1)</p>
 <p>If applied to a server or service definition, this definition applies to all containing characteristics, where it can be overridden.</p>
 <p>Example </p><div class="fragment"><div class="line"><span class="keywordtype">char</span> simple_value = 0;</div>
 <div class="line">constexpr <span class="keywordtype">char</span> name[] = <span class="stringliteral">&quot;This is the name of the characteristic&quot;</span>;</div>
@@ -119,14 +119,14 @@ $(function() {
 <li>bluetoe/<a class="el" href="encryption_8hpp_source.html">encryption.hpp</a></li>
 </ul>
 </div><!-- contents -->
-<div class="ttc" id="aclassbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server.</div><div class="ttdef"><b>Definition:</b> server.hpp:56</div></div>
+<div class="ttc" id="aclassbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server.</div><div class="ttdef"><b>Definition:</b> server.hpp:57</div></div>
 <div class="ttc" id="astructbluetoe_1_1requires__encryption_html"><div class="ttname"><a href="structbluetoe_1_1requires__encryption.html">bluetoe::requires_encryption</a></div><div class="ttdoc">defines that access to characteristic(s) require an encrypted link without MITM Protection.</div><div class="ttdef"><b>Definition:</b> encryption.hpp:75</div></div>
-<div class="ttc" id="aclassbluetoe_1_1service_html"><div class="ttname"><a href="classbluetoe_1_1service.html">bluetoe::service</a></div><div class="ttdoc">a service with zero or more characteristics</div><div class="ttdef"><b>Definition:</b> service.hpp:133</div></div>
+<div class="ttc" id="aclassbluetoe_1_1service_html"><div class="ttname"><a href="classbluetoe_1_1service.html">bluetoe::service</a></div><div class="ttdoc">a service with zero or more characteristics</div><div class="ttdef"><b>Definition:</b> service.hpp:148</div></div>
 <div class="ttc" id="astructbluetoe_1_1no__encryption__required_html"><div class="ttname"><a href="structbluetoe_1_1no__encryption__required.html">bluetoe::no_encryption_required</a></div><div class="ttdoc">defines that access to characteristic(s) does not require an encrypted link.</div><div class="ttdef"><b>Definition:</b> encryption.hpp:97</div></div>
-<div class="ttc" id="aclassbluetoe_1_1characteristic_html"><div class="ttname"><a href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a></div><div class="ttdoc">A characteristic is a typed value that is accessable by a GATT client hosted by a GATT server.</div><div class="ttdef"><b>Definition:</b> characteristic.hpp:155</div></div>
+<div class="ttc" id="aclassbluetoe_1_1characteristic_html"><div class="ttname"><a href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a></div><div class="ttdoc">A characteristic is a typed value that is accessable by a GATT client hosted by a GATT server.</div><div class="ttdef"><b>Definition:</b> characteristic.hpp:160</div></div>
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Feb 10 2021 19:07:39 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
+Generated on Fri Dec 31 2021 11:00:20 for BlueToe by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
 </small></address>
 </body>
 </html>
