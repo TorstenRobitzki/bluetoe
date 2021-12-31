@@ -572,6 +572,13 @@ namespace bluetoe {
             {
                 return state_data_.lesc_state.remote_io_caps_;
             }
+
+            template < class T >
+            bool outgoing_security_manager_data_available( const bluetoe::details::link_state< T >& link ) const
+            {
+                return link.is_encrypted() && state_ != details::sm_pairing_state::pairing_completed;
+            }
+
         private:
             bluetoe::link_layer::device_address remote_addr_;
             sm_pairing_state                    state_;
@@ -1508,18 +1515,21 @@ namespace bluetoe {
             const io_capabilities_t remote_io_caps = {{ io_capability, oob_data_flag, auth_req }};
             state.pairing_algorithm( this->lesc_select_pairing_algorithm( io_capability, oob_data_flag, auth_req, this->has_oob_data_for_remote_device() ) );
             state.pairing_requested( remote_io_caps );
+
+            this->create_pairing_response( output, out_size, this->lesc_local_io_caps() );
         }
         else
         {
             state.pairing_algorithm( this->legacy_select_pairing_algorithm( io_capability, oob_data_flag, auth_req, this->has_oob_data_for_remote_device() ) );
+
+            this->create_pairing_response( output, out_size, this->lesc_local_io_caps() );
+
             const details::uint128_t srand    = functions.create_srand();
             const details::uint128_t p1       = this->legacy_c1_p1( input, output, state.remote_address(), functions.local_address() );
             const details::uint128_t p2       = this->legacy_c1_p2( state.remote_address(), functions.local_address() );
 
             state.legacy_pairing_request( srand, p1, p2 );
         }
-
-        this->create_pairing_response( output, out_size, this->lesc_local_io_caps() );
     }
 
     // no_security_manager

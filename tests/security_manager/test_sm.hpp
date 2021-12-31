@@ -558,11 +558,17 @@ namespace test {
     template < std::size_t MTU = 65, typename ...Options >
     using security_manager = security_manager_base< bluetoe::security_manager, test::all_security_functions, MTU, Options... >;
 
-    struct legacy_pairing_features_exchanged : security_manager_base< bluetoe::legacy_security_manager, legacy_security_functions >
+    template < class Manager >
+    struct legacy_pairing_features_exchanged;
+
+    // The feature exchange is slightly different for the legacy-only manager compared to the LESC/legacy manager,
+    // because the combind manager indicates support for LESC in its response
+    template <>
+    struct legacy_pairing_features_exchanged< bluetoe::legacy_security_manager > : security_manager_base< bluetoe::legacy_security_manager, test::legacy_security_functions >
     {
         legacy_pairing_features_exchanged()
         {
-            expected(
+            this->expected(
                 {
                     0x01,           // Pairing Request
                     0x01,           // IO Capability NoInputNoOutput
@@ -577,6 +583,34 @@ namespace test {
                     0x03,           // NoInputNoOutput
                     0x00,           // OOB Authentication data not present
                     0x00,           // Bonding, MITM = 0, SC = 0, Keypress = 0
+                    0x10,           // Maximum Encryption Key Size
+                    0x00,           // LinkKey
+                    0x00            // LinkKey
+                }
+            );
+        }
+    };
+
+    template <>
+    struct legacy_pairing_features_exchanged< bluetoe::security_manager > : security_manager_base< bluetoe::security_manager, test::all_security_functions >
+    {
+        legacy_pairing_features_exchanged()
+        {
+            this->expected(
+                {
+                    0x01,           // Pairing Request
+                    0x01,           // IO Capability NoInputNoOutput
+                    0x00,           // OOB data flag (data not present)
+                    0x00,           // AuthReq
+                    0x10,           // Maximum Encryption Key Size (16)
+                    0x07,           // Initiator Key Distribution
+                    0x07,           // Responder Key Distribution (RFU)
+                },
+                {
+                    0x02,           // response
+                    0x03,           // NoInputNoOutput
+                    0x00,           // OOB Authentication data not present
+                    0x08,           // Bonding, MITM = 0, SC = 1, Keypress = 0
                     0x10,           // Maximum Encryption Key Size
                     0x00,           // LinkKey
                     0x00            // LinkKey
@@ -613,11 +647,15 @@ namespace test {
         }
     };
 
-    struct legacy_pairing_confirm_exchanged : legacy_pairing_features_exchanged
+    template < class Manager >
+    struct legacy_pairing_confirm_exchanged;
+
+    template <>
+    struct legacy_pairing_confirm_exchanged< bluetoe::legacy_security_manager > : legacy_pairing_features_exchanged< bluetoe::legacy_security_manager >
     {
         legacy_pairing_confirm_exchanged()
         {
-            expected(
+            this->expected(
                 {
                     0x03,                   // Pairing Confirm
                     0xe2, 0x16, 0xb5, 0x44, // Confirm Value
@@ -636,11 +674,36 @@ namespace test {
         }
     };
 
-    struct legacy_pairing_random_exchanged : legacy_pairing_confirm_exchanged
+    template <>
+    struct legacy_pairing_confirm_exchanged< bluetoe::security_manager > : legacy_pairing_features_exchanged< bluetoe::security_manager >
+    {
+        legacy_pairing_confirm_exchanged()
+        {
+            this->expected(
+                {
+                    0x03,                   // Pairing Confirm
+                    0xc9, 0x16, 0xcc, 0xf3, // Confirm Value
+                    0xf2, 0xb1, 0x6d, 0x8f,
+                    0xbb, 0x6d, 0x71, 0x4b,
+                    0x9c, 0xa7, 0xd8, 0xa8
+                },
+                {
+                    0x03,                   // Pairing Confirm
+                    0xc9, 0x16, 0xcc, 0xf3, // Confirm Value
+                    0xf2, 0xb1, 0x6d, 0x8f,
+                    0xbb, 0x6d, 0x71, 0x4b,
+                    0x9c, 0xa7, 0xd8, 0xa8
+                }
+            );
+        }
+    };
+
+    template < class Manager >
+    struct legacy_pairing_random_exchanged : legacy_pairing_confirm_exchanged< Manager >
     {
         legacy_pairing_random_exchanged()
         {
-            expected(
+            this->expected(
                 {
                     0x04,                   // opcode
                     0xE0, 0x2E, 0x70, 0xC6,
@@ -754,6 +817,10 @@ namespace test {
 
     using lesc_managers = std::tuple<
         bluetoe::lesc_security_manager,
+        bluetoe::security_manager >;
+
+    using legacy_managers = std::tuple<
+        bluetoe::legacy_security_manager,
         bluetoe::security_manager >;
 
 } // namespace test
