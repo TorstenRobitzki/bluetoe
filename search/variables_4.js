@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['pairing_5fstatus_674',['pairing_status',['../structbluetoe_1_1connection__security__attributes.html#a15112039b65e2894419669281def5d6e',1,'bluetoe::connection_security_attributes']]]
+  ['layout_5foverhead_0',['layout_overhead',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a61bc5bbc6e5ed7f6c1677e568625cf49',1,'bluetoe::link_layer::ll_data_pdu_buffer']]]
 ];

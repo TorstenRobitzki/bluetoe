@@ -1,17 +1,10 @@
 var searchData=
 [
-  ['operator_21_3d_619',['operator!=',['../classbluetoe_1_1link__layer_1_1delta__time.html#a04452f1702e652f2d61093990bf18ba7',1,'bluetoe::link_layer::delta_time::operator!=()'],['../classbluetoe_1_1link__layer_1_1address.html#a2a986a136cab36344760889baa870906',1,'bluetoe::link_layer::address::operator!=()'],['../classbluetoe_1_1link__layer_1_1device__address.html#ab3f7ba3f5b7af3b6b049c58617e2c07b',1,'bluetoe::link_layer::device_address::operator!=(const device_address &amp;rhs) const'],['../classbluetoe_1_1link__layer_1_1device__address.html#a2a986a136cab36344760889baa870906',1,'bluetoe::link_layer::device_address::operator!=(const address &amp;rhs) const']]],
-  ['operator_2a_620',['operator*',['../classbluetoe_1_1link__layer_1_1delta__time.html#ab1c512a44634ec4c612c3df2a1fd2512',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_2a_3d_621',['operator*=',['../classbluetoe_1_1link__layer_1_1delta__time.html#a3b7a509334febf606c9e50ebcdfe0c06',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_2b_622',['operator+',['../classbluetoe_1_1link__layer_1_1delta__time.html#ab3f14eefb04e8b1a630c109b3442454c',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_2b_3d_623',['operator+=',['../classbluetoe_1_1link__layer_1_1delta__time.html#a2ad5c9c2bf57d368b3e06b2c64edc77e',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_2d_624',['operator-',['../classbluetoe_1_1link__layer_1_1delta__time.html#a009a8913346a7dfdae925dd29dea23d4',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_2d_3d_625',['operator-=',['../classbluetoe_1_1link__layer_1_1delta__time.html#a1dc680553c74abe1eb0db333ac12070b',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_2f_626',['operator/',['../classbluetoe_1_1link__layer_1_1delta__time.html#a8044f4d799afb1e5bb74b475a9002ada',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_3c_627',['operator&lt;',['../classbluetoe_1_1link__layer_1_1delta__time.html#abeba2487290e2484e40c60f885ee0ac2',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_3c_3c_628',['operator&lt;&lt;',['../classbluetoe_1_1link__layer_1_1delta__time.html#a627adc23fb76fce856850e4057824b83',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_3c_3d_629',['operator&lt;=',['../classbluetoe_1_1link__layer_1_1delta__time.html#ad5e3e1ee1c4f3564ca64220b99ef4a0e',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_3d_3d_630',['operator==',['../classbluetoe_1_1link__layer_1_1delta__time.html#a733bbfb8354bd4189d6276de7f9fc5b2',1,'bluetoe::link_layer::delta_time::operator==()'],['../classbluetoe_1_1link__layer_1_1address.html#a0da1f9f8b3906d68fd1994f5454c7cab',1,'bluetoe::link_layer::address::operator==()'],['../classbluetoe_1_1link__layer_1_1device__address.html#a5dc7a7fa758840779e1e8896c03c693a',1,'bluetoe::link_layer::device_address::operator==(const device_address &amp;rhs) const'],['../classbluetoe_1_1link__layer_1_1device__address.html#a0da1f9f8b3906d68fd1994f5454c7cab',1,'bluetoe::link_layer::device_address::operator==(const address &amp;rhs) const']]],
-  ['operator_3e_631',['operator&gt;',['../classbluetoe_1_1link__layer_1_1delta__time.html#a1a4df4faf30e3861ffb76dd3de0efc4c',1,'bluetoe::link_layer::delta_time']]],
-  ['operator_3e_3d_632',['operator&gt;=',['../classbluetoe_1_1link__layer_1_1delta__time.html#a75d337be97e554362bca3ece136bbd9c',1,'bluetoe::link_layer::delta_time']]]
+  ['next_5fend_0',['next_end',['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#a544c126da407e991926f7fcc575eaaef',1,'bluetoe::link_layer::pdu_ring_buffer']]],
+  ['next_5fll_5fl2cap_5freceived_1',['next_ll_l2cap_received',['../classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a18e3a3b0f1f8792fa853846a0e06671e',1,'bluetoe::link_layer::ll_l2cap_sdu_buffer']]],
+  ['next_5freceived_2',['next_received',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a2622bd60da7022ce36d27f080d1c18ea',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
+  ['next_5ftransmit_3',['next_transmit',['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a88ee4e7e38d80c613d53cfdd1c58b37c',1,'bluetoe::link_layer::ll_data_pdu_buffer']]],
+  ['notification_5fqueue_4',['notification_queue',['../classbluetoe_1_1link__layer_1_1notification__queue.html#a6c68155806a0997cd3f5543e1a8fee49',1,'bluetoe::link_layer::notification_queue']]],
+  ['notify_5',['notify',['../classbluetoe_1_1server.html#acfc70f8df431a0d8a995a6880f30ee8e',1,'bluetoe::server::notify(const T &amp;value)'],['../classbluetoe_1_1server.html#a8dac42e3e0191f9bf9d6769dba1726e3',1,'bluetoe::server::notify()']]],
+  ['now_6',['now',['../classbluetoe_1_1link__layer_1_1delta__time.html#ad2d9fabed217773a0377593c013b9555',1,'bluetoe::link_layer::delta_time']]]
 ];

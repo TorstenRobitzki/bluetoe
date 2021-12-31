@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['prepare_5fqueue_5ffull_769',['prepare_queue_full',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68',1,'bluetoe::error_codes']]],
-  ['procedure_5falready_5fin_5fprogress_770',['procedure_already_in_progress',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934',1,'bluetoe::error_codes']]]
+  ['out_5fof_5frange_0',['out_of_range',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2',1,'bluetoe::error_codes']]]
 ];
