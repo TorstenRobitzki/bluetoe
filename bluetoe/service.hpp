@@ -20,7 +20,9 @@ namespace bluetoe {
 
     template < const char* const >
     struct service_name {
+        /** @cond HIDDEN_SYMBOLS */
         using meta_type = details::valid_service_option_meta_type;
+        /** @endcond */
     };
 
     namespace details {

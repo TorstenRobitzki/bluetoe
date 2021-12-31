@@ -334,6 +334,7 @@ namespace link_layer {
      * struct pdu_layout_by_radio< R > {
      *     using pdu_layout = special_pdu_layout_required_by_R;
      * };
+     * @endcode
      *
      */
     struct pdu_layout {
@@ -341,13 +342,25 @@ namespace link_layer {
          * @brief returns the header for advertising channel and for data channel PDUs.
          */
         static std::uint16_t header( const read_buffer& pdu );
+
+        /**
+         * @brief returns the header for advertising channel and for data channel PDUs.
+         */
         static std::uint16_t header( const write_buffer& pdu );
+
+        /**
+         * @brief returns the header for advertising channel and for data channel PDUs.
+         */
         static std::uint16_t header( const std::uint8_t* pdu );
 
         /**
          * @brief writes to the header of the given PDU
          */
         static void header( const read_buffer& pdu, std::uint16_t header_value );
+
+        /**
+         * @brief writes to the header of the given PDU
+         */
         static void header( std::uint8_t* pdu, std::uint16_t header_value );
 
         /**

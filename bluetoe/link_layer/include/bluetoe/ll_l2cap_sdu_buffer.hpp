@@ -27,7 +27,7 @@ namespace link_layer {
          * After the buffer was filled by the L2CAP layer, commit_l2cap_transmit_buffer() must
          * be called to transmit the buffer.
          *
-         * @param size the payload size of the requested L2CAP buffer, must be >= 0 and <= MTUSize
+         * @param payload_size the payload size of the requested L2CAP buffer, must be >= 0 and <= MTUSize
          */
         read_buffer allocate_l2cap_transmit_buffer( std::size_t payload_size );
 
@@ -82,6 +82,9 @@ namespace link_layer {
          */
         void free_ll_l2cap_received();
 
+        /**
+         * @brief radio layout assumed by the buffer
+         */
         using layout = typename BufferedRadio::layout;
 
     private:

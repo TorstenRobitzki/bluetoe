@@ -432,11 +432,12 @@ namespace bluetoe
         struct pdu_layout_by_radio<
             nrf51_details::scheduled_radio< TransmitSize, ReceiveSize, CallBack, nrf51_details::scheduled_radio_base_with_encryption< Options... > > >
         {
-            /*
+            /**
              * When using encryption, the Radio and the AES CCM peripheral expect an "RFU" byte between LL header and
              * payload.
              */
             struct pdu_layout : details::layout_base< pdu_layout > {
+                /** @cond HIDDEN_SYMBOLS */
                 static constexpr std::size_t header_size = sizeof( std::uint16_t );
 
                 using bluetoe::link_layer::details::layout_base< pdu_layout >::header;
@@ -469,6 +470,7 @@ namespace bluetoe
                 {
                     return header_size + payload_size + 1;
                 }
+                /** @endcond */
             };
         };
    }

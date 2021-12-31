@@ -90,7 +90,7 @@ namespace bluetoe {
         ;
 
         /**
-         * @TODO not implemented
+         * @todo not implemented
          */
         template < std::uint64_t ManufacturerIdentifier, std::uint32_t OrganizationallyUniqueIdentifier >
         struct system_id
@@ -98,7 +98,7 @@ namespace bluetoe {
         };
 
         /**
-         * @TODO not implemeted
+         * @todo not implemeted
          */
         template < typename Value >
         struct ieee_11073_20601_regulatory_certification_data_list

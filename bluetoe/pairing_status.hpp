@@ -17,6 +17,8 @@ namespace bluetoe {
 
     /**
      * @brief the basic security attributes of a connection
+     *
+     * @sa device_pairing_status
      */
     struct connection_security_attributes
     {
@@ -30,12 +32,18 @@ namespace bluetoe {
          */
         device_pairing_status   pairing_status;
 
+        /**
+         * @brief default: not encrypted, no key
+         */
         constexpr connection_security_attributes()
             : is_encrypted( false )
             , pairing_status( device_pairing_status::no_key )
         {
         }
 
+        /**
+         * @brief c'tor to initialize both members
+         */
         constexpr connection_security_attributes( bool encrypted, device_pairing_status status )
             : is_encrypted( encrypted )
             , pairing_status( status )

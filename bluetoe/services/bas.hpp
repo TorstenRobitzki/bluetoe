@@ -99,7 +99,7 @@ namespace bluetoe
          * If this option is given to battery_level, then the implementation of the server
          * will not implement notifications for this service.
          *
-         * @TODO Not implemented yet
+         * @todo Not implemented yet
          */
         struct no_battery_level_notifications {
             /** @cond HIDDEN_SYMBOLS */

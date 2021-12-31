@@ -935,7 +935,8 @@ EXCLUDE_PATTERNS       =
 
 EXCLUDE_SYMBOLS        = bluetoe::details::* \
                          bluetoe::nrf51_details::* \
-                         bluetoe::link_layer::details::*
+                         bluetoe::link_layer::details::* \
+                         bluetoe::hid::details::*
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include

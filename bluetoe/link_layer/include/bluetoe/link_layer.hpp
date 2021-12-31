@@ -367,6 +367,7 @@ namespace link_layer {
          */
         const device_address& local_address() const;
 
+        /** @cond HIDDEN_SYMBOLS */
         using radio_t = ScheduledRadio<
                 details::buffer_sizes< Options... >::tx_size,
                 details::buffer_sizes< Options... >::rx_size,
@@ -374,6 +375,7 @@ namespace link_layer {
         >;
 
         using layout_t = typename pdu_layout_by_radio< radio_t >::pdu_layout;
+        /** @endcond */
 
     private:
 

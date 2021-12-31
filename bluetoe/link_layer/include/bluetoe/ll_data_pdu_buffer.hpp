@@ -64,7 +64,14 @@ namespace link_layer {
          */
         static constexpr std::size_t    max_buffer_size = 251;
 
+        /**
+         * @brief 16 bit header size of a link layer PDU
+         */
         static constexpr std::size_t    header_size     = 2u;
+
+        /**
+         * @brief addition layout overhead introduced by the applied layout
+         */
         static constexpr std::size_t    layout_overhead = layout::data_channel_pdu_memory_size( 0 ) - header_size;
 
         static_assert( TransmitSize >= layout_overhead + min_buffer_size,

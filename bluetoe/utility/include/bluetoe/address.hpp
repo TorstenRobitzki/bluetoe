@@ -39,6 +39,9 @@ namespace link_layer {
          */
         static random_device_address generate_static_random_address( std::uint32_t seed );
 
+        /**
+         * @brief generates a resolvable private address
+         */
         template < typename HashFunc >
         static random_device_address generate_resolvable_private_address( const std::uint8_t* irk, std::uint32_t random, HashFunc hash_func );
 
@@ -152,6 +155,9 @@ namespace link_layer {
             return ( *( end() - 1 ) & 0xC0 ) == 0x40;
         }
 
+        /**
+         * @brief returns true, if the address is random and resolvable
+         */
         bool is_random_resolvable() const
         {
             return is_random() && is_resolvable();
