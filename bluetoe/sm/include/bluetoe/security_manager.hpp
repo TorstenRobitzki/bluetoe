@@ -461,7 +461,11 @@ namespace bluetoe {
                 assert( state_ == details::sm_pairing_state::legacy_pairing_confirmed );
                 state_ = details::sm_pairing_state::pairing_completed;
 
-                state_data_.legacy_state.states.completed_state.short_term_key = short_term_key;
+                long_term_key_ = short_term_key;
+
+                pairing_status_ = state_data_.legacy_state.algorithm == details::legacy_pairing_algorithm::just_works
+                    ? device_pairing_status::unauthenticated_key
+                    : device_pairing_status::authenticated_key;
             }
 
             void lesc_pairing_completed( const details::uint128_t& long_term_key )
@@ -469,7 +473,11 @@ namespace bluetoe {
                 assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged );
                 state_ = details::sm_pairing_state::pairing_completed;
 
-                state_data_.lesc_state.long_term_key_ = long_term_key;
+                long_term_key_ = long_term_key;
+
+                pairing_status_ = state_data_.lesc_state.algorithm == details::lesc_pairing_algorithm::just_works
+                    ? device_pairing_status::unauthenticated_key
+                    : device_pairing_status::authenticated_key;
             }
 
             const details::uint128_t& c1_p1() const
@@ -579,9 +587,27 @@ namespace bluetoe {
                 return link.is_encrypted() && state_ != details::sm_pairing_state::pairing_completed;
             }
 
+            std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
+            {
+                if ( ediv == 0 && rand == 0 )
+                    return { true, long_term_key_ };
+
+                return std::pair< bool, details::uint128_t >{};
+            }
+
+            device_pairing_status local_device_pairing_status() const
+            {
+                if ( state_ != details::sm_pairing_state::pairing_completed )
+                    return bluetoe::device_pairing_status::no_key;
+
+                return pairing_status_;
+            }
+
         private:
             bluetoe::link_layer::device_address remote_addr_;
             sm_pairing_state                    state_;
+            details::uint128_t                  long_term_key_;
+            device_pairing_status               pairing_status_;
 
             union {
                 struct {
@@ -593,10 +619,6 @@ namespace bluetoe {
                             details::uint128_t mconfirm;
                             details::uint128_t passkey;
                         }                                   pairing_state;
-
-                        struct {
-                            details::uint128_t short_term_key;
-                        }                                   completed_state;
                     } states;
                     enum legacy_pairing_algorithm    algorithm;
                 }                                           legacy_state;
@@ -608,7 +630,6 @@ namespace bluetoe {
                     uint128_t                   local_nonce_;
                     uint128_t                   remote_nonce_;
                     io_capabilities_t           remote_io_caps_;
-                    uint128_t                   long_term_key_;
                     enum lesc_pairing_algorithm algorithm;
                 }                                           lesc_state;
             } state_data_;

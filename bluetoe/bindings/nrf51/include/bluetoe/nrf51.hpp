@@ -223,6 +223,11 @@ namespace bluetoe
                 const bluetoe::link_layer::device_address& addr_peripheral );
 
             /**
+             * Functions required by IO capabilties
+             */
+            bluetoe::details::uint128_t create_passkey();
+
+            /**
              * Functions required by the link layer
              */
             std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
