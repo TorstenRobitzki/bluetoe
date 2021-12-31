@@ -48,14 +48,16 @@ namespace link_layer {
         struct security_manager {
             using default_sm = typename bluetoe::details::select_type<
                 bluetoe::details::requires_encryption_support_t< Server >::value,
-                bluetoe::security_manager,
+                bluetoe::lesc_security_manager,
                 bluetoe::no_security_manager
             >::type;
 
-            using type = typename bluetoe::details::find_by_meta_type<
+            using impl = typename bluetoe::details::find_by_meta_type<
                 bluetoe::details::security_manager_meta_type,
                 Options...,
                 default_sm >::type;
+
+            using type = typename impl::template impl< Options... >;
         };
 
         template < typename ... Options >
@@ -412,6 +414,7 @@ namespace link_layer {
         void wait_for_connection_event();
         void transmit_notifications();
         void transmit_signaling_channel_output();
+        void transmit_security_manager_channel_output();
         void transmit_pending_control_pdus();
         void reject( std::uint8_t opcode, std::uint8_t error_code, read_buffer& output );
 
@@ -589,6 +592,7 @@ namespace link_layer {
         {
             transmit_notifications();
             transmit_signaling_channel_output();
+            transmit_security_manager_channel_output();
             transmit_pending_control_pdus();
         }
 
@@ -867,6 +871,41 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::transmit_security_manager_channel_output()
+    {
+        const std::size_t mtu_size = this->security_manager_channel_mtu_size();
+        if ( !mtu_size )
+            return;
+
+        if ( !this->security_manager_output_available( connection_details_ ) )
+            return;
+
+        // first check if we have memory to transmit the message, or otherwise notifications would get lost
+        auto out_buffer = this->allocate_l2cap_transmit_buffer( mtu_size );
+
+        if ( out_buffer.empty() )
+            return;
+
+        std::size_t   out_size = out_buffer.size - all_header_size - layout_t::data_channel_pdu_memory_size( 0 );
+        std::uint8_t* out_body = layout_t::body( out_buffer ).first;
+
+        this->l2cap_output( &out_body[ l2cap_header_size ], out_size, connection_details_, *this );
+
+        if ( out_size )
+        {
+            fill< layout_t >( out_buffer, {
+                lld_data_pdu_code,
+                static_cast< std::uint8_t >( out_size + l2cap_header_size ),
+                static_cast< std::uint8_t >( out_size ),
+                static_cast< std::uint8_t >( ( out_size & 0xff00 ) >> 8 ),
+                static_cast< std::uint8_t >( l2cap_sm_channel ),
+                static_cast< std::uint8_t >( l2cap_sm_channel >> 8 ) } );
+
+            this->commit_l2cap_transmit_buffer( out_buffer );
+        }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::transmit_pending_control_pdus()
     {
         static constexpr std::uint8_t connection_param_req_size = 24u;
@@ -1034,6 +1073,7 @@ namespace link_layer {
             }
             else if ( llid == lld_data_pdu_code && state_ != state::disconnecting )
             {
+                // TODO: Bug #67 will be too small for l2cap
                 output = this->allocate_l2cap_transmit_buffer( connection_details_.negotiated_mtu() );
                 if ( output.size )
                     result = handle_l2cap( pdu, output );
@@ -1205,15 +1245,10 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& input, const read_buffer& output )
     {
-        const std::uint16_t input_header    = layout_t::header( input );
         const std::uint8_t* const input_body= layout_t::body( input ).first;
-        const std::uint8_t  pdu_size        = input_header >> 8;
 
         const std::uint16_t l2cap_size      = read_16( &input_body[ 0 ] );
         const std::uint16_t l2cap_channel   = read_16( &input_body[ 2 ] );
-
-        if ( pdu_size - l2cap_header_size != l2cap_size )
-            return ll_result::disconnect;
 
         std::size_t   out_size   = output.size - l2cap_header_size - layout_t::data_channel_pdu_memory_size( 0 );
         std::uint8_t* out_body   = layout_t::body( output ).first;

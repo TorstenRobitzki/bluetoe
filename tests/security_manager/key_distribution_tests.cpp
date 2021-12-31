@@ -7,22 +7,18 @@
 
 struct void_{};
 
-BOOST_FIXTURE_TEST_CASE( no_distribution_over_unsecure_connection, test::pairing_random_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_distribution_over_unsecure_connection,  Manager, test::legacy_managers )
 {
+    test::legacy_pairing_random_exchanged< Manager > fixture;
+
     bluetoe::details::link_state< void_ > link( 23 );
-    BOOST_CHECK( !connection_data().outgoing_security_manager_data_available( link ) );
+    BOOST_CHECK( !fixture.connection_data().outgoing_security_manager_data_available( link ) );
 }
 
-#if 0
-BOOST_FIXTURE_TEST_CASE( no_distribution_when_in_wrong_state, test::pairing_confirm_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_distribution_when_in_wrong_state, Manager, test::legacy_managers )
 {
-    bluetoe::details::link_state< void_ > link( 23, true );
-    BOOST_CHECK( !connection_data().outgoing_security_manager_data_available( link ) );
-}
+    test::legacy_pairing_confirm_exchanged< Manager > fixture;
 
-BOOST_FIXTURE_TEST_CASE( no_distribution_when_no_key_was_being_asked_for, test::pairing_random_exchanged )
-{
-    bluetoe::details::link_state< void_ > link( 23, true );
-    BOOST_CHECK( !connection_data().outgoing_security_manager_data_available( link ) );
+    bluetoe::details::link_state< void_ > link( 23 );
+    BOOST_CHECK( !fixture.connection_data().outgoing_security_manager_data_available( link ) );
 }
-#endif

@@ -27,12 +27,29 @@ using blinky_server = server<
     >
 >;
 
+struct oob_cb_t {
+    std::pair< bool, std::array< std::uint8_t, 16 > > sm_oob_authentication_data(
+        const bluetoe::link_layer::device_address& /* address */ )
+    {
+        return { true, std::array< std::uint8_t, 16 >{{
+            0xF1, 0x50, 0xA0, 0xAE,
+            0xB7, 0xAA, 0xBA, 0xC8,
+            0x19, 0x22, 0xB6, 0x15,
+            0x4C, 0x23, 0x94, 0x7A
+        }} };
+    }
+
+} oob_cb;
+
 blinky_server gatt;
 
 device<
     blinky_server,
     link_layer::buffer_sizes< 200, 200 >,
-    link_layer::max_mtu_size< 65 > > gatt_srv;
+    link_layer::max_mtu_size< 65 >,
+    legacy_security_manager, // use one of legacy_security_manager, lesc_security_manager or security_manager
+    oob_authentication_callback< oob_cb_t, oob_cb >
+> gatt_srv;
 
 int main()
 {

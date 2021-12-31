@@ -31,6 +31,7 @@ blinky_server gatt;
 
 device<
     blinky_server,
+    security_manager,
     link_layer::buffer_sizes< 200, 200 >,
     link_layer::max_mtu_size< 65 > > gatt_srv;
 

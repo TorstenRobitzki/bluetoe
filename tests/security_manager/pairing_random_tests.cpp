@@ -5,9 +5,11 @@
 
 #include "test_sm.hpp"
 
-BOOST_FIXTURE_TEST_CASE( wrong_state, test::pairing_features_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( wrong_state, Manager, test::legacy_managers )
 {
-    expected(
+    test::legacy_pairing_features_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x04,                   // opcode
             0x00, 0x01, 0x02, 0x03,
@@ -22,9 +24,11 @@ BOOST_FIXTURE_TEST_CASE( wrong_state, test::pairing_features_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( wrong_size, test::pairing_confirm_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( wrong_size, Manager, test::legacy_managers )
 {
-    expected(
+    test::legacy_pairing_confirm_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x04,                   // opcode
             0x00, 0x01, 0x02, 0x03,
@@ -39,9 +43,11 @@ BOOST_FIXTURE_TEST_CASE( wrong_size, test::pairing_confirm_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( wrong_size_II, test::pairing_confirm_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( wrong_size_II, Manager, test::legacy_managers )
 {
-    expected(
+    test::legacy_pairing_confirm_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x04,                   // opcode
             0x00, 0x01, 0x02, 0x03,
@@ -57,9 +63,11 @@ BOOST_FIXTURE_TEST_CASE( wrong_size_II, test::pairing_confirm_exchanged )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( incorrect_confirm_value, test::pairing_confirm_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( incorrect_confirm_value, Manager, test::legacy_managers )
 {
-    expected(
+    test::legacy_pairing_confirm_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x04,                   // opcode
             0xE0, 0x2E, 0x70, 0xC6,
@@ -74,9 +82,11 @@ BOOST_FIXTURE_TEST_CASE( incorrect_confirm_value, test::pairing_confirm_exchange
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_confirm_value, test::pairing_confirm_exchanged )
+BOOST_AUTO_TEST_CASE_TEMPLATE( correct_confirm_value, Manager, test::legacy_managers )
 {
-    expected(
+    test::legacy_pairing_confirm_exchanged< Manager > fixture;
+
+    fixture.expected(
         {
             0x04,                   // opcode
             0xE0, 0x2E, 0x70, 0xC6,

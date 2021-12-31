@@ -12,7 +12,7 @@
  * 128-bit value r is 0x5783D52156AD6F0E6388274EC6702EE0
  * 128-bit output from the c1 function is 0x1e1e3fef878988ead2a74dc5bef13b86
  */
-BOOST_FIXTURE_TEST_CASE( c1_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( c1_test, test::legacy_security_functions )
 {
     const bluetoe::details::uint128_t p1{{
         0x01, 0x00, 0x01, 0x01,
@@ -62,7 +62,7 @@ BOOST_FIXTURE_TEST_CASE( c1_test, test::security_functions )
 // For example if the 128-bit value k is 0x00000000000000000000000000000000
 // and the 128-bit value r' is 0x112233445566778899AABBCCDDEEFF00
 // then the output from the key generation function s1 is 0x9a1fe1f0e8b0f49b5b4216ae796da062.
-BOOST_FIXTURE_TEST_CASE( s1_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( s1_test, test::legacy_security_functions )
 {
     static const bluetoe::details::uint128_t k = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -93,7 +93,7 @@ BOOST_FIXTURE_TEST_CASE( s1_test, test::security_functions )
         key.begin(), key.end(), expected.begin(), expected.end() );
 }
 
-BOOST_FIXTURE_TEST_CASE( aes_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( aes_test, test::legacy_security_functions )
 {
     const bluetoe::details::uint128_t key{{
         0x0f, 0x0e, 0x0d, 0x0c,
@@ -122,7 +122,7 @@ BOOST_FIXTURE_TEST_CASE( aes_test, test::security_functions )
         output.begin(), output.end(), expected.begin(), expected.end() );
 }
 
-BOOST_FIXTURE_TEST_CASE( xor_test, test::security_functions )
+BOOST_FIXTURE_TEST_CASE( xor_test, test::legacy_security_functions )
 {
     const bluetoe::details::uint128_t p1{{
         0x01, 0x00, 0x01, 0x01,
@@ -149,4 +149,356 @@ BOOST_FIXTURE_TEST_CASE( xor_test, test::security_functions )
 
     BOOST_CHECK_EQUAL_COLLECTIONS(
         output.begin(), output.end(), expected.begin(), expected.end() );
+}
+
+BOOST_FIXTURE_TEST_CASE( left_shift_tests, test::lesc_security_functions )
+{
+    const bluetoe::details::uint128_t input = {{
+        0x01, 0x00, 0x80, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0xFF, 0x00, 0x00, 0x00,
+        0x04, 0x40, 0x00, 0xFF
+    }};
+
+    const bluetoe::details::uint128_t expected = {{
+        0x02, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x00,
+        0xFE, 0x01, 0x00, 0x00,
+        0x08, 0x80, 0x00, 0xFE
+    }};
+
+    const bluetoe::details::uint128_t output = left_shift( input );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        output.begin(), output.end(), expected.begin(), expected.end() );
+}
+
+BOOST_FIXTURE_TEST_CASE( k2_subkey_generation, test::lesc_security_functions )
+{
+    // --------------------------------------------------
+    // Subkey Generation
+    // K              2b7e1516 28aed2a6 abf71588 09cf4f3c
+    // AES-128(key,0) 7df76b0c 1ab899b3 3e42f047 b91b546f
+    // K1             fbeed618 35713366 7c85e08f 7236a8de
+    // K2             f7ddac30 6ae266cc f90bc11e e46d513b
+    // --------------------------------------------------
+
+    const bluetoe::details::uint128_t key = {{
+        0x3c, 0x4f, 0xcf, 0x09,
+        0x88, 0x15, 0xf7, 0xab,
+        0xa6, 0xd2, 0xae, 0x28,
+        0x16, 0x15, 0x7e, 0x2b
+    }};
+
+    const bluetoe::details::uint128_t expected = {{
+        0x3b, 0x51, 0x6d, 0xe4,
+        0x1e, 0xc1, 0x0b, 0xf9,
+        0xcc, 0x66, 0xe2, 0x6a,
+        0x30, 0xac, 0xdd, 0xf7
+    }};
+
+    const bluetoe::details::uint128_t output = aes_cmac_k2_subkey_generation( key );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        output.begin(), output.end(), expected.begin(), expected.end() );
+}
+
+BOOST_FIXTURE_TEST_CASE( f4_test, test::lesc_security_functions )
+{
+    // 4 LE SC CONFIRM VALUE GENERATION FUNCTION
+    // U              20b003d2 f297be2c 5e2c83a7 e9f9a5b9
+    //                eff49111 acf4fddb cc030148 0e359de6
+    // V              55188b3d 32f6bb9a 900afcfb eed4e72a
+    //                59cb9ac2 f19d7cfb 6b4fdd49 f47fc5fd
+    // X              d5cb8454 d177733e ffffb2ec 712baeab
+    // Z 0x00
+    // M0             20b003d2 f297be2c 5e2c83a7 e9f9a5b9
+    // M1             eff49111 acf4fddb cc030148 0e359de6
+    // M2             55188b3d 32f6bb9a 900afcfb eed4e72a
+    // M3             59cb9ac2 f19d7cfb 6b4fdd49 f47fc5fd
+    // 00
+    // AES_CMAC       f2c916f1 07a9bd1c f1eda1be a974872d
+    const std::array< std::uint8_t, 32 > u = {{
+        0xe6, 0x9d, 0x35, 0x0e,
+        0x48, 0x01, 0x03, 0xcc,
+        0xdb, 0xfd, 0xf4, 0xac,
+        0x11, 0x91, 0xf4, 0xef,
+        0xb9, 0xa5, 0xf9, 0xe9,
+        0xa7, 0x83, 0x2c, 0x5e,
+        0x2c, 0xbe, 0x97, 0xf2,
+        0xd2, 0x03, 0xb0, 0x20
+    }};
+
+    const std::array< std::uint8_t, 32 > v = {{
+        0xfd, 0xc5, 0x7f, 0xf4,
+        0x49, 0xdd, 0x4f, 0x6b,
+        0xfb, 0x7c, 0x9d, 0xf1,
+        0xc2, 0x9a, 0xcb, 0x59,
+        0x2a, 0xe7, 0xd4, 0xee,
+        0xfb, 0xfc, 0x0a, 0x90,
+        0x9a, 0xbb, 0xf6, 0x32,
+        0x3d, 0x8b, 0x18, 0x55
+    }};
+
+    const bluetoe::details::uint128_t x = {{
+        0xab, 0xae, 0x2b, 0x71,
+        0xec, 0xb2, 0xff, 0xff,
+        0x3e, 0x73, 0x77, 0xd1,
+        0x54, 0x84, 0xcb, 0xd5
+    }};
+
+    const std::uint8_t z = 0x00;
+
+    const bluetoe::details::uint128_t expected{{
+        0x2d, 0x87, 0x74, 0xa9,
+        0xbe, 0xa1, 0xed, 0xf1,
+        0x1c, 0xbd, 0xa9, 0x07,
+        0xf1, 0x16, 0xc9, 0xf2
+    }};
+
+    const bluetoe::details::uint128_t output = f4( u.data(), v.data(), x, z );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        output.begin(), output.end(), expected.begin(), expected.end() );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( p256_tests, test::lesc_security_functions )
+{
+    const bluetoe::details::ecdh_private_key_t Private_A = {{
+        0xbd, 0x1a, 0x3c, 0xcd, 0xa6, 0xb8, 0x99, 0x58,
+        0x99, 0xb7, 0x40, 0xeb, 0x7b, 0x60, 0xff, 0x4a,
+        0x50, 0x3f, 0x10, 0xd2, 0xe3, 0xb3, 0xc9, 0x74,
+        0x38, 0x5f, 0xc5, 0xa3, 0xd4, 0xf6, 0x49, 0x3f
+    }};
+
+    const bluetoe::details::ecdh_private_key_t Private_B = {{
+        0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
+        0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
+        0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
+        0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55
+    }};
+
+    const bluetoe::details::ecdh_public_key_t Public_A = {{
+        0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+        0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+        0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+        0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20,
+
+        0x8b, 0xd2, 0x89, 0x15, 0xd0, 0x8e, 0x1c, 0x74,
+        0x24, 0x30, 0xed, 0x8f, 0xc2, 0x45, 0x63, 0x76,
+        0x5c, 0x15, 0x52, 0x5a, 0xbf, 0x9a, 0x32, 0x63,
+        0x6d, 0xeb, 0x2a, 0x65, 0x49, 0x9c, 0x80, 0xdc
+    }};
+
+    const bluetoe::details::ecdh_public_key_t Public_B = {{
+        0x90, 0xa1, 0xaa, 0x2f, 0xb2, 0x77, 0x90, 0x55,
+        0x9f, 0xa6, 0x15, 0x86, 0xfd, 0x8a, 0xb5, 0x47,
+        0x00, 0x4c, 0x9e, 0xf1, 0x84, 0x22, 0x59, 0x09,
+        0x96, 0x1d, 0xaf, 0x1f, 0xf0, 0xf0, 0xa1, 0x1e,
+
+        0x4a, 0x21, 0xb1, 0x15, 0xf9, 0xaf, 0x89, 0x5f,
+        0x76, 0x36, 0x8e, 0xe2, 0x30, 0x11, 0x2d, 0x47,
+        0x60, 0x51, 0xb8, 0x9a, 0x3a, 0x70, 0x56, 0x73,
+        0x37, 0xad, 0x9d, 0x42, 0x3e, 0xf3, 0x55, 0x4c
+    }};
+
+    const bluetoe::details::ecdh_shared_secret_t DHKey = {{
+        0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
+        0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
+        0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
+        0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec
+    }};
+
+    const auto shared_a = p256( Private_A.data(), Public_B.data() );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( DHKey.begin(), DHKey.end(), shared_a.begin(), shared_a.end() );
+
+    const auto shared_b = p256( Private_B.data(), Public_A.data() );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( DHKey.begin(), DHKey.end(), shared_b.begin(), shared_b.end() );
+}
+
+BOOST_FIXTURE_TEST_CASE( f5_test, test::lesc_security_functions )
+{
+    // DHKey(W) ec0234a3 57c8ad05 341010a6 0a397d9b
+    //          99796b13 b4f866f1 868d34f3 73bfa698
+    // T        3c128f20 de883288 97624bdb 8dac6989
+    // keyID    62746c65
+    // N1       d5cb8454 d177733e ffffb2ec 712baeab
+    // N2       a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // A1       00561237 37bfce
+    // A2       00a71370 2dcfc1
+    // Length   0100
+    // (LTK)
+    // M0       0162746c 65d5cb84 54d17773 3effffb2
+    // M1       ec712bae aba6e8e7 cc25a75f 6e216583
+    // M2       f7ff3dc4 cf005612 3737bfce 00a71370
+    // M3       2dcfc101 00
+    // AES_CMAC 69867911 69d7cd23 980522b5 94750a38
+    // (MacKey)
+    // M0       0062746c 65d5cb84 54d17773 3effffb2
+    // M1       ec712bae aba6e8e7 cc25a75f 6e216583
+    // M2       f7ff3dc4 cf005612 3737bfce 00a71370
+    // M3       2dcfc101 00
+    // AES_CMAC 965f176 a1084a02 fd3f6a20 ce636e20
+
+    const bluetoe::details::ecdh_shared_secret_t dh_key = {{
+        0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
+        0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
+        0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
+        0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec
+    }};
+
+    const bluetoe::details::uint128_t nonce_central = {{
+        0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+        0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5
+    }};
+
+    const bluetoe::details::uint128_t nonce_periperal = {{
+        0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+        0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6
+    }};
+
+    const bluetoe::link_layer::public_device_address addr_controller({
+        0xce, 0xbf, 0x37, 0x37, 0x12, 0x56
+    });
+
+    const bluetoe::link_layer::public_device_address addr_peripheral({
+        0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7
+    });
+
+    bluetoe::details::uint128_t mac_key;
+    bluetoe::details::uint128_t ltk;
+
+    std::tie( mac_key, ltk ) = f5( dh_key, nonce_central, nonce_periperal, addr_controller, addr_peripheral );
+
+    const bluetoe::details::uint128_t expected_mac_key = {{
+        0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
+        0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29
+    }};
+
+    const bluetoe::details::uint128_t expected_ltk = {{
+        0x38, 0x0a, 0x75, 0x94, 0xb5, 0x22, 0x05, 0x98,
+        0x23, 0xcd, 0xd7, 0x69, 0x11, 0x79, 0x86, 0x69
+    }};
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( mac_key.begin(), mac_key.end(), expected_mac_key.begin(), expected_mac_key.end() );
+    BOOST_CHECK_EQUAL_COLLECTIONS( ltk.begin(), ltk.end(), expected_ltk.begin(), expected_ltk.end() );
+}
+
+BOOST_FIXTURE_TEST_CASE( f6_test, test::lesc_security_functions )
+{
+    // D.4 f6 LE SC CHECK VALUE GENERATION FUNCTION
+    // N1             d5cb8454 d177733e ffffb2ec 712baeab
+    // N2             a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // MacKey         2965f176 a1084a02 fd3f6a20 ce636e20
+    // R              12a3343b b453bb54 08da42d2 0c2d0fc8
+    // IOcap          010102
+    // A1             00561237 37bfce
+    // A2             00a71370 2dcfc1
+    // M0             d5cb8454 d177733e ffffb2ec 712baeab
+    // M1             a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // M2             12a3343b b453bb54 08da42d2 0c2d0fc8
+    // M3             01010200 56123737 bfce00a7 13702dcf
+    // M4             c1
+    // AES_CMAC       e3c47398 9cd0e8c5 d26c0b09 da958f61
+
+    static const bluetoe::details::uint128_t nonce_central = {{
+        0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+        0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5
+    }};
+
+    static const bluetoe::details::uint128_t nonce_periperal = {{
+        0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+        0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6
+    }};
+
+    static const bluetoe::details::uint128_t mac_key = {{
+        0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
+        0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29
+    }};
+
+    static const bluetoe::details::uint128_t R = {{
+        0xc8, 0x0f, 0x2d, 0x0c, 0xd2, 0x42, 0xda, 0x08,
+        0x54, 0xbb, 0x53, 0xb4, 0x3b, 0x34, 0xa3, 0x12
+    }};
+
+    static const bluetoe::details::io_capabilities_t io_caps = {{
+        0x02, 0x01, 0x01
+    }};
+
+    static const bluetoe::link_layer::public_device_address addr_controller({
+        0xce, 0xbf, 0x37, 0x37, 0x12, 0x56
+    });
+
+    static const bluetoe::link_layer::public_device_address addr_peripheral({
+        0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7
+    });
+
+    static const bluetoe::details::uint128_t expected_check_value = {{
+        0x61, 0x8f, 0x95, 0xda, 0x09, 0x0b, 0x6c, 0xd2,
+        0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3
+    }};
+
+    static const bluetoe::details::uint128_t check_value = f6(
+        mac_key, nonce_central, nonce_periperal, R, io_caps, addr_controller, addr_peripheral );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( check_value.begin(), check_value.end(), expected_check_value.begin(), expected_check_value.end() );
+}
+
+BOOST_FIXTURE_TEST_CASE( g2_test, test::lesc_security_functions )
+{
+    // D.5 g2 LE SC NUMERIC COMPARISON GENERATION FUNCTION
+    // U              20b003d2 f297be2c 5e2c83a7 e9f9a5b9
+    //                eff49111 acf4fddb cc030148 0e359de6
+    // V              55188b3d 32f6bb9a 900afcfb eed4e72a
+    //                59cb9ac2 f19d7cfb 6b4fdd49 f47fc5fd
+    // X              d5cb8454 d177733e ffffb2ec 712baeab
+    // Y              a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // M0             20b003d2 f297be2c 5e2c83a7 e9f9a5b9
+    // M1             eff49111 acf4fddb cc030148 0e359de6
+    // M2             55188b3d 32f6bb9a 900afcfb eed4e72a
+    // M3             59cb9ac2 f19d7cfb 6b4fdd49 f47fc5fd
+    // M4             a6e8e7cc 25a75f6e 216583f7 ff3dc4cf
+    // AES_CMAC       1536d18d e3d20df9 9b7044c1 2f9ed5ba
+    // g2             2f9ed5ba
+
+    const std::array< std::uint8_t, 32 > u = {{
+        0xe6, 0x9d, 0x35, 0x0e,
+        0x48, 0x01, 0x03, 0xcc,
+        0xdb, 0xfd, 0xf4, 0xac,
+        0x11, 0x91, 0xf4, 0xef,
+        0xb9, 0xa5, 0xf9, 0xe9,
+        0xa7, 0x83, 0x2c, 0x5e,
+        0x2c, 0xbe, 0x97, 0xf2,
+        0xd2, 0x03, 0xb0, 0x20
+    }};
+
+    const std::array< std::uint8_t, 32 > v = {{
+        0xfd, 0xc5, 0x7f, 0xf4,
+        0x49, 0xdd, 0x4f, 0x6b,
+        0xfb, 0x7c, 0x9d, 0xf1,
+        0xc2, 0x9a, 0xcb, 0x59,
+        0x2a, 0xe7, 0xd4, 0xee,
+        0xfb, 0xfc, 0x0a, 0x90,
+        0x9a, 0xbb, 0xf6, 0x32,
+        0x3d, 0x8b, 0x18, 0x55
+    }};
+
+    const bluetoe::details::uint128_t x = {{
+        0xab, 0xae, 0x2b, 0x71,
+        0xec, 0xb2, 0xff, 0xff,
+        0x3e, 0x73, 0x77, 0xd1,
+        0x54, 0x84, 0xcb, 0xd5
+    }};
+
+    const bluetoe::details::uint128_t y = {{
+        0xcf, 0xc4, 0x3d, 0xff,
+        0xf7, 0x83, 0x65, 0x21,
+        0x6e, 0x5f, 0xa7, 0x25,
+        0xcc, 0xe7, 0xe8, 0xa6
+    }};
+
+    BOOST_CHECK_EQUAL( g2( u.data(), v.data(), x, y ), 0x2f9ed5bau );
 }
