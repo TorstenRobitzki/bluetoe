@@ -222,6 +222,12 @@ namespace bluetoe
                 const bluetoe::link_layer::device_address& addr_controller,
                 const bluetoe::link_layer::device_address& addr_peripheral );
 
+            std::uint32_t g2(
+                const std::uint8_t*                 u,
+                const std::uint8_t*                 v,
+                const bluetoe::details::uint128_t&  x,
+                const bluetoe::details::uint128_t&  y );
+
             /**
              * Functions required by IO capabilties
              */

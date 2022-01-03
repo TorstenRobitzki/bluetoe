@@ -1272,6 +1272,21 @@ namespace nrf51_details {
         return aes_le( key, xor_( t3, xor_( aes_cmac_k2_subkey_generation( key ), m4 ) ) );
     }
 
+    std::uint32_t scheduled_radio_base_with_encryption_base::g2(
+        const std::uint8_t*                 u,
+        const std::uint8_t*                 v,
+        const bluetoe::details::uint128_t&  x,
+        const bluetoe::details::uint128_t&  y )
+    {
+        auto t0 = aes_le( x, u + 16 );
+        auto t1 = aes_le( x, xor_( t0, u ) );
+        auto t2 = aes_le( x, xor_( t1, v + 16 ) );
+        auto t3 = aes_le( x, xor_( t2, v ) );
+        auto t4 = aes_le( x, xor_( t3, xor_( aes_cmac_k1_subkey_generation( x ), y ) ) );
+
+        return bluetoe::details::read_32bit( t4.begin() );
+    }
+
     bluetoe::details::uint128_t scheduled_radio_base_with_encryption_base::create_passkey()
     {
         const bluetoe::details::uint128_t result{{
