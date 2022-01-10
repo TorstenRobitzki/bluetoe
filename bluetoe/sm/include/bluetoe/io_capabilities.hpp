@@ -54,7 +54,8 @@ namespace bluetoe
             return {{0}};
         }
 
-        static bool sm_pairing_request_yes_no()
+        template < class S >
+        static bool sm_pairing_request_yes_no( const S& )
         {
             return true;
         }
@@ -66,6 +67,20 @@ namespace bluetoe
     };
 
     /**
+     * @brief interface that can be stored to provide response to a yes_no question
+     *        asynchronously.
+     *
+     * @sa pairing_yes_no
+     */
+    class pairing_yes_no_response
+    {
+    public:
+        virtual void yes_no_response( bool ) = 0;
+    protected:
+        ~pairing_yes_no_response() = default;
+    };
+
+    /**
      * @brief Device has at least two buttons that can be easily mapped to 'yes'
      *        and 'no' or the device has a mechanism whereby the user can
      *        indicate either 'yes' or 'no'.
@@ -73,7 +88,10 @@ namespace bluetoe
      * The parameter T have to be a class type with following none static member
      * function:
      *
-     * bool sm_pairing_yes_no();
+     * void sm_pairing_yes_no( pairing_yes_no_response& response );
+     *
+     * The passed response parameter can be stored to respond later to the question or the yes_no_response()
+     * function of the response can be called directly.
      *
      * @sa pairing_keyboard
      * @sa pairing_no_input
@@ -87,9 +105,11 @@ namespace bluetoe
             return {{0}};
         }
 
-        static bool sm_pairing_request_yes_no()
+        template < class S >
+        static void sm_pairing_request_yes_no( S& state )
         {
-            return Obj.sm_pairing_yes_no();
+            state.wait_for_user_response();
+            Obj.sm_pairing_yes_no( state );
         }
 
         struct meta_type :
@@ -411,9 +431,10 @@ namespace bluetoe
                 return input_capabilities::sm_pairing_passkey();
             }
 
-            static bool sm_pairing_request_yes_no()
+            template < class S >
+            static void sm_pairing_request_yes_no( S& state )
             {
-                return input_capabilities::sm_pairing_request_yes_no();
+                input_capabilities::sm_pairing_request_yes_no( state );
             }
         };
     }

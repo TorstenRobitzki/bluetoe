@@ -79,6 +79,8 @@ namespace bluetoe {
             // both, legacy and LESC
             idle,
             pairing_completed,
+            user_response_wait,
+            user_response_failed,
             // legacy only
             legacy_pairing_requested,
             legacy_pairing_confirmed,
@@ -242,7 +244,7 @@ namespace bluetoe {
         };
 
         template < class OtherConnectionData >
-        class lesc_security_connection_data : public OtherConnectionData
+        class lesc_security_connection_data : public OtherConnectionData, public pairing_yes_no_response
         {
         public:
             template < class ... Args >
@@ -250,6 +252,20 @@ namespace bluetoe {
                 : OtherConnectionData( args... )
                 , state_( details::sm_pairing_state::idle )
             {}
+
+            void wait_for_user_response()
+            {
+                state_ = details::sm_pairing_state::user_response_wait;
+            }
+
+            void yes_no_response( bool response ) override
+            {
+                assert( state_ == details::sm_pairing_state::user_response_wait );
+
+                state_ = response
+                    ? details::sm_pairing_state::lesc_pairing_random_exchanged
+                    : details::sm_pairing_state::user_response_failed;
+            }
 
             details::sm_pairing_state state() const
             {
@@ -389,7 +405,7 @@ namespace bluetoe {
         };
 
         template < class OtherConnectionData >
-        class security_connection_data : public OtherConnectionData
+        class security_connection_data : public OtherConnectionData, public pairing_yes_no_response
         {
         public:
             template < class ... Args >
@@ -397,6 +413,20 @@ namespace bluetoe {
                 : OtherConnectionData( args... )
                 , state_( sm_pairing_state::idle )
             {}
+
+            void wait_for_user_response()
+            {
+                state_ = details::sm_pairing_state::user_response_wait;
+            }
+
+            void yes_no_response( bool response ) override
+            {
+                assert( state_ == details::sm_pairing_state::user_response_wait );
+
+                state_ = response
+                    ? details::sm_pairing_state::lesc_pairing_random_exchanged
+                    : details::sm_pairing_state::user_response_failed;
+            }
 
             details::sm_pairing_state state() const
             {
@@ -1242,17 +1272,18 @@ namespace bluetoe {
         if ( state.state() != details::sm_pairing_state::lesc_pairing_confirm_send )
             return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
 
-        const auto& nonce = state.local_nonce();
         state.pairing_random_exchanged( input + 1 );
 
         if ( state.lesc_pairing_algorithm() == lesc_pairing_algorithm::numeric_comparison )
         {
             io_device_t::sm_pairing_numeric_compare_output( state, functions );
-
-            if ( !io_device_t::sm_pairing_request_yes_no() )
-                return this->error_response( details::sm_error_codes::passkey_entry_failed, output, out_size, state );
+            io_device_t::sm_pairing_request_yes_no( state );
         }
 
+        if ( state.state() == details::sm_pairing_state::user_response_failed )
+            return this->error_response( details::sm_error_codes::passkey_entry_failed, output, out_size, state );
+
+        const auto& nonce = state.local_nonce();
         out_size = pairing_random_size;
         output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_random );
         std::copy( nonce.begin(), nonce.end(), &output[ 1 ] );
@@ -1391,26 +1422,35 @@ namespace bluetoe {
     template < class OtherConnectionData >
     bool details::lesc_security_manager_impl< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& state ) const
     {
-        return state.state() == details::sm_pairing_state::lesc_public_keys_exchanged;
+        return state.state() == details::sm_pairing_state::lesc_public_keys_exchanged
+            || state.state() == details::sm_pairing_state::user_response_failed;
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
     void details::lesc_security_manager_impl< ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
-        assert( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged );
+        assert( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged
+             || state.state() == details::sm_pairing_state::user_response_failed );
 
-        const auto& Nb = state.local_nonce();
-        const std::uint8_t* Pkax = state.remote_public_key_x();
-        const std::uint8_t* PKbx = state.local_public_key_x();
+        if ( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged )
+        {
+            const auto& Nb = state.local_nonce();
+            const std::uint8_t* Pkax = state.remote_public_key_x();
+            const std::uint8_t* PKbx = state.local_public_key_x();
 
-        const auto confirm = functions.f4( PKbx, Pkax, Nb, 0 );
+            const auto confirm = functions.f4( PKbx, Pkax, Nb, 0 );
 
-        out_size = this->pairing_confirm_size;
-        output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_confirm );
-        std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
+            out_size = this->pairing_confirm_size;
+            output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_confirm );
+            std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
 
-        state.pairing_confirm_send();
+            state.pairing_confirm_send();
+        }
+        else
+        {
+            this->error_response( details::sm_error_codes::passkey_entry_failed, output, out_size, state );
+        }
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
