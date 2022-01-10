@@ -153,9 +153,9 @@ struct pass_key_display_t {
 
 struct yes_no_input_t
 {
-    bool sm_pairing_yes_no()
+    void sm_pairing_yes_no( bluetoe::pairing_yes_no_response& response )
     {
-        return true;
+        response.yes_no_response( true );
     }
 } yes_no_input;
 
