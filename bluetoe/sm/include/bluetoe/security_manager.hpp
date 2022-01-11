@@ -81,6 +81,7 @@ namespace bluetoe {
             pairing_completed,
             user_response_wait,
             user_response_failed,
+            user_response_success,
             // legacy only
             legacy_pairing_requested,
             legacy_pairing_confirmed,
@@ -263,7 +264,7 @@ namespace bluetoe {
                 assert( state_ == details::sm_pairing_state::user_response_wait );
 
                 state_ = response
-                    ? details::sm_pairing_state::lesc_pairing_random_exchanged
+                    ? details::sm_pairing_state::user_response_success
                     : details::sm_pairing_state::user_response_failed;
             }
 
@@ -340,7 +341,9 @@ namespace bluetoe {
 
             void lesc_pairing_completed( const details::uint128_t& long_term_key )
             {
-                assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged );
+                assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged
+                     || state_ == details::sm_pairing_state::user_response_success );
+
                 state_ = details::sm_pairing_state::pairing_completed;
 
                 long_term_key_ = long_term_key;
@@ -424,7 +427,7 @@ namespace bluetoe {
                 assert( state_ == details::sm_pairing_state::user_response_wait );
 
                 state_ = response
-                    ? details::sm_pairing_state::lesc_pairing_random_exchanged
+                    ? details::sm_pairing_state::user_response_success
                     : details::sm_pairing_state::user_response_failed;
             }
 
@@ -500,7 +503,9 @@ namespace bluetoe {
 
             void lesc_pairing_completed( const details::uint128_t& long_term_key )
             {
-                assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged );
+                assert( state_ == details::sm_pairing_state::lesc_pairing_random_exchanged
+                     || state_ == details::sm_pairing_state::user_response_success );
+
                 state_ = details::sm_pairing_state::pairing_completed;
 
                 long_term_key_ = long_term_key;
@@ -733,6 +738,12 @@ namespace bluetoe {
 
             template < class OtherConnectionData, class SecurityFunctions >
             void lesc_handle_pairing_dhkey_check( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
+
+            template < class OtherConnectionData >
+            bool lesc_security_manager_output_available( connection_data< OtherConnectionData >& ) const;
+
+            template < class OtherConnectionData, class SecurityFunctions >
+            void lesc_l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >&, SecurityFunctions& );
 
             details::io_capabilities_t legacy_local_io_caps() const;
             details::io_capabilities_t lesc_local_io_caps() const;
@@ -1296,7 +1307,7 @@ namespace bluetoe {
         if ( in_size != pairing_dhkey_check_size )
             return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
 
-        if ( state.state() != details::sm_pairing_state::lesc_pairing_random_exchanged )
+        if ( state.state() != details::sm_pairing_state::lesc_pairing_random_exchanged && state.state() != details::sm_pairing_state::user_response_wait )
             return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
 
         const details::ecdh_shared_secret_t dh_key = functions.p256( state.local_private_key(), state.remote_public_key() );
@@ -1314,11 +1325,71 @@ namespace bluetoe {
 
         const auto eb = functions.f6( mac_key, state.local_nonce(), state.remote_nonce(), zero, lesc_local_io_caps(), functions.local_address(), state.remote_address() );
 
-        out_size = pairing_dhkey_check_size;
-        output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_dhkey_check );
-        std::copy( eb.begin(), eb.end(), &output[ 1 ] );
+        if ( state.state() != details::sm_pairing_state::user_response_wait )
+        {
+            out_size = pairing_dhkey_check_size;
+            output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_dhkey_check );
+            std::copy( eb.begin(), eb.end(), &output[ 1 ] );
 
-        state.lesc_pairing_completed( ltk );
+            state.lesc_pairing_completed( ltk );
+        }
+        else
+        {
+            out_size = 0;
+        }
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    template < class OtherConnectionData >
+    bool details::security_manager_base< ConnectionData, Options... >::lesc_security_manager_output_available( connection_data< OtherConnectionData >& state ) const
+    {
+        return state.state() == details::sm_pairing_state::lesc_public_keys_exchanged
+            || state.state() == details::sm_pairing_state::user_response_success
+            || state.state() == details::sm_pairing_state::user_response_failed;
+    }
+
+    template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
+    template < class OtherConnectionData, class SecurityFunctions >
+    void details::security_manager_base< ConnectionData, Options... >::lesc_l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
+    {
+        assert( lesc_security_manager_output_available( state ) );
+
+        if ( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged )
+        {
+            const auto& Nb = state.local_nonce();
+            const std::uint8_t* Pkax = state.remote_public_key_x();
+            const std::uint8_t* PKbx = state.local_public_key_x();
+
+            const auto confirm = functions.f4( PKbx, Pkax, Nb, 0 );
+
+            out_size = this->pairing_confirm_size;
+            output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_confirm );
+            std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
+
+            state.pairing_confirm_send();
+        }
+        else if ( state.state() == details::sm_pairing_state::user_response_success )
+        {
+            const details::ecdh_shared_secret_t dh_key = functions.p256( state.local_private_key(), state.remote_public_key() );
+
+            details::uint128_t mac_key;
+            details::uint128_t ltk;
+            static const details::uint128_t zero = {{ 0 }};
+
+            std::tie( mac_key, ltk ) = functions.f5( dh_key, state.remote_nonce(), state.local_nonce(), state.remote_address(), functions.local_address() );
+            const auto eb = functions.f6( mac_key, state.local_nonce(), state.remote_nonce(), zero, this->lesc_local_io_caps(), functions.local_address(), state.remote_address() );
+
+            out_size = this->pairing_dhkey_check_size;
+            output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_dhkey_check );
+            std::copy( eb.begin(), eb.end(), &output[ 1 ] );
+
+            state.lesc_pairing_completed( ltk );
+        }
+        else
+        {
+            this->error_response( details::sm_error_codes::passkey_entry_failed, output, out_size, state );
+        }
+
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1422,35 +1493,14 @@ namespace bluetoe {
     template < class OtherConnectionData >
     bool details::lesc_security_manager_impl< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& state ) const
     {
-        return state.state() == details::sm_pairing_state::lesc_public_keys_exchanged
-            || state.state() == details::sm_pairing_state::user_response_failed;
+        return this->lesc_security_manager_output_available( state );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
     void details::lesc_security_manager_impl< ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
-        assert( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged
-             || state.state() == details::sm_pairing_state::user_response_failed );
-
-        if ( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged )
-        {
-            const auto& Nb = state.local_nonce();
-            const std::uint8_t* Pkax = state.remote_public_key_x();
-            const std::uint8_t* PKbx = state.local_public_key_x();
-
-            const auto confirm = functions.f4( PKbx, Pkax, Nb, 0 );
-
-            out_size = this->pairing_confirm_size;
-            output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_confirm );
-            std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
-
-            state.pairing_confirm_send();
-        }
-        else
-        {
-            this->error_response( details::sm_error_codes::passkey_entry_failed, output, out_size, state );
-        }
+        this->lesc_l2cap_output( output, out_size, state, functions );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1508,26 +1558,14 @@ namespace bluetoe {
     template < class OtherConnectionData >
     bool details::security_manager_impl< ConnectionData, Options... >::security_manager_output_available( connection_data< OtherConnectionData >& state ) const
     {
-        return state.state() == details::sm_pairing_state::lesc_public_keys_exchanged;
+        return this->lesc_security_manager_output_available( state );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class OtherConnectionData, class SecurityFunctions >
     void details::security_manager_impl< ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, connection_data< OtherConnectionData >& state, SecurityFunctions& functions )
     {
-        assert( state.state() == details::sm_pairing_state::lesc_public_keys_exchanged );
-
-        const auto& Nb = state.local_nonce();
-        const std::uint8_t* Pkax = state.remote_public_key_x();
-        const std::uint8_t* PKbx = state.local_public_key_x();
-
-        const auto confirm = functions.f4( PKbx, Pkax, Nb, 0 );
-
-        out_size = this->pairing_confirm_size;
-        output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_confirm );
-        std::copy( confirm.begin(), confirm.end(), &output[ 1 ] );
-
-        state.pairing_confirm_send();
+        this->lesc_l2cap_output( output, out_size, state, functions );
     }
 
     template < template < class OtherConnectionData > class ConnectionData, typename ... Options >
