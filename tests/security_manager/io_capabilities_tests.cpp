@@ -23,7 +23,6 @@ BOOST_AUTO_TEST_CASE( explicitly_state_no_input )
 
 struct pairing_yes_no_handler_t
 {
-     bool sm_pairing_yes_no();
 } pairing_yes_no_handler;
 
 BOOST_AUTO_TEST_CASE( no_output_yes_no_input )
