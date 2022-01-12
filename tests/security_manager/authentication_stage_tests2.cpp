@@ -148,6 +148,8 @@ struct with_display_and_yes_no_input : test::security_manager_base< Manager, tes
 {
     with_display_and_yes_no_input()
     {
+        pairing_io.init();
+
         // Feature Exchange
         this->expected(
             {
@@ -249,7 +251,6 @@ struct with_display_and_yes_no_input : test::security_manager_base< Manager, tes
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( async_numeric_compairson_failed, Manager, test::lesc_managers )
 {
-    pairing_io.init();
     with_display_and_yes_no_input< Manager > fixture;
 
     fixture.expected(
@@ -276,7 +277,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( async_numeric_compairson_failed, Manager, test::l
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( async_numeric_compairson_success, Manager, test::lesc_managers )
 {
-    pairing_io.init();
     with_display_and_yes_no_input< Manager > fixture;
 
     fixture.expected(
@@ -302,4 +302,51 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( async_numeric_compairson_success, Manager, test::
             0x07, 0xeb, 0x2d, 0x84
         }
     );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( sync_numeric_compairson_success, Manager, test::lesc_managers )
+{
+    with_display_and_yes_no_input< Manager > fixture;
+    pairing_io.response( true );
+
+    fixture.expected_ignoring_output_available(
+        {
+            0x0D,           // DHKey Check
+            0x68, 0xd6, 0x70, 0x63,
+            0xae, 0x09, 0x87, 0x88,
+            0xa0, 0x19, 0x56, 0xa0,
+            0xca, 0xf0, 0x5d, 0x9d
+        },
+        {
+            0x0D,           // DHKey Check
+            0xce, 0x16, 0xae, 0x4e,
+            0x27, 0x54, 0x6b, 0x0d,
+            0x07, 0x7d, 0xd1, 0xd6,
+            0x07, 0xeb, 0x2d, 0x84
+        }
+    );
+
+    BOOST_CHECK( !fixture.security_manager_output_available( fixture.connection_data_ ) );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( sync_numeric_compairson_fail, Manager, test::lesc_managers )
+{
+    with_display_and_yes_no_input< Manager > fixture;
+    pairing_io.response( false );
+
+    fixture.expected_ignoring_output_available(
+        {
+            0x0D,           // DHKey Check
+            0x68, 0xd6, 0x70, 0x63,
+            0xae, 0x09, 0x87, 0x88,
+            0xa0, 0x19, 0x56, 0xa0,
+            0xca, 0xf0, 0x5d, 0x9d
+        },
+        {
+            0x05,           // Pairing Failed
+            0x01            // Passkey Entry Failed
+        }
+    );
+
+    BOOST_CHECK( !fixture.security_manager_output_available( fixture.connection_data_ ) );
 }

@@ -1278,35 +1278,46 @@ namespace bluetoe {
         if ( in_size != pairing_dhkey_check_size )
             return this->error_response( details::sm_error_codes::invalid_parameters, output, out_size, state );
 
-        if ( state.state() != details::sm_pairing_state::lesc_pairing_random_exchanged && state.state() != details::sm_pairing_state::user_response_wait )
+        static const auto expected_states = {
+            details::sm_pairing_state::lesc_pairing_random_exchanged,
+            details::sm_pairing_state::user_response_wait,
+            details::sm_pairing_state::user_response_failed,
+            details::sm_pairing_state::user_response_success
+        };
+
+        if ( std::find( std::begin( expected_states ), std::end( expected_states ), state.state() ) == std::end( expected_states ) )
             return this->error_response( details::sm_error_codes::unspecified_reason, output, out_size, state );
 
-        const details::ecdh_shared_secret_t dh_key = functions.p256( state.local_private_key(), state.remote_public_key() );
-
-        details::uint128_t mac_key;
-        details::uint128_t ltk;
-        static const details::uint128_t zero = {{ 0 }};
-
-        std::tie( mac_key, ltk ) = functions.f5( dh_key, state.remote_nonce(), state.local_nonce(), state.remote_address(), functions.local_address() );
-
-        const auto calc_ea = functions.f6( mac_key, state.remote_nonce(), state.local_nonce(), zero, state.remote_io_caps(), state.remote_address(), functions.local_address() );
-
-        if ( !std::equal( calc_ea.begin(), calc_ea.end(), &input[ 1 ] ) )
-            return this->error_response( details::sm_error_codes::dhkey_check_failed, output, out_size, state );
-
-        const auto eb = functions.f6( mac_key, state.local_nonce(), state.remote_nonce(), zero, lesc_local_io_caps(), functions.local_address(), state.remote_address() );
-
-        if ( state.state() != details::sm_pairing_state::user_response_wait )
+        if ( state.state() == details::sm_pairing_state::user_response_wait )
         {
+            out_size = 0;
+        }
+        else if ( state.state() == details::sm_pairing_state::user_response_failed )
+        {
+            return this->error_response( details::sm_error_codes::passkey_entry_failed, output, out_size, state );
+        }
+        else
+        {
+            const details::ecdh_shared_secret_t dh_key = functions.p256( state.local_private_key(), state.remote_public_key() );
+
+            details::uint128_t mac_key;
+            details::uint128_t ltk;
+            static const details::uint128_t zero = {{ 0 }};
+
+            std::tie( mac_key, ltk ) = functions.f5( dh_key, state.remote_nonce(), state.local_nonce(), state.remote_address(), functions.local_address() );
+
+            const auto calc_ea = functions.f6( mac_key, state.remote_nonce(), state.local_nonce(), zero, state.remote_io_caps(), state.remote_address(), functions.local_address() );
+
+            if ( !std::equal( calc_ea.begin(), calc_ea.end(), &input[ 1 ] ) )
+                return this->error_response( details::sm_error_codes::dhkey_check_failed, output, out_size, state );
+
+            const auto eb = functions.f6( mac_key, state.local_nonce(), state.remote_nonce(), zero, lesc_local_io_caps(), functions.local_address(), state.remote_address() );
+
             out_size = pairing_dhkey_check_size;
             output[ 0 ] = static_cast< std::uint8_t >( details::sm_opcodes::pairing_dhkey_check );
             std::copy( eb.begin(), eb.end(), &output[ 1 ] );
 
             state.lesc_pairing_completed( ltk );
-        }
-        else
-        {
-            out_size = 0;
         }
     }
 
