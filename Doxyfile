@@ -935,6 +935,7 @@ EXCLUDE_PATTERNS       =
 
 EXCLUDE_SYMBOLS        = bluetoe::details::* \
                          bluetoe::nrf51_details::* \
+                         bluetoe::nrf52_details::* \
                          bluetoe::link_layer::details::* \
                          bluetoe::hid::details::*
 

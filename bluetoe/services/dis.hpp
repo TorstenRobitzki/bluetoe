@@ -151,10 +151,10 @@ namespace bluetoe {
                     return data_size;
                 }
             };
-            /** @endcond */
 
             template < vendor_id_source_t VendorIDSource, std::uint16_t VendorID, std::uint16_t ProductID, std::uint16_t ProductVersion >
             constexpr std::uint8_t pnp_id_value< VendorIDSource, VendorID, ProductID, ProductVersion >::data[ data_size ];
+            /** @endcond */
         }
 
         /**

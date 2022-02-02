@@ -7,6 +7,8 @@
 namespace bluetoe {
 namespace details {
 
+    /** @cond HIDDEN_SYMBOLS */
+
     /**
      *
      */
@@ -94,6 +96,7 @@ namespace details {
         }
     };
 
+    /** @endcond */
 }
 }
 
