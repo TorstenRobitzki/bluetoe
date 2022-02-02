@@ -934,6 +934,7 @@ EXCLUDE_PATTERNS       =
 # exclude all test directories use the pattern */test/*
 
 EXCLUDE_SYMBOLS        = bluetoe::details::* \
+                         bluetoe::nrf_details::* \
                          bluetoe::nrf51_details::* \
                          bluetoe::nrf52_details::* \
                          bluetoe::link_layer::details::* \

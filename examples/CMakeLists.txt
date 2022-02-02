@@ -46,7 +46,6 @@ add_subdirectory(${BINDING}_toolchain_support)
 
 # Resonale implementation of assert (no __PRETTY_FUNCTION__)
 add_subdirectory(assert)
-include_directories(SYSTEM ./assert)
 
 # bluetoe library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/bluetoe)
@@ -59,12 +58,15 @@ function(add_bluetoe_example target_name)
 
     add_linker_script(${target_name})
 
-    target_link_libraries(${target_name} PRIVATE bluetoe::iface
-                                         bluetoe::bindings::nrf51
-                                         startup::${BINDING}
-                                         toolchain::${BINDING}
-                                         assert::arm
-                            )
+    target_link_libraries(${target_name}
+        PUBLIC
+            assert::arm
+        PRIVATE
+            toolchain::${BINDING}
+            startup::${BINDING}
+            bluetoe::bindings::${BINDING}
+    )
+
     add_custom_target(${target_name}.artifacts ALL
             COMMAND ${CMAKE_OBJCOPY} -S -O ihex ${target_name}.elf ${target_name}.hex
             COMMAND ${CMAKE_OBJCOPY} -S -O binary --only-section=.text ${target_name}.elf ${target_name}.bin

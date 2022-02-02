@@ -13,7 +13,7 @@ namespace link_layer {
     class write_buffer;
     class read_buffer;
 
-    /*
+    /**
      * @brief Type responsible for radio I/O and timing
      *
      * The API provides a set of scheduling functions, to schedule advertising or to schedule connection events. All scheduling functions take a point in time
@@ -298,6 +298,41 @@ namespace link_layer {
          * features required for LESC
          */
         bool is_valid_public_key( const std::uint8_t* public_key ) const;
+
+        std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
+
+        bluetoe::details::uint128_t select_random_nonce();
+
+        bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
+
+        bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
+
+        std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
+            const bluetoe::details::ecdh_shared_secret_t dh_key,
+            const bluetoe::details::uint128_t& nonce_central,
+            const bluetoe::details::uint128_t& nonce_periperal,
+            const bluetoe::link_layer::device_address& addr_controller,
+            const bluetoe::link_layer::device_address& addr_peripheral );
+
+        bluetoe::details::uint128_t f6(
+            const bluetoe::details::uint128_t& key,
+            const bluetoe::details::uint128_t& n1,
+            const bluetoe::details::uint128_t& n2,
+            const bluetoe::details::uint128_t& r,
+            const bluetoe::details::io_capabilities_t& io_caps,
+            const bluetoe::link_layer::device_address& addr_controller,
+            const bluetoe::link_layer::device_address& addr_peripheral );
+
+        std::uint32_t g2(
+            const std::uint8_t*                 u,
+            const std::uint8_t*                 v,
+            const bluetoe::details::uint128_t&  x,
+            const bluetoe::details::uint128_t&  y );
+
+        /**
+         * Functions required by IO capabilties
+         */
+        bluetoe::details::uint128_t create_passkey();
 
         /**
          * @brief start the encryption of received PDUs with the next connection event.
