@@ -75,7 +75,9 @@ namespace bluetoe
     class pairing_yes_no_response
     {
     public:
+        /** @cond HIDDEN_SYMBOLS */
         virtual void yes_no_response( bool ) = 0;
+        /** @endcond */
     protected:
         ~pairing_yes_no_response() = default;
     };
