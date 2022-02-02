@@ -112,8 +112,6 @@ private:
 
     void store_pass_key( int pass_key )
     {
-        int result = 0;
-
         for ( int digit = 0; digit != pass_key_length; ++digit )
         {
             auto& num_blinks = pass_key_[ pass_key_length - digit - 1 ];

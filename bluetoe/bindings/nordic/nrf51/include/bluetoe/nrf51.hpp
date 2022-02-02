@@ -3,6 +3,7 @@
 
 #include <bluetoe/link_layer.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
+#include <bluetoe/nrf.hpp>
 #include <cstdint>
 
 extern "C" void RADIO_IRQHandler(void);
@@ -442,42 +443,7 @@ namespace bluetoe
              * When using encryption, the Radio and the AES CCM peripheral expect an "RFU" byte between LL header and
              * payload.
              */
-            struct pdu_layout : details::layout_base< pdu_layout > {
-                /** @cond HIDDEN_SYMBOLS */
-                static constexpr std::size_t header_size = sizeof( std::uint16_t );
-
-                using bluetoe::link_layer::details::layout_base< pdu_layout >::header;
-
-                static std::uint16_t header( const std::uint8_t* pdu )
-                {
-                    return ::bluetoe::details::read_16bit( pdu );
-                }
-
-                static void header( std::uint8_t* pdu, std::uint16_t header_value )
-                {
-                    ::bluetoe::details::write_16bit( pdu, header_value );
-                }
-
-                static std::pair< std::uint8_t*, std::uint8_t* > body( const read_buffer& pdu )
-                {
-                    assert( pdu.size >= header_size );
-
-                    return { &pdu.buffer[ header_size + 1 ], &pdu.buffer[ pdu.size ] };
-                }
-
-                static std::pair< const std::uint8_t*, const std::uint8_t* > body( const write_buffer& pdu )
-                {
-                    assert( pdu.size >= header_size );
-
-                    return { &pdu.buffer[ header_size + 1 ], &pdu.buffer[ pdu.size ] };
-                }
-
-                static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )
-                {
-                    return header_size + payload_size + 1;
-                }
-                /** @endcond */
-            };
+            using pdu_layout = bluetoe::nrf_details::encrypted_pdu_layout;
         };
    }
 

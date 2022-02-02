@@ -28,8 +28,8 @@ add_subdirectory(bluetoe/sm)
 add_subdirectory(bluetoe/services)
 
 if (CMAKE_CROSSCOMPILING)
-    add_subdirectory(bluetoe/bindings/nrf51)
-endif ()
+    add_subdirectory(bluetoe/bindings/nordic)
+endif()
 
 if (NOT CMAKE_CROSSCOMPILING AND BLUETOE_BUILD_UNIT_TESTS)
     enable_testing()

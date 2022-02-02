@@ -39,6 +39,11 @@ namespace bluetoe {
          * A server parameter that defines how the response to a scan request is created
          */
         struct scan_response_data_meta_type {};
+
+        /*
+         * A option only viable for a hardware binding
+         */
+        struct binding_option_meta_type {};
     }
 }
 
