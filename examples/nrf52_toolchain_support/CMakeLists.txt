@@ -11,8 +11,7 @@ if(CMAKE_CROSSCOMPILING)
     target_include_directories(toolchain_nrf52 INTERFACE ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include)
     target_include_directories(toolchain_nrf52 INTERFACE .)
     target_compile_definitions(toolchain_nrf52 INTERFACE NRF52 NRF52832_XXAA)
-
-    add_compile_definitions($<$<CONFIG:Debug>:BLUETOE_NRF52_RADIO_DEBUG>)
+    target_compile_definitions(toolchain_nrf52 INTERFACE $<$<CONFIG:Debug>:BLUETOE_NRF52_RADIO_DEBUG>)
 
     enable_language(ASM)
     add_library(startup_nrf52 STATIC
