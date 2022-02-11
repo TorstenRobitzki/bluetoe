@@ -666,6 +666,11 @@ namespace nrf51_details {
             // Transmission has been startet already, make sure, radio gets disabled
             nrf_radio->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
+            /*
+             * There is a special handling for the case, where the CRC is correct, but the MIC fails:
+             * It is expected, that this happens, if the master did not received the last PDU and thus
+             * resends its PDU, while the local receive counter was incremented.
+             */
             const bool timeout   = nrf_timer->EVENTS_COMPARE[ 1 ];
             const bool crc_error = !timeout && ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
             const bool mic_error = receive_encrypted_ && receive_buffer_.buffer[ 1 ] != 0 && ( nrf_ccm->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == CCM_MICSTATUS_MICSTATUS_CheckFailed;
