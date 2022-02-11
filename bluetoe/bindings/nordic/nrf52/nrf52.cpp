@@ -17,11 +17,13 @@ namespace nrf52_details
         static constexpr int debug_pin_address_end   = 13;
         static constexpr int debug_pin_keystream     = 14;
         static constexpr int debug_pin_debug         = 15;
+        static constexpr int debug_pin_isr           = 16;
 
-        static void init_debug()
+        void init_debug()
         {
             for ( auto pin : { debug_pin_end_crypt, debug_pin_ready_disable,
-                                debug_pin_address_end, debug_pin_keystream, debug_pin_debug } )
+                                debug_pin_address_end, debug_pin_keystream, debug_pin_debug,
+                                debug_pin_isr } )
             {
                 NRF_GPIO->PIN_CNF[ pin ] =
                     ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
@@ -74,8 +76,27 @@ namespace nrf52_details
             NRF_PPI->CHENSET = 0x3f;
         }
 
+        void toggle_debug_pin()
+        {
+            NRF_GPIO->OUTSET = ( 1 << debug_pin_debug );
+            NRF_GPIO->OUTCLR = ( 1 << debug_pin_debug );
+        }
+
+        void set_isr_pin()
+        {
+            NRF_GPIO->OUTSET = ( 1 << debug_pin_isr );
+        }
+
+        void reset_isr_pin()
+        {
+            NRF_GPIO->OUTCLR = ( 1 << debug_pin_isr );
+        }
 #   else
-        static void init_debug() {}
+        void init_debug() {}
+
+        void toggle_debug_pin() {}
+        void set_isr_pin() {}
+        void reset_isr_pin() {}
 #   endif
 
     /*
@@ -219,24 +240,18 @@ namespace nrf52_details
         NVIC_EnableIRQ( RADIO_IRQn );
     }
 
-    void radio_hardware_without_crypto_support::configure_radio_channel(
-        unsigned                                    channel )
+    void radio_hardware_without_crypto_support::configure_radio_channel( unsigned channel )
     {
         // TODO Why do we need that?
+        // Maybe: When the radio is ramping up for transmitting or reception and is then disabled,
+        //        the next state would be TXDISABLE or RXDISABLE
         while ((nrf_radio->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled);
-        assert( ( nrf_radio->STATE & RADIO_STATE_STATE_Msk ) == RADIO_STATE_STATE_Disabled );
 
         nrf_radio->FREQUENCY   = frequency_from_channel( channel );
         nrf_radio->DATAWHITEIV = channel & 0x3F;
 
         nrf_radio->INTENCLR    = 0xffffffff;
         nrf_timer->INTENCLR    = 0xffffffff;
-
-        nrf_radio->EVENTS_END       = 0;
-        nrf_radio->EVENTS_DISABLED  = 0;
-        nrf_radio->EVENTS_READY     = 0;
-        nrf_radio->EVENTS_ADDRESS   = 0;
-        nrf_radio->EVENTS_PAYLOAD   = 0;
     }
 
     void radio_hardware_without_crypto_support::configure_transmit_train(
@@ -257,6 +272,8 @@ namespace nrf52_details
             | ( 1 << compare1_disable_ppi_channel )
             | ( 1 << radio_end_capture2_ppi_channel );
 
+        nrf_radio->EVENTS_PAYLOAD = 0;
+        nrf_radio->EVENTS_DISABLED = 0;
         nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
     }
 
@@ -284,19 +301,26 @@ namespace nrf52_details
           | RADIO_SHORTS_END_DISABLE_Msk
           | RADIO_SHORTS_DISABLED_TXEN_Msk;
 
+        nrf_radio->EVENTS_PAYLOAD = 0;
         nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
         nrf_radio->PCNF1       = ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( receive_buffer.size << RADIO_PCNF1_MAXLEN_Pos );
     }
 
     void radio_hardware_without_crypto_support::stop_radio()
     {
+        nrf_radio->INTENCLR      = RADIO_INTENSET_DISABLED_Msk;
         nrf_radio->SHORTS        = 0;
         nrf_radio->TASKS_DISABLE = 1;
     }
 
-    void radio_hardware_without_crypto_support::store_timer_anchor()
+    void radio_hardware_without_crypto_support::capture_timer_anchor()
     {
-        anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] );
+        nrf_timer->TASKS_CAPTURE[ 2 ] = 1;
+    }
+
+    void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
+    {
+        anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] + offset_us );
     }
 
     bool radio_hardware_without_crypto_support::received_pdu()
@@ -307,15 +331,24 @@ namespace nrf52_details
         return result;
     }
 
-    void radio_hardware_without_crypto_support::schedule_radio_start(
+    std::uint32_t radio_hardware_without_crypto_support::now()
+    {
+        nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
+        return nrf_timer->CC[ 3 ] - anchor_offset_.usec();
+    }
+
+    void radio_hardware_without_crypto_support::schedule_transmission(
         bluetoe::link_layer::delta_time when,
         std::uint32_t                   read_timeout_us )
     {
+        nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+
         if ( when.zero() )
         {
-            nrf_radio->TASKS_TXEN          = 1;
             nrf_timer->TASKS_CAPTURE[ 1 ]  = 1;
-            nrf_timer->CC[ 1 ]            += read_timeout_us + us_radio_tx_startup_time;
+            nrf_timer->CC[ 1 ]            += us_radio_tx_startup_time + read_timeout_us;
+
+            nrf_radio->TASKS_TXEN          = 1;
         }
         else
         {
@@ -335,6 +368,38 @@ namespace nrf52_details
         }
     }
 
+    void radio_hardware_without_crypto_support::schedule_reception(
+        std::uint32_t                   begin_us,
+        std::uint32_t                   end_us )
+    {
+        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
+        nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
+
+        nrf_ppi->CHENCLR =
+              ( 1 << compare0_txen_ppi_channel )
+            | ( 1 << compare0_rxen_ppi_channel )
+            | ( 1 << compare1_disable_ppi_channel )
+            | ( 1 << radio_end_capture2_ppi_channel )
+            | ( 1 << radio_address_ccm_crypt )
+            | ( 1 << radio_bcmatch_aar_start_channel );
+
+        nrf_ppi->CHENSET       =
+              ( 1 << compare0_rxen_ppi_channel )
+            | ( 1 << compare1_disable_ppi_channel )
+            | ( 1 << radio_end_capture2_ppi_channel );
+
+        nrf_radio->EVENTS_DISABLED = 0;
+        nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+
+        nrf_timer->CC[ 0 ] = begin_us + anchor_offset_.usec();
+        nrf_timer->CC[ 1 ] = end_us + anchor_offset_.usec();
+    }
+
+    void radio_hardware_without_crypto_support::stop_timeout_timer()
+    {
+        nrf_ppi->CHENCLR = ( 1 << compare1_disable_ppi_channel );
+    }
+
     std::uint32_t radio_hardware_without_crypto_support::static_random_address_seed()
     {
         return NRF_FICR->DEVICEID[ 0 ];
@@ -345,6 +410,11 @@ namespace nrf52_details
         nrf_radio->BASE0     = ( access_address << 8 ) & 0xFFFFFF00;
         nrf_radio->PREFIX0   = ( access_address >> 24 ) & RADIO_PREFIX0_AP0_Msk;
         nrf_radio->CRCINIT   = crc_init;
+    }
+
+    void radio_hardware_without_crypto_support::debug_toggle()
+    {
+        toggle_debug_pin();
     }
 
     // see https://devzone.nordicsemi.com/question/47493/disable-interrupts-and-enable-interrupts-if-they-where-enabled/
@@ -367,13 +437,21 @@ namespace nrf52_details
 
 extern "C" void RADIO_IRQHandler(void)
 {
-    assert( bluetoe::nrf52_details::nrf_radio->EVENTS_DISABLED );
+    using namespace bluetoe::nrf52_details;
+    set_isr_pin();
 
-    bluetoe::nrf52_details::nrf_radio->EVENTS_DISABLED = 0;
-    bluetoe::nrf52_details::nrf_radio->EVENTS_READY    = 0;
+    assert( nrf_radio->EVENTS_DISABLED );
 
     assert( bluetoe::nrf52_details::instance );
     assert( bluetoe::nrf52_details::isr_handler );
 
-    bluetoe::nrf52_details::isr_handler( bluetoe::nrf52_details::instance );
+    isr_handler( bluetoe::nrf52_details::instance );
+
+    nrf_radio->EVENTS_END       = 0;
+    nrf_radio->EVENTS_DISABLED  = 0;
+    nrf_radio->EVENTS_READY     = 0;
+    nrf_radio->EVENTS_ADDRESS   = 0;
+    nrf_radio->EVENTS_PAYLOAD   = 0;
+
+    reset_isr_pin();
 }
