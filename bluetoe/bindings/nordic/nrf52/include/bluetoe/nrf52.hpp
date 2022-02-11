@@ -8,6 +8,21 @@
 
 #include <nrf.h>
 
+/*
+ * Design desisions:
+ *
+ * - The radio interrupt has highes priority
+ * - The radio ISR is triggered by the radio DISABLED event.
+ * - The radio is either disabled by receiving and transmitting, or by the receive timeout
+ *   timer, that triggers the DISABLE task of the radio, if the reception timed out.
+ * - The ancor of every timing, is the reception of the first PDU in a connection event.
+ * - During advertising, the accuracy of the ancor is not important, as there is already some
+ *   random jitter to be applied to the interval according to the specs.
+ * - CC[ 0 ] of timer0 is used to start the radio
+ * - CC[ 1 ] is used to implement the timeout timer and DISABLES the radio
+ * - CC[ 2 ] is used to capture the anchor when receiving a connect request or the first PDU
+ *           in a connection event.
+ */
 namespace bluetoe
 {
     namespace nrf52_details
@@ -23,10 +38,17 @@ namespace bluetoe
         // position of the connecting address (AdvA)
         static constexpr unsigned           connect_addr_offset          = 2 + 6;
 
+        // Time reserved to setup a connection event in µs
+        // time measured to setup a connection event, using GCC 8.3.1 with -O0 is 12µs
+        static constexpr std::uint32_t      setup_connection_event_limit_us = 50;
+
         // after T_IFS (150µs +- 2) at maximum, a connection request will be received (34 Bytes + 1 Byte preable, 4 Bytes Access Address and 3 Bytes CRC)
         // plus some additional 20µs
         static constexpr std::uint32_t      adv_reponse_timeout_us       = 152 + 42 * 8 + 20;
+        static constexpr unsigned           us_radio_rx_startup_time     = 138;
         static constexpr unsigned           us_radio_tx_startup_time     = 140;
+
+        static constexpr std::uint8_t       more_data_flag = 0x10;
 
         /**
          * @brief abstraction of the hardware that can be replaced during tests
@@ -124,27 +146,34 @@ namespace bluetoe
             static void configure_transmit_train(
                 const bluetoe::link_layer::write_buffer&    transmit_data );
 
+            /**
+             * @brief configure the radio to transmit and then stop the radio.
+             */
             static void configure_final_transmit(
                 const bluetoe::link_layer::write_buffer&    transmit_data );
 
             /**
-             * @brief configure radio to transmit data and then switch to
-             *        receving.
+             * @brief configure radio to receive data and then switch to
+             *        transmitting.
              */
             static void configure_receive_train(
                 const bluetoe::link_layer::read_buffer&     receive_buffer );
 
             static void stop_radio();
 
+            static void capture_timer_anchor();
+
             /**
              * @brief store the captured time anchor
              */
-            static void store_timer_anchor();
+            static void store_timer_anchor( int offset_us );
 
             /**
              * @brief returns true, if a valid PDU was received
              */
             static bool received_pdu();
+
+            static std::uint32_t now();
 
             static void setup_identity_resolving(
                 const std::uint8_t* )
@@ -154,13 +183,24 @@ namespace bluetoe
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
              */
-            static void schedule_radio_start(
+            static void schedule_transmission(
                 bluetoe::link_layer::delta_time when,
                 std::uint32_t                   timeout_us );
+
+            static void schedule_reception(
+                std::uint32_t                   begin_us,
+                std::uint32_t                   end_us );
+
+            /**
+             * @brief stop the timer from disabling the RADIO
+             */
+            static void stop_timeout_timer();
 
             static std::uint32_t static_random_address_seed();
 
             static void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
+
+            static void debug_toggle();
 
             class lock_guard
             {
@@ -197,8 +237,8 @@ namespace bluetoe
             >::type;
         };
 
-        template < class CallBacks, class Hardware >
-        class nrf52_radio_base
+        template < class CallBacks, class Hardware, class Buffer >
+        class nrf52_radio_base : public Buffer
         {
         public:
             nrf52_radio_base()
@@ -234,24 +274,46 @@ namespace bluetoe
                 // TODO: Move to somewhere else? Conditional?
                 Hardware::setup_identity_resolving( receive_buffer_.buffer + connect_addr_offset );
 
-                const std::uint32_t read_timeout = ( advertising.size + 1 + 4 + 3 ) * 8 + adv_reponse_timeout_us;
+                // Advertising size + LL header + preable + access address + CRC
+                const std::uint32_t read_timeout = ( advertising.size + 2 + 1 + 4 + 3 ) * 8 + adv_reponse_timeout_us;
 
                 state_ = state::adv_transmitting;
 
-                Hardware::schedule_radio_start( when, read_timeout );
+                Hardware::schedule_transmission( when, read_timeout );
             }
 
-            bluetoe::link_layer::delta_time schedule_connection_event(
+            link_layer::delta_time schedule_connection_event(
                 unsigned                                    channel,
                 bluetoe::link_layer::delta_time             start_receive,
                 bluetoe::link_layer::delta_time             end_receive,
                 bluetoe::link_layer::delta_time             connection_interval )
             {
-                (void)channel;
-                (void)start_receive;
-                (void)end_receive;
-                (void)connection_interval;
-                return bluetoe::link_layer::delta_time();
+                assert( state_ == state::idle );
+                assert( start_receive < end_receive );
+
+                // Stop all interrupts so that the calculation, that enough CPU time is available to setup everything, will not
+                // be disturbed by any interrupt.
+                lock_guard lock;
+
+                const std::uint32_t start_event = start_receive.usec() - us_radio_rx_startup_time;
+                const std::uint32_t end_event   = end_receive.usec() + 500; // TODO: 500: must depend on receive size.
+
+                const auto now = Hardware::now();
+                if ( now + setup_connection_event_limit_us > start_event )
+                {
+                    evt_timeout_ = true;
+                    return connection_interval;
+                }
+
+                receive_buffer_ = receive_buffer();
+                state_          = state::evt_wait_connect;
+
+                Hardware::configure_radio_channel( channel );
+                Hardware::configure_receive_train( receive_buffer_ );
+
+                Hardware::schedule_reception( start_event, end_event );
+
+                return bluetoe::link_layer::delta_time( connection_interval.usec() - now );
             }
 
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
@@ -311,47 +373,109 @@ namespace bluetoe
                 return Hardware::static_random_address_seed();
             }
 
+            void increment_receive_packet_counter()
+            {
+            }
+
+            void increment_transmit_packet_counter()
+            {
+            }
+
             using lock_guard = typename Hardware::lock_guard;
 
         private:
+            link_layer::read_buffer receive_buffer()
+            {
+                link_layer::read_buffer result = this->allocate_receive_buffer();
+                if ( result.empty() )
+                    result = link_layer::read_buffer{ &empty_receive_[ 0 ], sizeof( empty_receive_ ) };
+
+                return result;
+            }
+
             void radio_interrupt_handler()
             {
                 if ( state_ == state::adv_transmitting )
                 {
+                    // The timeout timer was already set with the start of the advertising
+                    // Configure Radio to receive and then switch to transmitting
                     Hardware::configure_receive_train( receive_buffer_ );
                     state_ = state::adv_receiving;
                 }
                 else if ( state_ == state::adv_receiving )
                 {
-                    Hardware::store_timer_anchor();
-
                     if ( Hardware::received_pdu() )
                     {
+                        Hardware::stop_timeout_timer();
+
                         if ( is_valid_scan_request() )
                         {
                             Hardware::configure_final_transmit( response_data_ );
                             state_ = state::adv_transmitting_response;
+
+                            return;
                         }
                         else
                         {
-                            Hardware::stop_radio();
-                            state_        = state::idle;
                             adv_received_ = true;
                         }
                     }
                     else
                     {
-                        Hardware::stop_radio();
-                        state_       = state::idle;
+                        Hardware::capture_timer_anchor();
                         adv_timeout_ = true;
                     }
 
+                    Hardware::stop_radio();
+                    Hardware::store_timer_anchor( 0 );
+
+                    state_       = state::idle;
                 }
                 else if ( state_ == state::adv_transmitting_response )
                 {
-                    Hardware::stop_radio();
                     state_       = state::idle;
                     adv_timeout_ = true;
+                }
+                else if ( state_ == state::evt_wait_connect )
+                {
+                    if ( Hardware::received_pdu() )
+                    {
+                        // switch to transmission
+                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] )
+                            ? this->next_transmit()
+                            : this->received( receive_buffer_ );
+
+                        // TODO: Hack to disable the more data flag, because this radio implementation is currently
+                        // not able to do this (but it should be possible with the given hardware).
+                        const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
+
+                        Hardware::configure_final_transmit( trans );
+                        state_   = state::evt_transmiting_closing;
+
+                        // TODO: Couldn't we just capture the time at the start of the PDU?
+                        // the timer was captured with the end event; the anchor is the start of the receiving.
+                        // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
+                        static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
+                        const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
+
+                        // TODO: Anchor must also be taken, if PDU has a CRC error
+                        Hardware::store_timer_anchor( -total_pdu_length );
+                    }
+                    else
+                    {
+                        Hardware::stop_radio();
+                        evt_timeout_  = true;
+                        state_        = state::idle;
+                    }
+                }
+                else if ( state_ == state::evt_transmiting_closing )
+                {
+                    state_   = state::idle;
+                    end_evt_ = true;
+                }
+                else
+                {
+                    assert(!"Invalid state");
                 }
             }
 
@@ -412,6 +536,7 @@ namespace bluetoe
                 adv_transmitting,
                 adv_receiving,
                 adv_transmitting_response,
+                adv_shutting_down_radio,
                 // connection event
                 evt_wait_connect    = connection_event_type_base,
                 evt_transmiting_closing,
@@ -421,6 +546,7 @@ namespace bluetoe
 
             link_layer::read_buffer         receive_buffer_;
             link_layer::write_buffer        response_data_;
+            std::uint8_t                    empty_receive_[ 3 ];
         };
 
         template <
@@ -441,11 +567,11 @@ namespace bluetoe
             typename ... RadioOptions
         >
         class nrf52_radio< TransmitSize, ReceiveSize, false, CallBacks, Hardware, RadioOptions... > :
-            public nrf52_radio_base< CallBacks, Hardware >,
-            public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, nrf52_radio< TransmitSize, ReceiveSize, false, CallBacks, Hardware, RadioOptions... > >
+            public nrf52_radio_base< CallBacks, Hardware, bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, nrf52_radio< TransmitSize, ReceiveSize, false, CallBacks, Hardware, RadioOptions... > > >
         {
         public:
             static constexpr bool hardware_supports_encryption = false;
+
         };
 
         template <
@@ -456,8 +582,11 @@ namespace bluetoe
             typename ... RadioOptions
         >
         class nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > :
-            public nrf52_radio_base< CallBacks, Hardware >,
-            public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > >
+            public nrf52_radio_base<
+                CallBacks,
+                Hardware,
+                bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize,
+                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > > >
         {
         public:
             static constexpr bool hardware_supports_lesc_pairing = true;
