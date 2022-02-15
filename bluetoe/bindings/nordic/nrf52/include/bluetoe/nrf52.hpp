@@ -27,12 +27,17 @@ namespace bluetoe
 {
     namespace nrf52_details
     {
+        /*
+         * Some aliases that can be used in the debugger
+         */
         static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
         static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
         static NRF_CCM_Type* const          nrf_ccm              = NRF_CCM;
         static NRF_AAR_Type* const          nrf_aar              = NRF_AAR;
-        static NVIC_Type* const             nvic                 = NVIC;
         static NRF_PPI_Type* const          nrf_ppi              = NRF_PPI;
+        static NRF_RNG_Type* const          nrf_random           = NRF_RNG;
+        static NRF_ECB_Type* const          nrf_aes              = NRF_ECB;
+        static NVIC_Type* const             nvic                 = NVIC;
 
         static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
         // position of the connecting address (AdvA)
@@ -49,80 +54,26 @@ namespace bluetoe
         static constexpr unsigned           us_radio_tx_startup_time     = 140;
 
         static constexpr std::uint8_t       more_data_flag = 0x10;
+        static constexpr std::size_t        encryption_mic_size = 4;
 
         /**
-         * @brief abstraction of the hardware that can be replaced during tests
+         * @brief Counter used for CCM
          */
-        class radio_hardware_with_crypto_support
-        {
-        public:
-            static int pdu_gap_required_by_encryption()
-            {
-                return 1;
-            }
+        struct counter {
+            std::uint32_t   low;
+            std::uint8_t    high;
 
-            static void init();
-            /**
-             * security tool box required by legacy pairing
-             */
-            bluetoe::details::uint128_t create_srand();
+            // set to zero
+            counter();
 
-            bluetoe::details::longterm_key_t create_long_term_key();
-
-            bluetoe::details::uint128_t c1(
-                const bluetoe::details::uint128_t& temp_key,
-                const bluetoe::details::uint128_t& rand,
-                const bluetoe::details::uint128_t& p1,
-                const bluetoe::details::uint128_t& p2 ) const;
-
-            bluetoe::details::uint128_t s1(
-                const bluetoe::details::uint128_t& temp_key,
-                const bluetoe::details::uint128_t& srand,
-                const bluetoe::details::uint128_t& mrand );
-
-            /**
-             * security tool box required by LESC pairing
-             */
-            bool is_valid_public_key( const std::uint8_t* public_key ) const;
-
-            std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
-
-            bluetoe::details::uint128_t select_random_nonce();
-
-            bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
-
-            bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
-
-            std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
-                const bluetoe::details::ecdh_shared_secret_t dh_key,
-                const bluetoe::details::uint128_t& nonce_central,
-                const bluetoe::details::uint128_t& nonce_periperal,
-                const bluetoe::link_layer::device_address& addr_controller,
-                const bluetoe::link_layer::device_address& addr_peripheral );
-
-            bluetoe::details::uint128_t f6(
-                const bluetoe::details::uint128_t& key,
-                const bluetoe::details::uint128_t& n1,
-                const bluetoe::details::uint128_t& n2,
-                const bluetoe::details::uint128_t& r,
-                const bluetoe::details::io_capabilities_t& io_caps,
-                const bluetoe::link_layer::device_address& addr_controller,
-                const bluetoe::link_layer::device_address& addr_peripheral );
-
-            std::uint32_t g2(
-                const std::uint8_t*                 u,
-                const std::uint8_t*                 v,
-                const bluetoe::details::uint128_t&  x,
-                const bluetoe::details::uint128_t&  y );
-
-            /**
-             * Functions required by IO capabilties
-             */
-            bluetoe::details::uint128_t create_passkey();
+            void increment();
+            void copy_to( std::uint8_t* target ) const;
         };
 
         /**
          * @brief abstraction of the hardware that can be replaced during tests
+         *
+         * This abstracts the hardware operations (Radio, Timer)
          */
         class radio_hardware_without_crypto_support
         {
@@ -202,6 +153,8 @@ namespace bluetoe
 
             static void debug_toggle();
 
+            // TODO should this be inlined?
+            // - test code size with and without inlining
             class lock_guard
             {
             public:
@@ -217,6 +170,123 @@ namespace bluetoe
         private:
 
             static bluetoe::link_layer::delta_time anchor_offset_;
+        };
+
+        /**
+         * @brief set of security tool box functions, both for legacy pairing and LESC pairing
+         *
+         * It's expected that only the required set of functions are requested by the linker.
+         */
+        class nrf52_security_tool_box
+        {
+        public:
+            /**
+             * security tool box required by legacy pairing
+             */
+            bluetoe::details::uint128_t create_srand();
+
+            bluetoe::details::longterm_key_t create_long_term_key();
+
+            bluetoe::details::uint128_t c1(
+                const bluetoe::details::uint128_t& temp_key,
+                const bluetoe::details::uint128_t& rand,
+                const bluetoe::details::uint128_t& p1,
+                const bluetoe::details::uint128_t& p2 ) const;
+
+            bluetoe::details::uint128_t s1(
+                const bluetoe::details::uint128_t& temp_key,
+                const bluetoe::details::uint128_t& srand,
+                const bluetoe::details::uint128_t& mrand );
+
+            /**
+             * security tool box required by LESC pairing
+             */
+            bool is_valid_public_key( const std::uint8_t* public_key ) const;
+
+            std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
+
+            bluetoe::details::uint128_t select_random_nonce();
+
+            bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
+
+            bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
+
+            std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
+                const bluetoe::details::ecdh_shared_secret_t dh_key,
+                const bluetoe::details::uint128_t& nonce_central,
+                const bluetoe::details::uint128_t& nonce_periperal,
+                const bluetoe::link_layer::device_address& addr_controller,
+                const bluetoe::link_layer::device_address& addr_peripheral );
+
+            bluetoe::details::uint128_t f6(
+                const bluetoe::details::uint128_t& key,
+                const bluetoe::details::uint128_t& n1,
+                const bluetoe::details::uint128_t& n2,
+                const bluetoe::details::uint128_t& r,
+                const bluetoe::details::io_capabilities_t& io_caps,
+                const bluetoe::link_layer::device_address& addr_controller,
+                const bluetoe::link_layer::device_address& addr_peripheral );
+
+            std::uint32_t g2(
+                const std::uint8_t*                 u,
+                const std::uint8_t*                 v,
+                const bluetoe::details::uint128_t&  x,
+                const bluetoe::details::uint128_t&  y );
+
+            /**
+             * Functions required by IO capabilties
+             */
+            bluetoe::details::uint128_t create_passkey();
+        };
+
+        /**
+         * @brief abstraction of the hardware that can be replaced during tests
+         *
+         * This abstract extends the radio_hardware_without_crypto_support abstraction,
+         * by adding function, necessary for encrypting the link.
+         */
+        class radio_hardware_with_crypto_support : public radio_hardware_without_crypto_support
+        {
+        public:
+            static int pdu_gap_required_by_encryption()
+            {
+                return 1;
+            }
+
+            using radio_hardware_without_crypto_support::init;
+            static void init( std::uint8_t* encrypted_area, void (*isr)( void* ), void* that );
+
+            static void configure_transmit_train(
+                const bluetoe::link_layer::write_buffer&    transmit_data );
+
+            static void configure_final_transmit(
+                const bluetoe::link_layer::write_buffer&    transmit_data );
+
+            static void configure_receive_train(
+                const bluetoe::link_layer::read_buffer&     receive_buffer );
+
+            static void enable_ccm();
+            static void disable_ccm();
+            static void configure_encryption( bool receive, bool transmit );
+
+            static std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
+
+            static void increment_receive_packet_counter()
+            {
+                rx_counter_.increment();
+            }
+
+            static void increment_transmit_packet_counter()
+            {
+                rx_counter_.increment();
+            }
+
+        private:
+            static bool             receive_encrypted_;
+            static bool             transmit_encrypted_;
+            static std::uint8_t*    encrypted_area_;
+            static counter          tx_counter_;
+            static counter          rx_counter_;
         };
 
         template < typename ... Options >
@@ -244,6 +314,13 @@ namespace bluetoe
             nrf52_radio_base()
             {
                 Hardware::init( []( void* that ){
+                    static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
+                }, this);
+            }
+
+            nrf52_radio_base( std::uint8_t* receive_buffer )
+            {
+                Hardware::init( receive_buffer, []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
             }
@@ -371,14 +448,6 @@ namespace bluetoe
             std::uint32_t static_random_address_seed() const
             {
                 return Hardware::static_random_address_seed();
-            }
-
-            void increment_receive_packet_counter()
-            {
-            }
-
-            void increment_transmit_packet_counter()
-            {
             }
 
             using lock_guard = typename Hardware::lock_guard;
@@ -572,6 +641,8 @@ namespace bluetoe
         public:
             static constexpr bool hardware_supports_encryption = false;
 
+            void increment_receive_packet_counter() {}
+            void increment_transmit_packet_counter() {}
         };
 
         template <
@@ -586,34 +657,86 @@ namespace bluetoe
                 CallBacks,
                 Hardware,
                 bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize,
-                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > > >
+                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > > >,
+            public nrf52_security_tool_box
         {
         public:
-            static constexpr bool hardware_supports_lesc_pairing = true;
-            static constexpr bool hardware_supports_legacy_pairing = true;
-            static constexpr bool hardware_supports_encryption = hardware_supports_lesc_pairing || hardware_supports_legacy_pairing;
+            static constexpr bool hardware_supports_lesc_pairing    = true;
+            static constexpr bool hardware_supports_legacy_pairing  = true;
+            static constexpr bool hardware_supports_encryption      = hardware_supports_lesc_pairing || hardware_supports_legacy_pairing;
 
-            std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
+            using radio_base_t = nrf52_radio_base<
+                CallBacks,
+                Hardware,
+                bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize,
+                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > > >;
+
+            nrf52_radio() : radio_base_t( encrypted_message_.data )
+            {
+            }
+
+            std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm )
+            {
+                return Hardware::setup_encryption( key, skdm, ivm );
+            }
 
             /**
              * @brief start the encryption of received PDUs with the next connection event.
              */
-            void start_receive_encrypted();
+            void start_receive_encrypted()
+            {
+                Hardware::enable_ccm();
+                Hardware::configure_encryption( true, false );
+            }
 
             /**
              * @brief start to encrypt transmitted PDUs with the next connection event.
              */
-            void start_transmit_encrypted();
+            void start_transmit_encrypted()
+            {
+                Hardware::configure_encryption( true, true );
+            }
 
             /**
              * @brief stop receiving encrypted with the next connection event.
              */
-            void stop_receive_encrypted();
+            void stop_receive_encrypted()
+            {
+                Hardware::configure_encryption( false, true );
+            }
 
             /**
              * @brief stop transmitting encrypted with the next connection event.
              */
-            void stop_transmit_encrypted();
+            void stop_transmit_encrypted()
+            {
+                Hardware::configure_encryption( false, false );
+                Hardware::disable_ccm();
+            }
+
+            void increment_receive_packet_counter()
+            {
+                Hardware::increment_receive_packet_counter();
+            }
+
+            void increment_transmit_packet_counter()
+            {
+                Hardware::increment_transmit_packet_counter();
+            }
+
+        private:
+            static constexpr std::size_t att_mtu = bluetoe::details::find_by_meta_type<
+                bluetoe::link_layer::details::mtu_size_meta_type,
+                RadioOptions...,
+                bluetoe::link_layer::max_mtu_size< bluetoe::details::default_att_mtu_size >
+            >::type::mtu;
+
+            static constexpr std::size_t l2cap_mtu      = att_mtu + 4;
+            static constexpr std::size_t enrypted_size  = l2cap_mtu + 3 + 4;
+
+            struct alignas( 4 ) encrypted_message_t {
+                std::uint8_t data[ enrypted_size ];
+            } encrypted_message_;
         };
 
         template < typename Server, bool EnabledEncryption, typename RadioOptions, typename LinkLayerOptions >
@@ -635,6 +758,26 @@ namespace bluetoe
             using radio_t = nrf52_radio< TransmitSize, ReceiveSize, EnabledEncryption, CallBacks, radio_hardware_t, RadioOptions... >;
 
             using link_layer = bluetoe::link_layer::link_layer< Server, radio_t, LinkLayerOptions... >;
+        };
+    }
+
+    namespace link_layer {
+
+        template <
+            std::size_t TransmitSize,
+            std::size_t ReceiveSize,
+            class CallBacks,
+            class Hardware,
+            typename ... RadioOptions
+        >
+        struct pdu_layout_by_radio<
+            nrf52_details::nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > >
+        {
+            /**
+             * When using encryption, the Radio and the AES CCM peripheral expect an "RFU" byte between LL header and
+             * payload.
+             */
+            using pdu_layout = bluetoe::nrf_details::encrypted_pdu_layout;
         };
     }
 
