@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <bluetoe/filter.hpp>
 #include <bluetoe/attribute.hpp>
 #include <bluetoe/uuid.hpp>
