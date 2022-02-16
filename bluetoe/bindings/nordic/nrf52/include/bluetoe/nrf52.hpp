@@ -120,9 +120,13 @@ namespace bluetoe
             static void store_timer_anchor( int offset_us );
 
             /**
-             * @brief returns true, if a valid PDU was received
+             * @brief returns details to a received PDU
+             *
+             * Returns { true, X } if a PDU was received
+             * Returns { true, true } if that PDU is valid
+             * Returns { true, false } if that PDU has a CRC or MIC error
              */
-            static bool received_pdu();
+            static std::pair< bool, bool > received_pdu();
 
             static std::uint32_t now();
 
@@ -265,6 +269,10 @@ namespace bluetoe
             static void configure_receive_train(
                 const bluetoe::link_layer::read_buffer&     receive_buffer );
 
+            static void store_timer_anchor( int offset_us );
+
+            static std::pair< bool, bool > received_pdu();
+
             static void enable_ccm();
             static void disable_ccm();
             static void configure_encryption( bool receive, bool transmit );
@@ -273,20 +281,20 @@ namespace bluetoe
 
             static void increment_receive_packet_counter()
             {
-                rx_counter_.increment();
+                receive_counter_.increment();
             }
 
             static void increment_transmit_packet_counter()
             {
-                rx_counter_.increment();
+                transmit_counter_.increment();
             }
 
         private:
-            static bool             receive_encrypted_;
-            static bool             transmit_encrypted_;
+            static volatile bool    receive_encrypted_;
+            static volatile bool    transmit_encrypted_;
             static std::uint8_t*    encrypted_area_;
-            static counter          tx_counter_;
-            static counter          rx_counter_;
+            static counter          receive_counter_;
+            static counter          transmit_counter_;
         };
 
         template < typename ... Options >
@@ -473,7 +481,10 @@ namespace bluetoe
                 }
                 else if ( state_ == state::adv_receiving )
                 {
-                    if ( Hardware::received_pdu() )
+                    bool valid_anchor, valid_pdu;
+                    std::tie( valid_anchor, valid_pdu ) = Hardware::received_pdu();
+
+                    if ( valid_anchor && valid_pdu )
                     {
                         Hardware::stop_timeout_timer();
 
@@ -507,10 +518,13 @@ namespace bluetoe
                 }
                 else if ( state_ == state::evt_wait_connect )
                 {
-                    if ( Hardware::received_pdu() )
+                    bool valid_anchor, valid_pdu;
+                    std::tie( valid_anchor, valid_pdu ) = Hardware::received_pdu();
+
+                    if ( valid_anchor )
                     {
                         // switch to transmission
-                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] )
+                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_pdu )
                             ? this->next_transmit()
                             : this->received( receive_buffer_ );
 
@@ -521,14 +535,19 @@ namespace bluetoe
                         Hardware::configure_final_transmit( trans );
                         state_   = state::evt_transmiting_closing;
 
-                        // TODO: Couldn't we just capture the time at the start of the PDU?
-                        // the timer was captured with the end event; the anchor is the start of the receiving.
-                        // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
-                        static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
-                        const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
+                        // TODO as we currently take the anchor from the end of the PDU, we should be
+                        // sure that the length of the PDU is correct!
+                        if ( valid_pdu )
+                        {
+                            // TODO: Couldn't we just capture the time at the start of the PDU?
+                            // the timer was captured with the end event; the anchor is the start of the receiving.
+                            // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
+                            static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
+                            const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
 
-                        // TODO: Anchor must also be taken, if PDU has a CRC error
-                        Hardware::store_timer_anchor( -total_pdu_length );
+                            // TODO: Anchor must also be taken, if PDU has a CRC error
+                            Hardware::store_timer_anchor( -total_pdu_length );
+                        }
                     }
                     else
                     {
@@ -763,6 +782,10 @@ namespace bluetoe
 
     namespace link_layer {
 
+        /*
+         * specialize pdu_layout_by_radio<> for the radio that supports encryption to change the PDU layout
+         * to have that extra byte between header and body
+         */
         template <
             std::size_t TransmitSize,
             std::size_t ReceiveSize,

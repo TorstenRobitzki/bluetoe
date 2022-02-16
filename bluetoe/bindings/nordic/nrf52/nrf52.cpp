@@ -744,12 +744,12 @@ namespace nrf52_details
         anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] + offset_us );
     }
 
-    bool radio_hardware_without_crypto_support::received_pdu()
+    std::pair< bool, bool > radio_hardware_without_crypto_support::received_pdu()
     {
         const bool result = ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk && nrf_radio->EVENTS_PAYLOAD;
         nrf_radio->EVENTS_PAYLOAD = 0;
 
-        return result;
+        return { result, result };
     }
 
     std::uint32_t radio_hardware_without_crypto_support::now()
@@ -868,8 +868,9 @@ namespace nrf52_details
         details::write_64bit( &ccm_data_struct.data[ ccm_iv_offset ], IV );
     }
 
-    void radio_hardware_with_crypto_support::init( std::uint8_t* receive_buffer, void (*isr)( void* ), void* that )
+    void radio_hardware_with_crypto_support::init( std::uint8_t* encrypted_area, void (*isr)( void* ), void* that )
     {
+        encrypted_area_ = encrypted_area;
         start_high_frequency_clock();
 
         init_debug();
@@ -917,7 +918,7 @@ namespace nrf52_details
         // only encrypt none empty PDUs
         if ( transmit_encrypted_ && transmit_data.buffer[ 1 ] != 0 )
         {
-            tx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
+            transmit_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
             ccm_data_struct.data[ ccm_direction_offset ] = slave_to_master_ccm_direction;
 
             nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
@@ -960,7 +961,7 @@ namespace nrf52_details
     {
         if ( receive_encrypted_ )
         {
-            rx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
+            receive_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
             ccm_data_struct.data[ ccm_direction_offset ] = master_to_slave_ccm_direction;
 
             // Reseting the CCM before every connection event seems to workaround a bug that
@@ -981,6 +982,11 @@ namespace nrf52_details
             nrf_ccm->EVENTS_ENDKSGEN = 0;
             nrf_ccm->EVENTS_ENDCRYPT = 0;
             nrf_ccm->EVENTS_ERROR = 0;
+
+            nrf_ccm->TASKS_KSGEN = 1;
+
+            // TODO debugging?
+            NRF_GPIOTE->TASKS_SET[ 1 ] = 1;
         }
 
         static constexpr std::uint32_t radio_shorts =
@@ -1015,15 +1021,48 @@ namespace nrf52_details
                 : 0;
         };
 
-        nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
+        nrf_radio->PACKETPTR   = receive_encrypted_
+            ? reinterpret_cast< std::uint32_t >( encrypted_area_ )
+            : reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
+
         nrf_radio->PCNF1       =
             ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk )
           | ( ( receive_buffer.size + mic_size( receive_encrypted_ ) ) << RADIO_PCNF1_MAXLEN_Pos );
     }
 
+    void radio_hardware_with_crypto_support::store_timer_anchor( int offset_us )
+    {
+        // TODO: Hack is required, as we capture the Anchor at the END of the PDU
+        if ( receive_encrypted_ && offset_us < -80 )
+            offset_us -= encryption_mic_size * 8;
+
+        radio_hardware_without_crypto_support::store_timer_anchor( offset_us );
+    }
+
+    std::pair< bool, bool > radio_hardware_with_crypto_support::received_pdu()
+    {
+        const auto receive_size = [](){
+            return reinterpret_cast< const std::uint8_t* >( nrf_radio->PACKETPTR )[ 1 ];
+        };
+
+        const bool timeout      = ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk || !nrf_radio->EVENTS_PAYLOAD;
+        const bool crc_error    = !timeout && ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) != RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
+        const bool mic_error    = receive_encrypted_ && receive_size() != 0 && ( nrf_ccm->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == CCM_MICSTATUS_MICSTATUS_CheckFailed;
+        const bool bus_error    = receive_encrypted_ && nrf_ccm->EVENTS_ERROR;
+        const bool not_decrypt  = receive_encrypted_ && receive_size() != 0 && nrf_ccm->EVENTS_ENDCRYPT == 0;
+
+        const bool valid_anchor = !timeout && !bus_error;
+        const bool valid_pdu    = valid_anchor && !crc_error && !not_decrypt && !mic_error;
+
+        nrf_radio->EVENTS_PAYLOAD = 0;
+assert(!receive_encrypted_ || !timeout);
+        return { valid_anchor, valid_pdu };
+    }
+
     void radio_hardware_with_crypto_support::enable_ccm()
     {
-        rx_counter_ = counter();
+        receive_counter_ = counter();
+        // TODO is done in configure_receive_train()
         nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
     }
 
@@ -1036,7 +1075,7 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_encryption( bool receive, bool transmit )
     {
         if ( receive && transmit )
-            tx_counter_ = counter();
+            transmit_counter_ = counter();
 
         receive_encrypted_ = receive;
         transmit_encrypted_ = transmit;
@@ -1052,17 +1091,17 @@ namespace nrf52_details
         details::write_64bit( &session_descriminator[ 8 ], skds );
 
         setup_ccm_data_structure(
-            aes_le( key, session_descriminator),
+            aes_le( key, session_descriminator ),
             static_cast< std::uint64_t >( ivm ) | ( static_cast< std::uint64_t >( ivs ) << 32 ) );
 
         return { skds, ivs };
     }
 
-    bool radio_hardware_with_crypto_support::receive_encrypted_  = false;
-    bool radio_hardware_with_crypto_support::transmit_encrypted_ = false;
+    volatile bool radio_hardware_with_crypto_support::receive_encrypted_  = false;
+    volatile bool radio_hardware_with_crypto_support::transmit_encrypted_ = false;
     std::uint8_t* radio_hardware_with_crypto_support::encrypted_area_;
-    counter radio_hardware_with_crypto_support::tx_counter_;
-    counter radio_hardware_with_crypto_support::rx_counter_;
+    counter radio_hardware_with_crypto_support::transmit_counter_;
+    counter radio_hardware_with_crypto_support::receive_counter_;
 
 } // namespace nrf52_details
 } // namespace bluetoe
