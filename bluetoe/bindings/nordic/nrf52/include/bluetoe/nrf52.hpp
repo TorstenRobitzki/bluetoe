@@ -273,8 +273,6 @@ namespace bluetoe
 
             static std::pair< bool, bool > received_pdu();
 
-            static void enable_ccm();
-            static void disable_ccm();
             static void configure_encryption( bool receive, bool transmit );
 
             static std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
@@ -704,7 +702,6 @@ namespace bluetoe
              */
             void start_receive_encrypted()
             {
-                Hardware::enable_ccm();
                 Hardware::configure_encryption( true, false );
             }
 
@@ -730,7 +727,6 @@ namespace bluetoe
             void stop_transmit_encrypted()
             {
                 Hardware::configure_encryption( false, false );
-                Hardware::disable_ccm();
             }
 
             void increment_receive_packet_counter()
