@@ -944,9 +944,6 @@ namespace nrf52_details
               | ( ( transmit_data.size + encryption_mic_size - 1 ) << RADIO_PCNF1_MAXLEN_Pos );
 
             nrf_ccm->TASKS_KSGEN        = 1;
-
-            // TODO ???? Debugging?
-            NRF_GPIOTE->TASKS_SET[ 1 ]  = 1;
         }
         else
         {
@@ -985,9 +982,6 @@ namespace nrf52_details
             nrf_ccm->EVENTS_ERROR = 0;
 
             nrf_ccm->TASKS_KSGEN = 1;
-
-            // TODO debugging?
-            NRF_GPIOTE->TASKS_SET[ 1 ] = 1;
         }
 
         static constexpr std::uint32_t radio_shorts =
@@ -1060,23 +1054,20 @@ namespace nrf52_details
         return { valid_anchor, valid_pdu };
     }
 
-    void radio_hardware_with_crypto_support::enable_ccm()
-    {
-        receive_counter_ = counter();
-        // TODO is done in configure_receive_train()
-        nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
-    }
-
-    void radio_hardware_with_crypto_support::disable_ccm()
-    {
-        std::memset( &ccm_data_struct, 0, sizeof( ccm_data_struct ) );
-        nrf_ccm->ENABLE = nrf_ccm->ENABLE & ~CCM_ENABLE_ENABLE_Msk;
-    }
-
     void radio_hardware_with_crypto_support::configure_encryption( bool receive, bool transmit )
     {
         if ( receive && transmit )
             transmit_counter_ = counter();
+
+        if ( receive && !transmit )
+            receive_counter_ = counter();
+
+        if ( !receive && !transmit )
+        {
+            // delete key out of memory
+            std::memset( &ccm_data_struct, 0, sizeof( ccm_data_struct ) );
+            nrf_ccm->ENABLE = nrf_ccm->ENABLE & ~CCM_ENABLE_ENABLE_Msk;
+        }
 
         receive_encrypted_ = receive;
         transmit_encrypted_ = transmit;
