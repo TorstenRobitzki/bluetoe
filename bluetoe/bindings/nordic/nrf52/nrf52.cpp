@@ -915,6 +915,12 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_final_transmit(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        nrf_ppi->CHENCLR        = all_preprogramed_ppi_channels_mask;
+
+        nrf_radio->SHORTS =
+            RADIO_SHORTS_READY_START_Msk
+          | RADIO_SHORTS_END_DISABLE_Msk;
+
         // only encrypt none empty PDUs
         if ( transmit_encrypted_ && transmit_data.buffer[ 1 ] != 0 )
         {
@@ -931,24 +937,19 @@ namespace nrf52_details
 
             nrf_ccm->EVENTS_ENDKSGEN    = 0;
             nrf_ccm->EVENTS_ENDCRYPT    = 0;
-            nrf_ccm->TASKS_KSGEN        = 1;
-
-            // TODO ???? Debugging?
-            NRF_GPIOTE->TASKS_SET[ 1 ]  = 1;
 
             nrf_radio->PACKETPTR = reinterpret_cast< std::uint32_t >( encrypted_area_ );
             nrf_radio->PCNF1 =
                 ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk )
               | ( ( transmit_data.size + encryption_mic_size - 1 ) << RADIO_PCNF1_MAXLEN_Pos );
+
+            nrf_ccm->TASKS_KSGEN        = 1;
+
+            // TODO ???? Debugging?
+            NRF_GPIOTE->TASKS_SET[ 1 ]  = 1;
         }
         else
         {
-            nrf_radio->SHORTS =
-                RADIO_SHORTS_READY_START_Msk
-              | RADIO_SHORTS_END_DISABLE_Msk;
-
-            nrf_ppi->CHENCLR        = all_preprogramed_ppi_channels_mask;
-
             nrf_radio->PACKETPTR    = reinterpret_cast< std::uint32_t >( transmit_data.buffer );
             nrf_radio->PCNF1        =
                 ( nrf_radio->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk )
@@ -1055,7 +1056,7 @@ namespace nrf52_details
         const bool valid_pdu    = valid_anchor && !crc_error && !not_decrypt && !mic_error;
 
         nrf_radio->EVENTS_PAYLOAD = 0;
-assert(!receive_encrypted_ || !timeout);
+
         return { valid_anchor, valid_pdu };
     }
 
