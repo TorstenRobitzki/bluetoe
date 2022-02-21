@@ -157,13 +157,20 @@ namespace bluetoe
 
             static void debug_toggle();
 
-            // TODO should this be inlined?
-            // - test code size with and without inlining
             class lock_guard
             {
             public:
-                lock_guard();
-                ~lock_guard();
+                // see https://devzone.nordicsemi.com/question/47493/disable-interrupts-and-enable-interrupts-if-they-where-enabled/
+                lock_guard()
+                    : context_( __get_PRIMASK() )
+                {
+                    __disable_irq();
+                }
+
+                ~lock_guard()
+                {
+                    __set_PRIMASK( context_ );
+                }
 
                 lock_guard( const lock_guard& ) = delete;
                 lock_guard& operator=( const lock_guard& ) = delete;

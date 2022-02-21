@@ -822,18 +822,6 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
-    // see https://devzone.nordicsemi.com/question/47493/disable-interrupts-and-enable-interrupts-if-they-where-enabled/
-    radio_hardware_without_crypto_support::lock_guard::lock_guard()
-        : context_( __get_PRIMASK() )
-    {
-        __disable_irq();
-    }
-
-    radio_hardware_without_crypto_support::lock_guard::~lock_guard()
-    {
-        __set_PRIMASK( context_ );
-    }
-
     bluetoe::link_layer::delta_time radio_hardware_without_crypto_support::anchor_offset_;
 
     //////////////////////////////////////////////
