@@ -1016,6 +1016,7 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::store_timer_anchor( int offset_us )
     {
         // TODO: Hack is required, as we capture the Anchor at the END of the PDU
+        // Issue: #76 Taking Anchor from End of PDU
         if ( receive_encrypted_ && offset_us < -80 )
             offset_us -= encryption_mic_size * 8;
 
@@ -1077,11 +1078,62 @@ namespace nrf52_details
         return { skds, ivs };
     }
 
+    void radio_hardware_with_crypto_support::setup_identity_resolving_address(
+        const std::uint8_t* address )
+    {
+        if ( identity_resolving_enabled_ )
+        {
+            nrf_aar->EVENTS_END         = 0;
+            nrf_aar->EVENTS_RESOLVED    = 0;
+            nrf_aar->EVENTS_NOTRESOLVED = 0;
+
+            nrf_aar->ADDRPTR = reinterpret_cast< std::uint32_t >( address ) ;
+        }
+    }
+
+    void radio_hardware_with_crypto_support::set_identity_resolving_key(
+        const details::identity_resolving_key_t& irk )
+    {
+        static details::identity_resolving_key_t irk_storage;
+        irk_storage = irk;
+
+        identity_resolving_enabled_ = true;
+
+        // disable CCM
+        nrf_ccm->ENABLE   = CCM_ENABLE_ENABLE_Disabled;
+        nrf_ccm->INTENCLR = 0xFFFFFFFF;
+        nrf_ppi->CHENCLR  = ( 1 << radio_address_ccm_crypt );
+
+        // setup AAR
+        nrf_ppi->CHENSET    = ( 1 << radio_bcmatch_aar_start_channel );
+        nrf_radio->BCC      = 16 + 2 * ( 6 * 8 );
+        nrf_aar->SCRATCHPTR = reinterpret_cast< std::uintptr_t >( &scratch_area );
+        nrf_aar->IRKPTR     = reinterpret_cast< std::uint32_t >( &irk_storage );
+        nrf_aar->NIRK       = 1;
+
+        nrf_aar->ENABLE     = AAR_ENABLE_ENABLE_Msk;
+    }
+
+    bool radio_hardware_with_crypto_support::resolving_address_invalid()
+    {
+        if ( identity_resolving_enabled_ )
+        {
+            while ( !nrf_aar->EVENTS_END )
+                ;
+
+            if ( nrf_aar->EVENTS_NOTRESOLVED )
+                return true;
+        }
+
+        return false;
+    }
+
     volatile bool radio_hardware_with_crypto_support::receive_encrypted_  = false;
     volatile bool radio_hardware_with_crypto_support::transmit_encrypted_ = false;
     std::uint8_t* radio_hardware_with_crypto_support::encrypted_area_;
     counter radio_hardware_with_crypto_support::transmit_counter_;
     counter radio_hardware_with_crypto_support::receive_counter_;
+    bool    radio_hardware_with_crypto_support::identity_resolving_enabled_ = false;
 
 } // namespace nrf52_details
 } // namespace bluetoe

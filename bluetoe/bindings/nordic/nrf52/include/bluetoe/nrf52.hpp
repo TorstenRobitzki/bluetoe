@@ -135,6 +135,11 @@ namespace bluetoe
             {
             }
 
+            static bool resolving_address_invalid()
+            {
+                return false;
+            }
+
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
              */
@@ -294,12 +299,30 @@ namespace bluetoe
                 transmit_counter_.increment();
             }
 
+            /*
+             * @brief set the advertising address
+             */
+            static void setup_identity_resolving_address(
+                const std::uint8_t* address );
+
+            /*
+             * @brief enable identity resolving and the set the corresponding key
+             */
+            static void set_identity_resolving_key(
+                const details::identity_resolving_key_t& irk );
+
+            /*
+             * @brief returns true, if a request steams from an invalid address
+             */
+            static bool resolving_address_invalid();
+
         private:
             static volatile bool    receive_encrypted_;
             static volatile bool    transmit_encrypted_;
             static std::uint8_t*    encrypted_area_;
             static counter          receive_counter_;
             static counter          transmit_counter_;
+            static bool             identity_resolving_enabled_;
         };
 
         template < typename ... Options >
@@ -361,7 +384,6 @@ namespace bluetoe
                 Hardware::configure_radio_channel( channel );
                 Hardware::configure_transmit_train( advertising );
 
-                // TODO: Move to somewhere else? Conditional?
                 Hardware::setup_identity_resolving( receive_buffer_.buffer + connect_addr_offset );
 
                 // Advertising size + LL header + preable + access address + CRC
@@ -535,6 +557,7 @@ namespace bluetoe
 
                         // TODO: Hack to disable the more data flag, because this radio implementation is currently
                         // not able to do this (but it should be possible with the given hardware).
+                        // Issue: #75 More Data not working
                         const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
 
                         Hardware::configure_final_transmit( trans );
@@ -542,15 +565,18 @@ namespace bluetoe
 
                         // TODO as we currently take the anchor from the end of the PDU, we should be
                         // sure that the length of the PDU is correct!
+                        // Issue: #76 Taking Anchor from End of PDU
                         if ( valid_pdu )
                         {
                             // TODO: Couldn't we just capture the time at the start of the PDU?
                             // the timer was captured with the end event; the anchor is the start of the receiving.
                             // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
+                            // Issue: #76 Taking Anchor from End of PDU
                             static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
                             const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
 
                             // TODO: Anchor must also be taken, if PDU has a CRC error
+                            // Issue: #76 Taking Anchor from End of PDU
                             Hardware::store_timer_anchor( -total_pdu_length );
                         }
                     }
@@ -582,15 +608,8 @@ namespace bluetoe
                 static constexpr std::uint8_t tx_add_mask           = 0x40;
                 static constexpr std::uint8_t rx_add_mask           = 0x80;
 
-                /* TODO
-                if ( identity_resolving_enabled )
-                {
-                    while ( !nrf_aar->EVENTS_END )
-                        ;
-
-                    if ( nrf_aar->EVENTS_NOTRESOLVED )
-                        return false;
-                } */
+                if ( Hardware::resolving_address_invalid() )
+                    return true;
 
                 if ( receive_buffer_.buffer[ 1 ] != scan_request_size )
                     return false;
@@ -744,6 +763,17 @@ namespace bluetoe
             void increment_transmit_packet_counter()
             {
                 Hardware::increment_transmit_packet_counter();
+            }
+
+            /**
+             * @brief sets an IRK filter for incomming scan requests and connection requests
+             *
+             * Has to be called when the radio is not in a connection or after disconnected.
+             * Experimental!
+             */
+            void set_identity_resolving_key( const details::identity_resolving_key_t& irk )
+            {
+                Hardware::set_identity_resolving_key( irk );
             }
 
         private:
