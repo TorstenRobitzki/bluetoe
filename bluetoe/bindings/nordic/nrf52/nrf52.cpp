@@ -208,6 +208,7 @@ namespace nrf52_details
             NRF_CLOCK->TASKS_HFCLKSTART = 1;
 
             // TODO: do not wait busy
+            // Issue: do not poll for readiness of the high frequency clock #63
             while ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
                 ;
         }

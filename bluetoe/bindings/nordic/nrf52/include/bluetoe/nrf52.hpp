@@ -408,7 +408,8 @@ namespace bluetoe
                 lock_guard lock;
 
                 const std::uint32_t start_event = start_receive.usec() - us_radio_rx_startup_time;
-                const std::uint32_t end_event   = end_receive.usec() + 500; // TODO: 500: must depend on receive size.
+                // TODO: 500: must depend on receive size.
+                const std::uint32_t end_event   = end_receive.usec() + 500;
 
                 const auto now = Hardware::now();
                 if ( now + setup_connection_event_limit_us > start_event )
