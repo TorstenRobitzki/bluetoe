@@ -737,11 +737,6 @@ namespace nrf52_details
         nrf_radio->TASKS_DISABLE = 1;
     }
 
-    void radio_hardware_without_crypto_support::capture_timer_anchor()
-    {
-        nrf_timer->TASKS_CAPTURE[ 2 ] = 1;
-    }
-
     void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
     {
         anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] + offset_us );
@@ -794,7 +789,7 @@ namespace nrf52_details
         }
     }
 
-    void radio_hardware_without_crypto_support::schedule_reception(
+    void radio_hardware_without_crypto_support::schedule_connection_event(
         std::uint32_t                   begin_us,
         std::uint32_t                   end_us )
     {
