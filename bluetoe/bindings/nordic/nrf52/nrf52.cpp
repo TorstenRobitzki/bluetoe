@@ -7,6 +7,8 @@
 
 namespace bluetoe
 {
+using namespace bluetoe::nrf;
+
 namespace nrf52_details
 {
     static constexpr std::size_t        radio_address_ccm_crypt         = 25;
@@ -203,13 +205,13 @@ namespace nrf52_details
     static void start_high_frequency_clock()
     {
         // start high freuquence clock source if not done yet
-        if ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
+        if ( !nrf_clock->EVENTS_HFCLKSTARTED )
         {
-            NRF_CLOCK->TASKS_HFCLKSTART = 1;
+            nrf_clock->TASKS_HFCLKSTART = 1;
 
             // TODO: do not wait busy
             // Issue: do not poll for readiness of the high frequency clock #63
-            while ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
+            while ( !nrf_clock->EVENTS_HFCLKSTARTED )
                 ;
         }
     }
@@ -759,7 +761,7 @@ namespace nrf52_details
         return nrf_timer->CC[ 3 ] - anchor_offset_.usec();
     }
 
-    void radio_hardware_without_crypto_support::schedule_transmission(
+    void radio_hardware_without_crypto_support::schedule_advertisment_event(
         bluetoe::link_layer::delta_time when,
         std::uint32_t                   read_timeout_us )
     {
@@ -787,6 +789,8 @@ namespace nrf52_details
                 nrf_timer->TASKS_CLEAR = 1;
                 nrf_radio->TASKS_TXEN = 1;
             }
+
+            anchor_offset_ += when;
         }
     }
 
@@ -1144,18 +1148,18 @@ extern "C" void RADIO_IRQHandler(void)
     using namespace bluetoe::nrf52_details;
     set_isr_pin();
 
-    assert( nrf_radio->EVENTS_DISABLED );
+    assert( bluetoe::nrf::nrf_radio->EVENTS_DISABLED );
 
     assert( bluetoe::nrf52_details::instance );
     assert( bluetoe::nrf52_details::isr_handler );
 
     isr_handler( bluetoe::nrf52_details::instance );
 
-    nrf_radio->EVENTS_END       = 0;
-    nrf_radio->EVENTS_DISABLED  = 0;
-    nrf_radio->EVENTS_READY     = 0;
-    nrf_radio->EVENTS_ADDRESS   = 0;
-    nrf_radio->EVENTS_PAYLOAD   = 0;
+    bluetoe::nrf::nrf_radio->EVENTS_END       = 0;
+    bluetoe::nrf::nrf_radio->EVENTS_DISABLED  = 0;
+    bluetoe::nrf::nrf_radio->EVENTS_READY     = 0;
+    bluetoe::nrf::nrf_radio->EVENTS_ADDRESS   = 0;
+    bluetoe::nrf::nrf_radio->EVENTS_PAYLOAD   = 0;
 
     reset_isr_pin();
 }

@@ -6,8 +6,6 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 
-#include <nrf.h>
-
 /*
  * Design desisions:
  *
@@ -27,18 +25,6 @@ namespace bluetoe
 {
     namespace nrf52_details
     {
-        /*
-         * Some aliases that can be used in the debugger
-         */
-        static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
-        static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
-        static NRF_CCM_Type* const          nrf_ccm              = NRF_CCM;
-        static NRF_AAR_Type* const          nrf_aar              = NRF_AAR;
-        static NRF_PPI_Type* const          nrf_ppi              = NRF_PPI;
-        static NRF_RNG_Type* const          nrf_random           = NRF_RNG;
-        static NRF_ECB_Type* const          nrf_aes              = NRF_ECB;
-        static NVIC_Type* const             nvic                 = NVIC;
-
         static constexpr std::uint8_t       maximum_advertising_pdu_size = 0x3f;
         // position of the connecting address (AdvA)
         static constexpr unsigned           connect_addr_offset          = 2 + 6;
@@ -143,7 +129,7 @@ namespace bluetoe
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
              */
-            static void schedule_transmission(
+            static void schedule_advertisment_event(
                 bluetoe::link_layer::delta_time when,
                 std::uint32_t                   timeout_us );
 
@@ -329,7 +315,7 @@ namespace bluetoe
         struct radio_options
         {
             using result = typename bluetoe::details::find_all_by_meta_type<
-                bluetoe::nrf::details::nrf52_radio_option_meta_type,
+                nrf::nrf_details::nrf52_radio_option_meta_type,
                 Options...
             >::type;
         };
@@ -343,12 +329,13 @@ namespace bluetoe
             >::type;
         };
 
-        template < class CallBacks, class Hardware, class Buffer >
+        template < class CallBacks, class Hardware, class Buffer, typename ... RadioOptions >
         class nrf52_radio_base : public Buffer
         {
         public:
             nrf52_radio_base()
             {
+                low_frequency_clock_t::start_clock();
                 Hardware::init( []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
@@ -356,6 +343,7 @@ namespace bluetoe
 
             nrf52_radio_base( std::uint8_t* receive_buffer )
             {
+                low_frequency_clock_t::start_clock();
                 Hardware::init( receive_buffer, []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
@@ -391,7 +379,7 @@ namespace bluetoe
 
                 state_ = state::adv_transmitting;
 
-                Hardware::schedule_transmission( when, read_timeout );
+                Hardware::schedule_advertisment_event( when, read_timeout );
             }
 
             link_layer::delta_time schedule_connection_event(
@@ -489,6 +477,11 @@ namespace bluetoe
             using lock_guard = typename Hardware::lock_guard;
 
         private:
+            using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
+                nrf::nrf_details::sleep_clock_source_meta_type,
+                RadioOptions...,
+                bluetoe::nrf::calibrated_sleep_clock >::type;
+
             link_layer::read_buffer receive_buffer()
             {
                 link_layer::read_buffer result = this->allocate_receive_buffer();
@@ -530,12 +523,10 @@ namespace bluetoe
                     }
                     else
                     {
-                        Hardware::capture_timer_anchor();
                         adv_timeout_ = true;
                     }
 
                     Hardware::stop_radio();
-                    Hardware::store_timer_anchor( 0 );
 
                     state_       = state::idle;
                 }

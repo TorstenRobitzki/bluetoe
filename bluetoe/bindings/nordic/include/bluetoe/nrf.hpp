@@ -4,6 +4,8 @@
 #include <bluetoe/meta_types.hpp>
 #include <bluetoe/default_pdu_layout.hpp>
 
+#include <nrf.h>
+
 namespace bluetoe
 {
     /**
@@ -11,10 +13,24 @@ namespace bluetoe
      */
     namespace nrf
     {
-        namespace details {
+        namespace nrf_details {
             struct nrf52_radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
             struct sleep_clock_source_meta_type : nrf52_radio_option_meta_type {};
         }
+
+        /*
+         * Some aliases that can be used in the debugger
+         */
+        static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
+        static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
+        static NRF_CLOCK_Type* const        nrf_clock            = NRF_CLOCK;
+        static NRF_RTC_Type* const          nrf_rtc              = NRF_RTC0;
+        static NRF_CCM_Type* const          nrf_ccm              = NRF_CCM;
+        static NRF_AAR_Type* const          nrf_aar              = NRF_AAR;
+        static NRF_PPI_Type* const          nrf_ppi              = NRF_PPI;
+        static NRF_RNG_Type* const          nrf_random           = NRF_RNG;
+        static NRF_ECB_Type* const          nrf_aes              = NRF_ECB;
+        static NVIC_Type* const             nvic                 = NVIC;
 
         /**
          * @brief configure the low frequency clock to be sourced out of the high frequency clock
@@ -28,7 +44,17 @@ namespace bluetoe
         struct synthesized_sleep_clock
         {
             /** @cond HIDDEN_SYMBOLS */
-            using meta_type = details::sleep_clock_source_meta_type;
+            using meta_type = nrf_details::sleep_clock_source_meta_type;
+
+            static void start_clock()
+            {
+                nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Synth << CLOCK_LFCLKSRCCOPY_SRC_Pos;
+                nrf_clock->EVENTS_LFCLKSTARTED = 0;
+                nrf_clock->TASKS_LFCLKSTART = 1;
+
+                while ( nrf_clock->EVENTS_LFCLKSTARTED == 0 )
+                    ;
+            }
             /** @endcond */
         };
 
@@ -42,7 +68,17 @@ namespace bluetoe
         struct sleep_clock_crystal_oscillator
         {
             /** @cond HIDDEN_SYMBOLS */
-            using meta_type = details::sleep_clock_source_meta_type;
+            using meta_type = nrf_details::sleep_clock_source_meta_type;
+
+            static void start_clock()
+            {
+                nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Xtal << CLOCK_LFCLKSRCCOPY_SRC_Pos;
+                nrf_clock->EVENTS_LFCLKSTARTED = 0;
+                nrf_clock->TASKS_LFCLKSTART = 1;
+
+                while ( nrf_clock->EVENTS_LFCLKSTARTED == 0 )
+                    ;
+            }
             /** @endcond */
         };
 
@@ -60,7 +96,11 @@ namespace bluetoe
         struct calibrated_sleep_clock
         {
             /** @cond HIDDEN_SYMBOLS */
-            using meta_type = details::sleep_clock_source_meta_type;
+            using meta_type = nrf_details::sleep_clock_source_meta_type;
+
+            static void start_clock()
+            {
+            }
             /** @endcond */
         };
     }
