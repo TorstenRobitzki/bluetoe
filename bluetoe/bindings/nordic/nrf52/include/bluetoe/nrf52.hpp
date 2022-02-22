@@ -98,8 +98,6 @@ namespace bluetoe
 
             static void stop_radio();
 
-            static void capture_timer_anchor();
-
             /**
              * @brief store the captured time anchor
              */
@@ -133,7 +131,7 @@ namespace bluetoe
                 bluetoe::link_layer::delta_time when,
                 std::uint32_t                   timeout_us );
 
-            static void schedule_reception(
+            static void schedule_connection_event(
                 std::uint32_t                   begin_us,
                 std::uint32_t                   end_us );
 
@@ -412,7 +410,7 @@ namespace bluetoe
                 Hardware::configure_radio_channel( channel );
                 Hardware::configure_receive_train( receive_buffer_ );
 
-                Hardware::schedule_reception( start_event, end_event );
+                Hardware::schedule_connection_event( start_event, end_event );
 
                 return bluetoe::link_layer::delta_time( connection_interval.usec() - now );
             }
