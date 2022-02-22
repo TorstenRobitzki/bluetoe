@@ -13,11 +13,6 @@ namespace bluetoe
      */
     namespace nrf
     {
-        namespace nrf_details {
-            struct nrf52_radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
-            struct sleep_clock_source_meta_type : nrf52_radio_option_meta_type {};
-        }
-
         /*
          * Some aliases that can be used in the debugger
          */
@@ -31,6 +26,24 @@ namespace bluetoe
         static NRF_RNG_Type* const          nrf_random           = NRF_RNG;
         static NRF_ECB_Type* const          nrf_aes              = NRF_ECB;
         static NVIC_Type* const             nvic                 = NVIC;
+
+        namespace nrf_details {
+            struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
+            struct sleep_clock_source_meta_type : radio_option_meta_type {};
+
+            inline void start_lfclock_and_rtc()
+            {
+                nrf_clock->EVENTS_LFCLKSTARTED = 0;
+                nrf_clock->TASKS_LFCLKSTART = 1;
+
+                while ( nrf_clock->EVENTS_LFCLKSTARTED == 0 )
+                    ;
+
+                // https://infocenter.nordicsemi.com/topic/errata_nRF52840_Rev3/ERR/nRF52840/Rev3/latest/anomaly_840_20.html#anomaly_840_20
+                nrf_rtc->TASKS_STOP = 0;
+                nrf_rtc->TASKS_START = 1;
+            }
+        }
 
         /**
          * @brief configure the low frequency clock to be sourced out of the high frequency clock
@@ -49,11 +62,7 @@ namespace bluetoe
             static void start_clock()
             {
                 nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Synth << CLOCK_LFCLKSRCCOPY_SRC_Pos;
-                nrf_clock->EVENTS_LFCLKSTARTED = 0;
-                nrf_clock->TASKS_LFCLKSTART = 1;
-
-                while ( nrf_clock->EVENTS_LFCLKSTARTED == 0 )
-                    ;
+                nrf_details::start_lfclock_and_rtc();
             }
             /** @endcond */
         };
@@ -73,11 +82,7 @@ namespace bluetoe
             static void start_clock()
             {
                 nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Xtal << CLOCK_LFCLKSRCCOPY_SRC_Pos;
-                nrf_clock->EVENTS_LFCLKSTARTED = 0;
-                nrf_clock->TASKS_LFCLKSTART = 1;
-
-                while ( nrf_clock->EVENTS_LFCLKSTARTED == 0 )
-                    ;
+                nrf_details::start_lfclock_and_rtc();
             }
             /** @endcond */
         };

@@ -17,6 +17,7 @@ namespace nrf52_details
     static constexpr std::size_t        compare0_rxen_ppi_channel       = 21;
     static constexpr std::size_t        compare1_disable_ppi_channel    = 22;
     static constexpr std::size_t        radio_bcmatch_aar_start_channel = 23;
+    static constexpr std::size_t        rtc0_start_tim_ppi_channel      = 31;
 
     static constexpr std::uint32_t      all_preprogramed_ppi_channels_mask =
         ( 1 << radio_address_ccm_crypt )
@@ -24,7 +25,8 @@ namespace nrf52_details
       | ( 1 << compare0_txen_ppi_channel )
       | ( 1 << compare0_rxen_ppi_channel )
       | ( 1 << compare1_disable_ppi_channel )
-      | ( 1 << radio_bcmatch_aar_start_channel );
+      | ( 1 << radio_bcmatch_aar_start_channel )
+      | ( 1 << rtc0_start_tim_ppi_channel );
 
 #   if defined BLUETOE_NRF52_RADIO_DEBUG
         static constexpr int debug_pin_end_crypt     = 11;
@@ -756,36 +758,89 @@ namespace nrf52_details
         return nrf_timer->CC[ 3 ] - anchor_offset_.usec();
     }
 
+    // Allocation of the compare/capture registers of the RTC
+    enum rtc_capture_registers {
+        rtc_cc_start_timer = 0,
+        rtc_cc_start_hfxo  = 1
+    };
+
+    // Allocation of the compare/capture registers of TIMER0
+    enum timer_captur_registers {
+        tim_cc_start_radio    = 0,
+        tim_cc_timeout        = 1,
+        tim_cc_capture_anchor = 2
+    };
+
+    // TODO
+    static constexpr std::uint32_t start_hfxo_offset_ = 10; // ~300µs
+
     void radio_hardware_without_crypto_support::schedule_advertisment_event(
         bluetoe::link_layer::delta_time when,
         std::uint32_t                   read_timeout_us )
     {
+        // High frequency clock is running and is running from the crystal oscillator
+        assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
+          ==
+            ( CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos )
+          | ( CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos ) );
+
         nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
 
         if ( when.zero() )
         {
-            nrf_timer->TASKS_CAPTURE[ 1 ]  = 1;
-            nrf_timer->CC[ 1 ]            += us_radio_tx_startup_time + read_timeout_us;
+            nrf_timer->TASKS_START = 1;
+            nrf_timer->TASKS_CAPTURE[ tim_cc_timeout ]  = 1;
+            nrf_timer->CC[ tim_cc_timeout ]            += us_radio_tx_startup_time + read_timeout_us;
 
-            nrf_radio->TASKS_TXEN          = 1;
+            nrf_radio->TASKS_TXEN                       = 1;
         }
         else
         {
-            nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
-            nrf_timer->CC[ 0 ]             = when.usec() - us_radio_tx_startup_time + anchor_offset_.usec();
-            nrf_timer->CC[ 1 ]             = nrf_timer->CC[ 0 ] + us_radio_tx_startup_time + read_timeout_us;
-            nrf_timer->CC[ 2 ]             = 0;
+            nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_timer ] = 0;
+            nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_hfxo ] = 0;
+            nrf_timer->EVENTS_COMPARE[ tim_cc_start_radio ] = 0;
+            nrf_timer->EVENTS_COMPARE[ tim_cc_timeout ] = 0;
 
-            // manually triggering event for timer beeing already behind target time
-            nrf_timer->TASKS_CAPTURE[ 3 ]  = 1;
+            // We need at least ~2ms to use this machinery
+            assert( when.usec() > 2000 );
 
-            if ( nrf_timer->EVENTS_COMPARE[ 0 ] || nrf_timer->CC[ 3 ] >= nrf_timer->CC[ 0 ] )
-            {
-                nrf_timer->TASKS_CLEAR = 1;
-                nrf_radio->TASKS_TXEN = 1;
-            }
+            // TODO Move to Init()
+            nrf_rtc->EVTEN =
+                ( RTC_EVTEN_COMPARE0_Enabled << RTC_EVTEN_COMPARE0_Pos )
+              | ( RTC_EVTEN_COMPARE1_Enabled << RTC_EVTEN_COMPARE1_Pos );
 
-            anchor_offset_ += when;
+            // This time in the LFCLK domain corresponds with 0 in the HFCLK domain
+            const std::uint32_t rtc_tim_start_time  = nrf_rtc->CC[ rtc_cc_start_timer ];
+            // The Radio was planned to be started at this point, which is the anchor for the next
+            // advertising
+            const std::uint32_t us_anchor = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_tx_startup_time;
+
+            // -1 to prevent the calculation to endup with starting the Radio at TIMER0 beeing 0
+            static constexpr std::uint32_t us_offset = 1;
+            static constexpr std::uint32_t lf_clk_freq  = 32768;
+
+            // This is the radio start time in the HFCLK domain, that is start_radio_time µs after rtc_tim_start_time
+            // in the LFCLK domain.
+            const std::uint32_t start_radio_time = us_anchor + when.usec() - us_radio_tx_startup_time - us_offset;
+            // TODO: Optimize for size
+            const std::uint32_t lf_start_radio_time = start_radio_time * 32768 / 1000000;
+            const std::uint32_t hf_start_radio_time = start_radio_time - lf_start_radio_time * 1000000 / 32768;
+
+            nrf_rtc->CC[ rtc_cc_start_timer ] = rtc_tim_start_time + lf_start_radio_time;
+            nrf_rtc->CC[ rtc_cc_start_hfxo ]  = nrf_rtc->CC[ rtc_cc_start_timer ] - start_hfxo_offset_;
+
+            // +1 borrowed at the beginning of the caluculation to prevent this register from beeing 0
+            nrf_timer->CC[ tim_cc_start_radio ] = hf_start_radio_time + us_offset;
+            nrf_timer->CC[ tim_cc_timeout ]     = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_tx_startup_time + read_timeout_us;
+
+            // Stop timer TODO : stop HFXO
+            nrf_timer->TASKS_STOP = 1;
+            nrf_timer->TASKS_CLEAR = 1;
+
+            // TODO: start HFXO
+            nrf_ppi->CHENSET = ( 1 << rtc0_start_tim_ppi_channel );
+
+            // TODO how to detect, that timer is setup into the past?
         }
     }
 

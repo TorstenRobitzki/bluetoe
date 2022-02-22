@@ -313,7 +313,7 @@ namespace bluetoe
         struct radio_options
         {
             using result = typename bluetoe::details::find_all_by_meta_type<
-                nrf::nrf_details::nrf52_radio_option_meta_type,
+                bluetoe::nrf::nrf_details::radio_option_meta_type,
                 Options...
             >::type;
         };
@@ -333,7 +333,7 @@ namespace bluetoe
         public:
             nrf52_radio_base()
             {
-                low_frequency_clock_t::start_clock();
+               low_frequency_clock_t::start_clock();
                 Hardware::init( []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
@@ -341,7 +341,7 @@ namespace bluetoe
 
             nrf52_radio_base( std::uint8_t* receive_buffer )
             {
-                low_frequency_clock_t::start_clock();
+               low_frequency_clock_t::start_clock();
                 Hardware::init( receive_buffer, []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
@@ -669,7 +669,8 @@ namespace bluetoe
             typename ... RadioOptions
         >
         class nrf52_radio< TransmitSize, ReceiveSize, false, CallBacks, Hardware, RadioOptions... > :
-            public nrf52_radio_base< CallBacks, Hardware, bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, nrf52_radio< TransmitSize, ReceiveSize, false, CallBacks, Hardware, RadioOptions... > > >
+            public nrf52_radio_base< CallBacks, Hardware, bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, nrf52_radio< TransmitSize, ReceiveSize, false, CallBacks, Hardware, RadioOptions... > >,
+                                    RadioOptions... >
         {
         public:
             static constexpr bool hardware_supports_encryption = false;
@@ -690,7 +691,8 @@ namespace bluetoe
                 CallBacks,
                 Hardware,
                 bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize,
-                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > > >,
+                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > >,
+                    RadioOptions... >,
             public nrf52_security_tool_box
         {
         public:
@@ -702,7 +704,8 @@ namespace bluetoe
                 CallBacks,
                 Hardware,
                 bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize,
-                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > > >;
+                    nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > >,
+                    RadioOptions...  >;
 
             nrf52_radio() : radio_base_t( encrypted_message_.data )
             {
