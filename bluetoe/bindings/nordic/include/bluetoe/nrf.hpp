@@ -43,6 +43,11 @@ namespace bluetoe
                 // https://infocenter.nordicsemi.com/topic/errata_nRF52840_Rev3/ERR/nRF52840/Rev3/latest/anomaly_840_20.html#anomaly_840_20
                 nrf_rtc->TASKS_STOP = 0;
                 nrf_rtc->TASKS_START = 1;
+
+                // Configure the RTC to generate these two events
+                nrf_rtc->EVTEN =
+                    ( RTC_EVTEN_COMPARE0_Enabled << RTC_EVTEN_COMPARE0_Pos )
+                  | ( RTC_EVTEN_COMPARE1_Enabled << RTC_EVTEN_COMPARE1_Pos );
             }
         }
 

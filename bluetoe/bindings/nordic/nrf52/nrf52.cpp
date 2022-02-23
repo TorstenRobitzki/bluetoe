@@ -842,11 +842,6 @@ namespace nrf52_details
             // We need at least ~2ms to use this machinery
             assert( when.usec() > 2000 );
 
-            // TODO Move to Init()
-            nrf_rtc->EVTEN =
-                ( RTC_EVTEN_COMPARE0_Enabled << RTC_EVTEN_COMPARE0_Pos )
-              | ( RTC_EVTEN_COMPARE1_Enabled << RTC_EVTEN_COMPARE1_Pos );
-
             // This time in the LFCLK domain corresponds with 0 in the HFCLK domain
             const std::uint32_t rtc_tim_start_time  = nrf_rtc->CC[ rtc_cc_start_timer ];
             // The Radio was planned to be started at this point, which is the anchor for the next
