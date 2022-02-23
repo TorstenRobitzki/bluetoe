@@ -3,6 +3,7 @@ add_library(
     STATIC
     EXCLUDE_FROM_ALL
     nrf52.cpp
+    security_tool_box.cpp
 )
 
 add_library(bluetoe::bindings::nrf52 ALIAS bluetoe_bindings_nrf52)

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cassert>
 #include <array>
+#include <algorithm>
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/address.hpp>
