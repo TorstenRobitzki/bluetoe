@@ -6,7 +6,9 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 
-/*
+/**
+ * @file nrf52.hpp
+ *
  * Design desisions:
  *
  * - The radio interrupt has highes priority
@@ -20,6 +22,20 @@
  * - CC[ 1 ] is used to implement the timeout timer and DISABLES the radio
  * - CC[ 2 ] is used to capture the anchor when receiving a connect request or the first PDU
  *           in a connection event.
+ * - RTC0 is always running and used as time base. TIMER0 is just started if the RTC0 comes close
+ *   to a connection / advertising event.
+ *
+ * Resources used:
+ *
+ * - The radio peripheral is exclusively used by Bluetoe.
+ * - Timer0 is exclusively used by Bluetoe.
+ * - Bluetoe will switch the HFXO on and off.
+ * - RTC0 is exclusively used by Bluetoe.
+ * - Bluetoe will switch on the configured low frequency clock source.
+ * - CCM, AES, and RNG peripheral are exclusively used by Bluetoe, if encryption
+ *   is enabled.
+ * - The highest priority interrupt level is exclusively used by Bluetoe.
+ * - Bluetoe used PPI channel 19 exclusively
  */
 namespace bluetoe
 {
@@ -127,11 +143,11 @@ namespace bluetoe
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
              */
-            static void schedule_advertisment_event(
+            static void schedule_advertisment_event_timer(
                 bluetoe::link_layer::delta_time when,
                 std::uint32_t                   timeout_us );
 
-            static void schedule_connection_event(
+            static void schedule_connection_event_timer(
                 std::uint32_t                   begin_us,
                 std::uint32_t                   end_us );
 
@@ -377,7 +393,7 @@ namespace bluetoe
 
                 state_ = state::adv_transmitting;
 
-                Hardware::schedule_advertisment_event( when, read_timeout );
+                Hardware::schedule_advertisment_event_timer( when, read_timeout );
             }
 
             link_layer::delta_time schedule_connection_event(
@@ -410,7 +426,7 @@ namespace bluetoe
                 Hardware::configure_radio_channel( channel );
                 Hardware::configure_receive_train( receive_buffer_ );
 
-                Hardware::schedule_connection_event( start_event, end_event );
+                Hardware::schedule_connection_event_timer( start_event, end_event );
 
                 return bluetoe::link_layer::delta_time( connection_interval.usec() - now );
             }
