@@ -25,6 +25,7 @@ namespace bluetoe
         static NRF_PPI_Type* const          nrf_ppi              = NRF_PPI;
         static NRF_RNG_Type* const          nrf_random           = NRF_RNG;
         static NRF_ECB_Type* const          nrf_aes              = NRF_ECB;
+        static NRF_GPIOTE_Type* const       nrf_gpiote           = NRF_GPIOTE;
         static NVIC_Type* const             nvic                 = NVIC;
 
         namespace nrf_details {
@@ -53,6 +54,8 @@ namespace bluetoe
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
          * @sa bluetoe::nrf::calibrated_sleep_clock
+         *
+         * TODO: With this configuration, the HFXO must not be stopped.
          */
         struct synthesized_sleep_clock
         {
