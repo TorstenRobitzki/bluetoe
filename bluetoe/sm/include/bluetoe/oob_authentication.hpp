@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <array>
 #include <utility>
+#include <tuple>
 
 namespace bluetoe {
 

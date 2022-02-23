@@ -5,6 +5,7 @@
 #include <bluetoe/nrf.hpp>
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
+#include <bluetoe/security_tool_box.hpp>
 
 /**
  * @file nrf52.hpp
@@ -52,8 +53,8 @@ namespace bluetoe
         // after T_IFS (150µs +- 2) at maximum, a connection request will be received (34 Bytes + 1 Byte preable, 4 Bytes Access Address and 3 Bytes CRC)
         // plus some additional 20µs
         static constexpr std::uint32_t      adv_reponse_timeout_us       = 152 + 42 * 8 + 20;
-        static constexpr unsigned           us_radio_rx_startup_time     = 138;
-        static constexpr unsigned           us_radio_tx_startup_time     = 140;
+        static constexpr unsigned           us_radio_rx_startup_time     = 140;
+        static constexpr unsigned           us_radio_tx_startup_time     = 130;
 
         static constexpr std::uint8_t       more_data_flag = 0x10;
         static constexpr std::size_t        encryption_mic_size = 4;
@@ -186,73 +187,6 @@ namespace bluetoe
         private:
 
             static bluetoe::link_layer::delta_time anchor_offset_;
-        };
-
-        /**
-         * @brief set of security tool box functions, both for legacy pairing and LESC pairing
-         *
-         * It's expected that only the required set of functions are requested by the linker.
-         */
-        class nrf52_security_tool_box
-        {
-        public:
-            /**
-             * security tool box required by legacy pairing
-             */
-            bluetoe::details::uint128_t create_srand();
-
-            bluetoe::details::longterm_key_t create_long_term_key();
-
-            bluetoe::details::uint128_t c1(
-                const bluetoe::details::uint128_t& temp_key,
-                const bluetoe::details::uint128_t& rand,
-                const bluetoe::details::uint128_t& p1,
-                const bluetoe::details::uint128_t& p2 ) const;
-
-            bluetoe::details::uint128_t s1(
-                const bluetoe::details::uint128_t& temp_key,
-                const bluetoe::details::uint128_t& srand,
-                const bluetoe::details::uint128_t& mrand );
-
-            /**
-             * security tool box required by LESC pairing
-             */
-            bool is_valid_public_key( const std::uint8_t* public_key ) const;
-
-            std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
-
-            bluetoe::details::uint128_t select_random_nonce();
-
-            bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
-
-            bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
-
-            std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
-                const bluetoe::details::ecdh_shared_secret_t dh_key,
-                const bluetoe::details::uint128_t& nonce_central,
-                const bluetoe::details::uint128_t& nonce_periperal,
-                const bluetoe::link_layer::device_address& addr_controller,
-                const bluetoe::link_layer::device_address& addr_peripheral );
-
-            bluetoe::details::uint128_t f6(
-                const bluetoe::details::uint128_t& key,
-                const bluetoe::details::uint128_t& n1,
-                const bluetoe::details::uint128_t& n2,
-                const bluetoe::details::uint128_t& r,
-                const bluetoe::details::io_capabilities_t& io_caps,
-                const bluetoe::link_layer::device_address& addr_controller,
-                const bluetoe::link_layer::device_address& addr_peripheral );
-
-            std::uint32_t g2(
-                const std::uint8_t*                 u,
-                const std::uint8_t*                 v,
-                const bluetoe::details::uint128_t&  x,
-                const bluetoe::details::uint128_t&  y );
-
-            /**
-             * Functions required by IO capabilties
-             */
-            bluetoe::details::uint128_t create_passkey();
         };
 
         /**
@@ -709,7 +643,7 @@ namespace bluetoe
                 bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize,
                     nrf52_radio< TransmitSize, ReceiveSize, true, CallBacks, Hardware, RadioOptions... > >,
                     RadioOptions... >,
-            public nrf52_security_tool_box
+            public security_tool_box
         {
         public:
             static constexpr bool hardware_supports_lesc_pairing    = true;
