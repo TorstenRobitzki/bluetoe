@@ -186,7 +186,7 @@ namespace bluetoe
 
         private:
 
-            static bluetoe::link_layer::delta_time anchor_offset_;
+            static std::uint32_t anchor_offset_;
         };
 
         /**
@@ -343,7 +343,7 @@ namespace bluetoe
                 // be disturbed by any interrupt.
                 lock_guard lock;
 
-                const std::uint32_t start_event = start_receive.usec() - us_radio_rx_startup_time;
+                const std::uint32_t start_event = start_receive.usec();
                 // TODO: 500: must depend on receive size.
                 const std::uint32_t end_event   = end_receive.usec() + 500;
 
@@ -464,10 +464,12 @@ namespace bluetoe
 
                             return;
                         }
-                        else
-                        {
-                            adv_received_ = true;
-                        }
+
+                        adv_received_ = true;
+
+                        // In case of an connection request, the anchor is exactly the end
+                        // of the request
+                        Hardware::store_timer_anchor( 0 );
                     }
                     else
                     {
@@ -580,8 +582,6 @@ namespace bluetoe
             volatile bool end_evt_;
             volatile int  wake_up_;
 
-            static constexpr unsigned connection_event_type_base = 100;
-
             enum class state {
                 idle,
                 // timeout while receiving, stopping the radio, waiting for the radio to become disabled
@@ -590,7 +590,7 @@ namespace bluetoe
                 adv_transmitting_response,
                 adv_shutting_down_radio,
                 // connection event
-                evt_wait_connect    = connection_event_type_base,
+                evt_wait_connect,
                 evt_transmiting_closing,
             };
 

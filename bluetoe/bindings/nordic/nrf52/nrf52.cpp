@@ -51,7 +51,8 @@ namespace nrf52_details
     enum timer_captur_registers {
         tim_cc_start_radio    = 0,
         tim_cc_timeout        = 1,
-        tim_cc_capture_anchor = 2
+        tim_cc_capture_anchor = 2,
+        tim_cc_capture_now    = 3
     };
 
     static void assign_channel(
@@ -113,7 +114,7 @@ namespace nrf52_details
                 ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
                 ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
 
-            assign_channel( trace_clock_hfxo_ppi_channel, nrf_clock->EVENTS_HFCLKSTARTED, NRF_GPIOTE->TASKS_OUT[ 4 ] );
+            assign_channel( trace_clock_hfxo_ppi_channel, nrf_clock->EVENTS_HFCLKSTARTED, NRF_GPIOTE->TASKS_SET[ 4 ] );
             assign_channel( trace_radio_address_ppi_channel, NRF_RADIO->EVENTS_ADDRESS, NRF_GPIOTE->TASKS_OUT[ 0 ] );
             assign_channel( trace_radio_end_ppi_channel, NRF_RADIO->EVENTS_END, NRF_GPIOTE->TASKS_OUT[ 0 ] );
             assign_channel( trace_ccm_endcrypt_ppi_channel, NRF_CCM->EVENTS_ENDCRYPT, NRF_GPIOTE->TASKS_OUT[ 3 ] );
@@ -146,12 +147,19 @@ namespace nrf52_details
         {
             NRF_GPIO->OUTCLR = ( 1 << debug_pin_isr );
         }
+
+        void debug_hfxo_stopped()
+        {
+            NRF_GPIOTE->TASKS_CLR[ 4 ] = 1;
+        }
+
 #   else
         void init_debug() {}
 
         void toggle_debug_pin() {}
         void set_isr_pin() {}
         void reset_isr_pin() {}
+        void debug_hfxo_stopped() {}
 #   endif
 
     /*
@@ -404,14 +412,14 @@ namespace nrf52_details
 
     void radio_hardware_without_crypto_support::stop_radio()
     {
-        nrf_radio->INTENCLR      = RADIO_INTENSET_DISABLED_Msk;
-        nrf_radio->SHORTS        = 0;
+        nrf_radio->INTENCLR      = RADIO_INTENCLR_DISABLED_Msk;
+        nrf_radio->SHORTS = 0;
         nrf_radio->TASKS_DISABLE = 1;
     }
 
     void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
     {
-        anchor_offset_ = link_layer::delta_time( nrf_timer->CC[ 2 ] + offset_us );
+        anchor_offset_ = nrf_timer->CC[ tim_cc_capture_anchor ] + offset_us;
     }
 
     std::pair< bool, bool > radio_hardware_without_crypto_support::received_pdu()
@@ -424,8 +432,8 @@ namespace nrf52_details
 
     std::uint32_t radio_hardware_without_crypto_support::now()
     {
-        nrf_timer->TASKS_CAPTURE[ 3 ] = 1;
-        return nrf_timer->CC[ 3 ] - anchor_offset_.usec();
+        nrf_timer->TASKS_CAPTURE[ tim_cc_capture_now ] = 1;
+        return nrf_timer->CC[ tim_cc_capture_now ] - anchor_offset_;
     }
 
     // TODO
@@ -437,6 +445,17 @@ namespace nrf52_details
         const std::uint32_t us_radio_startup_delay,
         const std::uint32_t us_radio_timeout )
     {
+        // High frequency clock is running and is running from the crystal oscillator
+        assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
+          ==
+            ( CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos )
+          | ( CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos ) );
+
+        // Stop timer, stop HFXO
+        nrf_timer->TASKS_STOP = 1;
+        nrf_timer->TASKS_CLEAR = 1;
+        nrf_clock->TASKS_HFCLKSTOP = 1;
+
         nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_timer ] = 0;
         nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_hfxo ] = 0;
         nrf_clock->EVENTS_HFCLKSTARTED = 0;
@@ -465,14 +484,23 @@ namespace nrf52_details
         nrf_timer->CC[ tim_cc_start_radio ] = hf_start_radio_time + us_offset;
         nrf_timer->CC[ tim_cc_timeout ]     = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_startup_delay + us_radio_timeout;
 
-        // Stop timer, stop HFXO
-        nrf_timer->TASKS_STOP = 1;
-        nrf_timer->TASKS_CLEAR = 1;
-        nrf_clock->TASKS_HFCLKSTOP = 1;
+        debug_hfxo_stopped();
 
         nrf_ppi->CHENSET =
             ( 1 << rtc0_start_tim_ppi_channel )
           | ( 1 << rtc_start_hfxo_ppi_channel );
+    }
+
+    static void enable_radio_disabled_interrupt()
+    {
+        // If the radio is currently not in the DISABLED state, but in the TXDISABLE
+        // or RXDISABLE, the interrupt would fire in a very short time and the interrupt
+        // handler would be called unexpectedly.
+        while ( nrf_radio->STATE != RADIO_STATE_STATE_Disabled )
+            ;
+
+        nrf_radio->EVENTS_DISABLED = 0;
+        nrf_radio->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     }
 
     // TODO This will not work if Advertising is stopped for a larger amount of time. In this case
@@ -481,13 +509,7 @@ namespace nrf52_details
         bluetoe::link_layer::delta_time when,
         std::uint32_t                   read_timeout_us )
     {
-        // High frequency clock is running and is running from the crystal oscillator
-        assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
-          ==
-            ( CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos )
-          | ( CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos ) );
-
-        nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
+        enable_radio_disabled_interrupt();
 
         if ( when.zero() )
         {
@@ -516,20 +538,11 @@ namespace nrf52_details
         std::uint32_t                   begin_us,
         std::uint32_t                   end_us )
     {
-        // High frequency clock is running and is running from the crystal oscillator
-        assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
-          ==
-            ( CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos )
-          | ( CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos ) );
+        enable_radio_disabled_interrupt();
 
-        const std::uint32_t us_anchor = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_tx_startup_time;
-
-        // us_radio_rx_startup_time
-        nrf_radio->EVENTS_DISABLED = 0;
-        nrf_radio->INTENSET    = RADIO_INTENSET_DISABLED_Msk;
-
-        nrf_timer->CC[ 0 ] = begin_us + anchor_offset_.usec();
-        nrf_timer->CC[ 1 ] = end_us + anchor_offset_.usec();
+        // TODO rename anchor_offset_ to something like `connection_event_anchor`
+        setup_long_distance_timer(
+            anchor_offset_, begin_us, us_radio_rx_startup_time, end_us - begin_us );
     }
 
     void radio_hardware_without_crypto_support::stop_timeout_timer()
@@ -554,7 +567,7 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
-    bluetoe::link_layer::delta_time radio_hardware_without_crypto_support::anchor_offset_;
+    std::uint32_t radio_hardware_without_crypto_support::anchor_offset_;
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
