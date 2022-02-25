@@ -8,6 +8,10 @@
 
 namespace bluetoe
 {
+    namespace nrf52_details {
+        void gpio_debug_hfxo_stopped();
+    }
+
     /**
      * @brief namespace with nRF51/52 specific configuration options
      */
@@ -32,6 +36,19 @@ namespace bluetoe
             struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
             struct sleep_clock_source_meta_type : radio_option_meta_type {};
 
+            static void start_high_frequency_clock()
+            {
+                // This tasks starts the high frequency crystal oscillator (HFXO)
+                nrf_clock->TASKS_HFCLKSTART = 1;
+
+                // TODO: do not wait busy
+                // Issue: do not poll for readiness of the high frequency clock #63
+                while ( !nrf_clock->EVENTS_HFCLKSTARTED )
+                    ;
+
+                nrf_clock->EVENTS_HFCLKSTARTED = 0;
+            }
+
             inline void start_lfclock_and_rtc()
             {
                 nrf_clock->EVENTS_LFCLKSTARTED = 0;
@@ -45,9 +62,12 @@ namespace bluetoe
                 nrf_rtc->TASKS_START = 1;
 
                 // Configure the RTC to generate these two events
+                // Overflow flag does not harm the power performance much and is used for
+                // debugging.
                 nrf_rtc->EVTEN =
                     ( RTC_EVTEN_COMPARE0_Enabled << RTC_EVTEN_COMPARE0_Pos )
-                  | ( RTC_EVTEN_COMPARE1_Enabled << RTC_EVTEN_COMPARE1_Pos );
+                  | ( RTC_EVTEN_COMPARE1_Enabled << RTC_EVTEN_COMPARE1_Pos )
+                  | ( RTC_EVTEN_OVRFLW_Enabled << RTC_EVTEN_OVRFLW_Pos );
             }
         }
 
@@ -67,10 +87,16 @@ namespace bluetoe
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
 
-            static void start_clock()
+            static void start_clocks()
             {
+                nrf_details::start_high_frequency_clock();
+
                 nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Synth << CLOCK_LFCLKSRCCOPY_SRC_Pos;
                 nrf_details::start_lfclock_and_rtc();
+            }
+
+            static void stop_high_frequency_crystal_oscilator()
+            {
             }
             /** @endcond */
         };
@@ -87,17 +113,31 @@ namespace bluetoe
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
 
-            static void start_clock()
+            static void start_clocks()
             {
+                nrf_details::start_high_frequency_clock();
+
                 nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Xtal << CLOCK_LFCLKSRCCOPY_SRC_Pos;
                 nrf_details::start_lfclock_and_rtc();
+            }
+
+            static void stop_high_frequency_crystal_oscilator()
+            {
+                nrf_clock->TASKS_HFCLKSTOP = 1;
+
+#               if defined BLUETOE_NRF52_RADIO_DEBUG
+                    bluetoe::nrf52_details::gpio_debug_hfxo_stopped();
+#               endif
+
             }
             /** @endcond */
         };
 
         /**
-         * @brief configure the low frequency clock to run from the RC oscilator and to be
-         *        calibrated, using the high frequency clock.
+         * @brief configure the low frequency clock to run from the RC oscilator.
+         *
+         * That low frequency RC oscilator will be calibrated by the high frequency
+         * crystal oscilator periodically.
          *
          * According to the datasheet, the resulting sleep clock accuarcy is then 500ppm.
          * If no sleep clock configuration is given, this is the default.
@@ -111,8 +151,26 @@ namespace bluetoe
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
 
-            static void start_clock()
+            static void start_clocks()
             {
+                nrf_details::start_high_frequency_clock();
+
+                nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_RC << CLOCK_LFCLKSRCCOPY_SRC_Pos;
+                nrf_details::start_lfclock_and_rtc();
+
+                nrf_clock->EVENTS_DONE = 0;
+                nrf_clock->TASKS_CAL = 1;
+
+                // TODO
+                while ( !nrf_clock->EVENTS_DONE )
+                    ;
+
+            }
+
+            static void stop_high_frequency_crystal_oscilator()
+            {
+                // TODO
+                nrf_clock->TASKS_HFCLKSTOP = 1;
             }
             /** @endcond */
         };

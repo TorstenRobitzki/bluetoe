@@ -143,8 +143,10 @@ namespace bluetoe
 
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
+             *
+             * @return true, if the high frequency clock isn't used anymore
              */
-            static void schedule_advertisment_event_timer(
+            static bool schedule_advertisment_event_timer(
                 bluetoe::link_layer::delta_time when,
                 std::uint32_t                   timeout_us );
 
@@ -284,7 +286,7 @@ namespace bluetoe
         public:
             nrf52_radio_base()
             {
-               low_frequency_clock_t::start_clock();
+               low_frequency_clock_t::start_clocks();
                 Hardware::init( []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
@@ -292,7 +294,7 @@ namespace bluetoe
 
             nrf52_radio_base( std::uint8_t* receive_buffer )
             {
-               low_frequency_clock_t::start_clock();
+               low_frequency_clock_t::start_clocks();
                 Hardware::init( receive_buffer, []( void* that ){
                     static_cast< nrf52_radio_base* >( that )->radio_interrupt_handler();
                 }, this);
@@ -328,7 +330,8 @@ namespace bluetoe
 
                 state_ = state::adv_transmitting;
 
-                Hardware::schedule_advertisment_event_timer( when, read_timeout );
+                if ( Hardware::schedule_advertisment_event_timer( when, read_timeout ) )
+                    low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
             }
 
             link_layer::delta_time schedule_connection_event(
@@ -362,6 +365,7 @@ namespace bluetoe
                 Hardware::configure_receive_train( receive_buffer_ );
 
                 Hardware::schedule_connection_event_timer( start_event, end_event );
+                low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
 
                 return bluetoe::link_layer::delta_time( connection_interval.usec() - now );
             }
