@@ -186,7 +186,8 @@ namespace bluetoe
 
         private:
 
-            static std::uint32_t anchor_offset_;
+            static std::uint32_t hf_connection_event_anchor_;
+            static std::uint32_t lf_connection_event_anchor_;
         };
 
         /**
