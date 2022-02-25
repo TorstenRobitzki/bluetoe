@@ -419,7 +419,8 @@ namespace nrf52_details
 
     void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
     {
-        anchor_offset_ = nrf_timer->CC[ tim_cc_capture_anchor ] + offset_us;
+        hf_connection_event_anchor_ = nrf_timer->CC[ tim_cc_capture_anchor ] + offset_us;
+        lf_connection_event_anchor_ = nrf_rtc->CC[ rtc_cc_start_timer ];
     }
 
     std::pair< bool, bool > radio_hardware_without_crypto_support::received_pdu()
@@ -433,14 +434,15 @@ namespace nrf52_details
     std::uint32_t radio_hardware_without_crypto_support::now()
     {
         nrf_timer->TASKS_CAPTURE[ tim_cc_capture_now ] = 1;
-        return nrf_timer->CC[ tim_cc_capture_now ] - anchor_offset_;
+        return nrf_timer->CC[ tim_cc_capture_now ] - hf_connection_event_anchor_;
     }
 
     // TODO
     static constexpr std::uint32_t start_hfxo_offset_ = 10; // ~300µs
 
     static void setup_long_distance_timer(
-        const std::uint32_t us_anchor,
+        const std::uint32_t hf_anchor,
+        const std::uint32_t lf_anchor,
         const std::uint32_t us_radio_start_time,
         const std::uint32_t us_radio_startup_delay,
         const std::uint32_t us_radio_timeout )
@@ -455,6 +457,7 @@ namespace nrf52_details
         nrf_timer->TASKS_STOP = 1;
         nrf_timer->TASKS_CLEAR = 1;
         nrf_clock->TASKS_HFCLKSTOP = 1;
+        debug_hfxo_stopped();
 
         nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_timer ] = 0;
         nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_hfxo ] = 0;
@@ -463,7 +466,7 @@ namespace nrf52_details
         nrf_timer->EVENTS_COMPARE[ tim_cc_timeout ] = 0;
 
         // This time in the LFCLK domain corresponds with 0 in the HFCLK domain
-        const std::uint32_t rtc_tim_start_time  = nrf_rtc->CC[ rtc_cc_start_timer ];
+        const std::uint32_t rtc_tim_start_time  = lf_anchor;
 
         // -1 to prevent the calculation to endup with starting the Radio at TIMER0 beeing 0
         static constexpr auto us_offset   = 1;
@@ -471,7 +474,7 @@ namespace nrf52_details
 
         // This is the radio start time in the HFCLK domain, that is start_radio_time µs after rtc_tim_start_time
         // in the LFCLK domain.
-        const std::uint32_t start_radio_time = us_anchor + us_radio_start_time - us_radio_startup_delay - us_offset;
+        const std::uint32_t start_radio_time = hf_anchor + us_radio_start_time - us_radio_startup_delay - us_offset;
 
         // TODO: Optimize for size
         const std::uint32_t lf_start_radio_time = start_radio_time * lf_clk_freq / 1000000;
@@ -483,8 +486,6 @@ namespace nrf52_details
         // +1 borrowed at the beginning of the caluculation to prevent this register from beeing 0
         nrf_timer->CC[ tim_cc_start_radio ] = hf_start_radio_time + us_offset;
         nrf_timer->CC[ tim_cc_timeout ]     = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_startup_delay + us_radio_timeout;
-
-        debug_hfxo_stopped();
 
         nrf_ppi->CHENSET =
             ( 1 << rtc0_start_tim_ppi_channel )
@@ -527,10 +528,11 @@ namespace nrf52_details
 
             // The Radio was planned to be started at this point, which is the anchor for the next
             // advertising
-            const std::uint32_t us_anchor = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_tx_startup_time;
+            const std::uint32_t hf_anchor = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_tx_startup_time;
+            const std::uint32_t lf_anchor = nrf_rtc->CC[ rtc_cc_start_timer ];
 
             setup_long_distance_timer(
-                us_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us );
+                hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us );
         }
     }
 
@@ -540,9 +542,10 @@ namespace nrf52_details
     {
         enable_radio_disabled_interrupt();
 
-        // TODO rename anchor_offset_ to something like `connection_event_anchor`
         setup_long_distance_timer(
-            anchor_offset_, begin_us, us_radio_rx_startup_time, end_us - begin_us );
+            hf_connection_event_anchor_,
+            lf_connection_event_anchor_,
+            begin_us, us_radio_rx_startup_time, end_us - begin_us );
     }
 
     void radio_hardware_without_crypto_support::stop_timeout_timer()
@@ -567,7 +570,8 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
-    std::uint32_t radio_hardware_without_crypto_support::anchor_offset_;
+    std::uint32_t radio_hardware_without_crypto_support::hf_connection_event_anchor_;
+    std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
