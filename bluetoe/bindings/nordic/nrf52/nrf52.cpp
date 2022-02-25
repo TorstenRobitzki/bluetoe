@@ -29,6 +29,7 @@ namespace nrf52_details
     // allocation of PPI channels
     enum ppi_channels_used {
         // Channels only used, if BLUETOE_NRF52_RADIO_DEBUG is set
+        trace_clock_overflow_ppi_channel = 11,
         trace_clock_hfxo_ppi_channel     = 12,
         trace_radio_address_ppi_channel  = 13,
         trace_radio_end_ppi_channel      = 14,
@@ -114,6 +115,12 @@ namespace nrf52_details
                 ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
                 ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
 
+            NRF_GPIOTE->CONFIG[ 5 ] =
+                ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos ) |
+                ( debug_pin_debug << GPIOTE_CONFIG_PSEL_Pos ) |
+                ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos ) |
+                ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+
             assign_channel( trace_clock_hfxo_ppi_channel, nrf_clock->EVENTS_HFCLKSTARTED, NRF_GPIOTE->TASKS_SET[ 4 ] );
             assign_channel( trace_radio_address_ppi_channel, NRF_RADIO->EVENTS_ADDRESS, NRF_GPIOTE->TASKS_OUT[ 0 ] );
             assign_channel( trace_radio_end_ppi_channel, NRF_RADIO->EVENTS_END, NRF_GPIOTE->TASKS_OUT[ 0 ] );
@@ -121,9 +128,11 @@ namespace nrf52_details
             assign_channel( trace_ccm_endksgen_ppi_channel, NRF_CCM->EVENTS_ENDKSGEN, NRF_GPIOTE->TASKS_CLR[ 1 ] );
             assign_channel( trace_radio_ready_ppi_channel, NRF_RADIO->EVENTS_READY, NRF_GPIOTE->TASKS_OUT[ 2 ] );
             assign_channel( trace_radio_disabled_ppi_channel, NRF_RADIO->EVENTS_DISABLED, NRF_GPIOTE->TASKS_OUT[ 2 ] );
+            assign_channel( trace_clock_overflow_ppi_channel, nrf_rtc->EVENTS_OVRFLW, NRF_GPIOTE->TASKS_OUT[ 5 ] );
 
             NRF_PPI->CHENSET =
-                ( 1 << trace_clock_hfxo_ppi_channel )
+                ( 1 << trace_clock_overflow_ppi_channel )
+              | ( 1 << trace_clock_hfxo_ppi_channel )
               | ( 1 << trace_radio_address_ppi_channel )
               | ( 1 << trace_radio_end_ppi_channel )
               | ( 1 << trace_ccm_endcrypt_ppi_channel )
