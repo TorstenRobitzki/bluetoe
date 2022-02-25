@@ -157,7 +157,7 @@ namespace nrf52_details
             NRF_GPIO->OUTCLR = ( 1 << debug_pin_isr );
         }
 
-        void debug_hfxo_stopped()
+        void gpio_debug_hfxo_stopped()
         {
             NRF_GPIOTE->TASKS_CLR[ 4 ] = 1;
         }
@@ -168,7 +168,6 @@ namespace nrf52_details
         void toggle_debug_pin() {}
         void set_isr_pin() {}
         void reset_isr_pin() {}
-        void debug_hfxo_stopped() {}
 #   endif
 
     /*
@@ -267,18 +266,6 @@ namespace nrf52_details
             nrf_clock->TASKS_HFCLKSTART );
     }
 
-    static void start_high_frequency_clock()
-    {
-        nrf_clock->TASKS_HFCLKSTART = 1;
-
-        // TODO: do not wait busy
-        // Issue: do not poll for readiness of the high frequency clock #63
-        while ( !nrf_clock->EVENTS_HFCLKSTARTED )
-            ;
-
-        nrf_clock->EVENTS_HFCLKSTARTED = 0;
-    }
-
     static void* instance = nullptr;
     static void (*isr_handler)( void* );
 
@@ -338,8 +325,6 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::init( void (*isr)( void* ), void* that )
     {
         init_debug();
-
-        start_high_frequency_clock();
 
         init_radio( false );
         init_timer();
@@ -465,8 +450,6 @@ namespace nrf52_details
         // Stop timer, stop HFXO
         nrf_timer->TASKS_STOP = 1;
         nrf_timer->TASKS_CLEAR = 1;
-        nrf_clock->TASKS_HFCLKSTOP = 1;
-        debug_hfxo_stopped();
 
         nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_timer ] = 0;
         nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_hfxo ] = 0;
@@ -515,7 +498,7 @@ namespace nrf52_details
 
     // TODO This will not work if Advertising is stopped for a larger amount of time. In this case
     //      the HFXO will run. Do we need to change the interface?
-    void radio_hardware_without_crypto_support::schedule_advertisment_event_timer(
+    bool radio_hardware_without_crypto_support::schedule_advertisment_event_timer(
         bluetoe::link_layer::delta_time when,
         std::uint32_t                   read_timeout_us )
     {
@@ -543,6 +526,8 @@ namespace nrf52_details
             setup_long_distance_timer(
                 hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us );
         }
+
+        return !when.zero();
     }
 
     void radio_hardware_without_crypto_support::schedule_connection_event_timer(
@@ -619,7 +604,6 @@ namespace nrf52_details
         init_debug();
 
         encrypted_area_ = encrypted_area;
-        start_high_frequency_clock();
 
         init_radio( true );
         init_timer();
