@@ -917,8 +917,7 @@ namespace nrf52_details
     static constexpr std::uint32_t calibration_timer_counter = 4 * 4;
     static bool calibration_running = false;
 
-    // this indirection should lead to clock_calibrate_isr() not beeing linked in, if not used
-    // TODO: Check that this holds true
+    // this indirection leads to clock_calibrate_isr() not beeing linked in, if not used
     static void (*clock_isr_handler)() = nullptr;
     static void clock_calibrate_isr()
     {
