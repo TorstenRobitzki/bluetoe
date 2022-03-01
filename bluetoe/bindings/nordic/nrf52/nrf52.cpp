@@ -26,10 +26,19 @@ namespace nrf52_details
       | ( 1 << radio_bcmatch_aar_start_channel )
       | ( 1 << rtc0_start_tim_ppi_channel );
 
+    static constexpr std::uint32_t      transmit_ppi_channels =
+        ( 1 << compare0_txen_ppi_channel )
+      | ( 1 << compare1_disable_ppi_channel );
+
+    static constexpr std::uint32_t      receive_ppi_channels =
+        ( 1 << compare0_rxen_ppi_channel )
+      | ( 1 << compare1_disable_ppi_channel );
+
     // allocation of PPI channels
     enum ppi_channels_used {
         // Channels only used, if BLUETOE_NRF52_RADIO_DEBUG is set
-        trace_clock_overflow_ppi_channel = 11,
+        trace_debug_ppi_channel_1        = 10,
+        trace_debug_ppi_channel_2        = 11,
         trace_clock_hfxo_ppi_channel     = 12,
         trace_radio_address_ppi_channel  = 13,
         trace_radio_end_ppi_channel      = 14,
@@ -39,8 +48,12 @@ namespace nrf52_details
         trace_radio_disabled_ppi_channel = 18,
         // Channels always used
         // !!! If this allocation changes, make sure, the documentation in nrf52.hpp is updated
-        rtc_start_hfxo_ppi_channel = 19,
+        rtc_start_hfxo_ppi_channel       = 19,
     };
+
+    static constexpr std::uint32_t      all_radio_ppi_channels_mask =
+        all_preprogramed_ppi_channels_mask
+      | ( 1 << rtc_start_hfxo_ppi_channel );
 
     // Allocation of the compare/capture registers of the RTC
     enum rtc_capture_registers {
@@ -128,10 +141,11 @@ namespace nrf52_details
             assign_channel( trace_ccm_endksgen_ppi_channel, NRF_CCM->EVENTS_ENDKSGEN, NRF_GPIOTE->TASKS_CLR[ 1 ] );
             assign_channel( trace_radio_ready_ppi_channel, NRF_RADIO->EVENTS_READY, NRF_GPIOTE->TASKS_OUT[ 2 ] );
             assign_channel( trace_radio_disabled_ppi_channel, NRF_RADIO->EVENTS_DISABLED, NRF_GPIOTE->TASKS_OUT[ 2 ] );
-            assign_channel( trace_clock_overflow_ppi_channel, nrf_rtc->EVENTS_OVRFLW, NRF_GPIOTE->TASKS_OUT[ 5 ] );
+            assign_channel( trace_debug_ppi_channel_1, nrf_timer->EVENTS_COMPARE[ 1 ], NRF_GPIOTE->TASKS_OUT[ 1 ] );
 
             NRF_PPI->CHENSET =
-                ( 1 << trace_clock_overflow_ppi_channel )
+                ( 1 << trace_debug_ppi_channel_1 )
+              | ( 1 << trace_debug_ppi_channel_2 )
               | ( 1 << trace_clock_hfxo_ppi_channel )
               | ( 1 << trace_radio_address_ppi_channel )
               | ( 1 << trace_radio_end_ppi_channel )
@@ -143,8 +157,8 @@ namespace nrf52_details
 
         void toggle_debug_pin()
         {
-            NRF_GPIO->OUTSET = ( 1 << debug_pin_debug );
-            NRF_GPIO->OUTCLR = ( 1 << debug_pin_debug );
+            NRF_GPIOTE->TASKS_OUT[ 5 ] = 1;
+            NRF_GPIOTE->TASKS_OUT[ 5 ] = 1;
         }
 
         void set_isr_pin()
@@ -168,6 +182,7 @@ namespace nrf52_details
         void toggle_debug_pin() {}
         void set_isr_pin() {}
         void reset_isr_pin() {}
+        void gpio_debug_hfxo_stopped() {}
 #   endif
 
     /*
@@ -205,7 +220,7 @@ namespace nrf52_details
 
     static void init_radio( bool encryption_possible )
     {
-// TODO Use MODECNF0.RU to speedup rampup?
+        // TODO Use MODECNF0.RU to speedup rampup?
         override_correction< NRF_FICR_Type >( NRF_FICR, nrf_radio );
 
         nrf_radio->MODE  = RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos;
@@ -335,9 +350,9 @@ namespace nrf52_details
 
     void radio_hardware_without_crypto_support::configure_radio_channel( unsigned channel )
     {
-        // TODO Why do we need that?
-        // Maybe: When the radio is ramping up for transmitting or reception and is then disabled,
-        //        the next state would be TXDISABLE or RXDISABLE
+        // When the radio is ramping up for transmitting or reception and is then disabled,
+        // the next state would be TXDISABLE or RXDISABLE. Wait till the radio safetely
+        // entered DISABLED state
         while ((nrf_radio->STATE & RADIO_STATE_STATE_Msk) != RADIO_STATE_STATE_Disabled);
 
         nrf_radio->FREQUENCY   = frequency_from_channel( channel );
@@ -358,9 +373,7 @@ namespace nrf52_details
 
         nrf_ppi->CHENCLR = all_preprogramed_ppi_channels_mask;
         nrf_ppi->CHENSET =
-              ( 1 << compare0_txen_ppi_channel )
-            | ( 1 << compare1_disable_ppi_channel )
-            | ( 1 << radio_end_capture2_ppi_channel );
+            ( 1 << radio_end_capture2_ppi_channel );
 
         nrf_radio->EVENTS_PAYLOAD = 0;
         nrf_radio->EVENTS_DISABLED = 0;
@@ -406,8 +419,14 @@ namespace nrf52_details
 
     void radio_hardware_without_crypto_support::stop_radio()
     {
+        // disable interrupts
         nrf_radio->INTENCLR      = RADIO_INTENCLR_DISABLED_Msk;
-        nrf_radio->SHORTS = 0;
+
+        // disconnect radio from all event sources
+        nrf_ppi->CHENCLR         = all_radio_ppi_channels_mask;
+        nrf_radio->SHORTS        = 0;
+
+        // disable radio
         nrf_radio->TASKS_DISABLE = 1;
     }
 
@@ -439,7 +458,8 @@ namespace nrf52_details
         const std::uint32_t lf_anchor,
         const std::uint32_t us_radio_start_time,
         const std::uint32_t us_radio_startup_delay,
-        const std::uint32_t us_radio_timeout )
+        const std::uint32_t us_radio_timeout,
+        const bool          transmit )
     {
         // High frequency clock is running and is running from the crystal oscillator
         assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
@@ -480,7 +500,8 @@ namespace nrf52_details
         nrf_timer->CC[ tim_cc_timeout ]     = nrf_timer->CC[ tim_cc_start_radio ] + us_radio_startup_delay + us_radio_timeout;
 
         nrf_ppi->CHENSET =
-            ( 1 << rtc0_start_tim_ppi_channel )
+            ( transmit ? transmit_ppi_channels : receive_ppi_channels )
+          | ( 1 << rtc0_start_tim_ppi_channel )
           | ( 1 << rtc_start_hfxo_ppi_channel );
     }
 
@@ -524,7 +545,7 @@ namespace nrf52_details
             const std::uint32_t lf_anchor = nrf_rtc->CC[ rtc_cc_start_timer ];
 
             setup_long_distance_timer(
-                hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us );
+                hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us, true );
         }
 
         return !when.zero();
@@ -539,7 +560,7 @@ namespace nrf52_details
         setup_long_distance_timer(
             hf_connection_event_anchor_,
             lf_connection_event_anchor_,
-            begin_us, us_radio_rx_startup_time, end_us - begin_us );
+            begin_us, us_radio_rx_startup_time, end_us - begin_us, false );
     }
 
     void radio_hardware_without_crypto_support::stop_timeout_timer()
@@ -631,9 +652,7 @@ namespace nrf52_details
 
         nrf_ppi->CHENCLR = all_preprogramed_ppi_channels_mask;
         nrf_ppi->CHENSET =
-              ( 1 << compare0_txen_ppi_channel )
-            | ( 1 << compare1_disable_ppi_channel )
-            | ( 1 << radio_end_capture2_ppi_channel );
+            ( 1 << radio_end_capture2_ppi_channel );
 
         nrf_radio->EVENTS_PAYLOAD = 0;
         nrf_radio->EVENTS_DISABLED = 0;
@@ -879,6 +898,92 @@ namespace nrf52_details
     counter radio_hardware_with_crypto_support::receive_counter_;
     bool    radio_hardware_with_crypto_support::identity_resolving_enabled_ = false;
 
+    // Problem: The HFXO is required by the radio and by the calibration.
+    // For the Radio, the HFXO is requested by an RTC event. So there is no mean, to
+    // increment some kind of usage counter that could be used to defere the disabling
+    // of the HFXO if one of the two usages are still using the HFXO.
+
+    // Solution: Let the radio still start / stop the HFXO, but defere the stop to the
+    // next connection event, if the HFXO is still in use by the calibration.
+
+    // Design: nrf_clock->EVENTS_CTTO is used to indicate, that a calibration of the
+    // RC is requested. The calibration timeout does not start the HFXO, it's waited
+    // until the next connection events starts the HFXO. The HFXO is then stopped,
+    // by the end of a connection event, after the calibration was done.
+
+    // As there is a requirement, to have the calibration run at least every 8 seconds,
+    // and as the maximum advertising event is 4s, it is required to have the calibration
+    // running every 4s.
+    static constexpr std::uint32_t calibration_timer_counter = 4 * 4;
+    static bool calibration_running = false;
+
+    // this indirection should lead to clock_calibrate_isr() not beeing linked in, if not used
+    // TODO: Check that this holds true
+    static void (*clock_isr_handler)() = nullptr;
+    static void clock_calibrate_isr()
+    {
+        // Calibration Timer Time Out
+        if ( nrf_clock->EVENTS_CTTO )
+        {
+            nrf_clock->INTENCLR = CLOCK_INTENSET_CTTO_Msk;
+        }
+
+        // Calibration timer timed out and HFXO is running
+        if ( nrf_clock->EVENTS_HFCLKSTARTED )
+        {
+            nrf_clock->EVENTS_HFCLKSTARTED = 0;
+
+            if ( nrf_clock->EVENTS_CTTO && !calibration_running )
+            {
+                calibration_running = true;
+                nrf_clock->TASKS_CAL = 1;
+            }
+        }
+
+        // Calibration Done
+        if ( nrf_clock->EVENTS_DONE )
+        {
+            calibration_running = false;
+            nrf_clock->EVENTS_DONE = 0;
+            nrf_clock->EVENTS_CTTO = 0;
+            nrf_clock->INTENSET  = CLOCK_INTENSET_CTTO_Msk;
+
+            // Restart calibration timer
+            nrf_clock->CTIV = calibration_timer_counter;
+            nrf_clock->TASKS_CTSTART = 1;
+        }
+    }
+
+    void init_calibration_timer()
+    {
+        clock_isr_handler = clock_calibrate_isr;
+
+        nrf_clock->EVENTS_DONE = 0;
+        nrf_clock->EVENTS_CTTO = 0;
+        nrf_clock->EVENTS_HFCLKSTARTED = 0;
+
+        nrf_clock->INTENSET =
+            CLOCK_INTENSET_DONE_Msk
+          | CLOCK_INTENSET_CTTO_Msk
+          | CLOCK_INTENSET_HFCLKSTARTED_Msk;
+
+        NVIC_ClearPendingIRQ( POWER_CLOCK_IRQn );
+        NVIC_EnableIRQ( POWER_CLOCK_IRQn );
+
+        calibration_running = false;
+
+        nrf_clock->CTIV = 0;
+        nrf_clock->TASKS_CTSTART = 1;
+    }
+
+    void deassign_hfxo()
+    {
+        if ( nrf_clock->EVENTS_CTTO == 0 )
+        {
+            nrf_clock->TASKS_HFCLKSTOP = 1;
+            gpio_debug_hfxo_stopped();
+        }
+    }
 } // namespace nrf52_details
 } // namespace bluetoe
 
@@ -901,4 +1006,9 @@ extern "C" void RADIO_IRQHandler(void)
     bluetoe::nrf::nrf_radio->EVENTS_PAYLOAD   = 0;
 
     reset_isr_pin();
+}
+
+extern "C" void POWER_CLOCK_IRQHandler()
+{
+    bluetoe::nrf52_details::clock_isr_handler();
 }
