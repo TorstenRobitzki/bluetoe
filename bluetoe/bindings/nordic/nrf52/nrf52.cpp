@@ -505,12 +505,6 @@ namespace nrf52_details
 
     static void enable_radio_disabled_interrupt()
     {
-        // If the radio is currently not in the DISABLED state, but in the TXDISABLE
-        // or RXDISABLE, the interrupt would fire in a very short time and the interrupt
-        // handler would be called unexpectedly.
-        while ( nrf_radio->STATE != RADIO_STATE_STATE_Disabled )
-            ;
-
         nrf_radio->EVENTS_DISABLED = 0;
         nrf_radio->INTENSET = RADIO_INTENSET_DISABLED_Msk;
     }
@@ -521,8 +515,6 @@ namespace nrf52_details
         bluetoe::link_layer::delta_time when,
         std::uint32_t                   read_timeout_us )
     {
-        enable_radio_disabled_interrupt();
-
         if ( when.zero() )
         {
             // immediately start the radio
@@ -546,6 +538,8 @@ namespace nrf52_details
                 hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us, true );
         }
 
+        enable_radio_disabled_interrupt();
+
         return !when.zero();
     }
 
@@ -553,12 +547,12 @@ namespace nrf52_details
         std::uint32_t                   begin_us,
         std::uint32_t                   end_us )
     {
-        enable_radio_disabled_interrupt();
-
         setup_long_distance_timer(
             hf_connection_event_anchor_,
             lf_connection_event_anchor_,
             begin_us, us_radio_rx_startup_time, end_us - begin_us, false );
+
+        enable_radio_disabled_interrupt();
     }
 
     void radio_hardware_without_crypto_support::stop_timeout_timer()
@@ -999,6 +993,8 @@ namespace nrf52_details
             const int diff = last_calibration_temp - current_temp;
             if ( diff >= calibration_temp_threshold || diff < -calibration_temp_threshold )
             {
+                last_calibration_temp = current_temp;
+
                 // for a recalibration at the next connection event
                 nrf_clock->CTIV = 0;
                 nrf_clock->TASKS_CTSTART = 1;
