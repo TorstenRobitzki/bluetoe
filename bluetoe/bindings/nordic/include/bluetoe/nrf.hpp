@@ -25,6 +25,7 @@ namespace bluetoe
         static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
         static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
         static NRF_CLOCK_Type* const        nrf_clock            = NRF_CLOCK;
+        static NRF_TEMP_Type* const         nrf_temp             = NRF_TEMP;
         static NRF_RTC_Type* const          nrf_rtc              = NRF_RTC0;
         static NRF_CCM_Type* const          nrf_ccm              = NRF_CCM;
         static NRF_AAR_Type* const          nrf_aar              = NRF_AAR;

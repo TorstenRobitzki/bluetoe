@@ -268,7 +268,6 @@ namespace nrf52_details
         nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
         nrf_timer->EVENTS_COMPARE[ 2 ] = 0;
         nrf_timer->EVENTS_COMPARE[ 3 ] = 0;
-        nrf_timer->INTENCLR    = 0xffffffff;
 
         nrf_timer->TASKS_START = 1;
     }
@@ -359,7 +358,6 @@ namespace nrf52_details
         nrf_radio->DATAWHITEIV = channel & 0x3F;
 
         nrf_radio->INTENCLR    = 0xffffffff;
-        nrf_timer->INTENCLR    = 0xffffffff;
     }
 
     void radio_hardware_without_crypto_support::configure_transmit_train(
@@ -917,10 +915,15 @@ namespace nrf52_details
     static constexpr std::uint32_t calibration_timer_counter = 4 * 4;
     static bool calibration_running = false;
 
+    static std::uint32_t last_calibration_temp = 0;
+    static constexpr int calibration_temp_threshold = 2; // 0.5°
+
     // this indirection leads to clock_calibrate_isr() not beeing linked in, if not used
     static void (*clock_isr_handler)() = nullptr;
     static void clock_calibrate_isr()
     {
+        set_isr_pin();
+
         // Calibration Timer Time Out
         if ( nrf_clock->EVENTS_CTTO )
         {
@@ -931,6 +934,9 @@ namespace nrf52_details
         if ( nrf_clock->EVENTS_HFCLKSTARTED )
         {
             nrf_clock->EVENTS_HFCLKSTARTED = 0;
+
+            nrf_temp->EVENTS_DATARDY = 0;
+            nrf_temp->TASKS_START = 1;
 
             if ( nrf_clock->EVENTS_CTTO && !calibration_running )
             {
@@ -951,6 +957,8 @@ namespace nrf52_details
             nrf_clock->CTIV = calibration_timer_counter;
             nrf_clock->TASKS_CTSTART = 1;
         }
+
+        reset_isr_pin();
     }
 
     void init_calibration_timer()
@@ -981,6 +989,20 @@ namespace nrf52_details
         {
             nrf_clock->TASKS_HFCLKSTOP = 1;
             gpio_debug_hfxo_stopped();
+        }
+
+        if ( nrf_temp->EVENTS_DATARDY )
+        {
+            nrf_temp->EVENTS_DATARDY = 0;
+
+            const int current_temp = static_cast< int >( nrf_temp->TEMP );
+            const int diff = last_calibration_temp - current_temp;
+            if ( diff >= calibration_temp_threshold || diff < -calibration_temp_threshold )
+            {
+                // for a recalibration at the next connection event
+                nrf_clock->CTIV = 0;
+                nrf_clock->TASKS_CTSTART = 1;
+            }
         }
     }
 } // namespace nrf52_details
