@@ -10,6 +10,8 @@ namespace bluetoe
 {
     namespace nrf52_details {
         void gpio_debug_hfxo_stopped();
+        void init_calibration_timer();
+        void deassign_hfxo();
     }
 
     /**
@@ -78,7 +80,7 @@ namespace bluetoe
          *
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
-         * @sa bluetoe::nrf::calibrated_sleep_clock
+         * @sa bluetoe::nrf::calibrated_rc_sleep_clock
          *
          * TODO: With this configuration, the HFXO must not be stopped.
          */
@@ -106,7 +108,7 @@ namespace bluetoe
          *
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::synthesized_sleep_clock
-         * @sa bluetoe::nrf::calibrated_sleep_clock
+         * @sa bluetoe::nrf::calibrated_rc_sleep_clock
          */
         struct sleep_clock_crystal_oscillator
         {
@@ -146,7 +148,7 @@ namespace bluetoe
          * @sa bluetoe::nrf::synthesized_sleep_clock
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
          */
-        struct calibrated_sleep_clock
+        struct calibrated_rc_sleep_clock
         {
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
@@ -157,20 +159,12 @@ namespace bluetoe
 
                 nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_RC << CLOCK_LFCLKSRCCOPY_SRC_Pos;
                 nrf_details::start_lfclock_and_rtc();
-
-                nrf_clock->EVENTS_DONE = 0;
-                nrf_clock->TASKS_CAL = 1;
-
-                // TODO
-                while ( !nrf_clock->EVENTS_DONE )
-                    ;
-
+                nrf52_details::init_calibration_timer();
             }
 
             static void stop_high_frequency_crystal_oscilator()
             {
-                // TODO
-                nrf_clock->TASKS_HFCLKSTOP = 1;
+                nrf52_details::deassign_hfxo();
             }
             /** @endcond */
         };
