@@ -348,7 +348,8 @@ namespace bluetoe
                 lock_guard lock;
 
                 const std::uint32_t start_event = start_receive.usec();
-                // TODO: 500: must depend on receive size.
+                // TODO: 500: must depend on receive size. This probably would depend on the maximum
+                // LL PDU size that would be expected.
                 const std::uint32_t end_event   = end_receive.usec() + 500;
 
                 const auto now = Hardware::now();
@@ -433,7 +434,7 @@ namespace bluetoe
             using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
                 nrf::nrf_details::sleep_clock_source_meta_type,
                 RadioOptions...,
-                bluetoe::nrf::calibrated_sleep_clock >::type;
+                bluetoe::nrf::calibrated_rc_sleep_clock >::type;
 
             link_layer::read_buffer receive_buffer()
             {
@@ -487,6 +488,8 @@ namespace bluetoe
                 }
                 else if ( state_ == state::adv_transmitting_response )
                 {
+                    Hardware::stop_radio();
+
                     state_       = state::idle;
                     adv_timeout_ = true;
                 }
@@ -536,6 +539,7 @@ namespace bluetoe
                 }
                 else if ( state_ == state::evt_transmiting_closing )
                 {
+                    Hardware::stop_radio();
                     state_   = state::idle;
                     end_evt_ = true;
                 }
