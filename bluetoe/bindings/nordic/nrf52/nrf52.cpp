@@ -991,11 +991,13 @@ namespace nrf52_details
 
             const int current_temp = static_cast< int >( nrf_temp->TEMP );
             const int diff = last_calibration_temp - current_temp;
-            if ( diff >= calibration_temp_threshold || diff < -calibration_temp_threshold )
+
+            if ( diff >= calibration_temp_threshold || diff <= -calibration_temp_threshold )
             {
                 last_calibration_temp = current_temp;
 
-                // for a recalibration at the next connection event
+                // force a recalibration at the next connection event
+                nrf_clock->TASKS_CTSTOP = 1;
                 nrf_clock->CTIV = 0;
                 nrf_clock->TASKS_CTSTART = 1;
             }
