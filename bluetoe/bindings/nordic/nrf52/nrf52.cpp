@@ -457,7 +457,8 @@ namespace nrf52_details
         const std::uint32_t us_radio_start_time,
         const std::uint32_t us_radio_startup_delay,
         const std::uint32_t us_radio_timeout,
-        const bool          transmit )
+        const bool          transmit,
+        const std::uint32_t start_hfxo_offset )
     {
         // High frequency clock is running and is running from the crystal oscillator
         assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
@@ -480,18 +481,17 @@ namespace nrf52_details
 
         // -1 to prevent the calculation to endup with starting the Radio at TIMER0 beeing 0
         static constexpr auto us_offset   = 1;
-        static constexpr auto lf_clk_freq = 32768;
 
         // This is the radio start time in the HFCLK domain, that is start_radio_time µs after rtc_tim_start_time
         // in the LFCLK domain.
         const std::uint32_t start_radio_time = hf_anchor + us_radio_start_time - us_radio_startup_delay - us_offset;
 
         // TODO: Optimize for size
-        const std::uint32_t lf_start_radio_time = start_radio_time * lf_clk_freq / 1000000;
-        const std::uint32_t hf_start_radio_time = start_radio_time - lf_start_radio_time * 1000000 / lf_clk_freq;
+        const std::uint32_t lf_start_radio_time = start_radio_time * nrf::lfxo_clk_freq / 1000000;
+        const std::uint32_t hf_start_radio_time = start_radio_time - lf_start_radio_time * 1000000 / nrf::lfxo_clk_freq;
 
         nrf_rtc->CC[ rtc_cc_start_timer ] = rtc_tim_start_time + lf_start_radio_time;
-        nrf_rtc->CC[ rtc_cc_start_hfxo ]  = nrf_rtc->CC[ rtc_cc_start_timer ] - start_hfxo_offset_;
+        nrf_rtc->CC[ rtc_cc_start_hfxo ]  = nrf_rtc->CC[ rtc_cc_start_timer ] - start_hfxo_offset;
 
         // +1 borrowed at the beginning of the caluculation to prevent this register from beeing 0
         nrf_timer->CC[ tim_cc_start_radio ] = hf_start_radio_time + us_offset;
@@ -513,7 +513,8 @@ namespace nrf52_details
     //      the HFXO will run. Do we need to change the interface?
     bool radio_hardware_without_crypto_support::schedule_advertisment_event_timer(
         bluetoe::link_layer::delta_time when,
-        std::uint32_t                   read_timeout_us )
+        std::uint32_t                   read_timeout_us,
+        std::uint32_t                   start_hfxo_offset )
     {
         if ( when.zero() )
         {
@@ -535,7 +536,7 @@ namespace nrf52_details
             const std::uint32_t lf_anchor = nrf_rtc->CC[ rtc_cc_start_timer ];
 
             setup_long_distance_timer(
-                hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us, true );
+                hf_anchor, lf_anchor, when.usec(), us_radio_tx_startup_time, read_timeout_us, true, start_hfxo_offset );
         }
 
         enable_radio_disabled_interrupt();
@@ -545,12 +546,13 @@ namespace nrf52_details
 
     void radio_hardware_without_crypto_support::schedule_connection_event_timer(
         std::uint32_t                   begin_us,
-        std::uint32_t                   end_us )
+        std::uint32_t                   end_us,
+        std::uint32_t                   start_hfxo_offset )
     {
         setup_long_distance_timer(
             hf_connection_event_anchor_,
             lf_connection_event_anchor_,
-            begin_us, us_radio_rx_startup_time, end_us - begin_us, false );
+            begin_us, us_radio_rx_startup_time, end_us - begin_us, false, start_hfxo_offset );
 
         enable_radio_disabled_interrupt();
     }

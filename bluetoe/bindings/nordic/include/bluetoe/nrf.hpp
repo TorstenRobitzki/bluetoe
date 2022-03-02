@@ -35,9 +35,12 @@ namespace bluetoe
         static NRF_GPIOTE_Type* const       nrf_gpiote           = NRF_GPIOTE;
         static NVIC_Type* const             nvic                 = NVIC;
 
+        static constexpr auto lfxo_clk_freq = 32768;
+
         namespace nrf_details {
             struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
             struct sleep_clock_source_meta_type : radio_option_meta_type {};
+            struct hfxo_startup_time_meta_type : radio_option_meta_type {};
 
             static void start_high_frequency_clock()
             {
@@ -82,8 +85,6 @@ namespace bluetoe
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
          * @sa bluetoe::nrf::calibrated_rc_sleep_clock
-         *
-         * TODO: With this configuration, the HFXO must not be stopped.
          */
         struct synthesized_sleep_clock
         {
@@ -169,6 +170,41 @@ namespace bluetoe
             }
             /** @endcond */
         };
+
+        /**
+         * @brief configure the high frequency crystal oscillator startup time
+         *
+         * Unless bluetoe::nrf::synthesized_sleep_clock is used as the sleep clock
+         * source, the nRF52 binding is switching on and off the high frequency clock
+         * oscillator to save power. It's important that this parameter is in configured
+         * to meet the real hardwares startup time to have the best power perfomance
+         * _and_ a stable connection.
+         *
+         * The given value in µs is roundet up to the next full period of the low frequency
+         * clock (30.52µs).
+         *
+         * If this configuration value is not given, 300µs (bluetoe::nrf::high_frequency_crystal_oscillator_startup_time_default)
+         * is used as the default.
+         *
+         * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
+         * @sa bluetoe::nrf::calibrated_rc_sleep_clock
+         */
+        template < unsigned StartupTimeMicroSeconds >
+        struct high_frequency_crystal_oscillator_startup_time
+        {
+            /** @cond HIDDEN_SYMBOLS */
+            using meta_type = nrf_details::hfxo_startup_time_meta_type;
+
+            static constexpr unsigned value = StartupTimeMicroSeconds;
+            /** @endcond */
+        };
+
+        /**
+         * @brief default value for the high frequency crystal oscillator startup time
+         *
+         * @sa bluetoe::nrf::high_frequency_crystal_oscillator_startup_time
+         */
+        using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 300 >;
     }
 
     namespace nrf_details
