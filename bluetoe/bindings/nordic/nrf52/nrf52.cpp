@@ -448,9 +448,6 @@ namespace nrf52_details
         return nrf_timer->CC[ tim_cc_capture_now ] - hf_connection_event_anchor_;
     }
 
-    // TODO
-    static constexpr std::uint32_t start_hfxo_offset_ = 10; // ~300µs
-
     static void setup_long_distance_timer(
         const std::uint32_t hf_anchor,
         const std::uint32_t lf_anchor,
