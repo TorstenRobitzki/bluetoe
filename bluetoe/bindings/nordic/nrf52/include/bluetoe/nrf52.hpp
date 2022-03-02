@@ -148,11 +148,13 @@ namespace bluetoe
              */
             static bool schedule_advertisment_event_timer(
                 bluetoe::link_layer::delta_time when,
-                std::uint32_t                   timeout_us );
+                std::uint32_t                   timeout_us,
+                std::uint32_t                   start_hfxo_offset );
 
             static void schedule_connection_event_timer(
                 std::uint32_t                   begin_us,
-                std::uint32_t                   end_us );
+                std::uint32_t                   end_us,
+                std::uint32_t                   start_hfxo_offset );
 
             /**
              * @brief stop the timer from disabling the RADIO
@@ -330,7 +332,7 @@ namespace bluetoe
 
                 state_ = state::adv_transmitting;
 
-                if ( Hardware::schedule_advertisment_event_timer( when, read_timeout ) )
+                if ( Hardware::schedule_advertisment_event_timer( when, read_timeout, hfxo_startup_value ) )
                     low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
             }
 
@@ -365,7 +367,7 @@ namespace bluetoe
                 Hardware::configure_radio_channel( channel );
                 Hardware::configure_receive_train( receive_buffer_ );
 
-                Hardware::schedule_connection_event_timer( start_event, end_event );
+                Hardware::schedule_connection_event_timer( start_event, end_event, hfxo_startup_value );
                 low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
 
                 return bluetoe::link_layer::delta_time( connection_interval.usec() - now );
@@ -435,6 +437,17 @@ namespace bluetoe
                 nrf::nrf_details::sleep_clock_source_meta_type,
                 RadioOptions...,
                 bluetoe::nrf::calibrated_rc_sleep_clock >::type;
+
+            using hfxo_startup_time_t = typename bluetoe::details::find_by_meta_type<
+                nrf::nrf_details::hfxo_startup_time_meta_type,
+                RadioOptions...,
+                bluetoe::nrf::high_frequency_crystal_oscillator_startup_time_default >::type;
+
+            /*
+             * The startup time of the HFXO in LF clock periods
+             */
+            static constexpr std::uint32_t hfxo_startup_value =
+                ( hfxo_startup_time_t::value + 1000000 / nrf::lfxo_clk_freq ) * nrf::lfxo_clk_freq / 1000000;
 
             link_layer::read_buffer receive_buffer()
             {
@@ -767,6 +780,7 @@ namespace bluetoe
 
     namespace link_layer {
 
+        /** @cond HIDDEN_SYMBOLS */
         /*
          * specialize pdu_layout_by_radio<> for the radio that supports encryption to change the PDU layout
          * to have that extra byte between header and body
@@ -787,6 +801,7 @@ namespace bluetoe
              */
             using pdu_layout = bluetoe::nrf_details::encrypted_pdu_layout;
         };
+        /** @endcond */
     }
 
     /**
