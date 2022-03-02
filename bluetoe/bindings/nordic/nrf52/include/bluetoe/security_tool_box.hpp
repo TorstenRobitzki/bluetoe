@@ -45,14 +45,29 @@ namespace bluetoe
              */
             bool is_valid_public_key( const std::uint8_t* public_key ) const;
 
+            /**
+             * @brief generate public private key pair for DH
+             */
             std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
 
+            /**
+             * @brief random nonce required for LESC pairing
+             */
             bluetoe::details::uint128_t select_random_nonce();
 
+            /**
+             * @brief p256() security toolbox function, as specified in the core spec
+             */
             bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
 
+            /**
+             * @brief f4() security toolbox function, as specified in the core spec
+             */
             bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
 
+            /**
+             * @brief f5() security toolbox function, as specified in the core spec
+             */
             std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
                 const bluetoe::details::ecdh_shared_secret_t dh_key,
                 const bluetoe::details::uint128_t& nonce_central,
@@ -60,6 +75,9 @@ namespace bluetoe
                 const bluetoe::link_layer::device_address& addr_controller,
                 const bluetoe::link_layer::device_address& addr_peripheral );
 
+            /**
+             * @brief f6() security toolbox function, as specified in the core spec
+             */
             bluetoe::details::uint128_t f6(
                 const bluetoe::details::uint128_t& key,
                 const bluetoe::details::uint128_t& n1,
@@ -69,6 +87,9 @@ namespace bluetoe
                 const bluetoe::link_layer::device_address& addr_controller,
                 const bluetoe::link_layer::device_address& addr_peripheral );
 
+            /**
+             * @brief g2() security toolbox function, as specified in the core spec
+             */
             std::uint32_t g2(
                 const std::uint8_t*                 u,
                 const std::uint8_t*                 v,
