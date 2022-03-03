@@ -176,6 +176,50 @@ namespace nrf52_details
             NRF_GPIOTE->TASKS_CLR[ 4 ] = 1;
         }
 
+        struct record_long_distance_timer_params_t {
+            std::uint32_t hf_anchor;
+            std::uint32_t lf_anchor;
+            std::uint32_t us_radio_start_time;
+            std::uint32_t us_radio_startup_delay;
+            std::uint32_t us_radio_timeout;
+            std::uint32_t timer;
+            std::uint32_t clock;
+            std::uint32_t rtc_cc0;
+            std::uint32_t rtc_cc1;
+            std::uint32_t timer_cc0;
+            std::uint32_t timer_cc1;
+        };
+
+        static constexpr std::size_t record_long_distance_timer_size = 16;
+        record_long_distance_timer_params_t record_long_distance_timer_[ record_long_distance_timer_size ] = { { 0 } };
+        int record_long_distance_timer_ptr_ = 0;
+
+        void record_long_distance_timer(
+            const std::uint32_t hf_anchor,
+            const std::uint32_t lf_anchor,
+            const std::uint32_t us_radio_start_time,
+            const std::uint32_t us_radio_startup_delay,
+            const std::uint32_t us_radio_timeout )
+        {
+            nrf_timer->TASKS_CAPTURE[ tim_cc_capture_now ] = 1;
+            const std::uint32_t now = nrf_timer->CC[ tim_cc_capture_now ];
+
+            record_long_distance_timer_[ record_long_distance_timer_ptr_ ] = record_long_distance_timer_params_t{
+                .hf_anchor              = hf_anchor,
+                .lf_anchor              = lf_anchor,
+                .us_radio_start_time    = us_radio_start_time,
+                .us_radio_startup_delay = us_radio_startup_delay,
+                .us_radio_timeout       = us_radio_timeout,
+                .timer                  = now,
+                .clock                  = nrf_rtc->COUNTER,
+                .rtc_cc0                = nrf_rtc->CC[ rtc_cc_start_timer ],
+                .rtc_cc1                = nrf_rtc->CC[ rtc_cc_start_hfxo ],
+                .timer_cc0              = nrf_timer->CC[ tim_cc_start_radio ],
+                .timer_cc1              = nrf_timer->CC[ tim_cc_timeout ]
+            };
+
+            record_long_distance_timer_ptr_ = ( record_long_distance_timer_ptr_ + 1 ) % record_long_distance_timer_size;
+        }
 #   else
         void init_debug() {}
 
@@ -183,6 +227,14 @@ namespace nrf52_details
         void set_isr_pin() {}
         void reset_isr_pin() {}
         void gpio_debug_hfxo_stopped() {}
+        void record_long_distance_timer(
+            const std::uint32_t hf_anchor,
+            const std::uint32_t lf_anchor,
+            const std::uint32_t us_radio_start_time,
+            const std::uint32_t us_radio_startup_delay,
+            const std::uint32_t us_radio_timeout,
+            const bool          transmit,
+            const std::uint32_t start_hfxo_offset ) {}
 #   endif
 
     /*
@@ -484,8 +536,13 @@ namespace nrf52_details
         const std::uint32_t start_radio_time = hf_anchor + us_radio_start_time - us_radio_startup_delay - us_offset;
 
         // TODO: Optimize for size
-        const std::uint32_t lf_start_radio_time = start_radio_time * nrf::lfxo_clk_freq / 1000000;
-        const std::uint32_t hf_start_radio_time = start_radio_time - lf_start_radio_time * 1000000 / nrf::lfxo_clk_freq;
+        const std::uint32_t lf_start_radio_time =
+          static_cast< std::uint64_t >( start_radio_time )
+        * static_cast< std::uint64_t >( nrf::lfxo_clk_freq ) / 1000000;
+
+        const std::uint32_t hf_start_radio_time = start_radio_time -
+          static_cast< std::uint64_t >( lf_start_radio_time )
+        * static_cast< std::uint64_t >( 1000000 ) / nrf::lfxo_clk_freq;
 
         nrf_rtc->CC[ rtc_cc_start_timer ] = rtc_tim_start_time + lf_start_radio_time;
         nrf_rtc->CC[ rtc_cc_start_hfxo ]  = nrf_rtc->CC[ rtc_cc_start_timer ] - start_hfxo_offset;
@@ -498,6 +555,8 @@ namespace nrf52_details
             ( transmit ? transmit_ppi_channels : receive_ppi_channels )
           | ( 1 << rtc0_start_tim_ppi_channel )
           | ( 1 << rtc_start_hfxo_ppi_channel );
+
+        record_long_distance_timer( hf_anchor, lf_anchor, us_radio_start_time, us_radio_startup_delay, us_radio_timeout );
     }
 
     static void enable_radio_disabled_interrupt()
