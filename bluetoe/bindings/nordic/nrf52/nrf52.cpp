@@ -228,13 +228,11 @@ namespace nrf52_details
         void reset_isr_pin() {}
         void gpio_debug_hfxo_stopped() {}
         void record_long_distance_timer(
-            const std::uint32_t hf_anchor,
-            const std::uint32_t lf_anchor,
-            const std::uint32_t us_radio_start_time,
-            const std::uint32_t us_radio_startup_delay,
-            const std::uint32_t us_radio_timeout,
-            const bool          transmit,
-            const std::uint32_t start_hfxo_offset ) {}
+            const std::uint32_t,
+            const std::uint32_t,
+            const std::uint32_t,
+            const std::uint32_t,
+            const std::uint32_t ) {}
 #   endif
 
     /*
