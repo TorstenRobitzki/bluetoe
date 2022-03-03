@@ -140,3 +140,45 @@ Pullrequests are wellcome.
 - boost for Unittests
 - CMake for build
 - a decent C++ compiler supporting C++11
+
+# Current Measurements
+
+All measurements done without any traffic and a slave latency of 0.
+Average current measured with different connection intervals.
+
+## nRF52840 blinky without encryption
+
+- Calibrated RC Sleep Clock (500ppm) (13608 Bytes binary size)
+  * 546µA average at 7.5ms
+  * 283µA average at 15ms
+  * 155µA average at 30ms
+
+- Crystal Oscilator Sleep Clock (20ppm) (13364 Bytes binary size)
+  * 526µA average at 7.5ms
+  * 207µA average at 15ms
+  * 143µA average at 30ms
+  * 22.4µA average at 660ms
+
+## nRF52840 blinky with encryption
+
+- Calibrated RC Sleep Clock (500ppm) (22848 Bytes binary size)
+  * 613µA average at 7.5ms
+  * 211µA average at 30ms
+  * 113µA average at 660ms
+
+- Crystal Oscilator Sleep Clock (20ppm) (22608 Bytes binary size)
+  * 589µA average at 7.5ms
+  * 197µA average at 30ms
+
+- Synthesized Sleep Clock (40ppm) (22596 Bytes binary size)
+  * 1.09mA average at 7.5ms
+  * 776µA average at 30ms
+
+- Old radio implementation (40ppm) (22212 Bytes binary size)
+  * 1.08mA average at 7.5ms
+  * 874µA average at 15ms
+  * 770µA average at 30ms
+  * 674µA average at 660ms
+
+
+
