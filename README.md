@@ -1,6 +1,6 @@
 # Bluetoe [![Build Status](https://travis-ci.org/TorstenRobitzki/bluetoe.svg?branch=master)](https://travis-ci.org/TorstenRobitzki/bluetoe) [![Join the chat at https://gitter.im/TorstenRobitzki/bluetoe](https://badges.gitter.im/TorstenRobitzki/bluetoe.svg)](https://gitter.im/TorstenRobitzki/bluetoe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/TorstenRobitzki/bluetoe.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/TorstenRobitzki/bluetoe/context:cpp)
 
-## Putins Invasion of Ukrain
+## Putin's Invasion of Ukraine
 
 If you like this project, please consider donating to one of the funds that help victims of the war in Ukraine:
 - https://www.stopputin.net
