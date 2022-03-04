@@ -2,8 +2,9 @@
 
 ## Putins Invasion of Ukrain
 
-If you like this project, please consider donating to one of the funds that help victims of the war in Ukraine: https://www.stopputin.net
-https://spendenkonto-nothilfe.de
+If you like this project, please consider donating to one of the funds that help victims of the war in Ukraine:
+- https://www.stopputin.net
+- https://spendenkonto-nothilfe.de
 
 ## Overview
 
