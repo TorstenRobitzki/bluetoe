@@ -1,4 +1,10 @@
 # Bluetoe [![Build Status](https://travis-ci.org/TorstenRobitzki/bluetoe.svg?branch=master)](https://travis-ci.org/TorstenRobitzki/bluetoe) [![Join the chat at https://gitter.im/TorstenRobitzki/bluetoe](https://badges.gitter.im/TorstenRobitzki/bluetoe.svg)](https://gitter.im/TorstenRobitzki/bluetoe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/TorstenRobitzki/bluetoe.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/TorstenRobitzki/bluetoe/context:cpp)
+
+## Putins Invasion of Ukrain
+
+If you like this project, please consider donating to one of the funds that help victims of the war in Ukraine: https://www.stopputin.net
+https://spendenkonto-nothilfe.de
+
 ## Overview
 
 Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is a complete example of a small GATT server, that allows a client to controll an IO pin, running on a nrf52832:
