@@ -46,15 +46,16 @@ namespace bluetoe
         // position of the connecting address (AdvA)
         static constexpr unsigned           connect_addr_offset          = 2 + 6;
 
-        // Time reserved to setup a connection event in µs
-        // time measured to setup a connection event, using GCC 8.3.1 with -O0 is 12µs
-        static constexpr std::uint32_t      setup_connection_event_limit_us = 50;
-
         // after T_IFS (150µs +- 2) at maximum, a connection request will be received (34 Bytes + 1 Byte preable, 4 Bytes Access Address and 3 Bytes CRC)
         // plus some additional 20µs
         static constexpr std::uint32_t      adv_reponse_timeout_us       = 152 + 42 * 8 + 20;
         static constexpr unsigned           us_radio_rx_startup_time     = 140;
         static constexpr unsigned           us_radio_tx_startup_time     = 130;
+
+        // Time reserved to setup a connection event in µs
+        // time measured to setup a connection event, using GCC 8.3.1 with -O0 is 12µs
+        // the addition 30µs is to take the granularity of the sleep clock into account (32kHz)
+        static constexpr std::uint32_t      setup_connection_event_limit_us = 50 + std::max( us_radio_rx_startup_time, us_radio_tx_startup_time ) + 30;
 
         static constexpr std::uint8_t       more_data_flag = 0x10;
         static constexpr std::size_t        encryption_mic_size = 4;
@@ -355,7 +356,7 @@ namespace bluetoe
                 const std::uint32_t end_event   = end_receive.usec() + 500;
 
                 const auto now = Hardware::now();
-                if ( now + setup_connection_event_limit_us > start_event )
+                if ( now + setup_connection_event_limit_us + hfxo_startup_time > start_event )
                 {
                     evt_timeout_ = true;
                     return connection_interval;
@@ -448,6 +449,11 @@ namespace bluetoe
              */
             static constexpr std::uint32_t hfxo_startup_value =
                 ( hfxo_startup_time_t::value + 1000000 / nrf::lfxo_clk_freq ) * nrf::lfxo_clk_freq / 1000000;
+
+            /*
+             * The startup time rounded up to the next full period of the sleep clock
+             */
+            static constexpr std::uint32_t hfxo_startup_time = hfxo_startup_value * 1000000 / nrf::lfxo_clk_freq;
 
             link_layer::read_buffer receive_buffer()
             {
