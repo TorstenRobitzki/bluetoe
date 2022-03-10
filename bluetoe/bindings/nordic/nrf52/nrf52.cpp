@@ -141,7 +141,7 @@ namespace nrf52_details
             assign_channel( trace_ccm_endksgen_ppi_channel, NRF_CCM->EVENTS_ENDKSGEN, NRF_GPIOTE->TASKS_CLR[ 1 ] );
             assign_channel( trace_radio_ready_ppi_channel, NRF_RADIO->EVENTS_READY, NRF_GPIOTE->TASKS_OUT[ 2 ] );
             assign_channel( trace_radio_disabled_ppi_channel, NRF_RADIO->EVENTS_DISABLED, NRF_GPIOTE->TASKS_OUT[ 2 ] );
-            assign_channel( trace_debug_ppi_channel_1, nrf_timer->EVENTS_COMPARE[ 1 ], NRF_GPIOTE->TASKS_OUT[ 1 ] );
+            assign_channel( trace_debug_ppi_channel_1, nrf_timer->EVENTS_COMPARE[ tim_cc_timeout ], NRF_GPIOTE->TASKS_OUT[ 1 ] );
 
             NRF_PPI->CHENSET =
                 ( 1 << trace_debug_ppi_channel_1 )
@@ -494,8 +494,14 @@ namespace nrf52_details
 
     std::uint32_t radio_hardware_without_crypto_support::now()
     {
-        nrf_timer->TASKS_CAPTURE[ tim_cc_capture_now ] = 1;
-        return nrf_timer->CC[ tim_cc_capture_now ] - hf_connection_event_anchor_;
+        const std::uint32_t current_time = nrf_rtc->COUNTER;
+
+        // if current_time is larger than the anchor, the counter probably overflew
+        const std::uint32_t diff  = current_time > lf_connection_event_anchor_
+            ? current_time - lf_connection_event_anchor_
+            : ~lf_connection_event_anchor_ + current_time;
+
+        return static_cast< std::uint64_t >( diff ) * 1000000ul / nrf::lfxo_clk_freq;
     }
 
     static void setup_long_distance_timer(
