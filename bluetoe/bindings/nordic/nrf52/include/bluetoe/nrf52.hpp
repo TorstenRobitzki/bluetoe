@@ -54,8 +54,11 @@ namespace bluetoe
 
         // Time reserved to setup a connection event in µs
         // time measured to setup a connection event, using GCC 8.3.1 with -O0 is 12µs
-        // the addition 30µs is to take the granularity of the sleep clock into account (32kHz)
-        static constexpr std::uint32_t      setup_connection_event_limit_us = 50 + std::max( us_radio_rx_startup_time, us_radio_tx_startup_time ) + 30;
+        // the addition 31µs is to take the granularity of the sleep clock into account (32kHz)
+        // a second 31µs is add to take the same granularity of the sleep clock into account when
+        // it is used to calculate the current distance to the last anchor
+        static constexpr std::uint32_t      setup_connection_event_limit_us =
+            50 + std::max( us_radio_rx_startup_time, us_radio_tx_startup_time ) + 31 + 31;
 
         static constexpr std::uint8_t       more_data_flag = 0x10;
         static constexpr std::size_t        encryption_mic_size = 4;
@@ -130,6 +133,11 @@ namespace bluetoe
              */
             static std::pair< bool, bool > received_pdu();
 
+            /**
+             * @brief elapsed time in µs since the last anchor
+             *
+             * @sa store_timer_anchor
+             */
             static std::uint32_t now();
 
             static void setup_identity_resolving(
@@ -429,6 +437,20 @@ namespace bluetoe
             std::uint32_t static_random_address_seed() const
             {
                 return Hardware::static_random_address_seed();
+            }
+
+            void nrf_flash_memory_access_begin()
+            {
+                lock_guard lock;
+                Hardware::stop_radio();
+                low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
+                state_ = state::idle;
+            }
+
+            void nrf_flash_memory_access_end()
+            {
+                // this kicks the CPU out of the loop in run() and requests the link layer to setup the next connection event
+                evt_timeout_ = true;
             }
 
             using lock_guard = typename Hardware::lock_guard;
