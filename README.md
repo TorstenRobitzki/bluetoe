@@ -187,5 +187,16 @@ Average current measured with different connection intervals.
   * 770µA average at 30ms
   * 674µA average at 660ms
 
+## nRF52820 blinky with encryption
+
+- Calibrated RC Sleep Clock (500ppm / 1ms HFXO startup time) (21880 Bytes binary size)
+  * 347µA average at 15ms
+  * 217µA average at 30ms
+  * 94µA average at 660ms
+
+- Calibrated RC Sleep Clock (500ppm / 0.3ms HFXO startup time) (21880 Bytes binary size)
+  * 316µA average at 15ms
+  * 103µA average at 660ms
+
 
 
