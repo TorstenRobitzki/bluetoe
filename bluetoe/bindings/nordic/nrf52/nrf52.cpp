@@ -77,15 +77,15 @@ namespace nrf52_details
        nrf_ppi->CH[ channel ].EEP = reinterpret_cast< std::uint32_t >( &event );
        nrf_ppi->CH[ channel ].TEP = reinterpret_cast< std::uint32_t >( &task );
     }
-
+#define BLUETOE_NRF52_RADIO_DEBUG 1
 #   if defined BLUETOE_NRF52_RADIO_DEBUG
-        static constexpr int debug_pin_end_crypt     = 11;
-        static constexpr int debug_pin_ready_disable = 12;
-        static constexpr int debug_pin_address_end   = 13;
-        static constexpr int debug_pin_keystream     = 14;
-        static constexpr int debug_pin_debug         = 15;
-        static constexpr int debug_pin_isr           = 16;
-        static constexpr int debug_pin_hfxo          = 17;
+        static constexpr int debug_pin_end_crypt     = 4;
+        static constexpr int debug_pin_ready_disable = 5;
+        static constexpr int debug_pin_address_end   = 6;
+        static constexpr int debug_pin_keystream     = 7;
+        static constexpr int debug_pin_debug         = 8;
+        static constexpr int debug_pin_isr           = 28;
+        static constexpr int debug_pin_hfxo          = 29;
 
         void init_debug()
         {
@@ -135,8 +135,8 @@ namespace nrf52_details
                 ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
 
             assign_channel( trace_clock_hfxo_ppi_channel, nrf_clock->EVENTS_HFCLKSTARTED, NRF_GPIOTE->TASKS_SET[ 4 ] );
-            assign_channel( trace_radio_address_ppi_channel, NRF_RADIO->EVENTS_ADDRESS, NRF_GPIOTE->TASKS_OUT[ 0 ] );
-            assign_channel( trace_radio_end_ppi_channel, NRF_RADIO->EVENTS_END, NRF_GPIOTE->TASKS_OUT[ 0 ] );
+            assign_channel( trace_radio_address_ppi_channel, NRF_RADIO->EVENTS_ADDRESS, NRF_GPIOTE->TASKS_SET[ 0 ] );
+            assign_channel( trace_radio_end_ppi_channel, NRF_RADIO->EVENTS_END, NRF_GPIOTE->TASKS_CLR[ 0 ] );
             assign_channel( trace_ccm_endcrypt_ppi_channel, NRF_CCM->EVENTS_ENDCRYPT, NRF_GPIOTE->TASKS_OUT[ 3 ] );
             assign_channel( trace_ccm_endksgen_ppi_channel, NRF_CCM->EVENTS_ENDKSGEN, NRF_GPIOTE->TASKS_CLR[ 1 ] );
             assign_channel( trace_radio_ready_ppi_channel, NRF_RADIO->EVENTS_READY, NRF_GPIOTE->TASKS_OUT[ 2 ] );
@@ -470,6 +470,10 @@ namespace nrf52_details
         // disable interrupts
         nrf_radio->INTENCLR      = RADIO_INTENCLR_DISABLED_Msk;
 
+        // Stop timer, which also could cause interrupts by disabling the radio
+        nrf_timer->TASKS_STOP    = 1;
+        nrf_timer->TASKS_CLEAR   = 1;
+
         // disconnect radio from all event sources
         nrf_ppi->CHENCLR         = all_radio_ppi_channels_mask;
         nrf_radio->SHORTS        = 0;
@@ -480,7 +484,7 @@ namespace nrf52_details
 
     void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
     {
-        hf_connection_event_anchor_ = nrf_timer->CC[ tim_cc_capture_anchor ] + offset_us;
+        hf_connection_event_anchor_ = static_cast< int >( nrf_timer->CC[ tim_cc_capture_anchor ] ) + offset_us;
         lf_connection_event_anchor_ = nrf_rtc->CC[ rtc_cc_start_timer ];
     }
 
@@ -494,18 +498,22 @@ namespace nrf52_details
 
     std::uint32_t radio_hardware_without_crypto_support::now()
     {
-        const std::uint32_t current_time = nrf_rtc->COUNTER;
+        std::uint32_t counter = nrf_rtc->COUNTER;
 
-        // if current_time is larger than the anchor, the counter probably overflew
-        const std::uint32_t diff  = current_time > lf_connection_event_anchor_
-            ? current_time - lf_connection_event_anchor_
-            : ~lf_connection_event_anchor_ + current_time;
+        if ( counter < lf_connection_event_anchor_ )
+            counter += 0x1000000;
 
-        return static_cast< std::uint64_t >( diff ) * 1000000ul / nrf::lfxo_clk_freq;
+        const std::uint32_t anchor  = static_cast< std::int64_t >( lf_connection_event_anchor_ ) * 1000000 / nrf::lfxo_clk_freq + hf_connection_event_anchor_;
+        const std::uint32_t current = static_cast< std::uint64_t >( counter ) * 1000000 / nrf::lfxo_clk_freq;
+
+        // due to the lower resolution of current, current could possibly before anchor
+        return anchor < current
+            ? current - anchor
+            : 0;
     }
 
     static void setup_long_distance_timer(
-        const std::uint32_t hf_anchor,
+        const int           hf_anchor,
         const std::uint32_t lf_anchor,
         const std::uint32_t us_radio_start_time,
         const std::uint32_t us_radio_startup_delay,
@@ -539,7 +547,7 @@ namespace nrf52_details
         // in the LFCLK domain.
         const std::uint32_t start_radio_time = hf_anchor + us_radio_start_time - us_radio_startup_delay - us_offset;
 
-        // TODO: Optimize for size
+        // TODO: Optimize devision expressions for size
         const std::uint32_t lf_start_radio_time =
           static_cast< std::uint64_t >( start_radio_time )
         * static_cast< std::uint64_t >( nrf::lfxo_clk_freq ) / 1000000;
@@ -639,7 +647,7 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
-    std::uint32_t radio_hardware_without_crypto_support::hf_connection_event_anchor_;
+    int           radio_hardware_without_crypto_support::hf_connection_event_anchor_;
     std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
 
     //////////////////////////////////////////////
@@ -1074,10 +1082,12 @@ extern "C" void RADIO_IRQHandler(void)
     set_isr_pin();
 
     assert( bluetoe::nrf::nrf_radio->EVENTS_DISABLED );
+    // High frequency clock is running and is running from the crystal oscilator
+    assert( ( bluetoe::nrf::nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_SRC_Msk | CLOCK_HFCLKSTAT_STATE_Msk ) )
+        == ( ( CLOCK_LFCLKSTAT_STATE_Running << CLOCK_LFCLKSTAT_STATE_Pos ) | ( CLOCK_LFCLKSTAT_SRC_Xtal << CLOCK_LFCLKSTAT_SRC_Pos ) ) );
 
     assert( bluetoe::nrf52_details::instance );
     assert( bluetoe::nrf52_details::isr_handler );
-
     isr_handler( bluetoe::nrf52_details::instance );
 
     bluetoe::nrf::nrf_radio->EVENTS_END       = 0;

@@ -199,7 +199,9 @@ namespace bluetoe
 
         private:
 
-            static std::uint32_t hf_connection_event_anchor_;
+            // as the end of the PDU is captured and the start of the connection event
+            // then calculated based on the PDU size, HF frequency domain anchor can be negativ
+            static int           hf_connection_event_anchor_;
             static std::uint32_t lf_connection_event_anchor_;
         };
 
