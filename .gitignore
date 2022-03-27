@@ -27,7 +27,7 @@
 *.out
 *.app
 build*/
-documentation/
+documentation/html/
 .gdbinit
 node_modules/
 
