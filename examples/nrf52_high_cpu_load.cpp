@@ -10,7 +10,7 @@
 using namespace bluetoe;
 
 // LED1 on a nRF52 eval board
-static constexpr int io_pin = 17;
+static constexpr int io_pin = 30;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
@@ -32,7 +32,7 @@ typedef server<
     >
 > blinky_server;
 
-static constexpr std::uint32_t in_callback_io_pin = 5;
+static constexpr std::uint32_t in_callback_io_pin = 30;
 static NRF_TIMER_Type& delay_timer = *NRF_TIMER1;
 
 static void init_hardware()
@@ -40,6 +40,8 @@ static void init_hardware()
     NRF_GPIO->PIN_CNF[ in_callback_io_pin ] =
         ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
         ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+
+    NRF_GPIO->OUTCLR = ( 1 << in_callback_io_pin );
 
     delay_timer.PRESCALER = 4; // results in a clock of 16Mz / 2^4 == 1MHz
     delay_timer.BITMODE   = TIMER_BITMODE_BITMODE_32Bit;
@@ -51,9 +53,9 @@ static void init_hardware()
     delay_timer.EVENTS_COMPARE[0] = 0;
 
     // disable cache
-    NRF_NVMC->ICACHECNF = 0;
+//    NRF_NVMC->ICACHECNF = 0;
     // Disable Blockprotection
-    NRF_BPROT->DISABLEINDEBUG = BPROT_DISABLEINDEBUG_DISABLEINDEBUG_Msk;
+//    NRF_BPROT->DISABLEINDEBUG = BPROT_DISABLEINDEBUG_DISABLEINDEBUG_Msk;
 }
 
 template < typename T, T& Obj >
@@ -68,13 +70,20 @@ blinky_server gatt;
 
 device<
     blinky_server,
+    security_manager,
+    bluetoe::nrf::calibrated_rc_sleep_clock,
+    bluetoe::nrf::high_frequency_crystal_oscillator_startup_time< 1000 >,
+    link_layer::buffer_sizes< 200, 200 >,
+    link_layer::sleep_clock_accuracy_ppm< 500 >,
+    link_layer::max_mtu_size< 65 >,
     load_connection_event_callback< blinky_server, gatt >
  > gatt_srv;
 
 template < typename T, T& Obj >
-void load_connection_event_callback< T, Obj >::call_connection_event_callback( const bluetoe::link_layer::delta_time& time_till_next_event )
+void load_connection_event_callback< T, Obj >::call_connection_event_callback( const bluetoe::link_layer::delta_time& /* time_till_next_event */ )
 {
     NRF_GPIO->OUTSET = ( 1 << in_callback_io_pin );
+
     static int count = 0;
 
     ++count;
@@ -91,7 +100,7 @@ void load_connection_event_callback< T, Obj >::call_connection_event_callback( c
         delay_timer.EVENTS_COMPARE[0] = 0;
     }
     // Or lets utilize / stop the CPU by eraseing a flash page
-    else if ( count == 10 )
+    else if ( count == 100 )
     {
         count = 0;
         gatt_srv.nrf_flash_memory_access_begin();
@@ -103,7 +112,7 @@ void load_connection_event_callback< T, Obj >::call_connection_event_callback( c
         __ISB();
         __DSB();
 
-        NRF_NVMC->ERASEPAGE = 0x10000;
+        NRF_NVMC->ERASEPAGE = 0x20000;
 
         while ( NRF_NVMC->READY == NVMC_READY_READY_Busy )
             ;
