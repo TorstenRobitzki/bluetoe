@@ -30,10 +30,10 @@ struct link_layer_base
 
     void schedule_advertisment(
         unsigned,
-        const bluetoe::link_layer::write_buffer&,
-        const bluetoe::link_layer::write_buffer&,
+        const bluetoe::write_buffer&,
+        const bluetoe::write_buffer&,
         bluetoe::link_layer::delta_time,
-        const bluetoe::link_layer::read_buffer& )
+        const bluetoe::read_buffer& )
     {
     }
 
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( empty_request, Advertiser, all_fixtures )
 {
     bluetoe::link_layer::device_address remote_address;
     Advertiser advertiser;
-    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::read_buffer{ nullptr, 0 }, remote_address );
+    const bool result = advertiser.handle_adv_receive( bluetoe::read_buffer{ nullptr, 0 }, remote_address );
 
     BOOST_CHECK( !result );
     BOOST_CHECK_EQUAL( remote_address, bluetoe::link_layer::device_address() );
@@ -117,7 +117,7 @@ typedef boost::mpl::list<
     multi_advertiser_without_white_list
 > all_without_white_list;
 
-bluetoe::link_layer::read_buffer valid_connection_request()
+bluetoe::read_buffer valid_connection_request()
 {
     // the test PDU layout has the header inverted and 2 extra octets between header and body
     static const std::initializer_list< std::uint8_t > data = {
@@ -136,7 +136,7 @@ bluetoe::link_layer::read_buffer valid_connection_request()
         0xaa                                // hop increment and sleep clock accuracy
     };
 
-    return bluetoe::link_layer::read_buffer{ const_cast< std::uint8_t* >( data.begin() ), data.size() };
+    return bluetoe::read_buffer{ const_cast< std::uint8_t* >( data.begin() ), data.size() };
 }
 
 static const bluetoe::link_layer::random_device_address remote_address( { 0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x49 } );

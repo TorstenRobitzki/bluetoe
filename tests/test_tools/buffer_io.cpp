@@ -5,7 +5,6 @@
 #include <ostream>
 
 namespace bluetoe {
-namespace link_layer {
 
     std::ostream& operator<<( std::ostream& out, const read_buffer& buffer )
     {
@@ -18,5 +17,4 @@ namespace link_layer {
 
         return out;
     }
-}
 }

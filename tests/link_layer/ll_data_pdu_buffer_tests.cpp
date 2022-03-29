@@ -573,7 +573,7 @@ struct default_buffer : mock_radio< 3 * 29, 3 * 29 >
         BOOST_CHECK( !next_received().size );
     }
 
-    bluetoe::link_layer::read_buffer buffer;
+    bluetoe::read_buffer buffer;
 };
 
 BOOST_FIXTURE_TEST_CASE( receive_wrap_around, default_buffer )
@@ -614,7 +614,7 @@ namespace changed_pdu_layout
         /**
          * @brief returns the writable body for advertising channel or for data channel PDUs.
          */
-        static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::link_layer::read_buffer& pdu )
+        static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::read_buffer& pdu )
         {
             return {
                 &pdu.buffer[ sizeof( std::uint16_t ) + 1 ],
@@ -625,7 +625,7 @@ namespace changed_pdu_layout
         /**
          * @brief returns the readonly body for advertising channel or for data channel PDUs.
          */
-        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::link_layer::write_buffer& pdu )
+        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::write_buffer& pdu )
         {
             return {
                 &pdu.buffer[ sizeof( std::uint16_t ) + 1 ],
