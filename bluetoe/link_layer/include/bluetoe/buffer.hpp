@@ -8,6 +8,8 @@
 #include <algorithm>
 
 namespace bluetoe {
+namespace link_layer {
+
     /**
      * @brief type suitable to store the location and size of a chunk of
      *        memory that can be used to receive from the radio
@@ -121,6 +123,7 @@ namespace bluetoe {
         {
         }
     };
+}
 }
 
 #endif

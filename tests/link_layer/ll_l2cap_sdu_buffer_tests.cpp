@@ -23,7 +23,7 @@ namespace {
 
         using layout = test::layout_with_overhead< layout_overhead >;
 
-        bluetoe::read_buffer allocate_transmit_buffer( std::size_t size )
+        bluetoe::link_layer::read_buffer allocate_transmit_buffer( std::size_t size )
         {
             // allocate_transmit_buffer() is idempotent and thus should always return the
             // same buffer.
@@ -36,14 +36,14 @@ namespace {
             return { transmit_buffer_, size };
         }
 
-        void commit_transmit_buffer( bluetoe::read_buffer buffer )
+        void commit_transmit_buffer( bluetoe::link_layer::read_buffer buffer )
         {
             tranmitted_pdus_.push_back( pdu_t( buffer.buffer, buffer.buffer + buffer.size ) );
             assert( available_transmit_buffers_ > 0 );
             --available_transmit_buffers_;
         }
 
-        bluetoe::write_buffer next_received() const
+        bluetoe::link_layer::write_buffer next_received() const
         {
             if ( received_pdus_.empty() )
                 return { nullptr, 0 };
@@ -93,7 +93,7 @@ namespace {
             return result;
         }
 
-        void fill_buffer( bluetoe::read_buffer buffer, const std::initializer_list< std::uint8_t >& data )
+        void fill_buffer( bluetoe::link_layer::read_buffer buffer, const std::initializer_list< std::uint8_t >& data )
         {
             assert( buffer.size >= data.size() );
             std::copy( data.begin(), data.end(), buffer.buffer );
@@ -126,7 +126,7 @@ namespace {
             }
         }
 
-        void write_l2cap_size( bluetoe::read_buffer buffer, std::size_t size )
+        void write_l2cap_size( bluetoe::link_layer::read_buffer buffer, std::size_t size )
         {
             bluetoe::details::write_16bit( layout::body( buffer ).first, size );
         }

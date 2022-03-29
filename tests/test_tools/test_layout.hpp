@@ -23,35 +23,35 @@ namespace test {
             ::bluetoe::details::write_16bit( pdu, header_value );
         }
 
-        static std::uint16_t header( const bluetoe::read_buffer& pdu )
+        static std::uint16_t header( const bluetoe::link_layer::read_buffer& pdu )
         {
             assert( pdu.size >= data_channel_pdu_memory_size( 0 ) );
 
             return header( pdu.buffer );
         }
 
-        static std::uint16_t header( const bluetoe::write_buffer& pdu )
+        static std::uint16_t header( const bluetoe::link_layer::write_buffer& pdu )
         {
             assert( pdu.size >= data_channel_pdu_memory_size( 0 ) );
 
             return header( pdu.buffer );
         }
 
-        static void header( const bluetoe::read_buffer& pdu, std::uint16_t header_value )
+        static void header( const bluetoe::link_layer::read_buffer& pdu, std::uint16_t header_value )
         {
             assert( pdu.size >= data_channel_pdu_memory_size( 0 ) );
 
             header( pdu.buffer, header_value );
         }
 
-        static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::read_buffer& pdu )
+        static std::pair< std::uint8_t*, std::uint8_t* > body( const bluetoe::link_layer::read_buffer& pdu )
         {
             assert( pdu.size >= header_size );
 
             return { &pdu.buffer[ header_size + Overhead ], &pdu.buffer[ pdu.size ] };
         }
 
-        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::write_buffer& pdu )
+        static std::pair< const std::uint8_t*, const std::uint8_t* > body( const bluetoe::link_layer::write_buffer& pdu )
         {
             assert( pdu.size >= header_size );
 

@@ -4,12 +4,14 @@
 #include <iosfwd>
 
 namespace bluetoe {
+namespace link_layer {
 
     struct read_buffer;
     struct write_buffer;
 
     std::ostream& operator<<( std::ostream&, const read_buffer& );
     std::ostream& operator<<( std::ostream&, const write_buffer& );
+}
 }
 
 #endif
