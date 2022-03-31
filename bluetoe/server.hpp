@@ -18,6 +18,7 @@
 #include <bluetoe/outgoing_priority.hpp>
 #include <bluetoe/link_state.hpp>
 #include <bluetoe/attribute_handle.hpp>
+#include <bluetoe/l2cap_channels.hpp>
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -86,8 +87,61 @@ namespace bluetoe {
          * The purpose of this class is to store all connection related data that must be keept per connection and must
          * be reset with a new connection.
          */
-        using connection_data = details::link_state<
-            details::client_characteristic_configurations< number_of_client_configs > >;
+        class connection_data
+            : public details::client_characteristic_configurations< number_of_client_configs >
+        {
+        public:
+            connection_data()
+            // TODO use compile time configured value here
+                : server_mtu_( details::default_att_mtu_size )
+                , client_mtu_( details::default_att_mtu_size )
+            {
+            }
+
+            /**
+             * @brief returns the negotiated MTU
+             */
+            std::uint16_t negotiated_mtu() const
+            {
+                return std::min( server_mtu_, client_mtu_ );
+            }
+
+            /**
+             * @brief sets the MTU size of the connected client.
+             *
+             * The default is 23. Usually this function will be called by the server implementation as reaction
+             * of an "Exchange MTU Request".
+             * @post client_mtu() == mtu
+             */
+            void client_mtu( std::uint16_t mtu )
+            {
+                assert( mtu >= details::default_att_mtu_size );
+                client_mtu_ = mtu;
+            }
+
+            /**
+             * @brief returns the client MTU
+             *
+             * By default this returns 23 unless the client MTU was changed by call to client_mtu( std::size_t )
+             */
+            std::uint16_t client_mtu() const
+            {
+                return client_mtu_;
+            }
+
+            /**
+             * @brief returns the MTU of this server as provided in the c'tor
+             * @pre connection_data(X).server_mtu() == X
+             */
+            std::uint16_t server_mtu() const
+            {
+                return server_mtu_;
+            }
+
+        private:
+            std::uint16_t               server_mtu_;
+            std::uint16_t               client_mtu_;
+        };
 
         /**
          * @brief a server takes no runtime construction parameters
@@ -258,6 +312,16 @@ namespace bluetoe {
         typedef details::server_meta_type meta_type;
 
         static details::attribute attribute_at( std::size_t index );
+
+        static constexpr std::uint16_t channel_id               = l2cap_channel_ids::att;
+        static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+
+        template < class PreviousData >
+        class channel_data_t
+            : public connection_data
+            , public PreviousData
+        {
+        };
         /** @endcond */
 
     private:

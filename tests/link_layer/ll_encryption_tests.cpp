@@ -83,11 +83,6 @@ namespace test {
             void l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
             {
             }
-
-            constexpr std::size_t security_manager_channel_mtu_size() const
-            {
-                return 0;
-            }
         };
 
         struct meta_type :

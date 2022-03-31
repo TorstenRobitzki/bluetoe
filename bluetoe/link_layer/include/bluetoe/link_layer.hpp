@@ -19,6 +19,7 @@
 #include <bluetoe/security_manager.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/encryption.hpp>
+#include <bluetoe/l2cap.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -44,7 +45,7 @@ namespace link_layer {
             static constexpr std::size_t rx_size = s_type::receive_buffer_size;
         };
 
-        template < typename Server, typename ... Options >
+        template < typename SecurityFunctions, typename Server, typename ... Options >
         struct security_manager {
             using default_sm = typename bluetoe::details::select_type<
                 bluetoe::details::requires_encryption_support_t< Server >::value,
@@ -57,7 +58,7 @@ namespace link_layer {
                 Options...,
                 default_sm >::type;
 
-            using type = typename impl::template impl< Options... >;
+            using type = typename impl::template impl< SecurityFunctions, Options... >;
         };
 
         template < typename ... Options >
@@ -78,7 +79,7 @@ namespace link_layer {
             static constexpr std::size_t mtu = type::mtu;
         };
 
-        template < typename Server, typename ... Options >
+        template < typename LinkLayer, typename ... Options >
         struct connection_callbacks
         {
             typedef typename bluetoe::details::find_by_meta_type<
@@ -86,7 +87,7 @@ namespace link_layer {
                 Options...,
                 no_connection_callbacks >::type callbacks;
 
-            typedef typename callbacks::template impl< Server > type;
+            typedef typename callbacks::impl type;
         };
 
         template < typename Radio, typename LinkLayer, typename ... Options >
@@ -143,7 +144,7 @@ namespace link_layer {
                               std::uint32_t ivs  = 0;
 
                         bluetoe::details::uint128_t key;
-                        std::tie( has_key_, key ) = that().connection_details_.find_key( ediv, rand );
+                        std::tie( has_key_, key ) = that().connection_data_.find_key( ediv, rand );
 
                         // setup encryption
                         std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
@@ -156,18 +157,18 @@ namespace link_layer {
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
                         that().start_transmit_encrypted();
-                        encryption_changed = that().connection_details_.is_encrypted( true );
+                        encryption_changed = that().connection_data_.is_encrypted( true );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
                         that().stop_receive_encrypted();
-                        encryption_changed = that().connection_details_.is_encrypted( false );
+                        encryption_changed = that().connection_data_.is_encrypted( false );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_RSP && size == 1 )
                     {
                         that().stop_transmit_encrypted();
-                        encryption_changed = that().connection_details_.is_encrypted( false );
+                        encryption_changed = that().connection_data_.is_encrypted( false );
 
                         result = false;
                     }
@@ -177,7 +178,7 @@ namespace link_layer {
                     }
 
                     if ( encryption_changed )
-                        that().connection_changed( that().details(), that().connection_details_, static_cast< typename LinkLayer::radio_t& >( that() ) );
+                        that().connection_changed( that().details(), that().connection_data_, static_cast< typename LinkLayer::radio_t& >( that() ) );
 
                     return result;
                 }
@@ -221,6 +222,65 @@ namespace link_layer {
                 bool has_key_;
                 bool encryption_in_progress_;
             };
+
+            class link_state
+            {
+            public:
+                link_state()
+                    : encrypted_( false )
+                    , pairing_status_( device_pairing_status::no_key )
+                {
+                }
+
+                /**
+                 * @brief returns true, if the connection is currently encrypted
+                 */
+                bool is_encrypted() const
+                {
+                    return encrypted_;
+                }
+
+                /**
+                 * @brief set the current encryption status
+                 *
+                 * Returns true, if the value changed.
+                 */
+                bool is_encrypted( bool encrypted )
+                {
+                    const bool result = encrypted_ != encrypted;
+                    encrypted_ = encrypted;
+
+                    return result;
+                }
+
+                /**
+                 * @brief returns the pairing state of the local device with the remote device for this link
+                 */
+                device_pairing_status pairing_status() const
+                {
+                    return pairing_status_;
+                }
+
+                /**
+                 * @brief sets the pairing status of the current link / connection
+                 */
+                void pairing_status( device_pairing_status status )
+                {
+                    pairing_status_ = status;
+                }
+
+                /**
+                 * @brief returns the result of is_encrypted() and pairing_status() as tuple
+                 */
+                connection_security_attributes security_attributes() const
+                {
+                    return connection_security_attributes{ encrypted_, pairing_status_ };
+                }
+
+            private:
+                bool                        encrypted_;
+                device_pairing_status       pairing_status_;
+            };
         };
 
         struct link_layer_no_security_impl
@@ -241,6 +301,31 @@ namespace link_layer {
                 {
                 }
             };
+
+            class link_state
+            {
+            public:
+                bool is_encrypted() const
+                {
+                    return false;
+                }
+
+                /**
+                 * @brief returns the pairing state of the local device with the remote device for this link
+                 */
+                device_pairing_status pairing_status() const
+                {
+                    return device_pairing_status::no_key;
+                }
+
+                /**
+                 * @brief returns the result of is_encrypted() and pairing_status() as tuple
+                 */
+                connection_security_attributes security_attributes() const
+                {
+                    return connection_security_attributes{ false, device_pairing_status::no_key };
+                }
+            };
         };
 
         template < class Server, class LinkLayer >
@@ -250,6 +335,15 @@ namespace link_layer {
                 link_layer_security_impl,
                 link_layer_no_security_impl
             >::type::template impl< LinkLayer >;
+
+        template < class Server >
+        using select_link_layer_security_link_state =
+            typename bluetoe::details::select_type<
+                bluetoe::details::requires_encryption_support_t< Server >::value,
+                link_layer_security_impl,
+                link_layer_no_security_impl
+            >::type::link_state;
+
     }
 
     /**
@@ -283,7 +377,6 @@ namespace link_layer {
             >,
             details::mtu_size< Options... >::mtu
         >,
-        public details::security_manager< Server, Options... >::type,
         public details::white_list<
             bluetoe::link_layer::ll_l2cap_sdu_buffer<
                 ScheduledRadio<
@@ -298,8 +391,17 @@ namespace link_layer {
         public details::select_advertiser_implementation<
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >,
-        private details::connection_callbacks< Server, Options... >::type,
-        private details::signaling_channel< Options... >::type,
+        public bluetoe::details::l2cap<
+            link_layer< Server, ScheduledRadio, Options... >,
+            details::select_link_layer_security_link_state< Server >,
+            Server,
+            typename details::signaling_channel< Options... >::type,
+            typename details::security_manager<
+                link_layer< Server, ScheduledRadio, Options... >,
+                Server, Options...
+            >::type
+        >,
+        private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
         private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >
     {
     public:
@@ -375,6 +477,35 @@ namespace link_layer {
         >;
 
         using layout_t = typename pdu_layout_by_radio< radio_t >::pdu_layout;
+
+        using l2cap_t = bluetoe::details::l2cap<
+            link_layer< Server, ScheduledRadio, Options... >,
+            details::select_link_layer_security_link_state< Server >,
+            Server,
+            typename details::signaling_channel< Options... >::type,
+            typename details::security_manager<
+                link_layer< Server, ScheduledRadio, Options... >,
+                Server, Options...
+            >::type
+        >;
+
+        // Data associate with a established connection (beside LL parameters), like key, ATT MTU etc.
+        using connection_data_t = typename l2cap_t::connection_data_t;
+
+        // used by the l2cap layer to queue notifications / indications
+        bool queue_lcap_notification( const ::bluetoe::details::notification_data& item, typename Server::notification_type type );
+
+        // TODO implement
+        std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t )
+        {
+            return { 0, nullptr };
+        }
+
+        void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > )
+        {
+
+        }
+
         /** @endcond */
 
     private:
@@ -396,12 +527,6 @@ namespace link_layer {
 
         typedef typename details::security_manager< Server, Options... >::type security_manager_t;
 
-        typedef notification_queue<
-            typename Server::notification_priority::template numbers< typename Server::services >::type,
-            typename Server::connection_data > notification_queue_t;
-
-        typedef typename security_manager_t::template connection_data< notification_queue_t > connection_details_t;
-
         typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
 
         typedef details::select_advertiser_implementation<
@@ -414,13 +539,8 @@ namespace link_layer {
         void force_disconnect();
         void start_advertising_impl();
         void wait_for_connection_event();
-        void transmit_notifications();
-        void transmit_signaling_channel_output();
-        void transmit_security_manager_channel_output();
         void transmit_pending_control_pdus();
         void reject( std::uint8_t opcode, std::uint8_t error_code, read_buffer& output );
-
-        static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type );
 
         enum class ll_result {
             go_ahead,
@@ -430,7 +550,6 @@ namespace link_layer {
         ll_result handle_received_data();
         ll_result send_control_pdus();
         ll_result handle_ll_control_data( const write_buffer& pdu, read_buffer output );
-        ll_result handle_l2cap( const write_buffer& pdu, const read_buffer& output );
         ll_result handle_pending_ll_control();
 
         connection_details details() const;
@@ -470,6 +589,7 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_VERSION_NR               = 0x08;
         static constexpr std::uint8_t   LL_VERSION_40               = 0x06;
 
+        // TODO Remove block
         static constexpr std::uint16_t  l2cap_att_channel           = 4;
         static constexpr std::uint16_t  l2cap_signaling_channel     = 5;
         static constexpr std::uint16_t  l2cap_sm_channel            = 6;
@@ -521,7 +641,7 @@ namespace link_layer {
         std::uint16_t                   defered_conn_event_counter_;
         write_buffer                    defered_ll_control_pdu_;
         Server*                         server_;
-        connection_details_t            connection_details_;
+        connection_data_t               connection_data_;
         bool                            termination_send_;
         std::uint8_t                    used_features_;
 
@@ -568,7 +688,6 @@ namespace link_layer {
         , current_channel_index_( first_advertising_channel )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , server_( nullptr )
-        , connection_details_( std::size_t{ details::mtu_size< Options... >::mtu } )
         , used_features_( supported_features )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
@@ -584,21 +703,17 @@ namespace link_layer {
         {
             server_ = &server;
             start_advertising_impl();
-
-            server.notification_callback( lcap_notification_callback, this );
         }
 
         radio_t::run();
 
         if ( state_ == state::connected )
         {
-            transmit_notifications();
-            transmit_signaling_channel_output();
-            transmit_security_manager_channel_output();
+            this->transmit_pending_l2cap_output();
             transmit_pending_control_pdus();
         }
 
-        this->handle_connection_events();
+        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -642,8 +757,8 @@ namespace link_layer {
                 this->connection_request( connection_addresses( address_, remote_address ) );
                 this->handle_stop_advertising();
 
-                connection_details_ = connection_details_t( std::size_t{ details::mtu_size< Options... >::mtu } );
-                connection_details_.remote_connection_created( remote_address );
+                connection_data_ = connection_data_t();
+                connection_data_.remote_connection_created( remote_address );
             }
         }
     }
@@ -693,7 +808,7 @@ namespace link_layer {
 
         if ( state_ == state::connecting )
         {
-            this->connection_established( details(), connection_details_, static_cast< radio_t& >( *this ) );
+            this->connection_established( details(), connection_data_, static_cast< radio_t& >( *this ) );
         }
 
         if ( state_ != state::disconnecting )
@@ -790,124 +905,6 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::transmit_notifications()
-    {
-        // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_l2cap_transmit_buffer( connection_details_.negotiated_mtu() );
-
-        if ( out_buffer.empty() )
-            return;
-
-        const auto notification = connection_details_.dequeue_indication_or_confirmation();
-
-        if ( notification.first != connection_details_t::entry_type::empty )
-        {
-            std::size_t   out_size = out_buffer.size - all_header_size - layout_t::data_channel_pdu_memory_size( 0 );
-            std::uint8_t* out_body = layout_t::body( out_buffer ).first;
-
-            if ( notification.first == connection_details_t::entry_type::notification )
-            {
-                server_->notification_output(
-                    &out_body[ l2cap_header_size ],
-                    out_size,
-                    connection_details_,
-                    notification.second
-                );
-            }
-            else
-            {
-                server_->indication_output(
-                    &out_body[ l2cap_header_size ],
-                    out_size,
-                    connection_details_,
-                    notification.second
-                );
-
-                // if no output is generate, confirm the indication, or we will wait for ever
-                if ( out_size == 0 )
-                    connection_details_.indication_confirmed();
-
-            }
-
-            if ( out_size )
-            {
-                fill< layout_t >( out_buffer, {
-                    lld_data_pdu_code,
-                    static_cast< std::uint8_t >( out_size + l2cap_header_size ),
-                    static_cast< std::uint8_t >( out_size & 0xff ),
-                    static_cast< std::uint8_t >( ( out_size & 0xff00 ) >> 8 ),
-                    static_cast< std::uint8_t >( l2cap_att_channel ),
-                    static_cast< std::uint8_t >( l2cap_att_channel >> 8 ) } );
-
-                this->commit_l2cap_transmit_buffer( out_buffer );
-            }
-        }
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::transmit_signaling_channel_output()
-    {
-        // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_l2cap_transmit_buffer( this->signaling_channel_mtu_size() );
-
-        if ( out_buffer.empty() )
-            return;
-
-        std::size_t   out_size = out_buffer.size - all_header_size - layout_t::data_channel_pdu_memory_size( 0 );
-        std::uint8_t* out_body = layout_t::body( out_buffer ).first;
-
-        this->signaling_channel_output( &out_body[ l2cap_header_size ], out_size );
-
-        if ( out_size )
-        {
-            fill< layout_t >( out_buffer, {
-                lld_data_pdu_code,
-                static_cast< std::uint8_t >( out_size + l2cap_header_size ),
-                static_cast< std::uint8_t >( out_size ),
-                static_cast< std::uint8_t >( ( out_size & 0xff00 ) >> 8 ),
-                static_cast< std::uint8_t >( l2cap_signaling_channel ),
-                static_cast< std::uint8_t >( l2cap_signaling_channel >> 8 ) } );
-
-            this->commit_l2cap_transmit_buffer( out_buffer );
-        }
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::transmit_security_manager_channel_output()
-    {
-        const std::size_t mtu_size = this->security_manager_channel_mtu_size();
-        if ( !mtu_size )
-            return;
-
-        if ( !this->security_manager_output_available( connection_details_ ) )
-            return;
-
-        // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_l2cap_transmit_buffer( mtu_size );
-
-        if ( out_buffer.empty() )
-            return;
-
-        std::size_t   out_size = out_buffer.size - all_header_size - layout_t::data_channel_pdu_memory_size( 0 );
-        std::uint8_t* out_body = layout_t::body( out_buffer ).first;
-
-        this->l2cap_output( &out_body[ l2cap_header_size ], out_size, connection_details_, *this );
-
-        if ( out_size )
-        {
-            fill< layout_t >( out_buffer, {
-                lld_data_pdu_code,
-                static_cast< std::uint8_t >( out_size + l2cap_header_size ),
-                static_cast< std::uint8_t >( out_size ),
-                static_cast< std::uint8_t >( ( out_size & 0xff00 ) >> 8 ),
-                static_cast< std::uint8_t >( l2cap_sm_channel ),
-                static_cast< std::uint8_t >( l2cap_sm_channel >> 8 ) } );
-
-            this->commit_l2cap_transmit_buffer( out_buffer );
-        }
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::transmit_pending_control_pdus()
     {
         static constexpr std::uint8_t connection_param_req_size = 24u;
@@ -961,19 +958,19 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* usr_arg, typename Server::notification_type type )
+    bool link_layer< Server, ScheduledRadio, Options... >::queue_lcap_notification( const ::bluetoe::details::notification_data& item, typename Server::notification_type type )
     {
-        auto& confirmation_queue = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( usr_arg )->connection_details_;
+        // TODO: Synchronization required!!!
         switch ( type )
         {
             case Server::notification:
-                return confirmation_queue.queue_notification( item.client_characteristic_configuration_index() );
+                return connection_data_.queue_notification( item.client_characteristic_configuration_index() );
                 break;
             case Server::indication:
-                return confirmation_queue.queue_indication( item.client_characteristic_configuration_index() );
+                return connection_data_.queue_indication( item.client_characteristic_configuration_index() );
                 break;
             case Server::confirmation:
-                confirmation_queue.indication_confirmed();
+                connection_data_.indication_confirmed();
                 return true;
                 break;
         }
@@ -1039,7 +1036,7 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::force_disconnect()
     {
         this->reset_encryption();
-        this->connection_closed( connection_details_, static_cast< radio_t& >( *this ) );
+        this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
         start_advertising_impl();
     }
 
@@ -1061,27 +1058,27 @@ namespace link_layer {
         if ( result != ll_result::go_ahead || !defered_ll_control_pdu_.empty() )
             return result;
 
-        for ( auto pdu = this->next_ll_l2cap_received(); pdu.size != 0; )
+        for ( auto pdu = this->next_ll_l2cap_received(); pdu.size != 0 && result == ll_result::go_ahead && defered_ll_control_pdu_.empty(); )
         {
             const auto llid = layout_t::header( pdu ) & 0x03;
-
-            read_buffer output = { nullptr, 0 };
+            const auto body = layout_t::body( pdu );
 
             if ( llid == ll_control_pdu_code )
             {
-                output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
+                const read_buffer output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
                 if ( output.size )
+                {
                     result = handle_ll_control_data( pdu, output );
+                    this->free_ll_l2cap_received();
+                    pdu = this->next_ll_l2cap_received();
+                }
+                else
+                {
+                    pdu.size = 0;
+                }
             }
-            else if ( llid == lld_data_pdu_code && state_ != state::disconnecting )
-            {
-                // TODO: Bug #67 will be too small for l2cap
-                output = this->allocate_l2cap_transmit_buffer( connection_details_.negotiated_mtu() );
-                if ( output.size )
-                    result = handle_l2cap( pdu, output );
-            }
-
-            if ( output.size )
+            else if ( llid == lld_data_pdu_code && state_ != state::disconnecting
+                   && this->handle_l2cap_input( body.first, body.second - body.first, connection_data_ ) )
             {
                 this->free_ll_l2cap_received();
                 pdu = this->next_ll_l2cap_received();
@@ -1245,54 +1242,6 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_l2cap( const write_buffer& input, const read_buffer& output )
-    {
-        const std::uint8_t* const input_body= layout_t::body( input ).first;
-
-        const std::uint16_t l2cap_size      = read_16( &input_body[ 0 ] );
-        const std::uint16_t l2cap_channel   = read_16( &input_body[ 2 ] );
-
-        std::size_t   out_size   = output.size - l2cap_header_size - layout_t::data_channel_pdu_memory_size( 0 );
-        std::uint8_t* out_body   = layout_t::body( output ).first;
-
-        if ( l2cap_channel == l2cap_att_channel )
-        {
-            server_->l2cap_input( &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size, connection_details_ );
-        }
-        else if ( l2cap_channel == l2cap_sm_channel )
-        {
-            static_cast< security_manager_t& >( *this ).l2cap_input( &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size, connection_details_, *this );
-
-            // in case the pairing status changed
-            connection_details_.pairing_status( connection_details_.local_device_pairing_status() );
-        }
-        else if ( l2cap_channel == l2cap_signaling_channel )
-        {
-            this->signaling_channel_input(
-                &input_body[ l2cap_header_size ], l2cap_size, &out_body[ l2cap_header_size ], out_size );
-        }
-        else
-        {
-            out_size = 0;
-        }
-
-        if ( out_size )
-        {
-            fill< layout_t >( output, {
-                lld_data_pdu_code,
-                static_cast< std::uint8_t >( out_size + l2cap_header_size ),
-                static_cast< std::uint8_t >( out_size ),
-                0,
-                static_cast< std::uint8_t >( l2cap_channel ),
-                static_cast< std::uint8_t >( l2cap_channel >> 8 ) } );
-
-            this->commit_l2cap_transmit_buffer( output );
-        }
-
-        return ll_result::go_ahead;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_pending_ll_control()
     {
         ll_result result = ll_result::go_ahead;
@@ -1312,7 +1261,7 @@ namespace link_layer {
                 {
                     state_ = state::connection_update;
 
-                    this->connection_changed( details(), connection_details_, static_cast< radio_t& >( *this ) );
+                    this->connection_changed( details(), connection_data_, static_cast< radio_t& >( *this ) );
                 }
                 else
                 {

@@ -1,10 +1,12 @@
 #ifndef BLUETOE_LINK_LAYER_L2CAP_SIGNALING_CHANNEL_HPP
 #define BLUETOE_LINK_LAYER_L2CAP_SIGNALING_CHANNEL_HPP
 
+#include <bluetoe/ll_meta_types.hpp>
+#include <bluetoe/codes.hpp>
+#include <bluetoe/l2cap_channels.hpp>
+
 #include <cstdlib>
 #include <cstdint>
-#include "ll_meta_types.hpp"
-#include <bluetoe/codes.hpp>
 
 namespace bluetoe {
 
@@ -28,7 +30,8 @@ namespace l2cap {
         /**
          * @brief input from the l2cap layer
          */
-        void signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size );
+        template < typename ConnectionData >
+        void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
         /**
          * @brief output to the l2cap layer
@@ -46,9 +49,15 @@ namespace l2cap {
         /**
          * @brief supported MTU size
          */
-        constexpr std::size_t signaling_channel_mtu_size() const;
+        constexpr std::size_t channel_mtu_size() const;
 
         /** @cond HIDDEN_SYMBOLS */
+        static constexpr std::uint16_t channel_id               = l2cap_channel_ids::signaling;
+        static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+
+        template < class PreviousData >
+        using channel_data_t = PreviousData;
+
         struct meta_type :
             bluetoe::details::signaling_channel_meta_type,
             bluetoe::link_layer::details::valid_link_layer_option_meta_type {};
@@ -84,7 +93,8 @@ namespace l2cap {
         /**
          * @copydoc signaling_channel::signaling_channel_input
          */
-        void signaling_channel_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t& out_size )
+        template < typename ConnectionData >
+        void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t& out_size, ConnectionData& )
         {
             out_size = 0;
         }
@@ -108,12 +118,18 @@ namespace l2cap {
         /**
          * @brief supported MTU size
          */
-        constexpr std::size_t signaling_channel_mtu_size() const
+        constexpr std::size_t channel_mtu_size() const
         {
             return bluetoe::details::default_att_mtu_size;
         }
 
         /** @cond HIDDEN_SYMBOLS */
+        static constexpr std::uint16_t channel_id               = l2cap_channel_ids::signaling;
+        static constexpr std::size_t   minimum_channel_mtu_size = 0;
+
+        template < class PreviousData >
+        using channel_data_t = PreviousData;
+
         typedef bluetoe::details::signaling_channel_meta_type meta_type;
         /** @endcond */
     };
@@ -126,7 +142,8 @@ namespace l2cap {
     }
 
     template < typename ... Options >
-    void signaling_channel< Options... >::signaling_channel_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size )
+    template < typename ConnectionData >
+    void signaling_channel< Options... >::l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& )
     {
         const std::uint8_t code = in_size > 0 ? input[ 0 ] : 0;
 
@@ -194,7 +211,7 @@ namespace l2cap {
     }
 
     template < typename ... Options >
-    constexpr std::size_t signaling_channel< Options... >::signaling_channel_mtu_size() const
+    constexpr std::size_t signaling_channel< Options... >::channel_mtu_size() const
     {
         return bluetoe::details::default_att_mtu_size;
     }

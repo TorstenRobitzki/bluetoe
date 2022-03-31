@@ -7,6 +7,7 @@ namespace bluetoe {
 namespace details {
 
     static constexpr std::uint16_t default_att_mtu_size = 23;
+    static constexpr std::uint16_t default_lesc_mtu_size = 65;
 
     enum class att_opcodes : std::uint8_t {
         error_response              = 0x01,
