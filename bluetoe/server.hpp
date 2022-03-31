@@ -299,10 +299,13 @@ namespace bluetoe {
          */
         void notification_callback( lcap_notification_callback_t, void* usr_arg );
 
-        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data&, const details::notification_data& data );
-        void notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
+        template < typename Connection >
+        void notification_output( std::uint8_t* output, std::size_t& out_size, Connection&, const details::notification_data& data );
+        template < typename Connection >
+        void notification_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index );
 
-        void indication_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index );
+        template < class Connection >
+        void indication_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index );
 
         /**
          * @attention this function must be called with every client that got disconnected.
@@ -367,9 +370,10 @@ namespace bluetoe {
         void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
         template < typename WriteQueue >
         void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
-        void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
-        template < typename WriteQueue >
-        void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
+        template < typename Connection >
+        void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection&, const details::no_such_type& );
+        template < typename Connection, typename WriteQueue >
+        void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection&, const WriteQueue& );
         void handle_value_confirmation( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& );
 
         template < class Iterator, class Filter = details::all_uuid_filter >
@@ -769,7 +773,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, const details::notification_data& data )
+    template < class Connection >
+    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, const details::notification_data& data )
     {
         assert( data.valid() );
 
@@ -799,13 +804,15 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
+    template < class Connection >
+    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index )
     {
         notification_output( output, out_size, connection, find_notification_data_by_index( client_characteristic_configuration_index ) );
     }
 
     template < typename ... Options >
-    void server< Options... >::indication_output( std::uint8_t* output, std::size_t& out_size, connection_data& connection, std::size_t client_characteristic_configuration_index )
+    template < class Connection >
+    void server< Options... >::indication_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index )
     {
         const auto details = find_notification_data_by_index( client_characteristic_configuration_index );
         assert( details.valid() );
@@ -1459,14 +1466,15 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
+    template < typename Connection >
+    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, Connection&, const details::no_such_type& )
     {
         error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
     }
 
     template < typename ... Options >
-    template < typename WriteQueue >
-    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& client, const WriteQueue& )
+    template < typename Connection, typename WriteQueue >
+    void server< Options... >::handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection& client, const WriteQueue& )
     {
         if ( in_size != 2 || ( input[ 1 ] != 0 && input[ 1 ] != 1 ) )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );

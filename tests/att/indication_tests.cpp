@@ -35,9 +35,9 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
 
     BOOST_FIXTURE_TEST_CASE( if_client_configuration_is_not_enabled_not_output, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration( mtu_size );
+        channel_data_t< bluetoe::details::link_state_no_security > client_configuration;
 
-        std::size_t size = mtu_size;
+        std::size_t size = client_configuration.negotiated_mtu();
         indication_output( begin(), size, client_configuration, 0 );
 
         BOOST_CHECK_EQUAL( size, 0u );
@@ -45,10 +45,10 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
 
     BOOST_FIXTURE_TEST_CASE( output_if_enables, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration( mtu_size );
+        connection_data client_configuration;
         client_configuration.client_configurations().flags( 0, 2 ); // 2 == indications
 
-        std::size_t size = mtu_size;
+        std::size_t size = client_configuration.negotiated_mtu();
         indication_output( begin(), size, client_configuration, 0 );
 
         static const std::uint8_t expected_output[] = { 0x1D, 0x03, 0x00, 0x42 };

@@ -67,7 +67,7 @@ namespace test {
         request_with_reponse()
             : response( &guarded_buffer[ guard_size ] )
             , response_size( ResponseBufferSize )
-            , connection( ResponseBufferSize )
+            , connection()
         {
             connection.client_mtu( ResponseBufferSize );
 
@@ -86,7 +86,8 @@ namespace test {
             check_response();
         }
 
-        void l2cap_input( const std::vector< std::uint8_t >& values, typename Server::connection_data& con = Server::connection_data() )
+        template < class Connection >
+        void l2cap_input( const std::vector< std::uint8_t >& values, Connection& con = Connection() )
         {
             response_size = ResponseBufferSize;
             std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
@@ -94,7 +95,8 @@ namespace test {
             check_response();
         }
 
-        void l2cap_input( const std::initializer_list< std::uint8_t >& input, typename Server::connection_data& con )
+        template < class Connection >
+        void l2cap_input( const std::initializer_list< std::uint8_t >& input, Connection& con )
         {
             const std::vector< std::uint8_t > values( input );
             l2cap_input( values, con );
@@ -133,8 +135,8 @@ namespace test {
             hex_dump( std::cout, std::begin( guarded_buffer ), std::end( guarded_buffer ) );
         }
 
-        template < class Iter >
-        void expected_output( const bluetoe::details::notification_data& org_value, Iter begin, Iter end, typename Server::connection_data& con )
+        template < class Iter, class Connection >
+        void expected_output( const bluetoe::details::notification_data& org_value, Iter begin, Iter end, Connection& con )
         {
             assert( org_value.valid() );
 
@@ -155,7 +157,8 @@ namespace test {
             BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
         }
 
-        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        template < class Connection >
+        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, Connection& con )
         {
             expected_output( value, expected.begin(), expected.end(), con );
         }
@@ -171,8 +174,8 @@ namespace test {
             expected_output( notification, expected );
         }
 
-        template < class T >
-        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        template < class T, class Connection >
+        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected, Connection& con )
         {
             expected_output( find_notification_data( &value ), expected, con );
         }
@@ -202,11 +205,22 @@ namespace test {
 
         using Server::find_notification_data;
 
+        /*
+         * This is ussually provided by the link layer to the ATT layer
+         */
+        struct connection_data : Server::connection_data
+        {
+            bluetoe::connection_security_attributes security_attributes() const
+            {
+                return bluetoe::connection_security_attributes{ false, bluetoe::device_pairing_status::no_key };
+            }
+        };
+
         std::uint8_t                                guarded_buffer[ ResponseBufferSize + 2 * guard_size ];
         std::uint8_t* const                         response;
         std::size_t                                 response_size;
         static constexpr std::size_t                mtu_size = ResponseBufferSize;
-        typename Server::connection_data            connection;
+        connection_data                             connection;
         static bluetoe::details::notification_data  notification;
         static typename Server::notification_type   notification_type;
 

@@ -213,7 +213,7 @@ namespace link_layer {
 
                 void reset_encryption()
                 {
-                    that().connection_details_.is_encrypted( false );
+                    that().connection_data_.is_encrypted( false );
                     that().stop_receive_encrypted();
                     that().stop_transmit_encrypted();
                 }
@@ -223,64 +223,7 @@ namespace link_layer {
                 bool encryption_in_progress_;
             };
 
-            class link_state
-            {
-            public:
-                link_state()
-                    : encrypted_( false )
-                    , pairing_status_( device_pairing_status::no_key )
-                {
-                }
-
-                /**
-                 * @brief returns true, if the connection is currently encrypted
-                 */
-                bool is_encrypted() const
-                {
-                    return encrypted_;
-                }
-
-                /**
-                 * @brief set the current encryption status
-                 *
-                 * Returns true, if the value changed.
-                 */
-                bool is_encrypted( bool encrypted )
-                {
-                    const bool result = encrypted_ != encrypted;
-                    encrypted_ = encrypted;
-
-                    return result;
-                }
-
-                /**
-                 * @brief returns the pairing state of the local device with the remote device for this link
-                 */
-                device_pairing_status pairing_status() const
-                {
-                    return pairing_status_;
-                }
-
-                /**
-                 * @brief sets the pairing status of the current link / connection
-                 */
-                void pairing_status( device_pairing_status status )
-                {
-                    pairing_status_ = status;
-                }
-
-                /**
-                 * @brief returns the result of is_encrypted() and pairing_status() as tuple
-                 */
-                connection_security_attributes security_attributes() const
-                {
-                    return connection_security_attributes{ encrypted_, pairing_status_ };
-                }
-
-            private:
-                bool                        encrypted_;
-                device_pairing_status       pairing_status_;
-            };
+            using link_state = bluetoe::details::link_state;
         };
 
         struct link_layer_no_security_impl
@@ -302,30 +245,7 @@ namespace link_layer {
                 }
             };
 
-            class link_state
-            {
-            public:
-                bool is_encrypted() const
-                {
-                    return false;
-                }
-
-                /**
-                 * @brief returns the pairing state of the local device with the remote device for this link
-                 */
-                device_pairing_status pairing_status() const
-                {
-                    return device_pairing_status::no_key;
-                }
-
-                /**
-                 * @brief returns the result of is_encrypted() and pairing_status() as tuple
-                 */
-                connection_security_attributes security_attributes() const
-                {
-                    return connection_security_attributes{ false, device_pairing_status::no_key };
-                }
-            };
+            using link_state = bluetoe::details::link_state_no_security;
         };
 
         template < class Server, class LinkLayer >
@@ -525,12 +445,15 @@ namespace link_layer {
         static_assert( !encryption_required || ( encryption_required && radio_t::hardware_supports_encryption ),
             "The GATT server requires encryption while the selecte hardware binding doesn't provide support for encryption!" );
 
-        typedef typename details::security_manager< Server, Options... >::type security_manager_t;
+        using security_manager_t = typename details::security_manager<
+                link_layer< Server, ScheduledRadio, Options... >,
+                Server, Options...
+            >::type;
 
-        typedef typename details::signaling_channel< Options... >::type signaling_channel_t;
+        using signaling_channel_t = typename details::signaling_channel< Options... >::type;
 
-        typedef details::select_advertiser_implementation<
-            link_layer< Server, ScheduledRadio, Options... >, Options... > advertising_t;
+        using advertising_t = details::select_advertiser_implementation<
+            link_layer< Server, ScheduledRadio, Options... >, Options... >;
 
         unsigned sleep_clock_accuracy( const std::uint8_t* received_body ) const;
         bool check_timing_paremeters() const;

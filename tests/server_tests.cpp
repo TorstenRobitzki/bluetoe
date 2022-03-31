@@ -40,7 +40,7 @@ typedef bluetoe::server<
 template < class Server = large_temperature_service >
 struct connection_data : Server::connection_data
 {
-    connection_data() : Server::connection_data( 23 ) {}
+    connection_data() : Server::connection_data() {}
 };
 
 BOOST_FIXTURE_TEST_CASE( characteristic_configuration_is_initialized_with_zereo, connection_data<> )
