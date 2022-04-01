@@ -2,7 +2,9 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <bluetoe/notification_queue.hpp>
-#include <test_servers.hpp>
+
+#include "test_servers.hpp"
+#include "attribute_io.hpp"
 
 BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
@@ -25,7 +27,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
         BOOST_CHECK( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
-        BOOST_CHECK_EQUAL( notification_type, simple_server::notification );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::notification );
     }
 
     BOOST_FIXTURE_TEST_CASE( no_output_when_notification_not_enabled, test::request_with_reponse< simple_server > )
@@ -170,7 +172,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
 
         BOOST_CHECK( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
-        BOOST_CHECK_EQUAL( notification_type, fixed_server::notification );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::notification );
 
         expected_output( notification, { 0x1B, 0x10, 0x01, 0xaa } );
     }
@@ -224,7 +226,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 0u );
-        BOOST_CHECK_EQUAL( notification_type, server::notification );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::notification );
     }
 
     BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, test::request_with_reponse< server > )
@@ -234,7 +236,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_uuid )
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 7u );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1u );
-        BOOST_CHECK_EQUAL( notification_type, server::notification );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::notification );
     }
 
     // This test should not compile
@@ -658,17 +660,17 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
 
     notification_queue_t notification_queue;
 
-    static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void*, typename dts_server_t< dts_service >::notification_type type )
+    static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void*, bluetoe::details::notification_type type )
     {
         switch ( type )
         {
-            case dts_server_t< dts_service >::notification:
+            case bluetoe::details::notification_type::notification:
                 return notification_queue.queue_notification( item.client_characteristic_configuration_index() );
                 break;
-            case dts_server_t< dts_service >::indication:
+            case bluetoe::details::notification_type::indication:
                 return notification_queue.queue_indication( item.client_characteristic_configuration_index() );
                 break;
-            case dts_server_t< dts_service >::confirmation:
+            case bluetoe::details::notification_type::confirmation:
                 notification_queue.indication_confirmed();
                 return true;
                 break;

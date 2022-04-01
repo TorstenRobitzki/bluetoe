@@ -52,7 +52,31 @@ std::ostream& bluetoe::details::operator<<( std::ostream& out, const bluetoe::de
             break;
 
         default:
-            out << "invalid_attribute_access_result(" << static_cast< int >( result ) << ")";
+            out << "invalid attribute_access_result(" << static_cast< int >( result ) << ")";
+            break;
+    }
+
+    return out;
+}
+
+std::ostream& bluetoe::details::operator<<( std::ostream& out, notification_type type )
+{
+    switch ( type )
+    {
+        case notification_type::notification:
+            out << "notification";
+            break;
+
+        case notification_type::indication:
+            out << "notification";
+            break;
+
+        case notification_type::confirmation:
+            out << "notification";
+            break;
+
+        default:
+            out << "invalid notification_type(" << static_cast< int >( type ) << ")";
             break;
     }
 

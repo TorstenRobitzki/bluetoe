@@ -9,6 +9,7 @@ namespace bluetoe {
 namespace details {
 
     std::ostream& operator<<( std::ostream&, const attribute_access_result& );
+    std::ostream& operator<<( std::ostream&, notification_type );
 }
 }
 

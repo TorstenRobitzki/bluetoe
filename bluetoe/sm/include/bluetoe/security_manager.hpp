@@ -747,6 +747,7 @@ namespace bluetoe {
 
             static constexpr std::uint16_t channel_id               = l2cap_channel_ids::sm;
             static constexpr std::size_t   minimum_channel_mtu_size = default_att_mtu_size;
+            static constexpr std::size_t   maximum_channel_mtu_size = default_att_mtu_size;
 
             template < class OtherConnectionData >
             using channel_data_t = ConnectionData< OtherConnectionData >;
@@ -769,6 +770,7 @@ namespace bluetoe {
 
             static constexpr std::uint16_t channel_id               = l2cap_channel_ids::sm;
             static constexpr std::size_t   minimum_channel_mtu_size = default_lesc_mtu_size;
+            static constexpr std::size_t   maximum_channel_mtu_size = default_lesc_mtu_size;
 
             template < class OtherConnectionData >
             using channel_data_t = ConnectionData< OtherConnectionData >;
@@ -791,6 +793,7 @@ namespace bluetoe {
 
             static constexpr std::uint16_t channel_id               = l2cap_channel_ids::sm;
             static constexpr std::size_t   minimum_channel_mtu_size = default_lesc_mtu_size;
+            static constexpr std::size_t   maximum_channel_mtu_size = default_lesc_mtu_size;
 
             template < class OtherConnectionData >
             using channel_data_t = ConnectionData< OtherConnectionData >;
@@ -936,6 +939,7 @@ namespace bluetoe {
 
             static constexpr std::uint16_t channel_id               = l2cap_channel_ids::sm;
             static constexpr std::size_t   minimum_channel_mtu_size = 0;
+            static constexpr std::size_t   maximum_channel_mtu_size = 0;
         };
 
         struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,

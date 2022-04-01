@@ -5,6 +5,7 @@
 #include <bluetoe/service.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/filter.hpp>
+#include <bluetoe/gatt_options.hpp>
 #include <bluetoe/server_name.hpp>
 #include <bluetoe/adv_service_list.hpp>
 #include <bluetoe/slave_connection_interval_range.hpp>
@@ -19,6 +20,7 @@
 #include <bluetoe/link_state.hpp>
 #include <bluetoe/attribute_handle.hpp>
 #include <bluetoe/l2cap_channels.hpp>
+
 #include <cstdint>
 #include <cstddef>
 #include <algorithm>
@@ -51,6 +53,7 @@ namespace bluetoe {
      * @sa server_name
      * @sa appearance
      * @sa requires_encryption
+     * @sa max_mtu_size
      */
     template < typename ... Options >
     class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >,
@@ -92,9 +95,7 @@ namespace bluetoe {
         {
         public:
             connection_data()
-            // TODO use compile time configured value here
-                : server_mtu_( details::default_att_mtu_size )
-                , client_mtu_( details::default_att_mtu_size )
+                : client_mtu_( details::default_att_mtu_size )
             {
             }
 
@@ -103,7 +104,7 @@ namespace bluetoe {
              */
             std::uint16_t negotiated_mtu() const
             {
-                return std::min( server_mtu_, client_mtu_ );
+                return std::min( server_mtu(), client_mtu_ );
             }
 
             /**
@@ -135,11 +136,10 @@ namespace bluetoe {
              */
             std::uint16_t server_mtu() const
             {
-                return server_mtu_;
+                return maximum_channel_mtu_size;
             }
 
         private:
-            std::uint16_t               server_mtu_;
             std::uint16_t               client_mtu_;
         };
 
@@ -282,13 +282,7 @@ namespace bluetoe {
          */
         std::size_t scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
-        enum notification_type {
-            notification,
-            indication,
-            confirmation
-        };
-
-        typedef bool (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, notification_type type );
+        typedef bool (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, details::notification_type type );
 
         /**
          * @brief sets the callback for the l2cap layer to receive notifications and indications
@@ -318,6 +312,11 @@ namespace bluetoe {
 
         static constexpr std::uint16_t channel_id               = l2cap_channel_ids::att;
         static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+        static constexpr std::size_t   maximum_channel_mtu_size = bluetoe::details::find_by_meta_type<
+                details::mtu_size_meta_type,
+                Options...,
+                max_mtu_size< bluetoe::details::default_att_mtu_size >
+            >::type::mtu;
 
         template < class PreviousData >
         class channel_data_t
@@ -675,7 +674,7 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            return l2cap_cb_( data, l2cap_arg_, notification );
+            return l2cap_cb_( data, l2cap_arg_, details::notification_type::notification );
 
         return false;
     }
@@ -694,7 +693,7 @@ namespace bluetoe {
         const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
 
         if ( l2cap_cb_ )
-            return l2cap_cb_( data, l2cap_arg_, notification );
+            return l2cap_cb_( data, l2cap_arg_, details::notification_type::notification );
 
         return false;
     }
@@ -709,7 +708,7 @@ namespace bluetoe {
         assert( data.valid() );
 
         if ( l2cap_cb_ )
-            return l2cap_cb_( data, l2cap_arg_, indication );
+            return l2cap_cb_( data, l2cap_arg_, details::notification_type::indication );
 
         return false;
     }
@@ -728,7 +727,7 @@ namespace bluetoe {
         const auto data = details::find_notification_by_uuid< notification_priority, services, typename characteristic::characteristic_t >::data();
 
         if ( l2cap_cb_ )
-            return l2cap_cb_( data, l2cap_arg_, indication );
+            return l2cap_cb_( data, l2cap_arg_, details::notification_type::indication );
 
         return false;
     }
@@ -1519,7 +1518,7 @@ namespace bluetoe {
         out_size = 0;
 
         if ( l2cap_cb_ )
-            l2cap_cb_( details::notification_data(), l2cap_arg_, confirmation );
+            l2cap_cb_( details::notification_data(), l2cap_arg_, details::notification_type::confirmation );
     }
 
 

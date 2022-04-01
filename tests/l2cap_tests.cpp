@@ -15,6 +15,7 @@ class channel_a
 public:
     static constexpr std::uint16_t channel_id = 42;
     static constexpr std::size_t   minimum_channel_mtu_size = 19;
+    static constexpr std::size_t   maximum_channel_mtu_size = 44;
 
     template < typename ConnectionData >
     void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
@@ -47,6 +48,7 @@ class channel_b
 public:
     static constexpr std::uint16_t channel_id = 43;
     static constexpr std::size_t   minimum_channel_mtu_size = 22;
+    static constexpr std::size_t   maximum_channel_mtu_size = 30;
 
     template < typename ConnectionData >
     void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
@@ -218,6 +220,11 @@ BOOST_FIXTURE_TEST_SUITE( test, link_layer )
 BOOST_AUTO_TEST_CASE( calculated_min_mtu )
 {
     BOOST_TEST( std::size_t{ minimum_mtu_size } == 22u );
+}
+
+BOOST_AUTO_TEST_CASE( calculated_max_mtu )
+{
+    BOOST_TEST( std::size_t{ maximum_mtu_size } == 44u );
 }
 
 BOOST_AUTO_TEST_CASE( if_minumum_mtu_size_can_not_be_allocated_pdu_will_not_be_handled )

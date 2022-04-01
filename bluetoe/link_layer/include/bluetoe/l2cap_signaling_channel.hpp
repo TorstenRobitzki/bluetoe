@@ -54,6 +54,7 @@ namespace l2cap {
         /** @cond HIDDEN_SYMBOLS */
         static constexpr std::uint16_t channel_id               = l2cap_channel_ids::signaling;
         static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+        static constexpr std::size_t   maximum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
 
         template < class PreviousData >
         using channel_data_t = PreviousData;
@@ -126,6 +127,7 @@ namespace l2cap {
         /** @cond HIDDEN_SYMBOLS */
         static constexpr std::uint16_t channel_id               = l2cap_channel_ids::signaling;
         static constexpr std::size_t   minimum_channel_mtu_size = 0;
+        static constexpr std::size_t   maximum_channel_mtu_size = 0;
 
         template < class PreviousData >
         using channel_data_t = PreviousData;

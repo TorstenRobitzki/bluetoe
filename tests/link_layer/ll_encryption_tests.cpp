@@ -81,6 +81,7 @@ namespace test {
 
             static constexpr std::uint16_t channel_id               = bluetoe::l2cap_channel_ids::sm;
             static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+            static constexpr std::size_t   maximum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
         };
 
         struct meta_type :

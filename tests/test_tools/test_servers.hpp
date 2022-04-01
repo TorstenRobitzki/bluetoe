@@ -4,6 +4,7 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/service.hpp>
 #include <bluetoe/characteristic.hpp>
+#include <bluetoe/gatt_options.hpp>
 
 #include <initializer_list>
 #include <vector>
@@ -56,9 +57,11 @@ namespace test {
         bluetoe::no_gap_service_for_gatt_servers
     > three_apes_service;
 
-    template < class Server, std::size_t ResponseBufferSize = 23 >
-    struct request_with_reponse : Server
+    template < class ServerWithoutMTUSetting, std::size_t ResponseBufferSize = 23 >
+    struct request_with_reponse : bluetoe::extend_server< ServerWithoutMTUSetting, bluetoe::max_mtu_size< ResponseBufferSize > >
     {
+        using server = bluetoe::extend_server< ServerWithoutMTUSetting, bluetoe::max_mtu_size< ResponseBufferSize > >;
+
         enum {
             fill_pattern = 0x55,
             guard_size = 16
@@ -72,7 +75,7 @@ namespace test {
             connection.client_mtu( ResponseBufferSize );
 
             notification = bluetoe::details::notification_data();
-            notification_type = Server::notification;
+            notification_type = bluetoe::details::notification_type::notification;
 
             this->notification_callback( &l2cap_layer_notify_cb, this );
         }
@@ -82,7 +85,7 @@ namespace test {
         {
             response_size = ResponseBufferSize;
             std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
-            Server::l2cap_input( input, PDU_Size, response, response_size, connection );
+            server::l2cap_input( input, PDU_Size, response, response_size, connection );
             check_response();
         }
 
@@ -91,7 +94,7 @@ namespace test {
         {
             response_size = ResponseBufferSize;
             std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
-            Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
+            server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
             check_response();
         }
 
@@ -145,7 +148,7 @@ namespace test {
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;
 
-            if ( notification_type == Server::indication )
+            if ( notification_type == bluetoe::details::notification_type::indication )
             {
                 this->indication_output( &buffer[ 0 ], size, con, value.client_characteristic_configuration_index() );
             }
@@ -203,12 +206,12 @@ namespace test {
 
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
-        using Server::find_notification_data;
+        using server::find_notification_data;
 
         /*
          * This is ussually provided by the link layer to the ATT layer
          */
-        struct connection_data : Server::connection_data
+        struct connection_data : server::connection_data
         {
             bluetoe::connection_security_attributes security_attributes() const
             {
@@ -222,7 +225,7 @@ namespace test {
         static constexpr std::size_t                mtu_size = ResponseBufferSize;
         connection_data                             connection;
         static bluetoe::details::notification_data  notification;
-        static typename Server::notification_type   notification_type;
+        static bluetoe::details::notification_type  notification_type;
 
     private:
         void check_response() const
@@ -234,7 +237,7 @@ namespace test {
                 []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
         }
 
-        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename Server::notification_type type )
+        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename bluetoe::details::notification_type type )
         {
             notification = item;
             notification_type = type;
@@ -270,7 +273,7 @@ namespace test {
         {
             response_size = ResponseBufferSize;
 
-            Server::l2cap_input( input, input_size, response, response_size, connection );
+            server::l2cap_input( input, input_size, response, response_size, connection );
 
             const std::uint8_t  opcode           = response[ 0 ];
             const std::uint8_t  request_opcode   = response[ 1 ];
@@ -290,18 +293,18 @@ namespace test {
                 && error_code == expected_error_code;
         }
 
-        typedef std::set< std::size_t > notification_map_t;
+        using notification_map_t = std::set< std::size_t >;
         static notification_map_t open_notifications_;
     };
 
-    template < typename Server, std::size_t ResponseBufferSize >
-    bluetoe::details::notification_data request_with_reponse< Server, ResponseBufferSize >::notification;
+    template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
+    bluetoe::details::notification_data request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification;
 
-    template < typename Server, std::size_t ResponseBufferSize >
-    typename Server::notification_type request_with_reponse< Server, ResponseBufferSize >::notification_type;
+    template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
+    bluetoe::details::notification_type request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification_type;
 
-    template < typename Server, std::size_t ResponseBufferSize >
-    typename request_with_reponse< Server, ResponseBufferSize >::notification_map_t request_with_reponse< Server, ResponseBufferSize >::open_notifications_;
+    template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
+    typename request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification_map_t request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::open_notifications_;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;

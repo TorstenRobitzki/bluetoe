@@ -26,6 +26,7 @@ namespace bluetoe {
         public:
             static constexpr std::uint16_t channel_id = 42;
             static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+            static constexpr std::size_t   maximum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
 
             template < typename ConnectionData >
             void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
@@ -36,14 +37,25 @@ namespace bluetoe {
             using channel_data_t = PreviousData;
         };
 
-        template < typename Min, typename Channel >
+        template < typename CurrentMaximum, typename Channel >
         struct maximum_min_channel_mtu_size
         {
             using type =
                 typename select_type<
-                    ( Min::value > Channel::minimum_channel_mtu_size ),
-                    Min,
+                    ( CurrentMaximum::value > Channel::minimum_channel_mtu_size ),
+                    CurrentMaximum,
                     std::integral_constant< std::size_t, Channel::minimum_channel_mtu_size >
+                >::type;
+        };
+
+        template < typename CurrentMaximum, typename Channel >
+        struct maximum_max_channel_mtu_size
+        {
+            using type =
+                typename select_type<
+                    ( CurrentMaximum::value > Channel::maximum_channel_mtu_size ),
+                    CurrentMaximum,
+                    std::integral_constant< std::size_t, Channel::maximum_channel_mtu_size >
                 >::type;
         };
 
@@ -136,6 +148,14 @@ namespace bluetoe {
                 maximum_min_channel_mtu_size,
                 std::integral_constant< std::size_t, 0 >
             >::type::value;
+
+            static constexpr std::size_t maximum_mtu_size = fold<
+                std::tuple< Channels... >,
+                maximum_max_channel_mtu_size,
+                std::integral_constant< std::size_t, 0 >
+            >::type::value;
+
+            static_assert( maximum_mtu_size >= minimum_mtu_size, "maximum_mtu_size have to be greater than minimum_mtu_size" );
 
             using connection_data_t = typename fold<
                 std::tuple< Channels... >,

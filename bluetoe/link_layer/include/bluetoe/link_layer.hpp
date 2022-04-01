@@ -31,6 +31,18 @@ namespace bluetoe {
 
 namespace link_layer {
 
+    template <
+        class Server,
+        template <
+            std::size_t TransmitSize,
+            std::size_t ReceiveSize,
+            class CallBack
+        >
+        class ScheduledRadio,
+        typename ... Options
+    >
+    class link_layer;
+
     namespace details {
         template < typename ... Options >
         struct buffer_sizes
@@ -67,16 +79,6 @@ namespace link_layer {
                 bluetoe::details::signaling_channel_meta_type,
                 Options...,
                 bluetoe::l2cap::no_signaling_channel >::type type;
-        };
-
-        template < typename ... Options >
-        struct mtu_size {
-            typedef typename bluetoe::details::find_by_meta_type<
-                mtu_size_meta_type,
-                Options...,
-                max_mtu_size< bluetoe::details::default_att_mtu_size > >::type type;
-
-            static constexpr std::size_t mtu = type::mtu;
         };
 
         template < typename LinkLayer, typename ... Options >
@@ -264,6 +266,30 @@ namespace link_layer {
                 link_layer_no_security_impl
             >::type::link_state;
 
+        template <
+            class Server,
+            template <
+                std::size_t TransmitSize,
+                std::size_t ReceiveSize,
+                class CallBack
+            >
+            class ScheduledRadio,
+            typename ... Options
+        >
+        struct l2cap_layer {
+            using impl = bluetoe::details::l2cap<
+                link_layer< Server, ScheduledRadio, Options... >,
+                details::select_link_layer_security_link_state< Server >,
+                Server,
+                typename details::signaling_channel< Options... >::type,
+                typename details::security_manager<
+                    link_layer< Server, ScheduledRadio, Options... >,
+                    Server, Options...
+                >::type
+            >;
+
+            static constexpr std::size_t required_minimum_l2cap_buffer_size = impl::maximum_mtu_size;
+        };
     }
 
     /**
@@ -295,7 +321,7 @@ namespace link_layer {
                 details::buffer_sizes< Options... >::rx_size,
                 link_layer< Server, ScheduledRadio, Options... >
             >,
-            details::mtu_size< Options... >::mtu
+            details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
         >,
         public details::white_list<
             bluetoe::link_layer::ll_l2cap_sdu_buffer<
@@ -304,7 +330,7 @@ namespace link_layer {
                     details::buffer_sizes< Options... >::rx_size,
                     link_layer< Server, ScheduledRadio, Options... >
                 >,
-                details::mtu_size< Options... >::mtu
+                details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
             >,
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
@@ -413,7 +439,7 @@ namespace link_layer {
         using connection_data_t = typename l2cap_t::connection_data_t;
 
         // used by the l2cap layer to queue notifications / indications
-        bool queue_lcap_notification( const ::bluetoe::details::notification_data& item, typename Server::notification_type type );
+        bool queue_lcap_notification( const ::bluetoe::details::notification_data& item, ::bluetoe::details::notification_type type );
 
         // TODO implement
         std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t )
@@ -881,7 +907,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::queue_lcap_notification( const ::bluetoe::details::notification_data& item, typename Server::notification_type type )
+    bool link_layer< Server, ScheduledRadio, Options... >::queue_lcap_notification( const ::bluetoe::details::notification_data& item, ::bluetoe::details::notification_type type )
     {
         // TODO: Synchronization required!!!
         switch ( type )
