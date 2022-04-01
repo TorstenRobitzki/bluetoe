@@ -337,16 +337,7 @@ namespace link_layer {
         public details::select_advertiser_implementation<
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >,
-        public bluetoe::details::l2cap<
-            link_layer< Server, ScheduledRadio, Options... >,
-            details::select_link_layer_security_link_state< Server >,
-            Server,
-            typename details::signaling_channel< Options... >::type,
-            typename details::security_manager<
-                link_layer< Server, ScheduledRadio, Options... >,
-                Server, Options...
-            >::type
-        >,
+        public details::l2cap_layer< Server, ScheduledRadio, Options... >::impl,
         private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
         private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >
     {
@@ -359,7 +350,7 @@ namespace link_layer {
          * This function should return on certain events to alow user code to do
          * usefull things. Details depend on the ScheduleRadio implemention.
          */
-        void run( Server& );
+        void run();
 
         /**
          * @brief call back that will be called when the master responds to an advertising PDU
@@ -423,17 +414,7 @@ namespace link_layer {
         >;
 
         using layout_t = typename pdu_layout_by_radio< radio_t >::pdu_layout;
-
-        using l2cap_t = bluetoe::details::l2cap<
-            link_layer< Server, ScheduledRadio, Options... >,
-            details::select_link_layer_security_link_state< Server >,
-            Server,
-            typename details::signaling_channel< Options... >::type,
-            typename details::security_manager<
-                link_layer< Server, ScheduledRadio, Options... >,
-                Server, Options...
-            >::type
-        >;
+        using l2cap_t  = typename details::l2cap_layer< Server, ScheduledRadio, Options... >::impl;
 
         // Data associate with a established connection (beside LL parameters), like key, ATT MTU etc.
         using connection_data_t = typename l2cap_t::connection_data_t;
@@ -589,7 +570,6 @@ namespace link_layer {
         std::uint16_t                   conn_event_counter_;
         std::uint16_t                   defered_conn_event_counter_;
         write_buffer                    defered_ll_control_pdu_;
-        Server*                         server_;
         connection_data_t               connection_data_;
         bool                            termination_send_;
         std::uint8_t                    used_features_;
@@ -636,7 +616,6 @@ namespace link_layer {
         : address_( local_device_address::address( *this ) )
         , current_channel_index_( first_advertising_channel )
         , defered_ll_control_pdu_{ nullptr, 0 }
-        , server_( nullptr )
         , used_features_( supported_features )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
@@ -645,12 +624,11 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::run( Server& server )
+    void link_layer< Server, ScheduledRadio, Options... >::run()
     {
         // after the initial scheduling, the timeout and receive callback will setup the next scheduling
         if ( state_ == state::initial )
         {
-            server_ = &server;
             start_advertising_impl();
         }
 
@@ -1266,13 +1244,13 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const
     {
-        return server_->advertising_data( buffer, buffer_size );
+        return this->advertising_data( buffer, buffer_size );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const
     {
-        return server_->scan_response_data( buffer, buffer_size );
+        return this->scan_response_data( buffer, buffer_size );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
