@@ -21,6 +21,10 @@ namespace bluetoe {
 
     namespace details {
 
+        /**
+         * @brief this class documents the requirements of a single l2cap channel to satisfy
+         *        the requirements of the l2cap<> class.
+         */
         class l2cap_channel
         {
         public:
@@ -65,6 +69,8 @@ namespace bluetoe {
             using type = typename Channel::template channel_data_t< ComposedData >;
         };
 
+        static constexpr std::size_t l2cap_layer_header_size = 4u;
+
         /**
          * @brief l2cap layer, as list of l2cap channels
          *
@@ -96,24 +102,24 @@ namespace bluetoe {
             bool handle_l2cap_input( const std::uint8_t* input, std::size_t in_size, ConnectionDetails& connection )
             {
                 // just swallow input, if not resonable
-                if ( in_size < header_size )
+                if ( in_size < l2cap_layer_header_size )
                     return true;
 
                 const std::uint16_t size       = read_16bit( input );
                 const std::uint16_t channel_id = read_16bit( input + 2 );
 
-                if ( in_size != size + header_size )
+                if ( in_size != size + l2cap_layer_header_size )
                     return true;
 
-                auto output = link_layer().allocate_l2cap_output_buffer( minimum_mtu_size + header_size );
+                auto output = link_layer().allocate_l2cap_output_buffer( maximum_mtu_size );
                 if ( output.first == 0 )
                     return false;
 
-                std::size_t out_size = output.first - header_size;
+                std::size_t out_size = maximum_mtu_size;
 
                 l2cap_input_handler< ConnectionDetails > handler(
-                    this, channel_id, input + header_size, in_size - header_size,
-                    output.second + header_size, out_size, connection );
+                    this, channel_id, input + l2cap_layer_header_size, in_size - l2cap_layer_header_size,
+                    output.second + l2cap_layer_header_size, out_size, connection );
 
                 for_< Channels... >::template each< l2cap_input_handler< ConnectionDetails >& >( handler );
 
@@ -121,7 +127,7 @@ namespace bluetoe {
                 {
                     write_16bit( output.second, out_size );
                     write_16bit( output.second + 2, channel_id );
-                    link_layer().commit_l2cap_output_buffer( { out_size + header_size, output.second } );
+                    link_layer().commit_l2cap_output_buffer( { out_size + l2cap_layer_header_size, output.second } );
                 }
 
                 return true;
@@ -203,8 +209,6 @@ namespace bluetoe {
             {
                 return static_cast< LinkLayer&>( *this );
             }
-
-            static constexpr std::size_t header_size = 4u;
         };
     }
 }

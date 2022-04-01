@@ -422,15 +422,31 @@ namespace link_layer {
         // used by the l2cap layer to queue notifications / indications
         bool queue_lcap_notification( const ::bluetoe::details::notification_data& item, ::bluetoe::details::notification_type type );
 
-        // TODO implement
-        std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t )
+        // Allocate size bytes of L2CAP layer payload
+        std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t size )
         {
-            return { 0, nullptr };
+            const auto buffer = this->allocate_l2cap_transmit_buffer( size );
+
+            return {
+                buffer.size - ::bluetoe::details::l2cap_layer_header_size,
+                buffer.buffer + ::bluetoe::details::l2cap_layer_header_size
+            };
         }
 
-        void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > )
+        void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer )
         {
+            // TODO this type of calculations should be forwardet to the buffer
+            static constexpr std::size_t overhead = layout_t::data_channel_pdu_memory_size( 0 );
 
+            const read_buffer out_buffer{ buffer.second - overhead, buffer.first + overhead };
+
+            // TODO In case, that the buffer has to be fragmented, the header has to be rewritten
+            // by the buffer, so maybe better move that to the buffer too.
+            fill< layout_t >( out_buffer, {
+                lld_data_pdu_code,
+                static_cast< std::uint8_t >( buffer.first & 0xff ) } );
+
+            this->commit_l2cap_transmit_buffer( out_buffer );
         }
 
         /** @endcond */
@@ -523,9 +539,6 @@ namespace link_layer {
         static constexpr std::uint16_t  l2cap_att_channel           = 4;
         static constexpr std::uint16_t  l2cap_signaling_channel     = 5;
         static constexpr std::uint16_t  l2cap_sm_channel            = 6;
-
-        static constexpr std::size_t    l2cap_header_size           = 4;
-        static constexpr std::size_t    all_header_size             = 6;
 
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
 

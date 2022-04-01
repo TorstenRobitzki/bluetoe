@@ -106,8 +106,6 @@ public:
 
     void add_buffer( std::size_t size )
     {
-        // add size of the Basic L2CAP header
-        size += 4u;
         BOOST_REQUIRE( current_buffer_used_ <= current_buffer_used_ + size );
 
         buffers_.push_back( { size, &overall_buffer_[ current_buffer_used_ ] } );
@@ -176,7 +174,7 @@ struct link_layer_with_free_buffer : link_layer
 {
     link_layer_with_free_buffer()
     {
-        add_buffer( 22u );
+        add_buffer( 44u );
     }
 };
 
@@ -229,13 +227,13 @@ BOOST_AUTO_TEST_CASE( calculated_max_mtu )
 
 BOOST_AUTO_TEST_CASE( if_minumum_mtu_size_can_not_be_allocated_pdu_will_not_be_handled )
 {
-    add_buffer( 21u );
+    add_buffer( 43u );
     BOOST_TEST( handle_l2cap_input( 42, { 0x01, 0x02 } ) == false );
 }
 
 BOOST_AUTO_TEST_CASE( correct_frameing )
 {
-    add_buffer( 22u );
+    add_buffer( 44u );
     BOOST_TEST( handle_l2cap_input( 42, { 0x01 } ) );
 
     check_next_output( { 0x02, 0x00, 42, 0x00, 0x01, 'a' } );
@@ -243,7 +241,7 @@ BOOST_AUTO_TEST_CASE( correct_frameing )
 
 BOOST_AUTO_TEST_CASE( private_data_modifiable_a )
 {
-    add_buffer( 22u );
+    add_buffer( 44u );
     BOOST_TEST( handle_l2cap_input( 42, { 0x01 } ) );
 
     BOOST_TEST( connection_data_.a == 'A' );
@@ -252,7 +250,7 @@ BOOST_AUTO_TEST_CASE( private_data_modifiable_a )
 
 BOOST_AUTO_TEST_CASE( private_data_modifiable_b )
 {
-    add_buffer( 22u );
+    add_buffer( 44u );
     BOOST_TEST( handle_l2cap_input( 43, { 0x01 } ) );
 
     BOOST_TEST( connection_data_.a == 0 );
