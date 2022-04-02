@@ -30,6 +30,23 @@ public:
         connection.a = 'A';
     }
 
+    template < typename ConnectionData >
+    void l2cap_output( std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
+    {
+        if ( connection.a != 0 )
+        {
+            output[ 0 ] = static_cast< std::uint8_t >( connection.a );
+            output[ 1 ] = static_cast< std::uint8_t >( connection.b );
+            out_size = 2;
+
+            connection.a = 0;
+        }
+        else
+        {
+            out_size = 0;
+        }
+    }
+
     template < class Next >
     struct private_data : Next {
         private_data() : a( 0 )
@@ -63,6 +80,23 @@ public:
         connection.b = 'B';
     }
 
+    template < typename ConnectionData >
+    void l2cap_output( std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
+    {
+        if ( connection.b != 0 )
+        {
+            output[ 0 ] = static_cast< std::uint8_t >( connection.b );
+            output[ 1 ] = static_cast< std::uint8_t >( connection.a );
+            out_size = 2;
+
+            connection.b = 0;
+        }
+        else
+        {
+            out_size = 0;
+        }
+    }
+
     template < class Next >
     struct private_data {
         private_data() : b( 0 )
@@ -76,12 +110,7 @@ public:
     struct channel_data_t : private_data< PreviousData > {};
 };
 
-class radio_mock
-{
-
-};
-
-class link_layer : public radio_mock, public bluetoe::details::l2cap< link_layer, base_data, channel_a, channel_b >
+class link_layer : public bluetoe::details::l2cap< link_layer, base_data, channel_a, channel_b >
 {
 public:
     link_layer()
@@ -213,7 +242,7 @@ BOOST_AUTO_TEST_CASE( inconsistent_length_to_large )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_FIXTURE_TEST_SUITE( test, link_layer )
+BOOST_FIXTURE_TEST_SUITE( input_tests, link_layer )
 
 BOOST_AUTO_TEST_CASE( calculated_min_mtu )
 {
@@ -255,6 +284,56 @@ BOOST_AUTO_TEST_CASE( private_data_modifiable_b )
 
     BOOST_TEST( connection_data_.a == 0 );
     BOOST_TEST( connection_data_.b == 'B' );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE( output_buffer, link_layer_with_free_buffer )
+
+BOOST_AUTO_TEST_CASE( not_enough_buffer_for_outgoing_pdu )
+{
+    // consume the first buffer, by requesting a response
+    BOOST_TEST( handle_l2cap_input( 42, { 0x01 } ) );
+    check_next_output( { 0x02, 0x00, 42, 0x00, 0x01, 'a' } );
+
+    transmit_pending_l2cap_output( connection_data_ );
+    check_next_output( {} );
+}
+
+BOOST_AUTO_TEST_CASE( read_pending_from_channel_a )
+{
+    BOOST_TEST( handle_l2cap_input( 42, { 0x02 } ) );
+    check_next_output( { 0x02, 0x00, 42, 0x00, 0x02, 'a' } );
+
+    add_buffer( 44u );
+    transmit_pending_l2cap_output( connection_data_ );
+    check_next_output( { 0x02, 0x00, 42, 0x00, 'A', 0x00 } );
+}
+
+BOOST_AUTO_TEST_CASE( read_pending_from_channel_b )
+{
+    BOOST_TEST( handle_l2cap_input( 43, { 0x03 } ) );
+    check_next_output( { 0x02, 0x00, 43, 0x00, 0x03, 'b' } );
+
+    add_buffer( 44u );
+    transmit_pending_l2cap_output( connection_data_ );
+    check_next_output( { 0x02, 0x00, 43, 0x00, 'B', 0x00 } );
+}
+
+BOOST_AUTO_TEST_CASE( read_pending_from_multiple_channels )
+{
+    BOOST_TEST( handle_l2cap_input( 42, { 0x02 } ) );
+    check_next_output( { 0x02, 0x00, 42, 0x00, 0x02, 'a' } );
+
+    add_buffer( 44u );
+    BOOST_TEST( handle_l2cap_input( 43, { 0x03 } ) );
+    check_next_output( { 0x02, 0x00, 43, 0x00, 0x03, 'b' } );
+
+    add_buffer( 44u );
+    add_buffer( 44u );
+    transmit_pending_l2cap_output( connection_data_ );
+    check_next_output( { 0x02, 0x00, 42, 0x00, 'A', 'B' } );
+    check_next_output( { 0x02, 0x00, 43, 0x00, 'B', 0x00 } );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

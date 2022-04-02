@@ -427,14 +427,19 @@ namespace link_layer {
         {
             const auto buffer = this->allocate_l2cap_transmit_buffer( size );
 
-            return {
-                buffer.size - ::bluetoe::details::l2cap_layer_header_size,
-                buffer.buffer + ::bluetoe::details::l2cap_layer_header_size
-            };
+            return buffer.size == 0
+                ? std::pair< std::size_t, std::uint8_t* >{ 0, nullptr }
+                : std::pair< std::size_t, std::uint8_t* >{
+                    buffer.size - ::bluetoe::details::l2cap_layer_header_size,
+                    buffer.buffer + ::bluetoe::details::l2cap_layer_header_size
+                };
         }
 
         void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer )
         {
+            assert( buffer.first );
+            assert( buffer.second );
+
             // TODO this type of calculations should be forwardet to the buffer
             static constexpr std::size_t overhead = layout_t::data_channel_pdu_memory_size( 0 );
 
@@ -649,7 +654,7 @@ namespace link_layer {
 
         if ( state_ == state::connected )
         {
-            this->transmit_pending_l2cap_output();
+            this->transmit_pending_l2cap_output( connection_data_ );
             transmit_pending_control_pdus();
         }
 

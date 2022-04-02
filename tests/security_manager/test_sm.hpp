@@ -439,7 +439,9 @@ namespace test {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
 
-            BOOST_CHECK( !this->security_manager_output_available( connection_data_ ) );
+            this->l2cap_output( buffer, size, connection_data_ );
+            BOOST_REQUIRE( size == 0 );
+            size = MTU;
 
             this->l2cap_input( input.data(), input.size(), &buffer[ 0 ], size,
                 connection_data_ );
@@ -478,8 +480,6 @@ namespace test {
         {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
-
-            BOOST_REQUIRE( this->security_manager_output_available( connection_data_ ) );
 
             this->l2cap_output( &buffer[ 0 ], size, connection_data_ );
 

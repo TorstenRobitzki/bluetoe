@@ -740,9 +740,6 @@ namespace bluetoe {
             void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection& );
 
             template < class Connection >
-            bool security_manager_output_available( Connection& ) const;
-
-            template < class Connection >
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, Connection& );
 
             static constexpr std::uint16_t channel_id               = l2cap_channel_ids::sm;
@@ -763,9 +760,6 @@ namespace bluetoe {
             void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection& );
 
             template < class Connection >
-            bool security_manager_output_available( Connection& ) const;
-
-            template < class Connection >
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, Connection& );
 
             static constexpr std::uint16_t channel_id               = l2cap_channel_ids::sm;
@@ -784,9 +778,6 @@ namespace bluetoe {
             /** @cond HIDDEN_SYMBOLS */
             template < class Connection >
             void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection& );
-
-            template < class Connection >
-            bool security_manager_output_available( Connection& ) const;
 
             template < class Connection >
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, Connection& );
@@ -930,9 +921,6 @@ namespace bluetoe {
 
             template < class Connection >
             void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection& );
-
-            template < class Connection >
-            bool security_manager_output_available( Connection& ) const;
 
             template < class Connection >
             void l2cap_output( std::uint8_t* output, std::size_t& out_size, Connection& );
@@ -1432,15 +1420,9 @@ namespace bluetoe {
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class Connection >
-    bool details::legacy_security_manager_impl< SecurityFunctions, ConnectionData, Options... >::security_manager_output_available( Connection& ) const
+    void details::legacy_security_manager_impl< SecurityFunctions, ConnectionData, Options... >::l2cap_output( std::uint8_t*, std::size_t& out_size, Connection& )
     {
-        return false;
-    }
-
-    template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
-    template < class Connection >
-    void details::legacy_security_manager_impl< SecurityFunctions, ConnectionData, Options... >::l2cap_output( std::uint8_t*, std::size_t&, Connection& )
-    {
+        out_size = 0;
     }
 
     // LESC
@@ -1481,16 +1463,16 @@ namespace bluetoe {
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class Connection >
-    bool details::lesc_security_manager_impl< SecurityFunctions, ConnectionData, Options... >::security_manager_output_available( Connection& state ) const
-    {
-        return this->lesc_security_manager_output_available( state );
-    }
-
-    template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
-    template < class Connection >
     void details::lesc_security_manager_impl< SecurityFunctions, ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, Connection& state )
     {
-        this->lesc_l2cap_output( output, out_size, state );
+        if ( this->lesc_security_manager_output_available( state ) )
+        {
+            this->lesc_l2cap_output( output, out_size, state );
+        }
+        else
+        {
+            out_size = 0;
+        }
     }
 
     // security_manager_impl
@@ -1540,16 +1522,16 @@ namespace bluetoe {
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
     template < class Connection >
-    bool details::security_manager_impl< SecurityFunctions, ConnectionData, Options... >::security_manager_output_available( Connection& state ) const
-    {
-        return this->lesc_security_manager_output_available( state );
-    }
-
-    template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
-    template < class Connection >
     void details::security_manager_impl< SecurityFunctions, ConnectionData, Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, Connection& state )
     {
-        this->lesc_l2cap_output( output, out_size, state );
+        if ( this->lesc_security_manager_output_available( state ) )
+        {
+            this->lesc_l2cap_output( output, out_size, state );
+        }
+        else
+        {
+            out_size = 0;
+        }
     }
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1618,15 +1600,9 @@ namespace bluetoe {
 
     template < typename SecurityFunctions, typename ...Os >
     template < class Connection >
-    bool no_security_manager::impl< SecurityFunctions, Os... >::security_manager_output_available( Connection& ) const
+    void no_security_manager::impl< SecurityFunctions, Os... >::l2cap_output( std::uint8_t*, std::size_t& out_size, Connection& )
     {
-        return false;
-    }
-
-    template < typename SecurityFunctions, typename ...Os >
-    template < class Connection >
-    void no_security_manager::impl< SecurityFunctions, Os... >::l2cap_output( std::uint8_t*, std::size_t&, Connection& )
-    {
+        out_size = 0;
     }
     /** @endcond */
 }

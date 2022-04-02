@@ -271,6 +271,13 @@ namespace bluetoe {
         template < typename ConnectionData >
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
+        // TODO Handle notifications etc.
+        template < typename ConnectionData >
+        void l2cap_output( std::uint8_t*, std::size_t& out_size, ConnectionData& )
+        {
+            out_size = 0;
+        }
+
         /**
          * @brief returns the advertising data to the L2CAP implementation
          */

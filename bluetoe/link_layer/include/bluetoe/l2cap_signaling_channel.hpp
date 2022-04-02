@@ -36,7 +36,8 @@ namespace l2cap {
         /**
          * @brief output to the l2cap layer
          */
-        void signaling_channel_output( std::uint8_t* output, std::size_t& out_size );
+        template < typename ConnectionData >
+        void l2cap_output( std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
         /**
          * @brief queues a connection parameter update request.
@@ -103,7 +104,8 @@ namespace l2cap {
         /**
          * @copydoc signaling_channel::signaling_channel_output
          */
-        void signaling_channel_output( std::uint8_t*, std::size_t& out_size )
+        template < typename ConnectionData >
+        void l2cap_output( std::uint8_t*, std::size_t& out_size, ConnectionData& )
         {
             out_size = 0;
         }
@@ -166,7 +168,8 @@ namespace l2cap {
     }
 
     template < typename ... Options >
-    void signaling_channel< Options... >::signaling_channel_output( std::uint8_t* output, std::size_t& out_size )
+    template < typename ConnectionData >
+    void signaling_channel< Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, ConnectionData& )
     {
         static constexpr std::size_t    pdu_size = 8 + 4;
         assert( out_size >= pdu_size );
