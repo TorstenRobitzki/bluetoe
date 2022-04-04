@@ -68,7 +68,8 @@ using gatt_server = bluetoe::server<
             bluetoe::characteristic_name< output_pin_name >,
             bluetoe::free_write_handler< bool, write_output_pin >
         >
-    >
+    >,
+    bluetoe::max_mtu_size< 65 >
 >;
 
 class pairing_io_t
@@ -167,24 +168,16 @@ private:
     volatile bool input_pin_toggled_;
 } pairing_io;
 
-gatt_server gatt;
-
 bluetoe::device<
     gatt_server,
     // Support for legacy and LESC pairing
     bluetoe::security_manager,
     // Configure Link Layer to support at least an MTU of 65
     bluetoe::link_layer::buffer_sizes< 200, 200 >,
-    bluetoe::link_layer::max_mtu_size< 65 >,
     // This application has some meaning to output a pass key and to input a yes/no
     bluetoe::pairing_numeric_output< pairing_io_t, pairing_io >,
     bluetoe::pairing_yes_no< pairing_io_t, pairing_io >
 > server;
-
-static void setup_input_gpiote()
-{
-
-}
 
 static void init_hardware()
 {
@@ -216,7 +209,7 @@ int main()
     for ( ;; )
     {
         pairing_io.handle_events();
-        server.run( gatt );
+        server.run();
     }
 }
 
@@ -235,7 +228,7 @@ void pairing_io_t::handle_key_press()
 
     input_pin_value = input_pin_state();
 
-    gatt.notify( input_pin_value );
+    server.notify( input_pin_value );
 
     if ( response_ )
     {

@@ -41,15 +41,13 @@ using bicycle = bluetoe::server<
     >
 >;
 
-bicycle gatt;
+bluetoe::device< bicycle > server;
 
 void handler::set_cumulative_wheel_revolutions( std::uint32_t new_value )
 {
     wheel_revolutions_ = new_value;
-    gatt.confirm_cumulative_wheel_revolutions( gatt );
+    server.confirm_cumulative_wheel_revolutions( server );
 }
-
-bluetoe::device< bicycle > server;
 
 void init_bike_hardware();
 
@@ -58,7 +56,7 @@ int main()
     init_bike_hardware();
 
     for ( ;; )
-        server.run( gatt );
+        server.run( );
 }
 
 static constexpr int wheel_pin_nr       = 16;
@@ -85,19 +83,19 @@ extern "C" void GPIOTE_IRQHandler()
 {
     if ( nrf_gpiote->EVENTS_IN[ wheel_channel_nr ] )
     {
-        ++gatt.wheel_revolutions_;
-        gatt.last_wheel_event_time_ = now;
+        ++server.wheel_revolutions_;
+        server.last_wheel_event_time_ = now;
         nrf_gpiote->EVENTS_IN[ wheel_channel_nr ] = 0;
     }
 
     if ( nrf_gpiote->EVENTS_IN[ cadence_channel_nr ] )
     {
-        ++gatt.crank_revolutions_;
-        gatt.last_crank_event_time_ = now;
+        ++server.crank_revolutions_;
+        server.last_crank_event_time_ = now;
         nrf_gpiote->EVENTS_IN[ cadence_channel_nr ] = 0;
     }
 
-    gatt.notify_timed_update( gatt );
+    server.notify_timed_update( server );
 }
 
 void init_bike_hardware()

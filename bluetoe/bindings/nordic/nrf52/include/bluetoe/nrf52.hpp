@@ -772,17 +772,11 @@ namespace bluetoe
             }
 
         private:
-            static constexpr std::size_t att_mtu = bluetoe::details::find_by_meta_type<
-                bluetoe::link_layer::details::mtu_size_meta_type,
-                RadioOptions...,
-                bluetoe::link_layer::max_mtu_size< bluetoe::details::default_att_mtu_size >
-            >::type::mtu;
-
-            static constexpr std::size_t l2cap_mtu      = att_mtu + 4;
-            static constexpr std::size_t enrypted_size  = l2cap_mtu + 3 + 4;
-
+            // TODO should be calculated with more accuracy base on the configuration of:
+            // - l2cap MAX MTU
+            // - implementation of Data Length Update procedure
             struct alignas( 4 ) encrypted_message_t {
-                std::uint8_t data[ enrypted_size ];
+                std::uint8_t data[ 260 ];
             } encrypted_message_;
         };
 

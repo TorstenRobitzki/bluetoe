@@ -36,12 +36,10 @@ using advertising_server = server<
     >
 >;
 
-advertising_server gatt;
-
 device< advertising_server > gatt_srv;
 
 int main()
 {
     for ( ;; )
-        gatt_srv.run( gatt );
+        gatt_srv.run();
 }

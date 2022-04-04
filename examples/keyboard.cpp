@@ -307,7 +307,6 @@ using keyboard = bluetoe::server<
     bluetoe::mixin< keyboard_handler >
 >;
 
-keyboard gatt;
 bluetoe::device<
     keyboard,
     bluetoe::link_layer::advertising_interval< 30u > > server;
@@ -318,6 +317,6 @@ int main()
 
     for ( ;; )
     {
-        server.run( gatt );
+        server.run();
     }
 }

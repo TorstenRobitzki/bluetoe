@@ -17,19 +17,16 @@ static std::uint8_t io_pin_write_handler( bool state )
     return error_codes::success;
 }
 
-typedef server<
+using blinky_server = server<
     service<
         service_uuid< 0xC11169E1, 0x6252, 0x4450, 0x931C, 0x1B43A318783B >,
         characteristic<
             free_write_handler< bool, io_pin_write_handler >
         >
     >
-> blinky_server;
+>;
 
-blinky_server gatt;
-
-// @TODO nrf51_without_encryption is not a
-nrf51_without_encryption< blinky_server > gatt_srv;
+device< blinky_server > gatt_srv;
 
 int main()
 {
@@ -39,5 +36,5 @@ int main()
         ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
 
     for ( ;; )
-        gatt_srv.run( gatt );
+        gatt_srv.run();
 }
