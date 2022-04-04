@@ -512,11 +512,6 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_VERSION_NR               = 0x08;
         static constexpr std::uint8_t   LL_VERSION_40               = 0x06;
 
-        // TODO Remove block
-        static constexpr std::uint16_t  l2cap_att_channel           = 4;
-        static constexpr std::uint16_t  l2cap_signaling_channel     = 5;
-        static constexpr std::uint16_t  l2cap_sm_channel            = 6;
-
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
 
         struct link_layer_feature {
@@ -665,7 +660,7 @@ namespace link_layer {
 
                 window_end += window_end.ppm( cumulated_sleep_clock_accuracy_ );
 
-                this->reset();
+                this->reset_pdu_buffer();
                 this->schedule_connection_event(
                     channels_.data_channel( current_channel_index_ ),
                     window_start,

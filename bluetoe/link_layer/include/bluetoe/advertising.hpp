@@ -261,7 +261,7 @@ namespace link_layer {
 
             read_buffer advertising_buffer()
             {
-                return read_buffer{ link_layer().raw(), adv_size_ };
+                return read_buffer{ link_layer().raw_pdu_buffer(), adv_size_ };
             }
 
             read_buffer advertising_response_buffer()
@@ -450,7 +450,7 @@ namespace link_layer {
             {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
-                return read_buffer{ link_layer().raw(), layout_t::data_channel_pdu_memory_size( max_advertising_data_size ) };
+                return read_buffer{ link_layer().raw_pdu_buffer(), layout_t::data_channel_pdu_memory_size( max_advertising_data_size ) };
             }
 
             device_address  addr_;
@@ -572,14 +572,14 @@ namespace link_layer {
             {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
-                return read_buffer{ link_layer().raw(), layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };
+                return read_buffer{ link_layer().raw_pdu_buffer(), layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };
             }
 
             read_buffer advertising_response_buffer()
             {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
-                return read_buffer{ link_layer().raw() + layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )
+                return read_buffer{ link_layer().raw_pdu_buffer() + layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )
                     , layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };
             }
 
@@ -693,7 +693,7 @@ namespace link_layer {
 
             read_buffer advertising_buffer()
             {
-                return read_buffer{ link_layer().raw(), adv_size_ };
+                return read_buffer{ link_layer().raw_pdu_buffer(), adv_size_ };
             }
 
             LinkLayer& link_layer()

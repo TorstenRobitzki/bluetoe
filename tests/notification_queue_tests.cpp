@@ -1,4 +1,3 @@
-#include <iostream>
 #include <bluetoe/notification_queue.hpp>
 
 #define BOOST_TEST_MODULE
