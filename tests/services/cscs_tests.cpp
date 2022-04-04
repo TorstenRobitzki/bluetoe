@@ -579,6 +579,7 @@ void check_cp_response( Server& server, std::initializer_list< std::uint8_t > re
     expected.insert( expected.end(), response );
 
     server.expected_output( server.notification, expected.begin(), expected.end(), server.connection );
+    server.connection.indication_confirmed();
 }
 
 BOOST_AUTO_TEST_SUITE( service_procedures )
@@ -588,10 +589,6 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
      */
     BOOST_FIXTURE_TEST_CASE( set_cumulative_value__set_to_zero, discover_and_configure_all_descriptor< csc_server > )
     {
-        // update values
-        next_time( 0x1234, 0x23456789, 0x3456 );
-        notify_timed_update( *this );
-
         // write to control point
         l2cap_input({
             0x12,
@@ -620,10 +617,6 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
      */
     BOOST_FIXTURE_TEST_CASE( set_cumulative_value__set_to_non_zero, discover_and_configure_all_descriptor< csc_server > )
     {
-        // update values
-        next_time( 0x1234, 0x23456789, 0x3456 );
-        notify_timed_update( *this );
-
         // write to control point
         l2cap_input({
             0x12,

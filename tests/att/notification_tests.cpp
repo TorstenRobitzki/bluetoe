@@ -41,6 +41,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         expected_result( { 0x13 } );
 
         value = 0xab;
+        connection.queue_notification( 0 );
         expected_output( value, { 0x1B, 0x03, 0x00, 0xab } );
     }
 
@@ -66,6 +67,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         l2cap_input( { 0x12, 0x04, 0x00, 0x01, 0x00 } );
         expected_result( { 0x13 } );
 
+        connection.queue_notification( 0 );
         expected_output( large_buffer, {
             0x1B, 0x03, 0x00,
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -130,6 +132,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         l2cap_input( { 0x12, 0x0F, 0x00, 0x01, 0x00 } );
         expected_result( { 0x13 } );
 
+        connection.queue_notification( 3 );
         expected_output( value_c1, { 0x1B, 0x0E, 0x00, 0x04 } );
     }
 
@@ -140,6 +143,8 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         // enable notification on connection 1
         l2cap_input( { 0x12, 0x0B, 0x00, 0x01, 0x00 }, con1 );
         expected_result( { 0x13 } );
+
+        con1.queue_notification( 2 );
 
         //  expect output just on connection 1
         expected_output( value_b1, { 0x1B, 0x0A, 0x00, 0x03 }, con1 );
@@ -174,6 +179,7 @@ BOOST_AUTO_TEST_SUITE( notifications_by_value )
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
         BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::notification );
 
+        connection.queue_notification( 0 );
         expected_output( notification, { 0x1B, 0x10, 0x01, 0xaa } );
     }
 
@@ -533,22 +539,13 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
             return bluetoe::error_codes::success;
         }
 
-        template < typename Server, typename ConData, typename Element >
-        void read_output_handler( Server& srv, ConData& connection, Element notification )
+        template < typename Server, typename ConData >
+        void read_output_handler( Server& srv, ConData& connection )
         {
-            BOOST_REQUIRE( notification.first != bluetoe::link_layer::details::empty );
-
             std::uint8_t    buffer[ 100 ];
             std::size_t     size = sizeof( buffer );
 
-            if ( notification.first == bluetoe::link_layer::details::notification )
-            {
-                srv.notification_output( buffer, size, connection, notification.second );
-            }
-            else
-            {
-                srv.indication_output( buffer, size, connection, notification.second );
-            }
+            srv.l2cap_output( buffer, size, connection );
         }
 
         unsigned read_features_called;
@@ -654,24 +651,19 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
 
     using test_server = test::request_with_reponse< dts_server_t< dts_service > >;
 
-    using notification_queue_t = bluetoe::link_layer::notification_queue<
-        typename test_server::notification_priority::template numbers< typename test_server::services >::type,
-        typename test_server::connection_data >;
-
-    notification_queue_t notification_queue;
-
-    static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void*, bluetoe::details::notification_type type )
+    static bool lcap_notification_callback( const ::bluetoe::details::notification_data& item, void* that, bluetoe::details::notification_type type )
     {
+        auto& notification_queue = *static_cast< test_server* >( that );
         switch ( type )
         {
             case bluetoe::details::notification_type::notification:
-                return notification_queue.queue_notification( item.client_characteristic_configuration_index() );
+                return notification_queue.connection.queue_notification( item.client_characteristic_configuration_index() );
                 break;
             case bluetoe::details::notification_type::indication:
-                return notification_queue.queue_indication( item.client_characteristic_configuration_index() );
+                return notification_queue.connection.queue_indication( item.client_characteristic_configuration_index() );
                 break;
             case bluetoe::details::notification_type::confirmation:
-                notification_queue.indication_confirmed();
+                notification_queue.connection.indication_confirmed();
                 return true;
                 break;
         }
@@ -681,11 +673,9 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
 
     BOOST_FIXTURE_TEST_CASE( inidicating_control_point_leads_to_reading_control_point, test_server )
     {
-        notification_queue = notification_queue_t();
         notification_callback( lcap_notification_callback, this );
 
         // connect and subscribe to all characteristics
-        channel_data_t< bluetoe::details::link_state_no_security > connection;
         for ( unsigned config = 0; config != connection_data::number_of_characteristics_with_configuration; ++config )
             connection.client_configurations().flags( config, 0x03 );
 
@@ -693,9 +683,9 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
         notify< time_change_log_data_uuid >();
 
         // simulate that there is one free output buffer on the link layer.
-        read_output_handler( *this, connection, notification_queue.dequeue_indication_or_confirmation() );
+        read_output_handler( *this, connection );
 
-        // the ATT layer should shoose the characteristic with the highest output priorit
+        // the ATT layer should choose the characteristic with the highest output priorit
         BOOST_CHECK_EQUAL( read_log_data_called, 1u );
         BOOST_CHECK_EQUAL( read_device_time_called, 0u );
         BOOST_CHECK_EQUAL( read_control_point_called, 0u );
@@ -703,7 +693,8 @@ BOOST_AUTO_TEST_SUITE( priorites_charactieristics )
 
         // same with the control point
         indicate< device_time_control_point_uuid >();
-        read_output_handler( *this, connection, notification_queue.dequeue_indication_or_confirmation() );
+
+        read_output_handler( *this, connection );
         BOOST_CHECK_EQUAL( read_log_data_called, 1u );
         BOOST_CHECK_EQUAL( read_device_time_called, 0u );
         BOOST_CHECK_EQUAL( read_control_point_called, 1u );
@@ -851,7 +842,7 @@ BOOST_AUTO_TEST_SUITE( access_error )
         std::uint8_t output_buffer[ 50 ];
         std::size_t  output_size = sizeof( output_buffer );
 
-        notification_output( output_buffer, output_size , connection, 0 );
+        l2cap_output( output_buffer, output_size , connection );
 
         BOOST_CHECK_EQUAL( output_size, 0u );
     }

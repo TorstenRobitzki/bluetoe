@@ -38,20 +38,22 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
     BOOST_FIXTURE_TEST_CASE( if_client_configuration_is_not_enabled_not_output, test::request_with_reponse< simple_server > )
     {
         channel_data_t< bluetoe::details::link_state_no_security > client_configuration;
+        client_configuration.queue_indication( 0 );
 
         std::size_t size = client_configuration.negotiated_mtu();
-        indication_output( begin(), size, client_configuration, 0 );
+        l2cap_output( begin(), size, client_configuration );
 
         BOOST_CHECK_EQUAL( size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( output_if_enables, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration;
+        channel_data_t< bluetoe::details::link_state > client_configuration;
+        client_configuration.queue_indication( 0 );
         client_configuration.client_configurations().flags( 0, 2 ); // 2 == indications
 
         std::size_t size = client_configuration.negotiated_mtu();
-        indication_output( begin(), size, client_configuration, 0 );
+        l2cap_output( begin(), size, client_configuration );
 
         static const std::uint8_t expected_output[] = { 0x1D, 0x03, 0x00, 0x42 };
         BOOST_CHECK_EQUAL( size, sizeof( expected_output ) );
@@ -122,7 +124,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
 
     // This test should not compile
     /*
-    BOOST_FIXTURE_TEST_CASE( indicating_not_configured_will_result_in_compiletime_error, request_with_reponse< server > )
+    BOOST_FIXTURE_TEST_CASE( indicating_not_configured_will_result_in_compiletime_error, test::request_with_reponse< server > )
     {
         indicate< bluetoe::characteristic_uuid16< 0x1111 > >();
     }
@@ -239,7 +241,7 @@ BOOST_AUTO_TEST_SUITE( access_error )
         std::uint8_t output_buffer[ 50 ];
         std::size_t  output_size = sizeof( output_buffer );
 
-        indication_output( output_buffer, output_size , connection, 0 );
+        l2cap_output( output_buffer, output_size, connection );
 
         BOOST_CHECK_EQUAL( output_size, 0u );
     }

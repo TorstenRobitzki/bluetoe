@@ -143,19 +143,11 @@ namespace test {
         {
             assert( org_value.valid() );
 
-            bluetoe::details::notification_data value = org_value;
             const std::vector< std::uint8_t > values( begin, end );
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;
 
-            if ( notification_type == bluetoe::details::notification_type::indication )
-            {
-                this->indication_output( &buffer[ 0 ], size, con, value.client_characteristic_configuration_index() );
-            }
-            else
-            {
-                this->notification_output( &buffer[ 0 ], size, con, value );
-            }
+            this->l2cap_output( &buffer[ 0 ], size, con );
 
             BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
         }
@@ -207,23 +199,15 @@ namespace test {
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
         using server::find_notification_data;
-
-        /*
-         * This is ussually provided by the link layer to the ATT layer
-         */
-        struct connection_data : server::connection_data
-        {
-            bluetoe::connection_security_attributes security_attributes() const
-            {
-                return bluetoe::connection_security_attributes{ false, bluetoe::device_pairing_status::no_key };
-            }
-        };
+        using connection_t = typename server::template channel_data_t< bluetoe::details::link_state >;
 
         std::uint8_t                                guarded_buffer[ ResponseBufferSize + 2 * guard_size ];
         std::uint8_t* const                         response;
         std::size_t                                 response_size;
         static constexpr std::size_t                mtu_size = ResponseBufferSize;
-        connection_data                             connection;
+        connection_t                                connection;
+
+        // TODO Should be removed and tests be based on the queue in connection
         static bluetoe::details::notification_data  notification;
         static bluetoe::details::notification_type  notification_type;
 
@@ -237,12 +221,26 @@ namespace test {
                 []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
         }
 
-        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename bluetoe::details::notification_type type )
+        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void* that, typename bluetoe::details::notification_type type )
         {
             notification = item;
             notification_type = type;
 
-            open_notifications_.insert( item.client_characteristic_configuration_index() );
+            auto& connection = static_cast< request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >* >( that )->connection;
+
+            switch ( type )
+            {
+                case bluetoe::details::notification_type::notification:
+                    return connection.queue_notification( item.client_characteristic_configuration_index() );
+                    break;
+                case bluetoe::details::notification_type::indication:
+                    return connection.queue_indication( item.client_characteristic_configuration_index() );
+                    break;
+                case bluetoe::details::notification_type::confirmation:
+                    connection.indication_confirmed();
+                    return true;
+                    break;
+            }
 
             return true;
         }
@@ -292,9 +290,6 @@ namespace test {
                 && attribute_handle == expected_attribute_handle
                 && error_code == expected_error_code;
         }
-
-        using notification_map_t = std::set< std::size_t >;
-        static notification_map_t open_notifications_;
     };
 
     template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
@@ -302,9 +297,6 @@ namespace test {
 
     template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
     bluetoe::details::notification_type request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification_type;
-
-    template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
-    typename request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification_map_t request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::open_notifications_;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;

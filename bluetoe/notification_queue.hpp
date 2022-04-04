@@ -1,5 +1,5 @@
-#ifndef BLUETOE_LINK_LAYER_NOTIFICATION_QUEUE_HPP
-#define BLUETOE_LINK_LAYER_NOTIFICATION_QUEUE_HPP
+#ifndef BLUETOE_NOTIFICATION_QUEUE_HPP
+#define BLUETOE_NOTIFICATION_QUEUE_HPP
 
 #include <cstdint>
 #include <cstdlib>
@@ -9,13 +9,12 @@
 #include <iterator>
 
 namespace bluetoe {
-namespace link_layer {
 
     namespace details {
         /**
          * @brief type of entry
          */
-        enum notification_queue_entry_type {
+        enum class notification_queue_entry_type {
             /** returned if there no entry */
             empty,
             /** returned if the entry is a notification */
@@ -202,18 +201,18 @@ namespace link_layer {
                         outstanding_confirmation = i + offset;
                         next_ = ( i + 1 ) % Size;
                         remove( i, indication_bit );
-                        return { indication, i + offset };
+                        return { notification_queue_entry_type::indication, i + offset };
                     }
                     else if ( entry & notification_bit )
                     {
                         next_ = ( i + 1 ) % Size;
                         remove( i, notification_bit );
-                        return { notification, i + offset };
+                        return { notification_queue_entry_type::notification, i + offset };
                     }
 
                 }
 
-                return { empty, 0 };
+                return { notification_queue_entry_type::empty, 0 };
             }
 
             void clear_indications_and_confirmations()
@@ -274,7 +273,7 @@ namespace link_layer {
         {
         public:
             notification_queue_impl()
-                : state_( empty )
+                : state_( notification_queue_entry_type::empty )
             {
             }
 
@@ -283,10 +282,10 @@ namespace link_layer {
                 static_cast< void >( idx );
                 assert( idx == 0 );
 
-                const bool result = state_ == empty;
+                const bool result = state_ == notification_queue_entry_type::empty;
 
                 if ( result )
-                    state_ = notification;
+                    state_ = notification_queue_entry_type::notification;
 
                 return result;
             }
@@ -295,32 +294,32 @@ namespace link_layer {
             {
                 static_cast< void >( idx );
                 assert( idx == 0 );
-                const bool result = state_ == empty;
+                const bool result = state_ == notification_queue_entry_type::empty;
 
                 if ( result )
-                    state_ = indication;
+                    state_ = notification_queue_entry_type::indication;
 
                 return result;
             }
 
             std::pair< notification_queue_entry_type, std::size_t > dequeue_indication_or_confirmation( std::size_t offset, std::size_t& outstanding_confirmation )
             {
-                const auto result = state_ == notification || ( state_ == indication && outstanding_confirmation == details::no_outstanding_indicaton )
+                const auto result = state_ == notification_queue_entry_type::notification || ( state_ == notification_queue_entry_type::indication && outstanding_confirmation == details::no_outstanding_indicaton )
                     ? std::pair< notification_queue_entry_type, std::size_t >{ static_cast< notification_queue_entry_type >( state_ ), offset }
-                    : std::pair< notification_queue_entry_type, std::size_t >{ empty, 0 };
+                    : std::pair< notification_queue_entry_type, std::size_t >{ notification_queue_entry_type::empty, 0 };
 
-                if ( result.first == indication )
+                if ( result.first == notification_queue_entry_type::indication )
                     outstanding_confirmation = offset;
 
-                if ( result.first != empty )
-                    state_ = empty;
+                if ( result.first != notification_queue_entry_type::empty )
+                    state_ = notification_queue_entry_type::empty;
 
                 return result;
             }
 
             void clear_indications_and_confirmations()
             {
-                state_ = empty;
+                state_ = notification_queue_entry_type::empty;
             }
         private:
             notification_queue_entry_type state_;
@@ -387,7 +386,6 @@ namespace link_layer {
 
     } // namespace details
 
-} // namespace link_layer
 } // namespace bluetoe
 
 #endif // include guard

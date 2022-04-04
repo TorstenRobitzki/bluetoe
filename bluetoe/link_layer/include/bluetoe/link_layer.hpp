@@ -420,39 +420,11 @@ namespace link_layer {
         using connection_data_t = typename l2cap_t::connection_data_t;
 
         // used by the l2cap layer to queue notifications / indications
-        bool queue_lcap_notification( const ::bluetoe::details::notification_data& item, ::bluetoe::details::notification_type type );
+        static bool queue_lcap_notification( const ::bluetoe::details::notification_data& item, void* usr_arg, ::bluetoe::details::notification_type type );
 
         // Allocate size bytes of L2CAP layer payload
-        std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t size )
-        {
-            const auto buffer = this->allocate_l2cap_transmit_buffer( size );
-
-            return buffer.size == 0
-                ? std::pair< std::size_t, std::uint8_t* >{ 0, nullptr }
-                : std::pair< std::size_t, std::uint8_t* >{
-                    buffer.size - ::bluetoe::details::l2cap_layer_header_size,
-                    buffer.buffer + ::bluetoe::details::l2cap_layer_header_size
-                };
-        }
-
-        void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer )
-        {
-            assert( buffer.first );
-            assert( buffer.second );
-
-            // TODO this type of calculations should be forwardet to the buffer
-            static constexpr std::size_t overhead = layout_t::data_channel_pdu_memory_size( 0 );
-
-            const read_buffer out_buffer{ buffer.second - overhead, buffer.first + overhead };
-
-            // TODO In case, that the buffer has to be fragmented, the header has to be rewritten
-            // by the buffer, so maybe better move that to the buffer too.
-            fill< layout_t >( out_buffer, {
-                lld_data_pdu_code,
-                static_cast< std::uint8_t >( buffer.first & 0xff ) } );
-
-            this->commit_l2cap_transmit_buffer( out_buffer );
-        }
+        std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t size );
+        void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer );
 
         /** @endcond */
 
@@ -639,6 +611,7 @@ namespace link_layer {
         , connection_parameters_request_pending_( false )
         , connection_parameters_request_running_( false )
     {
+        this->notification_callback( queue_lcap_notification, this );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -903,19 +876,21 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::queue_lcap_notification( const ::bluetoe::details::notification_data& item, ::bluetoe::details::notification_type type )
+    bool link_layer< Server, ScheduledRadio, Options... >::queue_lcap_notification( const ::bluetoe::details::notification_data& item, void* that, ::bluetoe::details::notification_type type )
     {
+        auto& connection = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->connection_data_;
+
         // TODO: Synchronization required!!!
         switch ( type )
         {
-            case Server::notification:
-                return connection_data_.queue_notification( item.client_characteristic_configuration_index() );
+            case bluetoe::details::notification_type::notification:
+                return connection.queue_notification( item.client_characteristic_configuration_index() );
                 break;
-            case Server::indication:
-                return connection_data_.queue_indication( item.client_characteristic_configuration_index() );
+            case bluetoe::details::notification_type::indication:
+                return connection.queue_indication( item.client_characteristic_configuration_index() );
                 break;
-            case Server::confirmation:
-                connection_data_.indication_confirmed();
+            case bluetoe::details::notification_type::confirmation:
+                connection.indication_confirmed();
                 return true;
                 break;
         }
@@ -1275,6 +1250,39 @@ namespace link_layer {
     const device_address& link_layer< Server, ScheduledRadio, Options... >::local_address() const
     {
         return address_;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::pair< std::size_t, std::uint8_t* > link_layer< Server, ScheduledRadio, Options... >::allocate_l2cap_output_buffer( std::size_t size )
+    {
+        const auto buffer = this->allocate_l2cap_transmit_buffer( size );
+
+        return buffer.size == 0
+            ? std::pair< std::size_t, std::uint8_t* >{ 0, nullptr }
+            : std::pair< std::size_t, std::uint8_t* >{
+                buffer.size - ::bluetoe::details::l2cap_layer_header_size,
+                buffer.buffer + ::bluetoe::details::l2cap_layer_header_size
+            };
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer )
+    {
+        assert( buffer.first );
+        assert( buffer.second );
+
+        // TODO this type of calculations should be forwardet to the buffer
+        static constexpr std::size_t overhead = layout_t::data_channel_pdu_memory_size( 0 );
+
+        const read_buffer out_buffer{ buffer.second - overhead, buffer.first + overhead };
+
+        // TODO In case, that the buffer has to be fragmented, the header has to be rewritten
+        // by the buffer, so maybe better move that to the buffer too.
+        fill< layout_t >( out_buffer, {
+            lld_data_pdu_code,
+            static_cast< std::uint8_t >( buffer.first & 0xff ) } );
+
+        this->commit_l2cap_transmit_buffer( out_buffer );
     }
 
 }

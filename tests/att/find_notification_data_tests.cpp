@@ -45,11 +45,12 @@ std::uint8_t read_value( std::size_t notification_index )
 
     // subscribe the characteristic:
     data_per_connection.client_configurations().flags( notification_index, 1 );
+    data_per_connection.queue_notification( notification_index );
 
     std::uint8_t out_buffer[ value_notification_pdu_min_size + 100 ];
     std::size_t  out_size = sizeof( out_buffer );
 
-    server.notification_output( out_buffer, out_size, data_per_connection, notification_index );
+    server.l2cap_output( out_buffer, out_size, data_per_connection );
 
     BOOST_CHECK_EQUAL( value_notification_pdu_min_size, out_size );
 

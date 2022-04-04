@@ -585,8 +585,8 @@ struct start_flash : all_discovered_and_subscribed< Server >
 
         this->expected_result( { 0x13 } );
 
-        BOOST_REQUIRE( this->notification.valid() );
-        this->notification.clear();
+        const auto queued_notification = this->connection.dequeue_indication_or_confirmation();
+        BOOST_REQUIRE( queued_notification.first == bluetoe::details::notification_queue_entry_type::notification );
     }
 
     void write_to_data_char( const std::initializer_list< std::uint8_t > data )
@@ -798,7 +798,8 @@ BOOST_AUTO_TEST_SUITE( flashing_data )
     {
         write_to_data_char( { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 } );
 
-        BOOST_CHECK( !notification.valid() );
+        BOOST_CHECK( this->connection.dequeue_indication_or_confirmation().first
+            == bluetoe::details::notification_queue_entry_type::empty );
 
         // the first block must be completly written
         BOOST_CHECK_EQUAL( start_flash_content.size(), block_size );
@@ -1150,6 +1151,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x10, 0x11, 0x12, 0x13
         } );
 
+        this->connection.indication_confirmed();
+
         BOOST_CHECK( data_indication_requested() );
         bootloader_data_indication( *this );
 
@@ -1158,6 +1161,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,                     // remaining bytes
             0x1c, 0x1d, 0x1e, 0x1f
         } );
+
+        this->connection.indication_confirmed();
 
         BOOST_CHECK( !data_indication_requested() );
         BOOST_CHECK( control_point_notification_requested() );
@@ -1219,6 +1224,8 @@ BOOST_AUTO_TEST_SUITE( read_procedure )
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10, 0x11, 0x12, 0x13
         } );
+
+        this->connection.indication_confirmed();
 
         BOOST_CHECK( data_indication_requested() );
         bootloader_data_indication( *this );

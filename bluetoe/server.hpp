@@ -20,6 +20,7 @@
 #include <bluetoe/link_state.hpp>
 #include <bluetoe/attribute_handle.hpp>
 #include <bluetoe/l2cap_channels.hpp>
+#include <bluetoe/notification_queue.hpp>
 
 #include <cstdint>
 #include <cstddef>
@@ -56,8 +57,9 @@ namespace bluetoe {
      * @sa max_mtu_size
      */
     template < typename ... Options >
-    class server : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >,
-        public details::derive_from< typename details::collect_mixins< Options... >::type >
+    class server
+        : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >
+        , public details::derive_from< typename details::collect_mixins< Options... >::type >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
@@ -79,7 +81,8 @@ namespace bluetoe {
 
         using cccd_indices = typename details::find_notification_data_in_list< notification_priority, services >::cccd_indices;
 
-        using handle_mapping = details::handle_index_mapping< server< Options... > >;
+        using server_t       = server< Options... >;
+        using handle_mapping = details::handle_index_mapping< server_t >;
 
         /** @endcond */
 
@@ -138,6 +141,7 @@ namespace bluetoe {
             {
                 return maximum_channel_mtu_size;
             }
+
 
         private:
             std::uint16_t               client_mtu_;
@@ -271,12 +275,8 @@ namespace bluetoe {
         template < typename ConnectionData >
         void l2cap_input( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
-        // TODO Handle notifications etc.
         template < typename ConnectionData >
-        void l2cap_output( std::uint8_t*, std::size_t& out_size, ConnectionData& )
-        {
-            out_size = 0;
-        }
+        void l2cap_output( std::uint8_t*, std::size_t& out_size, ConnectionData& );
 
         /**
          * @brief returns the advertising data to the L2CAP implementation
@@ -300,18 +300,11 @@ namespace bluetoe {
          */
         void notification_callback( lcap_notification_callback_t, void* usr_arg );
 
-        template < typename Connection >
-        void notification_output( std::uint8_t* output, std::size_t& out_size, Connection&, const details::notification_data& data );
-        template < typename Connection >
-        void notification_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index );
-
-        template < class Connection >
-        void indication_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index );
-
         /**
          * @attention this function must be called with every client that got disconnected.
          */
-        void client_disconnected( connection_data& );
+        template < typename Connection >
+        void client_disconnected( Connection& );
 
         typedef details::server_meta_type meta_type;
 
@@ -325,10 +318,12 @@ namespace bluetoe {
                 max_mtu_size< bluetoe::details::default_att_mtu_size >
             >::type::mtu;
 
-        template < class PreviousData >
+        template < class PreviousData = details::no_such_type >
         class channel_data_t
-            : public connection_data
-            , public PreviousData
+            : public notification_queue<
+                typename notification_priority::template numbers< services >::type,
+                PreviousData >
+            , public connection_data
         {
         };
         /** @endcond */
@@ -373,9 +368,10 @@ namespace bluetoe {
         template < typename ConnectionData >
         void handle_write_command( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, ConnectionData& );
 
-        void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& );
-        template < typename WriteQueue >
-        void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data&, const WriteQueue& );
+        template < typename Connection >
+        void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection&, const details::no_such_type& );
+        template < typename Connection, typename WriteQueue >
+        void handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection&, const WriteQueue& );
         template < typename Connection >
         void handle_execute_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection&, const details::no_such_type& );
         template < typename Connection, typename WriteQueue >
@@ -530,6 +526,43 @@ namespace bluetoe {
             error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
             break;
         }
+    }
+
+    template < typename ... Options >
+    template < typename ConnectionData >
+    void server< Options... >::l2cap_output( std::uint8_t* output, std::size_t& out_size, ConnectionData& connection )
+    {
+        const auto pending = connection.dequeue_indication_or_confirmation();
+
+        if ( pending.first != details::notification_queue_entry_type::empty )
+        {
+            const std::uint16_t required_flag = pending.first == details::notification_queue_entry_type::notification
+                ? details::client_characteristic_configuration_notification_enabled
+                : details::client_characteristic_configuration_indication_enabled;
+
+            const auto data = find_notification_data_by_index( pending.second );
+
+            if ( connection.client_configurations().flags( data.client_characteristic_configuration_index() ) & required_flag &&
+                 out_size >= 3 )
+            {
+                auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
+                auto attr = attribute_at( data.attribute_table_index() );
+                auto rc   = attr.access( read, data.attribute_table_index() );
+
+                if ( rc == details::attribute_access_result::success )
+                {
+                    *output = pending.first == details::notification_queue_entry_type::notification
+                        ? bits( details::att_opcodes::notification )
+                        : bits( details::att_opcodes::indication );
+                    details::write_handle( output +1, handle_mapping::handle_by_index( data.attribute_table_index() ) );
+
+                    out_size = 3 + read.buffer_size;
+                    return;
+                }
+            }
+        }
+
+        out_size = 0;
     }
 
     namespace details {
@@ -779,77 +812,8 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    template < class Connection >
-    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, const details::notification_data& data )
-    {
-        assert( data.valid() );
-
-        if ( connection.client_configurations().flags( data.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_notification_enabled &&
-             out_size >= 3 )
-        {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-            auto attr = attribute_at( data.attribute_table_index() );
-            auto rc   = attr.access( read, data.attribute_table_index() );
-
-            if ( rc == details::attribute_access_result::success )
-            {
-                *output = bits( details::att_opcodes::notification );
-                details::write_handle( output +1, handle_mapping::handle_by_index( data.attribute_table_index() ) );
-
-                out_size = 3 + read.buffer_size;
-            }
-            else
-            {
-                out_size = 0;
-            }
-        }
-        else
-        {
-            out_size = 0;
-        }
-    }
-
-    template < typename ... Options >
-    template < class Connection >
-    void server< Options... >::notification_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index )
-    {
-        notification_output( output, out_size, connection, find_notification_data_by_index( client_characteristic_configuration_index ) );
-    }
-
-    template < typename ... Options >
-    template < class Connection >
-    void server< Options... >::indication_output( std::uint8_t* output, std::size_t& out_size, Connection& connection, std::size_t client_characteristic_configuration_index )
-    {
-        const auto details = find_notification_data_by_index( client_characteristic_configuration_index );
-        assert( details.valid() );
-
-        if ( connection.client_configurations().flags( details.client_characteristic_configuration_index() ) & details::client_characteristic_configuration_indication_enabled &&
-             out_size >= 3 )
-        {
-            auto read = details::attribute_access_arguments::read( output + 3, output + out_size, 0, connection.client_configurations(), connection.security_attributes(), this );
-            auto attr = attribute_at( details.attribute_table_index() );
-            auto rc   = attr.access( read, details.attribute_table_index() );
-
-            if ( rc == details::attribute_access_result::success )
-            {
-                *output = bits( details::att_opcodes::indication );
-                details::write_handle( output +1, handle_mapping::handle_by_index( details.attribute_table_index() ) );
-
-                out_size = 3 + read.buffer_size;
-            }
-            else
-            {
-                out_size = 0;
-            }
-        }
-        else
-        {
-            out_size = 0;
-        }
-    }
-
-    template < typename ... Options >
-    void server< Options... >::client_disconnected( connection_data& client )
+    template < typename Connection >
+    void server< Options... >::client_disconnected( Connection& client )
     {
         this->free_write_queue( client );
     }
@@ -1433,14 +1397,15 @@ namespace bluetoe {
     }
 
     template < typename ... Options >
-    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, connection_data&, const details::no_such_type& )
+    template < typename Connection >
+    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t, std::uint8_t* output, std::size_t& out_size, Connection&, const details::no_such_type& )
     {
         error_response( *input, details::att_error_codes::request_not_supported, output, out_size );
     }
 
     template < typename ... Options >
-    template < typename WriteQueue >
-    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, connection_data& client, const WriteQueue& )
+    template < typename Connection, typename WriteQueue >
+    void server< Options... >::handle_prepair_write_request( const std::uint8_t* input, std::size_t in_size, std::uint8_t* output, std::size_t& out_size, Connection& client, const WriteQueue& )
     {
         if ( in_size < 5 )
             return error_response( *input, details::att_error_codes::invalid_pdu, output, out_size );
@@ -1489,6 +1454,7 @@ namespace bluetoe {
         details::write_queue_guard< connection_data, details::write_queue< write_queue_type > > queue_guard( client, *this );
 
         const std::uint8_t execute_flag = input[ 1 ];
+
         if ( execute_flag )
         {
             for ( std::pair< std::uint8_t*, std::size_t > queue = this->first_write_queue_element( client ); queue.first; queue = this->next_write_queue_element( queue.first, client ) )
@@ -1504,6 +1470,8 @@ namespace bluetoe {
 
                 if ( rc != details::attribute_access_result::success )
                 {
+                    this->free_write_queue( client );
+
                     if ( rc == details::attribute_access_result::invalid_attribute_value_length )
                         return error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
 
@@ -1511,6 +1479,8 @@ namespace bluetoe {
                 }
             }
         }
+
+        this->free_write_queue( client );
 
         *output  = bits( details::att_opcodes::execute_write_response );
         out_size = 1;
