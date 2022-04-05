@@ -10,8 +10,13 @@ if (NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR " examples can only be cross compiled to arm cortex-m, missing -Dtoolchain_file on cmake invocation?")
 endif()
 
+set(AVAILABLE_BINDINGS nrf51 nrf52)
+
+set(BINDING nrf52 CACHE STRING "Microcontroller target to build for")
+set_property(CACHE BINDING PROPERTY STRINGS ${AVAILABLE_BINDINGS})
+
 if (NOT BINDING)
-    message(FATAL_ERROR " A binding must be defined. Use -DBINDING=nrf51. Current available bindings are nrf51, nrf52")
+    message(FATAL_ERROR " A binding must be defined. Use -DBINDING=nrf51. Current available bindings are ${AVAILABLE_BINDINGS}")
 endif()
 
 # include hardware specific compile options and definitions that must be apllied to the whole project
@@ -49,6 +54,9 @@ add_subdirectory(assert)
 
 # bluetoe library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/bluetoe)
+
+# Additional settings for the Bluetoe library itself:
+target_link_libraries(bluetoe_iface INTERFACE assert::arm)
 
 function(add_bluetoe_example target_name)
     add_executable(${target_name} ${target_name}.cpp runtime.cpp)
