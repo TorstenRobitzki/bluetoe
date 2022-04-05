@@ -430,6 +430,11 @@ namespace bluetoe
 
     namespace link_layer {
 
+        /** @cond HIDDEN_SYMBOLS */
+        /*
+         * specialize pdu_layout_by_radio<> for the radio that supports encryption to change the PDU layout
+         * to have that extra byte between header and body
+         */
         template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, typename ... Options >
         struct pdu_layout_by_radio<
             nrf51_details::scheduled_radio< TransmitSize, ReceiveSize, CallBack, nrf51_details::scheduled_radio_base_with_encryption< Options... > > >
@@ -440,6 +445,7 @@ namespace bluetoe
              */
             using pdu_layout = bluetoe::nrf_details::encrypted_pdu_layout;
         };
+        /** @endcond */
    }
 
 } // namespace bluetoe

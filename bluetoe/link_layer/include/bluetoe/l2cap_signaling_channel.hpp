@@ -93,7 +93,7 @@ namespace l2cap {
     {
     public:
         /**
-         * @copydoc signaling_channel::signaling_channel_input
+         * @copydoc signaling_channel::l2cap_input
          */
         template < typename ConnectionData >
         void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t& out_size, ConnectionData& )
@@ -102,7 +102,7 @@ namespace l2cap {
         }
 
         /**
-         * @copydoc signaling_channel::signaling_channel_output
+         * @copydoc signaling_channel::l2cap_output
          */
         template < typename ConnectionData >
         void l2cap_output( std::uint8_t*, std::size_t& out_size, ConnectionData& )

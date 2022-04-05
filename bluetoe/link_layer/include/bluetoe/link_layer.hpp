@@ -596,6 +596,7 @@ namespace link_layer {
     };
 
     // implementation
+    /** @cond HIDDEN_SYMBOLS */
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : address_( local_device_address::address( *this ) )
@@ -1280,6 +1281,7 @@ namespace link_layer {
 
         this->commit_l2cap_transmit_buffer( out_buffer );
     }
+    /** @endcond */
 
 }
 }
