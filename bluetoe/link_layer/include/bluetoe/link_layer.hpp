@@ -1252,12 +1252,13 @@ namespace link_layer {
     {
         const auto buffer = this->allocate_l2cap_transmit_buffer( size );
 
-        return buffer.size == 0
-            ? std::pair< std::size_t, std::uint8_t* >{ 0, nullptr }
-            : std::pair< std::size_t, std::uint8_t* >{
-                buffer.size - ::bluetoe::details::l2cap_layer_header_size,
-                buffer.buffer + ::bluetoe::details::l2cap_layer_header_size
-            };
+        if ( buffer.size == 0 )
+            return { 0, nullptr };
+
+
+        const auto body      = layout_t::body( buffer );
+
+        return { body.second - body.first, body.first };
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
