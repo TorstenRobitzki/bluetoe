@@ -8,8 +8,11 @@ var searchData=
   ['header_5fsize_5',['header_size',['../structbluetoe_1_1link__layer_1_1default__pdu__layout.html#a349b0c5c5a52540224e365d166dcfdfa',1,'bluetoe::link_layer::default_pdu_layout::header_size()'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a7e9a1b299b4901f8ec5c17a495ae73bd',1,'bluetoe::link_layer::ll_data_pdu_buffer::header_size()']]],
   ['heart_5frate_5fbelt_6',['heart_rate_belt',['../structbluetoe_1_1appearance.html#a752c7e0b7677d64060f86bc1d380c891',1,'bluetoe::appearance']]],
   ['heart_5frate_5fsensor_7',['heart_rate_sensor',['../structbluetoe_1_1appearance.html#afd93918f38b1b89a3acf55fdfdbf3ca7',1,'bluetoe::appearance']]],
-  ['hid_5fbarcode_5fscanner_8',['hid_barcode_scanner',['../structbluetoe_1_1appearance.html#aa3124ae05a7e54f6e14d31c3403b37f1',1,'bluetoe::appearance']]],
-  ['higher_5foutgoing_5fpriority_9',['higher_outgoing_priority',['../structbluetoe_1_1higher__outgoing__priority.html',1,'bluetoe']]],
-  ['hip_10',['hip',['../structbluetoe_1_1sensor__location.html#a0dc75f2a2e2ca8999319830d4fff0d5e',1,'bluetoe::sensor_location']]],
-  ['human_5finterface_5fdevice_11',['human_interface_device',['../structbluetoe_1_1appearance.html#a0994b6fa7d3097b96dd42ce87344ad6a',1,'bluetoe::appearance']]]
+  ['hfxo_5fstartup_5ftime_5fmeta_5ftype_8',['hfxo_startup_time_meta_type',['../structbluetoe_1_1nrf_1_1nrf__details_1_1hfxo__startup__time__meta__type.html',1,'bluetoe::nrf::nrf_details']]],
+  ['hid_5fbarcode_5fscanner_9',['hid_barcode_scanner',['../structbluetoe_1_1appearance.html#aa3124ae05a7e54f6e14d31c3403b37f1',1,'bluetoe::appearance']]],
+  ['high_5ffrequency_5fcrystal_5foscillator_5fstartup_5ftime_10',['high_frequency_crystal_oscillator_startup_time',['../structbluetoe_1_1nrf_1_1high__frequency__crystal__oscillator__startup__time.html',1,'bluetoe::nrf']]],
+  ['high_5ffrequency_5fcrystal_5foscillator_5fstartup_5ftime_5fdefault_11',['high_frequency_crystal_oscillator_startup_time_default',['../namespacebluetoe_1_1nrf.html#a5b5f08a14058ee4a8724e07864c8bba1',1,'bluetoe::nrf']]],
+  ['higher_5foutgoing_5fpriority_12',['higher_outgoing_priority',['../structbluetoe_1_1higher__outgoing__priority.html',1,'bluetoe']]],
+  ['hip_13',['hip',['../structbluetoe_1_1sensor__location.html#a0dc75f2a2e2ca8999319830d4fff0d5e',1,'bluetoe::sensor_location']]],
+  ['human_5finterface_5fdevice_14',['human_interface_device',['../structbluetoe_1_1appearance.html#a0994b6fa7d3097b96dd42ce87344ad6a',1,'bluetoe::appearance']]]
 ];

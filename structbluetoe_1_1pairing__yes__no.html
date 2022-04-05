@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -79,7 +80,8 @@ $(function() {
 <div class="textblock"><div class="compoundTemplParams">template&lt;typename T, T &amp; Obj&gt;<br />
 struct bluetoe::pairing_yes_no&lt; T, Obj &gt;</div><p >Device has at least two buttons that can be easily mapped to 'yes' and 'no' or the device has a mechanism whereby the user can indicate either 'yes' or 'no'. </p>
 <p >The parameter T have to be a class type with following none static member function:</p>
-<p >bool sm_pairing_yes_no();</p>
+<p >void sm_pairing_yes_no( pairing_yes_no_response&amp; response );</p>
+<p >The passed response parameter can be stored to respond later to the question or the yes_no_response() function of the response can be called directly.</p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="structbluetoe_1_1pairing__keyboard.html" title="Device has a numeric keyboard that can input the numbers &#39;0&#39; to &#39;9&#39; and a confirmation.">pairing_keyboard</a> </dd>
 <dd>
 <a class="el" href="structbluetoe_1_1pairing__no__input.html" title="defines that the device has no way to receive input from the user during pairing">pairing_no_input</a> </dd></dl>
@@ -89,7 +91,7 @@ struct bluetoe::pairing_yes_no&lt; T, Obj &gt;</div><p >Device has at least two 
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:39 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

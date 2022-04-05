@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -79,216 +80,217 @@ $(function() {
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="keyword">namespace </span>details {</div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span> </div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span>    <span class="keyword">static</span> <span class="keyword">constexpr</span> std::uint16_t default_att_mtu_size = 23;</div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span> </div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>    <span class="keyword">enum class</span> att_opcodes : std::uint8_t {</div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>        error_response              = 0x01,</div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span>        exchange_mtu_request        = 0x02,</div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>        exchange_mtu_response       = 0x03,</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>        find_information_request    = 0x04,</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>        find_information_response   = 0x05,</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>        find_by_type_value_request  = 0x06,</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>        find_by_type_value_response = 0x07,</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>        read_by_type_request        = 0x08,</div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>        read_by_type_response       = 0x09,</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>        read_request                = 0x0A,</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>        read_response               = 0x0B,</div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>        read_blob_request           = 0x0C,</div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        read_blob_response          = 0x0D,</div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>        read_multiple_request       = 0x0E,</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>        read_multiple_response      = 0x0F,</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>        read_by_group_type_request  = 0x10,</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        read_by_group_type_response = 0x11,</div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>        write_request               = 0x12,</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        write_response              = 0x13,</div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>        prepare_write_request       = 0x16,</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>        prepare_write_response      = 0x17,</div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>        execute_write_request       = 0x18,</div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>        execute_write_response      = 0x19,</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>        write_command               = 0x52,</div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>        notification                = 0x1B,</div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        indication                  = 0x1D,</div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>        confirmation                = 0x1E</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span> </div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    };</div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    <span class="keyword">constexpr</span> std::uint8_t bits( att_opcodes c )</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    {</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>    }</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span> </div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>    <span class="keyword">enum class</span> <a class="code hl_enumeration" href="bootloader_8hpp.html#a70418157e017a102147e30f276271ef9">att_error_codes</a> : std::uint8_t {</div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">invalid_handle</a>                      = 0x01,</div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">read_not_permitted</a>,</div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">write_not_permitted</a>,</div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">invalid_pdu</a>,</div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">insufficient_authentication</a>,</div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">request_not_supported</a>,</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">invalid_offset</a>,</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">insufficient_authorization</a>,</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">prepare_queue_full</a>,</div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">attribute_not_found</a>,</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">attribute_not_long</a>,</div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">insufficient_encryption_key_size</a>,</div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">invalid_attribute_value_length</a>,</div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">unlikely_error</a>,</div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">insufficient_encryption</a>,</div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">unsupported_group_type</a>,</div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">insufficient_resources</a></div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    };</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>    <span class="keyword">constexpr</span> std::uint8_t bits( att_error_codes c )</div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>    {</div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>    }</div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>    <span class="keyword">enum class</span> att_uuid_format : std::uint8_t {</div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>        short_16bit = 0x01,</div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        long_128bit = 0x02</div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    };</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span> </div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    <span class="keyword">constexpr</span> std::uint8_t bits( att_uuid_format c )</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>    {</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    }</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    <span class="keyword">enum class</span> gatt_uuids : std::uint16_t {</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>        primary_service                     = 0x2800,</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>        secondary_service                   = 0x2801,</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>        include                             = 0x2802,</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        characteristic                      = 0x2803,</div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        characteristic_user_description     = 0x2901,</div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        client_characteristic_configuration = 0x2902,</div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>        internal_128bit_uuid    = 1</div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    };</div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span> </div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    <span class="keyword">constexpr</span> std::uint16_t bits( gatt_uuids c )</div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    {</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint16_t <span class="keyword">&gt;</span>( c );</div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>    }</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span> </div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>    <span class="keyword">enum class</span> gatt_characteristic_properties : std::uint8_t {</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        read                    = 0x02,</div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        write_without_response  = 0x04,</div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        write                   = 0x08,</div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        notify                  = 0x10,</div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>        indicate                = 0x20</div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>    };</div>
-<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span> </div>
-<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>    <span class="keyword">constexpr</span> std::uint8_t bits( gatt_characteristic_properties c )</div>
-<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>    {</div>
-<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
-<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>    }</div>
-<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span> </div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>    <span class="keyword">enum class</span> gap_types : std::uint8_t {</div>
-<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>        flags                           = 0x01,</div>
-<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>        incomplete_service_uuids_16     = 0x02,</div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>        complete_service_uuids_16       = 0x03,</div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>        incomplete_service_uuids_128    = 0x06,</div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>        complete_service_uuids_128      = 0x07,</div>
-<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>        complete_local_name             = 0x09,</div>
-<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>        shortened_local_name            = 0x08,</div>
-<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>    };</div>
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span> </div>
-<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>    <span class="keyword">constexpr</span> std::uint8_t bits( gap_types c )</div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    {</div>
-<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>    }</div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span> </div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>    <span class="keyword">enum</span> {</div>
-<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>        client_characteristic_configuration_notification_enabled = 1,</div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>        client_characteristic_configuration_indication_enabled   = 2</div>
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>    };</div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span> </div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>    <span class="keyword">inline</span> std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )</div>
-<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    {</div>
-<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>        *out = bits( opcode );</div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>        <span class="keywordflow">return</span> out + 1;</div>
-<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>    }</div>
-<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>}</div>
-<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span> </div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span>    <span class="keyword">static</span> <span class="keyword">constexpr</span> std::uint16_t default_lesc_mtu_size = 65;</div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span> </div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>    <span class="keyword">enum class</span> att_opcodes : std::uint8_t {</div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span>        error_response              = 0x01,</div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>        exchange_mtu_request        = 0x02,</div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>        exchange_mtu_response       = 0x03,</div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>        find_information_request    = 0x04,</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>        find_information_response   = 0x05,</div>
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>        find_by_type_value_request  = 0x06,</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>        find_by_type_value_response = 0x07,</div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>        read_by_type_request        = 0x08,</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>        read_by_type_response       = 0x09,</div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>        read_request                = 0x0A,</div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>        read_response               = 0x0B,</div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        read_blob_request           = 0x0C,</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>        read_blob_response          = 0x0D,</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>        read_multiple_request       = 0x0E,</div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>        read_multiple_response      = 0x0F,</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        read_by_group_type_request  = 0x10,</div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>        read_by_group_type_response = 0x11,</div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        write_request               = 0x12,</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>        write_response              = 0x13,</div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>        prepare_write_request       = 0x16,</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>        prepare_write_response      = 0x17,</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>        execute_write_request       = 0x18,</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>        execute_write_response      = 0x19,</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>        write_command               = 0x52,</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        notification                = 0x1B,</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>        indication                  = 0x1D,</div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>        confirmation                = 0x1E</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>    };</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span> </div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    <span class="keyword">constexpr</span> std::uint8_t bits( att_opcodes c )</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>    {</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>    }</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>    <span class="keyword">enum class</span> <a class="code hl_enumeration" href="bootloader_8hpp.html#a70418157e017a102147e30f276271ef9">att_error_codes</a> : std::uint8_t {</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">invalid_handle</a>                      = 0x01,</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">read_not_permitted</a>,</div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">write_not_permitted</a>,</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">invalid_pdu</a>,</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">insufficient_authentication</a>,</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">request_not_supported</a>,</div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">invalid_offset</a>,</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">insufficient_authorization</a>,</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">prepare_queue_full</a>,</div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">attribute_not_found</a>,</div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">attribute_not_long</a>,</div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">insufficient_encryption_key_size</a>,</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">invalid_attribute_value_length</a>,</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">unlikely_error</a>,</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">insufficient_encryption</a>,</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">unsupported_group_type</a>,</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">insufficient_resources</a></div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>    };</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span> </div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>    <span class="keyword">constexpr</span> std::uint8_t bits( att_error_codes c )</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>    {</div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>    }</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    <span class="keyword">enum class</span> att_uuid_format : std::uint8_t {</div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        short_16bit = 0x01,</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        long_128bit = 0x02</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    };</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span> </div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>    <span class="keyword">constexpr</span> std::uint8_t bits( att_uuid_format c )</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>    {</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    }</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> </div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>    <span class="keyword">enum class</span> gatt_uuids : std::uint16_t {</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>        primary_service                     = 0x2800,</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>        secondary_service                   = 0x2801,</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        include                             = 0x2802,</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        characteristic                      = 0x2803,</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        characteristic_user_description     = 0x2901,</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>        client_characteristic_configuration = 0x2902,</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span> </div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        internal_128bit_uuid    = 1</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    };</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span> </div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    <span class="keyword">constexpr</span> std::uint16_t bits( gatt_uuids c )</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    {</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint16_t <span class="keyword">&gt;</span>( c );</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>    }</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    <span class="keyword">enum class</span> gatt_characteristic_properties : std::uint8_t {</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        read                    = 0x02,</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        write_without_response  = 0x04,</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        write                   = 0x08,</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>        notify                  = 0x10,</div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>        indicate                = 0x20</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>    };</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span> </div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>    <span class="keyword">constexpr</span> std::uint8_t bits( gatt_characteristic_properties c )</div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>    {</div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>    }</div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span> </div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>    <span class="keyword">enum class</span> gap_types : std::uint8_t {</div>
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>        flags                           = 0x01,</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>        incomplete_service_uuids_16     = 0x02,</div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>        complete_service_uuids_16       = 0x03,</div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>        incomplete_service_uuids_128    = 0x06,</div>
+<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>        complete_service_uuids_128      = 0x07,</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>        complete_local_name             = 0x09,</div>
+<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>        shortened_local_name            = 0x08,</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>    };</div>
+<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span> </div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    <span class="keyword">constexpr</span> std::uint8_t bits( gap_types c )</div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    {</div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span> std::uint8_t <span class="keyword">&gt;</span>( c );</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>    }</div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span> </div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>    <span class="keyword">enum</span> {</div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>        client_characteristic_configuration_notification_enabled = 1,</div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>        client_characteristic_configuration_indication_enabled   = 2</div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    };</div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span> </div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    <span class="keyword">inline</span> std::uint8_t* write_opcode( std::uint8_t* out, details::att_opcodes opcode )</div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>    {</div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>        *out = bits( opcode );</div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>        <span class="keywordflow">return</span> out + 1;</div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>    }</div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span>}</div>
 <div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span> </div>
-<div class="line"><a id="l00142" name="l00142"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html">  142</a></span><span class="keyword">namespace </span><a class="code hl_enumeration" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">error_codes</a> {</div>
-<div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span> </div>
-<div class="line"><a id="l00147" name="l00147"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">  147</a></span>    <span class="keyword">enum</span> <a class="code hl_enumeration" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">error_codes</a> : std::uint8_t {</div>
-<div class="line"><a id="l00151" name="l00151"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">  151</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">success</a>                             = 0x00,</div>
-<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span> </div>
-<div class="line"><a id="l00156" name="l00156"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">  156</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">invalid_handle</a>                      = 0x01,</div>
-<div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span> </div>
-<div class="line"><a id="l00161" name="l00161"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">  161</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">read_not_permitted</a>,</div>
-<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span> </div>
-<div class="line"><a id="l00166" name="l00166"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">  166</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">write_not_permitted</a>,</div>
-<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span> </div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">  171</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">invalid_pdu</a>,</div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span> </div>
-<div class="line"><a id="l00176" name="l00176"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">  176</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">insufficient_authentication</a>,</div>
-<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span> </div>
-<div class="line"><a id="l00181" name="l00181"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">  181</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">request_not_supported</a>,</div>
-<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span> </div>
-<div class="line"><a id="l00186" name="l00186"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">  186</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">invalid_offset</a>,</div>
-<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span> </div>
-<div class="line"><a id="l00191" name="l00191"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">  191</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">insufficient_authorization</a>,</div>
-<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span> </div>
-<div class="line"><a id="l00196" name="l00196"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">  196</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">prepare_queue_full</a>,</div>
-<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span> </div>
-<div class="line"><a id="l00201" name="l00201"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">  201</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">attribute_not_found</a>,</div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span> </div>
-<div class="line"><a id="l00206" name="l00206"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">  206</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">attribute_not_long</a>,</div>
-<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span> </div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">  211</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">insufficient_encryption_key_size</a>,</div>
-<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span> </div>
-<div class="line"><a id="l00216" name="l00216"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">  216</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">invalid_attribute_value_length</a>,</div>
-<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span> </div>
-<div class="line"><a id="l00222" name="l00222"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">  222</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">unlikely_error</a>,</div>
-<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span> </div>
-<div class="line"><a id="l00227" name="l00227"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">  227</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">insufficient_encryption</a>,</div>
-<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span> </div>
-<div class="line"><a id="l00232" name="l00232"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">  232</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">unsupported_group_type</a>,</div>
-<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span> </div>
-<div class="line"><a id="l00237" name="l00237"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">  237</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">insufficient_resources</a>,</div>
-<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span> </div>
-<div class="line"><a id="l00242" name="l00242"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522">  242</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522">application_error_start</a>             = 0x80,</div>
-<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span> </div>
-<div class="line"><a id="l00247" name="l00247"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f">  247</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f">application_error_end</a>               = 0x9f,</div>
-<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span> </div>
-<div class="line"><a id="l00253" name="l00253"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2">  253</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2">out_of_range</a>                        = 0xff,</div>
-<div class="line"><a id="l00254" name="l00254"></a><span class="lineno">  254</span> </div>
-<div class="line"><a id="l00259" name="l00259"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934">  259</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934">procedure_already_in_progress</a>       = 0xfe,</div>
-<div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span> </div>
-<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29">cccd_improperly_configured</a>          = 0xfd</div>
-<div class="line"><a id="l00267" name="l00267"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29">  267</a></span>    };</div>
-<div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span>}</div>
+<div class="line"><a id="l00139" name="l00139"></a><span class="lineno">  139</span> </div>
+<div class="line"><a id="l00143" name="l00143"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html">  143</a></span><span class="keyword">namespace </span><a class="code hl_enumeration" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">error_codes</a> {</div>
+<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span> </div>
+<div class="line"><a id="l00148" name="l00148"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">  148</a></span>    <span class="keyword">enum</span> <a class="code hl_enumeration" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">error_codes</a> : std::uint8_t {</div>
+<div class="line"><a id="l00152" name="l00152"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">  152</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">success</a>                             = 0x00,</div>
+<div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span> </div>
+<div class="line"><a id="l00157" name="l00157"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">  157</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">invalid_handle</a>                      = 0x01,</div>
+<div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span> </div>
+<div class="line"><a id="l00162" name="l00162"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">  162</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">read_not_permitted</a>,</div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span> </div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">  167</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">write_not_permitted</a>,</div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span> </div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">  172</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">invalid_pdu</a>,</div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span> </div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">  177</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">insufficient_authentication</a>,</div>
+<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span> </div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">  182</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">request_not_supported</a>,</div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span> </div>
+<div class="line"><a id="l00187" name="l00187"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">  187</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">invalid_offset</a>,</div>
+<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span> </div>
+<div class="line"><a id="l00192" name="l00192"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">  192</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">insufficient_authorization</a>,</div>
+<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span> </div>
+<div class="line"><a id="l00197" name="l00197"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">  197</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">prepare_queue_full</a>,</div>
+<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span> </div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">  202</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">attribute_not_found</a>,</div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span> </div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">  207</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">attribute_not_long</a>,</div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span> </div>
+<div class="line"><a id="l00212" name="l00212"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">  212</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">insufficient_encryption_key_size</a>,</div>
+<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span> </div>
+<div class="line"><a id="l00217" name="l00217"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">  217</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">invalid_attribute_value_length</a>,</div>
+<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span> </div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">  223</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">unlikely_error</a>,</div>
+<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span> </div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">  228</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">insufficient_encryption</a>,</div>
+<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span> </div>
+<div class="line"><a id="l00233" name="l00233"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">  233</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">unsupported_group_type</a>,</div>
+<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span> </div>
+<div class="line"><a id="l00238" name="l00238"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">  238</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">insufficient_resources</a>,</div>
+<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span> </div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522">  243</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522">application_error_start</a>             = 0x80,</div>
+<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span> </div>
+<div class="line"><a id="l00248" name="l00248"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f">  248</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f">application_error_end</a>               = 0x9f,</div>
+<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span> </div>
+<div class="line"><a id="l00254" name="l00254"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2">  254</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2">out_of_range</a>                        = 0xff,</div>
+<div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span> </div>
+<div class="line"><a id="l00260" name="l00260"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934">  260</a></span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934">procedure_already_in_progress</a>       = 0xfe,</div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span> </div>
+<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>        <a class="code hl_enumvalue" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29">cccd_improperly_configured</a>          = 0xfd</div>
+<div class="line"><a id="l00268" name="l00268"></a><span class="lineno"><a class="line" href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29">  268</a></span>    };</div>
 <div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span>}</div>
-<div class="line"><a id="l00270" name="l00270"></a><span class="lineno">  270</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00270" name="l00270"></a><span class="lineno">  270</span>}</div>
+<div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span><span class="preprocessor">#endif</span></div>
 <div class="ttc" id="abootloader_8hpp_html_a70418157e017a102147e30f276271ef9"><div class="ttname"><a href="bootloader_8hpp.html#a70418157e017a102147e30f276271ef9">bluetoe::bootloader::att_error_codes</a></div><div class="ttdeci">att_error_codes</div><div class="ttdoc">error codes that are used by the bootloader on the ATT layer</div><div class="ttdef"><b>Definition:</b> bootloader.hpp:124</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">bluetoe::error_codes::error_codes</a></div><div class="ttdeci">error_codes</div><div class="ttdoc">Error codes to be returned by read and write handlers for characteristic values.</div><div class="ttdef"><b>Definition:</b> codes.hpp:147</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">bluetoe::error_codes::insufficient_resources</a></div><div class="ttdeci">@ insufficient_resources</div><div class="ttdef"><b>Definition:</b> codes.hpp:237</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">bluetoe::error_codes::insufficient_authentication</a></div><div class="ttdeci">@ insufficient_authentication</div><div class="ttdef"><b>Definition:</b> codes.hpp:176</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">bluetoe::error_codes::prepare_queue_full</a></div><div class="ttdeci">@ prepare_queue_full</div><div class="ttdef"><b>Definition:</b> codes.hpp:196</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">bluetoe::error_codes::request_not_supported</a></div><div class="ttdeci">@ request_not_supported</div><div class="ttdef"><b>Definition:</b> codes.hpp:181</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">bluetoe::error_codes::insufficient_encryption_key_size</a></div><div class="ttdeci">@ insufficient_encryption_key_size</div><div class="ttdef"><b>Definition:</b> codes.hpp:211</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">bluetoe::error_codes::unlikely_error</a></div><div class="ttdeci">@ unlikely_error</div><div class="ttdef"><b>Definition:</b> codes.hpp:222</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">bluetoe::error_codes::invalid_offset</a></div><div class="ttdeci">@ invalid_offset</div><div class="ttdef"><b>Definition:</b> codes.hpp:186</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2">bluetoe::error_codes::out_of_range</a></div><div class="ttdeci">@ out_of_range</div><div class="ttdef"><b>Definition:</b> codes.hpp:253</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">bluetoe::error_codes::invalid_pdu</a></div><div class="ttdeci">@ invalid_pdu</div><div class="ttdef"><b>Definition:</b> codes.hpp:171</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">bluetoe::error_codes::success</a></div><div class="ttdeci">@ success</div><div class="ttdef"><b>Definition:</b> codes.hpp:151</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">bluetoe::error_codes::attribute_not_found</a></div><div class="ttdeci">@ attribute_not_found</div><div class="ttdef"><b>Definition:</b> codes.hpp:201</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">bluetoe::error_codes::insufficient_authorization</a></div><div class="ttdeci">@ insufficient_authorization</div><div class="ttdef"><b>Definition:</b> codes.hpp:191</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">bluetoe::error_codes::write_not_permitted</a></div><div class="ttdeci">@ write_not_permitted</div><div class="ttdef"><b>Definition:</b> codes.hpp:166</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">bluetoe::error_codes::attribute_not_long</a></div><div class="ttdeci">@ attribute_not_long</div><div class="ttdef"><b>Definition:</b> codes.hpp:206</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934">bluetoe::error_codes::procedure_already_in_progress</a></div><div class="ttdeci">@ procedure_already_in_progress</div><div class="ttdef"><b>Definition:</b> codes.hpp:259</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">bluetoe::error_codes::unsupported_group_type</a></div><div class="ttdeci">@ unsupported_group_type</div><div class="ttdef"><b>Definition:</b> codes.hpp:232</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">bluetoe::error_codes::invalid_handle</a></div><div class="ttdeci">@ invalid_handle</div><div class="ttdef"><b>Definition:</b> codes.hpp:156</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522">bluetoe::error_codes::application_error_start</a></div><div class="ttdeci">@ application_error_start</div><div class="ttdef"><b>Definition:</b> codes.hpp:242</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">bluetoe::error_codes::invalid_attribute_value_length</a></div><div class="ttdeci">@ invalid_attribute_value_length</div><div class="ttdef"><b>Definition:</b> codes.hpp:216</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29">bluetoe::error_codes::cccd_improperly_configured</a></div><div class="ttdeci">@ cccd_improperly_configured</div><div class="ttdef"><b>Definition:</b> codes.hpp:266</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f">bluetoe::error_codes::application_error_end</a></div><div class="ttdeci">@ application_error_end</div><div class="ttdef"><b>Definition:</b> codes.hpp:247</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">bluetoe::error_codes::read_not_permitted</a></div><div class="ttdeci">@ read_not_permitted</div><div class="ttdef"><b>Definition:</b> codes.hpp:161</div></div>
-<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">bluetoe::error_codes::insufficient_encryption</a></div><div class="ttdeci">@ insufficient_encryption</div><div class="ttdef"><b>Definition:</b> codes.hpp:227</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41">bluetoe::error_codes::error_codes</a></div><div class="ttdeci">error_codes</div><div class="ttdoc">Error codes to be returned by read and write handlers for characteristic values.</div><div class="ttdef"><b>Definition:</b> codes.hpp:148</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a06289bc2c9685303e5eb85cb3546da24">bluetoe::error_codes::insufficient_resources</a></div><div class="ttdeci">@ insufficient_resources</div><div class="ttdef"><b>Definition:</b> codes.hpp:238</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a">bluetoe::error_codes::insufficient_authentication</a></div><div class="ttdeci">@ insufficient_authentication</div><div class="ttdef"><b>Definition:</b> codes.hpp:177</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a2cd82e73524f4efd88ba70082c62be68">bluetoe::error_codes::prepare_queue_full</a></div><div class="ttdeci">@ prepare_queue_full</div><div class="ttdef"><b>Definition:</b> codes.hpp:197</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a35d0f651ab38074dfe88ee936a02d93e">bluetoe::error_codes::request_not_supported</a></div><div class="ttdeci">@ request_not_supported</div><div class="ttdef"><b>Definition:</b> codes.hpp:182</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a3b7bee2a39978c70a3c97f8272040ca1">bluetoe::error_codes::insufficient_encryption_key_size</a></div><div class="ttdeci">@ insufficient_encryption_key_size</div><div class="ttdef"><b>Definition:</b> codes.hpp:212</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a44491a91bdb06827d443eef3608a4037">bluetoe::error_codes::unlikely_error</a></div><div class="ttdeci">@ unlikely_error</div><div class="ttdef"><b>Definition:</b> codes.hpp:223</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4881f978becdfb56adc807f6b07bfe81">bluetoe::error_codes::invalid_offset</a></div><div class="ttdeci">@ invalid_offset</div><div class="ttdef"><b>Definition:</b> codes.hpp:187</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a4af9206e6cced23b0c99d91ea2fdcdd2">bluetoe::error_codes::out_of_range</a></div><div class="ttdeci">@ out_of_range</div><div class="ttdef"><b>Definition:</b> codes.hpp:254</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a657f71fa1704de66782bde2084397053">bluetoe::error_codes::invalid_pdu</a></div><div class="ttdeci">@ invalid_pdu</div><div class="ttdef"><b>Definition:</b> codes.hpp:172</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6b8f9bcf47d1d36d74882bea65824128">bluetoe::error_codes::success</a></div><div class="ttdeci">@ success</div><div class="ttdef"><b>Definition:</b> codes.hpp:152</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a6fd0539639eab65c063289851db4a5e1">bluetoe::error_codes::attribute_not_found</a></div><div class="ttdeci">@ attribute_not_found</div><div class="ttdef"><b>Definition:</b> codes.hpp:202</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284">bluetoe::error_codes::insufficient_authorization</a></div><div class="ttdeci">@ insufficient_authorization</div><div class="ttdef"><b>Definition:</b> codes.hpp:192</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a847abd37aa7fdc916dd51a13affe3d1d">bluetoe::error_codes::write_not_permitted</a></div><div class="ttdeci">@ write_not_permitted</div><div class="ttdef"><b>Definition:</b> codes.hpp:167</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a9007f4eec9c914b8d753426f11c3e19f">bluetoe::error_codes::attribute_not_long</a></div><div class="ttdeci">@ attribute_not_long</div><div class="ttdef"><b>Definition:</b> codes.hpp:207</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aa4d49a4c42903869ccad242313558934">bluetoe::error_codes::procedure_already_in_progress</a></div><div class="ttdeci">@ procedure_already_in_progress</div><div class="ttdef"><b>Definition:</b> codes.hpp:260</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ab42a99d31a225fad5cca3af17e19c64d">bluetoe::error_codes::unsupported_group_type</a></div><div class="ttdeci">@ unsupported_group_type</div><div class="ttdef"><b>Definition:</b> codes.hpp:233</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ac6a438daf52ae3ce60796a80a16ee57c">bluetoe::error_codes::invalid_handle</a></div><div class="ttdeci">@ invalid_handle</div><div class="ttdef"><b>Definition:</b> codes.hpp:157</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41adea272bd9b5e4044960123d080909522">bluetoe::error_codes::application_error_start</a></div><div class="ttdeci">@ application_error_start</div><div class="ttdef"><b>Definition:</b> codes.hpp:243</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41ae8347a54a00bcf6226114213a4b11aca">bluetoe::error_codes::invalid_attribute_value_length</a></div><div class="ttdeci">@ invalid_attribute_value_length</div><div class="ttdef"><b>Definition:</b> codes.hpp:217</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41aef2c32ce1e23325269981cdeac0a6d29">bluetoe::error_codes::cccd_improperly_configured</a></div><div class="ttdeci">@ cccd_improperly_configured</div><div class="ttdef"><b>Definition:</b> codes.hpp:267</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af3e2d008cceefcce57578071cffdad2f">bluetoe::error_codes::application_error_end</a></div><div class="ttdeci">@ application_error_end</div><div class="ttdef"><b>Definition:</b> codes.hpp:248</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41af5778c47d3c5979fa57dd9db889d6fc6">bluetoe::error_codes::read_not_permitted</a></div><div class="ttdeci">@ read_not_permitted</div><div class="ttdef"><b>Definition:</b> codes.hpp:162</div></div>
+<div class="ttc" id="anamespacebluetoe_1_1error__codes_html_ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127"><div class="ttname"><a href="namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127">bluetoe::error_codes::insufficient_encryption</a></div><div class="ttdeci">@ insufficient_encryption</div><div class="ttdef"><b>Definition:</b> codes.hpp:228</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:38 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

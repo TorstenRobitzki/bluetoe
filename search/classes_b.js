@@ -11,7 +11,7 @@ var searchData=
   ['no_5fwhite_5flist_8',['no_white_list',['../structbluetoe_1_1link__layer_1_1no__white__list.html',1,'bluetoe::link_layer']]],
   ['no_5fwrite_5faccess_9',['no_write_access',['../structbluetoe_1_1no__write__access.html',1,'bluetoe']]],
   ['non_5fconnectable_5fundirected_5fadvertising_10',['non_connectable_undirected_advertising',['../structbluetoe_1_1link__layer_1_1non__connectable__undirected__advertising.html',1,'bluetoe::link_layer']]],
-  ['notification_5fqueue_11',['notification_queue',['../classbluetoe_1_1link__layer_1_1notification__queue.html',1,'bluetoe::link_layer']]],
+  ['notification_5fqueue_11',['notification_queue',['../classbluetoe_1_1notification__queue.html',1,'bluetoe']]],
   ['notify_12',['notify',['../structbluetoe_1_1notify.html',1,'bluetoe']]],
   ['notify_5fon_5fsubscription_13',['notify_on_subscription',['../structbluetoe_1_1notify__on__subscription.html',1,'bluetoe']]]
 ];

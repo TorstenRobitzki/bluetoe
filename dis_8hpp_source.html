@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -186,8 +187,9 @@ $(function() {
 <div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>                    <span class="keywordflow">return</span> data_size;</div>
 <div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>                }</div>
 <div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span>            };</div>
-<div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span>            <span class="keyword">template</span> &lt; vendor_<span class="keywordtype">id</span>_source_t VendorIDSource, std::u<span class="keywordtype">int</span>16_t VendorID, std::u<span class="keywordtype">int</span>16_t ProductID, std::u<span class="keywordtype">int</span>16_t ProductVersion &gt;</div>
-<div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span>            <span class="keyword">constexpr</span> std::uint8_t pnp_id_value&lt; VendorIDSource, VendorID, ProductID, ProductVersion &gt;::data[ data_size ];</div>
+<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span> </div>
+<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>            <span class="keyword">template</span> &lt; vendor_<span class="keywordtype">id</span>_source_t VendorIDSource, std::u<span class="keywordtype">int</span>16_t VendorID, std::u<span class="keywordtype">int</span>16_t ProductID, std::u<span class="keywordtype">int</span>16_t ProductVersion &gt;</div>
+<div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span>            <span class="keyword">constexpr</span> std::uint8_t pnp_id_value&lt; VendorIDSource, VendorID, ProductID, ProductVersion &gt;::data[ data_size ];</div>
 <div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span>        }</div>
 <div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span> </div>
 <div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>        <span class="keyword">template</span> &lt; vendor_<span class="keywordtype">id</span>_source_t VendorIDSource, std::u<span class="keywordtype">int</span>16_t VendorID, std::u<span class="keywordtype">int</span>16_t ProductID, std::u<span class="keywordtype">int</span>16_t ProductVersion &gt;</div>
@@ -216,7 +218,7 @@ $(function() {
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:38 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -81,19 +82,21 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aa8de7e0f16d0fe91a611464992ff60ab"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#aa8de7e0f16d0fe91a611464992ff60ab">signaling_channel_input</a> (const std::uint8_t *, std::size_t, std::uint8_t *, std::size_t &amp;out_size)</td></tr>
-<tr class="memdesc:aa8de7e0f16d0fe91a611464992ff60ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">input from the l2cap layer  <a href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#aa8de7e0f16d0fe91a611464992ff60ab">More...</a><br /></td></tr>
-<tr class="separator:aa8de7e0f16d0fe91a611464992ff60ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afbcd6842b63e6d88a753286482358a51"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#afbcd6842b63e6d88a753286482358a51">signaling_channel_output</a> (std::uint8_t *, std::size_t &amp;out_size)</td></tr>
-<tr class="memdesc:afbcd6842b63e6d88a753286482358a51"><td class="mdescLeft">&#160;</td><td class="mdescRight">output to the l2cap layer  <a href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#afbcd6842b63e6d88a753286482358a51">More...</a><br /></td></tr>
-<tr class="separator:afbcd6842b63e6d88a753286482358a51"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad547796e6d4a3f363b3f6339ed3bf938"><td class="memTemplParams" colspan="2">template&lt;typename ConnectionData &gt; </td></tr>
+<tr class="memitem:ad547796e6d4a3f363b3f6339ed3bf938"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#ad547796e6d4a3f363b3f6339ed3bf938">l2cap_input</a> (const std::uint8_t *, std::size_t, std::uint8_t *, std::size_t &amp;out_size, ConnectionData &amp;)</td></tr>
+<tr class="memdesc:ad547796e6d4a3f363b3f6339ed3bf938"><td class="mdescLeft">&#160;</td><td class="mdescRight">input from the l2cap layer  <a href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#ad547796e6d4a3f363b3f6339ed3bf938">More...</a><br /></td></tr>
+<tr class="separator:ad547796e6d4a3f363b3f6339ed3bf938"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b5e7329a44f50be12327867747b907d"><td class="memTemplParams" colspan="2">template&lt;typename ConnectionData &gt; </td></tr>
+<tr class="memitem:a2b5e7329a44f50be12327867747b907d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a2b5e7329a44f50be12327867747b907d">l2cap_output</a> (std::uint8_t *, std::size_t &amp;out_size, ConnectionData &amp;)</td></tr>
+<tr class="memdesc:a2b5e7329a44f50be12327867747b907d"><td class="mdescLeft">&#160;</td><td class="mdescRight">output to the l2cap layer  <a href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a2b5e7329a44f50be12327867747b907d">More...</a><br /></td></tr>
+<tr class="separator:a2b5e7329a44f50be12327867747b907d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a29352d9ed6ce10093d562b3fdff565c1"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a29352d9ed6ce10093d562b3fdff565c1">connection_parameter_update_request</a> (std::uint16_t, std::uint16_t, std::uint16_t, std::uint16_t)</td></tr>
 <tr class="memdesc:a29352d9ed6ce10093d562b3fdff565c1"><td class="mdescLeft">&#160;</td><td class="mdescRight">queues a connection parameter update request.  <a href="classbluetoe_1_1l2cap_1_1no__signaling__channel.html#a29352d9ed6ce10093d562b3fdff565c1">More...</a><br /></td></tr>
 <tr class="separator:a29352d9ed6ce10093d562b3fdff565c1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7d1c53d76ad2d18d2ee9f9f0295fe17d"><td class="memItemLeft" align="right" valign="top"><a id="a7d1c53d76ad2d18d2ee9f9f0295fe17d" name="a7d1c53d76ad2d18d2ee9f9f0295fe17d"></a>
-constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>signaling_channel_mtu_size</b> () const</td></tr>
-<tr class="memdesc:a7d1c53d76ad2d18d2ee9f9f0295fe17d"><td class="mdescLeft">&#160;</td><td class="mdescRight">supported MTU size <br /></td></tr>
-<tr class="separator:a7d1c53d76ad2d18d2ee9f9f0295fe17d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2c8cec8540b6245ba0c13239c4caf3d2"><td class="memItemLeft" align="right" valign="top"><a id="a2c8cec8540b6245ba0c13239c4caf3d2" name="a2c8cec8540b6245ba0c13239c4caf3d2"></a>
+constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>channel_mtu_size</b> () const</td></tr>
+<tr class="memdesc:a2c8cec8540b6245ba0c13239c4caf3d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">supported MTU size <br /></td></tr>
+<tr class="separator:a2c8cec8540b6245ba0c13239c4caf3d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p >signaling channel implementations that does simply nothing </p>
@@ -149,17 +152,19 @@ constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>sign
 
 </div>
 </div>
-<a id="aa8de7e0f16d0fe91a611464992ff60ab" name="aa8de7e0f16d0fe91a611464992ff60ab"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa8de7e0f16d0fe91a611464992ff60ab">&#9670;&nbsp;</a></span>signaling_channel_input()</h2>
+<a id="ad547796e6d4a3f363b3f6339ed3bf938" name="ad547796e6d4a3f363b3f6339ed3bf938"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad547796e6d4a3f363b3f6339ed3bf938">&#9670;&nbsp;</a></span>l2cap_input()</h2>
 
 <div class="memitem">
 <div class="memproto">
+<div class="memtemplate">
+template&lt;typename ConnectionData &gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void bluetoe::l2cap::no_signaling_channel::signaling_channel_input </td>
+          <td class="memname">void bluetoe::l2cap::no_signaling_channel::l2cap_input </td>
           <td>(</td>
           <td class="paramtype">const std::uint8_t *&#160;</td>
           <td class="paramname">, </td>
@@ -180,7 +185,13 @@ constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>sign
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">std::size_t &amp;&#160;</td>
-          <td class="paramname"><em>out_size</em>&#160;</td>
+          <td class="paramname"><em>out_size</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">ConnectionData &amp;&#160;</td>
+          <td class="paramname">&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -199,17 +210,19 @@ constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>sign
 
 </div>
 </div>
-<a id="afbcd6842b63e6d88a753286482358a51" name="afbcd6842b63e6d88a753286482358a51"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#afbcd6842b63e6d88a753286482358a51">&#9670;&nbsp;</a></span>signaling_channel_output()</h2>
+<a id="a2b5e7329a44f50be12327867747b907d" name="a2b5e7329a44f50be12327867747b907d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2b5e7329a44f50be12327867747b907d">&#9670;&nbsp;</a></span>l2cap_output()</h2>
 
 <div class="memitem">
 <div class="memproto">
+<div class="memtemplate">
+template&lt;typename ConnectionData &gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void bluetoe::l2cap::no_signaling_channel::signaling_channel_output </td>
+          <td class="memname">void bluetoe::l2cap::no_signaling_channel::l2cap_output </td>
           <td>(</td>
           <td class="paramtype">std::uint8_t *&#160;</td>
           <td class="paramname">, </td>
@@ -218,7 +231,13 @@ constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>sign
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">std::size_t &amp;&#160;</td>
-          <td class="paramname"><em>out_size</em>&#160;</td>
+          <td class="paramname"><em>out_size</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">ConnectionData &amp;&#160;</td>
+          <td class="paramname">&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -243,7 +262,7 @@ constexpr std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>sign
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:39 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

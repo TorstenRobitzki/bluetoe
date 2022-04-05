@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['max_5fmtu_5fsize_0',['max_mtu_size',['../structbluetoe_1_1link__layer_1_1max__mtu__size.html',1,'bluetoe::link_layer']]],
+  ['max_5fmtu_5fsize_0',['max_mtu_size',['../structbluetoe_1_1max__mtu__size.html',1,'bluetoe']]],
   ['may_5frequire_5fencryption_1',['may_require_encryption',['../structbluetoe_1_1may__require__encryption.html',1,'bluetoe']]],
   ['memory_5fregion_2',['memory_region',['../structbluetoe_1_1bootloader_1_1memory__region.html',1,'bluetoe::bootloader']]],
   ['mixin_3',['mixin',['../structbluetoe_1_1mixin.html',1,'bluetoe']]],

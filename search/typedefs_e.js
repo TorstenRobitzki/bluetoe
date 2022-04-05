@@ -1,10 +1,7 @@
 var searchData=
 [
-  ['rear_5fdropout_0',['rear_dropout',['../structbluetoe_1_1sensor__location.html#a96ad69ef34d214aa806a81d8ce6e6a1b',1,'bluetoe::sensor_location']]],
-  ['rear_5fhub_1',['rear_hub',['../structbluetoe_1_1sensor__location.html#a346076e520f0836d21a7ca0456efb16e',1,'bluetoe::sensor_location']]],
-  ['rear_5fwheel_2',['rear_wheel',['../structbluetoe_1_1sensor__location.html#a583e9bb59bfd8eaf3a02a70cfb8b9fa8',1,'bluetoe::sensor_location']]],
-  ['remote_5fcontrol_3',['remote_control',['../structbluetoe_1_1appearance.html#a0ad197eb779a879234569a49fab3b4e9',1,'bluetoe::appearance']]],
-  ['right_5fcrank_4',['right_crank',['../structbluetoe_1_1sensor__location.html#a681c0833808c28f632a6ea59562b803e',1,'bluetoe::sensor_location']]],
-  ['right_5fpedal_5',['right_pedal',['../structbluetoe_1_1sensor__location.html#a230346a39ba7c1b82dfd7d5cb2dfcaa4',1,'bluetoe::sensor_location']]],
-  ['running_5fwalking_5fsensor_6',['running_walking_sensor',['../structbluetoe_1_1appearance.html#a6b369c77d745d484d916307cf420c43c',1,'bluetoe::appearance']]]
+  ['pdu_5flayout_0',['pdu_layout',['../structbluetoe_1_1link__layer_1_1pdu__layout__by__radio.html#a8b50983849116cef912f9bc269303e32',1,'bluetoe::link_layer::pdu_layout_by_radio']]],
+  ['phone_1',['phone',['../structbluetoe_1_1appearance.html#ad1df6559d2e8d57d6c9cd9386d82c0eb',1,'bluetoe::appearance']]],
+  ['progress_5fuuid_2',['progress_uuid',['../bootloader_8hpp.html#a753664d30a56f4cf3cddd2cc3e958c9a',1,'bluetoe::bootloader']]],
+  ['pulse_5foximeter_3',['pulse_oximeter',['../structbluetoe_1_1appearance.html#aea322d10cc4bf888d3a5732ed1727799',1,'bluetoe::appearance']]]
 ];

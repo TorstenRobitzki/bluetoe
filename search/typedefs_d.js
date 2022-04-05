@@ -1,7 +1,8 @@
 var searchData=
 [
-  ['pdu_5flayout_0',['pdu_layout',['../structbluetoe_1_1link__layer_1_1pdu__layout__by__radio.html#a8b50983849116cef912f9bc269303e32',1,'bluetoe::link_layer::pdu_layout_by_radio']]],
-  ['phone_1',['phone',['../structbluetoe_1_1appearance.html#ad1df6559d2e8d57d6c9cd9386d82c0eb',1,'bluetoe::appearance']]],
-  ['progress_5fuuid_2',['progress_uuid',['../bootloader_8hpp.html#a753664d30a56f4cf3cddd2cc3e958c9a',1,'bluetoe::bootloader']]],
-  ['pulse_5foximeter_3',['pulse_oximeter',['../structbluetoe_1_1appearance.html#aea322d10cc4bf888d3a5732ed1727799',1,'bluetoe::appearance']]]
+  ['on_5fhip_5frunning_5fwalking_5fsensor_0',['on_hip_running_walking_sensor',['../structbluetoe_1_1appearance.html#a84821bce518c0514f230406631a671b2',1,'bluetoe::appearance']]],
+  ['on_5fshoe_5frunning_5fwalking_5fsensor_1',['on_shoe_running_walking_sensor',['../structbluetoe_1_1appearance.html#ad096f8c31f80a44509485bd4ebf7caad',1,'bluetoe::appearance']]],
+  ['or_5ftype_2',['or_type',['../meta__tools_8hpp.html#afe6f72f9c0e73906bc787769431e63d7',1,'bluetoe::details']]],
+  ['other_3',['other',['../structbluetoe_1_1sensor__location.html#a6c713c22d2bc8374c7ef970a6463cf72',1,'bluetoe::sensor_location']]],
+  ['outdoor_5fsports_5factivity_4',['outdoor_sports_activity',['../structbluetoe_1_1appearance.html#a490be0a19f4cd8d2b70013f009057182',1,'bluetoe::appearance']]]
 ];

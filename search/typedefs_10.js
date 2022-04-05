@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['tag_0',['tag',['../structbluetoe_1_1appearance.html#aad0ecfce037cd8f22fe40ea93d143331',1,'bluetoe::appearance']]],
-  ['thermometer_1',['thermometer',['../structbluetoe_1_1appearance.html#a7031a8d982cbd6cc38b314c24823ca15',1,'bluetoe::appearance']]],
-  ['top_5fof_5fshoe_2',['top_of_shoe',['../structbluetoe_1_1sensor__location.html#a60a3c2701cd8bb1369b9738c40e4149e',1,'bluetoe::sensor_location']]]
+  ['select_5ftype_0',['select_type',['../meta__tools_8hpp.html#a663ca79f5b8492b7fed7092b85373e3e',1,'bluetoe::details']]],
+  ['service_5fuuid_1',['service_uuid',['../bootloader_8hpp.html#a5f744816e7db271527b0045f79f9ebc9',1,'bluetoe::bootloader']]],
+  ['sports_5fwatch_2',['sports_watch',['../structbluetoe_1_1appearance.html#af21166b5f398056080c03de4ce3d4a2b',1,'bluetoe::appearance']]]
 ];

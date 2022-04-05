@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -293,7 +294,7 @@ $(function() {
 <div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span> </div>
 <div class="line"><a id="l00262" name="l00262"></a><span class="lineno">  262</span>            read_buffer advertising_buffer()</div>
 <div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span>            {</div>
-<div class="line"><a id="l00264" name="l00264"></a><span class="lineno">  264</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw(), adv_size_ };</div>
+<div class="line"><a id="l00264" name="l00264"></a><span class="lineno">  264</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw_pdu_buffer(), adv_size_ };</div>
 <div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>            }</div>
 <div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span> </div>
 <div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>            read_buffer advertising_response_buffer()</div>
@@ -452,7 +453,7 @@ $(function() {
 <div class="line"><a id="l00450" name="l00450"></a><span class="lineno">  450</span>            {</div>
 <div class="line"><a id="l00451" name="l00451"></a><span class="lineno">  451</span>                <span class="keyword">using</span> layout_t = <span class="keyword">typename</span> <a class="code hl_typedef" href="structbluetoe_1_1link__layer_1_1pdu__layout__by__radio.html#a8b50983849116cef912f9bc269303e32">pdu_layout_by_radio&lt; typename LinkLayer::radio_t &gt;::pdu_layout</a>;</div>
 <div class="line"><a id="l00452" name="l00452"></a><span class="lineno">  452</span> </div>
-<div class="line"><a id="l00453" name="l00453"></a><span class="lineno">  453</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw(), layout_t::data_channel_pdu_memory_size( max_advertising_data_size ) };</div>
+<div class="line"><a id="l00453" name="l00453"></a><span class="lineno">  453</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw_pdu_buffer(), layout_t::data_channel_pdu_memory_size( max_advertising_data_size ) };</div>
 <div class="line"><a id="l00454" name="l00454"></a><span class="lineno">  454</span>            }</div>
 <div class="line"><a id="l00455" name="l00455"></a><span class="lineno">  455</span> </div>
 <div class="line"><a id="l00456" name="l00456"></a><span class="lineno">  456</span>            device_address  addr_;</div>
@@ -554,14 +555,14 @@ $(function() {
 <div class="line"><a id="l00572" name="l00572"></a><span class="lineno">  572</span>            {</div>
 <div class="line"><a id="l00573" name="l00573"></a><span class="lineno">  573</span>                <span class="keyword">using</span> layout_t = <span class="keyword">typename</span> <a class="code hl_typedef" href="structbluetoe_1_1link__layer_1_1pdu__layout__by__radio.html#a8b50983849116cef912f9bc269303e32">pdu_layout_by_radio&lt; typename LinkLayer::radio_t &gt;::pdu_layout</a>;</div>
 <div class="line"><a id="l00574" name="l00574"></a><span class="lineno">  574</span> </div>
-<div class="line"><a id="l00575" name="l00575"></a><span class="lineno">  575</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw(), layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };</div>
+<div class="line"><a id="l00575" name="l00575"></a><span class="lineno">  575</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw_pdu_buffer(), layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };</div>
 <div class="line"><a id="l00576" name="l00576"></a><span class="lineno">  576</span>            }</div>
 <div class="line"><a id="l00577" name="l00577"></a><span class="lineno">  577</span> </div>
 <div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span>            read_buffer advertising_response_buffer()</div>
 <div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span>            {</div>
 <div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span>                <span class="keyword">using</span> layout_t = <span class="keyword">typename</span> <a class="code hl_typedef" href="structbluetoe_1_1link__layer_1_1pdu__layout__by__radio.html#a8b50983849116cef912f9bc269303e32">pdu_layout_by_radio&lt; typename LinkLayer::radio_t &gt;::pdu_layout</a>;</div>
 <div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span> </div>
-<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw() + layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )</div>
+<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw_pdu_buffer() + layout_t::data_channel_pdu_memory_size( maximum_adv_send_size )</div>
 <div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span>                    , layout_t::data_channel_pdu_memory_size( maximum_adv_send_size ) };</div>
 <div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span>            }</div>
 <div class="line"><a id="l00585" name="l00585"></a><span class="lineno">  585</span> </div>
@@ -655,7 +656,7 @@ $(function() {
 <div class="line"><a id="l00693" name="l00693"></a><span class="lineno">  693</span> </div>
 <div class="line"><a id="l00694" name="l00694"></a><span class="lineno">  694</span>            read_buffer advertising_buffer()</div>
 <div class="line"><a id="l00695" name="l00695"></a><span class="lineno">  695</span>            {</div>
-<div class="line"><a id="l00696" name="l00696"></a><span class="lineno">  696</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw(), adv_size_ };</div>
+<div class="line"><a id="l00696" name="l00696"></a><span class="lineno">  696</span>                <span class="keywordflow">return</span> read_buffer{ link_layer().raw_pdu_buffer(), adv_size_ };</div>
 <div class="line"><a id="l00697" name="l00697"></a><span class="lineno">  697</span>            }</div>
 <div class="line"><a id="l00698" name="l00698"></a><span class="lineno">  698</span> </div>
 <div class="line"><a id="l00699" name="l00699"></a><span class="lineno">  699</span>            LinkLayer&amp; link_layer()</div>
@@ -1242,9 +1243,9 @@ $(function() {
 <div class="ttc" id="aclassbluetoe_1_1link__layer_1_1delta__time_html_ad2d9fabed217773a0377593c013b9555"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1delta__time.html#ad2d9fabed217773a0377593c013b9555">bluetoe::link_layer::delta_time::now</a></div><div class="ttdeci">static delta_time now()</div><div class="ttdoc">creates a delta_time denoting the distance from now to now. Aka 0.</div></div>
 <div class="ttc" id="aclassbluetoe_1_1link__layer_1_1device__address_html"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1device__address.html">bluetoe::link_layer::device_address</a></div><div class="ttdoc">data type containing a device address and the address type (public or random).</div><div class="ttdef"><b>Definition:</b> address.hpp:107</div></div>
 <div class="ttc" id="aclassbluetoe_1_1link__layer_1_1device__address_html_a1600d67ab440e6265e5aff4c72ee5037"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1device__address.html#a1600d67ab440e6265e5aff4c72ee5037">bluetoe::link_layer::device_address::is_random</a></div><div class="ttdeci">bool is_random() const</div><div class="ttdoc">returns true, if this device address is a random device address.</div><div class="ttdef"><b>Definition:</b> address.hpp:114</div></div>
-<div class="ttc" id="aclassbluetoe_1_1link__layer_1_1link__layer_html"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a></div><div class="ttdoc">link layer implementation</div><div class="ttdef"><b>Definition:</b> link_layer.hpp:304</div></div>
-<div class="ttc" id="aclassbluetoe_1_1link__layer_1_1link__layer_html_aeb646c65ceaab630e7d25d2190149d6d"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1link__layer.html#aeb646c65ceaab630e7d25d2190149d6d">bluetoe::link_layer::link_layer::local_address</a></div><div class="ttdeci">const device_address &amp; local_address() const</div><div class="ttdoc">returns the own local device address</div><div class="ttdef"><b>Definition:</b> link_layer.hpp:1381</div></div>
-<div class="ttc" id="aclassbluetoe_1_1link__layer_1_1link__layer_html_af460adb0d3d7a20aaa19a599b5c8c2b0"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1link__layer.html#af460adb0d3d7a20aaa19a599b5c8c2b0">bluetoe::link_layer::link_layer::fill_l2cap_advertising_data</a></div><div class="ttdeci">std::size_t fill_l2cap_advertising_data(std::uint8_t *buffer, std::size_t buffer_size) const</div><div class="ttdoc">fills the given buffer with l2cap advertising payload</div><div class="ttdef"><b>Definition:</b> link_layer.hpp:1369</div></div>
+<div class="ttc" id="aclassbluetoe_1_1link__layer_1_1link__layer_html"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a></div><div class="ttdoc">link layer implementation</div><div class="ttdef"><b>Definition:</b> link_layer.hpp:343</div></div>
+<div class="ttc" id="aclassbluetoe_1_1link__layer_1_1link__layer_html_aeb646c65ceaab630e7d25d2190149d6d"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1link__layer.html#aeb646c65ceaab630e7d25d2190149d6d">bluetoe::link_layer::link_layer::local_address</a></div><div class="ttdeci">const device_address &amp; local_address() const</div><div class="ttdoc">returns the own local device address</div></div>
+<div class="ttc" id="aclassbluetoe_1_1link__layer_1_1link__layer_html_af460adb0d3d7a20aaa19a599b5c8c2b0"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1link__layer.html#af460adb0d3d7a20aaa19a599b5c8c2b0">bluetoe::link_layer::link_layer::fill_l2cap_advertising_data</a></div><div class="ttdeci">std::size_t fill_l2cap_advertising_data(std::uint8_t *buffer, std::size_t buffer_size) const</div><div class="ttdoc">fills the given buffer with l2cap advertising payload</div></div>
 <div class="ttc" id="aclassbluetoe_1_1link__layer_1_1no__auto__start__advertising_html"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html">bluetoe::link_layer::no_auto_start_advertising</a></div><div class="ttdoc">if this options is given to the link layer, the link layer will not start to advertise automatically,...</div><div class="ttdef"><b>Definition:</b> advertising.hpp:757</div></div>
 <div class="ttc" id="aclassbluetoe_1_1link__layer_1_1no__auto__start__advertising_html_a3730eaeb001bfa4e73c1f41caf04a7ce"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a3730eaeb001bfa4e73c1f41caf04a7ce">bluetoe::link_layer::no_auto_start_advertising::stop_advertising</a></div><div class="ttdeci">void stop_advertising()</div><div class="ttdoc">stop advertising</div></div>
 <div class="ttc" id="aclassbluetoe_1_1link__layer_1_1no__auto__start__advertising_html_a63e8dfefee7bd4dc89b0bf8819235860"><div class="ttname"><a href="classbluetoe_1_1link__layer_1_1no__auto__start__advertising.html#a63e8dfefee7bd4dc89b0bf8819235860">bluetoe::link_layer::no_auto_start_advertising::start_advertising</a></div><div class="ttdeci">void start_advertising()</div><div class="ttdoc">starts to advertise.</div></div>
@@ -1266,7 +1267,7 @@ $(function() {
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:38 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

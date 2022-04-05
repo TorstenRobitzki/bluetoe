@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -68,7 +69,7 @@ $(function() {
 </div><!-- top -->
 <div class="header">
   <div class="summary">
-<a href="#pub-types">Public Types</a> &#124;
+<a href="#nested-classes">Classes</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="classbluetoe_1_1server-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">bluetoe::server&lt; Options &gt; Class Template Reference</div></div>
@@ -86,11 +87,11 @@ Inheritance diagram for bluetoe::server&lt; Options &gt;:</div>
   <img src="classbluetoe_1_1server.png" alt=""/>
  </div></div>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
-Public Types</h2></td></tr>
-<tr class="memitem:abd35264f59a426e6ce4e04a14331467c"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server.html#abd35264f59a426e6ce4e04a14331467c">connection_data</a> = details::link_state&lt; details::client_characteristic_configurations&lt; number_of_client_configs &gt; &gt;</td></tr>
-<tr class="memdesc:abd35264f59a426e6ce4e04a14331467c"><td class="mdescLeft">&#160;</td><td class="mdescRight">per connection data  <a href="classbluetoe_1_1server.html#abd35264f59a426e6ce4e04a14331467c">More...</a><br /></td></tr>
-<tr class="separator:abd35264f59a426e6ce4e04a14331467c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1server_1_1connection__data.html">connection_data</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">per connection data  <a href="classbluetoe_1_1server_1_1connection__data.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -146,7 +147,7 @@ class bluetoe::server&lt; Options &gt;</div><p >Root of the declaration of a GAT
 <div class="line">&gt; small_temperature_service;</div>
 <div class="ttc" id="aclassbluetoe_1_1bind__characteristic__value_html"><div class="ttname"><a href="classbluetoe_1_1bind__characteristic__value.html">bluetoe::bind_characteristic_value</a></div><div class="ttdoc">a very simple device to bind a characteristic to a global variable to provide access to the character...</div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:254</div></div>
 <div class="ttc" id="aclassbluetoe_1_1characteristic_html"><div class="ttname"><a href="classbluetoe_1_1characteristic.html">bluetoe::characteristic</a></div><div class="ttdoc">A characteristic is a typed value that is accessable by a GATT client hosted by a GATT server.</div><div class="ttdef"><b>Definition:</b> characteristic.hpp:160</div></div>
-<div class="ttc" id="aclassbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server.</div><div class="ttdef"><b>Definition:</b> server.hpp:57</div></div>
+<div class="ttc" id="aclassbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server.</div><div class="ttdef"><b>Definition:</b> server.hpp:63</div></div>
 <div class="ttc" id="aclassbluetoe_1_1service__uuid_html"><div class="ttname"><a href="classbluetoe_1_1service__uuid.html">bluetoe::service_uuid</a></div><div class="ttdoc">a 128-Bit UUID used to identify a service.</div><div class="ttdef"><b>Definition:</b> service.hpp:57</div></div>
 <div class="ttc" id="aclassbluetoe_1_1service_html"><div class="ttname"><a href="classbluetoe_1_1service.html">bluetoe::service</a></div><div class="ttdoc">a service with zero or more characteristics</div><div class="ttdef"><b>Definition:</b> service.hpp:150</div></div>
 <div class="ttc" id="astructbluetoe_1_1no__write__access_html"><div class="ttname"><a href="structbluetoe_1_1no__write__access.html">bluetoe::no_write_access</a></div><div class="ttdoc">if added as option to a characteristic, write access is removed from the characteristic</div><div class="ttdef"><b>Definition:</b> characteristic_value.hpp:69</div></div>
@@ -160,30 +161,12 @@ class bluetoe::server&lt; Options &gt;</div><p >Root of the declaration of a GAT
 <dd>
 <a class="el" href="structbluetoe_1_1appearance.html" title="enumeration of appearances (org.bluetooth.characteristic.gap.appearance)">appearance</a> </dd>
 <dd>
-<a class="el" href="structbluetoe_1_1requires__encryption.html" title="defines that access to characteristic(s) require an encrypted link without MITM Protection.">requires_encryption</a> </dd></dl>
+<a class="el" href="structbluetoe_1_1requires__encryption.html" title="defines that access to characteristic(s) require an encrypted link without MITM Protection.">requires_encryption</a> </dd>
+<dd>
+<a class="el" href="structbluetoe_1_1max__mtu__size.html" title="define the maximum GATT MTU size to be used">max_mtu_size</a> </dd></dl>
 <dl class="section examples"><dt>Examples</dt><dd><a class="el" href="change_advertising_example_8cpp-example.html#_a0">change_advertising_example.cpp</a>, <a class="el" href="include_example_8cpp-example.html#_a1">include_example.cpp</a>, <a class="el" href="priorities_example_8cpp-example.html#_a7">priorities_example.cpp</a>, <a class="el" href="read_write_handler_example_8cpp-example.html#_a3">read_write_handler_example.cpp</a>, and <a class="el" href="server_example_8cpp-example.html#_a0">server_example.cpp</a>.</dd>
 </dl>
-</div><h2 class="groupheader">Member Typedef Documentation</h2>
-<a id="abd35264f59a426e6ce4e04a14331467c" name="abd35264f59a426e6ce4e04a14331467c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#abd35264f59a426e6ce4e04a14331467c">&#9670;&nbsp;</a></span>connection_data</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename ... Options&gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">using <a class="el" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt; Options &gt;::<a class="el" href="classbluetoe_1_1server.html#abd35264f59a426e6ce4e04a14331467c">connection_data</a> =  details::link_state&lt; details::client_characteristic_configurations&lt; number_of_client_configs &gt; &gt;</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>per connection data </p>
-<p >The underlying layer have to provide the memory for a connection and pass the connection_data to l2cap_input(). The purpose of this class is to store all connection related data that must be keept per connection and must be reset with a new connection. </p>
-
-</div>
-</div>
-<h2 class="groupheader">Member Function Documentation</h2>
+</div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="a7bbf3328442b184b8941760c5dd07c97" name="a7bbf3328442b184b8941760c5dd07c97"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7bbf3328442b184b8941760c5dd07c97">&#9670;&nbsp;</a></span>indicate() <span class="overload">[1/2]</span></h2>
 
@@ -335,7 +318,7 @@ template&lt;class T &gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:39 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

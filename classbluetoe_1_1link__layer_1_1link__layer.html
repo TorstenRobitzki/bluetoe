@@ -12,7 +12,7 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="customdoxygen.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -20,6 +20,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="Logo_Bluetoe.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">BlueToe
    </div>
@@ -85,15 +86,15 @@ Inheritance diagram for bluetoe::link_layer::link_layer&lt; Server, ScheduledRad
  <div class="center">
   <img src="classbluetoe_1_1link__layer_1_1link__layer.png" usemap="#bluetoe::link_5Flayer::link_5Flayer_3C_20Server_2C_20ScheduledRadio_2C_20Options_20_3E_map" alt=""/>
   <map id="bluetoe::link_5Flayer::link_5Flayer_3C_20Server_2C_20ScheduledRadio_2C_20Options_20_3E_map" name="bluetoe::link_5Flayer::link_5Flayer_3C_20Server_2C_20ScheduledRadio_2C_20Options_20_3E_map">
-<area href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html" alt="bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::mtu_size&lt; Options... &gt;::mtu &gt;" shape="rect" coords="0,56,1346,80"/>
+<area href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html" alt="bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::l2cap_layer&lt; Server, ScheduledRadio, Options... &gt;::required_minimum_l2cap_buffer_size &gt;" shape="rect" coords="0,56,1704,80"/>
   </map>
 </div></div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a73a711903022c39039c9ffaa0c0553fe"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a73a711903022c39039c9ffaa0c0553fe">run</a> (Server &amp;)</td></tr>
-<tr class="memdesc:a73a711903022c39039c9ffaa0c0553fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">this function passes the CPU to the link layer implementation  <a href="classbluetoe_1_1link__layer_1_1link__layer.html#a73a711903022c39039c9ffaa0c0553fe">More...</a><br /></td></tr>
-<tr class="separator:a73a711903022c39039c9ffaa0c0553fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a865d0b20e423b88877b35150f4bdbbc4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a865d0b20e423b88877b35150f4bdbbc4">run</a> ()</td></tr>
+<tr class="memdesc:a865d0b20e423b88877b35150f4bdbbc4"><td class="mdescLeft">&#160;</td><td class="mdescRight">this function passes the CPU to the link layer implementation  <a href="classbluetoe_1_1link__layer_1_1link__layer.html#a865d0b20e423b88877b35150f4bdbbc4">More...</a><br /></td></tr>
+<tr class="separator:a865d0b20e423b88877b35150f4bdbbc4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a46aeb1bccca6118f85eae4ebee785aa1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a46aeb1bccca6118f85eae4ebee785aa1">adv_received</a> (const <a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a> &amp;receive)</td></tr>
 <tr class="memdesc:a46aeb1bccca6118f85eae4ebee785aa1"><td class="mdescLeft">&#160;</td><td class="mdescRight">call back that will be called when the master responds to an advertising PDU  <a href="classbluetoe_1_1link__layer_1_1link__layer.html#a46aeb1bccca6118f85eae4ebee785aa1">More...</a><br /></td></tr>
 <tr class="separator:a46aeb1bccca6118f85eae4ebee785aa1"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -124,7 +125,7 @@ std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>fill_l2cap_sca
 const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>local_address</b> () const</td></tr>
 <tr class="memdesc:aeb646c65ceaab630e7d25d2190149d6d"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the own local device address <br /></td></tr>
 <tr class="separator:aeb646c65ceaab630e7d25d2190149d6d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="inherit_header pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::mtu_size&lt; Options... &gt;::mtu &gt;</a></td></tr>
+<tr class="inherit_header pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::l2cap_layer&lt; Server, ScheduledRadio, Options... &gt;::required_minimum_l2cap_buffer_size &gt;</a></td></tr>
 <tr class="memitem:a0150d85cc948a6edd3d1bfa2d963a171 inherit pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a0150d85cc948a6edd3d1bfa2d963a171">allocate_l2cap_transmit_buffer</a> (std::size_t payload_size)</td></tr>
 <tr class="memdesc:a0150d85cc948a6edd3d1bfa2d963a171 inherit pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="mdescLeft">&#160;</td><td class="mdescRight">allocate a L2CAP buffer that is ready to be filled by the L2CAP layer  <a href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a0150d85cc948a6edd3d1bfa2d963a171">More...</a><br /></td></tr>
 <tr class="separator:a0150d85cc948a6edd3d1bfa2d963a171 inherit pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -149,7 +150,7 @@ const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">d
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="inherited" name="inherited"></a>
 Additional Inherited Members</h2></td></tr>
-<tr class="inherit_header pub_types_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td colspan="2" onclick="javascript:toggleInherit('pub_types_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer')"><img src="closed.png" alt="-"/>&#160;Public Types inherited from <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::mtu_size&lt; Options... &gt;::mtu &gt;</a></td></tr>
+<tr class="inherit_header pub_types_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td colspan="2" onclick="javascript:toggleInherit('pub_types_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer')"><img src="closed.png" alt="-"/>&#160;Public Types inherited from <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::l2cap_layer&lt; Server, ScheduledRadio, Options... &gt;::required_minimum_l2cap_buffer_size &gt;</a></td></tr>
 <tr class="memitem:a843ffbda14aafde6607ddfa8accf47ab inherit pub_types_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="memItemLeft" align="right" valign="top"><a id="a843ffbda14aafde6607ddfa8accf47ab" name="a843ffbda14aafde6607ddfa8accf47ab"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>layout</b> = typename BufferedRadio::layout</td></tr>
 <tr class="memdesc:a843ffbda14aafde6607ddfa8accf47ab inherit pub_types_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="mdescLeft">&#160;</td><td class="mdescRight">radio layout assumed by the buffer <br /></td></tr>
@@ -177,7 +178,7 @@ class bluetoe::link_layer::link_layer&lt; Server, ScheduledRadio, Options &gt;</
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
           <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::adv_received </td>
@@ -200,10 +201,13 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::adv_timeout</td>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::adv_timeout </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -219,7 +223,7 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
           <td class="memname">bool <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::connection_parameter_update_request </td>
@@ -264,10 +268,13 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::disconnect</td>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::disconnect </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -283,10 +290,13 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::end_event</td>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::end_event </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -296,19 +306,18 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 
 </div>
 </div>
-<a id="a73a711903022c39039c9ffaa0c0553fe" name="a73a711903022c39039c9ffaa0c0553fe"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a73a711903022c39039c9ffaa0c0553fe">&#9670;&nbsp;</a></span>run()</h2>
+<a id="a865d0b20e423b88877b35150f4bdbbc4" name="a865d0b20e423b88877b35150f4bdbbc4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a865d0b20e423b88877b35150f4bdbbc4">&#9670;&nbsp;</a></span>run()</h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
           <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::run </td>
           <td>(</td>
-          <td class="paramtype">Server &amp;&#160;</td>
-          <td class="paramname"><em>server</em></td><td>)</td>
+          <td class="paramname"></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -325,10 +334,13 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; class ScheduledRadio, typename ... Options&gt; </div>
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::timeout</td>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::timeout </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -344,7 +356,7 @@ template&lt;class Server , template&lt; std::size_t, std::size_t, class &gt; cla
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Dec 31 2021 12:39:45 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
+Generated on Tue Apr 5 2022 17:22:39 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.2
 </small></address>
 </body>
 </html>

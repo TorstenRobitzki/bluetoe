@@ -19,7 +19,10 @@ var searchData=
   ['signaling_5fchannel_16',['signaling_channel',['../classbluetoe_1_1l2cap_1_1signaling__channel.html',1,'bluetoe::l2cap']]],
   ['slave_5fconnection_5finterval_5frange_17',['slave_connection_interval_range',['../structbluetoe_1_1slave__connection__interval__range.html',1,'bluetoe']]],
   ['sleep_5fclock_5faccuracy_5fppm_18',['sleep_clock_accuracy_ppm',['../structbluetoe_1_1link__layer_1_1sleep__clock__accuracy__ppm.html',1,'bluetoe::link_layer']]],
-  ['start_5fhandle_19',['start_handle',['../classbluetoe_1_1start__handle.html',1,'bluetoe']]],
-  ['static_5faddress_20',['static_address',['../structbluetoe_1_1link__layer_1_1static__address.html',1,'bluetoe::link_layer']]],
-  ['system_5fid_21',['system_id',['../structbluetoe_1_1dis_1_1system__id.html',1,'bluetoe::dis']]]
+  ['sleep_5fclock_5fcrystal_5foscillator_19',['sleep_clock_crystal_oscillator',['../structbluetoe_1_1nrf_1_1sleep__clock__crystal__oscillator.html',1,'bluetoe::nrf']]],
+  ['sleep_5fclock_5fsource_5fmeta_5ftype_20',['sleep_clock_source_meta_type',['../structbluetoe_1_1nrf_1_1nrf__details_1_1sleep__clock__source__meta__type.html',1,'bluetoe::nrf::nrf_details']]],
+  ['start_5fhandle_21',['start_handle',['../classbluetoe_1_1start__handle.html',1,'bluetoe']]],
+  ['static_5faddress_22',['static_address',['../structbluetoe_1_1link__layer_1_1static__address.html',1,'bluetoe::link_layer']]],
+  ['synthesized_5fsleep_5fclock_23',['synthesized_sleep_clock',['../structbluetoe_1_1nrf_1_1synthesized__sleep__clock.html',1,'bluetoe::nrf']]],
+  ['system_5fid_24',['system_id',['../structbluetoe_1_1dis_1_1system__id.html',1,'bluetoe::dis']]]
 ];

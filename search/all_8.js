@@ -8,7 +8,7 @@ var searchData=
   ['include_5fservice_3c_20service_5fuuid_3c_20a_2c_20b_2c_20c_2c_20d_2c_20e_20_3e_20_3e_5',['include_service&lt; service_uuid&lt; A, B, C, D, E &gt; &gt;',['../structbluetoe_1_1include__service_3_01service__uuid_3_01_a_00_01_b_00_01_c_00_01_d_00_01_e_01_4_01_4.html',1,'bluetoe']]],
   ['indicate_6',['indicate',['../structbluetoe_1_1indicate.html',1,'bluetoe::indicate'],['../classbluetoe_1_1server.html#abfb609cdafc6d7a64c015becfeba9afe',1,'bluetoe::server::indicate(const T &amp;value)'],['../classbluetoe_1_1server.html#a7bbf3328442b184b8941760c5dd07c97',1,'bluetoe::server::indicate()']]],
   ['indicate_5fon_5fsubscription_7',['indicate_on_subscription',['../structbluetoe_1_1indicate__on__subscription.html',1,'bluetoe']]],
-  ['indication_5fconfirmed_8',['indication_confirmed',['../classbluetoe_1_1link__layer_1_1notification__queue.html#a91dda1ecb1147f6748bd08edf4d6e35e',1,'bluetoe::link_layer::notification_queue']]],
+  ['indication_5fconfirmed_8',['indication_confirmed',['../classbluetoe_1_1notification__queue.html#a935e62b9a60cbf89efcd1b0541915711',1,'bluetoe::notification_queue']]],
   ['insufficient_5fauthentication_9',['insufficient_authentication',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a0dea16d8070d98b1607db943b8c0538a',1,'bluetoe::error_codes']]],
   ['insufficient_5fauthorization_10',['insufficient_authorization',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41a775f339ebaeb4ca80047157b17925284',1,'bluetoe::error_codes']]],
   ['insufficient_5fencryption_11',['insufficient_encryption',['../namespacebluetoe_1_1error__codes.html#ab0cf0ac028629d7fa6fc292d89041e41afd3c055c0620c61f5f8e0f51251a2127',1,'bluetoe::error_codes']]],
