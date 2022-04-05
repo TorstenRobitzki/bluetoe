@@ -44,7 +44,7 @@ struct link_layer_base
         return addr;
     }
 
-    std::uint8_t* raw()
+    std::uint8_t* raw_pdu_buffer()
     {
         return buffer_;
     }

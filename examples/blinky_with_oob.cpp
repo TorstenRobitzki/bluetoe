@@ -24,7 +24,8 @@ using blinky_server = server<
             requires_encryption,
             free_write_handler< bool, io_pin_write_handler >
         >
-    >
+    >,
+    max_mtu_size< 65 >
 >;
 
 struct oob_cb_t {
@@ -41,12 +42,9 @@ struct oob_cb_t {
 
 } oob_cb;
 
-blinky_server gatt;
-
 device<
     blinky_server,
     link_layer::buffer_sizes< 200, 200 >,
-    link_layer::max_mtu_size< 65 >,
     legacy_security_manager, // use one of legacy_security_manager, lesc_security_manager or security_manager
     oob_authentication_callback< oob_cb_t, oob_cb >
 > gatt_srv;
@@ -59,5 +57,5 @@ int main()
         ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
 
     for ( ;; )
-        gatt_srv.run( gatt );
+        gatt_srv.run();
 }

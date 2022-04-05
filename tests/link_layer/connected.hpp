@@ -43,10 +43,8 @@ public:
 
     void run( unsigned times = 1 )
     {
-        Server gatt_server_;
-
         for ( ; times; --times )
-            base::run( gatt_server_ );
+            base::run();
     }
 
     void check_not_connected( const char* test ) const
@@ -210,8 +208,7 @@ struct connecting_base : unconnected
     {
         this->respond_to( 37, valid_connection_request_pdu );
 
-        test::small_temperature_service gatt_server_;
-        base::run( gatt_server_ );
+        base::run();
     }
 };
 
@@ -226,8 +223,7 @@ struct connected_and_timeout : unconnected
         this->add_connection_event_respond( { 1, 0 } );
         this->add_connection_event_respond( { 1, 0 } );
 
-        test::small_temperature_service gatt_server_;
-        base::run( gatt_server_ );
+        base::run();
     }
 };
 

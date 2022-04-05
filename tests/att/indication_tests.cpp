@@ -2,7 +2,9 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <bluetoe/server.hpp>
-#include <test_servers.hpp>
+
+#include "test_servers.hpp"
+#include "attribute_io.hpp"
 
 std::uint8_t value = 0x42;
 
@@ -30,26 +32,28 @@ BOOST_AUTO_TEST_SUITE( indications_by_value )
 
         BOOST_CHECK( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
-        BOOST_CHECK_EQUAL( notification_type, simple_server::indication );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::indication );
     }
 
     BOOST_FIXTURE_TEST_CASE( if_client_configuration_is_not_enabled_not_output, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration( mtu_size );
+        channel_data_t< bluetoe::details::link_state_no_security > client_configuration;
+        client_configuration.queue_indication( 0 );
 
-        std::size_t size = mtu_size;
-        indication_output( begin(), size, client_configuration, 0 );
+        std::size_t size = client_configuration.negotiated_mtu();
+        l2cap_output( begin(), size, client_configuration );
 
         BOOST_CHECK_EQUAL( size, 0u );
     }
 
     BOOST_FIXTURE_TEST_CASE( output_if_enables, test::request_with_reponse< simple_server > )
     {
-        connection_data client_configuration( mtu_size );
+        channel_data_t< bluetoe::details::link_state > client_configuration;
+        client_configuration.queue_indication( 0 );
         client_configuration.client_configurations().flags( 0, 2 ); // 2 == indications
 
-        std::size_t size = mtu_size;
-        indication_output( begin(), size, client_configuration, 0 );
+        std::size_t size = client_configuration.negotiated_mtu();
+        l2cap_output( begin(), size, client_configuration );
 
         static const std::uint8_t expected_output[] = { 0x1D, 0x03, 0x00, 0x42 };
         BOOST_CHECK_EQUAL( size, sizeof( expected_output ) );
@@ -105,7 +109,7 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 7u );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 1u );
-        BOOST_CHECK_EQUAL( notification_type, server::indication );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::indication );
     }
 
     BOOST_FIXTURE_TEST_CASE( notify_second_16bit_uuid, test::request_with_reponse< server > )
@@ -115,12 +119,12 @@ BOOST_AUTO_TEST_SUITE( indications_by_uuid )
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 13u );
         BOOST_CHECK_EQUAL( notification.client_characteristic_configuration_index(), 2u );
-        BOOST_CHECK_EQUAL( notification_type, server::indication );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::indication );
     }
 
     // This test should not compile
     /*
-    BOOST_FIXTURE_TEST_CASE( indicating_not_configured_will_result_in_compiletime_error, request_with_reponse< server > )
+    BOOST_FIXTURE_TEST_CASE( indicating_not_configured_will_result_in_compiletime_error, test::request_with_reponse< server > )
     {
         indicate< bluetoe::characteristic_uuid16< 0x1111 > >();
     }
@@ -135,7 +139,7 @@ BOOST_AUTO_TEST_SUITE( confirmation )
         l2cap_input( { 0x1E } );
 
         BOOST_CHECK( !notification.valid() );
-        BOOST_CHECK_EQUAL( notification_type, simple_server::confirmation );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::confirmation );
     }
 
     BOOST_FIXTURE_TEST_CASE( no_response_to_a_confirmation, test::request_with_reponse< simple_server > )
@@ -187,7 +191,7 @@ BOOST_AUTO_TEST_SUITE( notify_on_subscription )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 2u );
-        BOOST_CHECK( notification_type == server_with_notify_on_subscription::notification_type::notification );
+        BOOST_CHECK( notification_type == bluetoe::details::notification_type::notification );
     }
 
     BOOST_FIXTURE_TEST_CASE( test_indication, test::request_with_reponse< server_with_notify_on_subscription > )
@@ -198,7 +202,7 @@ BOOST_AUTO_TEST_SUITE( notify_on_subscription )
 
         BOOST_REQUIRE( notification.valid() );
         BOOST_CHECK_EQUAL( notification.attribute_table_index(), 5u );
-        BOOST_CHECK( notification_type == server_with_notify_on_subscription::notification_type::indication );
+        BOOST_CHECK( notification_type == bluetoe::details::notification_type::indication );
     }
 
     BOOST_FIXTURE_TEST_CASE( no_cb_called_when_not_configured, test::request_with_reponse< simple_server > )
@@ -237,7 +241,7 @@ BOOST_AUTO_TEST_SUITE( access_error )
         std::uint8_t output_buffer[ 50 ];
         std::size_t  output_size = sizeof( output_buffer );
 
-        indication_output( output_buffer, output_size , connection, 0 );
+        l2cap_output( output_buffer, output_size, connection );
 
         BOOST_CHECK_EQUAL( output_size, 0u );
     }

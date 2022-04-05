@@ -42,14 +42,9 @@ namespace test {
         {
         public:
             template < class OtherConnectionData >
-            class connection_data : public OtherConnectionData
+            class channel_data_t : public OtherConnectionData
             {
             public:
-                template < class ... Args >
-                connection_data( Args&&... args )
-                    : OtherConnectionData( args... )
-                {}
-
                 std::pair< bool, bluetoe::details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
                 {
                     ::test::ediv = ediv;
@@ -68,26 +63,25 @@ namespace test {
                 }
             };
 
-            template < class OtherConnectionData, class SecurityFunctions >
-            void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
+            template < class Connection >
+            void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t&, Connection& )
             {
             }
 
-            template < class OtherConnectionData >
-            bool security_manager_output_available( connection_data< OtherConnectionData >& ) const
+            template < class Connection >
+            bool security_manager_output_available( Connection& ) const
             {
                 return false;
             }
 
-            template < class OtherConnectionData, class SecurityFunctions >
-            void l2cap_output( std::uint8_t*, std::size_t&, connection_data< OtherConnectionData >&, SecurityFunctions& )
+            template < class Connection >
+            void l2cap_output( std::uint8_t*, std::size_t&, Connection& )
             {
             }
 
-            constexpr std::size_t security_manager_channel_mtu_size() const
-            {
-                return 0;
-            }
+            static constexpr std::uint16_t channel_id               = bluetoe::l2cap_channel_ids::sm;
+            static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
+            static constexpr std::size_t   maximum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
         };
 
         struct meta_type :

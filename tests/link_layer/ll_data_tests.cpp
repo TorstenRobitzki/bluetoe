@@ -3,9 +3,10 @@
 
 #include <bluetoe/link_layer.hpp>
 #include <bluetoe/server.hpp>
-#include <test_radio.hpp>
+
+#include "test_radio.hpp"
+#include "test_servers.hpp"
 #include "connected.hpp"
-#include <test_servers.hpp>
 
 BOOST_FIXTURE_TEST_CASE( response_to_att_request, unconnected )
 {

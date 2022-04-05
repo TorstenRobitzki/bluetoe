@@ -263,6 +263,15 @@ namespace details {
     };
 
     /**
+     * @brief type of notification information to be communicated between ATT and link layer
+     */
+    enum class notification_type {
+        notification,
+        indication,
+        confirmation
+    };
+
+    /**
      * @brief data needed to send an indication or notification to the l2cap layer
      */
     class notification_data

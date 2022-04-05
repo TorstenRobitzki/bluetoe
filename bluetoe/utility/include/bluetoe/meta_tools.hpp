@@ -573,7 +573,7 @@ namespace details {
         static void each( Function f )
         {
             f.template each< Option >();
-            for_impl< Options... >::each( f );
+            for_impl< Options... >::template each< Function >( f );
         }
     };
 

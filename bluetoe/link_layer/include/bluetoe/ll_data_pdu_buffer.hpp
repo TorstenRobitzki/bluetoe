@@ -158,7 +158,7 @@ namespace link_layer {
          * The underlying memory can be used when it's not used by other means. The size that can saftely be used is ll_data_pdu_buffer::size.
          * @pre buffer is in stopped mode
          */
-        std::uint8_t* raw();
+        std::uint8_t* raw_pdu_buffer();
 
         /**
          * @brief places the buffer in stopped mode.
@@ -166,7 +166,7 @@ namespace link_layer {
          * If the buffer is in stopped mode, it's internal memory can be used for other
          * purposes.
          */
-        void stop();
+        void stop_pdu_buffer();
 
         /**
          * @brief places the buffer in running mode.
@@ -177,7 +177,7 @@ namespace link_layer {
          * @post next_received().empty()
          * @post max_rx_size() == 29u
          */
-        void reset();
+        void reset_pdu_buffer();
 
         /**@}*/
 
@@ -348,7 +348,7 @@ namespace link_layer {
         , transmit_buffer_( transmit_buffer() )
     {
         layout::header( empty_, 0 );
-        reset();
+        reset_pdu_buffer();
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -384,7 +384,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::reset()
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::reset_pdu_buffer()
     {
         max_rx_size_    = min_buffer_size;
         receive_buffer_.reset( receive_buffer() );
@@ -398,7 +398,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    std::uint8_t* ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::raw()
+    std::uint8_t* ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::raw_pdu_buffer()
     {
         return &buffer_[ 0 ];
     }

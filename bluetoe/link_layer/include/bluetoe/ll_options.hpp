@@ -13,7 +13,6 @@ namespace link_layer
     namespace details {
         struct device_address_meta_type {};
         struct buffer_sizes_meta_type {};
-        struct mtu_size_meta_type {};
     }
 
     /**
@@ -138,23 +137,6 @@ namespace link_layer
          */
         static constexpr std::size_t receive_buffer_size  = ReceiveSize;
     };
-
-    /**
-     * @brief define the maximum L2CAP MTU size to be used by the link layer
-     *
-     * The default is the minimum of 23.
-     */
-    template < std::uint8_t MaxMTU >
-    struct max_mtu_size {
-        /** @cond HIDDEN_SYMBOLS */
-        struct meta_type :
-            details::mtu_size_meta_type,
-            details::valid_link_layer_option_meta_type {};
-
-        static constexpr std::size_t mtu = MaxMTU;
-        /** @endcond */
-    };
-
 }
 }
 

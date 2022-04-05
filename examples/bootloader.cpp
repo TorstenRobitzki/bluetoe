@@ -106,7 +106,7 @@ int main()
 {
     for ( ;; )
     {
-        link_layer.run( gatt_server );
+        link_layer.run();
     }
 }
 

@@ -1,8 +1,10 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <csc.hpp>
-#include <test_servers.hpp>
+#include <bluetoe/services/csc.hpp>
+
+#include "test_servers.hpp"
+#include "attribute_io.hpp"
 
 
 class data_handler
@@ -509,11 +511,11 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
     {
         // update values
         next_time( 0x1234, 0x23456789, 0x3456 );
-        notify_timed_update( *static_cast< csc_server* >( this ) );
+        notify_timed_update( *static_cast< discover_and_configure_all_descriptor< csc_server >::server* >( this ) );
 
         // notification?
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( notification_type, csc_server::notification );
+        BOOST_CHECK_EQUAL( notification_type, bluetoe::details::notification_type::notification );
 
         // lets generate a notification pdu
         expected_output( notification, {
@@ -528,11 +530,11 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
     {
         // update values
         next_time( 0x1234, 0x23456789, 0x3456 );
-        notify_timed_update( *static_cast< csc_crank_only_server* >( this ) );
+        notify_timed_update( *static_cast< discover_and_configure_all_descriptor< csc_crank_only_server >::server* >( this ) );
 
         // notification?
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( int( notification_type ), int( csc_server::notification ) );
+        BOOST_CHECK_EQUAL( int( notification_type ), int( bluetoe::details::notification_type::notification ) );
 
         // lets generate a notification pdu
         expected_output( notification, {
@@ -550,7 +552,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_notification )
 
         // notification?
         BOOST_REQUIRE( notification.valid() );
-        BOOST_CHECK_EQUAL( int( notification_type ), int( csc_server::notification ) );
+        BOOST_CHECK_EQUAL( int( notification_type ), int( bluetoe::details::notification_type::notification ) );
 
         // lets generate a notification pdu
         expected_output( notification, {
@@ -567,7 +569,7 @@ template < class Server >
 void check_cp_response( Server& server, std::initializer_list< std::uint8_t > response )
 {
     BOOST_REQUIRE( server.notification.valid() );
-    BOOST_CHECK_EQUAL( int( server.notification_type ), int( csc_server::indication ) );
+    BOOST_CHECK_EQUAL( int( server.notification_type ), int( bluetoe::details::notification_type::indication ) );
 
     std::vector< std::uint8_t > expected = {
         0x1d,
@@ -577,6 +579,7 @@ void check_cp_response( Server& server, std::initializer_list< std::uint8_t > re
     expected.insert( expected.end(), response );
 
     server.expected_output( server.notification, expected.begin(), expected.end(), server.connection );
+    server.connection.indication_confirmed();
 }
 
 BOOST_AUTO_TEST_SUITE( service_procedures )
@@ -586,10 +589,6 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
      */
     BOOST_FIXTURE_TEST_CASE( set_cumulative_value__set_to_zero, discover_and_configure_all_descriptor< csc_server > )
     {
-        // update values
-        next_time( 0x1234, 0x23456789, 0x3456 );
-        notify_timed_update( *this );
-
         // write to control point
         l2cap_input({
             0x12,
@@ -618,10 +617,6 @@ BOOST_AUTO_TEST_SUITE( service_procedures )
      */
     BOOST_FIXTURE_TEST_CASE( set_cumulative_value__set_to_non_zero, discover_and_configure_all_descriptor< csc_server > )
     {
-        // update values
-        next_time( 0x1234, 0x23456789, 0x3456 );
-        notify_timed_update( *this );
-
         // write to control point
         l2cap_input({
             0x12,

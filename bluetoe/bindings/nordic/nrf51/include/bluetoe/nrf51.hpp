@@ -285,24 +285,19 @@ namespace bluetoe
             }
 
         private:
-            static constexpr std::size_t att_mtu = bluetoe::details::find_by_meta_type<
-                bluetoe::link_layer::details::mtu_size_meta_type,
-                Options...,
-                bluetoe::link_layer::max_mtu_size< bluetoe::details::default_att_mtu_size >
-            >::type::mtu;
-
-            static constexpr std::size_t l2cap_mtu      = att_mtu + 4;
             // the value MAXPACKETSIZE from the documentation seems to be the maximum value, the size field can store,
             // and is independent from the MTU size (https://devzone.nordicsemi.com/f/nordic-q-a/13123/what-is-actual-size-required-for-scratch-area-for-ccm-on-nrf52/50031#50031)
             static constexpr std::size_t scratch_size   = 267;
-            static constexpr std::size_t enrypted_size  = l2cap_mtu + 3 + 4;
 
             struct alignas( 4 ) scratch_area_t {
                 std::uint8_t data[ scratch_size ];
             } scratch_area_;
 
+            // TODO should be calculated with more accuracy base on the configuration of:
+            // - l2cap MAX MTU
+            // - implementation of Data Length Update procedure
             struct alignas( 4 ) encrypted_message_t {
-                std::uint8_t data[ enrypted_size ];
+                std::uint8_t data[ 260 ];
             } encrypted_message_;
         };
 

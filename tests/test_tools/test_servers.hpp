@@ -4,6 +4,7 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/service.hpp>
 #include <bluetoe/characteristic.hpp>
+#include <bluetoe/gatt_options.hpp>
 
 #include <initializer_list>
 #include <vector>
@@ -56,9 +57,11 @@ namespace test {
         bluetoe::no_gap_service_for_gatt_servers
     > three_apes_service;
 
-    template < class Server, std::size_t ResponseBufferSize = 23 >
-    struct request_with_reponse : Server
+    template < class ServerWithoutMTUSetting, std::size_t ResponseBufferSize = 23 >
+    struct request_with_reponse : bluetoe::extend_server< ServerWithoutMTUSetting, bluetoe::max_mtu_size< ResponseBufferSize > >
     {
+        using server = bluetoe::extend_server< ServerWithoutMTUSetting, bluetoe::max_mtu_size< ResponseBufferSize > >;
+
         enum {
             fill_pattern = 0x55,
             guard_size = 16
@@ -67,12 +70,12 @@ namespace test {
         request_with_reponse()
             : response( &guarded_buffer[ guard_size ] )
             , response_size( ResponseBufferSize )
-            , connection( ResponseBufferSize )
+            , connection()
         {
             connection.client_mtu( ResponseBufferSize );
 
             notification = bluetoe::details::notification_data();
-            notification_type = Server::notification;
+            notification_type = bluetoe::details::notification_type::notification;
 
             this->notification_callback( &l2cap_layer_notify_cb, this );
         }
@@ -82,19 +85,21 @@ namespace test {
         {
             response_size = ResponseBufferSize;
             std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
-            Server::l2cap_input( input, PDU_Size, response, response_size, connection );
+            server::l2cap_input( input, PDU_Size, response, response_size, connection );
             check_response();
         }
 
-        void l2cap_input( const std::vector< std::uint8_t >& values, typename Server::connection_data& con = Server::connection_data() )
+        template < class Connection >
+        void l2cap_input( const std::vector< std::uint8_t >& values, Connection& con = Connection() )
         {
             response_size = ResponseBufferSize;
             std::fill( std::begin( guarded_buffer ), std::end( guarded_buffer ), fill_pattern );
-            Server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
+            server::l2cap_input( &values[ 0 ], values.size(), response, response_size, con );
             check_response();
         }
 
-        void l2cap_input( const std::initializer_list< std::uint8_t >& input, typename Server::connection_data& con )
+        template < class Connection >
+        void l2cap_input( const std::initializer_list< std::uint8_t >& input, Connection& con )
         {
             const std::vector< std::uint8_t > values( input );
             l2cap_input( values, con );
@@ -133,29 +138,22 @@ namespace test {
             hex_dump( std::cout, std::begin( guarded_buffer ), std::end( guarded_buffer ) );
         }
 
-        template < class Iter >
-        void expected_output( const bluetoe::details::notification_data& org_value, Iter begin, Iter end, typename Server::connection_data& con )
+        template < class Iter, class Connection >
+        void expected_output( const bluetoe::details::notification_data& org_value, Iter begin, Iter end, Connection& con )
         {
             assert( org_value.valid() );
 
-            bluetoe::details::notification_data value = org_value;
             const std::vector< std::uint8_t > values( begin, end );
             std::uint8_t buffer[ ResponseBufferSize ];
             std::size_t  size = ResponseBufferSize;
 
-            if ( notification_type == Server::indication )
-            {
-                this->indication_output( &buffer[ 0 ], size, con, value.client_characteristic_configuration_index() );
-            }
-            else
-            {
-                this->notification_output( &buffer[ 0 ], size, con, value );
-            }
+            this->l2cap_output( &buffer[ 0 ], size, con );
 
             BOOST_REQUIRE_EQUAL_COLLECTIONS( values.begin(), values.end(), &buffer[ 0 ], &buffer[ size ] );
         }
 
-        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        template < class Connection >
+        void expected_output( const bluetoe::details::notification_data& value, const std::initializer_list< std::uint8_t >& expected, Connection& con )
         {
             expected_output( value, expected.begin(), expected.end(), con );
         }
@@ -171,8 +169,8 @@ namespace test {
             expected_output( notification, expected );
         }
 
-        template < class T >
-        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected, typename Server::connection_data& con )
+        template < class T, class Connection >
+        void expected_output( const T& value, const std::initializer_list< std::uint8_t >& expected, Connection& con )
         {
             expected_output( find_notification_data( &value ), expected, con );
         }
@@ -200,15 +198,18 @@ namespace test {
 
         static_assert( ResponseBufferSize >= 23, "min MTU size is 23, no point in using less" );
 
-        using Server::find_notification_data;
+        using server::find_notification_data;
+        using connection_t = typename server::template channel_data_t< bluetoe::details::link_state >;
 
         std::uint8_t                                guarded_buffer[ ResponseBufferSize + 2 * guard_size ];
         std::uint8_t* const                         response;
         std::size_t                                 response_size;
         static constexpr std::size_t                mtu_size = ResponseBufferSize;
-        typename Server::connection_data            connection;
+        connection_t                                connection;
+
+        // TODO Should be removed and tests be based on the queue in connection
         static bluetoe::details::notification_data  notification;
-        static typename Server::notification_type   notification_type;
+        static bluetoe::details::notification_type  notification_type;
 
     private:
         void check_response() const
@@ -220,12 +221,26 @@ namespace test {
                 []( std::uint8_t a ) -> bool { return a != fill_pattern; } ) == std::end( guarded_buffer ) );
         }
 
-        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void*, typename Server::notification_type type )
+        static bool l2cap_layer_notify_cb( const bluetoe::details::notification_data& item, void* that, typename bluetoe::details::notification_type type )
         {
             notification = item;
             notification_type = type;
 
-            open_notifications_.insert( item.client_characteristic_configuration_index() );
+            auto& connection = static_cast< request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >* >( that )->connection;
+
+            switch ( type )
+            {
+                case bluetoe::details::notification_type::notification:
+                    return connection.queue_notification( item.client_characteristic_configuration_index() );
+                    break;
+                case bluetoe::details::notification_type::indication:
+                    return connection.queue_indication( item.client_characteristic_configuration_index() );
+                    break;
+                case bluetoe::details::notification_type::confirmation:
+                    connection.indication_confirmed();
+                    return true;
+                    break;
+            }
 
             return true;
         }
@@ -256,7 +271,7 @@ namespace test {
         {
             response_size = ResponseBufferSize;
 
-            Server::l2cap_input( input, input_size, response, response_size, connection );
+            server::l2cap_input( input, input_size, response, response_size, connection );
 
             const std::uint8_t  opcode           = response[ 0 ];
             const std::uint8_t  request_opcode   = response[ 1 ];
@@ -275,19 +290,13 @@ namespace test {
                 && attribute_handle == expected_attribute_handle
                 && error_code == expected_error_code;
         }
-
-        typedef std::set< std::size_t > notification_map_t;
-        static notification_map_t open_notifications_;
     };
 
-    template < typename Server, std::size_t ResponseBufferSize >
-    bluetoe::details::notification_data request_with_reponse< Server, ResponseBufferSize >::notification;
+    template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
+    bluetoe::details::notification_data request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification;
 
-    template < typename Server, std::size_t ResponseBufferSize >
-    typename Server::notification_type request_with_reponse< Server, ResponseBufferSize >::notification_type;
-
-    template < typename Server, std::size_t ResponseBufferSize >
-    typename request_with_reponse< Server, ResponseBufferSize >::notification_map_t request_with_reponse< Server, ResponseBufferSize >::open_notifications_;
+    template < typename ServerWithoutMTUSetting, std::size_t ResponseBufferSize >
+    bluetoe::details::notification_type request_with_reponse< ServerWithoutMTUSetting, ResponseBufferSize >::notification_type;
 
     template < std::size_t ResponseBufferSize = 23 >
     using small_temperature_service_with_response = request_with_reponse< small_temperature_service, ResponseBufferSize >;

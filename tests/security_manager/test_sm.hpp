@@ -409,10 +409,10 @@ namespace test {
     struct all_security_functions : legacy_security_functions, lesc_security_functions {};
 
     template < class Manager, class SecurityFunctions, std::size_t MTU = 27, typename ...Options >
-    struct security_manager_base : Manager::template impl< Options... >, public SecurityFunctions
+    struct security_manager_base : Manager::template impl< security_manager_base< Manager, SecurityFunctions, MTU, Options... >, Options... >, SecurityFunctions
     {
         security_manager_base()
-            : connection_data_( MTU )
+            : connection_data_()
         {
             local_address(
                 bluetoe::link_layer::public_device_address({
@@ -439,10 +439,12 @@ namespace test {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
 
-            BOOST_CHECK( !this->security_manager_output_available( connection_data_ ) );
+            this->l2cap_output( buffer, size, connection_data_ );
+            BOOST_REQUIRE( size == 0 );
+            size = MTU;
 
             this->l2cap_input( input.data(), input.size(), &buffer[ 0 ], size,
-                connection_data_, static_cast< SecurityFunctions& >( *this ) );
+                connection_data_ );
 
             BOOST_CHECK_EQUAL_COLLECTIONS(
                 expected_output.begin(), expected_output.end(),
@@ -466,8 +468,7 @@ namespace test {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
 
-            this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size,
-                connection_data_, static_cast< SecurityFunctions& >( *this ) );
+            this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size, connection_data_ );
 
             BOOST_CHECK_EQUAL_COLLECTIONS(
                 expected_output.begin(), expected_output.end(),
@@ -480,19 +481,18 @@ namespace test {
             std::uint8_t buffer[ MTU ];
             std::size_t  size = MTU;
 
-            BOOST_REQUIRE( this->security_manager_output_available( connection_data_ ) );
-
-            this->l2cap_output( &buffer[ 0 ], size, connection_data_, static_cast< SecurityFunctions& >( *this ) );
+            this->l2cap_output( &buffer[ 0 ], size, connection_data_ );
 
             BOOST_CHECK_EQUAL_COLLECTIONS(
                 expected_output.begin(), expected_output.end(),
                 &buffer[ 0 ], &buffer[ size ] );
         }
 
-        struct gatt_connection_details {};
-        using manager_type = typename Manager::template impl< Options... >;
-        using connection_data_t = bluetoe::details::link_state<
-            typename manager_type::template connection_data< gatt_connection_details > >;
+        using manager_type      = typename Manager::template impl< SecurityFunctions, Options... >;
+        using connection_data_t =
+            typename manager_type::template channel_data_t< bluetoe::details::link_state >;
+
+        using SecurityFunctions::local_address;
 
         void local_address( const bluetoe::link_layer::device_address& addr )
         {

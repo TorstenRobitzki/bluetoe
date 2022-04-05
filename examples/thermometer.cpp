@@ -6,7 +6,7 @@ std::int32_t temperature_value = 0x12345678;
 static constexpr char server_name[] = "Temperature";
 static constexpr char char_name[] = "Temperature Value";
 
-typedef bluetoe::server<
+using small_temperature_service = bluetoe::server<
     bluetoe::server_name< server_name >,
     bluetoe::service<
         bluetoe::service_uuid< 0x8C8B4094, 0x0000, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
@@ -18,11 +18,10 @@ typedef bluetoe::server<
             bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >
         >
     >
-> small_temperature_service;
+>;
 
 void start_temperatur_messurement();
 
-small_temperature_service                   gatt;
 bluetoe::device<
     small_temperature_service,
     bluetoe::link_layer::advertising_interval< 250u >,
@@ -38,7 +37,7 @@ int main()
     NRF_TEMP->TASKS_START = 1;
 
     for ( ;; )
-        server.run( gatt );
+        server.run();
 }
 
 extern "C" void TEMP_IRQHandler(void)
@@ -48,7 +47,7 @@ extern "C" void TEMP_IRQHandler(void)
     if ( NRF_TEMP->TEMP != temperature_value )
     {
         temperature_value = NRF_TEMP->TEMP;
-        gatt.notify( temperature_value );
+        server.notify( temperature_value );
     }
 
     NRF_TEMP->TASKS_START = 1;

@@ -78,7 +78,7 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
     running_mode_impl()
         : random( 42 ) // for testing, deterministic pseudo random is cool
     {
-        this->reset();
+        this->reset_pdu_buffer();
     }
 
     template < class Iter >
@@ -169,10 +169,10 @@ constexpr std::uint8_t simple_pdu[] = {
 
 BOOST_FIXTURE_TEST_CASE( raw_accessable_in_stopped_mode, buffer )
 {
-    BOOST_REQUIRE( raw() );
+    BOOST_REQUIRE( raw_pdu_buffer() );
 
     // if this doesn't cause a core dump, it's at least a hint that the access was valid
-    std::fill( raw(), raw() + size, 0 );
+    std::fill( raw_pdu_buffer(), raw_pdu_buffer() + size, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( layout_overhead_is_zero, buffer )
@@ -194,7 +194,7 @@ BOOST_FIXTURE_TEST_CASE( max_rx_size_can_be_changed, buffer )
 BOOST_FIXTURE_TEST_CASE( max_rx_is_reset_to_29, buffer )
 {
     max_rx_size( 100u );
-    reset();
+    reset_pdu_buffer();
 
     BOOST_CHECK_EQUAL( max_rx_size(), 29u );
 }
@@ -219,7 +219,7 @@ BOOST_FIXTURE_TEST_CASE( max_tx_size_can_be_changed, buffer )
 BOOST_FIXTURE_TEST_CASE( max_tx_is_reset_to_29, buffer )
 {
     max_tx_size( 100u );
-    reset();
+    reset_pdu_buffer();
 
     BOOST_CHECK_EQUAL( max_tx_size(), 29u );
 }
@@ -547,7 +547,7 @@ struct default_buffer : mock_radio< 3 * 29, 3 * 29 >
 {
     default_buffer()
     {
-        reset();
+        reset_pdu_buffer();
         buffer = allocate_receive_buffer();
     }
 

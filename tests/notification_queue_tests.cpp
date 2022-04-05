@@ -1,4 +1,3 @@
-#include <iostream>
 #include <bluetoe/notification_queue.hpp>
 
 #define BOOST_TEST_MODULE
@@ -8,9 +7,9 @@ namespace {
     struct empty_fixture {};
 }
 
-using queue17 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 17u > >, empty_fixture >;
-using queue3 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 3u > >, empty_fixture >;
-using queue8 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 8u > >, empty_fixture >;
+using queue17 = bluetoe::notification_queue< std::tuple< std::integral_constant< int, 17u > >, empty_fixture >;
+using queue3 = bluetoe::notification_queue< std::tuple< std::integral_constant< int, 3u > >, empty_fixture >;
+using queue8 = bluetoe::notification_queue< std::tuple< std::integral_constant< int, 8u > >, empty_fixture >;
 
 BOOST_AUTO_TEST_SUITE( single_prio_notifications )
 
@@ -150,7 +149,7 @@ BOOST_AUTO_TEST_SUITE( single_prio_clearing )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-using queue1 = bluetoe::link_layer::notification_queue< std::tuple< std::integral_constant< int, 1u > >, empty_fixture >;
+using queue1 = bluetoe::notification_queue< std::tuple< std::integral_constant< int, 1u > >, empty_fixture >;
 
 BOOST_AUTO_TEST_SUITE( single_prio_single_char_notifications )
 
@@ -218,7 +217,7 @@ BOOST_AUTO_TEST_SUITE( single_prio_single_char_indications )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-using queue1_2 = bluetoe::link_layer::notification_queue<
+using queue1_2 = bluetoe::notification_queue<
     std::tuple<
         std::integral_constant< int, 1u >,
         std::integral_constant< int, 2u >
@@ -264,7 +263,7 @@ BOOST_AUTO_TEST_SUITE( mixed_priorities )
     }
 
     // there was a bug in the implementation, where a class derived from all the elements
-    using queue1_1_2 = bluetoe::link_layer::notification_queue<
+    using queue1_1_2 = bluetoe::notification_queue<
     std::tuple<
         std::integral_constant< int, 1u >,
         std::integral_constant< int, 1u >,

@@ -326,7 +326,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( sync_numeric_compairson_success, Manager, test::l
         }
     );
 
-    BOOST_CHECK( !fixture.security_manager_output_available( fixture.connection_data_ ) );
+    std::uint8_t buffer[ 200 ];
+    std::size_t  size = 200;
+    fixture.l2cap_output( buffer, size , fixture.connection_data_ );
+    BOOST_CHECK( size == 0 );
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( sync_numeric_compairson_fail, Manager, test::lesc_managers )
@@ -348,5 +351,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( sync_numeric_compairson_fail, Manager, test::lesc
         }
     );
 
-    BOOST_CHECK( !fixture.security_manager_output_available( fixture.connection_data_ ) );
+    std::uint8_t buffer[ 200 ];
+    std::size_t  size = 200;
+    fixture.l2cap_output( buffer, size , fixture.connection_data_ );
+    BOOST_CHECK( size == 0 );
 }

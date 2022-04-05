@@ -7,10 +7,11 @@ if(CMAKE_CROSSCOMPILING)
     # requires the hardware specific options need only to depend on this target
     add_library(toolchain_nrf52 INTERFACE)
     add_library(toolchain::nrf52 ALIAS toolchain_nrf52)
-    target_include_directories(toolchain_nrf52 INTERFACE ${NRF5_SDK_ROOT}/components/device)
+    target_include_directories(toolchain_nrf52 INTERFACE ${NRF5_SDK_ROOT}/modules/nrfx/mdk)
     target_include_directories(toolchain_nrf52 INTERFACE ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include)
     target_include_directories(toolchain_nrf52 INTERFACE .)
-    target_compile_definitions(toolchain_nrf52 INTERFACE NRF52 NRF52832_XXAA)
+#    target_compile_definitions(toolchain_nrf52 INTERFACE NRF52 NRF52832_XXAA)
+    target_compile_definitions(toolchain_nrf52 INTERFACE NRF52820_XXAA)
     target_compile_definitions(toolchain_nrf52 INTERFACE $<$<CONFIG:Debug>:BLUETOE_NRF52_RADIO_DEBUG>)
 
     enable_language(ASM)

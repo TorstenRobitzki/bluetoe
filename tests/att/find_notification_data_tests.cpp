@@ -31,6 +31,8 @@ using B_a = bluetoe::characteristic_uuid16< 0xFF10 >;
 using B_b = bluetoe::characteristic_uuid16< 0xFF11 >;
 using B_c = bluetoe::characteristic_uuid16< 0xFF12 >;
 
+template < class Server >
+using connection_t = typename Server::template channel_data_t< bluetoe::details::link_state_no_security >;
 
 template < class Server >
 std::uint8_t read_value( std::size_t notification_index )
@@ -38,16 +40,17 @@ std::uint8_t read_value( std::size_t notification_index )
     // opcode + handle + 1 octed value (the std::uint8_t's from above)
     static constexpr std::size_t value_notification_pdu_min_size = 1 + 2 + 1;
 
-    typename Server::connection_data data_per_connection( 23 );
+    connection_t< Server > data_per_connection;
     Server server;
 
     // subscribe the characteristic:
     data_per_connection.client_configurations().flags( notification_index, 1 );
+    data_per_connection.queue_notification( notification_index );
 
     std::uint8_t out_buffer[ value_notification_pdu_min_size + 100 ];
     std::size_t  out_size = sizeof( out_buffer );
 
-    server.notification_output( out_buffer, out_size, data_per_connection, notification_index );
+    server.l2cap_output( out_buffer, out_size, data_per_connection );
 
     BOOST_CHECK_EQUAL( value_notification_pdu_min_size, out_size );
 
