@@ -27,36 +27,44 @@ namespace link_layer {
      *
      * Every option defines a set of events / circumstances under which
      * the link layer should listen to the very next connection event.
-     * (beside the minumum events, the link layer has to listen to due
+     * (beside the miniumum events, the link layer has to listen to due
      * to the periperhal latency value of the connection).
      *
      * @note in combination, there are some options that make no sense.
      *       For example, using listen_always with some of the other
      *       listen_* options is pointless. Also combining send_always
-     *       with send_pending_data doesn not make sense.
+     *       with send_pending_data doesn't make sense.
      */
     enum class peripheral_latency
     {
         /**
-         * @brief listen at all connection events.
+         * @brief listen at all connection events, despite the current
+         *        peripheral latency value of the current connection.
          *
          * This does not imply, that the link layer will also respond at every
-         * connection event.
+         * connection event. Just listening, without responding will
+         * synchronize the link layer with the central and thus narrow the
+         * receive window size at the next connection interval.
          */
         listen_always,
 
         /**
-         * @brief listen, if the link layer contains unacknowlaged data.
+         * @brief
+         */
+        listen_if_pending_data,
+
+        /**
+         * @brief listen, if the link layer contains unacknowledged data.
          *
-         * If a PDU was send out, but no acknowlagement was jet received,
+         * If a PDU was send out, but no acknowledgement was jet received,
          * the link layer will listen at the next connection event, if
          * this options is set.
          *
          * This might be interesting, if the sending queue is very small because
          * Bluetoe has to keep a copy of a transmitted PDU, as long as that PDU
-         * is not acknowlaged.
+         * is not acknowledged.
          */
-        listen_if_unacknowlaged_data,
+        listen_if_unacknowledged_data,
 
         /**
          * @brief listen to the next connection event, if the last received PDU was
@@ -90,47 +98,6 @@ namespace link_layer {
          */
         listen_if_last_received_had_error,
 
-        /**
-         * @brief always respond to a first PDU from the central at a connection event.
-         *
-         * If the link layer listened to the connection event and received a valid PDU
-         * from the central, it will reply.
-         */
-        send_always,
-
-        /**
-         * @brief if there is pending data to be send out, the stack will send that
-         *        data at the next scheduled connection event.
-         *
-         * If the stack is configured to use peripheral latency and decided to leave out
-         * a few connection events, and then data to be send out becomed available, the
-         * next scheduled event will not be changed. If the desired behaviour is, to send
-         * the data out with the very next connection event, this option has to be used
-         * in conjunction with `listen_always`.
-         */
-        send_pending_data,
-
-        /**
-         * @brief if the last received PDU has the MD flag set, the link layer
-         *        will acknowlage that PDU
-         *
-         * The link layer will acknowlage the received PDU, even if it is empty and
-         * the peripheral latency would not force a response.
-         *
-         * In case, peripheral latency is used, it might happen, that the central send
-         * out an empty PDU. If this PDU is not acknowlaged by the peripheral, the
-         * central has to resend that empty PDU until it is acknowlaged, even if
-         * there is data to be send from the central to the peripheral. In such a
-         * case, it is likely, that the central will set its MD flag to indicate
-         * that indeed there is data pending to be send to the peripheral.
-         */
-        send_if_last_received_had_more_data,
-
-        /**
-         * @brief if the last received PDU was not empty, the link layer
-         *        will acknowlage that PDU.
-         */
-        send_if_last_received_not_empty,
     };
 
     /**
@@ -142,9 +109,8 @@ namespace link_layer {
      * bluetoe::device<
      *    gatt_server_definition,
      *    bluetoe::link_layer::peripheral_latency_configuration<
-     *        bluetoe::link_layer::peripheral_latency::listen_if_unacknowlaged_data,
-     *        bluetoe::link_layer::peripheral_latency::listen_if_last_received_had_error,
-     *        bluetoe::link_layer::peripheral_latency::send_pending_data
+     *        bluetoe::link_layer::peripheral_latency::listen_if_unacknowledged_data,
+     *        bluetoe::link_layer::peripheral_latency::listen_if_last_received_had_error
      *    >
      * > gatt_server;
      * @endcode
@@ -219,52 +185,6 @@ namespace link_layer {
     {
     };
 
-
-    /**
-     * @brief Configured the link layer to always listen at connection events
-     *
-     * The link layer will listen at every connection event and will respond only, if
-     * the More Data flag of incomming PDUs is set, if an incomming PDU is not empty,
-     * of if the peripheral has pending data to be send. (and of cause, if the pheriphal
-     * has not responded for the configured amount of events).
-     *
-     * This option provides lowest latency with some power conserved.
-     *
-     * @sa peripheral_latency_configuration
-     */
-    struct peripheral_latency_always_listening : peripheral_latency_configuration<
-        peripheral_latency::listen_always,
-        peripheral_latency::listen_if_last_received_had_error,
-        peripheral_latency::send_if_last_received_had_more_data,
-        peripheral_latency::send_if_last_received_not_empty,
-        peripheral_latency::send_pending_data
-    >
-    {
-    };
-
-    /**
-     * @brief Configured the link layer to always listen at connection events and
-     *        once, data was received at the last event
-     *
-     * This option extends the peripheral_latency_always_listening option by listening
-     * on subsequent events, if there was data received at the previous event.
-     *
-     * This option provides lowest latency with some power conserved.
-     *
-     * @sa peripheral_latency_always_listening
-     * @sa peripheral_latency_configuration
-     */
-    struct peripheral_latency_always_listening_plus : peripheral_latency_configuration<
-        peripheral_latency::listen_always,
-        peripheral_latency::listen_if_last_received_had_error,
-        peripheral_latency::listen_if_last_received_not_empty,
-        peripheral_latency::send_if_last_received_had_more_data,
-        peripheral_latency::send_if_last_received_not_empty,
-        peripheral_latency::send_pending_data
-    >
-    {
-    };
-
     /**
      * @brief Configure the link layer to just listen every configured connection event.
      *
@@ -283,8 +203,7 @@ namespace link_layer {
      */
     struct peripheral_latency_strict : peripheral_latency_configuration<
         peripheral_latency::listen_if_last_received_had_error,
-        peripheral_latency::listen_if_last_received_had_more_data,
-        peripheral_latency::send_pending_data
+        peripheral_latency::listen_if_last_received_had_more_data
     >
     {
     };
@@ -308,7 +227,6 @@ namespace link_layer {
         peripheral_latency::listen_if_last_received_had_error,
         peripheral_latency::listen_if_last_received_not_empty,
         peripheral_latency::listen_if_last_received_had_more_data,
-        peripheral_latency::send_pending_data
     >
     {
     };
