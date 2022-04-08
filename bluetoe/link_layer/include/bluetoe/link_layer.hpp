@@ -20,6 +20,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/encryption.hpp>
 #include <bluetoe/l2cap.hpp>
+#include <bluetoe/connection_event.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -374,7 +375,7 @@ namespace link_layer {
          * @brief call back that will be called after a connect event was closed.
          * @sa scheduled_radio::schedule_connection_event
          */
-        void end_event();
+        void end_event( connection_event_event evts );
 
         /**
          * @brief initiating the change of communication parameters of an established connection
@@ -713,7 +714,7 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::end_event()
+    void link_layer< Server, ScheduledRadio, Options... >::end_event( connection_event_event /* evts */ )
     {
         assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
 

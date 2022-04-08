@@ -33,6 +33,17 @@ namespace link_layer {
          * @brief The last PDU received at the connection event, had the MD flag beeing set.
          */
         bool last_received_had_more_data;
+
+        /**
+         * @brief c'tor to reset all flags
+         */
+        connection_event_event()
+            : unacknowledged_data( false )
+            , last_received_not_empty( false )
+            , last_transmitted_not_empty( false )
+            , last_received_had_more_data( false )
+        {
+        }
     };
 
 }
