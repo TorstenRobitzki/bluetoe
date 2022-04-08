@@ -66,17 +66,34 @@ namespace link_layer {
          * CallBack::end_event() is called when the connection event is over. The new T0 is the time point where the first PDU was
          * received from the Master.
          *
-         * In any case is one (and only one) of the callbacks called (timeout(), end_event()). The context of the callback call is run().
+         * In any case is one (and only one) of the callbacks called (timeout(), end_event()), unless the connection event
+         * is not disarmed prior, by a call to disarm_connection_event(). The context of the callback call is run().
          *
          * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
          *
-         * @return the distance from now to start_receive. If the scheduled event is already in the past, the function will return delta_time().
+         * @return the distance from now to start_receive. If the scheduled event is already in the past,
+         *         the function will return delta_time() and the timeout() callback will be called.
          */
         bluetoe::link_layer::delta_time schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
             bluetoe::link_layer::delta_time             connection_interval );
+
+        /**
+         * @brief tries to stop a scheduled connection event
+         *
+         * The function tries to stop the scheduled connection event if it is not already
+         * running, already in the past or too close to happen to be canceled.
+         *
+         * If the function was able to stop the connection event, it will return the current
+         * time from the last anchor plus some margin that is used by schedule_connection_event()
+         * to make sure, that the connection event can be setup before reaching the start time.
+         *
+         * The support for this function is optional. If a scheduled_radio implementation does not
+         * implement this function, there will be no support for peripheral latency in the link layer.
+         */
+        bluetoe::link_layer::delta_time disarm_connection_event();
 
         /**
          * @brief set the access address initial CRC value for transmitted and received PDU
