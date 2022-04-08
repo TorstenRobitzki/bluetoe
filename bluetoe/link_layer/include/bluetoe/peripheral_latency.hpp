@@ -6,9 +6,10 @@
 /**
  * @file bluetoe/peripheral_latency.hpp
  *
- * This file provides several options, how Bluetoe will implement peripheral latency. Peripheral latency
- * allows a link layer peripheral to miss some connection events (do not respond to the central) to
- * conserve power.
+ * This file provides several options, that allow users to configure Bluetoe's
+ * support for peripheral latency.
+ * Peripheral latency allows a link layer peripheral to ignore some connection events
+ * (do not respond to the central) to conserve power.
  *
  * Each option is a compromise between latency and power consumption.
  *
@@ -26,39 +27,31 @@ namespace link_layer {
      * @brief detailed options for the peripheral latency behavior
      *
      * Every option defines a set of events / circumstances under which
-     * the link layer should listen to the very next connection event.
-     * (beside the miniumum events, the link layer has to listen to due
-     * to the periperhal latency value of the connection).
+     * the link layer should listen at the very next connection event.
+     * Regardless of the selected options, the link layer always listens
+     * for incoming PDU at each peripheral latency anchor points, which
+     * were negotiated as part of the current connection parameters.
      *
      * @note in combination, there are some options that make no sense.
      *       For example, using listen_always with some of the other
-     *       listen_* options is pointless. Also combining send_always
-     *       with send_pending_data doesn't make sense.
+     *       listen_* options is pointless.
+     *       TODO: Specify what happens if listen always is combined with
+     *       listen_if_pending_data ?
      */
     enum class peripheral_latency
     {
         /**
-         * @brief listen at all connection events, despite the current
-         *        peripheral latency value of the current connection.
-         *
-         * This does not imply, that the link layer will also respond at every
-         * connection event. Just listening, without responding will
-         * synchronize the link layer with the central and thus narrow the
-         * receive window size at the next connection interval.
+         * @brief listen at the very next connection event if bluetoe
+         * has an available PDU for sending. This reduces the latency
+         * of any available payload.
          */
-        listen_always,
+        listen_if_pending_transmit_data,
 
         /**
-         * @brief
-         */
-        listen_if_pending_data,
-
-        /**
-         * @brief listen, if the link layer contains unacknowledged data.
+         * @brief listen if the link layer contains unacknowledged data.
          *
-         * If a PDU was send out, but no acknowledgement was jet received,
-         * the link layer will listen at the next connection event, if
-         * this options is set.
+         * If a PDU was sent, but no acknowledgement has been received,
+         * the link layer will listen at the next connection event.
          *
          * This might be interesting, if the sending queue is very small because
          * Bluetoe has to keep a copy of a transmitted PDU, as long as that PDU
@@ -83,20 +76,18 @@ namespace link_layer {
          *        the more data (MD) flag set.
          *
          * With the MD flag, the central (and the peripheral) can indicate, that there
-         * is more data to be send. Usually this data is then transmitted during a
-         * connection even. If there is no support for the MD flag either by the peripheral
-         * or by the central, then, this option might be usefull.
+         * is more data to be sent. Usually this data is then transmitted during the same
+         * connection event. If there is no support for handling more data in the same
+         * connection event either by the peripheral or by the central, then this option
+         * may help reducing the latency of the pending data.
          */
         listen_if_last_received_had_more_data,
 
         /**
-         * @brief listen to the next connection event, if for the last connection event,
-         *        a crc error happend, or a timeout occured.
-         *
-         * This behavior is required by the Bluetooth specification and should not left out
-         * without good reason.
+         * @brief listen at all connection events, despite the negotiated
+         *        peripheral latency value of the current connection.
          */
-        listen_if_last_received_had_error,
+        listen_always,
 
     };
 
@@ -129,7 +120,7 @@ namespace link_layer {
     };
 
     /**
-     * @brief allows to change the peripheral latency configuration to be changed at runtime
+     * @brief allows the peripheral latency configuration to be changed at runtime
      *        between a given set of configurations.
      *
      * Every given Configuration has to be a vaild peripheral_latency_configuration<>.
@@ -179,14 +170,13 @@ namespace link_layer {
      * @sa peripheral_latency_configuration
      */
     struct peripheral_latency_ignored : peripheral_latency_configuration<
-        peripheral_latency::listen_always,
-        peripheral_latency::send_always
+        peripheral_latency::listen_always
     >
     {
     };
 
     /**
-     * @brief Configure the link layer to just listen every configured connection event.
+     * @brief Configure the link layer to only listen every configured connection event.
      *
      * The link layer will only listen to the central every "peripheral latency" + 1 connection
      * events. If for example, the peripheral latency of the current connection is 4, the link
@@ -202,7 +192,6 @@ namespace link_layer {
      * @sa peripheral_latency_always_listening
      */
     struct peripheral_latency_strict : peripheral_latency_configuration<
-        peripheral_latency::listen_if_last_received_had_error,
         peripheral_latency::listen_if_last_received_had_more_data
     >
     {
@@ -224,9 +213,8 @@ namespace link_layer {
      * @sa peripheral_latency_strict
      */
     struct peripheral_latency_strict_plus : peripheral_latency_configuration<
-        peripheral_latency::listen_if_last_received_had_error,
         peripheral_latency::listen_if_last_received_not_empty,
-        peripheral_latency::listen_if_last_received_had_more_data,
+        peripheral_latency::listen_if_last_received_had_more_data
     >
     {
     };
