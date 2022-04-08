@@ -63,11 +63,12 @@ namespace link_layer {
          *
          * The function will return immediately and schedule the receiver to start at start_receive.
          * CallBack::timeout() is called when between start_receive and end_receive no valid pdu is received. The new T0 is then the old T0.
-         * CallBack::end_event() is called when the connection event is over. The new T0 is the time point where the first PDU was
-         * received from the Master.
+         * CallBack::end_event(connection_event_event evts) is called when the connection event is over. The evts
+         * object passed to the end_event() callback will give some details about what happend in that connection
+         * event. The new T0 is the time point where the first PDU was received from the Master.
          *
          * In any case is one (and only one) of the callbacks called (timeout(), end_event()), unless the connection event
-         * is not disarmed prior, by a call to disarm_connection_event(). The context of the callback call is run().
+         * is disarmed prior, by a call to disarm_connection_event(). The context of the callback call is run().
          *
          * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
          *
