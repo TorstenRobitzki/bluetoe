@@ -93,9 +93,9 @@ namespace nrf52_details
             a.begin(), a.end(),
             b,
             a.begin(),
-            []( std::uint8_t a, std::uint8_t b ) -> std::uint8_t
+            []( std::uint8_t x, std::uint8_t y ) -> std::uint8_t
             {
-                return a xor b;
+                return x xor y;
             }
         );
 
@@ -203,6 +203,8 @@ namespace nrf52_details
         assert( rc == 1 );
 
         bluetoe::details::ecdh_shared_secret_t result;
+        static_assert(shared_secret.size() == result.size(), "");
+
         std::reverse_copy( shared_secret.begin(), shared_secret.end(), result.begin() );
 
         return result;
@@ -211,6 +213,8 @@ namespace nrf52_details
     static bluetoe::details::uint128_t left_shift(const bluetoe::details::uint128_t& input)
     {
         bluetoe::details::uint128_t output;
+
+        static_assert(input.size() == output.size(), "");
 
         std::uint8_t overflow = 0;
         for ( std::size_t i = 0; i != input.size(); ++i )
