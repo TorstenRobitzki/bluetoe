@@ -5,7 +5,7 @@
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 #include <bluetoe/link_layer.hpp>
-#include <bluetoe/connection_event.hpp>
+#include <bluetoe/connection_events.hpp>
 
 #include <vector>
 #include <functional>
@@ -759,7 +759,7 @@ namespace test {
 
             } while ( more_data );
 
-            static_cast< CallBack* >( this )->end_event( bluetoe::link_layer::connection_event_event() );
+            static_cast< CallBack* >( this )->end_event( bluetoe::link_layer::connection_event_events() );
         }
     }
 

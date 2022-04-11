@@ -10,7 +10,7 @@ namespace link_layer {
      * This is used by the radio to give some details about, what happend in the last
      * connection event.
      */
-    struct connection_event_event
+    struct connection_event_events
     {
         /**
          * @brief The last, not empty PDU, that was send out during the connection event
@@ -37,7 +37,7 @@ namespace link_layer {
         /**
          * @brief c'tor to reset all flags
          */
-        connection_event_event()
+        connection_event_events()
             : unacknowledged_data( false )
             , last_received_not_empty( false )
             , last_transmitted_not_empty( false )
