@@ -114,6 +114,7 @@ bb::error_codes flash_handler::start_flash( std::uintptr_t address, const std::u
 {
     assert( num_flash_entries_ < number_of_concurrent_flashs );
     assert( size == flash_page_size );
+    static_cast<void>(size);
 
     const auto next_entry = ( num_flash_entries_ + next_flash_entry_ ) % number_of_concurrent_flashs;
     flash_entries_[ next_entry ] = flash_queue_entry{ address, values };
@@ -131,7 +132,7 @@ bb::error_codes flash_handler::start_flash( std::uintptr_t address, const std::u
     return bb::error_codes::success;
 }
 
-bb::error_codes flash_handler::run( std::uintptr_t start_addr )
+bb::error_codes flash_handler::run( std::uintptr_t )
 {
     return bb::error_codes::success;
 }
@@ -148,7 +149,7 @@ std::pair< const std::uint8_t*, std::size_t > flash_handler::get_version()
     return std::pair< const std::uint8_t*, std::size_t >( &version[ 0 ], sizeof( version ) -1 );
 }
 
-void flash_handler::read_mem( std::uintptr_t address, std::size_t size, std::uint8_t* destination )
+void flash_handler::read_mem( std::uintptr_t, std::size_t, std::uint8_t* )
 {
 }
 
@@ -292,6 +293,6 @@ void flash_handler::ll_connection_changed(
 }
 
 template < typename ConnectionData >
-void flash_handler::ll_connection_closed( const ConnectionData& connection )
+void flash_handler::ll_connection_closed( const ConnectionData& )
 {
 }
