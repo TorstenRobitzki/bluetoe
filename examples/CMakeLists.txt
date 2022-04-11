@@ -59,7 +59,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/blue
 target_link_libraries(bluetoe_iface INTERFACE assert::arm)
 
 function(add_bluetoe_example target_name)
-    add_executable(${target_name} ${target_name}.cpp runtime.cpp)
+    add_executable(${target_name} ${target_name}.cpp runtime_gcc.cpp)
     set_target_properties(${target_name}
         PROPERTIES
             OUTPUT_NAME ${target_name}.elf)

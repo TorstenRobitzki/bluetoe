@@ -27,7 +27,13 @@ extern "C" void _start(void) {
     for ( vector* init = &__init_array_start[ 0 ]; init != &__init_array_end[ 0 ]; ++init )
         (*init)();
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+// ISO C++ forbids calling main. We are silencing this warning explicitly.
+// This startup code replaces the one provided by newlib, which is not being used in
+// order to save space from the final binary.
     main();
+#pragma GCC diagnostic pop
 
     for ( vector* finit = &__fini_array_start[ 0 ]; finit != &__fini_array_end[ 0 ]; ++finit )
         (*finit)();
