@@ -44,6 +44,21 @@ namespace link_layer {
             , last_received_had_more_data( false )
         {
         }
+
+        /**
+         * @brief c'tor to define all flags
+         */
+        connection_event_events(
+            bool unacknowledged_data_present,
+            bool last_received_not_empty_present,
+            bool last_transmitted_not_empty_happend,
+            bool last_received_had_more_data_present )
+            : unacknowledged_data( unacknowledged_data_present )
+            , last_received_not_empty( last_received_not_empty_present )
+            , last_transmitted_not_empty( last_transmitted_not_empty_happend )
+            , last_received_had_more_data( last_received_had_more_data_present )
+        {
+        }
     };
 
 }

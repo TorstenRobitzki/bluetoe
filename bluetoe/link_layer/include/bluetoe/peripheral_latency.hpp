@@ -223,11 +223,52 @@ namespace link_layer {
 
     namespace details {
 
+
+        class connection_state_base
+        {
+        public:
+            /**
+             * @brief index into the channel map for the next, planned connection event
+             */
+            unsigned      current_channel_index() const
+            {
+                return channel_index_;
+            }
+
+            /**
+             * @brief index into the channel map for the next, planned connection event
+             */
+            std::uint16_t connection_event_counter() const
+            {
+                return event_counter_;
+            }
+
+            /**
+             * @brief distance between the last connection event that happend and the next,
+             *        planned connection event.
+             *
+             * The time since last event raised linear with the number of timeouts that occured
+             * on a connection.
+             */
+            delta_time    time_since_last_event() const
+            {
+                return time_since_last_event_;
+            }
+
+        protected:
+            unsigned        channel_index_;
+            std::uint16_t   event_counter_;
+            delta_time      time_since_last_event_;
+        };
+
         /**
          * @brief book keeping for the current / next connection event
          */
         template < typename ... Options >
-        class connection_state
+        class connection_state;
+
+        template <>
+        class connection_state< peripheral_latency_ignored > : public connection_state_base
         {
         public:
             /**
@@ -250,34 +291,39 @@ namespace link_layer {
              * @brief connection is just established
              */
             void reset_connection_state();
-
-            /**
-             * @brief index into the channel map for the next, planned connection event
-             */
-            unsigned      current_channel_index() const;
-
-            /**
-             * @brief index into the channel map for the next, planned connection event
-             */
-            std::uint16_t connection_event_counter() const;
-
-            /**
-             * @brief time, since last event
-             *
-             * The time since last event raised linear with the number of timeouts that occured
-             * on a connection.
-             */
-            delta_time    time_since_last_event() const;
-
-        private:
-            unsigned        channel_index_;
-            std::uint16_t   event_counter_;
-            delta_time      time_since_last_event_;
         };
 
-        // implementation
         template < typename ... Options >
-        void connection_state< Options ... >::plan_next_connection_event_after_timeout(
+        class connection_state;
+
+        template <>
+        class connection_state< peripheral_latency_configuration<> > : public connection_state_base
+        {
+        public:
+            /**
+             * @brief Plan next connection event after timeout
+             */
+            void plan_next_connection_event_after_timeout(
+                std::uint16_t           connection_peripheral_latency,
+                delta_time              connection_interval );
+
+            /**
+             * @brief Plan next connection event
+             */
+            void plan_next_connection_event(
+                std::uint16_t           connection_peripheral_latency,
+                connection_event_events last_event_events,
+                delta_time              connection_interval,
+                delta_time              now );
+
+            /**
+             * @brief connection is just established
+             */
+            void reset_connection_state();
+        };
+
+        // implementation: peripheral_latency_ignored
+        void connection_state< peripheral_latency_ignored >::plan_next_connection_event_after_timeout(
             std::uint16_t           ,
             delta_time              connection_interval )
         {
@@ -286,8 +332,7 @@ namespace link_layer {
             ++event_counter_;
         }
 
-        template < typename ... Options >
-        void connection_state< Options... >::plan_next_connection_event(
+        void connection_state< peripheral_latency_ignored >::plan_next_connection_event(
             std::uint16_t           connection_peripheral_latency,
             connection_event_events last_event_events,
             delta_time              connection_interval,
@@ -301,31 +346,44 @@ namespace link_layer {
             ++event_counter_;
         }
 
-        template < typename ... Options >
-        void connection_state< Options... >::reset_connection_state()
+        void connection_state< peripheral_latency_ignored >::reset_connection_state()
         {
             channel_index_         = 0;
             event_counter_         = 0;
             time_since_last_event_ = delta_time();
         }
 
-        template < typename ... Options >
-        unsigned connection_state< Options... >::current_channel_index() const
+        // implementation: peripheral_latency_configuration<>
+        void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event_after_timeout(
+            std::uint16_t           connection_peripheral_latency,
+            delta_time              connection_interval )
         {
-            return channel_index_;
+            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
+            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
+            event_counter_ += ( connection_peripheral_latency + 1 );
         }
 
-        template < typename ... Options >
-        std::uint16_t connection_state< Options... >::connection_event_counter() const
+        void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event(
+            std::uint16_t           connection_peripheral_latency,
+            connection_event_events last_event_events,
+            delta_time              connection_interval,
+            delta_time              now )
         {
-            return event_counter_;
+            static_cast< void >( connection_peripheral_latency );
+            static_cast< void >( last_event_events );
+            static_cast< void >( now );
+            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
+            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
+            event_counter_ += ( connection_peripheral_latency + 1 );
         }
 
-        template < typename ... Options >
-        delta_time connection_state< Options... >::time_since_last_event() const
+        void connection_state< peripheral_latency_configuration<> >::reset_connection_state()
         {
-            return time_since_last_event_;
+            channel_index_         = 0;
+            event_counter_         = 0;
+            time_since_last_event_ = delta_time();
         }
+
     }
 }
 }
