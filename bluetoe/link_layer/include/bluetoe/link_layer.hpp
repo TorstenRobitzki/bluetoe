@@ -342,7 +342,7 @@ namespace link_layer {
         public details::l2cap_layer< Server, ScheduledRadio, Options... >::impl,
         private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
         private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >,
-        private details::connection_state< ::bluetoe::details::no_such_type >
+        private details::connection_state< Options... >
     {
     public:
         link_layer();
@@ -678,10 +678,10 @@ namespace link_layer {
     {
         assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
 
-        const auto time_till_next_event = this->time_till_next_event();
+        const auto time_since_last_event = this->time_since_last_event();
 
-        if ( time_till_next_event <= connection_timeout_
-            && !( state_ == state::connecting && time_till_next_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
+        if ( time_since_last_event <= connection_timeout_
+            && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
         {
             this->plan_next_connection_event_after_timeout( slave_latency_, connection_interval_ );
 
@@ -773,19 +773,19 @@ namespace link_layer {
         delta_time window_start;
         delta_time window_end;
 
-        const delta_time time_till_next_event = this->time_till_next_event();
+        const delta_time time_since_last_event = this->time_since_last_event();
 
         // optimization to calculate the deviation only once for the symetrical case
         if ( transmit_window_size_.zero() )
         {
-            const delta_time window_size   = time_till_next_event.ppm( cumulated_sleep_clock_accuracy_ );
+            const delta_time window_size   = time_since_last_event.ppm( cumulated_sleep_clock_accuracy_ );
 
-            window_start  = time_till_next_event - window_size;
-            window_end    = time_till_next_event + window_size;
+            window_start  = time_since_last_event - window_size;
+            window_end    = time_since_last_event + window_size;
         }
         else
         {
-            window_start = time_till_next_event + transmit_window_offset_;
+            window_start = time_since_last_event + transmit_window_offset_;
             window_end   = window_start + transmit_window_size_;
 
             window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );

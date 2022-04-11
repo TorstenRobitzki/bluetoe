@@ -226,8 +226,8 @@ namespace link_layer {
         /**
          * @brief book keeping for the current / next connection event
          */
-        template < typename PeripheralLatencyOptionSet >
-        class connection_state : private PeripheralLatencyOptionSet
+        template < typename ... Options >
+        class connection_state
         {
         public:
             /**
@@ -260,27 +260,34 @@ namespace link_layer {
              * @brief index into the channel map for the next, planned connection event
              */
             std::uint16_t connection_event_counter() const;
-            delta_time    time_till_next_event() const;
+
+            /**
+             * @brief time, since last event
+             *
+             * The time since last event raised linear with the number of timeouts that occured
+             * on a connection.
+             */
+            delta_time    time_since_last_event() const;
 
         private:
             unsigned        channel_index_;
             std::uint16_t   event_counter_;
-            delta_time      time_till_next_event_;
+            delta_time      time_since_last_event_;
         };
 
         // implementation
-        template < typename PeripheralLatencyOptionSet >
-        void connection_state< PeripheralLatencyOptionSet >::plan_next_connection_event_after_timeout(
+        template < typename ... Options >
+        void connection_state< Options ... >::plan_next_connection_event_after_timeout(
             std::uint16_t           ,
             delta_time              connection_interval )
         {
-            time_till_next_event_ += connection_interval;
+            time_since_last_event_ += connection_interval;
             channel_index_ = ( channel_index_ + 1 ) % channel_map::max_number_of_data_channels;
             ++event_counter_;
         }
 
-        template < typename PeripheralLatencyOptionSet >
-        void connection_state< PeripheralLatencyOptionSet >::plan_next_connection_event(
+        template < typename ... Options >
+        void connection_state< Options... >::plan_next_connection_event(
             std::uint16_t           connection_peripheral_latency,
             connection_event_events last_event_events,
             delta_time              connection_interval,
@@ -289,37 +296,36 @@ namespace link_layer {
             static_cast< void >( connection_peripheral_latency );
             static_cast< void >( last_event_events );
             static_cast< void >( now );
-            time_till_next_event_ = connection_interval;
+            time_since_last_event_ = connection_interval;
             channel_index_ = ( channel_index_ + 1 ) % channel_map::max_number_of_data_channels;
             ++event_counter_;
         }
 
-        template < typename PeripheralLatencyOptionSet >
-        void connection_state< PeripheralLatencyOptionSet >::reset_connection_state()
+        template < typename ... Options >
+        void connection_state< Options... >::reset_connection_state()
         {
-            channel_index_        = 0;
-            event_counter_        = 0;
-            time_till_next_event_ = delta_time();
+            channel_index_         = 0;
+            event_counter_         = 0;
+            time_since_last_event_ = delta_time();
         }
 
-        template < typename PeripheralLatencyOptionSet >
-        unsigned connection_state< PeripheralLatencyOptionSet >::current_channel_index() const
+        template < typename ... Options >
+        unsigned connection_state< Options... >::current_channel_index() const
         {
             return channel_index_;
         }
 
-        template < typename PeripheralLatencyOptionSet >
-        std::uint16_t connection_state< PeripheralLatencyOptionSet >::connection_event_counter() const
+        template < typename ... Options >
+        std::uint16_t connection_state< Options... >::connection_event_counter() const
         {
             return event_counter_;
         }
 
-        template < typename PeripheralLatencyOptionSet >
-        delta_time connection_state< PeripheralLatencyOptionSet >::time_till_next_event() const
+        template < typename ... Options >
+        delta_time connection_state< Options... >::time_since_last_event() const
         {
-            return time_till_next_event_;
+            return time_since_last_event_;
         }
-
     }
 }
 }
