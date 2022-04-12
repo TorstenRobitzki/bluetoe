@@ -264,7 +264,7 @@ namespace link_layer {
         /**
          * @brief book keeping for the current / next connection event
          */
-        template < typename ... Options >
+        template < typename Options >
         class connection_state;
 
         template <>
@@ -293,9 +293,6 @@ namespace link_layer {
             void reset_connection_state();
         };
 
-        template < typename ... Options >
-        class connection_state;
-
         template <>
         class connection_state< peripheral_latency_configuration<> > : public connection_state_base
         {
@@ -321,6 +318,40 @@ namespace link_layer {
              */
             void reset_connection_state();
         };
+
+        template < peripheral_latency ... Options >
+        class connection_state< peripheral_latency_configuration< Options... > > : public connection_state_base
+        {
+        public:
+            /**
+             * @brief Plan next connection event after timeout
+             */
+            void plan_next_connection_event_after_timeout(
+                std::uint16_t           connection_peripheral_latency,
+                delta_time              connection_interval );
+
+            /**
+             * @brief Plan next connection event
+             */
+            void plan_next_connection_event(
+                std::uint16_t           connection_peripheral_latency,
+                connection_event_events last_event_events,
+                delta_time              connection_interval,
+                delta_time              now );
+
+            /**
+             * @brief connection is just established
+             */
+            void reset_connection_state();
+
+        private:
+            template < peripheral_latency >
+            struct wrap {};
+
+            template < peripheral_latency RequestedFeature >
+            bool feature() const;
+        };
+
 
         // implementation: peripheral_latency_ignored
         void connection_state< peripheral_latency_ignored >::plan_next_connection_event_after_timeout(
@@ -358,7 +389,7 @@ namespace link_layer {
             std::uint16_t           connection_peripheral_latency,
             delta_time              connection_interval )
         {
-            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
+            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
             channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
             event_counter_ += ( connection_peripheral_latency + 1 );
         }
@@ -369,10 +400,9 @@ namespace link_layer {
             delta_time              connection_interval,
             delta_time              now )
         {
-            static_cast< void >( connection_peripheral_latency );
             static_cast< void >( last_event_events );
             static_cast< void >( now );
-            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
+            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
             channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
             event_counter_ += ( connection_peripheral_latency + 1 );
         }
@@ -384,6 +414,54 @@ namespace link_layer {
             time_since_last_event_ = delta_time();
         }
 
+        // default case
+        template < peripheral_latency ... Options >
+        void connection_state< peripheral_latency_configuration< Options... > >::plan_next_connection_event_after_timeout(
+            std::uint16_t           connection_peripheral_latency,
+            delta_time              connection_interval )
+        {
+            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
+            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
+            event_counter_ += ( connection_peripheral_latency + 1 );
+        }
+
+        template < peripheral_latency ... Options >
+        void connection_state< peripheral_latency_configuration< Options... > >::plan_next_connection_event(
+            std::uint16_t           connection_peripheral_latency,
+            connection_event_events last_event_events,
+            delta_time              connection_interval,
+            delta_time              now )
+        {
+            static_cast< void >( now );
+
+            if ( ( feature< peripheral_latency::listen_if_unacknowledged_data >() and last_event_events.unacknowledged_data )
+              or ( feature< peripheral_latency::listen_if_last_received_not_empty >() and last_event_events.last_received_not_empty )
+              or ( feature< peripheral_latency::listen_if_last_transmitted_not_empty >() and last_event_events.last_transmitted_not_empty )
+              or ( feature< peripheral_latency::listen_if_last_received_had_more_data >() and last_event_events.last_received_had_more_data )
+               )
+            {
+                connection_peripheral_latency = 0;
+            }
+
+            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
+            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
+            event_counter_ += ( connection_peripheral_latency + 1 );
+        }
+
+        template < peripheral_latency ... Options >
+        void connection_state< peripheral_latency_configuration< Options... > >::reset_connection_state()
+        {
+            channel_index_         = 0;
+            event_counter_         = 0;
+            time_since_last_event_ = delta_time();
+        }
+
+        template < peripheral_latency ... Options >
+        template < peripheral_latency RequestedFeature >
+        bool connection_state< peripheral_latency_configuration< Options... > >::feature() const
+        {
+            return bluetoe::details::has_option< wrap< RequestedFeature >, wrap< Options >... >::value;
+        }
     }
 }
 }
