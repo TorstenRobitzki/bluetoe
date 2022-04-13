@@ -751,3 +751,68 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+struct listen_on_multiple_events : bluetoe::link_layer::details::connection_state<
+    bluetoe::link_layer::peripheral_latency_configuration<
+        bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
+        bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
+    >
+>
+{
+    listen_on_multiple_events()
+        : disarm_connection_event_result( false, bluetoe::link_layer::delta_time() )
+    {
+        reset_connection_state();
+
+        // All events, but the ones that are configured to trigger an early connection event
+        // and errors
+        all_but.unacknowledged_data = true;
+        all_but.last_received_not_empty = true;
+        all_but.last_received_had_more_data = true;
+    }
+
+    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event()
+    {
+        return disarm_connection_event_result;
+    }
+
+    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event_result;
+    bluetoe::link_layer::connection_event_events all_but;
+};
+
+BOOST_FIXTURE_TEST_SUITE( combined_connection_event_events, listen_on_multiple_events )
+
+    static const int latency = 1;
+
+    BOOST_AUTO_TEST_CASE( test_for_both_events )
+    {
+        plan_next_connection_event(
+            latency, no_events, typical_connection_interval, bluetoe::link_layer::delta_time() );
+
+        BOOST_TEST( current_channel_index() == 2u );
+        BOOST_TEST( connection_event_counter() == 2u );
+        BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
+
+        plan_next_connection_event(
+            latency, all_but, typical_connection_interval, bluetoe::link_layer::delta_time() );
+
+        BOOST_TEST( current_channel_index() == 4u );
+        BOOST_TEST( connection_event_counter() == 4u );
+        BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
+
+        plan_next_connection_event(
+            latency, pending_outgoing_data_events, typical_connection_interval, bluetoe::link_layer::delta_time() );
+
+        BOOST_TEST( current_channel_index() == 5u );
+        BOOST_TEST( connection_event_counter() == 5u );
+        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+
+        plan_next_connection_event(
+            latency, last_transmitted_not_empty_events, typical_connection_interval, bluetoe::link_layer::delta_time() );
+
+        BOOST_TEST( current_channel_index() == 6u );
+        BOOST_TEST( connection_event_counter() == 6u );
+        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
