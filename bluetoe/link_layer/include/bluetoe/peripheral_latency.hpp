@@ -114,7 +114,6 @@ namespace link_layer {
     struct peripheral_latency_configuration
     {
         /** @cond HIDDEN_SYMBOLS */
-
         struct meta_type :
             details::peripheral_latency_meta_type,
             details::valid_link_layer_option_meta_type {};
@@ -125,7 +124,7 @@ namespace link_layer {
      * @brief allows the peripheral latency configuration to be changed at runtime
      *        between a given set of configurations.
      *
-     * Every given Configuration has to be a vaild peripheral_latency_configuration<>.
+     * Every given Configurations has to be a vaild peripheral_latency_configuration<>.
      *
      * For example:
      *
@@ -147,10 +146,16 @@ namespace link_layer {
      *
      * @sa peripheral_latency_configuration
      */
-    template < typename ... Configuration >
+    template < typename ... Configurations >
     class peripheral_latency_configuration_set
     {
     public:
+        /**
+         * @brief change to a different peripheral latency configuration
+         *
+         * NewConfig will be the new configuration. NewConfig has be an
+         * element of Configurations...
+         */
         template < typename NewConfig >
         void change_peripheral_latency();
 
@@ -414,6 +419,8 @@ namespace link_layer {
                 bluetoe::details::has_option< wrap< RequestedFeature >, wrap< Options >... >::value,
                 std::true_type,
                 std::false_type >::type;
+
+            static constexpr bool value = type::value;
         };
 
         template < peripheral_latency ... Options >
@@ -464,6 +471,62 @@ namespace link_layer {
             constexpr static bool feature();
         };
 
+        template < typename ... Configurations >
+        struct listen_if_pending_transmit_data_is_part_of_any_configuration
+        {
+            using type = std::true_type;
+        };
+
+        template < typename ... Configurations >
+        class connection_state< peripheral_latency_configuration_set< Configurations... > >
+            : public connection_state_base
+            , public disarmable_connection_state<
+                        typename listen_if_pending_transmit_data_is_part_of_any_configuration< Configurations... >::type,
+                        connection_state< peripheral_latency_configuration_set< Configurations... > > >
+        {
+        public:
+            static_assert( sizeof...(Configurations) > 0, "At least on configuration is required!" );
+
+            /**
+             * @brief default configuration, that sets the choosen configuration to the first given.
+             */
+            connection_state();
+
+            /**
+             * @brief Plan next connection event after timeout
+             */
+            void plan_next_connection_event_after_timeout(
+                std::uint16_t           connection_peripheral_latency,
+                delta_time              connection_interval );
+
+            /**
+             * @brief Plan next connection event
+             */
+            void plan_next_connection_event(
+                std::uint16_t           connection_peripheral_latency,
+                connection_event_events last_event_events,
+                delta_time              connection_interval,
+                delta_time              now );
+
+            /**
+             * @brief connection is just established
+             */
+            void reset_connection_state();
+
+            template < class Radio >
+            bool reschedule_on_pending_data( Radio& radio, delta_time connection_iterval );
+
+            template < typename NewConfig >
+            void change_peripheral_latency();
+        private:
+            template < peripheral_latency RequestedFeature >
+            bool feature() const;
+
+            template < peripheral_latency RequestedFeature >
+            bool runtime_feature() const;
+
+            int current_configuration_;
+        };
 
         // implementation: peripheral_latency_ignored
         inline void connection_state< peripheral_latency_ignored >::plan_next_connection_event_after_timeout(
@@ -542,6 +605,7 @@ namespace link_layer {
             std::uint16_t           connection_peripheral_latency,
             delta_time              connection_interval )
         {
+            // TODO???? connection_peripheral_latency should be ignored!!!
             time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
             channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
             event_counter_ += ( connection_peripheral_latency + 1 );
@@ -594,6 +658,161 @@ namespace link_layer {
         constexpr bool connection_state< peripheral_latency_configuration< Options... > >::feature()
         {
             return feature_enabled< RequestedFeature, Options... >::type::value;
+        }
+
+        // implementing peripheral_latency_configuration_set
+        template < typename ... Configurations >
+        connection_state< peripheral_latency_configuration_set< Configurations... > >::connection_state()
+            : current_configuration_( 0 )
+        {
+        }
+
+        template < typename ... Configurations >
+        void connection_state< peripheral_latency_configuration_set< Configurations... > >::plan_next_connection_event_after_timeout(
+            std::uint16_t           connection_peripheral_latency,
+            delta_time              connection_interval )
+        {
+            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
+            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
+            event_counter_ += ( connection_peripheral_latency + 1 );
+        }
+
+        template < typename ... Configurations >
+        void connection_state< peripheral_latency_configuration_set< Configurations... > >::plan_next_connection_event(
+            std::uint16_t           connection_peripheral_latency,
+            connection_event_events last_event_events,
+            delta_time              connection_interval,
+            delta_time              now )
+        {
+            static_cast< void >( now );
+
+            // TODO Duplicated code?!
+            if ( ( feature< peripheral_latency::listen_if_unacknowledged_data >() and last_event_events.unacknowledged_data )
+              or ( feature< peripheral_latency::listen_if_last_received_not_empty >() and last_event_events.last_received_not_empty )
+              or ( feature< peripheral_latency::listen_if_last_transmitted_not_empty >() and last_event_events.last_transmitted_not_empty )
+              or ( feature< peripheral_latency::listen_if_last_received_had_more_data >() and last_event_events.last_received_had_more_data )
+              or ( feature< peripheral_latency::listen_if_pending_transmit_data >() and last_event_events.pending_outgoing_data )
+              or ( last_event_events.error_occured  )
+               )
+            {
+                connection_peripheral_latency = 0;
+            }
+
+            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
+            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
+            event_counter_ += ( connection_peripheral_latency + 1 );
+            this->last_latency( connection_peripheral_latency + 1 );
+        }
+
+        template < typename ... Configurations >
+        void connection_state< peripheral_latency_configuration_set< Configurations... > >::reset_connection_state()
+        {
+            channel_index_         = 0;
+            event_counter_         = 0;
+            time_since_last_event_ = delta_time();
+            this->last_latency( 1 );
+        }
+
+        template < typename ... Configurations >
+        template < class Radio >
+        bool connection_state< peripheral_latency_configuration_set< Configurations... > >::reschedule_on_pending_data( Radio& radio, delta_time connection_iterval )
+        {
+            return this->reschedule_on_pending_data_impl( radio, connection_iterval );
+        }
+
+        template < typename ... Configurations >
+        template < typename NewConfig >
+        void connection_state< peripheral_latency_configuration_set< Configurations... > >::change_peripheral_latency()
+        {
+            using new_index = bluetoe::details::index_of< NewConfig, Configurations... >;
+            static_assert( new_index::value < sizeof...( Configurations ), "given NewConfig is not member of Configurations..." );
+
+            current_configuration_ = new_index::value;
+        }
+
+        template < peripheral_latency RequestedFeature, typename Configuration >
+        struct has_feature_enabled_impl;
+
+        template < peripheral_latency RequestedFeature, peripheral_latency ...Options >
+        struct has_feature_enabled_impl< RequestedFeature, peripheral_latency_configuration< Options... > >
+        {
+            static constexpr bool value = feature_enabled< RequestedFeature, Options... >::value;
+        };
+
+
+        template < peripheral_latency RequestedFeature, typename ... Configurations >
+        struct is_part_of_all_configurations
+        {
+            template < typename Configuration >
+            using has_feature_enabled = has_feature_enabled_impl< RequestedFeature, Configuration >;
+
+            static constexpr bool value =
+                bluetoe::details::count_if<
+                    std::tuple< Configurations... >,
+                    has_feature_enabled
+                >::value == sizeof...( Configurations );
+        };
+
+        template < peripheral_latency RequestedFeature, typename ... Configurations >
+        struct is_part_of_no_configurations
+        {
+            template < typename Configuration >
+            using has_feature_enabled = has_feature_enabled_impl< RequestedFeature, Configuration >;
+
+            static constexpr bool value =
+                bluetoe::details::count_if<
+                    std::tuple< Configurations... >,
+                    has_feature_enabled
+                >::value == 0;
+        };
+
+        template < typename ... Configurations >
+        template < peripheral_latency RequestedFeature >
+        bool connection_state< peripheral_latency_configuration_set< Configurations... > >::feature() const
+        {
+            // if the feature is set in all or none of the Configurations, the test can be done at compile time
+            // and the compiler has a chance to detect dead code
+            if ( is_part_of_all_configurations< RequestedFeature, Configurations... >::value )
+                return true;
+
+            if ( is_part_of_no_configurations< RequestedFeature, Configurations... >::value )
+                return false;
+
+            return runtime_feature< RequestedFeature >();
+        }
+
+        template < peripheral_latency RequestedFeature >
+        struct peripheral_latency_feature_checker
+        {
+            inline explicit peripheral_latency_feature_checker( int config )
+                : index( config )
+                , result( false )
+            {
+            }
+
+            template< typename Config >
+            void each()
+            {
+                if ( index == 0 && has_feature_enabled_impl< RequestedFeature, Config >::value )
+                    result = true;
+
+                --index;
+            }
+
+            int index;
+            bool result;
+        };
+
+        template < typename ... Configurations >
+        template < peripheral_latency RequestedFeature >
+        bool connection_state< peripheral_latency_configuration_set< Configurations... > >::runtime_feature() const
+        {
+            peripheral_latency_feature_checker< RequestedFeature > check_feature( current_configuration_ );
+
+            bluetoe::details::for_< Configurations... >::
+                template each< peripheral_latency_feature_checker< RequestedFeature >& >( check_feature );
+
+            return check_feature.result;
         }
     }
 }
