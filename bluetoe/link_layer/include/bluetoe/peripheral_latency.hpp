@@ -171,11 +171,9 @@ namespace link_layer {
      *
      * @sa peripheral_latency_configuration
      */
-    struct peripheral_latency_ignored : peripheral_latency_configuration<
+    using peripheral_latency_ignored = peripheral_latency_configuration<
         peripheral_latency::listen_always
-    >
-    {
-    };
+    >;
 
     /**
      * @brief Configure the link layer to only listen every configured connection event.
@@ -193,11 +191,9 @@ namespace link_layer {
      *
      * @sa peripheral_latency_always_listening
      */
-    struct peripheral_latency_strict : peripheral_latency_configuration<
+    using peripheral_latency_strict = peripheral_latency_configuration<
         peripheral_latency::listen_if_last_received_had_more_data
-    >
-    {
-    };
+    >;
 
     /**
      * @brief Configure the link layer to just listen every configured connection event
@@ -214,15 +210,20 @@ namespace link_layer {
      * @sa peripheral_latency_always_listening
      * @sa peripheral_latency_strict
      */
-    struct peripheral_latency_strict_plus : peripheral_latency_configuration<
+    using peripheral_latency_strict_plus = peripheral_latency_configuration<
         peripheral_latency::listen_if_last_received_not_empty,
         peripheral_latency::listen_if_last_received_had_more_data
-    >
-    {
-    };
+    >;
+
+    using periperal_latency_default_configuration = peripheral_latency_configuration<
+        peripheral_latency::listen_if_pending_transmit_data,
+        peripheral_latency::listen_if_unacknowledged_data,
+        peripheral_latency::listen_if_last_received_not_empty,
+        peripheral_latency::listen_if_last_transmitted_not_empty,
+        peripheral_latency::listen_if_last_received_had_more_data
+    >;
 
     namespace details {
-
 
         class connection_state_base
         {
@@ -255,10 +256,88 @@ namespace link_layer {
                 return time_since_last_event_;
             }
 
+            void next_connection_event( unsigned count, delta_time connection_iterval )
+            {
+                channel_index_  = ( channel_index_ + count ) % channel_map::max_number_of_data_channels;
+                event_counter_ += count;
+                time_since_last_event_ = count * connection_iterval;
+            }
+
+            void move_connection_event( int count, delta_time connection_iterval )
+            {
+                channel_index_  = ( channel_index_ + count + channel_map::max_number_of_data_channels ) % channel_map::max_number_of_data_channels;
+                event_counter_ += count;
+
+                if ( count >= 0 )
+                {
+                    time_since_last_event_ += count * connection_iterval;
+                }
+                else
+                {
+                    time_since_last_event_ -= -count * connection_iterval;
+                }
+            }
+
         protected:
             unsigned        channel_index_;
             std::uint16_t   event_counter_;
             delta_time      time_since_last_event_;
+        };
+
+        template < typename DisarmSupport, typename State >
+        class disarmable_connection_state;
+
+        template < typename State >
+        class disarmable_connection_state< std::true_type, State >
+        {
+        protected:
+            template < class Radio >
+            bool reschedule_on_pending_data_impl( Radio& radio, delta_time connection_iterval )
+            {
+                // Do not try to reschedule an event, that can not be rescheduled or was already
+                // rescheduled.
+                if ( last_latency_ == 1 )
+                    return false;
+
+                const std::pair< bool, bluetoe::link_layer::delta_time > rc = radio.disarm_connection_event();
+
+                if ( rc.first )
+                {
+                    assert( !connection_iterval.zero() );
+
+                    const unsigned times = std::max( 1u, ( rc.second + connection_iterval - delta_time( 1 ) ) / connection_iterval );
+
+                    // only move the connection event further into direction of the current time
+                    const int moved = std::min< int >( times, last_latency_ );
+                    static_cast< State* >( this )->move_connection_event( moved - last_latency_, connection_iterval );
+
+                    last_latency_ = 1;
+                }
+
+                return rc.first;
+            }
+
+            void last_latency( int l )
+            {
+                assert( l > 0 );
+                last_latency_ = l;
+            }
+
+        private:
+            int last_latency_;
+        };
+
+        template < typename State >
+        class disarmable_connection_state< std::false_type, State >
+        {
+        protected:
+            template < class Radio >
+            bool reschedule_on_pending_data_impl( Radio&, delta_time )
+            {
+                return false;
+            }
+
+            void last_latency( int ) {}
         };
 
         /**
@@ -291,6 +370,9 @@ namespace link_layer {
              * @brief connection is just established
              */
             void reset_connection_state();
+
+            template < class Radio >
+            bool reschedule_on_pending_data( Radio& radio, delta_time connection_iterval );
         };
 
         template <>
@@ -317,10 +399,29 @@ namespace link_layer {
              * @brief connection is just established
              */
             void reset_connection_state();
+
+            template < class Radio >
+            bool reschedule_on_pending_data( Radio& radio, delta_time connection_iterval );
+        };
+
+        template < peripheral_latency RequestedFeature, peripheral_latency ... Options >
+        struct feature_enabled
+        {
+            template < peripheral_latency >
+            struct wrap {};
+
+            using type = typename bluetoe::details::select_type<
+                bluetoe::details::has_option< wrap< RequestedFeature >, wrap< Options >... >::value,
+                std::true_type,
+                std::false_type >::type;
         };
 
         template < peripheral_latency ... Options >
-        class connection_state< peripheral_latency_configuration< Options... > > : public connection_state_base
+        class connection_state< peripheral_latency_configuration< Options... > >
+            : public connection_state_base
+            , public disarmable_connection_state<
+                        typename feature_enabled< peripheral_latency::listen_if_pending_transmit_data, Options... >::type,
+                        connection_state< peripheral_latency_configuration< Options... > > >
         {
         public:
             /**
@@ -344,17 +445,28 @@ namespace link_layer {
              */
             void reset_connection_state();
 
-        private:
-            template < peripheral_latency >
-            struct wrap {};
+            /**
+             * @brief to be called, when pending data to be transmitted is detected
+             *
+             * If listen_if_pending_transmit_data is given as one of the Options,
+             * the passed radio has to implement the disarm_connection_event()
+             * function. If the function returns true, the connection event was disarmed
+             * and a new connection event can be scheduled again.
+             *
+             * @pre there is a connection event pending on the radio
+             * @ret true: there was enough time to disarm the pending connection event
+             */
+            template < class Radio >
+            bool reschedule_on_pending_data( Radio& radio, delta_time connection_iterval );
 
+        private:
             template < peripheral_latency RequestedFeature >
-            bool feature() const;
+            constexpr static bool feature();
         };
 
 
         // implementation: peripheral_latency_ignored
-        void connection_state< peripheral_latency_ignored >::plan_next_connection_event_after_timeout(
+        inline void connection_state< peripheral_latency_ignored >::plan_next_connection_event_after_timeout(
             std::uint16_t           ,
             delta_time              connection_interval )
         {
@@ -363,29 +475,32 @@ namespace link_layer {
             ++event_counter_;
         }
 
-        void connection_state< peripheral_latency_ignored >::plan_next_connection_event(
-            std::uint16_t           connection_peripheral_latency,
-            connection_event_events last_event_events,
+        inline void connection_state< peripheral_latency_ignored >::plan_next_connection_event(
+            std::uint16_t           ,
+            connection_event_events ,
             delta_time              connection_interval,
-            delta_time              now )
+            delta_time               )
         {
-            static_cast< void >( connection_peripheral_latency );
-            static_cast< void >( last_event_events );
-            static_cast< void >( now );
             time_since_last_event_ = connection_interval;
             channel_index_ = ( channel_index_ + 1 ) % channel_map::max_number_of_data_channels;
             ++event_counter_;
         }
 
-        void connection_state< peripheral_latency_ignored >::reset_connection_state()
+        inline void connection_state< peripheral_latency_ignored >::reset_connection_state()
         {
             channel_index_         = 0;
             event_counter_         = 0;
             time_since_last_event_ = delta_time();
         }
 
+        template < class Radio >
+        bool connection_state< peripheral_latency_ignored >::reschedule_on_pending_data( Radio&, delta_time )
+        {
+            return false;
+        }
+
         // implementation: peripheral_latency_configuration<>
-        void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event_after_timeout(
+        inline void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event_after_timeout(
             std::uint16_t           connection_peripheral_latency,
             delta_time              connection_interval )
         {
@@ -394,24 +509,28 @@ namespace link_layer {
             event_counter_ += ( connection_peripheral_latency + 1 );
         }
 
-        void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event(
+        inline void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event(
             std::uint16_t           connection_peripheral_latency,
-            connection_event_events last_event_events,
+            connection_event_events ,
             delta_time              connection_interval,
-            delta_time              now )
+            delta_time              )
         {
-            static_cast< void >( last_event_events );
-            static_cast< void >( now );
             time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
             channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
             event_counter_ += ( connection_peripheral_latency + 1 );
         }
 
-        void connection_state< peripheral_latency_configuration<> >::reset_connection_state()
+        inline void connection_state< peripheral_latency_configuration<> >::reset_connection_state()
         {
             channel_index_         = 0;
             event_counter_         = 0;
             time_since_last_event_ = delta_time();
+        }
+
+        template < class Radio >
+        bool connection_state< peripheral_latency_configuration<> >::reschedule_on_pending_data( Radio&, delta_time )
+        {
+            return false;
         }
 
         // default case
@@ -438,6 +557,7 @@ namespace link_layer {
               or ( feature< peripheral_latency::listen_if_last_received_not_empty >() and last_event_events.last_received_not_empty )
               or ( feature< peripheral_latency::listen_if_last_transmitted_not_empty >() and last_event_events.last_transmitted_not_empty )
               or ( feature< peripheral_latency::listen_if_last_received_had_more_data >() and last_event_events.last_received_had_more_data )
+              or ( feature< peripheral_latency::listen_if_pending_transmit_data >() and last_event_events.pending_outgoing_data )
                )
             {
                 connection_peripheral_latency = 0;
@@ -446,6 +566,7 @@ namespace link_layer {
             time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
             channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
             event_counter_ += ( connection_peripheral_latency + 1 );
+            this->last_latency( connection_peripheral_latency + 1 );
         }
 
         template < peripheral_latency ... Options >
@@ -454,13 +575,21 @@ namespace link_layer {
             channel_index_         = 0;
             event_counter_         = 0;
             time_since_last_event_ = delta_time();
+            this->last_latency( 1 );
+        }
+
+        template < peripheral_latency ... Options >
+        template < class Radio >
+        bool connection_state< peripheral_latency_configuration< Options... > >::reschedule_on_pending_data( Radio& radio, delta_time connection_iterval )
+        {
+            return this->reschedule_on_pending_data_impl( radio, connection_iterval );
         }
 
         template < peripheral_latency ... Options >
         template < peripheral_latency RequestedFeature >
-        bool connection_state< peripheral_latency_configuration< Options... > >::feature() const
+        constexpr bool connection_state< peripheral_latency_configuration< Options... > >::feature()
         {
-            return bluetoe::details::has_option< wrap< RequestedFeature >, wrap< Options >... >::value;
+            return feature_enabled< RequestedFeature, Options... >::type::value;
         }
     }
 }

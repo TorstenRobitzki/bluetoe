@@ -87,14 +87,15 @@ namespace link_layer {
          * The function tries to stop the scheduled connection event if it is not already
          * running, already in the past or too close to happen to be canceled.
          *
-         * If the function was able to stop the connection event, it will return the current
+         * If the function was able to stop the connection event, it will return true and the current
          * time from the last anchor plus some margin that is used by schedule_connection_event()
          * to make sure, that the connection event can be setup before reaching the start time.
          *
          * The support for this function is optional. If a scheduled_radio implementation does not
-         * implement this function, there will be no support for peripheral latency in the link layer.
+         * implement this function, there will be no support for the peripheral latency option:
+         * peripheral_latency::listen_if_pending_transmit_data
          */
-        bluetoe::link_layer::delta_time disarm_connection_event();
+        std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
 
         /**
          * @brief set the access address initial CRC value for transmitted and received PDU

@@ -35,6 +35,16 @@ namespace link_layer {
         bool last_received_had_more_data;
 
         /**
+         * @brief There is pending, outgoing data
+         */
+        bool pending_outgoing_data;
+
+        /**
+         * @brief there was a CRC or timeout at the last connection event
+         */
+        bool error_occured;
+
+        /**
          * @brief c'tor to reset all flags
          */
         connection_event_events()
@@ -42,6 +52,8 @@ namespace link_layer {
             , last_received_not_empty( false )
             , last_transmitted_not_empty( false )
             , last_received_had_more_data( false )
+            , pending_outgoing_data( false )
+            , error_occured( false )
         {
         }
 
@@ -52,11 +64,15 @@ namespace link_layer {
             bool unacknowledged_data_present,
             bool last_received_not_empty_present,
             bool last_transmitted_not_empty_happend,
-            bool last_received_had_more_data_present )
+            bool last_received_had_more_data_present,
+            bool pending_outgoing_data_present,
+            bool error_present )
             : unacknowledged_data( unacknowledged_data_present )
             , last_received_not_empty( last_received_not_empty_present )
             , last_transmitted_not_empty( last_transmitted_not_empty_happend )
             , last_received_had_more_data( last_received_had_more_data_present )
+            , pending_outgoing_data( pending_outgoing_data_present )
+            , error_occured( error_present )
         {
         }
     };

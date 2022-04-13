@@ -292,6 +292,14 @@ namespace link_layer {
 
             static constexpr std::size_t required_minimum_l2cap_buffer_size = impl::maximum_mtu_size;
         };
+
+        template < typename ...Options >
+        using connection_latency_state_t = connection_state<
+            typename bluetoe::details::find_by_meta_type<
+                peripheral_latency_meta_type,
+                Options...,
+                periperal_latency_default_configuration >::type
+            >;
     }
 
     /**
@@ -342,7 +350,7 @@ namespace link_layer {
         public details::l2cap_layer< Server, ScheduledRadio, Options... >::impl,
         private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
         private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >,
-        private details::connection_state< Options... >
+        private details::connection_latency_state_t< Options... >
     {
     public:
         link_layer();
