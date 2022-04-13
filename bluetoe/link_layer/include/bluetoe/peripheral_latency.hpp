@@ -511,10 +511,13 @@ namespace link_layer {
 
         inline void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event(
             std::uint16_t           connection_peripheral_latency,
-            connection_event_events ,
+            connection_event_events last_event_events,
             delta_time              connection_interval,
             delta_time              )
         {
+            if ( last_event_events.error_occured )
+                connection_peripheral_latency = 0;
+
             time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
             channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
             event_counter_ += ( connection_peripheral_latency + 1 );
@@ -558,6 +561,7 @@ namespace link_layer {
               or ( feature< peripheral_latency::listen_if_last_transmitted_not_empty >() and last_event_events.last_transmitted_not_empty )
               or ( feature< peripheral_latency::listen_if_last_received_had_more_data >() and last_event_events.last_received_had_more_data )
               or ( feature< peripheral_latency::listen_if_pending_transmit_data >() and last_event_events.pending_outgoing_data )
+              or ( last_event_events.error_occured  )
                )
             {
                 connection_peripheral_latency = 0;
