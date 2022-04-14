@@ -691,7 +691,7 @@ namespace link_layer {
         if ( time_since_last_event <= connection_timeout_
             && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
         {
-            this->plan_next_connection_event_after_timeout( slave_latency_, connection_interval_ );
+            this->plan_next_connection_event_after_timeout( connection_interval_ );
 
             if ( handle_pending_ll_control() == ll_result::disconnect )
             {
@@ -725,7 +725,7 @@ namespace link_layer {
         }
 
         this->plan_next_connection_event(
-            slave_latency_, evts, connection_interval_, delta_time() );
+            slave_latency_, evts, connection_interval_, { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ } );
 
         if ( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
         {

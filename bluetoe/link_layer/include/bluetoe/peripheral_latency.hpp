@@ -35,9 +35,7 @@ namespace link_layer {
      *
      * @note in combination, there are some options that make no sense.
      *       For example, using listen_always with some of the other
-     *       listen_* options is pointless.
-     *       TODO: Specify what happens if listen always is combined with
-     *       listen_if_pending_data ?
+     *       listen_* options is pointless and will result in failure to compile.
      */
     enum class peripheral_latency
     {
@@ -279,11 +277,35 @@ namespace link_layer {
                 return time_since_last_event_;
             }
 
-            void next_connection_event( unsigned count, delta_time connection_iterval )
+            /**
+             * @brief Plan next connection event after timeout
+             */
+            void plan_next_connection_event_after_timeout(
+                delta_time              connection_interval )
             {
-                channel_index_  = ( channel_index_ + count ) % channel_map::max_number_of_data_channels;
-                event_counter_ += count;
-                time_since_last_event_ = count * connection_iterval;
+                channel_index_ = ( channel_index_ + 1 ) % channel_map::max_number_of_data_channels;
+                ++event_counter_;
+                time_since_last_event_ += connection_interval;
+            }
+
+
+            void apply_latency(
+                std::uint16_t                       planned_latency,
+                delta_time                          connection_interval,
+                std::pair< bool, std::uint16_t >    pending_instance )
+            {
+                if ( pending_instance.first )
+                {
+                    const std::uint16_t instance_distance = event_counter_ < pending_instance.second
+                        ? pending_instance.second - event_counter_
+                        : pending_instance.second + ~event_counter_ + 1;
+
+                    planned_latency = std::min( planned_latency, instance_distance );
+                }
+
+                channel_index_  = ( channel_index_ + planned_latency ) % channel_map::max_number_of_data_channels;
+                event_counter_ += planned_latency;
+                time_since_last_event_ = planned_latency * connection_interval;
             }
 
             void move_connection_event( int count, delta_time connection_iterval )
@@ -374,20 +396,13 @@ namespace link_layer {
         {
         public:
             /**
-             * @brief Plan next connection event after timeout
-             */
-            void plan_next_connection_event_after_timeout(
-                std::uint16_t           connection_peripheral_latency,
-                delta_time              connection_interval );
-
-            /**
              * @brief Plan next connection event
              */
             void plan_next_connection_event(
-                std::uint16_t           connection_peripheral_latency,
-                connection_event_events last_event_events,
-                delta_time              connection_interval,
-                delta_time              now );
+                std::uint16_t                       connection_peripheral_latency,
+                connection_event_events             last_event_events,
+                delta_time                          connection_interval,
+                std::pair< bool, std::uint16_t >    pending_instance );
 
             /**
              * @brief connection is just established
@@ -403,20 +418,13 @@ namespace link_layer {
         {
         public:
             /**
-             * @brief Plan next connection event after timeout
-             */
-            void plan_next_connection_event_after_timeout(
-                std::uint16_t           connection_peripheral_latency,
-                delta_time              connection_interval );
-
-            /**
              * @brief Plan next connection event
              */
             void plan_next_connection_event(
-                std::uint16_t           connection_peripheral_latency,
-                connection_event_events last_event_events,
-                delta_time              connection_interval,
-                delta_time              now );
+                std::uint16_t                       connection_peripheral_latency,
+                connection_event_events             last_event_events,
+                delta_time                          connection_interval,
+                std::pair< bool, std::uint16_t >    pending_instance );
 
             /**
              * @brief connection is just established
@@ -442,20 +450,13 @@ namespace link_layer {
                  "if `listen_always` is given, there is no point in adding addition options" );
 
             /**
-             * @brief Plan next connection event after timeout
-             */
-            void plan_next_connection_event_after_timeout(
-                std::uint16_t           connection_peripheral_latency,
-                delta_time              connection_interval );
-
-            /**
              * @brief Plan next connection event
              */
             void plan_next_connection_event(
-                std::uint16_t           connection_peripheral_latency,
-                connection_event_events last_event_events,
-                delta_time              connection_interval,
-                delta_time              now );
+                std::uint16_t                       connection_peripheral_latency,
+                connection_event_events             last_event_events,
+                delta_time                          connection_interval,
+                std::pair< bool, std::uint16_t >    pending_instance );
 
             /**
              * @brief connection is just established
@@ -503,20 +504,13 @@ namespace link_layer {
             connection_state();
 
             /**
-             * @brief Plan next connection event after timeout
-             */
-            void plan_next_connection_event_after_timeout(
-                std::uint16_t           connection_peripheral_latency,
-                delta_time              connection_interval );
-
-            /**
              * @brief Plan next connection event
              */
             void plan_next_connection_event(
-                std::uint16_t           connection_peripheral_latency,
-                connection_event_events last_event_events,
-                delta_time              connection_interval,
-                delta_time              now );
+                std::uint16_t                       connection_peripheral_latency,
+                connection_event_events             last_event_events,
+                delta_time                          connection_interval,
+                std::pair< bool, std::uint16_t >    pending_instance );
 
             /**
              * @brief connection is just established
@@ -539,20 +533,11 @@ namespace link_layer {
         };
 
         // implementation: peripheral_latency_ignored
-        inline void connection_state< peripheral_latency_ignored >::plan_next_connection_event_after_timeout(
-            std::uint16_t           ,
-            delta_time              connection_interval )
-        {
-            time_since_last_event_ += connection_interval;
-            channel_index_ = ( channel_index_ + 1 ) % channel_map::max_number_of_data_channels;
-            ++event_counter_;
-        }
-
         inline void connection_state< peripheral_latency_ignored >::plan_next_connection_event(
-            std::uint16_t           ,
-            connection_event_events ,
-            delta_time              connection_interval,
-            delta_time               )
+            std::uint16_t                       ,
+            connection_event_events             ,
+            delta_time                          connection_interval,
+            std::pair< bool, std::uint16_t >    )
         {
             time_since_last_event_ = connection_interval;
             channel_index_ = ( channel_index_ + 1 ) % channel_map::max_number_of_data_channels;
@@ -573,27 +558,16 @@ namespace link_layer {
         }
 
         // implementation: peripheral_latency_configuration<>
-        inline void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event_after_timeout(
-            std::uint16_t           connection_peripheral_latency,
-            delta_time              connection_interval )
-        {
-            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
-            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
-            event_counter_ += ( connection_peripheral_latency + 1 );
-        }
-
         inline void connection_state< peripheral_latency_configuration<> >::plan_next_connection_event(
-            std::uint16_t           connection_peripheral_latency,
-            connection_event_events last_event_events,
-            delta_time              connection_interval,
-            delta_time              )
+            std::uint16_t                       connection_peripheral_latency,
+            connection_event_events             last_event_events,
+            delta_time                          connection_interval,
+            std::pair< bool, std::uint16_t >    pending_instance )
         {
             if ( last_event_events.error_occured )
                 connection_peripheral_latency = 0;
 
-            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
-            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
-            event_counter_ += ( connection_peripheral_latency + 1 );
+            this->apply_latency( connection_peripheral_latency + 1, connection_interval, pending_instance );
         }
 
         inline void connection_state< peripheral_latency_configuration<> >::reset_connection_state()
@@ -611,25 +585,12 @@ namespace link_layer {
 
         // default case
         template < peripheral_latency ... Options >
-        void connection_state< peripheral_latency_configuration< Options... > >::plan_next_connection_event_after_timeout(
-            std::uint16_t           connection_peripheral_latency,
-            delta_time              connection_interval )
-        {
-            // TODO???? connection_peripheral_latency should be ignored!!!
-            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
-            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
-            event_counter_ += ( connection_peripheral_latency + 1 );
-        }
-
-        template < peripheral_latency ... Options >
         void connection_state< peripheral_latency_configuration< Options... > >::plan_next_connection_event(
-            std::uint16_t           connection_peripheral_latency,
-            connection_event_events last_event_events,
-            delta_time              connection_interval,
-            delta_time              now )
+            std::uint16_t                       connection_peripheral_latency,
+            connection_event_events             last_event_events,
+            delta_time                          connection_interval,
+            std::pair< bool, std::uint16_t >    pending_instance )
         {
-            static_cast< void >( now );
-
             if ( ( feature< peripheral_latency::listen_if_unacknowledged_data >() and last_event_events.unacknowledged_data )
               or ( feature< peripheral_latency::listen_if_last_received_not_empty >() and last_event_events.last_received_not_empty )
               or ( feature< peripheral_latency::listen_if_last_transmitted_not_empty >() and last_event_events.last_transmitted_not_empty )
@@ -641,9 +602,7 @@ namespace link_layer {
                 connection_peripheral_latency = 0;
             }
 
-            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
-            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
-            event_counter_ += ( connection_peripheral_latency + 1 );
+            this->apply_latency( connection_peripheral_latency + 1, connection_interval, pending_instance );
             this->last_latency( connection_peripheral_latency + 1 );
         }
 
@@ -678,25 +637,12 @@ namespace link_layer {
         }
 
         template < typename ... Configurations >
-        void connection_state< peripheral_latency_configuration_set< Configurations... > >::plan_next_connection_event_after_timeout(
-            std::uint16_t           connection_peripheral_latency,
-            delta_time              connection_interval )
-        {
-            time_since_last_event_ += ( connection_peripheral_latency + 1 ) * connection_interval;
-            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
-            event_counter_ += ( connection_peripheral_latency + 1 );
-        }
-
-        template < typename ... Configurations >
         void connection_state< peripheral_latency_configuration_set< Configurations... > >::plan_next_connection_event(
-            std::uint16_t           connection_peripheral_latency,
-            connection_event_events last_event_events,
-            delta_time              connection_interval,
-            delta_time              now )
+            std::uint16_t                       connection_peripheral_latency,
+            connection_event_events             last_event_events,
+            delta_time                          connection_interval,
+            std::pair< bool, std::uint16_t >    pending_instance )
         {
-            static_cast< void >( now );
-
-            // TODO Duplicated code?!
             if ( ( feature< peripheral_latency::listen_if_unacknowledged_data >() and last_event_events.unacknowledged_data )
               or ( feature< peripheral_latency::listen_if_last_received_not_empty >() and last_event_events.last_received_not_empty )
               or ( feature< peripheral_latency::listen_if_last_transmitted_not_empty >() and last_event_events.last_transmitted_not_empty )
@@ -708,9 +654,7 @@ namespace link_layer {
                 connection_peripheral_latency = 0;
             }
 
-            time_since_last_event_ = ( connection_peripheral_latency + 1 ) * connection_interval;
-            channel_index_ = ( channel_index_ + connection_peripheral_latency + 1 ) % channel_map::max_number_of_data_channels;
-            event_counter_ += ( connection_peripheral_latency + 1 );
+            this->apply_latency( connection_peripheral_latency + 1, connection_interval, pending_instance );
             this->last_latency( connection_peripheral_latency + 1 );
         }
 
