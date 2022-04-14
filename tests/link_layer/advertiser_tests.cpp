@@ -130,7 +130,7 @@ bluetoe::link_layer::read_buffer valid_connection_request()
         0x03,                               // transmit window size
         0x18, 0x00,                         // window offset
         0x18, 0x00,                         // interval
-        0x00, 0x00,                         // slave latency
+        0x00, 0x00,                         // peripheral latency
         0x80, 0x0c,                         // connection timeout
         0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
         0xaa                                // hop increment and sleep clock accuracy

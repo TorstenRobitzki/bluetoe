@@ -327,8 +327,8 @@ namespace test {
         std::uint32_t   access_address_;
         std::uint32_t   crc_init_;
         bool            access_address_and_crc_valid_;
-        std::uint8_t    master_sequence_number_    = 0;
-        std::uint8_t    master_ne_sequence_number_ = 0;
+        std::uint8_t    central_sequence_number_    = 0;
+        std::uint8_t    central_ne_sequence_number_ = 0;
 
         static constexpr std::size_t ll_header_size = 2;
 
@@ -610,8 +610,8 @@ namespace test {
     void radio< TransmitSize, ReceiveSize, CallBack >::run()
     {
         bool new_scheduling_added = false;
-        master_sequence_number_    = 0;
-        master_ne_sequence_number_ = 0;
+        central_sequence_number_    = 0;
+        central_ne_sequence_number_ = 0;
 
         do
         {
@@ -734,10 +734,10 @@ namespace test {
 
                     std::uint16_t header = layout::header( receive_buffer );
                     header &= ~( sn_flag | nesn_flag );
-                    header |= master_sequence_number_ | master_ne_sequence_number_;
+                    header |= central_sequence_number_ | central_ne_sequence_number_;
                     layout::header( receive_buffer, header );
 
-                    master_sequence_number_    ^= sn_flag;
+                    central_sequence_number_    ^= sn_flag;
                 }
 
                 if ( more_data && receive_buffer.size )
@@ -749,7 +749,7 @@ namespace test {
                 auto response = this->received( receive_buffer );
 
                 more_data = more_data || ( layout::header( response ) & more_data_flag );
-                master_ne_sequence_number_ ^= nesn_flag;
+                central_ne_sequence_number_ ^= nesn_flag;
 
                 event.received_data.push_back(
                     memory_to_air( bluetoe::link_layer::write_buffer( receive_buffer ) ) );

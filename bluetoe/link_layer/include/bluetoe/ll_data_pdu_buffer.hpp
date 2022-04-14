@@ -439,7 +439,7 @@ namespace link_layer {
     write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::set_next_expected_sequence_number( read_buffer buf ) const
     {
         // insert the next expected sequence for every attempt to send the PDU, because it could be that
-        // the slave is able to receive data, while the master is not able to.
+        // the peripheral is able to receive data, while the central is not able to.
         std::size_t header = layout::header( buf );
 
         header = next_expected_sequence_number_

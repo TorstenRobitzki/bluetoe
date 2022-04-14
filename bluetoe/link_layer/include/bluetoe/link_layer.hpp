@@ -364,13 +364,13 @@ namespace link_layer {
         void run();
 
         /**
-         * @brief call back that will be called when the master responds to an advertising PDU
+         * @brief call back that will be called when the central responds to an advertising PDU
          * @sa scheduled_radio::schedule_advertisment_and_receive
          */
         void adv_received( const read_buffer& receive );
 
         /**
-         * @brief call back that will be called when the master does not respond to an advertising PDU
+         * @brief call back that will be called when the central does not respond to an advertising PDU
          * @sa scheduled_radio::schedule_advertisment_and_receive
          */
         void adv_timeout();
@@ -530,7 +530,7 @@ namespace link_layer {
                 le_encryption                           = 0x01,
                 connection_parameters_request_procedure = 0x02,
                 extended_reject_indication              = 0x04,
-                slave_initiated_features_exchange       = 0x08,
+                peripheral_initiated_features_exchange  = 0x08,
                 le_ping                                 = 0x10,
                 le_data_packet_length_extension         = 0x20,
                 ll_privacy                              = 0x40,
@@ -558,7 +558,7 @@ namespace link_layer {
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
-        std::uint16_t                   slave_latency_;
+        std::uint16_t                   peripheral_latency_;
         std::uint16_t                   timeout_value_;
         delta_time                      connection_timeout_;
         std::uint16_t                   defered_conn_event_counter_;
@@ -725,7 +725,7 @@ namespace link_layer {
         }
 
         this->plan_next_connection_event(
-            slave_latency_, evts, connection_interval_, { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ } );
+            peripheral_latency_, evts, connection_interval_, { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ } );
 
         if ( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
         {
@@ -899,14 +899,14 @@ namespace link_layer {
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
-        static constexpr auto       max_slave_latency = 499;
+        static constexpr auto       max_peripheral_latency = 499;
 
         return transmit_window_size_ <= maximum_transmit_window_offset
             && transmit_window_size_ <= connection_interval_
             && connection_timeout_ >= minimum_connection_timeout
             && connection_timeout_ <= maximum_connection_timeout
-            && connection_timeout_ >= ( slave_latency_ + 1 ) * 2 * connection_interval_
-            && slave_latency_ <= max_slave_latency;
+            && connection_timeout_ >= ( peripheral_latency_ + 1 ) * 2 * connection_interval_
+            && peripheral_latency_ <= max_peripheral_latency;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -917,7 +917,7 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
-        slave_latency_          = read_16( &valid_connect_request_body[ 24 ] );
+        peripheral_latency_     = read_16( &valid_connect_request_body[ 24 ] );
         timeout_value_          = read_16( &valid_connect_request_body[ 26 ] );
         connection_timeout_     = delta_time( timeout_value_ * 10000 );
 
@@ -930,7 +930,7 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_update_request[ 1 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_update_request[ 2 ] ) * us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_update_request[ 4 ] ) * us_per_digits );
-        slave_latency_          = read_16( &valid_update_request[ 6 ] );
+        peripheral_latency_     = read_16( &valid_update_request[ 6 ] );
         timeout_value_          = read_16( &valid_update_request[ 8 ] );
         connection_timeout_     = delta_time( timeout_value_ * 10000 );
 
@@ -1190,7 +1190,7 @@ namespace link_layer {
         return connection_details(
             channels_,
             connection_interval_.usec() / us_per_digits,
-            slave_latency_,
+            peripheral_latency_,
             timeout_value_,
             cumulated_sleep_clock_accuracy_ );
     }

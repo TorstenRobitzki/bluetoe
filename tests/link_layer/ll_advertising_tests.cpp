@@ -498,7 +498,7 @@ BOOST_FIXTURE_TEST_CASE( is_connectable_from_directed_address, started_directed_
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -526,7 +526,7 @@ BOOST_FIXTURE_TEST_CASE( is_not_connectable_from_other_addresses, started_direct
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -629,7 +629,7 @@ BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, non_connecta
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -705,7 +705,7 @@ BOOST_FIXTURE_TEST_CASE( no_response_to_connection_request_request, scannable_un
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -818,7 +818,7 @@ BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, sca
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -989,7 +989,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_automatic_start_after_disconnect, LinkLayer, a
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy

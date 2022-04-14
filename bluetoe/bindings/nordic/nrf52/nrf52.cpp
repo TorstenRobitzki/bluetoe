@@ -658,8 +658,8 @@ namespace nrf52_details
     static constexpr std::size_t ccm_direction_offset = 24;
     static constexpr std::size_t ccm_iv_offset  = 25;
 
-    static constexpr std::uint8_t master_to_slave_ccm_direction = 0x01;
-    static constexpr std::uint8_t slave_to_master_ccm_direction = 0x00;
+    static constexpr std::uint8_t central_to_peripheral_ccm_direction = 0x01;
+    static constexpr std::uint8_t peripheral_to_central_ccm_direction = 0x00;
 
     // the value MAXPACKETSIZE from the documentation seems to be the maximum value, the size field can store,
     // and is independent from the MTU size (https://devzone.nordicsemi.com/f/nordic-q-a/13123/what-is-actual-size-required-for-scratch-area-for-ccm-on-nrf52/50031#50031)
@@ -738,7 +738,7 @@ namespace nrf52_details
         if ( transmit_encrypted_ && transmit_data.buffer[ 1 ] != 0 )
         {
             transmit_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
-            ccm_data_struct.data[ ccm_direction_offset ] = slave_to_master_ccm_direction;
+            ccm_data_struct.data[ ccm_direction_offset ] = peripheral_to_central_ccm_direction;
 
             nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
             nrf_ccm->MODE    =
@@ -773,7 +773,7 @@ namespace nrf52_details
         if ( receive_encrypted_ )
         {
             receive_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
-            ccm_data_struct.data[ ccm_direction_offset ] = master_to_slave_ccm_direction;
+            ccm_data_struct.data[ ccm_direction_offset ] = central_to_peripheral_ccm_direction;
 
             // Reseting the CCM before every connection event seems to workaround a bug that
             // Causes the CCM to start decrypting an incomming PDU, before it was actually received

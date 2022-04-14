@@ -4,9 +4,9 @@
 #include "connected.hpp"
 #include "buffer_io.hpp"
 
-struct only_one_pdu_from_master : unconnected
+struct only_one_pdu_from_central : unconnected
 {
-    only_one_pdu_from_master()
+    only_one_pdu_from_central()
     {
         respond_to( 37, valid_connection_request_pdu );
         add_connection_event_respond( { 1, 0 } );
@@ -17,11 +17,11 @@ struct only_one_pdu_from_master : unconnected
 };
 
 /*
- * The connection interval is 30ms, the masters clock accuracy is 50ppm and the slave is configured with
+ * The connection interval is 30ms, the centrals clock accuracy is 50ppm and the peripheral is configured with
  * the default of 500ppm (in sum 550ppm).
  * So the maximum derivation is 16µs
  */
-BOOST_FIXTURE_TEST_CASE( smaller_window_after_connected, only_one_pdu_from_master )
+BOOST_FIXTURE_TEST_CASE( smaller_window_after_connected, only_one_pdu_from_central )
 {
     BOOST_REQUIRE_GE( connection_events().size(), 1u );
     auto event = connection_events()[ 1 ];
@@ -33,7 +33,7 @@ BOOST_FIXTURE_TEST_CASE( smaller_window_after_connected, only_one_pdu_from_maste
 /*
  * For the second connection event, the derivation from the 2*30ms is 33µs (+ 1µs extra for rounding)
  */
-BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeouts, only_one_pdu_from_master )
+BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeouts, only_one_pdu_from_central )
 {
     BOOST_REQUIRE_GE( connection_events().size(), 2u );
     auto event = connection_events()[ 2 ];
@@ -46,11 +46,11 @@ BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeout
 }
 
 /*
- * Once the link layer received a PDU from the master, the supervision timeout is in charge
+ * Once the link layer received a PDU from the central, the supervision timeout is in charge
  * In this example, the timeout is 720ms, the connection interval is 30ms, so the timeout is
  * reached after 24 connection intervals (that's the 25th schedule request; plus the first one after the con request).
  */
-BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_master )
+BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_central )
 {
     BOOST_CHECK_EQUAL( connection_events().size(), 26u );
 }
@@ -109,7 +109,7 @@ struct connect_and_channel_map_request_base : setup_connect_and_channel_map_requ
 using instance_in_past = connect_and_channel_map_request_base< 0xffff, 0x1555555555, 20 >;
 
 /*
- * When the instance is in the past, the slave should consider the connection to be lost.
+ * When the instance is in the past, the peripheral should consider the connection to be lost.
  * The bluetoe behaviour is to go back and advertise.
  */
 BOOST_FIXTURE_TEST_CASE( channel_map_request_with_instance_in_past, instance_in_past )
@@ -262,12 +262,12 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_after_connection_count_wrap, channe
 #endif
 #endif
 
-BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_two_pdus, only_one_pdu_from_master )
+BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_two_pdus, only_one_pdu_from_central )
 {
     /// @TODO implement
 }
 
-BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_only_one_pdus, only_one_pdu_from_master )
+BOOST_FIXTURE_TEST_CASE( l2cap_data_during_channel_map_request_with_buffer_big_enough_for_only_one_pdus, only_one_pdu_from_central )
 {
     /// @TODO implement
 }
@@ -311,7 +311,7 @@ struct connected_and_valid_connection_update_request : unconnected
 };
 
 /*
- * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
+ * The cummulated sleep clock accuracies of central and peripheral is 550ppm (50ppm + 500ppm)
  * The old connection interval is 30ms
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_and_valid_connection_update_request_with_peripheral_latency )
@@ -330,7 +330,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_an
 }
 
 /*
- * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
+ * The cummulated sleep clock accuracies of central and peripheral is 550ppm (50ppm + 500ppm)
  * The new connection interval is 50ms, the new peripheral latency is 1
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used_with_latency, connected_and_valid_connection_update_request_with_peripheral_latency )
@@ -344,7 +344,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used_with_latency, c
 }
 
 /*
- * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
+ * The cummulated sleep clock accuracies of central and peripheral is 550ppm (50ppm + 500ppm)
  * The new connection interval is 50ms, the new peripheral latency is still 0
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used, connected_and_valid_connection_update_request )
@@ -435,13 +435,13 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_instance, unconnected
 
 /*
  * Test starts by having a LL_CONNECTION_UPDATE_REQ at the instances connection event,
- * the server does not send a PDU. The slave still have to maintain the connection and
- * have to listen for the master the next but one connection interval.
+ * the server does not send a PDU. The peripheral still have to maintain the connection and
+ * have to listen for the central the next but one connection interval.
  *
- * The masters clock accuracy is 50ppm and the slave is configured with
+ * The centrals clock accuracy is 50ppm and the peripheral is configured with
  * the default of 500ppm (in sum 550ppm).
  */
-BOOST_FIXTURE_TEST_CASE( connection_update_missing_master_pdu_at_instannce, unconnected )
+BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instannce, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 6, 3, 6, 66, 198, 6 );
@@ -472,7 +472,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_master_pdu_at_instannce, unco
     BOOST_CHECK_EQUAL( next.end_receive, window_end );
 }
 
-BOOST_FIXTURE_TEST_CASE( connection_update_missing_master_pdu_before_and_at_instannce, unconnected )
+BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_instannce, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 6, 3, 6, 66, 198, 6 );

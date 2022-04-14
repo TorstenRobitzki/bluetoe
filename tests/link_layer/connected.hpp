@@ -23,7 +23,7 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
     0x03,                               // transmit window size
     0x0b, 0x00,                         // window offset
     0x18, 0x00,                         // interval (30ms)
-    0x00, 0x00,                         // slave latency
+    0x00, 0x00,                         // peripheral latency
     0x48, 0x00,                         // connection timeout (720ms)
     0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
     0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
@@ -87,7 +87,7 @@ public:
             static_cast< std::uint8_t >( window_offset >> 8 ),
             static_cast< std::uint8_t >( interval & 0xff ), // interval
             static_cast< std::uint8_t >( interval >> 8 ),
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy

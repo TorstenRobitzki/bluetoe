@@ -668,7 +668,7 @@ namespace nrf51_details {
 
             /*
              * There is a special handling for the case, where the CRC is correct, but the MIC fails:
-             * It is expected, that this happens, if the master did not received the last PDU and thus
+             * It is expected, that this happens, if the central did not received the last PDU and thus
              * resends its PDU, while the local receive counter was incremented.
              */
             const bool timeout   = nrf_timer->EVENTS_COMPARE[ 1 ];
@@ -935,8 +935,8 @@ namespace nrf51_details {
     static constexpr std::size_t ccm_direction_offset = 24;
     static constexpr std::size_t ccm_iv_offset = 25;
 
-    static constexpr std::uint8_t master_to_slave_ccm_direction = 0x01;
-    static constexpr std::uint8_t slave_to_master_ccm_direction = 0x00;
+    static constexpr std::uint8_t central_to_peripheral_ccm_direction = 0x01;
+    static constexpr std::uint8_t peripheral_to_central_ccm_direction = 0x00;
 
     static void init_ccm_data_structure( std::uint32_t scratch_area )
     {
@@ -1348,13 +1348,13 @@ namespace nrf51_details {
     void scheduled_radio_base_with_encryption_base::load_receive_packet_counter()
     {
         rx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
-        ccm_data_struct.data[ ccm_direction_offset ] = master_to_slave_ccm_direction;
+        ccm_data_struct.data[ ccm_direction_offset ] = central_to_peripheral_ccm_direction;
     }
 
     void scheduled_radio_base_with_encryption_base::load_transmit_packet_counter()
     {
         tx_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
-        ccm_data_struct.data[ ccm_direction_offset ] = slave_to_master_ccm_direction;
+        ccm_data_struct.data[ ccm_direction_offset ] = peripheral_to_central_ccm_direction;
     }
 
     void scheduled_radio_base_with_encryption_base::set_identity_resolving_key( const details::identity_resolving_key_t& irk )

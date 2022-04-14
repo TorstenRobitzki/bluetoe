@@ -164,7 +164,7 @@ BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_establis
         0x03,                               // transmit window size
         0x0b, 0x00,                         // window offset
         0x18, 0x00,                         // interval (30ms)
-        0x02, 0x00,                         // slave latency
+        0x02, 0x00,                         // peripheral latency
         0x48, 0x05,                         // connection timeout
         0xf3, 0x5f, 0x1f, 0x7f, 0x1f,       // used channel map
         0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
@@ -196,7 +196,7 @@ BOOST_FIXTURE_TEST_CASE( addresses_reported_when_connection_established, link_la
         0x03,                               // transmit window size
         0x0b, 0x00,                         // window offset
         0x18, 0x00,                         // interval (30ms)
-        0x00, 0x00,                         // slave latency
+        0x00, 0x00,                         // peripheral latency
         0x48, 0x00,                         // connection timeout (720ms)
         0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
         0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)

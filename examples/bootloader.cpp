@@ -67,7 +67,7 @@ using gatt_definition = bluetoe::server<
             bb::memory_region< 0x6000, 0x40000 >
         >
     >,
-    bluetoe::slave_connection_interval_range< min_connection_interval >
+    bluetoe::peripheral_connection_interval_range< min_connection_interval >
 >;
 
 /*
@@ -121,7 +121,7 @@ bb::error_codes flash_handler::start_flash( std::uintptr_t address, const std::u
     ++num_flash_entries_;
 
     // if the connection interval is so small, that the ll_connection_event_happend() will never be called
-    // we try to ask the master to change the connection parameters.
+    // we try to ask the central to change the connection parameters.
     if ( current_connection_interval_ < min_connection_interval && !connection_interval_update_running_ )
     {
         connection_interval_update_running_ = link_layer.connection_parameter_update_request(
