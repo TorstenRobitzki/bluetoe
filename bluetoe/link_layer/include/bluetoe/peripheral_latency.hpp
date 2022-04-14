@@ -92,6 +92,22 @@ namespace link_layer {
 
     };
 
+    namespace details {
+        template < peripheral_latency >
+        struct wrap_latency_option {};
+
+        template < peripheral_latency RequestedFeature, peripheral_latency ... Options >
+        struct feature_enabled
+        {
+            using type = typename bluetoe::details::select_type<
+                bluetoe::details::has_option< wrap_latency_option< RequestedFeature >, wrap_latency_option< Options >... >::value,
+                std::true_type,
+                std::false_type >::type;
+
+            static constexpr bool value = type::value;
+        };
+    }
+
     /**
      * @brief defines a peripheral configuration to be used by the link layer
      *
@@ -189,7 +205,8 @@ namespace link_layer {
      *
      * If there is pending, outgoing data, the link layer will start to listen on the next possible
      * connection event to be able to reply with the pending data. Also, if a received PDU has the
-     * more data (MD) flag beeing set, the link layer will start listening at the next connection event.
+     * more data (MD) flag beeing set, the link layer will start listening at the next connection event
+     * and transmit the pending data.
      *
      * This option provided lowest power consumption while providing better transmitting latency compared
      * to having a connection interval equal to peripheral latency + 1 * interval.
@@ -197,6 +214,7 @@ namespace link_layer {
      * @sa peripheral_latency_always_listening
      */
     using peripheral_latency_strict = peripheral_latency_configuration<
+        peripheral_latency::listen_if_pending_transmit_data,
         peripheral_latency::listen_if_last_received_had_more_data
     >;
 
@@ -409,20 +427,6 @@ namespace link_layer {
             bool reschedule_on_pending_data( Radio& radio, delta_time connection_iterval );
         };
 
-        template < peripheral_latency RequestedFeature, peripheral_latency ... Options >
-        struct feature_enabled
-        {
-            template < peripheral_latency >
-            struct wrap {};
-
-            using type = typename bluetoe::details::select_type<
-                bluetoe::details::has_option< wrap< RequestedFeature >, wrap< Options >... >::value,
-                std::true_type,
-                std::false_type >::type;
-
-            static constexpr bool value = type::value;
-        };
-
         template < peripheral_latency ... Options >
         class connection_state< peripheral_latency_configuration< Options... > >
             : public connection_state_base
@@ -431,6 +435,12 @@ namespace link_layer {
                         connection_state< peripheral_latency_configuration< Options... > > >
         {
         public:
+            static constexpr bool listen_always_given = details::feature_enabled< peripheral_latency::listen_always, Options... >::value;
+            static constexpr bool other_parameters_given = sizeof...( Options ) > 1;
+
+            static_assert( !( listen_always_given and other_parameters_given ),
+                 "if `listen_always` is given, there is no point in adding addition options" );
+
             /**
              * @brief Plan next connection event after timeout
              */
