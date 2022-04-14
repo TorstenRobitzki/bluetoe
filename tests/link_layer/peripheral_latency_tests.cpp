@@ -3,7 +3,7 @@
 
 #include <bluetoe/link_layer.hpp>
 
-struct no_peripheral_latency : bluetoe::link_layer::details::connection_state<
+struct no_peripheral_latency : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_ignored
 >
 {
@@ -177,7 +177,7 @@ BOOST_FIXTURE_TEST_SUITE( no_peripheral_latency_applied, no_peripheral_latency )
 BOOST_AUTO_TEST_SUITE_END()
 
 // In contrast to ignored latency, a latency that really schedules events only at latency anchors
-struct peripheral_latency_only_at_anchors : bluetoe::link_layer::details::connection_state<
+struct peripheral_latency_only_at_anchors : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<>
 >
 {
@@ -319,7 +319,7 @@ BOOST_FIXTURE_TEST_SUITE( only_peripheral_latency_applied, peripheral_latency_on
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct listen_if_unacknowledged_data : bluetoe::link_layer::details::connection_state<
+struct listen_if_unacknowledged_data : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<
         bluetoe::link_layer::peripheral_latency::listen_if_unacknowledged_data
     >
@@ -400,7 +400,7 @@ BOOST_FIXTURE_TEST_SUITE( unacknowlaged_data, listen_if_unacknowledged_data )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct listen_if_last_received_not_empty : bluetoe::link_layer::details::connection_state<
+struct listen_if_last_received_not_empty : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<
         bluetoe::link_layer::peripheral_latency::listen_if_last_received_not_empty
     >
@@ -481,7 +481,7 @@ BOOST_FIXTURE_TEST_SUITE( last_received_not_empty, listen_if_last_received_not_e
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct listen_if_last_transmitted_not_empty : bluetoe::link_layer::details::connection_state<
+struct listen_if_last_transmitted_not_empty : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<
         bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
     >
@@ -538,7 +538,7 @@ BOOST_FIXTURE_TEST_SUITE( last_transmitted_not_empty, listen_if_last_transmitted
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct listen_if_last_received_had_more_data : bluetoe::link_layer::details::connection_state<
+struct listen_if_last_received_had_more_data : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<
         bluetoe::link_layer::peripheral_latency::listen_if_last_received_had_more_data
     >
@@ -595,7 +595,7 @@ BOOST_FIXTURE_TEST_SUITE( last_received_had_more_data, listen_if_last_received_h
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct listen_if_pending_transmit_data : bluetoe::link_layer::details::connection_state<
+struct listen_if_pending_transmit_data : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<
         bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data
     >
@@ -792,7 +792,7 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct listen_on_multiple_events : bluetoe::link_layer::details::connection_state<
+struct listen_on_multiple_events : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration<
         bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
         bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
@@ -895,7 +895,7 @@ BOOST_FIXTURE_TEST_SUITE( combined_connection_event_events, listen_on_multiple_e
 
 BOOST_AUTO_TEST_SUITE_END()
 
-struct runtime_configurable : bluetoe::link_layer::details::connection_state<
+struct runtime_configurable : bluetoe::link_layer::details::peripheral_latency_state<
     bluetoe::link_layer::peripheral_latency_configuration_set<
         bluetoe::link_layer::peripheral_latency_configuration<
             bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,

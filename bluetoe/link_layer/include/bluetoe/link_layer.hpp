@@ -294,7 +294,7 @@ namespace link_layer {
         };
 
         template < typename ...Options >
-        using connection_latency_state_t = connection_state<
+        using connection_latency_state_t = peripheral_latency_state<
             typename bluetoe::details::find_by_meta_type<
                 peripheral_latency_meta_type,
                 Options...,
