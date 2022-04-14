@@ -286,12 +286,24 @@ BOOST_FIXTURE_TEST_CASE( connection_update_in_the_past, unconnected )
     BOOST_CHECK_EQUAL( connection_events().size(), 1u );
 }
 
+struct connected_and_valid_connection_update_request_with_peripheral_latency : unconnected
+{
+    connected_and_valid_connection_update_request_with_peripheral_latency()
+    {
+        respond_to( 37, valid_connection_request_pdu );
+        add_connection_update_request( 5, 6, 40, 1, 200, 6 );
+        add_empty_pdus( *this, 20 );
+
+        run();
+    }
+};
+
 struct connected_and_valid_connection_update_request : unconnected
 {
     connected_and_valid_connection_update_request()
     {
         respond_to( 37, valid_connection_request_pdu );
-        add_connection_update_request( 5, 6, 40, 1, 200, 6 );
+        add_connection_update_request( 5, 6, 40, 0, 200, 6 );
         add_empty_pdus( *this, 20 );
 
         run();
@@ -302,7 +314,7 @@ struct connected_and_valid_connection_update_request : unconnected
  * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
  * The old connection interval is 30ms
  */
-BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_and_valid_connection_update_request )
+BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_and_valid_connection_update_request_with_peripheral_latency )
 {
     auto const evt = connection_events()[ 6 ];
 
@@ -319,7 +331,21 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_an
 
 /*
  * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
- * The new connection interval is 50ms
+ * The new connection interval is 50ms, the new peripheral latency is 1
+ */
+BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used_with_latency, connected_and_valid_connection_update_request_with_peripheral_latency )
+{
+    auto const evt = connection_events()[ 7 ];
+
+    const bluetoe::link_layer::delta_time event_start( 2 * 50000 );
+
+    BOOST_CHECK_EQUAL( evt.start_receive, event_start - event_start.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( evt.end_receive, event_start + event_start.ppm( 550 ) );
+}
+
+/*
+ * The cummulated sleep clock accuracies of master and slave is 550ppm (50ppm + 500ppm)
+ * The new connection interval is 50ms, the new peripheral latency is still 0
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used, connected_and_valid_connection_update_request )
 {
@@ -338,7 +364,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used, connected_and_
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_timeout_used, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( 5, 6, 40, 1, 25, 6 );
+    add_connection_update_request( 5, 6, 40, 0, 25, 6 );
     add_empty_pdus( *this, 6 );
     add_ll_timeouts( *this, 10 );
 
@@ -367,7 +393,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_size, unconnec
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_window_size_0, unconnected )
 {
-    simulate_connection_update_request( *this, 5, 0, 40, 1, 25, 6 );
+    simulate_connection_update_request( *this, 5, 0, 40, 0, 25, 6 );
 
     BOOST_CHECK_EQUAL( connection_events().size(), 17u );
 }
