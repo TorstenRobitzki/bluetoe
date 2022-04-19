@@ -71,16 +71,12 @@ void add_channel_map_request( unconnected& c, std::uint16_t instance, std::uint6
 
 void add_empty_pdus( unconnected& c, unsigned count )
 {
-
-    for ( ; count; --count )
-        c.ll_empty_pdu();
+    c.add_empty_pdus( count );
 }
 
 void add_ll_timeouts( unconnected& c, unsigned count )
 {
-
-    for ( ; count; --count )
-        c.add_connection_event_respond_timeout();
+    c.add_ll_timeouts( count );
 }
 
 template < std::uint16_t Instance = 6, std::uint64_t Map = 0x1555555555, unsigned EmptyPDUs = Instance + 2 >
@@ -92,7 +88,7 @@ struct setup_connect_and_channel_map_request_base : unconnected
     {
         respond_to( 37, valid_connection_request_pdu );
         add_channel_map_request( *this, Instance, Map );
-        add_empty_pdus( *this, EmptyPDUs );
+        add_empty_pdus( EmptyPDUs );
     }
 
 };
@@ -237,9 +233,9 @@ struct channel_map_request_after_connection_count_wrap_fixture : unconnected
     {
         respond_to( 37, valid_connection_request_pdu );
 
-        add_empty_pdus( *this, 0x10000 - 4 );
+        add_empty_pdus( 0x10000 - 4 );
         add_channel_map_request( *this, 2, 0x1000000001 );
-        add_empty_pdus( *this, 8 );
+        add_empty_pdus( 8 );
     }
 };
 
@@ -279,7 +275,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_in_the_past, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 5, 5, 40, 1, 200, 0x8002 );
-    add_empty_pdus( *this, 5 );
+    add_empty_pdus( 5 );
 
     run();
 
@@ -292,7 +288,7 @@ struct connected_and_valid_connection_update_request_with_peripheral_latency : u
     {
         respond_to( 37, valid_connection_request_pdu );
         add_connection_update_request( 5, 6, 40, 1, 200, 6 );
-        add_empty_pdus( *this, 20 );
+        add_empty_pdus( 20 );
 
         run();
     }
@@ -304,7 +300,7 @@ struct connected_and_valid_connection_update_request : unconnected
     {
         respond_to( 37, valid_connection_request_pdu );
         add_connection_update_request( 5, 6, 40, 0, 200, 6 );
-        add_empty_pdus( *this, 20 );
+        add_empty_pdus( 20 );
 
         run();
     }
@@ -365,8 +361,8 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_timeout_used, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 5, 6, 40, 0, 25, 6 );
-    add_empty_pdus( *this, 6 );
-    add_ll_timeouts( *this, 10 );
+    add_empty_pdus( 6 );
+    add_ll_timeouts( 10 );
 
     run();
 
@@ -379,7 +375,7 @@ static void simulate_connection_update_request(
 {
     c.respond_to( 37, valid_connection_request_pdu );
     c.add_connection_update_request( win_size, win_offset, interval, latency, timeout, instance );
-    add_empty_pdus( c, 10 );
+    c.add_empty_pdus( 10 );
 
     c.run();
 }
@@ -445,9 +441,9 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instannce, unc
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 6, 3, 6, 66, 198, 6 );
-    add_empty_pdus( *this, 5 );
+    add_empty_pdus( 5 );
     add_connection_event_respond_timeout();
-    add_empty_pdus( *this, 5 );
+    add_empty_pdus( 5 );
 
     run();
 
@@ -476,10 +472,10 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_ins
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 6, 3, 6, 66, 198, 6 );
-    add_empty_pdus( *this, 4 );
+    add_empty_pdus( 4 );
     add_connection_event_respond_timeout();
     add_connection_event_respond_timeout();
-    add_empty_pdus( *this, 5 );
+    add_empty_pdus( 5 );
 
     run();
 

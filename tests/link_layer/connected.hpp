@@ -96,6 +96,18 @@ public:
         this->respond_to( 37, pdu );
     }
 
+    void add_empty_pdus( unsigned count )
+    {
+        for ( ; count; --count )
+            ll_empty_pdu();
+    }
+
+    void add_ll_timeouts( unsigned count )
+    {
+        for ( ; count; --count )
+            this->add_connection_event_respond_timeout();
+    }
+
     std::vector< std::uint8_t > run_single_ll_control_pdu( std::initializer_list< std::uint8_t > pdu )
     {
         this->respond_to( 37, valid_connection_request_pdu );

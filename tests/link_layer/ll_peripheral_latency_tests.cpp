@@ -5,6 +5,23 @@
 
 std::uint16_t temperature_value = 0;
 
+// We test with a relative small hop of 5 for easier calculations
+static const std::initializer_list< std::uint8_t > five_hop_connection_request_pdu =
+{
+    0xc5, 0x22,                         // header
+    0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+    0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+    0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+    0x08, 0x81, 0xf6,                   // CRC Init
+    0x03,                               // transmit window size
+    0x0b, 0x00,                         // window offset
+    0x18, 0x00,                         // interval (30ms)
+    0x03, 0x00,                         // peripheral latency
+    0x48, 0x00,                         // connection timeout (720ms)
+    0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+    0xa5                                // hop increment and sleep clock accuracy (5 and 50ppm)
+};
+
 using server_t = bluetoe::server<
     bluetoe::service<
         bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
@@ -36,20 +53,7 @@ struct fixture_with_listen_if_pending_transmit_data_option
 
 BOOST_FIXTURE_TEST_CASE( planned_connection_event_is_rescheduled_when_l2cap_layer_generates_pending_data, fixture_with_listen_if_pending_transmit_data_option )
 {
-    this->respond_to( 37, {
-        0xc5, 0x22,                         // header
-        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-        0x08, 0x81, 0xf6,                   // CRC Init
-        0x03,                               // transmit window size
-        0x0b, 0x00,                         // window offset
-        0x18, 0x00,                         // interval (30ms)
-        0x03, 0x00,                         // peripheral latency
-        0x48, 0x00,                         // connection timeout (720ms)
-        0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-        0xa5                                // hop increment and sleep clock accuracy (5 and 50ppm)
-    } );
+    respond_to( 37, five_hop_connection_request_pdu );
 
     ll_data_pdu( {
         0x05, 0x00,         // length
@@ -62,7 +66,7 @@ BOOST_FIXTURE_TEST_CASE( planned_connection_event_is_rescheduled_when_l2cap_laye
     ll_empty_pdu();
     ll_empty_pdu();
 
-    this->run();
+    run();
 
     BOOST_REQUIRE( connection_events().size() >= 5u );
 
@@ -83,31 +87,18 @@ BOOST_FIXTURE_TEST_CASE( planned_connection_event_is_rescheduled_when_l2cap_laye
 
 BOOST_FIXTURE_TEST_CASE( timeout, fixture_with_listen_if_pending_transmit_data_option )
 {
-    this->respond_to( 37, {
-        0xc5, 0x22,                         // header
-        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-        0x08, 0x81, 0xf6,                   // CRC Init
-        0x03,                               // transmit window size
-        0x0b, 0x00,                         // window offset
-        0x18, 0x00,                         // interval (30ms)
-        0x03, 0x00,                         // peripheral latency
-        0x48, 0x00,                         // connection timeout (720ms)
-        0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-        0xa5                                // hop increment and sleep clock accuracy (5 and 50ppm)
-    } );
+    respond_to( 37, five_hop_connection_request_pdu );
 
     // 3 connection events, the first empty, the second, a timeout and the last, empty again
     ll_empty_pdu();
-    add_connection_event_respond( test::connection_event_response() );
+    add_connection_event_respond_timeout();
     ll_empty_pdu();
 
-    this->run();
+    run();
 
     BOOST_REQUIRE( connection_events().size() >= 3u );
 
-    // the first connection event happens on channel
+    // the first connection event happens on channel 5
     BOOST_TEST( connection_events()[ 0 ].channel == 5u );
 
     // the second connection event happens at channel 25 due to the peripheral latency
@@ -115,6 +106,39 @@ BOOST_FIXTURE_TEST_CASE( timeout, fixture_with_listen_if_pending_transmit_data_o
 
     // the third connection event happens at channel 30, due to the timeout
     BOOST_TEST( connection_events()[ 2 ].channel == 30u );
+}
+
+/*
+ * This test makes sure, that the instance at which the next connection parameters
+ * become valid will be taken
+ */
+BOOST_FIXTURE_TEST_CASE( connection_parameter_update, fixture_with_listen_if_pending_transmit_data_option )
+{
+    respond_to( 37, five_hop_connection_request_pdu );
+    ll_empty_pdu();
+    add_connection_update_request(
+        6, 3, 6,
+        // latency: 66, timeout: 198, instance: 10
+        66, 198, 10 );
+    add_empty_pdus( 3 );
+
+    run();
+
+    // first connection event at channel 5
+
+    BOOST_REQUIRE( connection_events().size() >= 4u );
+
+    // the first connection event happens on channel 5 (instance = 0)
+    BOOST_TEST( connection_events()[ 0 ].channel == 5u );
+
+    // the second connection event happens at channel 25 due to the peripheral latency (instance = 4)
+    BOOST_TEST( connection_events()[ 1 ].channel == 25u );
+
+    // third connection event happens at 25 + 4 * 5 due to peripheral latency (instance = 8)
+    BOOST_TEST( connection_events()[ 2 ].channel == 45u % 37u );
+
+    // 4th connection event happens instance == 10
+    BOOST_TEST( connection_events()[ 3 ].channel == 55u % 37u );
 }
 
 using config1 = bluetoe::link_layer::peripheral_latency_configuration<>;
@@ -134,20 +158,7 @@ struct fixture_with_runtime_configuration
 
 BOOST_FIXTURE_TEST_CASE( change_peripheral_configuration_at_runtime, fixture_with_runtime_configuration )
 {
-    this->respond_to( 37, {
-        0xc5, 0x22,                         // header
-        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-        0x08, 0x81, 0xf6,                   // CRC Init
-        0x03,                               // transmit window size
-        0x0b, 0x00,                         // window offset
-        0x18, 0x00,                         // interval (30ms)
-        0x03, 0x00,                         // peripheral latency
-        0x48, 0x00,                         // connection timeout (720ms)
-        0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-        0xa5                                // hop increment and sleep clock accuracy (5 and 50ppm)
-    } );
+    this->respond_to( 37, five_hop_connection_request_pdu );
 
     ll_data_pdu( {
         0x05, 0x00,         // length
@@ -188,13 +199,5 @@ BOOST_FIXTURE_TEST_CASE( change_peripheral_configuration_at_runtime, fixture_wit
 
 struct fixture {};
 BOOST_FIXTURE_TEST_CASE( reconnect, fixture )
-{
-}
-
-/*
- * This test makes sure, that the instance at which the next connection parameters
- * become valid will be taken
- */
-BOOST_FIXTURE_TEST_CASE( connection_parameter_updata, fixture )
 {
 }
