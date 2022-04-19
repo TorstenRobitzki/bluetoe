@@ -566,6 +566,7 @@ namespace link_layer {
         connection_data_t               connection_data_;
         bool                            termination_send_;
         std::uint8_t                    used_features_;
+        bool                            pending_event_;
 
         enum class state
         {
@@ -658,6 +659,7 @@ namespace link_layer {
                 used_features_                          = supported_features;
                 connection_parameters_request_pending_  = false;
                 connection_parameters_request_running_  = false;
+                pending_event_                          = false;
 
                 this->set_access_address_and_crc_init( read_32( &body[ 12 ] ), read_24( &body[ 16 ] ) );
 
@@ -684,6 +686,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::timeout()
     {
+        pending_event_ = false;
+
         assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
 
         const auto time_since_last_event = this->time_since_last_event();
@@ -711,6 +715,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::end_event( connection_event_events evts )
     {
+        pending_event_ = false;
+
         assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
 
         if ( state_ == state::connecting )
@@ -724,9 +730,6 @@ namespace link_layer {
             transmit_window_size_ = delta_time();
         }
 
-        this->plan_next_connection_event(
-            peripheral_latency_, evts, connection_interval_, { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ } );
-
         if ( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
         {
             force_disconnect();
@@ -734,6 +737,14 @@ namespace link_layer {
         else
         {
             this->transmit_pending_security_pdus();
+
+            // might happen, that new outgoing, pending data was added
+            evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
+            this->plan_next_connection_event(
+                peripheral_latency_, evts, connection_interval_, { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ } );
+
+            pending_event_ = true;
+
             const delta_time time_till_next_event = setup_next_connection_event();
             connection_event_callback::call_connection_event_callback( time_till_next_event );
         }
@@ -1269,6 +1280,12 @@ namespace link_layer {
             static_cast< std::uint8_t >( buffer.first & 0xff ) } );
 
         this->commit_l2cap_transmit_buffer( out_buffer );
+
+        if ( !pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
+        {
+            this->disarm_connection_event();
+            setup_next_connection_event();
+        }
     }
 
 }

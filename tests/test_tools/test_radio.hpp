@@ -371,6 +371,8 @@ namespace test {
             bluetoe::link_layer::delta_time             end_receive,
             bluetoe::link_layer::delta_time             connection_interval );
 
+        std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
+
         void wake_up();
 
         /**
@@ -601,6 +603,16 @@ namespace test {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    std::pair< bool, bluetoe::link_layer::delta_time > radio< TransmitSize, ReceiveSize, CallBack >::disarm_connection_event()
+    {
+        assert( !connection_events_.empty() );
+std::cout << "disarm_connection_event: " << connection_events_.back() << std::endl;
+        connection_events_.pop_back();
+
+        return { true, bluetoe::link_layer::delta_time() };
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
     void radio< TransmitSize, ReceiveSize, CallBack >::wake_up()
     {
         ++wake_ups_;
@@ -709,6 +721,8 @@ namespace test {
             if ( pdus.empty() && response.func )
                 pdus = response.func();
 
+            bluetoe::link_layer::connection_event_events events;
+
             do
             {
                 auto receive_buffer = this->allocate_receive_buffer();
@@ -759,7 +773,7 @@ namespace test {
 
             } while ( more_data );
 
-            static_cast< CallBack* >( this )->end_event( bluetoe::link_layer::connection_event_events() );
+            static_cast< CallBack* >( this )->end_event( events );
         }
     }
 

@@ -252,6 +252,11 @@ BOOST_FIXTURE_TEST_CASE( at_startup_the_receive_buffer_should_be_empty, running_
     BOOST_CHECK_EQUAL( next_received().size, 0u );
 }
 
+BOOST_FIXTURE_TEST_CASE( at_startup_no_pending_transmit, running_mode )
+{
+    BOOST_CHECK( !pending_outgoing_data_available() );
+}
+
 struct received_pdu : running_mode
 {
     received_pdu()
@@ -496,6 +501,20 @@ BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowlad
 
     // now the next pdu to be transmitted
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 3u );
+}
+
+BOOST_FIXTURE_TEST_CASE( pending_transmit_pdu_is_oberservable, running_mode )
+{
+    transmit_pdu( { 1 } );
+    BOOST_CHECK( pending_outgoing_data_available() );
+
+    // incomming PDU acknowledges
+    auto incomming = allocate_receive_buffer();
+    incomming.buffer[ 0 ] = 1 | 4;
+    incomming.buffer[ 1 ] = 0;
+    received( incomming );
+
+    BOOST_CHECK( !pending_outgoing_data_available() );
 }
 
 BOOST_FIXTURE_TEST_CASE( received_pdu_with_LLID_0_is_ignored, running_mode )

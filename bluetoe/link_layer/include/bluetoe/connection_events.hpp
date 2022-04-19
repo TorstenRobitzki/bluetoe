@@ -40,7 +40,7 @@ namespace link_layer {
         bool pending_outgoing_data;
 
         /**
-         * @brief there was a CRC or timeout at the last connection event
+         * @brief there was a CRC error at the last connection event
          */
         bool error_occured;
 
