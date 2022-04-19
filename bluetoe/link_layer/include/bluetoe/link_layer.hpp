@@ -350,7 +350,7 @@ namespace link_layer {
         public details::l2cap_layer< Server, ScheduledRadio, Options... >::impl,
         private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
         private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >,
-        private details::connection_latency_state_t< Options... >
+        public details::connection_latency_state_t< Options... >
     {
     public:
         link_layer();
@@ -1281,7 +1281,7 @@ namespace link_layer {
 
         this->commit_l2cap_transmit_buffer( out_buffer );
 
-        if ( !pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
+        if ( pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
         {
             this->disarm_connection_event();
             setup_next_connection_event();

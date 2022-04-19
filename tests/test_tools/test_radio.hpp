@@ -606,7 +606,6 @@ namespace test {
     std::pair< bool, bluetoe::link_layer::delta_time > radio< TransmitSize, ReceiveSize, CallBack >::disarm_connection_event()
     {
         assert( !connection_events_.empty() );
-std::cout << "disarm_connection_event: " << connection_events_.back() << std::endl;
         connection_events_.pop_back();
 
         return { true, bluetoe::link_layer::delta_time() };
