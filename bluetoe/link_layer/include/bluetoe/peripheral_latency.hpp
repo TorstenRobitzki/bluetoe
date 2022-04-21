@@ -326,7 +326,8 @@ namespace link_layer {
                         ? pending_instance.second - event_counter_
                         : pending_instance.second + ~event_counter_ + 1;
 
-                    connection_peripheral_latency = std::min( connection_peripheral_latency, instance_distance );
+                    if ( instance_distance > 0 )
+                        connection_peripheral_latency = std::min( connection_peripheral_latency, instance_distance );
                 }
 
                 channel_index_  = ( channel_index_ + connection_peripheral_latency ) % channel_map::max_number_of_data_channels;

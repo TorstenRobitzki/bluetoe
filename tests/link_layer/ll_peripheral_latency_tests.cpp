@@ -196,8 +196,3 @@ BOOST_FIXTURE_TEST_CASE( change_peripheral_configuration_at_runtime, fixture_wit
     BOOST_TEST( connection_events()[ 4 ].channel == 70u % 37u);
     BOOST_TEST( connection_events()[ 5 ].channel == 75u % 37u);
 }
-
-struct fixture {};
-BOOST_FIXTURE_TEST_CASE( reconnect, fixture )
-{
-}

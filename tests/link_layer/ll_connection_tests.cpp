@@ -312,6 +312,8 @@ struct connected_and_valid_connection_update_request : unconnected
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_and_valid_connection_update_request_with_peripheral_latency )
 {
+    // The first event happend is 0 on which a the connection update is send, the second is 1, due to
+    // the outstanding acknowledgment, the third will then be at instance 3
     auto const evt = connection_events()[ 6 ];
 
     bluetoe::link_layer::delta_time window_start( 30000 + 7500 );
@@ -323,6 +325,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_an
 
     BOOST_CHECK_EQUAL( evt.start_receive, window_start );
     BOOST_CHECK_EQUAL( evt.end_receive, window_end );
+    BOOST_CHECK_EQUAL( evt.channel, 70u % 37u );
 }
 
 /*
@@ -430,14 +433,14 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_instance, unconnected
 }
 
 /*
- * Test starts by having a LL_CONNECTION_UPDATE_REQ at the instances connection event,
+ * Test starts by having a LL_CONNECTION_UPDATE_REQ and at the instants connection event,
  * the server does not send a PDU. The peripheral still have to maintain the connection and
  * have to listen for the central the next but one connection interval.
  *
  * The centrals clock accuracy is 50ppm and the peripheral is configured with
  * the default of 500ppm (in sum 550ppm).
  */
-BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instannce, unconnected )
+BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instant, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 6, 3, 6, 66, 198, 6 );
@@ -447,7 +450,11 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instannce, unc
 
     run();
 
+    const auto at_instant  = connection_events().at( 6 );
     const auto next        = connection_events().at( 7 );
+
+    // Timeout at_instance
+    BOOST_REQUIRE( at_instant.transmitted_data.empty() && at_instant.received_data.empty() );
 
     // transmitWindowSize   = 7.5ms
     // transmitWindowOffset = 3.75ms
@@ -468,7 +475,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instannce, unc
     BOOST_CHECK_EQUAL( next.end_receive, window_end );
 }
 
-BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_instannce, unconnected )
+BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_instant, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
     add_connection_update_request( 6, 3, 6, 66, 198, 6 );
@@ -480,7 +487,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_ins
     run();
 
     const auto before      = connection_events().at( 5 );
-    const auto at_instance = connection_events().at( 6 );
+    const auto at_instant  = connection_events().at( 6 );
     const auto behind      = connection_events().at( 7 );
 
     // transmitWindowSize   = 7.5ms
@@ -499,14 +506,17 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_ins
     BOOST_CHECK_EQUAL( before.start_receive, window_start - window_start.ppm( 550 ) );
     BOOST_CHECK_EQUAL( before.end_receive, window_end + window_end.ppm( 550 ) );
 
-    // the next connection event is then the instance
+    // and timed out:
+    BOOST_REQUIRE( before.transmitted_data.empty() && before.received_data.empty() );
+
+    // the next connection event is then at the instant
     window_start = bluetoe::link_layer::delta_time( 3750 + 30000 + 30000 );
     window_end   = window_start + bluetoe::link_layer::delta_time( 7500 );
 
-    BOOST_CHECK_EQUAL( at_instance.start_receive, window_start - window_start.ppm( 550 ) );
-    BOOST_CHECK_EQUAL( at_instance.end_receive, window_end + window_end.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( at_instant.start_receive, window_start - window_start.ppm( 550 ) );
+    BOOST_CHECK_EQUAL( at_instant.end_receive, window_end + window_end.ppm( 550 ) );
 
-    // the event after the missing event at instance is moved further by connIntervalnew
+    // the event after the missing event at instant is moved further by connIntervalnew
     window_start += bluetoe::link_layer::delta_time( 7500 );
     window_end   = window_start + bluetoe::link_layer::delta_time( 7500 );
 

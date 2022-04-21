@@ -484,10 +484,12 @@ namespace link_layer {
         ll_result handle_received_data();
         ll_result send_control_pdus();
         ll_result handle_ll_control_data( const write_buffer& pdu, read_buffer output );
-        ll_result handle_pending_ll_control();
+        // TODO Make handle_pending_ll_control() impossible to fail by checking PDUs immediately
+        ll_result handle_pending_ll_control( std::uint16_t instance );
 
         connection_details details() const;
 
+        // TODO should be moved to somewhere else
         static std::uint16_t read_16( const std::uint8_t* );
         static std::uint32_t read_24( const std::uint8_t* );
         static std::uint32_t read_32( const std::uint8_t* );
@@ -558,6 +560,7 @@ namespace link_layer {
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
+        delta_time                      old_connection_interval_;
         std::uint16_t                   peripheral_latency_;
         std::uint16_t                   timeout_value_;
         delta_time                      connection_timeout_;
@@ -695,14 +698,14 @@ namespace link_layer {
         if ( time_since_last_event <= connection_timeout_
             && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
         {
-            this->plan_next_connection_event_after_timeout( connection_interval_ );
-
-            if ( handle_pending_ll_control() == ll_result::disconnect )
+            if ( handle_pending_ll_control( this->connection_event_counter() + 1u ) == ll_result::disconnect )
             {
                 force_disconnect();
             }
             else
             {
+                this->plan_next_connection_event_after_timeout( old_connection_interval_ );
+                old_connection_interval_ = connection_interval_;
                 setup_next_connection_event();
             }
         }
@@ -730,6 +733,12 @@ namespace link_layer {
             transmit_window_size_ = delta_time();
         }
 
+        /*
+         * L2CAP and pending LL PDUs are handle first, to get the information whether there is
+         * data to be send. This implies that the connEventCount is not updated at this point
+         * and has to be offset by 1 to see if there is a pending instant at this connection
+         * event.
+         */
         if ( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
         {
             force_disconnect();
@@ -738,15 +747,23 @@ namespace link_layer {
         {
             this->transmit_pending_security_pdus();
 
-            // might happen, that new outgoing, pending data was added
-            evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
-            this->plan_next_connection_event(
-                peripheral_latency_, evts, connection_interval_, { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ } );
+            const std::pair< bool, std::uint16_t > pending_instant = { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ };
 
-            pending_event_ = true;
+            if ( handle_pending_ll_control( this->connection_event_counter() + 1u ) == ll_result::disconnect )
+            {
+                force_disconnect();
+            }
+            else
+            {
+                evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
+                this->plan_next_connection_event(
+                    peripheral_latency_, evts, old_connection_interval_, pending_instant );
 
-            const delta_time time_till_next_event = setup_next_connection_event();
-            connection_event_callback::call_connection_event_callback( time_till_next_event );
+                old_connection_interval_ = connection_interval_;
+
+                const delta_time time_till_next_event = setup_next_connection_event();
+                connection_event_callback::call_connection_event_callback( time_till_next_event );
+            }
         }
     }
 
@@ -789,26 +806,28 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     delta_time link_layer< Server, ScheduledRadio, Options... >::setup_next_connection_event()
     {
+        pending_event_ = true;
+
         delta_time window_start;
         delta_time window_end;
 
         const delta_time time_since_last_event = this->time_since_last_event();
 
         // optimization to calculate the deviation only once for the symetrical case
-        if ( transmit_window_size_.zero() )
-        {
-            const delta_time window_size   = time_since_last_event.ppm( cumulated_sleep_clock_accuracy_ );
-
-            window_start  = time_since_last_event - window_size;
-            window_end    = time_since_last_event + window_size;
-        }
-        else
+        if ( !transmit_window_size_.zero() )
         {
             window_start = time_since_last_event + transmit_window_offset_;
             window_end   = window_start + transmit_window_size_;
 
             window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
             window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+        }
+        else
+        {
+            const delta_time window_size   = time_since_last_event.ppm( cumulated_sleep_clock_accuracy_ );
+
+            window_start  = time_since_last_event - window_size;
+            window_end    = time_since_last_event + window_size;
         }
 
         return this->schedule_connection_event(
@@ -928,6 +947,7 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
+        old_connection_interval_ = connection_interval_;
         peripheral_latency_     = read_16( &valid_connect_request_body[ 24 ] );
         timeout_value_          = read_16( &valid_connect_request_body[ 26 ] );
         connection_timeout_     = delta_time( timeout_value_ * 10000 );
@@ -969,9 +989,9 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_received_data()
     {
-        ll_result result = handle_pending_ll_control();
+        ll_result result = ll_result::go_ahead;
 
-        if ( result != ll_result::go_ahead || !defered_ll_control_pdu_.empty() )
+        if ( !defered_ll_control_pdu_.empty() )
             return result;
 
         for ( auto pdu = this->next_ll_l2cap_received(); pdu.size != 0 && result == ll_result::go_ahead && defered_ll_control_pdu_.empty(); )
@@ -1054,8 +1074,8 @@ namespace link_layer {
                 defered_conn_event_counter_ = read_16( &body[ 10 ] );
                 commit = false;
 
-                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() ) & 0x8000
-                    || defered_conn_event_counter_ == this->connection_event_counter() )
+                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() + 1 ) & 0x8000
+                    || defered_conn_event_counter_ == this->connection_event_counter() + 1 )
                 {
                     result = ll_result::disconnect;
                 }
@@ -1158,11 +1178,11 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_pending_ll_control()
+    typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_pending_ll_control( std::uint16_t instance )
     {
         ll_result result = ll_result::go_ahead;
 
-        if ( !defered_ll_control_pdu_.empty() && defered_conn_event_counter_ == this->connection_event_counter() )
+        if ( !defered_ll_control_pdu_.empty() && defered_conn_event_counter_ == instance )
         {
             const std::uint8_t* body   = layout_t::body( defered_ll_control_pdu_ ).first;
             const std::uint8_t  opcode = body[ 0 ];
