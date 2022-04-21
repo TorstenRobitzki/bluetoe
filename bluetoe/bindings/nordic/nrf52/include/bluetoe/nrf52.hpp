@@ -6,6 +6,7 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 #include <bluetoe/security_tool_box.hpp>
+#include <bluetoe/connection_events.hpp>
 
 /**
  * @file nrf52.hpp
@@ -381,7 +382,12 @@ namespace bluetoe
                 Hardware::schedule_connection_event_timer( start_event, end_event, hfxo_startup_value );
                 low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
 
-                return bluetoe::link_layer::delta_time( connection_interval.usec() - now );
+                return link_layer::delta_time( connection_interval.usec() - now );
+            }
+
+            std::pair< bool, link_layer::delta_time > disarm_connection_event()
+            {
+                return { false, link_layer::delta_time() };
             }
 
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
@@ -422,7 +428,9 @@ namespace bluetoe
                 if ( end_evt_ )
                 {
                     end_evt_ = false;
-                    static_cast< CallBacks* >( this )->end_event();
+                    static_cast< CallBacks* >( this )->end_event( events_ );
+
+                    events_ = link_layer::connection_event_events();
                 }
 
                 if ( wake_up_ )
@@ -553,6 +561,9 @@ namespace bluetoe
                         // Issue: #75 More Data not working
                         const_cast< std::uint8_t* >( trans.buffer )[ 0 ] = trans.buffer[ 0 ] & ~more_data_flag;
 
+                        if ( trans.buffer[ 1 ] != 0 )
+                            events_.last_transmitted_not_empty = true;
+
                         Hardware::configure_final_transmit( trans );
                         state_   = state::evt_transmiting_closing;
 
@@ -571,11 +582,22 @@ namespace bluetoe
                             // TODO: Anchor must also be taken, if PDU has a CRC error
                             // Issue: #76 Taking Anchor from End of PDU
                             Hardware::store_timer_anchor( -total_pdu_length );
+
+                            if ( receive_buffer_.buffer[ 1 ] != 0 )
+                                events_.last_received_not_empty = true;
+
+                            if ( receive_buffer_.buffer[ 0 ] & more_data_flag )
+                                events_.last_received_had_more_data = true;
+                        }
+                        else
+                        {
+                            events_.error_occured = true;
                         }
                     }
                     else
                     {
                         Hardware::stop_radio();
+                        events_.error_occured = true;
                         evt_timeout_  = true;
                         state_        = state::idle;
                     }
@@ -646,11 +668,12 @@ namespace bluetoe
                 evt_transmiting_closing,
             };
 
-            volatile state                  state_;
+            volatile state                      state_;
 
-            link_layer::read_buffer         receive_buffer_;
-            link_layer::write_buffer        response_data_;
-            std::uint8_t                    empty_receive_[ 3 ];
+            link_layer::read_buffer             receive_buffer_;
+            link_layer::write_buffer            response_data_;
+            std::uint8_t                        empty_receive_[ 3 ];
+            link_layer::connection_event_events events_;
         };
 
         template <
