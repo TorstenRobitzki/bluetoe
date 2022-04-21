@@ -1303,7 +1303,6 @@ namespace link_layer {
 
         if ( pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
         {
-            this->disarm_connection_event();
             setup_next_connection_event();
         }
     }
