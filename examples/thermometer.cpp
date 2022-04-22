@@ -44,10 +44,13 @@ extern "C" void TEMP_IRQHandler(void)
 {
     NRF_TEMP->EVENTS_DATARDY = 0;
 
-    if ( NRF_TEMP->TEMP != temperature_value )
+    const auto delta = std::abs( NRF_TEMP->TEMP - temperature_value );
+
+    if ( delta >= 3 )
     {
         temperature_value = NRF_TEMP->TEMP;
         server.notify( temperature_value );
+        server.wake_up();
     }
 
     NRF_TEMP->TASKS_START = 1;
