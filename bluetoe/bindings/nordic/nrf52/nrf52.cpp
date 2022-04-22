@@ -512,6 +512,34 @@ namespace nrf52_details
             : 0;
     }
 
+    std::pair< bool, link_layer::delta_time > radio_hardware_without_crypto_support::can_stop_connection_event_timer( std::uint32_t safety_margin_us )
+    {
+        // the function must decide whether it is possible to stop the setup connection event before the
+        // PPI machinery starts the high frequency oscilator. The decission has better to be on the
+        // safe side, as otherwise, the radio might start transmitting unspecified content.
+        const std::uint32_t counter = nrf_rtc->COUNTER;
+        const std::uint32_t plan    = nrf_rtc->CC[ rtc_cc_start_hfxo ];
+
+        // if counter > plan, then either the osc. was already started, or the counter wraped around
+        const std::uint32_t distance = counter >= plan
+            ? 0x1000000 + plan - counter
+            : plan - counter;
+
+        // if distance is larger that half the counter width, we probably have not a counter wrap
+        if ( distance > 0x800000 )
+            return { false, link_layer::delta_time() };
+
+        const std::uint64_t time = static_cast< std::uint64_t >( distance ) * 1000000 / nrf::lfxo_clk_freq;
+
+        // it is essentional to not underestimate the time from the anchor, otherwise, the setup of the
+        // connection event will fail and result in a timeout, which would lead to an additional delay of
+        // a interval.
+        if ( time > safety_margin_us )
+            return { true, link_layer::delta_time( now() + safety_margin_us ) };
+
+        return { false, link_layer::delta_time() };
+    }
+
     static void setup_long_distance_timer(
         const int           hf_anchor,
         const std::uint32_t lf_anchor,
@@ -658,8 +686,8 @@ namespace nrf52_details
     static constexpr std::size_t ccm_direction_offset = 24;
     static constexpr std::size_t ccm_iv_offset  = 25;
 
-    static constexpr std::uint8_t master_to_slave_ccm_direction = 0x01;
-    static constexpr std::uint8_t slave_to_master_ccm_direction = 0x00;
+    static constexpr std::uint8_t central_to_peripheral_ccm_direction = 0x01;
+    static constexpr std::uint8_t peripheral_to_central_ccm_direction = 0x00;
 
     // the value MAXPACKETSIZE from the documentation seems to be the maximum value, the size field can store,
     // and is independent from the MTU size (https://devzone.nordicsemi.com/f/nordic-q-a/13123/what-is-actual-size-required-for-scratch-area-for-ccm-on-nrf52/50031#50031)
@@ -738,7 +766,7 @@ namespace nrf52_details
         if ( transmit_encrypted_ && transmit_data.buffer[ 1 ] != 0 )
         {
             transmit_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
-            ccm_data_struct.data[ ccm_direction_offset ] = slave_to_master_ccm_direction;
+            ccm_data_struct.data[ ccm_direction_offset ] = peripheral_to_central_ccm_direction;
 
             nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
             nrf_ccm->MODE    =
@@ -773,7 +801,7 @@ namespace nrf52_details
         if ( receive_encrypted_ )
         {
             receive_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
-            ccm_data_struct.data[ ccm_direction_offset ] = master_to_slave_ccm_direction;
+            ccm_data_struct.data[ ccm_direction_offset ] = central_to_peripheral_ccm_direction;
 
             // Reseting the CCM before every connection event seems to workaround a bug that
             // Causes the CCM to start decrypting an incomming PDU, before it was actually received

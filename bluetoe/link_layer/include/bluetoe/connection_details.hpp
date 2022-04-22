@@ -40,9 +40,9 @@ namespace link_layer {
         std::uint16_t interval() const;
 
         /**
-         * @brief slave latency
+         * @brief peripheral latency
          *
-         * The slave defined the number of connection events, the slave can
+         * The peripheral defined the number of connection events, the peripheral can
          * skip (do not respond).
          */
         std::uint16_t latency() const;
@@ -57,8 +57,8 @@ namespace link_layer {
         /**
          * @brief the cumulated sleep clock accuracy in parts per million.
          *
-         * The cumulated sleep clock accuracy is the sum of the clients and
-         * slaves accuracy (clock error) and is taken into account for this
+         * The cumulated sleep clock accuracy is the sum of the central's and
+         * peripheral's accuracy (clock error) and is taken into account for this
          * connection.
          */
         unsigned cumulated_sleep_clock_accuracy_ppm() const;

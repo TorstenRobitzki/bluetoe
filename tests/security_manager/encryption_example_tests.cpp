@@ -9,11 +9,11 @@ using uint128_t = std::array< std::uint8_t, 16 >;
 using uint64_t_  = std::array< std::uint8_t, 8 >;
 using uint32_t_  = std::array< std::uint8_t, 4 >;
 
-static const uint128_t master_random_value = {
+static const uint128_t central_random_value = {
     0xde, 0x15, 0x6b, 0xef, 0xb3, 0xd5, 0x8b, 0xdb,
     0x58, 0x11, 0x8f, 0x3d, 0x49, 0xbd, 0x31, 0x0e };
 
-static const uint128_t slave_random_value = {
+static const uint128_t peripheral_random_value = {
     0x58, 0x44, 0xa0, 0xd4, 0x88, 0xd8, 0xc4, 0x7d,
     0xd9, 0x51, 0x0e, 0x1d, 0x00, 0xa8, 0x9a, 0x64 };
 
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE( check_short_term_key )
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
-    check_equal( s1( k, slave_random_value, master_random_value ), short_term_key );
+    check_equal( s1( k, peripheral_random_value, central_random_value ), short_term_key );
 }
 
 static uint128_t add_to_mac( uint128_t key, uint128_t mac, uint128_t block )
@@ -210,7 +210,7 @@ static uint128_t add_to_mac( uint128_t key, uint128_t mac, uint128_t block )
     return aes( key, xor_( mac, block ) );
 }
 
-static uint32_t ccm(uint128_t key, uint64_t counter, bool sent_by_master, uint64_t iv, const uint8_t* input_begin, const uint8_t* input_end, uint8_t* output )
+static uint32_t ccm(uint128_t key, uint64_t counter, bool sent_by_central, uint64_t iv, const uint8_t* input_begin, const uint8_t* input_end, uint8_t* output )
 {
 
     static const std::size_t  block_size = 128 / 8;
@@ -226,7 +226,7 @@ static uint32_t ccm(uint128_t key, uint64_t counter, bool sent_by_master, uint64
         static_cast< std::uint8_t >( counter >> 16 ),   // Octet2 of packetCounter
         static_cast< std::uint8_t >( counter >> 24 ),   // Octet3 of packetCounter
         static_cast< std::uint8_t >( counter >> 32 |    // Bit 6 – Bit 0: Octet4 (7 most significant bits of packetCounter, with Bit 6 being the most significant bit)
-            ( sent_by_master ? 0x80 : 0x00 ) ),         // Bit7:directionBit
+            ( sent_by_central ? 0x80 : 0x00 ) ),         // Bit7:directionBit
         static_cast< std::uint8_t >( iv ),              // Octet0 (LSO) of IV
         static_cast< std::uint8_t >( iv >> 8 ),         // Octet1 of IV
         static_cast< std::uint8_t >( iv >> 16 ),        // Octet2 of IV

@@ -217,6 +217,11 @@ namespace link_layer {
          */
         void commit_transmit_buffer( read_buffer );
 
+        /**
+         * @brief returns true, if there is pending, outgoing data
+         */
+        bool pending_outgoing_data_available() const;
+
         /**@}*/
 
         /**@{*/
@@ -290,7 +295,6 @@ namespace link_layer {
          * @post next_transmit().size != 0 && next_transmit().buffer != nullptr
          */
         write_buffer next_transmit();
-
         /**@}*/
 
     private:
@@ -436,10 +440,16 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    bool ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::pending_outgoing_data_available() const
+    {
+        return transmit_buffer_.next_end().size != 0;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::set_next_expected_sequence_number( read_buffer buf ) const
     {
         // insert the next expected sequence for every attempt to send the PDU, because it could be that
-        // the slave is able to receive data, while the master is not able to.
+        // the peripheral is able to receive data, while the central is not able to.
         std::size_t header = layout::header( buf );
 
         header = next_expected_sequence_number_
@@ -469,7 +479,7 @@ namespace link_layer {
         }
         else if ( next.size == 0 )
         {
-            // we created an PDU, so it have to have a new sequnce number
+            // we created an PDU, so it has to have a new sequnce number
             const std::uint16_t header = sequence_number_
                 ? sn_flag + ll_empty_id
                 :           ll_empty_id;

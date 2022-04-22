@@ -299,12 +299,12 @@ BOOST_FIXTURE_TEST_CASE( implicit_service_list, server_with_multiple_services )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( slave_connection_interval_range )
+BOOST_AUTO_TEST_SUITE( peripheral_connection_interval_range )
 
 using unspecifed_range = bluetoe::extend_server<
     test::small_temperature_service,
     bluetoe::no_list_of_service_uuids,
-    bluetoe::slave_connection_interval_range<>
+    bluetoe::peripheral_connection_interval_range<>
 >;
 
 BOOST_FIXTURE_TEST_CASE( unspecified_range_encoding, unspecifed_range )
@@ -319,7 +319,7 @@ BOOST_FIXTURE_TEST_CASE( unspecified_range_encoding, unspecifed_range )
 using specifed_range = bluetoe::extend_server<
     test::small_temperature_service,
     bluetoe::no_list_of_service_uuids,
-    bluetoe::slave_connection_interval_range< 0x0102, 0x203 >
+    bluetoe::peripheral_connection_interval_range< 0x0102, 0x203 >
 >;
 
 BOOST_FIXTURE_TEST_CASE( specific_range_encoding, specifed_range )
@@ -333,7 +333,7 @@ BOOST_FIXTURE_TEST_CASE( specific_range_encoding, specifed_range )
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( slave_connection_interval_range )
+BOOST_AUTO_TEST_SUITE( peripheral_connection_interval_range )
 
 static const std::uint8_t custom_advertising_data[] = {
     0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07

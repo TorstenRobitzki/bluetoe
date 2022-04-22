@@ -63,20 +63,39 @@ namespace link_layer {
          *
          * The function will return immediately and schedule the receiver to start at start_receive.
          * CallBack::timeout() is called when between start_receive and end_receive no valid pdu is received. The new T0 is then the old T0.
-         * CallBack::end_event() is called when the connection event is over. The new T0 is the time point where the first PDU was
-         * received from the Master.
+         * CallBack::end_event(connection_event_event evts) is called when the connection event is over. The evts
+         * object passed to the end_event() callback will give some details about what happend in that connection
+         * event. The new T0 is the time point where the first PDU was received from the central.
          *
-         * In any case is one (and only one) of the callbacks called (timeout(), end_event()). The context of the callback call is run().
+         * In any case is one (and only one) of the callbacks called (timeout(), end_event()), unless the connection event
+         * is disarmed prior, by a call to disarm_connection_event(). The context of the callback call is run().
          *
          * Data to be transmitted and received is passed by the inherited ll_data_pdu_buffer.
          *
-         * @return the distance from now to start_receive. If the scheduled event is already in the past, the function will return delta_time().
+         * @return the distance from now to start_receive. If the scheduled event is already in the past,
+         *         the function will return delta_time() and the timeout() callback will be called.
          */
         bluetoe::link_layer::delta_time schedule_connection_event(
             unsigned                                    channel,
             bluetoe::link_layer::delta_time             start_receive,
             bluetoe::link_layer::delta_time             end_receive,
             bluetoe::link_layer::delta_time             connection_interval );
+
+        /**
+         * @brief tries to stop a scheduled connection event
+         *
+         * The function tries to stop the scheduled connection event if it is not already
+         * running, already in the past or too close to happen to be canceled.
+         *
+         * If the function was able to stop the connection event, it will return true and the current
+         * time from the last anchor plus some margin that is used by schedule_connection_event()
+         * to make sure, that the connection event can be setup before reaching the start time.
+         *
+         * The support for this function is optional. If a scheduled_radio implementation does not
+         * implement this function, there will be no support for the peripheral latency option:
+         * peripheral_latency::listen_if_pending_transmit_data
+         */
+        std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
 
         /**
          * @brief set the access address initial CRC value for transmitted and received PDU
@@ -257,7 +276,7 @@ namespace link_layer {
          * @param p1 p1 = pres || preq || rat’ || iat’ (see 2.3.3 Confirm value generation function c1 for LE Legacy Pairing)
          * @param p2 p2 = padding || ia || ra (see 2.3.3 Confirm value generation function c1 for LE Legacy Pairing)
          *
-         * The function calculates the confirm value based on the slaves or masters random value (Srand or Mrand), the temporary
+         * The function calculates the confirm value based on the peripherals or centrals random value (Srand or Mrand), the temporary
          * key and the data in the pairing request and response.
          */
         bluetoe::details::uint128_t c1(
@@ -273,24 +292,24 @@ namespace link_layer {
          * legacy pairing process.
          *
          * @param temp_key the temporary key from the LE legacy pairing algorithm
-         * @param srand The slave random value (Srand).
-         * @param mrand The master random value (Mrand).
+         * @param srand The peripheral random value (Srand).
+         * @param mrand The central random value (Mrand).
          */
         bluetoe::details::uint128_t s1(
             const bluetoe::details::uint128_t& temp_key,
-            const bluetoe::details::uint128_t& srand,
-            const bluetoe::details::uint128_t& mrand );
+            const bluetoe::details::uint128_t& prand,
+            const bluetoe::details::uint128_t& crand );
 
         /**
          * @brief setup the hardware with all data required for encryption
          *
          * The encryption is prepaired but not started jet.
          * @param key long term or short term key to be used for encryption
-         * @param skdm The master’s portion of the session key diversifier.
-         * @param ivm The IVm field contains the master’s portion of the initialization vector.
+         * @param skdm The central's portion of the session key diversifier.
+         * @param ivm The IVm field contains the central portion of the initialization vector.
          *
-         * The function returns SKDs and IVs (the slaves portion of the session key diversifier and initialization vector),
-         * to be send to the master.
+         * The function returns SKDs and IVs (the peripherals portion of the session key diversifier and initialization vector),
+         * to be send to the central.
          */
         std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t key, std::uint64_t skdm, std::uint32_t ivm );
 

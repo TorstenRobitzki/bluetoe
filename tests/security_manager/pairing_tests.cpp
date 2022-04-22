@@ -197,7 +197,7 @@ BOOST_FIXTURE_TEST_CASE( lesc_numeric_comparison_pairing, lesc_security_manager_
 /**
  * SM/SLA/JW/BV-02-C [Just Works IUT Responder – Success]
  *
- * Verify that the IUT is able to perform the Just Works pairing procedure correctly when acting as slave, responder.
+ * Verify that the IUT is able to perform the Just Works pairing procedure correctly when acting as peripheral, responder.
  */
 BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_security_manager<> )
 {
@@ -231,7 +231,7 @@ BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Success, test::legacy_securit
  *
  * Verify that the IUT is able to perform the Just Works pairing procedure when receiving additional
  * bits set in the AuthReq flag. Reserved For Future Use bits are correctly handled when acting as
- * slave, responder.
+ * peripheral, responder.
  */
 BOOST_FIXTURE_TEST_CASE( Just_Works_IUT_Responder__Handle_AuthReq_flag_RFU_correctly, test::legacy_security_manager<> )
 {

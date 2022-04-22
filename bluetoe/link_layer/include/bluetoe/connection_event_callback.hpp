@@ -29,7 +29,7 @@ namespace link_layer {
      *
      * The template parameter RequiredTimeMS defines the minimum time available until the next connection event will
      * happen. The callback is only called, if the given time is available. If the parameter is 0, the callback will
-     * be called on every connection event. The link layer will not use slave latency to increase the time between two
+     * be called on every connection event. The link layer will not use peripheral latency to increase the time between two
      * connection events to reach the RequiredTimeMS.
      */
     template < typename T, T& Obj, unsigned RequiredTimeMS = 0 >

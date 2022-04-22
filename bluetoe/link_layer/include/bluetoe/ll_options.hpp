@@ -95,8 +95,8 @@ namespace link_layer
     /**
      * @brief defines the sleep clock accuracy of the device hardware.
      *
-     * The stack uses the accuracy information to keep the time window where the slave listens for radio messages
-     * from the master, as small as possible. It's important to determine the real sleep clock accuracy.
+     * The stack uses the accuracy information to keep the time window where the peripheral listens for radio messages
+     * from the central, as small as possible. It's important to determine the real sleep clock accuracy.
      * Giving to large accuracy will leed to not optimal power consumption.
      * To small accuracy will leed to instable connections.
      */

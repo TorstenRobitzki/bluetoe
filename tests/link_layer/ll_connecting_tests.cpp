@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f        // used channel map
         }
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_hop_is_invalid, HopIncrement, in
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xa0 | HopIncrement::value          // hop increment and sleep clock accuracy
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_only_one_channel_is_used, Channe
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0x01, 0x00, 0x00, 0x00, 0x00,       // only channel 0
             0xaa                                // hop increment and sleep clock accuracy
@@ -176,7 +176,7 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_access_address, unconnected )
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -201,7 +201,7 @@ BOOST_FIXTURE_TEST_CASE( takes_the_give_initial_crc_value, unconnected )
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -247,7 +247,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x00,                         // connection timeout
             0xff, 0xfb, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -299,7 +299,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_
 }
 
 /*
- * The default devie sleep clock accuracy is 500ppm, the masters sca is 50ppm.
+ * The default devie sleep clock accuracy is 500ppm, the centrals sca is 50ppm.
  * The last T0 was the reception of the connect request. The transmit window offset is
  * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
  * 15ms - 15ms * 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
@@ -317,7 +317,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 
 /*
  * Second example, with a different configured sleep clock accuracy of 100ppm.
- * The master is announcing a sleep clock accuracy of 250 ppm. In sum: 350ppm.
+ * The central is announcing a sleep clock accuracy of 250 ppm. In sum: 350ppm.
  *
  * Start at:
  *   2000ms - 350ppm = 1999300µs +-1µs
@@ -338,7 +338,7 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
             0x08,                               // maximum transmit window size = 10ms
             0x3f, 0x06,                         // window offset 2 sec
             0x40, 0x06,                         // interval 2 sec
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x48, 0x02,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0x2a                                // 1: sleep clock accuracy 151 ppm to 250 ppm
@@ -369,7 +369,7 @@ BOOST_FIXTURE_TEST_CASE( there_should_be_5_receive_attempts_before_the_connectin
 }
 
 /*
- * The default devie sleep clock accuracy is 500ppm, the masters sca is 50ppm.
+ * The default devie sleep clock accuracy is 500ppm, the centrals sca is 50ppm.
  * The last T0 was the reception of the connect request. The transmit window offset is
  * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
  * 15ms - 15ms * 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
@@ -394,7 +394,7 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
     }
 }
 
-BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_master_channels_are_hopped, connecting )
+BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_central_channels_are_hopped, connecting )
 {
     std::vector< unsigned > expected_channels = { 10, 20, 30, 3, 13 };
     std::vector< unsigned > channels;
@@ -433,7 +433,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_to_large, uncon
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x81, 0x0c,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -458,7 +458,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_smaller_than_10
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x09, 0x00,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -471,7 +471,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_smaller_than_10
 }
 
 /*
- * with a slave latency of 5 and a interval of 30ms, the connection timeout shoule be
+ * with a peripheral latency of 5 and a interval of 30ms, the connection timeout shoule be
  * at least 6 * 30ms * 2 = 360ms
  */
 BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_to_small, unconnected )
@@ -487,7 +487,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_to_small, uncon
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x05, 0x00,                         // slave latency
+            0x05, 0x00,                         // peripheral latency
             0x23, 0x00,                         // connection timeout 350ms
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -499,7 +499,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_to_small, uncon
     check_not_connected( "no_connection_if_supervision_timeout_is_to_small" );
 }
 
-BOOST_FIXTURE_TEST_CASE( no_connection_if_slave_latency_is_larger_not_less_than_500, unconnected )
+BOOST_FIXTURE_TEST_CASE( no_connection_if_peripheral_latency_is_larger_not_less_than_500, unconnected )
 {
     respond_to(
         37,
@@ -512,7 +512,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_slave_latency_is_larger_not_less_than_
             0x03,                               // transmit window size
             0x0b, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0xf4, 0x01,                         // slave latency
+            0xf4, 0x01,                         // peripheral latency
             0x80, 0x0c,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -521,7 +521,7 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_slave_latency_is_larger_not_less_than_
 
     run();
 
-    check_not_connected( "no_connection_if_slave_latency_is_larger_not_less_than_500" );
+    check_not_connected( "no_connection_if_peripheral_latency_is_larger_not_less_than_500" );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_established_when_window_offset_equals_interval, unconnected )
@@ -537,7 +537,7 @@ BOOST_FIXTURE_TEST_CASE( connection_established_when_window_offset_equals_interv
             0x03,                               // transmit window size
             0x18, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x80, 0x0c,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -567,7 +567,7 @@ BOOST_FIXTURE_TEST_CASE( connect_with_white_list_beeing_empty, server_with_empty
             0x03,                               // transmit window size
             0x18, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x80, 0x0c,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -603,7 +603,7 @@ BOOST_FIXTURE_TEST_CASE( connecting_client_is_in_white_list, server_with_white_l
             0x03,                               // transmit window size
             0x18, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x80, 0x0c,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy
@@ -628,7 +628,7 @@ BOOST_FIXTURE_TEST_CASE( connecting_client_is_not_in_white_list, server_with_whi
             0x03,                               // transmit window size
             0x18, 0x00,                         // window offset
             0x18, 0x00,                         // interval
-            0x00, 0x00,                         // slave latency
+            0x00, 0x00,                         // peripheral latency
             0x80, 0x0c,                         // connection timeout
             0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
             0xaa                                // hop increment and sleep clock accuracy

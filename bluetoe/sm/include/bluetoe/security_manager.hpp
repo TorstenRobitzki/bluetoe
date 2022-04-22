@@ -67,7 +67,7 @@ namespace bluetoe {
             pairing_random,
             pairing_failed,
             encryption_information,
-            master_identification,
+            central_identification,
             identity_information,
             identity_address_information,
             signing_information,
