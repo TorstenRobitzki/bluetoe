@@ -512,6 +512,34 @@ namespace nrf52_details
             : 0;
     }
 
+    std::pair< bool, link_layer::delta_time > radio_hardware_without_crypto_support::can_stop_connection_event_timer( std::uint32_t safety_margin_us )
+    {
+        // the function must decide whether it is possible to stop the setup connection event before the
+        // PPI machinery starts the high frequency oscilator. The decission has better to be on the
+        // safe side, as otherwise, the radio might start transmitting unspecified content.
+        const std::uint32_t counter = nrf_rtc->COUNTER;
+        const std::uint32_t plan    = nrf_rtc->CC[ rtc_cc_start_hfxo ];
+
+        // if counter > plan, then either the osc. was already started, or the counter wraped around
+        const std::uint32_t distance = counter >= plan
+            ? 0x1000000 + plan - counter
+            : plan - counter;
+
+        // if distance is larger that half the counter width, we probably have not a counter wrap
+        if ( distance > 0x800000 )
+            return { false, link_layer::delta_time() };
+
+        const std::uint64_t time = static_cast< std::uint64_t >( distance ) * 1000000 / nrf::lfxo_clk_freq;
+
+        // it is essentional to not underestimate the time from the anchor, otherwise, the setup of the
+        // connection event will fail and result in a timeout, which would lead to an additional delay of
+        // a interval.
+        if ( time > safety_margin_us )
+            return { true, link_layer::delta_time( now() + safety_margin_us ) };
+
+        return { false, link_layer::delta_time() };
+    }
+
     static void setup_long_distance_timer(
         const int           hf_anchor,
         const std::uint32_t lf_anchor,
