@@ -522,7 +522,7 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_PING_REQ                 = 0x12;
         static constexpr std::uint8_t   LL_PING_RSP                 = 0x13;
 
-        static constexpr std::uint8_t   LL_VERSION_NR               = 0x08;
+        static constexpr std::uint8_t   LL_VERSION_NR               = 0x09;
         static constexpr std::uint8_t   LL_VERSION_40               = 0x06;
 
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
