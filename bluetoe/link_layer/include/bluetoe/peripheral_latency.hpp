@@ -41,8 +41,12 @@ namespace link_layer {
     {
         /**
          * @brief listen at the very next connection event if bluetoe
-         * has an available PDU for sending. This reduces the latency
-         * of any available payload.
+         * has an available PDU for sending.
+         *
+         * This reduces the latency of any available payload. If outgoing
+         * payload becomes available while the next connection event was
+         * planned to utilize peripheral latency, the library tries to
+         * reschedule the next connection event to happen earlier.
          */
         listen_if_pending_transmit_data,
 
@@ -121,8 +125,8 @@ namespace link_layer {
      * > gatt_server;
      * @endcode
      *
-     * @sa peripheral_latency
-     * @sa peripheral_latency_configuration_set
+     * @sa bluetoe::link_layer::peripheral_latency
+     * @sa bluetoe::link_layer::peripheral_latency_configuration_set
      */
     template < peripheral_latency ... Options >
     struct peripheral_latency_configuration
@@ -158,7 +162,7 @@ namespace link_layer {
      * }
      * @endcode
      *
-     * @sa peripheral_latency_configuration
+     * @sa bluetoe::link_layer::peripheral_latency_configuration
      */
     template < typename ... Configurations >
     class peripheral_latency_configuration_set
@@ -188,7 +192,7 @@ namespace link_layer {
      *
      * This option will provide lowest latency without any chance to conserve power.
      *
-     * @sa peripheral_latency_configuration
+     * @sa bluetoe::link_layer::peripheral_latency_configuration
      */
     using peripheral_latency_ignored = peripheral_latency_configuration<
         peripheral_latency::listen_always
@@ -209,7 +213,7 @@ namespace link_layer {
      * This option provided lowest power consumption while providing better transmitting latency compared
      * to having a connection interval equal to peripheral latency + 1 * interval.
      *
-     * @sa peripheral_latency_always_listening
+     * @sa bluetoe::link_layer::peripheral_latency_always_listening
      */
     using peripheral_latency_strict = peripheral_latency_configuration<
         peripheral_latency::listen_if_pending_transmit_data,
@@ -228,14 +232,25 @@ namespace link_layer {
      * to having a connection interval equal to peripheral latency + 1 * interval. Compared to
      * peripheral_latency_strict, this might increase the receiving bandwidth.
      *
-     * @sa peripheral_latency_always_listening
-     * @sa peripheral_latency_strict
+     * @sa bluetoe::link_layer::peripheral_latency_always_listening
+     * @sa bluetoe::link_layer::peripheral_latency_strict
      */
     using peripheral_latency_strict_plus = peripheral_latency_configuration<
         peripheral_latency::listen_if_last_received_not_empty,
         peripheral_latency::listen_if_last_received_had_more_data
     >;
 
+    /**
+     * @brief Default peripheral latency configuration
+     *
+     * This configuration is used by bluetoe::link_layer::link_layer.
+     *
+     * @sa bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data
+     * @sa bluetoe::link_layer::peripheral_latency::listen_if_unacknowledged_data
+     * @sa bluetoe::link_layer::peripheral_latency::listen_if_last_received_not_empty
+     * @sa bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
+     * @sa bluetoe::link_layer::peripheral_latency::listen_if_last_received_had_more_data
+     */
     using periperal_latency_default_configuration = peripheral_latency_configuration<
         peripheral_latency::listen_if_pending_transmit_data,
         peripheral_latency::listen_if_unacknowledged_data,
