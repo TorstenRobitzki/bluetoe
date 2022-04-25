@@ -55,26 +55,36 @@ namespace link_layer {
      * - A public, default constructible type `connection`
      * - A public, none static member function:
      *
-     *   void ll_synchronized_callback( unsigned instant, connection& )
+     *   unsigned ll_synchronized_callback( unsigned instant, connection& )
      *
      * - Optional, T contains the following public, none static memberfunctions:
      *
-     *   connection ll_synchronized_callback_connect()
-     *   void ll_synchronized_callback_period_update( bluetoe::link_layer::delta_time period, connection& )
+     *   connection ll_synchronized_callback_connect(
+     *                  bluetoe::link_layer::delta_time connection_interval,
+     *                  unsigned                        calls_per_interval )
+     *
+     *   void ll_synchronized_callback_period_update(
+     *                  bluetoe::link_layer::delta_time connection_interval,
+     *                  unsigned                        calls_per_interval,
+     *                  connection& )
+     *
      *   void ll_synchronized_callback_disconnect( connection& )
      *
      * @tparam Obj A reference to an instance of T on which the specified functions will be called.
      *
-     * @tparam MinimumPeriodUS The minimum period at which the callback shall be called, given in µs.
-     *         If MinimumPeriodUS is larger than the connections interval, the callback will be called
-     *         once every connection interval. If MinimumPeriodUS is smaller than the current connections
+     * @tparam MaximumPeriodUS The maximum period at which the callback shall be called, given in µs.
+     *         If MaximumPeriodUS is larger than the connections interval, the callback will be called
+     *         once every connection interval. If MaximumPeriodUS is smaller than the current connections
      *         interval, the callback will be called multiple times with a fixed period. The period is
-     *         chosen to be smaller than or equal to the given MinimumPeriodUS and so that a whole number
+     *         chosen to be smaller than or equal to the given MaximumPeriodUS and so that a whole number
      *         of calls fit into the connection interval.
      *
-     *         Example: Connection Interval = 22.5ms, MinimumPeriodUS = 4ms
-     *                      => Effective Period = 3.75ms
+     *         Example: Connection Interval = 22.5ms, MaximumPeriodUS = 4ms
+     *                      => Effective Period = 3.75ms (callback will be call 6 times)
      *
+     *         Example: Connection Interval = 22.5ms, MaximumPeriodUS = 25ms
+     *                      => Effective Period = 22.5ms (callback will be call once)
+
      *         If the connections interval changes, the period at which the callback is called also
      *         changes. The callback will be called irespectable of the connection event. Even when the
      *         connect event times out or is planned to not happen, due to peripheral latency applied.
@@ -93,23 +103,39 @@ namespace link_layer {
      *         If PhaseShiftUS is negativ, a compiletime check tests that the execution of the callback
      *         will not run into the setup of the connection event.
      *
-     * Once a new connection is established, Obj.ll_synchronized_callback_connect() is called (if given).
+     * Once a new connection is established, Obj.ll_synchronized_callback_connect() is called (if given)
+     * with the connection interval and the number of times, the callback will be called during one interval.
+     * ll_synchronized_callback_connect() have to return the initial value of `connection`.
+     *
      * If the connection is closed, Obj.ll_synchronized_callback_disconnect() is called with the instance of
      * `connection` that was created by ll_synchronized_callback_connect(). If T does not provide
      * ll_synchronized_callback_connect(), a `connection` is default constructed.
      *
-     * If the connection interval changes, Obj.ll_synchronized_callback_period_update() is called (if given).
+     * If the connection interval changes, Obj.ll_synchronized_callback_period_update() is called (if given)
+     * with the connection interval and the number of times, the callback will be called during one interval.
+     *
+     * ll_synchronized_callback() will be call with the first parameter beeing 0 for the first invokation
+     * after the connection event and then with increased values until the value calls_per_interval - 1
+     * is reached (calls_per_interval can be obtained by having ll_synchronized_callback_connect() and
+     * ll_synchronized_callback_period_update() defined). The return value of ll_synchronized_callback()
+     * denotes the number of times, the invokation of the callback should be omitted. For example, when
+     * ll_synchronized_callback() returns 2, two planned callback invokaions are omitted until the callback
+     * is called again.
      *
      * If the anchor is going to move due to a planned connection update procedure, there is danger
      * of overlapping calls to the callback due to the uncertency given by the range of transmission
      * window size and offset. In this case, the last callback call before the instant of the update will
-     * be ommitted.
+     * be ommitted. And the next time, the callback will be called, is after the first connection event
+     * with updated connection parameters toke place.
      *
      * @note This feature requires support by the hardware abstraction and thus might not be available
      * on all plattforms.
      *
      * @note due to connection parameter updates, there is no guaranty, that the callback will be
      *       called with the requested MinimumPeriodUS.
+     *
+     * @note All callbacks will be called from the very same execution context (thus there is no need
+     * for synchronization between calls). The context is defined by the hardware and unspecified.
      */
     template < typename T, T& Obj, unsigned MinimumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
     struct synchronized_connection_event_callback
