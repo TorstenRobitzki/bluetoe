@@ -231,6 +231,11 @@ namespace link_layer {
          * @brief indication no support for encryption
          */
         static constexpr bool hardware_supports_encryption = false;
+
+        /**
+         * @brief indicates support for 2Mbit
+         */
+        static constexpr bool hardware_supports_2mbit = true;
     };
 
     /**

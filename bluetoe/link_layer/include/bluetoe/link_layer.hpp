@@ -252,6 +252,19 @@ namespace link_layer {
             using link_state = bluetoe::details::link_state_no_security;
         };
 
+        /*
+         * The Part of link layer, that handles PHY update requests
+         */
+        struct phy_update_request_impl
+        {
+
+        };
+
+        struct no_phy_update_request_impl
+        {
+
+        };
+
         template < class Server, class LinkLayer >
         using select_link_layer_security_impl =
             typename bluetoe::details::select_type<
@@ -267,6 +280,14 @@ namespace link_layer {
                 link_layer_security_impl,
                 link_layer_no_security_impl
             >::type::link_state;
+
+        template < class Radio >
+        using select_phy_update_impl =
+            typename bluetoe::details::select_type<
+                Radio::hardware_supports_2mbit,
+                phy_update_request_impl,
+                no_phy_update_request_impl
+            >::type;
 
         template <
             class Server,
@@ -350,7 +371,12 @@ namespace link_layer {
         public details::l2cap_layer< Server, ScheduledRadio, Options... >::impl,
         private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
         private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >,
-        public details::connection_latency_state_t< Options... >
+        public details::connection_latency_state_t< Options... >,
+        private details::select_phy_update_impl< ScheduledRadio<
+                details::buffer_sizes< Options... >::tx_size,
+                details::buffer_sizes< Options... >::rx_size,
+                link_layer< Server, ScheduledRadio, Options... >
+            > >
     {
     public:
         link_layer();
@@ -1122,12 +1148,16 @@ namespace link_layer {
             {
                 used_features_ = used_features_ & body[ 1 ];
 
+                static constexpr std::uint8_t LE_2M_PHY = 0x01;
+
                 fill< layout_t >( write, {
                     ll_control_pdu_code, 9,
                     LL_FEATURE_RSP,
                     used_features_,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                    static_cast< std::uint8_t >( this->hardware_supports_2mbit ? LE_2M_PHY : 0x00 ),
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
+
             }
             else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 && body[ 1 ] == LL_CONNECTION_PARAM_REQ )
                 || opcode == LL_REJECT_IND

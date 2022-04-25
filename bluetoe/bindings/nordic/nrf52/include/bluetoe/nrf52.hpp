@@ -481,6 +481,10 @@ namespace bluetoe
 
             using lock_guard = typename Hardware::lock_guard;
 
+            /**
+             * @brief indicates support for 2Mbit
+             */
+            static constexpr bool hardware_supports_2mbit = true;
         private:
             using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
                 nrf::nrf_details::sleep_clock_source_meta_type,
