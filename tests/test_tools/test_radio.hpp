@@ -109,6 +109,7 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const pdu_t& data );
     std::ostream& operator<<( std::ostream& out, const pdu_list_t& data );
+    std::ostream& operator<<( std::ostream& out, bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t phy );
 
     struct connection_event
     {
@@ -119,6 +120,9 @@ namespace test {
         bluetoe::link_layer::delta_time     start_receive;
         bluetoe::link_layer::delta_time     end_receive;
         bluetoe::link_layer::delta_time     connection_interval;
+
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding;
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmission_encoding;
 
         std::uint32_t                       access_address;
         std::uint32_t                       crc_init;
@@ -311,6 +315,10 @@ namespace test {
         void increment_receive_packet_counter() {}
         void increment_transmit_packet_counter() {}
 
+        void radio_set_phy(
+            bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+            bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+
     protected:
         typedef std::vector< advertising_data > advertising_list;
         advertising_list advertised_data_;
@@ -330,6 +338,9 @@ namespace test {
         std::uint8_t    central_sequence_number_    = 0;
         std::uint8_t    central_ne_sequence_number_ = 0;
 
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t    receiving_encoding_;
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t    transmiting_encoding_;
+
         static constexpr std::size_t ll_header_size = 2;
 
         // end of simulations
@@ -343,6 +354,7 @@ namespace test {
             const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const;
 
         std::pair< bool, advertising_response > find_response( const advertising_data& );
+
     };
 
     /**
@@ -601,6 +613,8 @@ namespace test {
             start_receive,
             end_receive,
             connection_interval,
+            receiving_encoding_,
+            transmiting_encoding_,
             access_address_,
             crc_init_,
             pdu_list_t(),

@@ -5,6 +5,7 @@
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_l2cap_sdu_buffer.hpp>
 #include <bluetoe/ll_options.hpp>
+#include <bluetoe/phy_encodings.hpp>
 #include <bluetoe/address.hpp>
 #include <bluetoe/channel_map.hpp>
 #include <bluetoe/notification_queue.hpp>
@@ -257,12 +258,92 @@ namespace link_layer {
          */
         struct phy_update_request_impl
         {
+            template < class LL >
+            bool handle_phy_request( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write, LL& link_layer )
+            {
+                assert( link_layer.defered_ll_control_pdu_.buffer == nullptr );
 
+                using layout_t = typename pdu_layout_by_radio< typename LL::radio_t >::pdu_layout;
+
+                if ( opcode == LL::LL_PHY_REQ && size == 3 )
+                {
+                    fill< layout_t >( write, {
+                        LL::ll_control_pdu_code, 3,
+                        LL::LL_PHY_RSP,
+                        phy_ll_encoding::le_1m_phy | phy_ll_encoding::le_2m_phy,
+                        phy_ll_encoding::le_1m_phy | phy_ll_encoding::le_2m_phy } );
+
+                    return true;
+                }
+
+                if ( opcode == LL::LL_PHY_UPDATE_IND && size == 5 )
+                {
+                    const std::uint8_t* const pdu_body = layout_t::body( pdu ).first;
+
+                    const std::uint8_t c_to_p = pdu_body[ 1 ];
+                    const std::uint8_t p_to_c = pdu_body[ 2 ];
+
+                    if ( !valid_phy_encoding( c_to_p ) || !valid_phy_encoding( p_to_c ) )
+                        return false;
+
+                    if ( c_to_p == details::phy_ll_encoding::le_unchanged_coding
+                      && p_to_c == details::phy_ll_encoding::le_unchanged_coding )
+                        return true;
+
+                    link_layer.defered_ll_control_pdu_     = pdu;
+                    link_layer.defered_conn_event_counter_ = LL::read_16( pdu_body + 3 );
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            template < class LL >
+            bool handle_pending_phy_request( std::uint8_t opcode, LL& link_layer )
+            {
+                assert( link_layer.defered_ll_control_pdu_.buffer );
+
+                using layout_t = typename pdu_layout_by_radio< typename LL::radio_t >::pdu_layout;
+
+                if ( opcode == LL::LL_PHY_UPDATE_IND )
+                {
+                    const std::uint8_t* const pdu_body = layout_t::body( link_layer.defered_ll_control_pdu_ ).first;
+
+                    const auto c_to_p = static_cast< phy_ll_encoding::phy_ll_encoding_t >( pdu_body[ 1 ] );
+                    const auto p_to_c = static_cast< phy_ll_encoding::phy_ll_encoding_t >( pdu_body[ 2 ] );
+
+                    link_layer.defered_ll_control_pdu_ = { nullptr, 0 };
+                    link_layer.radio_set_phy( c_to_p, p_to_c );
+
+                    return true;
+                }
+
+                return false;
+            }
+
+        private:
+            bool valid_phy_encoding( std::uint8_t c ) const
+            {
+                return c == 0
+                    || c == phy_ll_encoding::le_1m_phy
+                    || c == phy_ll_encoding::le_2m_phy;
+            }
         };
 
         struct no_phy_update_request_impl
         {
+            template < class LL >
+            bool handle_phy_request( std::uint8_t, std::uint8_t, const write_buffer&, read_buffer, LL& )
+            {
+                return false;
+            }
 
+            template < class LL >
+            bool handle_pending_phy_request( std::uint8_t, LL& )
+            {
+                return false;
+            }
         };
 
         template < class Server, class LinkLayer >
@@ -468,6 +549,11 @@ namespace link_layer {
     private:
 
         friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
+        friend details::select_phy_update_impl< ScheduledRadio<
+                details::buffer_sizes< Options... >::tx_size,
+                details::buffer_sizes< Options... >::rx_size,
+                link_layer< Server, ScheduledRadio, Options... >
+            > >;
 
         static_assert(
             std::is_same<
@@ -547,6 +633,9 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_REJECT_IND_EXT           = 0x11;
         static constexpr std::uint8_t   LL_PING_REQ                 = 0x12;
         static constexpr std::uint8_t   LL_PING_RSP                 = 0x13;
+        static constexpr std::uint8_t   LL_PHY_REQ                  = 0x16;
+        static constexpr std::uint8_t   LL_PHY_RSP                  = 0x17;
+        static constexpr std::uint8_t   LL_PHY_UPDATE_IND           = 0x18;
 
         static constexpr std::uint8_t   LL_VERSION_NR               = 0x09;
         static constexpr std::uint8_t   LL_VERSION_40               = 0x06;
@@ -1192,6 +1281,10 @@ namespace link_layer {
             {
                 // all encryption PDU handled in handle_encryption_pdus()
             }
+            else if ( this->handle_phy_request( opcode, size, pdu, write, *this ) )
+            {
+                // all phy PDU handled in handle_phy_reqest
+            }
             else if ( opcode != LL_UNKNOWN_RSP )
             {
                 fill< layout_t >( write, { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
@@ -1234,6 +1327,9 @@ namespace link_layer {
                 {
                     result = ll_result::disconnect;
                 }
+            }
+            else if ( this->handle_pending_phy_request( opcode, *this ) )
+            {
             }
             else
             {
