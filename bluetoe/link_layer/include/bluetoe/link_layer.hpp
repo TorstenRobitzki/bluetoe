@@ -501,6 +501,13 @@ namespace link_layer {
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
 
         /**
+         * @brief initiates a PHY Update Procedure to request to upgrade the PHY to 2MBit.
+         *
+         * The update procedure is started as soon as possible.
+         */
+        bool phy_update_request_to_2mbit();
+
+        /**
          * @brief terminates the give connection
          *
          * @todo Add parameter that identifies the connection.
@@ -700,6 +707,7 @@ namespace link_layer {
         std::uint16_t                   proposed_timeout_;
         bool                            connection_parameters_request_pending_;
         bool                            connection_parameters_request_running_;
+        bool                            phy_update_request_pending_;
 
         // default configuration parameters
         typedef                         advertising_interval< 100 >         default_advertising_interval;
@@ -730,6 +738,7 @@ namespace link_layer {
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
         , connection_parameters_request_running_( false )
+        , phy_update_request_pending_( false )
     {
         this->notification_callback( queue_lcap_notification, this );
     }
@@ -776,6 +785,7 @@ namespace link_layer {
                 used_features_                          = supported_features;
                 connection_parameters_request_pending_  = false;
                 connection_parameters_request_running_  = false;
+                phy_update_request_pending_             = false;
                 pending_event_                          = false;
 
                 this->set_access_address_and_crc_init( read_32( &body[ 12 ] ), read_24( &body[ 16 ] ) );
@@ -909,6 +919,19 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::phy_update_request_to_2mbit()
+    {
+        if ( phy_update_request_pending_ )
+            return false;
+
+        phy_update_request_pending_ = true;
+        this->wake_up();
+
+        return true;
+
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::disconnect()
     {
         state_            = state::disconnecting;
@@ -956,7 +979,7 @@ namespace link_layer {
     {
         static constexpr std::uint8_t connection_param_req_size = 24u;
 
-        if ( !connection_parameters_request_pending_ )
+        if ( !connection_parameters_request_pending_ && !phy_update_request_pending_ )
             return;
 
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
@@ -968,25 +991,38 @@ namespace link_layer {
             return;
         }
 
-        connection_parameters_request_pending_ = false;
-        connection_parameters_request_running_ = true;
+        if ( connection_parameters_request_pending_ )
+        {
+            connection_parameters_request_pending_ = false;
+            connection_parameters_request_running_ = true;
 
-        fill< layout_t >( out_buffer, {
-            ll_control_pdu_code, connection_param_req_size, LL_CONNECTION_PARAM_REQ,
-            static_cast< std::uint8_t >( proposed_interval_min_ ),
-            static_cast< std::uint8_t >( proposed_interval_min_ >> 8 ),
-            static_cast< std::uint8_t >( proposed_interval_max_ ),
-            static_cast< std::uint8_t >( proposed_interval_max_ >> 8 ),
-            static_cast< std::uint8_t >( proposed_latency_ ),
-            static_cast< std::uint8_t >( proposed_latency_ >> 8 ),
-            static_cast< std::uint8_t >( proposed_timeout_ ),
-            static_cast< std::uint8_t >( proposed_timeout_ >> 8 ),
-            0x00,                                   // PreferredPeriodicity (none)
-            0x00, 0x00,                             // ReferenceConnEventCount
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff } );
+            fill< layout_t >( out_buffer, {
+                ll_control_pdu_code, connection_param_req_size, LL_CONNECTION_PARAM_REQ,
+                static_cast< std::uint8_t >( proposed_interval_min_ ),
+                static_cast< std::uint8_t >( proposed_interval_min_ >> 8 ),
+                static_cast< std::uint8_t >( proposed_interval_max_ ),
+                static_cast< std::uint8_t >( proposed_interval_max_ >> 8 ),
+                static_cast< std::uint8_t >( proposed_latency_ ),
+                static_cast< std::uint8_t >( proposed_latency_ >> 8 ),
+                static_cast< std::uint8_t >( proposed_timeout_ ),
+                static_cast< std::uint8_t >( proposed_timeout_ >> 8 ),
+                0x00,                                   // PreferredPeriodicity (none)
+                0x00, 0x00,                             // ReferenceConnEventCount
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff } );
 
-        this->commit_ll_transmit_buffer( out_buffer );
+            this->commit_ll_transmit_buffer( out_buffer );
+        }
+        else if ( phy_update_request_pending_ )
+        {
+            phy_update_request_pending_ = false;
+
+            fill< layout_t >( out_buffer, {
+                ll_control_pdu_code, 3, LL_PHY_REQ,
+                details::phy_ll_encoding::le_2m_phy, details::phy_ll_encoding::le_2m_phy } );
+
+            this->commit_ll_transmit_buffer( out_buffer );
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

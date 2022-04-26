@@ -22,11 +22,30 @@ using small_temperature_service = bluetoe::server<
 
 void start_temperatur_messurement();
 
+struct callbacks_t {
+    template < typename ConnectionData >
+    void ll_connection_established(
+        const bluetoe::link_layer::connection_details&   details,
+        const bluetoe::link_layer::connection_addresses& addresses,
+              ConnectionData&                            connection );
+
+} callbacks;
+
 bluetoe::device<
     small_temperature_service,
     bluetoe::link_layer::advertising_interval< 250u >,
-    bluetoe::link_layer::static_address< 0xf0, 0xa6, 0xd5, 0x4f, 0x60, 0x0b >
+    bluetoe::link_layer::static_address< 0xf0, 0xa6, 0xd5, 0x4f, 0x60, 0x0b >,
+    bluetoe::link_layer::connection_callbacks< callbacks_t, callbacks >
 > server;
+
+template < typename ConnectionData >
+void callbacks_t::ll_connection_established(
+    const bluetoe::link_layer::connection_details&   ,
+    const bluetoe::link_layer::connection_addresses& ,
+          ConnectionData&                             )
+{
+    server.phy_update_request_to_2mbit();
+}
 
 int main()
 {
