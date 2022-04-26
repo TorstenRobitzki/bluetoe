@@ -292,8 +292,6 @@ namespace link_layer {
 
                     link_layer.defered_ll_control_pdu_     = pdu;
                     link_layer.defered_conn_event_counter_ = LL::read_16( pdu_body + 3 );
-
-                    return true;
                 }
 
                 return false;
@@ -1333,6 +1331,7 @@ namespace link_layer {
             }
             else
             {
+                // This is an assert, as the opcode was already checked in handle_ll_control_data()
                 assert( !"invalid opcode" );
             }
 
