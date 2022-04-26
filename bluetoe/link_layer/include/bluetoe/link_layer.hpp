@@ -320,6 +320,12 @@ namespace link_layer {
                 return false;
             }
 
+            template < class LL >
+            void reset_phy( LL& link_layer )
+            {
+                link_layer.radio_set_phy( phy_ll_encoding::le_1m_phy, phy_ll_encoding::le_1m_phy );
+            }
+
         private:
             bool valid_phy_encoding( std::uint8_t c ) const
             {
@@ -342,6 +348,10 @@ namespace link_layer {
             {
                 return false;
             }
+
+            template < class LL >
+            void reset_phy( LL& )
+            {}
         };
 
         template < class Server, class LinkLayer >
@@ -1123,6 +1133,7 @@ namespace link_layer {
     {
         this->reset_encryption();
         this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
+        this->reset_phy( *this );
         start_advertising_impl();
     }
 
