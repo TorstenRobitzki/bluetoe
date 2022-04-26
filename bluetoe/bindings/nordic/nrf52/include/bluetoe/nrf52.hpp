@@ -157,6 +157,10 @@ namespace bluetoe
                 return false;
             }
 
+            static void set_phy(
+                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
              *
@@ -204,12 +208,18 @@ namespace bluetoe
                 const std::uint32_t context_;
             };
 
+
+        protected:
+            static bool          receive_2mbit_;
+            static bool          transmit_2mbit_;
+
         private:
 
             // as the end of the PDU is captured and the start of the connection event
             // then calculated based on the PDU size, HF frequency domain anchor can be negativ
             static int           hf_connection_event_anchor_;
             static std::uint32_t lf_connection_event_anchor_;
+
         };
 
         /**
@@ -479,8 +489,19 @@ namespace bluetoe
                 evt_timeout_ = true;
             }
 
+            void radio_set_phy(
+                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding )
+            {
+                Hardware::set_phy( receiving_encoding, transmiting_c_encoding );
+            }
+
             using lock_guard = typename Hardware::lock_guard;
 
+            /**
+             * @brief indicates support for 2Mbit
+             */
+            static constexpr bool hardware_supports_2mbit = true;
         private:
             using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
                 nrf::nrf_details::sleep_clock_source_meta_type,

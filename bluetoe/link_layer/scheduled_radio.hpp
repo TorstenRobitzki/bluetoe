@@ -220,6 +220,11 @@ namespace link_layer {
         bool radio_is_scan_request_in_filter( const device_address& addr ) const;
 
         /**
+         * @brief change the used PHY encoding for the transmitting and receiving side
+         */
+        void radio_set_phy( details::phy_ll_encoding receiving_encoding, details::phy_ll_encoding transmiting_c_encoding );
+
+        /**
          * @brief a number of bytes that are additional required by the hardware to handle an over the air package/PDU.
          *
          * This number includes every byte that have to stored in a package to meet the requirments of the hardware,
@@ -231,6 +236,11 @@ namespace link_layer {
          * @brief indication no support for encryption
          */
         static constexpr bool hardware_supports_encryption = false;
+
+        /**
+         * @brief indicates support for 2Mbit
+         */
+        static constexpr bool hardware_supports_2mbit = true;
     };
 
     /**

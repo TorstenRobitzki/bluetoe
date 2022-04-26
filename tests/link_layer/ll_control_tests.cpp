@@ -32,7 +32,7 @@ BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
         {
             0x03, 0x06,
             0x0C,               // LL_VERSION_IND
-            0x08,               // VersNr = Core Specification 4.2
+            0x09,               // VersNr = Core Specification 5.0
             0x69, 0x02,         // CompId
             0x00, 0x00          // SubVersNr
         },

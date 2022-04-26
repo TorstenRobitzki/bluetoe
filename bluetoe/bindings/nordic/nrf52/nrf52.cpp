@@ -394,6 +394,9 @@ namespace nrf52_details
         init_timer();
         init_ppi();
 
+        receive_2mbit_  = false;
+        transmit_2mbit_ = false;
+
         enable_interrupts( isr, that );
     }
 
@@ -413,6 +416,9 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::configure_transmit_train(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        nrf_radio->MODE        =
+            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
         nrf_radio->SHORTS      =
             RADIO_SHORTS_READY_START_Msk
           | RADIO_SHORTS_END_DISABLE_Msk
@@ -433,6 +439,9 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::configure_final_transmit(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        nrf_radio->MODE        =
+            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
         nrf_radio->SHORTS =
             RADIO_SHORTS_READY_START_Msk
           | RADIO_SHORTS_END_DISABLE_Msk;
@@ -446,6 +455,9 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::configure_receive_train(
         const bluetoe::link_layer::read_buffer& receive_buffer )
     {
+        nrf_radio->MODE        =
+            ( receive_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
         nrf_radio->SHORTS      =
             RADIO_SHORTS_READY_START_Msk
           | RADIO_SHORTS_END_DISABLE_Msk
@@ -538,6 +550,17 @@ namespace nrf52_details
             return { true, link_layer::delta_time( now() + safety_margin_us ) };
 
         return { false, link_layer::delta_time() };
+    }
+
+    void radio_hardware_without_crypto_support::set_phy(
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_encoding )
+    {
+        if ( receiving_encoding != bluetoe::link_layer::details::phy_ll_encoding::le_unchanged_coding )
+            receive_2mbit_ = receiving_encoding;
+
+        if ( transmiting_encoding != bluetoe::link_layer::details::phy_ll_encoding::le_unchanged_coding )
+            transmit_2mbit_ = transmiting_encoding;
     }
 
     static void setup_long_distance_timer(
@@ -675,6 +698,9 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
+
+    bool          radio_hardware_without_crypto_support::receive_2mbit_;
+    bool          radio_hardware_without_crypto_support::transmit_2mbit_;
     int           radio_hardware_without_crypto_support::hf_connection_event_anchor_;
     std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
 
@@ -734,6 +760,9 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_transmit_train(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        nrf_radio->MODE        =
+            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
         nrf_radio->SHORTS      =
             RADIO_SHORTS_READY_START_Msk
           | RADIO_SHORTS_END_DISABLE_Msk
@@ -756,6 +785,9 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_final_transmit(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        nrf_radio->MODE        =
+            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
         nrf_ppi->CHENCLR        = all_preprogramed_ppi_channels_mask;
 
         nrf_radio->SHORTS =
@@ -798,6 +830,9 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_receive_train(
         const bluetoe::link_layer::read_buffer&     receive_buffer )
     {
+        nrf_radio->MODE        =
+            ( receive_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
         if ( receive_encrypted_ )
         {
             receive_counter_.copy_to( &ccm_data_struct.data[ ccm_packet_counter_offset ] );
