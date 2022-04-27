@@ -707,7 +707,6 @@ namespace link_layer {
             initial,
             advertising,
             connecting,
-            connection_update,
             connected,
             disconnecting
         }                               state_;
@@ -826,7 +825,7 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting );
 
         const auto time_since_last_event = this->time_since_last_event();
 
@@ -855,7 +854,7 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::connection_update || state_ == state::disconnecting );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting );
 
         if ( state_ == state::connecting )
         {
@@ -1364,8 +1363,6 @@ namespace link_layer {
             {
                 if ( parse_timing_parameters_from_connection_update_request( body ) )
                 {
-                    state_ = state::connection_update;
-
                     this->connection_changed( details(), connection_data_, static_cast< radio_t& >( *this ) );
                 }
                 else
