@@ -129,6 +129,8 @@ namespace link_layer {
 
                 bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer write, bool& commit )
                 {
+                    using namespace ::bluetoe::details;
+
                     using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
                     bool encryption_changed = false;
@@ -140,10 +142,10 @@ namespace link_layer {
 
                         const std::uint8_t* const pdu_body = layout_t::body( pdu ).first;
 
-                        const std::uint64_t rand = LinkLayer::read_64( pdu_body +1 );
-                        const std::uint16_t ediv = LinkLayer::read_16( pdu_body +9 );
-                        const std::uint64_t skdm = LinkLayer::read_64( pdu_body +11 );
-                        const std::uint32_t ivm  = LinkLayer::read_32( pdu_body +19 );
+                        const std::uint64_t rand = read_64bit( pdu_body +1 );
+                        const std::uint16_t ediv = read_16bit( pdu_body +9 );
+                        const std::uint64_t skdm = read_64bit( pdu_body +11 );
+                        const std::uint32_t ivm  = read_32bit( pdu_body +19 );
                               std::uint64_t skds = 0;
                               std::uint32_t ivs  = 0;
 
@@ -292,7 +294,7 @@ namespace link_layer {
                         return true;
 
                     link_layer.defered_ll_control_pdu_     = pdu;
-                    link_layer.defered_conn_event_counter_ = LL::read_16( pdu_body + 3 );
+                    link_layer.defered_conn_event_counter_ = ::bluetoe::details::read_16bit( pdu_body + 3 );
 
                     return true;
                 }
@@ -618,12 +620,6 @@ namespace link_layer {
 
         connection_details details() const;
 
-        // TODO should be moved to somewhere else
-        static std::uint16_t read_16( const std::uint8_t* );
-        static std::uint32_t read_24( const std::uint8_t* );
-        static std::uint32_t read_32( const std::uint8_t* );
-        static std::uint64_t read_64( const std::uint8_t* );
-
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       num_windows_til_timeout     = 5;
         static constexpr auto           us_per_digits               = 1250;
@@ -776,6 +772,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::adv_received( const read_buffer& receive )
     {
+        using namespace ::bluetoe::details;
+
         assert( state_ == state::advertising );
 
         device_address remote_address;
@@ -798,7 +796,7 @@ namespace link_layer {
                 phy_update_request_pending_             = false;
                 pending_event_                          = false;
 
-                this->set_access_address_and_crc_init( read_32( &body[ 12 ] ), read_24( &body[ 16 ] ) );
+                this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
 
                 this->reset_pdu_buffer();
                 setup_next_connection_event();
@@ -1102,13 +1100,15 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body )
     {
-        const delta_time transmit_window_offset = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits );
+        using namespace ::bluetoe::details;
+
+        const delta_time transmit_window_offset = delta_time( read_16bit( &valid_connect_request_body[ 20 ] ) * us_per_digits );
 
         transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
-        connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
-        peripheral_latency_     = read_16( &valid_connect_request_body[ 24 ] );
-        timeout_value_          = read_16( &valid_connect_request_body[ 26 ] );
+        transmit_window_offset_ = delta_time( read_16bit( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
+        connection_interval_    = delta_time( read_16bit( &valid_connect_request_body[ 22 ] ) * us_per_digits );
+        peripheral_latency_     = read_16bit( &valid_connect_request_body[ 24 ] );
+        timeout_value_          = read_16bit( &valid_connect_request_body[ 26 ] );
         connection_timeout_     = delta_time( timeout_value_ * 10000 );
 
         return transmit_window_offset <= connection_interval_ && check_timing_paremeters();
@@ -1117,11 +1117,13 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_update_request )
     {
+        using namespace ::bluetoe::details;
+
         transmit_window_size_   = delta_time( valid_update_request[ 1 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16( &valid_update_request[ 2 ] ) * us_per_digits );
-        connection_interval_    = delta_time( read_16( &valid_update_request[ 4 ] ) * us_per_digits );
-        peripheral_latency_     = read_16( &valid_update_request[ 6 ] );
-        timeout_value_          = read_16( &valid_update_request[ 8 ] );
+        transmit_window_offset_ = delta_time( read_16bit( &valid_update_request[ 2 ] ) * us_per_digits );
+        connection_interval_    = delta_time( read_16bit( &valid_update_request[ 4 ] ) * us_per_digits );
+        peripheral_latency_     = read_16bit( &valid_update_request[ 6 ] );
+        timeout_value_          = read_16bit( &valid_update_request[ 8 ] );
         connection_timeout_     = delta_time( timeout_value_ * 10000 );
 
         return transmit_window_offset_ <= connection_interval_ && check_timing_paremeters();
@@ -1231,7 +1233,7 @@ namespace link_layer {
 
             if ( opcode == LL_CONNECTION_UPDATE_REQ && size == 12 )
             {
-                defered_conn_event_counter_ = read_16( &body[ 10 ] );
+                defered_conn_event_counter_ = bluetoe::details::read_16bit( &body[ 10 ] );
                 commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() + 1 ) & 0x8000
@@ -1261,7 +1263,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {
-                defered_conn_event_counter_ = read_16( &body[ 6 ] );
+                defered_conn_event_counter_ = bluetoe::details::read_16bit( &body[ 6 ] );
                 commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() ) & 0x8000 )
@@ -1394,30 +1396,6 @@ namespace link_layer {
             peripheral_latency_,
             timeout_value_,
             cumulated_sleep_clock_accuracy_ );
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint16_t link_layer< Server, ScheduledRadio, Options... >::read_16( const std::uint8_t* p )
-    {
-        return *p | *( p + 1 ) << 8;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_24( const std::uint8_t* p )
-    {
-        return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( *( p + 2 ) ) << 16;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint32_t link_layer< Server, ScheduledRadio, Options... >::read_32( const std::uint8_t* p )
-    {
-        return static_cast< std::uint32_t >( read_16( p ) ) | static_cast< std::uint32_t >( read_16( p + 2 ) ) << 16;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    std::uint64_t link_layer< Server, ScheduledRadio, Options... >::read_64( const std::uint8_t* p )
-    {
-        return static_cast< std::uint64_t >( read_32( p ) ) | static_cast< std::uint64_t >( read_32( p + 4 ) ) << 32;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
