@@ -21,10 +21,21 @@ namespace details {
         return read_handle( h );
     }
 
+    constexpr std::uint32_t read_24bit( const std::uint8_t* h )
+    {
+        return static_cast< std::uint32_t >( read_16bit( h ) ) | ( static_cast< std::uint32_t >( *( h + 2 ) ) << 16 );
+    }
+
     constexpr std::uint32_t read_32bit( const std::uint8_t* p )
     {
         return static_cast< std::uint32_t >( read_16bit( p ) )
              | ( static_cast< std::uint32_t >( read_16bit( p + 2 ) ) << 16 );
+    }
+
+    constexpr std::uint64_t read_64bit( const std::uint8_t* p )
+    {
+        return static_cast< std::uint64_t >( read_32bit( p ) )
+             | ( static_cast< std::uint64_t >( read_32bit( p + 4 ) ) << 32 );
     }
 
     inline std::uint8_t* write_handle( std::uint8_t* out, std::uint16_t handle )

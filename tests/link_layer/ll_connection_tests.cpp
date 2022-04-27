@@ -312,7 +312,7 @@ struct connected_and_valid_connection_update_request : unconnected
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_transmit_window, connected_and_valid_connection_update_request_with_peripheral_latency )
 {
-    // The first event happend is 0 on which a the connection update is send, the second is 1, due to
+    // The first event happend is 0 on which the connection update is send, the second is 1, due to
     // the outstanding acknowledgment, the third will then be at instance 3
     auto const evt = connection_events()[ 6 ];
 

@@ -85,7 +85,8 @@ namespace test {
     {
         out << "schedule_time: " << data.schedule_time << "; channel: " << data.channel
             << "\nstart_receive: " << data.start_receive << "; end_receive: " << data.end_receive << "; connection_interval: " << data.connection_interval
-            << "\nrx-encrypt: " << data.receive_encryption_at_start_of_event << "; tx-encrypt: " << data.transmit_encryption_at_start_of_event
+            << "\nc->p: " << data.receiving_encoding << "; p->: " << data.transmission_encoding
+            << "; rx-encrypt: " << data.receive_encryption_at_start_of_event << "; tx-encrypt: " << data.transmit_encryption_at_start_of_event
             << "\nreceived_data:\n";
 
         for ( const auto& pdu: data.received_data )
@@ -124,6 +125,28 @@ namespace test {
         for ( const auto& p : data )
             hex_dump( out, p.begin(), p.end() );
 
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t phy )
+    {
+        switch ( phy )
+        {
+            case bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t::le_1m_phy:
+                out << "1M";
+                break;
+
+            case bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t::le_2m_phy:
+                out << "2M";
+                break;
+
+            case bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t::le_coded_phy:
+                out << "CODED";
+                break;
+
+            default:
+                out << "invalid phy_ll_encoding_t(" << static_cast< int >( phy ) << ")";
+        }
         return out;
     }
 
@@ -234,6 +257,8 @@ namespace test {
 
     radio_base::radio_base()
         : access_address_and_crc_valid_( false )
+        , receiving_encoding_( bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy )
+        , transmiting_encoding_( bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy )
         , eos_( bluetoe::link_layer::delta_time::seconds( 10 ) )
     {
     }
@@ -363,6 +388,17 @@ namespace test {
             }
             BOOST_CHECK( result );
         }
+    }
+
+    void radio_base::radio_set_phy(
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_encoding )
+    {
+        if ( receiving_encoding != bluetoe::link_layer::details::phy_ll_encoding::le_unchanged_coding )
+            receiving_encoding_ = receiving_encoding;
+
+        if ( transmiting_encoding != bluetoe::link_layer::details::phy_ll_encoding::le_unchanged_coding )
+            transmiting_encoding_ = transmiting_encoding;
     }
 
     std::vector< advertising_data >::const_iterator radio_base::next( std::vector< advertising_data >::const_iterator first, const std::function< bool ( const advertising_data& ) >& filter ) const
