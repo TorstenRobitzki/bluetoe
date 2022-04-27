@@ -127,12 +127,11 @@ namespace link_layer {
                     return static_cast< LinkLayer& >( *this );
                 }
 
-                bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer write )
+                bool handle_encryption_pdus( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer write, bool& commit )
                 {
                     using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
                     bool encryption_changed = false;
-                    bool result = true;
 
                     if ( opcode == LinkLayer::LL_ENC_REQ && size == 23 )
                     {
@@ -175,17 +174,17 @@ namespace link_layer {
                         that().stop_transmit_encrypted();
                         encryption_changed = that().connection_data_.is_encrypted( false );
 
-                        result = false;
+                        commit = false;
                     }
                     else
                     {
-                        result = false;
+                        return false;
                     }
 
                     if ( encryption_changed )
                         that().connection_changed( that().details(), that().connection_data_, static_cast< typename LinkLayer::radio_t& >( that() ) );
 
-                    return result;
+                    return true;
                 }
 
                 void transmit_pending_security_pdus()
@@ -236,7 +235,7 @@ namespace link_layer {
             template < class LinkLayer >
             struct impl
             {
-                bool handle_encryption_pdus( std::uint8_t, std::uint8_t, write_buffer, read_buffer )
+                bool handle_encryption_pdus( std::uint8_t, std::uint8_t, write_buffer, read_buffer, bool& )
                 {
                     return false;
                 }
@@ -259,7 +258,7 @@ namespace link_layer {
         struct phy_update_request_impl
         {
             template < class LL >
-            bool handle_phy_request( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write, LL& link_layer )
+            bool handle_phy_request( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write, LL& link_layer, bool& commit )
             {
                 assert( link_layer.defered_ll_control_pdu_.buffer == nullptr );
 
@@ -286,12 +285,16 @@ namespace link_layer {
                     if ( !valid_phy_encoding( c_to_p ) || !valid_phy_encoding( p_to_c ) )
                         return false;
 
+                    commit = false;
+
                     if ( c_to_p == details::phy_ll_encoding::le_unchanged_coding
                       && p_to_c == details::phy_ll_encoding::le_unchanged_coding )
                         return true;
 
                     link_layer.defered_ll_control_pdu_     = pdu;
                     link_layer.defered_conn_event_counter_ = LL::read_16( pdu_body + 3 );
+
+                    return true;
                 }
 
                 return false;
@@ -310,7 +313,6 @@ namespace link_layer {
 
                     const auto c_to_p = static_cast< phy_ll_encoding::phy_ll_encoding_t >( pdu_body[ 1 ] );
                     const auto p_to_c = static_cast< phy_ll_encoding::phy_ll_encoding_t >( pdu_body[ 2 ] );
-
                     link_layer.defered_ll_control_pdu_ = { nullptr, 0 };
                     link_layer.radio_set_phy( c_to_p, p_to_c );
 
@@ -338,7 +340,7 @@ namespace link_layer {
         struct no_phy_update_request_impl
         {
             template < class LL >
-            bool handle_phy_request( std::uint8_t, std::uint8_t, const write_buffer&, read_buffer, LL& )
+            bool handle_phy_request( std::uint8_t, std::uint8_t, const write_buffer&, read_buffer, LL&, bool& )
             {
                 return false;
             }
@@ -1322,11 +1324,11 @@ namespace link_layer {
 
                 std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
             }
-            else if ( this->handle_encryption_pdus( opcode, size, pdu, write ) )
+            else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
             {
                 // all encryption PDU handled in handle_encryption_pdus()
             }
-            else if ( this->handle_phy_request( opcode, size, pdu, write, *this ) )
+            else if ( this->handle_phy_request( opcode, size, pdu, write, *this, commit ) )
             {
                 // all phy PDU handled in handle_phy_reqest
             }
