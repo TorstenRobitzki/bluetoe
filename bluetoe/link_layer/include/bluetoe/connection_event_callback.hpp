@@ -140,6 +140,18 @@ namespace link_layer {
     template < typename T, T& Obj, unsigned MinimumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
     struct synchronized_connection_event_callback
     {
+        /**
+         * @brief stop the call of the synchronized callbacks.
+         */
+        void stop_synchronized_connection_event_callbacks( const typename T::connection& con );
+
+        /**
+         * @brief restart the invokation of synchronized callbacks, after they where stopped.
+         *
+         * @pre stop_synchronized_connection_event_callbacks()
+         */
+        void restart_synchronized_connection_event_callbacks( const typename T::connection& con );
+
         /** @cond HIDDEN_SYMBOLS */
         typedef details::connection_event_callback_meta_type meta_type;
         /** @endcond */
