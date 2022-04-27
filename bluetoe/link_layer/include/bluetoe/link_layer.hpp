@@ -692,7 +692,6 @@ namespace link_layer {
         delta_time                      transmit_window_offset_;
         delta_time                      transmit_window_size_;
         delta_time                      connection_interval_;
-        delta_time                      old_connection_interval_;
         std::uint16_t                   peripheral_latency_;
         std::uint16_t                   timeout_value_;
         delta_time                      connection_timeout_;
@@ -834,14 +833,14 @@ namespace link_layer {
         if ( time_since_last_event <= connection_timeout_
             && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
         {
-            if ( handle_pending_ll_control( this->connection_event_counter() + 1u ) == ll_result::disconnect )
+            this->plan_next_connection_event_after_timeout( connection_interval_ );
+
+            if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
             {
                 force_disconnect();
             }
             else
             {
-                this->plan_next_connection_event_after_timeout( old_connection_interval_ );
-                old_connection_interval_ = connection_interval_;
                 setup_next_connection_event();
             }
         }
@@ -885,17 +884,17 @@ namespace link_layer {
 
             const std::pair< bool, std::uint16_t > pending_instant = { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ };
 
-            if ( handle_pending_ll_control( this->connection_event_counter() + 1u ) == ll_result::disconnect )
+            evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
+            this->plan_next_connection_event(
+                peripheral_latency_, evts, connection_interval_, pending_instant );
+
+            // Handle pending LL control PDUs that will affect the _next_ connection event
+            if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
             {
                 force_disconnect();
             }
             else
             {
-                evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
-                this->plan_next_connection_event(
-                    peripheral_latency_, evts, old_connection_interval_, pending_instant );
-
-                old_connection_interval_ = connection_interval_;
 
                 const delta_time time_till_next_event = setup_next_connection_event();
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
@@ -1109,7 +1108,6 @@ namespace link_layer {
         transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
         transmit_window_offset_ = delta_time( read_16( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
         connection_interval_    = delta_time( read_16( &valid_connect_request_body[ 22 ] ) * us_per_digits );
-        old_connection_interval_ = connection_interval_;
         peripheral_latency_     = read_16( &valid_connect_request_body[ 24 ] );
         timeout_value_          = read_16( &valid_connect_request_body[ 26 ] );
         connection_timeout_     = delta_time( timeout_value_ * 10000 );
