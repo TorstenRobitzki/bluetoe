@@ -73,8 +73,12 @@ namespace link_layer {
      * @tparam Obj A reference to an instance of T on which the specified functions will be called.
      *
      * @tparam MaximumPeriodUS The maximum period at which the callback shall be called, given in µs.
+     *
      *         If MaximumPeriodUS is larger than the connections interval, the callback will be called
-     *         once every connection interval. If MaximumPeriodUS is smaller than the current connections
+     *         with a period that is the greatest multiple of the connection interval, that is smaller
+     *         than the connections interval.
+     *
+     *         If MaximumPeriodUS is smaller than the current connections
      *         interval, the callback will be called multiple times with a fixed period. The period is
      *         chosen to be smaller than or equal to the given MaximumPeriodUS and so that a whole number
      *         of calls fit into the connection interval.
@@ -82,8 +86,8 @@ namespace link_layer {
      *         Example: Connection Interval = 22.5ms, MaximumPeriodUS = 4ms
      *                      => Effective Period = 3.75ms (callback will be call 6 times)
      *
-     *         Example: Connection Interval = 22.5ms, MaximumPeriodUS = 25ms
-     *                      => Effective Period = 22.5ms (callback will be call once)
+     *         Example: Connection Interval = 22.5ms, MaximumPeriodUS = 60ms
+     *                      => Effective Period = 45ms (callback will be call every second connection event)
 
      *         If the connections interval changes, the period at which the callback is called also
      *         changes. The callback will be called irespectable of the connection event. Even when the
