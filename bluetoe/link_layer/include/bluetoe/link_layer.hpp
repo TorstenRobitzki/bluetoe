@@ -414,6 +414,13 @@ namespace link_layer {
                 Options...,
                 periperal_latency_default_configuration >::type
             >;
+
+        template < class Base, typename ...Options >
+        using select_user_timer_impl = typename bluetoe::details::find_by_meta_type<
+            synchronized_connection_event_callback_meta_type,
+            Options...,
+            no_synchronized_connection_event_callback
+        >::type::template impl< Base >;
     }
 
     /**
@@ -469,7 +476,9 @@ namespace link_layer {
                 details::buffer_sizes< Options... >::tx_size,
                 details::buffer_sizes< Options... >::rx_size,
                 link_layer< Server, ScheduledRadio, Options... >
-            > >
+            > >,
+        public details::select_user_timer_impl<
+            link_layer< Server, ScheduledRadio, Options... >, Options ... >
     {
     public:
         link_layer();
@@ -505,6 +514,11 @@ namespace link_layer {
          * @sa scheduled_radio::schedule_connection_event
          */
         void end_event( connection_event_events evts );
+
+        /**
+         * @brief call back that will be called on expired user timer.
+         */
+        void user_timer();
 
         /**
          * @brief initiating the change of communication parameters of an established connection
@@ -856,6 +870,7 @@ namespace link_layer {
 
         if ( state_ == state::connecting )
         {
+            this->synchronized_connection_event_callback_new_connection( connection_interval_ );
             this->connection_established( details(), connection_data_, static_cast< radio_t& >( *this ) );
         }
 
@@ -897,6 +912,12 @@ namespace link_layer {
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
         }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::user_timer()
+    {
+        this->synchronized_connection_event_callback_timeout();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

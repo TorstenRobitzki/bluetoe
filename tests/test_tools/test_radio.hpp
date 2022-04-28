@@ -184,6 +184,15 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const advertising_response& data );
 
+    struct scheduled_user_timer
+    {
+        bluetoe::link_layer::delta_time     schedule_time;      // when was the actions scheduled (from start of simulation)
+        bluetoe::link_layer::delta_time     delay;
+    };
+
+    std::ostream& operator<<( std::ostream& out, const scheduled_user_timer& data );
+    std::ostream& operator<<( std::ostream& out, const std::vector< scheduled_user_timer >& data );
+
     /**
      * @brief returns true, if pdu matches pattern.
      * @sa X
@@ -204,6 +213,7 @@ namespace test {
         // test interface
         const std::vector< advertising_data >& advertisings() const;
         const std::vector< connection_event >& connection_events() const;
+        const std::vector< scheduled_user_timer >& scheduled_user_timers() const;
 
         /**
          * @brief calls check with every scheduled_data
@@ -332,6 +342,9 @@ namespace test {
         typedef std::vector< connection_event_response > connection_event_response_list;
         connection_event_response_list connection_events_response_;
 
+        typedef std::vector< scheduled_user_timer > scheduled_user_timers_list;
+        scheduled_user_timers_list scheduled_user_timers_;
+
         std::uint32_t   access_address_;
         std::uint32_t   crc_init_;
         bool            access_address_and_crc_valid_;
@@ -354,14 +367,22 @@ namespace test {
             const std::function< void ( advertising_list::const_iterator first, advertising_list::const_iterator next ) >&    fail ) const;
 
         std::pair< bool, advertising_response > find_response( const advertising_data& );
-
     };
 
     /**
      * @brief test implementation of the link_layer::scheduled_radio interface, that simulates receiving and transmitted data
      */
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    class radio_impl : public radio_base, public bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported > >
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack,
+        bool Phy2MBitSupported,
+        bool SynchronizedUserTimerSupported >
+    class radio_impl :
+        public radio_base,
+        public bluetoe::link_layer::ll_data_pdu_buffer<
+            TransmitSize, ReceiveSize,
+            radio_impl<
+                TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported
+            >
+        >
     {
     public:
         /**
@@ -385,6 +406,8 @@ namespace test {
 
         std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
 
+        bool schedule_synchronized_user_timer( bluetoe::link_layer::delta_time );
+
         void wake_up();
 
         /**
@@ -399,6 +422,11 @@ namespace test {
          */
         static constexpr bool hardware_supports_2mbit = Phy2MBitSupported;
 
+        /**
+         * @brief indicates support for schedule_synchronized_user_timer()
+         */
+        static constexpr bool hardware_supports_synchronized_user_timer = SynchronizedUserTimerSupported;
+
     private:
         // converts from in memory layout to over the air layout
         void copy_memory_to_air( const std::vector< std::uint8_t >& in_memory, bluetoe::link_layer::read_buffer& over_the_air );
@@ -412,12 +440,14 @@ namespace test {
 
         void simulate_advertising_response();
         void simulate_connection_event_response();
+        bluetoe::link_layer::delta_time simulate_user_timer_response( bluetoe::link_layer::delta_time start, bluetoe::link_layer::delta_time end );
 
         // make sure, there is only one action scheduled
         bool idle_;
         bool advertising_response_;
         bool connection_event_response_;
         int  wake_ups_;
+        bool timer_set_;
 
     protected:
         bool reception_encrypted_;
@@ -425,13 +455,19 @@ namespace test {
     };
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    using radio = radio_impl< TransmitSize, ReceiveSize, CallBack, false >;
+    using radio = radio_impl< TransmitSize, ReceiveSize, CallBack, false, false >;
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    using radio_no_2mbit = radio_impl< TransmitSize, ReceiveSize, CallBack, false >;
+    using radio_no_2mbit = radio_impl< TransmitSize, ReceiveSize, CallBack, false, false >;
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
-    using radio_with_2mbit = radio_impl< TransmitSize, ReceiveSize, CallBack, true >;
+    using radio_with_2mbit = radio_impl< TransmitSize, ReceiveSize, CallBack, true, false >;
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    using radio_with_user_timer = radio_impl< TransmitSize, ReceiveSize, CallBack, false, true >;
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack >
+    using radio_without_user_timer = radio_impl< TransmitSize, ReceiveSize, CallBack, false, false >;
 
     /*
      * The test radio uses a layout that requires more memory
@@ -555,20 +591,21 @@ namespace test {
         return start_value;
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::radio_impl()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::radio_impl()
         : now_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
         , advertising_response_( false )
         , connection_event_response_( false )
         , wake_ups_( 0 )
+        , timer_set_( false )
         , reception_encrypted_( false )
         , transmition_encrypted_( false )
     {
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::schedule_advertisment(
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::schedule_advertisment(
             unsigned                                    channel,
             const bluetoe::link_layer::write_buffer&    transmit,
             const bluetoe::link_layer::write_buffer&,
@@ -597,8 +634,8 @@ namespace test {
         advertised_data_.push_back( data );
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    bluetoe::link_layer::delta_time radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::schedule_connection_event(
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    bluetoe::link_layer::delta_time radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::schedule_connection_event(
         unsigned                                    channel,
         bluetoe::link_layer::delta_time             start_receive,
         bluetoe::link_layer::delta_time             end_receive,
@@ -628,8 +665,8 @@ namespace test {
         return bluetoe::link_layer::delta_time();
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    std::pair< bool, bluetoe::link_layer::delta_time > radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::disarm_connection_event()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    std::pair< bool, bluetoe::link_layer::delta_time > radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::disarm_connection_event()
     {
         assert( !connection_events_.empty() );
         connection_events_.pop_back();
@@ -637,14 +674,27 @@ namespace test {
         return { true, bluetoe::link_layer::delta_time() };
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::wake_up()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    bool radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::schedule_synchronized_user_timer( bluetoe::link_layer::delta_time time )
+    {
+        assert( !timer_set_ );
+
+        const scheduled_user_timer new_timer = { now_, time };
+        scheduled_user_timers_.push_back( new_timer );
+
+        timer_set_ = true;
+
+        return true;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::wake_up()
     {
         ++wake_ups_;
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::run()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::run()
     {
         bool new_scheduling_added = false;
         central_sequence_number_    = 0;
@@ -652,7 +702,7 @@ namespace test {
 
         do
         {
-            unsigned count = advertised_data_.size() + connection_events_.size();;
+            unsigned count = advertised_data_.size() + connection_events_.size();
 
             if ( advertising_response_ )
             {
@@ -675,8 +725,8 @@ namespace test {
             --wake_ups_;
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::simulate_advertising_response()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::simulate_advertising_response()
     {
         assert( !advertised_data_.empty() );
 
@@ -709,10 +759,10 @@ namespace test {
         }
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::simulate_connection_event_response()
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::simulate_connection_event_response()
     {
-        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported > >::pdu_layout;
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported > >::pdu_layout;
 
         connection_event_response response = connection_events_response_.empty()
             ? connection_event_response()
@@ -728,12 +778,12 @@ namespace test {
 
         if ( response.timeout )
         {
-            now_ += event.end_receive;
+            now_ = simulate_user_timer_response( now_, now_ + event.end_receive );
             static_cast< CallBack* >( this )->timeout();
         }
         else
         {
-            now_ += event.start_receive;
+            now_ = simulate_user_timer_response( now_, now_ + event.start_receive );
 
             static constexpr std::uint8_t sn_flag        = 0x8;
             static constexpr std::uint8_t nesn_flag      = 0x4;
@@ -802,10 +852,23 @@ namespace test {
         }
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::copy_memory_to_air( const std::vector< std::uint8_t >& in_memory, bluetoe::link_layer::read_buffer& over_the_air )
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    bluetoe::link_layer::delta_time radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::simulate_user_timer_response( bluetoe::link_layer::delta_time /* start */, bluetoe::link_layer::delta_time end )
     {
-        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported > >::pdu_layout;
+        while ( timer_set_ && scheduled_user_timers_.back().schedule_time + scheduled_user_timers_.back().delay <= end )
+        {
+            now_ = scheduled_user_timers_.back().schedule_time + scheduled_user_timers_.back().delay;
+            timer_set_ = false;
+            static_cast< CallBack* >( this )->user_timer();
+        }
+
+        return end;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::copy_memory_to_air( const std::vector< std::uint8_t >& in_memory, bluetoe::link_layer::read_buffer& over_the_air )
+    {
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported > >::pdu_layout;
 
         const auto          body      = layout::body( bluetoe::link_layer::write_buffer( in_memory.data(), in_memory.size() ) );
         const std::uint16_t header    = layout::header( in_memory.data() );
@@ -817,10 +880,10 @@ namespace test {
         over_the_air.size = body_size + ll_header_size;
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::copy_air_to_memory( const std::vector< std::uint8_t >& over_the_air, bluetoe::link_layer::read_buffer& in_memory )
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::copy_air_to_memory( const std::vector< std::uint8_t >& over_the_air, bluetoe::link_layer::read_buffer& in_memory )
     {
-        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported > >::pdu_layout;
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported > >::pdu_layout;
 
         const std::uint16_t header = bluetoe::details::read_16bit( over_the_air.data() );
         const std::size_t   size   = std::min< std::size_t >( header >> 8, over_the_air.size() - ll_header_size );
@@ -832,10 +895,10 @@ namespace test {
         in_memory.size = layout::data_channel_pdu_memory_size( size );
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    std::vector< std::uint8_t > radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::air_to_memory( bluetoe::link_layer::write_buffer air )
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    std::vector< std::uint8_t > radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::air_to_memory( bluetoe::link_layer::write_buffer air )
     {
-        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported > >::pdu_layout;
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported > >::pdu_layout;
 
         const std::uint16_t header = bluetoe::details::read_16bit( air.buffer );
         const std::size_t   size   = header >> 8;
@@ -850,10 +913,10 @@ namespace test {
         return result;
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported >
-    std::vector< std::uint8_t > radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported >::memory_to_air( bluetoe::link_layer::write_buffer memory )
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    std::vector< std::uint8_t > radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::memory_to_air( bluetoe::link_layer::write_buffer memory )
     {
-        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported > >::pdu_layout;
+        using layout = typename bluetoe::link_layer::pdu_layout_by_radio< radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported > >::pdu_layout;
 
         const std::uint16_t header    = layout::header( memory );
         const auto          body      = layout::body( memory );

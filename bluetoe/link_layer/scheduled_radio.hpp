@@ -98,6 +98,14 @@ namespace link_layer {
         std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
 
         /**
+         * @brief sets up a timer
+         *
+         * Calls CallBack::user_timer() from an unspecified CPU context.
+         * TBS
+         */
+        bool schedule_synchronized_user_timer( bluetoe::link_layer::delta_time );
+
+        /**
          * @brief set the access address initial CRC value for transmitted and received PDU
          *
          * The values should be changed, when there is no outstanding scheduled transmission or receiving.
@@ -241,6 +249,11 @@ namespace link_layer {
          * @brief indicates support for 2Mbit
          */
         static constexpr bool hardware_supports_2mbit = true;
+
+        /**
+         * @brief indicates support for schedule_synchronized_user_timer()
+         */
+        static constexpr bool hardware_supports_synchronized_user_timer = true;
     };
 
     /**

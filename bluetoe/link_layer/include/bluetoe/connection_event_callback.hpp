@@ -1,11 +1,15 @@
 #ifndef BLUETOE_LINK_LAYER_CONNECTION_EVENT_CALLBACK_HPP
 #define BLUETOE_LINK_LAYER_CONNECTION_EVENT_CALLBACK_HPP
 
+#include <bluetoe/ll_meta_types.hpp>
+#include <bluetoe/delta_time.hpp>
+
 namespace bluetoe {
 namespace link_layer {
 
     namespace details {
-       struct connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
+        struct connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
+        struct synchronized_connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
 
         struct default_connection_event_callback
         {
@@ -157,7 +161,84 @@ namespace link_layer {
         void restart_synchronized_connection_event_callbacks( const typename T::connection& con );
 
         /** @cond HIDDEN_SYMBOLS */
-        typedef details::connection_event_callback_meta_type meta_type;
+        template < typename LinkLayer >
+        struct impl {
+            impl()
+            {
+                static_assert( LinkLayer::hardware_supports_synchronized_user_timer, "choosen binding does not support the use of user timer!" );
+            }
+
+            void stop_synchronized_connection_event_callbacks( const typename T::connection& )
+            {
+            }
+
+            void restart_synchronized_connection_event_callbacks( const typename T::connection& )
+            {
+            }
+
+            void synchronized_connection_event_callback_new_connection( bluetoe::link_layer::delta_time connection_interval )
+            {
+                calculate_effective_period( connection_interval );
+                const bool setup = static_cast< LinkLayer* >( this )->schedule_synchronized_user_timer( effective_period_ );
+                static_cast< void >( setup );
+                assert( setup );
+            }
+
+            void synchronized_connection_event_callback_connection_changed( bluetoe::link_layer::delta_time /* connection_interval */ )
+            {
+            }
+
+            void synchronized_connection_event_callback_disconnect( bluetoe::link_layer::delta_time /* connection_interval */ )
+            {
+            }
+
+            void synchronized_connection_event_callback_timeout()
+            {
+                const bool setup = static_cast< LinkLayer* >( this )->schedule_synchronized_user_timer( effective_period_ );
+                static_cast< void >( setup );
+                assert( setup );
+            }
+
+        private:
+            void calculate_effective_period( delta_time connection_interval )
+            {
+                const auto interval_us = connection_interval.usec();
+assert( MinimumPeriodUS < interval_us );
+
+                num_calls_         = ( interval_us + MinimumPeriodUS - 1 ) / MinimumPeriodUS;
+                effective_period_  = delta_time( interval_us / num_calls_ );
+                assert( interval_us % num_calls_ == 0 );
+            }
+
+            delta_time effective_period_;
+
+            // > 1 if there are more than 1 call to the CB at each interval
+            unsigned num_calls_;
+
+            // > 1 if there are more that 1 interval between two CB calls
+            unsigned num_intervals_;
+        };
+
+        typedef details::synchronized_connection_event_callback_meta_type meta_type;
+        /** @endcond */
+    };
+
+    struct no_synchronized_connection_event_callback
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < typename LinkLayer >
+        struct impl {
+            void synchronized_connection_event_callback_new_connection( bluetoe::link_layer::delta_time )
+            {
+            }
+
+            void synchronized_connection_event_callback_timeout()
+            {
+
+            }
+        };
+
+        typedef details::synchronized_connection_event_callback_meta_type meta_type;
         /** @endcond */
     };
 }
