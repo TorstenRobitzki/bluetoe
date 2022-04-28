@@ -46,13 +46,17 @@ BOOST_AUTO_TEST_CASE( no_support_by_hardware )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+template < unsigned MinimumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
 using unconnected_server = unconnected_base_t<
     test::small_temperature_service,
     test::radio_with_user_timer,
-    bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 7000, -100, 100 >
+    bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, MinimumPeriodUS, PhaseShiftUS, MaximumExecutionTimeUS >
  >;
 
-BOOST_FIXTURE_TEST_CASE( callback_not_called_if_unconnected, unconnected_server )
+using server_7ms_minus_100us = unconnected_server< 7000, -100 >;
+using server_7ms_plus_100us = unconnected_server< 7000, 100 >;
+
+BOOST_FIXTURE_TEST_CASE( callback_not_called_if_unconnected, server_7ms_minus_100us )
 {
     run();
 
@@ -60,7 +64,7 @@ BOOST_FIXTURE_TEST_CASE( callback_not_called_if_unconnected, unconnected_server 
     BOOST_CHECK_EQUAL( scheduled_user_timers().size(), 0u );
 }
 
-BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period, unconnected_server )
+BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_phase, server_7ms_minus_100us )
 {
     // 30ms interval -> effective period: 6ms
     this->respond_to( 37, valid_connection_request_pdu );
@@ -74,10 +78,27 @@ BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period, unconnected_server
 
     BOOST_REQUIRE_GT( timers.size(), 2u );
 
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
+    BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
     BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_positive_phase, server_7ms_plus_100us )
+{
+    // 30ms interval -> effective period: 6ms
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    const auto timers = scheduled_user_timers();
+
+    BOOST_REQUIRE_GT( timers.size(), 2u );
+
+    BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
+}
 
 /*
  * Test with MinimumPeriodUS equal a fraction of the interval

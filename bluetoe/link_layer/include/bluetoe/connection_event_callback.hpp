@@ -176,19 +176,19 @@ namespace link_layer {
             {
             }
 
-            void synchronized_connection_event_callback_new_connection( bluetoe::link_layer::delta_time connection_interval )
+            void synchronized_connection_event_callback_new_connection( delta_time connection_interval )
             {
                 calculate_effective_period( connection_interval );
-                const bool setup = static_cast< LinkLayer* >( this )->schedule_synchronized_user_timer( effective_period_ );
+                const bool setup = link_layer().schedule_synchronized_user_timer( first_timeout() );
                 static_cast< void >( setup );
                 assert( setup );
             }
 
-            void synchronized_connection_event_callback_connection_changed( bluetoe::link_layer::delta_time /* connection_interval */ )
+            void synchronized_connection_event_callback_connection_changed( delta_time /* connection_interval */ )
             {
             }
 
-            void synchronized_connection_event_callback_disconnect( bluetoe::link_layer::delta_time /* connection_interval */ )
+            void synchronized_connection_event_callback_disconnect( delta_time /* connection_interval */ )
             {
             }
 
@@ -200,6 +200,11 @@ namespace link_layer {
             }
 
         private:
+            LinkLayer& link_layer()
+            {
+                return *static_cast< LinkLayer* >( this );
+            }
+
             void calculate_effective_period( delta_time connection_interval )
             {
                 const auto interval_us = connection_interval.usec();
@@ -208,6 +213,13 @@ assert( MinimumPeriodUS < interval_us );
                 num_calls_         = ( interval_us + MinimumPeriodUS - 1 ) / MinimumPeriodUS;
                 effective_period_  = delta_time( interval_us / num_calls_ );
                 assert( interval_us % num_calls_ == 0 );
+            }
+
+            delta_time first_timeout() const
+            {
+                return PhaseShiftUS < 0
+                    ? effective_period_ - delta_time::usec( -PhaseShiftUS )
+                    : effective_period_ + delta_time::usec( PhaseShiftUS );
             }
 
             delta_time effective_period_;
