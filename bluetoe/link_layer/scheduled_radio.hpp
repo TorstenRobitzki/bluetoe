@@ -106,6 +106,11 @@ namespace link_layer {
         bool schedule_synchronized_user_timer( bluetoe::link_layer::delta_time );
 
         /**
+         * @brief cancel the user timer
+         */
+        bool cancel_synchronized_user_timer();
+
+        /**
          * @brief set the access address initial CRC value for transmitted and received PDU
          *
          * The values should be changed, when there is no outstanding scheduled transmission or receiving.

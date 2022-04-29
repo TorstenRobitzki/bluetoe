@@ -178,28 +178,38 @@ namespace link_layer {
 
             void synchronized_connection_event_callback_new_connection( delta_time connection_interval )
             {
+                connection_value_ = typename T::connection();
+                instance_         = 0;
+
                 calculate_effective_period( connection_interval );
-                const bool setup = link_layer().schedule_synchronized_user_timer( first_timeout() );
-                static_cast< void >( setup );
-                assert( setup );
+                setup_timer( first_timeout() );
             }
 
             void synchronized_connection_event_callback_connection_changed( delta_time /* connection_interval */ )
             {
             }
 
-            void synchronized_connection_event_callback_disconnect( delta_time /* connection_interval */ )
+            void synchronized_connection_event_callback_disconnect()
             {
+                link_layer().cancel_synchronized_user_timer();
             }
 
             void synchronized_connection_event_callback_timeout()
             {
-                const bool setup = static_cast< LinkLayer* >( this )->schedule_synchronized_user_timer( effective_period_ );
+                const unsigned latency = Obj.ll_synchronized_callback( instance_, connection_value_ ) + 1u;
+                instance_ = ( instance_ + latency ) % num_calls_;
+
+                setup_timer( latency * effective_period_ );
+            }
+
+        private:
+            void setup_timer( delta_time dt )
+            {
+                const bool setup = link_layer().schedule_synchronized_user_timer( dt );
                 static_cast< void >( setup );
                 assert( setup );
             }
 
-        private:
             LinkLayer& link_layer()
             {
                 return *static_cast< LinkLayer* >( this );
@@ -224,11 +234,15 @@ assert( MinimumPeriodUS < interval_us );
 
             delta_time effective_period_;
 
+            unsigned instance_;
+
             // > 1 if there are more than 1 call to the CB at each interval
             unsigned num_calls_;
 
             // > 1 if there are more that 1 interval between two CB calls
             unsigned num_intervals_;
+
+            typename T::connection connection_value_;
         };
 
         typedef details::synchronized_connection_event_callback_meta_type meta_type;
@@ -246,7 +260,10 @@ assert( MinimumPeriodUS < interval_us );
 
             void synchronized_connection_event_callback_timeout()
             {
+            }
 
+            void synchronized_connection_event_callback_disconnect()
+            {
             }
         };
 

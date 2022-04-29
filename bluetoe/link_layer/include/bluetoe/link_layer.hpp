@@ -966,6 +966,7 @@ namespace link_layer {
         state_            = state::disconnecting;
         termination_send_ = false;
 
+        this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
     }
 
@@ -1153,6 +1154,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::force_disconnect()
     {
+        this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
         this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
         this->reset_phy( *this );

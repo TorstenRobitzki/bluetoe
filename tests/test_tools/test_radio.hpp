@@ -407,6 +407,7 @@ namespace test {
         std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
 
         bool schedule_synchronized_user_timer( bluetoe::link_layer::delta_time );
+        bool cancel_synchronized_user_timer();
 
         void wake_up();
 
@@ -685,6 +686,20 @@ namespace test {
         timer_set_ = true;
 
         return true;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    bool radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::cancel_synchronized_user_timer()
+    {
+        const bool result = timer_set_;
+
+        if ( timer_set_ )
+        {
+            timer_set_ = false;
+            scheduled_user_timers_.pop_back();
+        }
+
+        return result;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
