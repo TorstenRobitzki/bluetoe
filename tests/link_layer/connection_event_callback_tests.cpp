@@ -39,6 +39,8 @@ struct callbacks_t {
 
 } callbacks;
 
+using bluetoe::link_layer::delta_time;
+
 namespace {
     template < class T >
     T take( const T& c, std::size_t n )
@@ -228,8 +230,83 @@ BOOST_FIXTURE_TEST_CASE( reset_connection_after_reconnect, server_15ms_minus_100
 }
 
 /*
- * Test with MinimumPeriodUS equal a fraction of the interval
+ * Test with MinimumPeriodUS equal a multiple of the interval
  */
+using server_60ms_minus_100us  = unconnected_server< 60000, -100 >;
+
+BOOST_FIXTURE_TEST_CASE( larger_min_period, server_60ms_minus_100us )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    const auto timers = scheduled_user_timers();
+
+    BOOST_REQUIRE_GT( timers.size(), 3u );
+
+    BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 60 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 60 ) );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 60 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 60 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( larger_min_period_instance, server_60ms_minus_100us )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    static const auto expected = { 0u, 0u, 0u, 0u };
+
+    BOOST_TEST(
+        take( callbacks.instants, expected.size() ) == expected,
+        boost::test_tools::per_element() );
+}
+
+using server_20ms_minus_100us  = unconnected_server< 20000, -100 >;
+
+BOOST_FIXTURE_TEST_CASE( reconnect_with_different_instance, server_20ms_minus_100us )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_control_pdu( {
+        0x02,           // LL_TERMINATE_IND
+        0x13            // REMOTE USER TERMINATED CONNECTION
+    } );
+
+    this->respond_to( 37, {
+        0xc5, 0x22,                         // header
+        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
+        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
+        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
+        0x08, 0x81, 0xf6,                   // CRC Init
+        0x03,                               // transmit window size
+        0x08, 0x00,                         // window offset
+        0x08, 0x00,                         // interval (15ms)
+        0x00, 0x00,                         // peripheral latency
+        0x48, 0x00,                         // connection timeout (720ms)
+        0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
+        0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
+    } );
+    ll_empty_pdu();
+    run();
+
+    const auto timers = scheduled_user_timers();
+    BOOST_REQUIRE_GT( timers.size(), 3u );
+
+    BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 15 ) );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 20 ) );
+}
+
+// Callbacks
+
+// Stop / Start
 
 /*
  * Test with MinimumPeriodUS equal a fraction of the interval - 1

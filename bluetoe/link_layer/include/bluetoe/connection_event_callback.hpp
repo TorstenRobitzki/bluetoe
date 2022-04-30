@@ -197,7 +197,9 @@ namespace link_layer {
             void synchronized_connection_event_callback_timeout()
             {
                 const unsigned latency = Obj.ll_synchronized_callback( instance_, connection_value_ ) + 1u;
-                instance_ = ( instance_ + latency ) % num_calls_;
+
+                if ( num_calls_ )
+                    instance_ = ( instance_ + latency ) % num_calls_;
 
                 setup_timer( latency * effective_period_ );
             }
@@ -218,11 +220,20 @@ namespace link_layer {
             void calculate_effective_period( delta_time connection_interval )
             {
                 const auto interval_us = connection_interval.usec();
-assert( MinimumPeriodUS < interval_us );
 
-                num_calls_         = ( interval_us + MinimumPeriodUS - 1 ) / MinimumPeriodUS;
-                effective_period_  = delta_time( interval_us / num_calls_ );
-                assert( interval_us % num_calls_ == 0 );
+                if ( interval_us > MinimumPeriodUS )
+                {
+                    num_calls_         = ( interval_us + MinimumPeriodUS - 1 ) / MinimumPeriodUS;
+                    num_intervals_     = 0;
+                    effective_period_  = delta_time( interval_us / num_calls_ );
+                    assert( interval_us % num_calls_ == 0 );
+                }
+                else
+                {
+                    num_calls_        = 0;
+                    num_intervals_    = MinimumPeriodUS / interval_us;
+                    effective_period_ = delta_time( num_intervals_ * interval_us );
+                }
             }
 
             delta_time first_timeout() const
