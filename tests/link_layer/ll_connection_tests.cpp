@@ -58,7 +58,7 @@ BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_cen
 void add_channel_map_request( unconnected& c, std::uint16_t instance, std::uint64_t map )
 {
     c.ll_control_pdu( {
-        0x01,                                                   // opcode
+        0x01,                                                   // LL_CHANNEL_MAP_IND
         static_cast< std::uint8_t >( map >> 0 ),                // map
         static_cast< std::uint8_t >( map >> 8 ),
         static_cast< std::uint8_t >( map >> 16 ),
@@ -118,7 +118,7 @@ BOOST_FIXTURE_TEST_CASE( channel_map_request_with_wrong_size, unconnected )
     respond_to( 37, valid_connection_request_pdu );
 
     ll_control_pdu( {
-        0x01,                                                   // opcode
+        0x01,                                                   // LL_CHANNEL_MAP_IND
         0xff, 0xff, 0xff, 0xff, 0x00,                           // map
         0, 8,                                                   // instance
         0xaa                                                    // ups, too large
