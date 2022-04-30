@@ -140,12 +140,12 @@ namespace link_layer {
      * on all plattforms.
      *
      * @note due to connection parameter updates, there is no guaranty, that the callback will be
-     *       called with the requested MinimumPeriodUS.
+     *       called with the requested MaximumPeriodUS.
      *
      * @note All callbacks will be called from the very same execution context (thus there is no need
      * for synchronization between calls). The context is defined by the hardware and unspecified.
      */
-    template < typename T, T& Obj, unsigned MinimumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
+    template < typename T, T& Obj, unsigned MaximumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
     struct synchronized_connection_event_callback
     {
         /**
@@ -185,8 +185,18 @@ namespace link_layer {
                 setup_timer( first_timeout() );
             }
 
-            void synchronized_connection_event_callback_connection_changed( delta_time /* connection_interval */ )
+            void synchronized_connection_event_callback_start_changing_connection()
             {
+                link_layer().cancel_synchronized_user_timer();
+            }
+
+            void synchronized_connection_event_callback_connection_changed( delta_time connection_interval )
+            {
+                connection_value_ = typename T::connection();
+                instance_         = 0;
+
+                calculate_effective_period( connection_interval );
+                setup_timer( first_timeout() );
             }
 
             void synchronized_connection_event_callback_disconnect()
@@ -221,9 +231,9 @@ namespace link_layer {
             {
                 const auto interval_us = connection_interval.usec();
 
-                if ( interval_us > MinimumPeriodUS )
+                if ( interval_us > MaximumPeriodUS )
                 {
-                    num_calls_         = ( interval_us + MinimumPeriodUS - 1 ) / MinimumPeriodUS;
+                    num_calls_         = ( interval_us + MaximumPeriodUS - 1 ) / MaximumPeriodUS;
                     num_intervals_     = 0;
                     effective_period_  = delta_time( interval_us / num_calls_ );
                     assert( interval_us % num_calls_ == 0 );
@@ -231,9 +241,11 @@ namespace link_layer {
                 else
                 {
                     num_calls_        = 0;
-                    num_intervals_    = MinimumPeriodUS / interval_us;
+                    num_intervals_    = MaximumPeriodUS / interval_us;
                     effective_period_ = delta_time( num_intervals_ * interval_us );
                 }
+
+                assert( effective_period_.usec() <= MaximumPeriodUS );
             }
 
             delta_time first_timeout() const
@@ -265,7 +277,15 @@ namespace link_layer {
         /** @cond HIDDEN_SYMBOLS */
         template < typename LinkLayer >
         struct impl {
-            void synchronized_connection_event_callback_new_connection( bluetoe::link_layer::delta_time )
+            void synchronized_connection_event_callback_new_connection( delta_time )
+            {
+            }
+
+            void synchronized_connection_event_callback_start_changing_connection()
+            {
+            }
+
+            void synchronized_connection_event_callback_connection_changed( delta_time )
             {
             }
 

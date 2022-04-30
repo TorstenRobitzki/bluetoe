@@ -269,7 +269,7 @@ BOOST_FIXTURE_TEST_CASE( larger_min_period_instance, server_60ms_minus_100us )
 
 using server_20ms_minus_100us  = unconnected_server< 20000, -100 >;
 
-BOOST_FIXTURE_TEST_CASE( reconnect_with_different_instance, server_20ms_minus_100us )
+BOOST_FIXTURE_TEST_CASE( reconnect_with_different_interval, server_20ms_minus_100us )
 {
     this->respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
@@ -286,7 +286,7 @@ BOOST_FIXTURE_TEST_CASE( reconnect_with_different_instance, server_20ms_minus_10
         0x08, 0x81, 0xf6,                   // CRC Init
         0x03,                               // transmit window size
         0x08, 0x00,                         // window offset
-        0x08, 0x00,                         // interval (15ms)
+        0x08, 0x00,                         // interval (10ms)
         0x00, 0x00,                         // peripheral latency
         0x48, 0x00,                         // connection timeout (720ms)
         0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
@@ -300,8 +300,32 @@ BOOST_FIXTURE_TEST_CASE( reconnect_with_different_instance, server_20ms_minus_10
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
     BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 15 ) );
+
     BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
     BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 20 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minus_100us )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    add_connection_update_request(
+        0x08, 0x08, 0x08, 0, 100, 8 );
+    ll_empty_pdus( 10 );
+    run();
+
+    const auto timers = scheduled_user_timers();
+    BOOST_REQUIRE_GT( timers.size(), 16u );
+
+    // instance 0
+    BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 15 ) );
+
+    // ...
+    BOOST_CHECK_EQUAL( timers[ 13 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 14 ].delay, delta_time::msec( 20 ) );
+    BOOST_CHECK_EQUAL( timers[ 15 ].delay, delta_time::msec( 20 ) );
+    BOOST_CHECK_EQUAL( timers[ 16 ].delay, delta_time::msec( 20 ) );
 }
 
 // Callbacks

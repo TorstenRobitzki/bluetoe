@@ -718,7 +718,8 @@ namespace link_layer {
             advertising,
             connecting,
             connected,
-            disconnecting
+            disconnecting,
+            connection_changed
         }                               state_;
 
         std::uint16_t                   proposed_interval_min_;
@@ -837,7 +838,7 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
 
         const auto time_since_last_event = this->time_since_last_event();
 
@@ -866,12 +867,16 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
 
         if ( state_ == state::connecting )
         {
             this->synchronized_connection_event_callback_new_connection( connection_interval_ );
             this->connection_established( details(), connection_data_, static_cast< radio_t& >( *this ) );
+        }
+        else if ( state_ == state::connection_changed )
+        {
+            this->synchronized_connection_event_callback_connection_changed( connection_interval_ );
         }
 
         if ( state_ != state::disconnecting )
@@ -907,7 +912,6 @@ namespace link_layer {
             }
             else
             {
-
                 const delta_time time_till_next_event = setup_next_connection_event();
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
@@ -1388,6 +1392,8 @@ namespace link_layer {
             {
                 if ( parse_timing_parameters_from_connection_update_request( body ) )
                 {
+                    state_ = state::connection_changed;
+                    this->synchronized_connection_event_callback_start_changing_connection();
                     this->connection_changed( details(), connection_data_, static_cast< radio_t& >( *this ) );
                 }
                 else
