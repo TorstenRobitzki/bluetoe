@@ -5,10 +5,9 @@
 
 #include "connected.hpp"
 
+#include <sstream>
+
 struct callbacks_t {
-    callbacks_t()
-    {
-    }
 
     struct connection {
         connection() : value( 0 ) {}
@@ -328,14 +327,109 @@ BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minu
     BOOST_CHECK_EQUAL( timers[ 16 ].delay, delta_time::msec( 20 ) );
 }
 
-// Callbacks
+struct callbacks_with_optional_callbacks_t
+{
+    struct connection {
+        connection() : value( 0 ) {}
 
-// Stop / Start
+        int value;
+    };
 
-/*
- * Test with MinimumPeriodUS equal a fraction of the interval - 1
- */
+    unsigned ll_synchronized_callback( unsigned, connection& )
+    {
+        return 0;
+    }
 
-/*
- * Compile time check, that there can be no rounding errors
- */
+    connection ll_synchronized_callback_connect(
+        bluetoe::link_layer::delta_time connection_interval,
+        unsigned                        calls_per_interval )
+    {
+        out << "connect: " << connection_interval << ", " << calls_per_interval << "\n";
+
+        return connection();
+    }
+
+    void ll_synchronized_callback_period_update(
+        bluetoe::link_layer::delta_time connection_interval,
+        unsigned                        calls_per_interval,
+        connection&                     con )
+    {
+        ++con.value;
+        out << "update: " << connection_interval << ", " << calls_per_interval << ", " << con.value << "\n";
+    }
+
+    void ll_synchronized_callback_disconnect( connection& con )
+    {
+        ++con.value;
+        out << "disconnect: " << con.value << "\n";
+    }
+
+    std::ostringstream out;
+} callbacks_with_optional_callbacks;
+
+template < unsigned MinimumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
+struct unconnected_server_with_cbs : unconnected_base_t<
+    test::small_temperature_service,
+    test::radio_with_user_timer,
+    bluetoe::link_layer::synchronized_connection_event_callback< callbacks_with_optional_callbacks_t, callbacks_with_optional_callbacks, MinimumPeriodUS, PhaseShiftUS, MaximumExecutionTimeUS >
+ >
+ {
+    unconnected_server_with_cbs()
+    {
+        callbacks_with_optional_callbacks = callbacks_with_optional_callbacks_t();
+    }
+
+    std::vector< std::string > history() const
+    {
+        std::vector<std::string> result;
+
+        std::stringstream input( callbacks_with_optional_callbacks.out.str() );
+        std::string item;
+
+        while ( std::getline( input, item, '\n' ) )
+            result.push_back( item );
+
+        return result;
+    }
+ };
+
+using server_20ms_minus_100us_cbs  = unconnected_server_with_cbs< 20000, -100 >;
+
+BOOST_FIXTURE_TEST_CASE( no_callbacks, server_20ms_minus_100us_cbs )
+{
+    BOOST_TEST( callbacks_with_optional_callbacks.out.str() == "" );
+}
+
+BOOST_FIXTURE_TEST_CASE( connect_disconnect_callbacks, server_20ms_minus_100us_cbs )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_control_pdu( {
+        0x02,           // LL_TERMINATE_IND
+        0x13            // REMOTE USER TERMINATED CONNECTION
+    } );
+    ll_empty_pdu();
+    run();
+
+    const auto hist = history();
+    BOOST_REQUIRE_GT( hist.size(), 1u );
+
+    BOOST_TEST( hist[ 0 ] == "connect: 30ms, 2" );
+    BOOST_TEST( hist[ 1 ] == "disconnect: 1" );
+}
+
+BOOST_FIXTURE_TEST_CASE( update_callback, server_20ms_minus_100us_cbs )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    add_connection_update_request(
+        0x08, 0x08, 0x08, 0, 100, 8 );
+    ll_empty_pdus( 10 );
+    run();
+
+    const auto hist = history();
+    BOOST_REQUIRE_GT( hist.size(), 1u );
+
+    BOOST_TEST( hist[ 0 ] == "connect: 30ms, 2" );
+    BOOST_TEST( hist[ 1 ] == "update: 10ms, 0, 1" );
+}

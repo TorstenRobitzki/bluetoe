@@ -147,7 +147,7 @@ namespace link_layer {
             }
 
             template < typename TT, typename Connection >
-            auto call_ll_connection_closed( TT& obj, Connection& connection )
+            auto call_conect_callback( TT& obj, Connection& connection )
                 -> decltype(&TT::template ll_connection_closed< Connection >)
             {
                 obj.ll_connection_closed( connection );

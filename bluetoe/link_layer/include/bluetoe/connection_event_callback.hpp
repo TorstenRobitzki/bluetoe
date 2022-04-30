@@ -182,6 +182,7 @@ namespace link_layer {
                 instance_         = 0;
 
                 calculate_effective_period( connection_interval );
+                call_ll_connect< T >( connection_interval, connection_value_ );
                 setup_timer( first_timeout() );
             }
 
@@ -196,11 +197,13 @@ namespace link_layer {
                 instance_         = 0;
 
                 calculate_effective_period( connection_interval );
+                call_ll_update< T >( connection_interval );
                 setup_timer( first_timeout() );
             }
 
             void synchronized_connection_event_callback_disconnect()
             {
+                call_ll_disconnect< T >( 0 );
                 link_layer().cancel_synchronized_user_timer();
             }
 
@@ -215,6 +218,46 @@ namespace link_layer {
             }
 
         private:
+            template < class TT >
+            auto call_ll_connect( bluetoe::link_layer::delta_time connection_interval, typename TT::connection& con )
+                -> decltype(&TT::ll_synchronized_callback_connect)
+            {
+                con = Obj.ll_synchronized_callback_connect( connection_interval, num_calls_ );
+
+                return 0;
+            }
+
+            template < class TT >
+            void call_ll_connect( ... )
+            {
+            }
+
+            template < class TT >
+            auto call_ll_disconnect( int ) -> decltype(&TT::ll_synchronized_callback_disconnect)
+            {
+                Obj.ll_synchronized_callback_disconnect( connection_value_ );
+                return 0;
+            }
+
+            template < class TT >
+            void call_ll_disconnect( ... )
+            {
+            }
+
+            template < class TT >
+            auto call_ll_update(
+                bluetoe::link_layer::delta_time connection_interval ) -> decltype(&TT::ll_synchronized_callback_period_update)
+            {
+                Obj.ll_synchronized_callback_period_update( connection_interval, num_calls_, connection_value_ );
+
+                return 0;
+            }
+
+            template < class TT >
+            void call_ll_update( ... )
+            {
+            }
+
             void setup_timer( delta_time dt )
             {
                 const bool setup = link_layer().schedule_synchronized_user_timer( dt );
