@@ -416,6 +416,16 @@ namespace bluetoe
                 return result;
             }
 
+            bool schedule_synchronized_user_timer( bluetoe::link_layer::delta_time )
+            {
+                return true;
+            }
+
+            bool cancel_synchronized_user_timer()
+            {
+                return true;
+            }
+
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
             {
                 Hardware::set_access_address_and_crc_init( access_address, crc_init );
@@ -502,6 +512,11 @@ namespace bluetoe
              * @brief indicates support for 2Mbit
              */
             static constexpr bool hardware_supports_2mbit = true;
+
+            /**
+             * @brief indicates support for schedule_synchronized_user_timer()
+             */
+            static constexpr bool hardware_supports_synchronized_user_timer = true;
         private:
             using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
                 nrf::nrf_details::sleep_clock_source_meta_type,
