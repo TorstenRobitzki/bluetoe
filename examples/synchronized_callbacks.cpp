@@ -47,15 +47,23 @@ struct callback_handler_t {
      * User defined type to keep connection releated informations
      */
     struct connection {
-        connection() : pin( false ) {}
-        bool pin;
+        connection() : count( 0 ) {}
+        int count;
     };
 
-    unsigned ll_synchronized_callback( unsigned, connection& con )
+    unsigned ll_synchronized_callback( unsigned instant, connection& con )
     {
-        set_io( io_event, con.pin );
+        if ( instant == 0 )
+        {
+            con.count = ( con.count + 1 ) % 3;
 
-        con.pin = !con.pin;
+        }
+
+        for ( int i = 0; i != con.count + 1; ++i )
+        {
+            set_io( io_event, true );
+            set_io( io_event, false );
+        }
 
         // Number of calls to skip
         return 0;
