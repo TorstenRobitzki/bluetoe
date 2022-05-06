@@ -739,10 +739,12 @@ namespace nrf52_details
         const auto anchor_distance = bluetoe::details::distance_n< 24u >( counter, lf_anchor );
 
         // The anchor was reset during the last connection event Simply wait for 2 * time_us
-        if ( std::abs( anchor_distance ) > 5u )
+        // except for the very first call
+        if ( std::abs( anchor_distance ) > 5u && !user_timer_start_ )
         {
             time_us = 2 * time_us;
         }
+        user_timer_start_ = false;
 
         // -1 to prevent the calculation to endup with starting the Radio at TIMER1 beeing 0
         static constexpr auto us_offset   = 1;
@@ -782,7 +784,17 @@ namespace nrf52_details
 
     bool radio_hardware_without_crypto_support::stop_user_timer()
     {
-        return false;
+        nrf_ppi->CHENCLR = 1 << rtc_start_cb_timer_ppi_channel;
+        nrf_cb_timer->INTENCLR = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos;
+        nrf_cb_timer->TASKS_STOP = 1;
+        nrf_cb_timer->INTENCLR = 0xFFFFFFFF;
+
+        user_timer_start_ = true;
+
+        const bool result = nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_start_exec_cb ] == 0;
+        nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_start_exec_cb ] = 0;
+
+        return result;
     }
 
     void radio_hardware_without_crypto_support::stop_timeout_timer()
@@ -815,6 +827,7 @@ namespace nrf52_details
     volatile int           radio_hardware_without_crypto_support::hf_user_timer_anchor_;
     volatile std::uint32_t radio_hardware_without_crypto_support::lf_user_timer_anchor_;
     volatile int           radio_hardware_without_crypto_support::user_timer_anchor_version_;
+    volatile bool          radio_hardware_without_crypto_support::user_timer_start_;
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
@@ -1287,6 +1300,7 @@ extern "C" void TIMER1_IRQHandler()
 
     bluetoe::nrf::nrf_cb_timer->TASKS_STOP = 1;
     bluetoe::nrf::nrf_cb_timer->INTENCLR = 0xFFFFFFFF;
+    bluetoe::nrf::nrf_cb_timer->EVENTS_COMPARE[ bluetoe::nrf52_details::cb_tim_cc_start_exec_cb ] = 0;
 
     // the next timer is setup from within the callback,
     // so better do not alter anything after this call

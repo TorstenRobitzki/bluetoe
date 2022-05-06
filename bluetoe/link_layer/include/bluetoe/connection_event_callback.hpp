@@ -183,6 +183,7 @@ namespace link_layer {
 
                 calculate_effective_period( connection_interval );
                 call_ll_connect< T >( connection_interval, connection_value_ );
+                link_layer().cancel_synchronized_user_timer();
                 setup_timer( first_timeout() );
             }
 

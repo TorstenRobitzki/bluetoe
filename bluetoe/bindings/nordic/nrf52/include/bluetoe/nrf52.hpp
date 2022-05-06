@@ -231,6 +231,7 @@ namespace bluetoe
             volatile static int           hf_user_timer_anchor_;
             volatile static std::uint32_t lf_user_timer_anchor_;
             volatile static int           user_timer_anchor_version_;
+            volatile static bool          user_timer_start_;
         };
 
         /**
@@ -442,7 +443,7 @@ namespace bluetoe
 
             bool cancel_synchronized_user_timer()
             {
-                return true;
+                return Hardware::stop_user_timer();
             }
 
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
