@@ -151,33 +151,44 @@ namespace link_layer {
         /**
          * @brief stop the call of the synchronized callbacks.
          */
-        void stop_synchronized_connection_event_callbacks( const typename T::connection& con );
+        void stop_synchronized_connection_event_callbacks();
 
         /**
          * @brief restart the invokation of synchronized callbacks, after they where stopped.
          *
          * @pre stop_synchronized_connection_event_callbacks()
          */
-        void restart_synchronized_connection_event_callbacks( const typename T::connection& con );
+        void restart_synchronized_connection_event_callbacks();
 
         /** @cond HIDDEN_SYMBOLS */
         template < typename LinkLayer >
         struct impl {
             impl()
+                : stopped_( false )
             {
                 static_assert( LinkLayer::hardware_supports_synchronized_user_timer, "choosen binding does not support the use of user timer!" );
             }
 
-            void stop_synchronized_connection_event_callbacks( const typename T::connection& )
+            void stop_synchronized_connection_event_callbacks()
             {
+                stopped_ = true;
+                link_layer().cancel_synchronized_user_timer();
             }
 
-            void restart_synchronized_connection_event_callbacks( const typename T::connection& )
+            void restart_synchronized_connection_event_callbacks()
             {
+                instance_         = 0;
+                latency_          = 0;
+
+                stopped_ = false;
+                link_layer().restart_user_timer();
             }
 
             void synchronized_connection_event_callback_new_connection( delta_time connection_interval )
             {
+                if ( stopped_ )
+                    return;
+
                 connection_value_ = typename T::connection();
                 instance_         = 0;
                 latency_          = 0;
@@ -195,6 +206,9 @@ namespace link_layer {
 
             void synchronized_connection_event_callback_connection_changed( delta_time connection_interval )
             {
+                if ( stopped_ )
+                    return;
+
                 instance_         = 0;
                 latency_          = 0;
 
@@ -211,6 +225,9 @@ namespace link_layer {
 
             void synchronized_connection_event_callback_timeout()
             {
+                if ( stopped_ )
+                    return;
+
                 latency_ = latency_ == 0
                     ? Obj.ll_synchronized_callback( instance_, connection_value_ )
                     : latency_ - 1;
@@ -314,6 +331,8 @@ namespace link_layer {
             unsigned num_intervals_;
 
             typename T::connection connection_value_;
+
+            volatile bool stopped_;
         };
 
         typedef details::synchronized_connection_event_callback_meta_type meta_type;

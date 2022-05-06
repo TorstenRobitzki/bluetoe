@@ -31,6 +31,8 @@ static void set_io( int pin, bool value )
     }
 }
 
+static NRF_TIMER_Type& toggle_timer  = *NRF_TIMER2;
+
 static std::uint8_t io_pin_write_handler( bool state )
 {
     // on an nRF52 eval board, the pin is connected to the LED's cathode, this inverts the logic.
@@ -91,6 +93,26 @@ device<
 
 int main()
 {
+    static constexpr std::uint32_t timer_prescale_for_1us_resolution = 4;
+
+    toggle_timer.MODE        = TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos;
+    toggle_timer.BITMODE     = TIMER_BITMODE_BITMODE_32Bit;
+    toggle_timer.PRESCALER   = timer_prescale_for_1us_resolution;
+    toggle_timer.SHORTS      =
+        ( TIMER_SHORTS_COMPARE0_STOP_Enabled << TIMER_SHORTS_COMPARE0_STOP_Pos )
+     || ( TIMER_SHORTS_COMPARE0_CLEAR_Enabled << TIMER_SHORTS_COMPARE0_CLEAR_Pos );
+
+    toggle_timer.TASKS_STOP  = 1;
+    toggle_timer.TASKS_CLEAR = 1;
+    toggle_timer.INTENSET    = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos;
+
+    toggle_timer.CC[ 0 ]     = 5 * 1000 * 1000;
+
+    NVIC_ClearPendingIRQ( TIMER2_IRQn );
+    NVIC_EnableIRQ( TIMER2_IRQn );
+
+    toggle_timer.TASKS_START = 1;
+
     // Init GPIO pins
     for ( const auto pin: { io_pin, io_event } )
     {
@@ -101,4 +123,23 @@ int main()
 
     for ( ;; )
         gatt_srv.run();
+}
+
+extern "C" void TIMER2_IRQHandler()
+{
+    toggle_timer.EVENTS_COMPARE[ 0 ] = 0;
+    toggle_timer.TASKS_START = 1;
+
+    static bool on = true;
+
+    if ( on )
+    {
+        gatt_srv.restart_synchronized_connection_event_callbacks();
+    }
+    else
+    {
+        gatt_srv.stop_synchronized_connection_event_callbacks();
+    }
+
+    on = !on;
 }

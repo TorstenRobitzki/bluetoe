@@ -577,6 +577,9 @@ namespace link_layer {
         std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t size );
         void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer );
 
+        // will cause the link layer to inform the user callbacks that a connection event happend
+        void restart_user_timer();
+
         /** @endcond */
 
     private:
@@ -711,6 +714,7 @@ namespace link_layer {
         bool                            termination_send_;
         std::uint8_t                    used_features_;
         bool                            pending_event_;
+        volatile bool                   restart_user_timer_requested_;
 
         enum class state
         {
@@ -756,6 +760,7 @@ namespace link_layer {
         : address_( local_device_address::address( *this ) )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , used_features_( supported_features )
+        , restart_user_timer_requested_( false )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
         , connection_parameters_request_running_( false )
@@ -869,9 +874,14 @@ namespace link_layer {
 
         assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
 
-        if ( state_ == state::connecting )
+        if ( state_ == state::connecting || restart_user_timer_requested_ )
         {
             this->synchronized_connection_event_callback_new_connection( connection_interval_ );
+            restart_user_timer_requested_ = false;
+        }
+
+        if ( state_ == state::connecting )
+        {
             this->connection_established( details(), connection_data_, static_cast< radio_t& >( *this ) );
         }
         else if ( state_ == state::connection_changed )
@@ -916,6 +926,12 @@ namespace link_layer {
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
         }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::restart_user_timer()
+    {
+        restart_user_timer_requested_ = true;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
