@@ -14,10 +14,10 @@
 using namespace bluetoe;
 
 // LED1 on a nRF52 eval board
-static constexpr int io_pin = 13;
+static constexpr int io_pin = 19;
 
 // GPIO
-static constexpr int io_event = 14;
+static constexpr int io_event = 20;
 
 static void set_io( int pin, bool value )
 {
@@ -54,6 +54,7 @@ struct callback_handler_t {
     unsigned ll_synchronized_callback( unsigned, connection& con )
     {
         set_io( io_event, con.pin );
+
         con.pin = !con.pin;
 
         // Number of calls to skip
@@ -82,10 +83,13 @@ device<
 
 int main()
 {
-    // Init GPIO pin
-    NRF_GPIO->PIN_CNF[ io_pin ] =
-        ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
-        ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+    // Init GPIO pins
+    for ( const auto pin: { io_pin, io_event } )
+    {
+        NRF_GPIO->PIN_CNF[ pin ] =
+            ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
+            ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
+    }
 
     for ( ;; )
         gatt_srv.run();

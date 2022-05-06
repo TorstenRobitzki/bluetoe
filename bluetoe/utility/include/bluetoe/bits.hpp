@@ -2,6 +2,7 @@
 #define BLUETOE_BITS_HPP
 
 #include <cstdint>
+#include <type_traits>
 
 namespace bluetoe {
 namespace details {
@@ -72,6 +73,45 @@ namespace details {
         return out + 1;
     }
 
+    /**
+     * @brief given to unsigned integers returning the absolute minimum distance between
+     *        both, taking overflow into account.
+     *
+     * Starting at start, incrementing start as until start reached end, would result in a
+     * positiv result. Decrementing start till it reaches end, would result in a negative
+     * result. The function will return the absolute smaller value of both.
+     */
+    template < typename I >
+    typename std::make_signed< I >::type distance( I start, I end )
+    {
+        static_assert( std::is_unsigned< I >::value, "I has to be an unsigned type" );
+
+        if ( start > end )
+            return -distance( end, start );
+
+        const I positive = end - start;
+        const I negative = start + ~I(0) - end + 1;
+
+        return positive < negative
+            ? positive
+            : -negative;
+    }
+
+    template < std::size_t N, typename I >
+    typename std::make_signed< I >::type distance_n( I start, I end )
+    {
+        static_assert( std::is_unsigned< I >::value, "I has to be an unsigned type" );
+
+        if ( start > end )
+            return -distance_n< N >( end, start );
+
+        const I positive = end - start;
+        const I negative = start + I(1 << N) - end;
+
+        return positive < negative
+            ? positive
+            : -negative;
+    }
 }
 }
 #endif

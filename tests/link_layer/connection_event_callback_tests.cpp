@@ -145,10 +145,10 @@ BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
     BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) * 5u );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) * 2u );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
     BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
-    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) * 18u );
+    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( correct_instance, server_7ms_minus_100us )

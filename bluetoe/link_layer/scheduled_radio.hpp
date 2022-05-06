@@ -100,10 +100,17 @@ namespace link_layer {
         /**
          * @brief sets up a timer
          *
-         * Calls CallBack::user_timer() from an unspecified CPU context.
-         * TBS
+         * Calls CallBack::user_timer() from an unspecified CPU context. timeout is based
+         * on the last timers anchor. If the last connection event timed out,
+         * the anchor moved by the connection_interval given to schedule_connection_event().
+         * The anchor will be adjusted by the radio connection events.
+         *
+         * max_cb_runtime is the maximum intended runtime of the callback. An implementation
+         * of this interface can use this value to assert, that the runtime was not exceeded.
          */
-        bool schedule_synchronized_user_timer( bluetoe::link_layer::delta_time );
+        bool schedule_synchronized_user_timer(
+            bluetoe::link_layer::delta_time timeout,
+            bluetoe::link_layer::delta_time max_cb_runtime );
 
         /**
          * @brief cancel the user timer

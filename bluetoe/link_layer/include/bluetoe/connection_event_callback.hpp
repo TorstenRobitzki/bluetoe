@@ -145,7 +145,7 @@ namespace link_layer {
      * @note All callbacks will be called from the very same execution context (thus there is no need
      * for synchronization between calls). The context is defined by the hardware and unspecified.
      */
-    template < typename T, T& Obj, unsigned MaximumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >
+    template < typename T, T& Obj, unsigned MaximumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 100 >
     struct synchronized_connection_event_callback
     {
         /**
@@ -214,7 +214,7 @@ namespace link_layer {
                 if ( num_calls_ )
                     instance_ = ( instance_ + latency ) % num_calls_;
 
-                setup_timer( latency * effective_period_ );
+                setup_timer( effective_period_ );
             }
 
         private:
@@ -260,7 +260,7 @@ namespace link_layer {
 
             void setup_timer( delta_time dt )
             {
-                const bool setup = link_layer().schedule_synchronized_user_timer( dt );
+                const bool setup = link_layer().schedule_synchronized_user_timer( dt, delta_time( MaximumExecutionTimeUS ) );
                 static_cast< void >( setup );
                 assert( setup );
             }

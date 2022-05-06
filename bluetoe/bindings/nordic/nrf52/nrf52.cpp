@@ -1,5 +1,7 @@
 #include <bluetoe/nrf52.hpp>
 
+#include <bluetoe/bits.hpp>
+
 #include <cstring>
 #include <algorithm>
 
@@ -37,17 +39,18 @@ namespace nrf52_details
     // allocation of PPI channels
     enum ppi_channels_used {
         // Channels only used, if BLUETOE_NRF52_RADIO_DEBUG is set
-        trace_debug_ppi_channel_1        = 10,
-        trace_debug_ppi_channel_2        = 11,
-        trace_clock_hfxo_ppi_channel     = 12,
-        trace_radio_address_ppi_channel  = 13,
-        trace_radio_end_ppi_channel      = 14,
-        trace_ccm_endcrypt_ppi_channel   = 15,
-        trace_ccm_endksgen_ppi_channel   = 16,
-        trace_radio_ready_ppi_channel    = 17,
-        trace_radio_disabled_ppi_channel = 18,
+        trace_debug_ppi_channel_1        = 9,
+        trace_debug_ppi_channel_2        = 10,
+        trace_clock_hfxo_ppi_channel     = 11,
+        trace_radio_address_ppi_channel  = 12,
+        trace_radio_end_ppi_channel      = 13,
+        trace_ccm_endcrypt_ppi_channel   = 14,
+        trace_ccm_endksgen_ppi_channel   = 15,
+        trace_radio_ready_ppi_channel    = 16,
+        trace_radio_disabled_ppi_channel = 17,
         // Channels always used
         // !!! If this allocation changes, make sure, the documentation in nrf52.hpp is updated
+        rtc_start_cb_timer_ppi_channel   = 18,
         rtc_start_hfxo_ppi_channel       = 19,
     };
 
@@ -58,15 +61,22 @@ namespace nrf52_details
     // Allocation of the compare/capture registers of the RTC
     enum rtc_capture_registers {
         rtc_cc_start_timer = 0,
-        rtc_cc_start_hfxo  = 1
+        rtc_cc_start_hfxo  = 1,
+        rtc_cc_start_cb_timer = 2,
     };
 
     // Allocation of the compare/capture registers of TIMER0
-    enum timer_captur_registers {
+    enum timer_capture_registers {
         tim_cc_start_radio    = 0,
         tim_cc_timeout        = 1,
         tim_cc_capture_anchor = 2,
         tim_cc_capture_now    = 3
+    };
+
+    // Allocation of the compare/capture registers of TIMER1
+    enum cb_timer_capture_registers {
+        cb_tim_cc_start_exec_cb = 0,
+        cb_tim_cc_assert_end_cb = 1,
     };
 
     static void assign_channel(
@@ -77,15 +87,18 @@ namespace nrf52_details
        nrf_ppi->CH[ channel ].EEP = reinterpret_cast< std::uint32_t >( &event );
        nrf_ppi->CH[ channel ].TEP = reinterpret_cast< std::uint32_t >( &task );
     }
+
+    static constexpr std::uint32_t timer_prescale_for_1us_resolution = 4;
+
 #define BLUETOE_NRF52_RADIO_DEBUG 1
 #   if defined BLUETOE_NRF52_RADIO_DEBUG
-        static constexpr int debug_pin_end_crypt     = 4;
-        static constexpr int debug_pin_ready_disable = 5;
-        static constexpr int debug_pin_address_end   = 6;
-        static constexpr int debug_pin_keystream     = 7;
-        static constexpr int debug_pin_debug         = 8;
-        static constexpr int debug_pin_isr           = 28;
-        static constexpr int debug_pin_hfxo          = 29;
+        static constexpr int debug_pin_end_crypt     = 11;
+        static constexpr int debug_pin_ready_disable = 12;
+        static constexpr int debug_pin_address_end   = 13;
+        static constexpr int debug_pin_keystream     = 14;
+        static constexpr int debug_pin_debug         = 15;
+        static constexpr int debug_pin_isr           = 16;
+        static constexpr int debug_pin_hfxo          = 17;
 
         void init_debug()
         {
@@ -306,19 +319,23 @@ namespace nrf52_details
         nrf_radio->TIFS      = 150;
     }
 
+    static void configure_timer_for_1us( NRF_TIMER_Type& timer )
+    {
+        timer.MODE        = TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos;
+        timer.BITMODE     = TIMER_BITMODE_BITMODE_32Bit;
+        timer.PRESCALER   = timer_prescale_for_1us_resolution;
+
+        timer.TASKS_STOP  = 1;
+        timer.TASKS_CLEAR = 1;
+        timer.EVENTS_COMPARE[ 0 ] = 0;
+        timer.EVENTS_COMPARE[ 1 ] = 0;
+        timer.EVENTS_COMPARE[ 2 ] = 0;
+        timer.EVENTS_COMPARE[ 3 ] = 0;
+    }
+
     static void init_timer()
     {
-        nrf_timer->MODE        = TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos;
-        nrf_timer->BITMODE     = TIMER_BITMODE_BITMODE_32Bit;
-        nrf_timer->PRESCALER   = 4; // resulting in a timer resolution of 1µs
-
-        nrf_timer->TASKS_STOP  = 1;
-        nrf_timer->TASKS_CLEAR = 1;
-        nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
-        nrf_timer->EVENTS_COMPARE[ 1 ] = 0;
-        nrf_timer->EVENTS_COMPARE[ 2 ] = 0;
-        nrf_timer->EVENTS_COMPARE[ 3 ] = 0;
-
+        configure_timer_for_1us( *nrf_timer );
         nrf_timer->TASKS_START = 1;
     }
 
@@ -338,7 +355,7 @@ namespace nrf52_details
         instance    = that;
         isr_handler = isr;
 
-        NVIC_SetPriority( RADIO_IRQn, 0 );
+        NVIC_SetPriority( RADIO_IRQn, nrf_interrupt_prio_ble );
         NVIC_ClearPendingIRQ( RADIO_IRQn );
         NVIC_EnableIRQ( RADIO_IRQn );
     }
@@ -498,6 +515,10 @@ namespace nrf52_details
     {
         hf_connection_event_anchor_ = static_cast< int >( nrf_timer->CC[ tim_cc_capture_anchor ] ) + offset_us;
         lf_connection_event_anchor_ = nrf_rtc->CC[ rtc_cc_start_timer ];
+
+        hf_user_timer_anchor_ = hf_connection_event_anchor_;
+        lf_user_timer_anchor_ = lf_connection_event_anchor_;
+        ++user_timer_anchor_version_;
     }
 
     std::pair< bool, bool > radio_hardware_without_crypto_support::received_pdu()
@@ -676,6 +697,94 @@ namespace nrf52_details
         enable_radio_disabled_interrupt();
     }
 
+    static void (*user_timer_isr_handler)( void* );
+
+    bool radio_hardware_without_crypto_support::schedule_user_timer(
+        void (*isr)( void* ),
+        std::uint32_t                   time_us,
+        std::uint32_t                   max_cb_runtimer_ms )
+    {
+        // when this assert hits, the last callback took longer than declared
+        assert( !nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_assert_end_cb ] );
+        assert( max_cb_runtimer_ms > 0 );
+
+        user_timer_isr_handler = isr;
+
+        // configure timer and PPI. If the user timer is not used, the application is free to use
+        // timer and PPI
+        configure_timer_for_1us( *nrf_cb_timer );
+        nrf_cb_timer->SHORTS   = TIMER_SHORTS_COMPARE1_STOP_Enabled << TIMER_SHORTS_COMPARE1_STOP_Pos;
+        nrf_cb_timer->INTENSET = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos;
+        nrf_rtc->EVTENSET = RTC_EVTEN_COMPARE2_Enabled << RTC_EVTEN_COMPARE2_Pos;
+
+        assign_channel( rtc_start_cb_timer_ppi_channel, nrf_rtc->EVENTS_COMPARE[ rtc_cc_start_cb_timer ], nrf_cb_timer->TASKS_START );
+        nrf_ppi->CHENSET = 1 << rtc_start_cb_timer_ppi_channel;
+
+        NVIC_SetPriority( TIMER1_IRQn, nrf_interrupt_prio_user_cb );
+        NVIC_ClearPendingIRQ( TIMER1_IRQn );
+        NVIC_EnableIRQ( TIMER1_IRQn );
+
+        int anchor_version;
+        int hf_anchor;
+        std::uint32_t lf_anchor;
+
+        {
+            lock_guard lock;
+            anchor_version = user_timer_anchor_version_;
+            hf_anchor = hf_user_timer_anchor_;
+            lf_anchor = lf_user_timer_anchor_;
+        }
+
+        const auto counter = nrf_rtc->COUNTER;
+        const auto anchor_distance = bluetoe::details::distance_n< 24u >( counter, lf_anchor );
+
+        // The anchor was reset during the last connection event Simply wait for 2 * time_us
+        if ( std::abs( anchor_distance ) > 5u )
+        {
+            time_us = 2 * time_us;
+        }
+
+        // -1 to prevent the calculation to endup with starting the Radio at TIMER1 beeing 0
+        static constexpr auto us_offset   = 1;
+
+        const std::uint32_t trigger_isr_time = hf_anchor + time_us - us_offset;
+
+        const std::uint32_t lf_call_cb_time =
+          static_cast< std::uint64_t >( trigger_isr_time )
+        * static_cast< std::uint64_t >( nrf::lfxo_clk_freq ) / 1000000;
+
+        const std::uint32_t hf_call_cb_time = trigger_isr_time -
+          static_cast< std::uint64_t >( lf_call_cb_time )
+        * static_cast< std::uint64_t >( 1000000 ) / nrf::lfxo_clk_freq;
+
+        nrf_rtc->CC[ rtc_cc_start_cb_timer ] = lf_anchor + lf_call_cb_time;
+
+        assert( ( bluetoe::details::distance_n< 24u, std::uint32_t >( counter, nrf_rtc->CC[ rtc_cc_start_cb_timer ] ) > 0 ) );
+
+        nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] = hf_call_cb_time + us_offset;
+        nrf_cb_timer->CC[ cb_tim_cc_assert_end_cb ] = nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] + max_cb_runtimer_ms;
+
+        assert( nrf_cb_timer->CC[ cb_tim_cc_assert_end_cb ] > nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] );
+
+        // set anchor to the destination time
+        {
+            lock_guard lock;
+
+            if ( anchor_version == user_timer_anchor_version_ )
+            {
+                hf_user_timer_anchor_ = nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ];
+                lf_user_timer_anchor_ = nrf_rtc->CC[ rtc_cc_start_cb_timer ];
+            }
+        }
+
+        return true;
+    }
+
+    bool radio_hardware_without_crypto_support::stop_user_timer()
+    {
+        return false;
+    }
+
     void radio_hardware_without_crypto_support::stop_timeout_timer()
     {
         nrf_ppi->CHENCLR = ( 1 << compare1_disable_ppi_channel );
@@ -699,10 +808,13 @@ namespace nrf52_details
     }
 
 
-    bool          radio_hardware_without_crypto_support::receive_2mbit_;
-    bool          radio_hardware_without_crypto_support::transmit_2mbit_;
-    int           radio_hardware_without_crypto_support::hf_connection_event_anchor_;
-    std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
+    bool                   radio_hardware_without_crypto_support::receive_2mbit_;
+    bool                   radio_hardware_without_crypto_support::transmit_2mbit_;
+    int                    radio_hardware_without_crypto_support::hf_connection_event_anchor_;
+    std::uint32_t          radio_hardware_without_crypto_support::lf_connection_event_anchor_;
+    volatile int           radio_hardware_without_crypto_support::hf_user_timer_anchor_;
+    volatile std::uint32_t radio_hardware_without_crypto_support::lf_user_timer_anchor_;
+    volatile int           radio_hardware_without_crypto_support::user_timer_anchor_version_;
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
@@ -1101,6 +1213,7 @@ namespace nrf52_details
           | CLOCK_INTENSET_CTTO_Msk
           | CLOCK_INTENSET_HFCLKSTARTED_Msk;
 
+        NVIC_SetPriority( POWER_CLOCK_IRQn, nrf_interrupt_prio_calibrate_rtc );
         NVIC_ClearPendingIRQ( POWER_CLOCK_IRQn );
         NVIC_EnableIRQ( POWER_CLOCK_IRQn );
 
@@ -1165,4 +1278,17 @@ extern "C" void RADIO_IRQHandler(void)
 extern "C" void POWER_CLOCK_IRQHandler()
 {
     bluetoe::nrf52_details::clock_isr_handler();
+}
+
+extern "C" void TIMER1_IRQHandler()
+{
+    assert( bluetoe::nrf52_details::instance );
+    assert( bluetoe::nrf52_details::user_timer_isr_handler );
+
+    bluetoe::nrf::nrf_cb_timer->TASKS_STOP = 1;
+    bluetoe::nrf::nrf_cb_timer->INTENCLR = 0xFFFFFFFF;
+
+    // the next timer is setup from within the callback,
+    // so better do not alter anything after this call
+    bluetoe::nrf52_details::user_timer_isr_handler( bluetoe::nrf52_details::instance );
 }
