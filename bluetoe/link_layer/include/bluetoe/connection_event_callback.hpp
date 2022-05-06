@@ -10,6 +10,7 @@ namespace link_layer {
     namespace details {
         struct connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
         struct synchronized_connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
+        struct check_synchronized_connection_event_callback_meta_type : details::valid_link_layer_option_meta_type {};
 
         struct default_connection_event_callback
         {
@@ -339,6 +340,11 @@ namespace link_layer {
         /** @endcond */
     };
 
+    /**
+     * @brief Do not user synchronized connection event callbacks
+     *
+     * This is the default.
+     */
     struct no_synchronized_connection_event_callback
     {
         /** @cond HIDDEN_SYMBOLS */
@@ -368,6 +374,53 @@ namespace link_layer {
         typedef details::synchronized_connection_event_callback_meta_type meta_type;
         /** @endcond */
     };
+
+    /**
+     * @brief if this parameter is given to the link layer, some compile time checks are done.
+     *
+     * The compiliation will fail, if the parameters given to synchronized_connection_event_callback<>
+     * fail to provide a garanty, that under all possible connection intervals
+     * - MaximumPeriodUS can be garantied with all possible connection intervals
+     * - PhaseShiftUS is negative and the end of the callback execution leaves enough time
+     *   to start the radio.
+     * - MaximumExecutionTimeUS does not exceed any possible connection interval taking PhaseShiftUS
+     *   and MaximumPeriodUS into account.
+     *
+     * @sa synchronized_connection_event_callback
+     */
+    struct check_synchronized_connection_event_callback
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        static void check( const no_synchronized_connection_event_callback& )
+        {
+        }
+
+        template < typename T, T& Obj, unsigned MaximumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 100 >
+        static void check( const synchronized_connection_event_callback< T, Obj, MaximumPeriodUS, PhaseShiftUS, MaximumExecutionTimeUS >& )
+        {
+        }
+
+        using meta_type = details::check_synchronized_connection_event_callback_meta_type;
+        /** @endcond */
+    };
+
+    /**
+     * @brief no compiler time parameter check
+     *
+     * @sa check_synchronized_connection_event_callback
+     */
+    struct no_check_synchronized_connection_event_callback
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        template < class CBs >
+        static void check( const CBs& )
+        {
+        }
+
+        using meta_type = details::check_synchronized_connection_event_callback_meta_type;
+        /** @endcond */
+    };
+
 }
 }
 #endif

@@ -766,6 +766,19 @@ namespace link_layer {
         , connection_parameters_request_running_( false )
         , phy_update_request_pending_( false )
     {
+        using user_timer_t = typename bluetoe::details::find_by_meta_type<
+            details::synchronized_connection_event_callback_meta_type,
+            Options...,
+            no_synchronized_connection_event_callback
+        >::type;
+
+        using compile_time_check_user_timer_parameters_t = typename ::bluetoe::details::find_by_meta_type<
+            details::check_synchronized_connection_event_callback_meta_type,
+            Options..., no_check_synchronized_connection_event_callback
+        >::type;
+
+        compile_time_check_user_timer_parameters_t::check( user_timer_t() );
+
         this->notification_callback( queue_lcap_notification, this );
     }
 

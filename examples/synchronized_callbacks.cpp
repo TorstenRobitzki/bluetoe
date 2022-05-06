@@ -88,7 +88,8 @@ device<
     blinky_server,
     link_layer::buffer_sizes< 200, 200 >,
     bluetoe::link_layer::synchronized_connection_event_callback<
-        callback_handler_t, callback_handler, 4000, -100 >
+        callback_handler_t, callback_handler, 4000, -100 >,
+    bluetoe::link_layer::check_synchronized_connection_event_callback
 > gatt_srv;
 
 int main()
