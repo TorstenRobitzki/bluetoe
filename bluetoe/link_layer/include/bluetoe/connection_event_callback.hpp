@@ -180,6 +180,7 @@ namespace link_layer {
             {
                 connection_value_ = typename T::connection();
                 instance_         = 0;
+                latency_          = 0;
 
                 calculate_effective_period( connection_interval );
                 call_ll_connect< T >( connection_interval, connection_value_ );
@@ -194,8 +195,8 @@ namespace link_layer {
 
             void synchronized_connection_event_callback_connection_changed( delta_time connection_interval )
             {
-                connection_value_ = typename T::connection();
                 instance_         = 0;
+                latency_          = 0;
 
                 calculate_effective_period( connection_interval );
                 call_ll_update< T >( connection_interval );
@@ -210,10 +211,12 @@ namespace link_layer {
 
             void synchronized_connection_event_callback_timeout()
             {
-                const unsigned latency = Obj.ll_synchronized_callback( instance_, connection_value_ ) + 1u;
+                latency_ = latency_ == 0
+                    ? Obj.ll_synchronized_callback( instance_, connection_value_ )
+                    : latency_ - 1;
 
                 if ( num_calls_ )
-                    instance_ = ( instance_ + latency ) % num_calls_;
+                    instance_ = ( instance_ + 1 ) % num_calls_;
 
                 setup_timer( effective_period_ );
             }
@@ -302,6 +305,7 @@ namespace link_layer {
             delta_time effective_period_;
 
             unsigned instance_;
+            unsigned latency_;
 
             // > 1 if there are more than 1 call to the CB at each interval
             unsigned num_calls_;

@@ -66,7 +66,7 @@ struct callback_handler_t {
         }
 
         // Number of calls to skip
-        return 0;
+        return con.count;
     }
 };
 
