@@ -24,6 +24,7 @@ namespace bluetoe
          */
         static NRF_RADIO_Type* const        nrf_radio            = NRF_RADIO;
         static NRF_TIMER_Type* const        nrf_timer            = NRF_TIMER0;
+        static NRF_TIMER_Type* const        nrf_cb_timer         = NRF_TIMER1;
         static NRF_CLOCK_Type* const        nrf_clock            = NRF_CLOCK;
         static NRF_TEMP_Type* const         nrf_temp             = NRF_TEMP;
         static NRF_RTC_Type* const          nrf_rtc              = NRF_RTC0;
@@ -36,6 +37,13 @@ namespace bluetoe
         static NVIC_Type* const             nvic                 = NVIC;
 
         static constexpr auto lfxo_clk_freq = 32768;
+
+        /*
+         * Interrupt priorities
+         */
+        static constexpr uint32_t nrf_interrupt_prio_ble = 0;
+        static constexpr uint32_t nrf_interrupt_prio_user_cb = 1 << ( __NVIC_PRIO_BITS - 1 );
+        static constexpr uint32_t nrf_interrupt_prio_calibrate_rtc = nrf_interrupt_prio_user_cb - 1;
 
         namespace nrf_details {
             struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};

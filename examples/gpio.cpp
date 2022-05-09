@@ -15,7 +15,7 @@
 static constexpr std::uint32_t input_pin    = 11u;
 static constexpr std::uint32_t output_pin   = 13u;
 
-static NRF_TIMER_Type& display_timer    = *NRF_TIMER1;
+static NRF_TIMER_Type& display_timer    = *NRF_TIMER3;
 static NRF_TIMER_Type& debounce_timer   = *NRF_TIMER2;
 static NRF_GPIOTE_Type& gpiote          = *NRF_GPIOTE;
 static NRF_GPIO_Type&  port0            = *NRF_P0;
@@ -145,13 +145,13 @@ private:
           | ( TIMER_SHORTS_COMPARE0_STOP_Enabled << TIMER_SHORTS_COMPARE0_STOP_Pos );
         display_timer.INTENSET = ( TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos );
 
-        NVIC_ClearPendingIRQ( TIMER1_IRQn );
-        NVIC_EnableIRQ( TIMER1_IRQn );
+        NVIC_ClearPendingIRQ( TIMER3_IRQn );
+        NVIC_EnableIRQ( TIMER3_IRQn );
     }
 
     void disable_timer()
     {
-        NVIC_DisableIRQ( TIMER1_IRQn );
+        NVIC_DisableIRQ( TIMER3_IRQn );
         display_timer.INTENCLR = ( TIMER_INTENCLR_COMPARE0_Clear << TIMER_INTENCLR_COMPARE0_Pos );
         display_timer.TASKS_STOP = 1;
     }
@@ -279,7 +279,7 @@ void pairing_io_t::handle_display_timer()
     display_timer.TASKS_START = 1;
 }
 
-extern "C" void TIMER1_IRQHandler()
+extern "C" void TIMER3_IRQHandler()
 {
     display_timer.EVENTS_COMPARE[ 0 ] = 0;
     pairing_io.interrupt_handler();

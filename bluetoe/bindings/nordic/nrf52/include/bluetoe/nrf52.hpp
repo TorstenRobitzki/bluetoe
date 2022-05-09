@@ -31,6 +31,7 @@
  *
  * - The radio peripheral is exclusively used by Bluetoe.
  * - Timer0 is exclusively used by Bluetoe.
+ * - Timer1 is used by Bluetoe, if the synchronized_connection_event_callback<> feature is used.
  * - Bluetoe will switch the HFXO on and off.
  * - RTC0 is exclusively used by Bluetoe.
  * - Bluetoe will switch on the configured low frequency clock source.
@@ -38,6 +39,7 @@
  *   is enabled.
  * - The highest priority interrupt level is exclusively used by Bluetoe.
  * - Bluetoe used PPI channel 19 exclusively
+ * - Bluetoe used PPI channel 18 exclusively, if the synchronized_connection_event_callback<> feature is used.
  */
 namespace bluetoe
 {
@@ -176,6 +178,12 @@ namespace bluetoe
                 std::uint32_t                   end_us,
                 std::uint32_t                   start_hfxo_offset );
 
+            static bool schedule_user_timer(
+                void (*isr)( void* ),
+                std::uint32_t                   time_us,
+                std::uint32_t                   max_cb_runtimer_ms );
+
+            static bool stop_user_timer();
             /**
              * @brief stop the timer from disabling the RADIO
              */
@@ -220,6 +228,10 @@ namespace bluetoe
             static int           hf_connection_event_anchor_;
             static std::uint32_t lf_connection_event_anchor_;
 
+            volatile static int           hf_user_timer_anchor_;
+            volatile static std::uint32_t lf_user_timer_anchor_;
+            volatile static int           user_timer_anchor_version_;
+            volatile static bool          user_timer_start_;
         };
 
         /**
@@ -416,6 +428,24 @@ namespace bluetoe
                 return result;
             }
 
+            bool schedule_synchronized_user_timer(
+                    bluetoe::link_layer::delta_time timer,
+                    bluetoe::link_layer::delta_time max_cb_runtime )
+            {
+                return Hardware::schedule_user_timer( []( void* that ){
+                    const auto this_ = static_cast< nrf52_radio_base* >( that );
+                    const auto callbacks = static_cast< CallBacks* >( this_ );
+
+                    callbacks->user_timer();
+
+                }, timer.usec(), max_cb_runtime.usec() );
+            }
+
+            bool cancel_synchronized_user_timer()
+            {
+                return Hardware::stop_user_timer();
+            }
+
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
             {
                 Hardware::set_access_address_and_crc_init( access_address, crc_init );
@@ -502,6 +532,14 @@ namespace bluetoe
              * @brief indicates support for 2Mbit
              */
             static constexpr bool hardware_supports_2mbit = true;
+
+            /**
+             * @brief indicates support for schedule_synchronized_user_timer()
+             */
+            static constexpr bool hardware_supports_synchronized_user_timer = true;
+
+            static constexpr unsigned connection_event_setup_time_us = nrf52_radio_base::start_event_safety_margin_us;
+
         private:
             using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
                 nrf::nrf_details::sleep_clock_source_meta_type,

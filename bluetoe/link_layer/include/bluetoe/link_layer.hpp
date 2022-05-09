@@ -414,6 +414,13 @@ namespace link_layer {
                 Options...,
                 periperal_latency_default_configuration >::type
             >;
+
+        template < class Base, typename ...Options >
+        using select_user_timer_impl = typename bluetoe::details::find_by_meta_type<
+            synchronized_connection_event_callback_meta_type,
+            Options...,
+            no_synchronized_connection_event_callback
+        >::type::template impl< Base >;
     }
 
     /**
@@ -469,7 +476,9 @@ namespace link_layer {
                 details::buffer_sizes< Options... >::tx_size,
                 details::buffer_sizes< Options... >::rx_size,
                 link_layer< Server, ScheduledRadio, Options... >
-            > >
+            > >,
+        public details::select_user_timer_impl<
+            link_layer< Server, ScheduledRadio, Options... >, Options ... >
     {
     public:
         link_layer();
@@ -505,6 +514,11 @@ namespace link_layer {
          * @sa scheduled_radio::schedule_connection_event
          */
         void end_event( connection_event_events evts );
+
+        /**
+         * @brief call back that will be called on expired user timer.
+         */
+        void user_timer();
 
         /**
          * @brief initiating the change of communication parameters of an established connection
@@ -562,6 +576,9 @@ namespace link_layer {
         // Allocate size bytes of L2CAP layer payload
         std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t size );
         void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer );
+
+        // will cause the link layer to inform the user callbacks that a connection event happend
+        void restart_user_timer();
 
         /** @endcond */
 
@@ -697,6 +714,7 @@ namespace link_layer {
         bool                            termination_send_;
         std::uint8_t                    used_features_;
         bool                            pending_event_;
+        volatile bool                   restart_user_timer_requested_;
 
         enum class state
         {
@@ -704,7 +722,8 @@ namespace link_layer {
             advertising,
             connecting,
             connected,
-            disconnecting
+            disconnecting,
+            connection_changed
         }                               state_;
 
         std::uint16_t                   proposed_interval_min_;
@@ -741,11 +760,25 @@ namespace link_layer {
         : address_( local_device_address::address( *this ) )
         , defered_ll_control_pdu_{ nullptr, 0 }
         , used_features_( supported_features )
+        , restart_user_timer_requested_( false )
         , state_( state::initial )
         , connection_parameters_request_pending_( false )
         , connection_parameters_request_running_( false )
         , phy_update_request_pending_( false )
     {
+        using user_timer_t = typename bluetoe::details::find_by_meta_type<
+            details::synchronized_connection_event_callback_meta_type,
+            Options...,
+            no_synchronized_connection_event_callback
+        >::type;
+
+        using compile_time_check_user_timer_parameters_t = typename ::bluetoe::details::find_by_meta_type<
+            details::check_synchronized_connection_event_callback_meta_type,
+            Options..., no_check_synchronized_connection_event_callback
+        >::type;
+
+        compile_time_check_user_timer_parameters_t::template check< link_layer< Server, ScheduledRadio, Options... > >( user_timer_t() );
+
         this->notification_callback( queue_lcap_notification, this );
     }
 
@@ -823,7 +856,7 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
 
         const auto time_since_last_event = this->time_since_last_event();
 
@@ -852,11 +885,21 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting );
+        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
+
+        if ( state_ == state::connecting || restart_user_timer_requested_ )
+        {
+            this->synchronized_connection_event_callback_new_connection( connection_interval_ );
+            restart_user_timer_requested_ = false;
+        }
 
         if ( state_ == state::connecting )
         {
             this->connection_established( details(), connection_data_, static_cast< radio_t& >( *this ) );
+        }
+        else if ( state_ == state::connection_changed )
+        {
+            this->synchronized_connection_event_callback_connection_changed( connection_interval_ );
         }
 
         if ( state_ != state::disconnecting )
@@ -892,11 +935,22 @@ namespace link_layer {
             }
             else
             {
-
                 const delta_time time_till_next_event = setup_next_connection_event();
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
         }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::restart_user_timer()
+    {
+        restart_user_timer_requested_ = true;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::user_timer()
+    {
+        this->synchronized_connection_event_callback_timeout();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -945,6 +999,7 @@ namespace link_layer {
         state_            = state::disconnecting;
         termination_send_ = false;
 
+        this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
     }
 
@@ -1132,6 +1187,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::force_disconnect()
     {
+        this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
         this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
         this->reset_phy( *this );
@@ -1365,6 +1421,8 @@ namespace link_layer {
             {
                 if ( parse_timing_parameters_from_connection_update_request( body ) )
                 {
+                    state_ = state::connection_changed;
+                    this->synchronized_connection_event_callback_start_changing_connection();
                     this->connection_changed( details(), connection_data_, static_cast< radio_t& >( *this ) );
                 }
                 else

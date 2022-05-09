@@ -98,6 +98,26 @@ namespace link_layer {
         std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event();
 
         /**
+         * @brief sets up a timer
+         *
+         * Calls CallBack::user_timer() from an unspecified CPU context. timeout is based
+         * on the last timers anchor. If the last connection event timed out,
+         * the anchor moved by the connection_interval given to schedule_connection_event().
+         * The anchor will be adjusted by the radio connection events.
+         *
+         * max_cb_runtime is the maximum intended runtime of the callback. An implementation
+         * of this interface can use this value to assert, that the runtime was not exceeded.
+         */
+        bool schedule_synchronized_user_timer(
+            bluetoe::link_layer::delta_time timeout,
+            bluetoe::link_layer::delta_time max_cb_runtime );
+
+        /**
+         * @brief cancel the user timer
+         */
+        bool cancel_synchronized_user_timer();
+
+        /**
          * @brief set the access address initial CRC value for transmitted and received PDU
          *
          * The values should be changed, when there is no outstanding scheduled transmission or receiving.
@@ -241,6 +261,11 @@ namespace link_layer {
          * @brief indicates support for 2Mbit
          */
         static constexpr bool hardware_supports_2mbit = true;
+
+        /**
+         * @brief indicates support for schedule_synchronized_user_timer()
+         */
+        static constexpr bool hardware_supports_synchronized_user_timer = true;
     };
 
     /**

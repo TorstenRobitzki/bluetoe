@@ -68,14 +68,14 @@ static constexpr int timer_devider      = 100;
 // for easier debugging
 static NRF_GPIOTE_Type* const nrf_gpiote = NRF_GPIOTE;
 static NRF_GPIO_Type* const   nrf_gpio   = NRF_GPIO;
-static NRF_TIMER_Type* const  nrf_timer1 = NRF_TIMER1;
+static NRF_TIMER_Type* const  nrf_timer  = NRF_TIMER2;
 
 static volatile std::uint16_t now       = 0;
 static volatile std::uint16_t last_now  = 0;
 
-extern "C" void TIMER1_IRQHandler()
+extern "C" void TIMER2_IRQHandler()
 {
-    nrf_timer1->EVENTS_COMPARE[ 0 ] = 0;
+    nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
     now += timer_devider;
 }
 
@@ -128,27 +128,27 @@ void init_bike_hardware()
     NVIC_ClearPendingIRQ( GPIOTE_IRQn );
     NVIC_EnableIRQ( GPIOTE_IRQn );
 
-    nrf_timer1->INTENCLR = 0xffff;
-    nrf_timer1->MODE     =
+    nrf_timer->INTENCLR = 0xffff;
+    nrf_timer->MODE     =
         (TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos);
 
-    nrf_timer1->BITMODE  =
+    nrf_timer->BITMODE  =
         (TIMER_BITMODE_BITMODE_16Bit << TIMER_BITMODE_BITMODE_Pos);
 
     // for 1024hz, we would need a prescale of lb(13.931)
     // this makes 16Mhz / 2^9 == 31.25khz
-    nrf_timer1->PRESCALER = 9;
+    nrf_timer->PRESCALER = 9;
 
     // if we want the ISR to be called with 1024hz/100, we would reset the timer at
-    nrf_timer1->CC[ 0 ] = 31250 * timer_devider / 1024;
-    nrf_timer1->SHORTS  =
+    nrf_timer->CC[ 0 ] = 31250 * timer_devider / 1024;
+    nrf_timer->SHORTS  =
         (TIMER_SHORTS_COMPARE0_CLEAR_Enabled << TIMER_SHORTS_COMPARE0_CLEAR_Pos);
-    nrf_timer1->INTENSET =
+    nrf_timer->INTENSET =
         (TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos);
 
-    NVIC_SetPriority( TIMER1_IRQn, 2 );
-    NVIC_ClearPendingIRQ( TIMER1_IRQn );
-    NVIC_EnableIRQ( TIMER1_IRQn );
+    NVIC_SetPriority( TIMER2_IRQn, 2 );
+    NVIC_ClearPendingIRQ( TIMER2_IRQn );
+    NVIC_EnableIRQ( TIMER2_IRQn );
 
-    nrf_timer1->TASKS_START = 1;
+    nrf_timer->TASKS_START = 1;
 }

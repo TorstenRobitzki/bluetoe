@@ -245,6 +245,21 @@ namespace test {
         return out;
     }
 
+    std::ostream& operator<<( std::ostream& out, const scheduled_user_timer& data )
+    {
+        out << "schedule_time: " << data.schedule_time << "; delayed: " << data.delay;
+
+        return out;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const std::vector< scheduled_user_timer >& data )
+    {
+        for ( const auto& d: data )
+            out << d << "\n";
+
+        return out;
+    }
+
     const std::vector< advertising_data >& radio_base::advertisings() const
     {
         return advertised_data_;
@@ -253,6 +268,11 @@ namespace test {
     const std::vector< connection_event >& radio_base::connection_events() const
     {
         return connection_events_;
+    }
+
+    const std::vector< scheduled_user_timer >& radio_base::scheduled_user_timers() const
+    {
+        return scheduled_user_timers_;
     }
 
     radio_base::radio_base()
