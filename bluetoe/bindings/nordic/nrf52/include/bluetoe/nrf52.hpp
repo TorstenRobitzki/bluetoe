@@ -537,6 +537,9 @@ namespace bluetoe
              * @brief indicates support for schedule_synchronized_user_timer()
              */
             static constexpr bool hardware_supports_synchronized_user_timer = true;
+
+            static constexpr unsigned connection_event_setup_time_us = nrf52_radio_base::start_event_safety_margin_us;
+
         private:
             using low_frequency_clock_t = typename bluetoe::details::find_by_meta_type<
                 nrf::nrf_details::sleep_clock_source_meta_type,

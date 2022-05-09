@@ -777,7 +777,7 @@ namespace link_layer {
             Options..., no_check_synchronized_connection_event_callback
         >::type;
 
-        compile_time_check_user_timer_parameters_t::check( user_timer_t() );
+        compile_time_check_user_timer_parameters_t::template check< link_layer< Server, ScheduledRadio, Options... > >( user_timer_t() );
 
         this->notification_callback( queue_lcap_notification, this );
     }

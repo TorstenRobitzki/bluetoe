@@ -388,21 +388,43 @@ namespace link_layer {
      *
      * @sa synchronized_connection_event_callback
      */
-    struct check_synchronized_connection_event_callback
+    template < unsigned ExpectedMinimumInterval_US >
+    struct ranged_check_synchronized_connection_event_callback
     {
         /** @cond HIDDEN_SYMBOLS */
+        template < typename Radio >
         static void check( const no_synchronized_connection_event_callback& )
         {
         }
 
-        template < typename T, T& Obj, unsigned MaximumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 100 >
+        template < typename Radio, typename T, T& Obj, unsigned MaximumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS >
         static void check( const synchronized_connection_event_callback< T, Obj, MaximumPeriodUS, PhaseShiftUS, MaximumExecutionTimeUS >& )
         {
+            static_assert( MaximumPeriodUS <= ExpectedMinimumInterval_US,
+                "To guaranty the timely execution of the callback, the MaximumPeriodUS must be small or equal to the minimum connection interval!" );
+
+            static_assert( PhaseShiftUS < 0,
+                "In order to make sure, that the callback is finished when the connection event starts, the callback must start prior to the connection event!" );
+
+            static_assert( -PhaseShiftUS >= Radio::connection_event_setup_time_us,
+                "PhaseShiftUS must start before the radios setup time." );
+
+            static_assert( -PhaseShiftUS >= Radio::connection_event_setup_time_us + MaximumExecutionTimeUS,
+                "Callback execution must end before setup time of the configured radio." );
+
+            static_assert( MaximumPeriodUS / 2 >= MaximumExecutionTimeUS,
+                "In worst case, the effective period of the callback invocation is half the requested period and thus must still be large enough for the expected runtimer of the callback." );
+
+            static_assert( -PhaseShiftUS < MaximumPeriodUS / 2,
+                "In worst case, the effective period of the callback invocation is half the requested period and thus must still be small than the phase shift." );
         }
 
         using meta_type = details::check_synchronized_connection_event_callback_meta_type;
         /** @endcond */
     };
+
+    using check_synchronized_connection_event_callback =
+        ranged_check_synchronized_connection_event_callback< 7500u >;
 
     /**
      * @brief no compiler time parameter check
@@ -412,7 +434,7 @@ namespace link_layer {
     struct no_check_synchronized_connection_event_callback
     {
         /** @cond HIDDEN_SYMBOLS */
-        template < class CBs >
+        template < typename Radio, class CBs >
         static void check( const CBs& )
         {
         }

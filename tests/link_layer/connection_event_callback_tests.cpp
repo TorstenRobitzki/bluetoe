@@ -66,6 +66,90 @@ BOOST_AUTO_TEST_CASE( no_support_by_hardware )
 }
 #endif
 
+#if 0
+BOOST_AUTO_TEST_CASE( MaximumPeriodUS_less_or_equal_minimum_interval )
+{
+    using gatt = unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_user_timer,
+        bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 8000, -100, 100 >,
+        bluetoe::link_layer::check_synchronized_connection_event_callback
+     >;
+
+     gatt g;
+}
+#endif
+
+#if 0
+BOOST_AUTO_TEST_CASE( PhaseShiftUS_is_negative )
+{
+    using gatt = unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_user_timer,
+        bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 2500, 100, 100 >,
+        bluetoe::link_layer::check_synchronized_connection_event_callback
+     >;
+
+     gatt g;
+}
+#endif
+
+#if 0
+BOOST_AUTO_TEST_CASE( PhaseShiftGreaterThan_SetupTime )
+{
+    using gatt = unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_user_timer,
+        bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 2500, -50, 100 >,
+        bluetoe::link_layer::check_synchronized_connection_event_callback
+     >;
+
+     gatt g;
+}
+#endif
+
+#if 0
+BOOST_AUTO_TEST_CASE( PhaseShiftGreaterThanRuntimerAndSetuptime)
+{
+    using gatt = unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_user_timer,
+        bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 2500, -300, 350 >,
+        bluetoe::link_layer::check_synchronized_connection_event_callback
+     >;
+
+     gatt g;
+}
+#endif
+
+#if 0
+BOOST_AUTO_TEST_CASE( ShiftExceedsPeriod )
+{
+    using gatt = unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_user_timer,
+        bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 200, -300, 100 >,
+        bluetoe::link_layer::check_synchronized_connection_event_callback
+     >;
+
+     gatt g;
+}
+#endif
+
+#if 0
+BOOST_AUTO_TEST_CASE( MaximumExecutionTimeLessThanHalfOfPeriod )
+{
+    using gatt = unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_user_timer,
+        bluetoe::link_layer::synchronized_connection_event_callback< callbacks_t, callbacks, 1000, -700, 600 >,
+        bluetoe::link_layer::check_synchronized_connection_event_callback
+     >;
+
+     gatt g;
+}
+#endif
+
 BOOST_AUTO_TEST_SUITE_END()
 
 template < unsigned MinimumPeriodUS, int PhaseShiftUS, unsigned MaximumExecutionTimeUS = 0 >

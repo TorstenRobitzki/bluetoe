@@ -429,6 +429,8 @@ namespace test {
          */
         static constexpr bool hardware_supports_synchronized_user_timer = SynchronizedUserTimerSupported;
 
+        static constexpr unsigned connection_event_setup_time_us = 100u;
+
     private:
         // converts from in memory layout to over the air layout
         void copy_memory_to_air( const std::vector< std::uint8_t >& in_memory, bluetoe::link_layer::read_buffer& over_the_air );
