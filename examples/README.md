@@ -10,6 +10,10 @@ To configure the build, some CMake cache variables are required to be set.
 
 The build tries to find the required `arm-none-eabi-gcc` on its own. If you want to use a specific version of `arm-none-eabi-gcc`, you can set the CMake cache variable `ARM_GCC_TOOL_PATH` to point to the local installation of `arm-none-eabi-gcc` (the path, wich contains the `bin` directory).
 
+### Nordic SDK
+
+To build for Nordic hardware, the Nordic SDK must be installed on the build machine. `NRF5_SDK_ROOT` must then point to the installation.
+
 ## Configure Examples to run on your Hardware
 
 Currently, there is support for following eval boards:
