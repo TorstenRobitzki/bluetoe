@@ -8,6 +8,8 @@ To use the build process of the Bluetoe examples to directly flash examples, usi
 
 To configure the build, some CMake cache variables are required to be set.
 
+The build tries to find the required `arm-none-eabi-gcc` on its own. If you want to use a specific version of `arm-none-eabi-gcc`, you can set the CMake cache variable `ARM_GCC_TOOL_PATH` to point to the local installation of `arm-none-eabi-gcc` (the path, wich contains the `bin` directory).
+
 ## Configure Examples to run on your Hardware
 
 Currently, there is support for following eval boards:
