@@ -740,7 +740,7 @@ namespace nrf52_details
 
         // The anchor was reset during the last connection event Simply wait for 2 * time_us
         // except for the very first call
-        if ( std::abs( anchor_distance ) > 5u && !user_timer_start_ )
+        if ( static_cast< unsigned >( std::abs( anchor_distance ) ) > 5u && !user_timer_start_ )
         {
             time_us = 2 * time_us;
         }
