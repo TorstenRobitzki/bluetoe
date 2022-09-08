@@ -1,3 +1,4 @@
+#include <cassert>
 #include <bluetoe/security_tool_box.hpp>
 #include <bluetoe/nrf.hpp>
 
@@ -214,7 +215,7 @@ namespace nrf52_details
     {
         bluetoe::details::uint128_t output;
 
-        static_assert(input.size() == output.size(), "");
+        assert(input.size() == output.size());
 
         std::uint8_t overflow = 0;
         for ( std::size_t i = 0; i != input.size(); ++i )
