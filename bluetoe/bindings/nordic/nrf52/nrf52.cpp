@@ -928,7 +928,8 @@ namespace nrf52_details
             nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
             nrf_ccm->MODE    =
                   ( CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos )
-                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
+                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos )
+                | ( ( transmit_2mbit_ ? CCM_MODE_DATARATE_2Mbit : CCM_MODE_DATARATE_1Mbit ) << CCM_MODE_DATARATE_Pos );
             nrf_ccm->OUTPTR     = reinterpret_cast< std::uint32_t >( encrypted_area_ );
             nrf_ccm->INPTR      = reinterpret_cast< std::uint32_t >( transmit_data.buffer );
             nrf_ccm->SCRATCHPTR = reinterpret_cast< std::uintptr_t >( &scratch_area );
@@ -972,7 +973,8 @@ namespace nrf52_details
             nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled;
             nrf_ccm->MODE   =
                   ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
-                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
+                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos )
+                | ( ( receive_2mbit_ ? CCM_MODE_DATARATE_2Mbit : CCM_MODE_DATARATE_1Mbit ) << CCM_MODE_DATARATE_Pos );
             nrf_ccm->CNFPTR     = reinterpret_cast< std::uintptr_t >( &ccm_data_struct );
             nrf_ccm->INPTR      = reinterpret_cast< std::uint32_t >( encrypted_area_ );
             nrf_ccm->OUTPTR     = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
