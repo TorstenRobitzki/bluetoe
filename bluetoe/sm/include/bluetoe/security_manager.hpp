@@ -196,6 +196,12 @@ namespace bluetoe {
                 return std::pair< bool, details::uint128_t >{};
             }
 
+            void restore_bond( const details::uint128_t& key )
+            {
+                state_data_.completed_state.short_term_key = key;
+                this->state( details::sm_pairing_state::pairing_completed );
+            }
+
             const details::uint128_t& c1_p1() const
             {
                 return state_data_.pairing_state.c1_p1;
@@ -299,6 +305,12 @@ namespace bluetoe {
                     return { true, long_term_key_ };
 
                 return std::pair< bool, details::uint128_t >{};
+            }
+
+            void restore_bond( const details::uint128_t& key )
+            {
+                long_term_key_ = key;
+                this->state( details::sm_pairing_state::pairing_completed );
             }
 
             void pairing_requested( const io_capabilities_t& remote_io_caps )
@@ -603,6 +615,12 @@ namespace bluetoe {
                     return { true, long_term_key_ };
 
                 return std::pair< bool, details::uint128_t >{};
+            }
+
+            void restore_bond( const details::uint128_t& key )
+            {
+                long_term_key_ = key;
+                this->state( details::sm_pairing_state::pairing_completed );
             }
 
             device_pairing_status local_device_pairing_status() const
