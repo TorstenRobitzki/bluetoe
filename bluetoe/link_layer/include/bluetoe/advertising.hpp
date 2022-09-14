@@ -893,7 +893,7 @@ namespace link_layer {
     };
 
     /**
-     * @brief adds the abillity to change the advertising channel
+     * @brief adds the abillity to change the advertising interval
      *
      * Using this type as an option to the link_layer, adds the documented
      * functions to the link_layer.
