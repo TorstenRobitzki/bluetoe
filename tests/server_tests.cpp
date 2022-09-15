@@ -187,3 +187,45 @@ BOOST_FIXTURE_TEST_CASE( multiple_service_and_server_mixin, reset_tag_constructi
 
 BOOST_AUTO_TEST_SUITE_END()
 
+/*
+ * Make sure, unauthorzed reads are reported as such and not just as read_not_permitted
+ */
+
+BOOST_AUTO_TEST_SUITE( unauthorized_reads )
+
+    char value = 0x42;
+
+    using server_t = bluetoe::server<
+        bluetoe::no_gap_service_for_gatt_servers,
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x0815 >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x0816 >,
+                bluetoe::bind_characteristic_value< char, &value >,
+                bluetoe::requires_encryption
+            >
+        >
+    >;
+
+BOOST_FIXTURE_TEST_CASE( read_request, test::request_with_reponse< server_t > )
+{
+    static const std::uint8_t read[] = { 0x0A, 0x03, 0x00 };
+
+    BOOST_CHECK( check_error_response( read, 0x0A, 0x0003, 0x05 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_blob_request, test::request_with_reponse< server_t > )
+{
+    static const std::uint8_t read[] = { 0x0C, 0x03, 0x00, 0x00, 0x00 };
+
+    BOOST_CHECK( check_error_response( read, 0x0C, 0x0003, 0x05 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( read_multiple_request, test::request_with_reponse< server_t > )
+{
+    static const std::uint8_t read[] = { 0x0E, 0x03, 0x00, 0x03, 0x00 };
+
+    BOOST_CHECK( check_error_response( read, 0x0E, 0x0003, 0x05 ) );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

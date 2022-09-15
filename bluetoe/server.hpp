@@ -1098,7 +1098,7 @@ namespace bluetoe {
         }
         else
         {
-            error_response( *input, details::att_error_codes::read_not_permitted, handle, output, out_size );
+            error_response( *input, access_result_to_att_code( rc, details::att_error_codes::read_not_permitted ), handle, output, out_size );
         }
     }
 
@@ -1122,13 +1122,9 @@ namespace bluetoe {
             *output  = bits( details::att_opcodes::read_blob_response );
             out_size = 1 + read.buffer_size;
         }
-        else if ( rc == details::attribute_access_result::invalid_offset )
-        {
-            error_response( *input, details::att_error_codes::invalid_offset, handle, output, out_size );
-        }
         else
         {
-            error_response( *input, details::att_error_codes::read_not_permitted, handle, output, out_size );
+            error_response( *input, access_result_to_att_code( rc, details::att_error_codes::read_not_permitted ), handle, output, out_size );
         }
      }
 
@@ -1360,7 +1356,7 @@ namespace bluetoe {
             }
             else
             {
-                return error_response( opcode, details::att_error_codes::read_not_permitted, handle, output, out_size );
+                return error_response( opcode, access_result_to_att_code( rc, details::att_error_codes::read_not_permitted ), handle, output, out_size );
             }
         }
 
