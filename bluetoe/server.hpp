@@ -636,6 +636,19 @@ namespace bluetoe {
             begin += 3;
         }
 
+        using device_appearance = typename details::find_by_meta_type<
+                details::device_appearance_meta_type,
+                Options...,
+                appearance::unknown
+            >::type;
+
+        using appearance_advertising_config = typename details::find_by_meta_type<
+            details::advertise_appearance_meta_type,
+            Options...,
+            no_advertise_appearance >::type;
+
+        begin = appearance_advertising_config::template advertising_data< device_appearance >( begin, end );
+
         typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
 
         begin = details::copy_name< name::name != nullptr >::impl( begin, end, name::name );
