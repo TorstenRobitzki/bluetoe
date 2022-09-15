@@ -184,7 +184,10 @@ namespace link_layer {
                     }
 
                     if ( encryption_changed )
+                    {
+                        that().connection_data_.pairing_status(that().connection_data_.local_device_pairing_status());
                         that().connection_changed( that().details(), that().connection_data_, static_cast< typename LinkLayer::radio_t& >( that() ) );
+                    }
 
                     return true;
                 }
