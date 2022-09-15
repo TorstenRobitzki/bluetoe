@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_SUITE_END()
  * Make sure, unauthorzed reads are reported as such and not just as read_not_permitted
  */
 
-BOOST_AUTO_TEST_SUITE( unauthorized_reads )
+BOOST_AUTO_TEST_SUITE( unauthorized_reads_and_writes )
 
     char value = 0x42;
 
@@ -204,7 +204,8 @@ BOOST_AUTO_TEST_SUITE( unauthorized_reads )
                 bluetoe::bind_characteristic_value< char, &value >,
                 bluetoe::requires_encryption
             >
-        >
+        >,
+        bluetoe::shared_write_queue< 255 >
     >;
 
 BOOST_FIXTURE_TEST_CASE( read_request, test::request_with_reponse< server_t > )
@@ -226,6 +227,20 @@ BOOST_FIXTURE_TEST_CASE( read_multiple_request, test::request_with_reponse< serv
     static const std::uint8_t read[] = { 0x0E, 0x03, 0x00, 0x03, 0x00 };
 
     BOOST_CHECK( check_error_response( read, 0x0E, 0x0003, 0x05 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( write_request, test::request_with_reponse< server_t > )
+{
+    static const std::uint8_t write[] = { 0x12, 0x03, 0x00, 0x00 };
+
+    BOOST_CHECK( check_error_response( write, 0x12, 0x0003, 0x05 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( prepair_write_request, test::request_with_reponse< server_t > )
+{
+    static const std::uint8_t write[] = { 0x16, 0x03, 0x00, 0x00, 0x00, 0x00 };
+
+    BOOST_CHECK( check_error_response( write, 0x16, 0x0003, 0x05 ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

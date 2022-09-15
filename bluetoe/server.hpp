@@ -1384,10 +1384,6 @@ namespace bluetoe {
             *output  = bits( details::att_opcodes::write_response );
             out_size = 1;
         }
-        else if ( rc == details::attribute_access_result::invalid_attribute_value_length )
-        {
-            error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
-        }
         else
         {
             error_response( *input, access_result_to_att_code( rc, details::att_error_codes::write_not_permitted ), handle, output, out_size );
@@ -1428,8 +1424,8 @@ namespace bluetoe {
         auto write = details::attribute_access_arguments::check_write( this );
         auto rc    = attribute_at( index ).access( write, index );
 
-        if ( rc == details::attribute_access_result::write_not_permitted )
-            return error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
+        if ( rc != details::attribute_access_result::success )
+            return error_response( *input, access_result_to_att_code( rc, details::att_error_codes::write_not_permitted ), handle, output, out_size );
 
         // find size in the queue to write all but the opcode
         std::uint8_t* const queue_element = this->allocate_from_write_queue( in_size - 1, client );
