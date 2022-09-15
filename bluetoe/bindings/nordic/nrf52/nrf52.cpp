@@ -90,7 +90,6 @@ namespace nrf52_details
 
     static constexpr std::uint32_t timer_prescale_for_1us_resolution = 4;
 
-#define BLUETOE_NRF52_RADIO_DEBUG 1
 #   if defined BLUETOE_NRF52_RADIO_DEBUG
         static constexpr int debug_pin_end_crypt     = 11;
         static constexpr int debug_pin_ready_disable = 12;
