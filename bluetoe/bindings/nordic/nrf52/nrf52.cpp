@@ -455,6 +455,8 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::configure_final_transmit(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        assert( transmit_data.buffer );
+
         nrf_radio->MODE        =
             ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
 

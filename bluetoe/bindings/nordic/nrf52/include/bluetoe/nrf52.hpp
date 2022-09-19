@@ -353,7 +353,6 @@ namespace bluetoe
                 assert( !adv_timeout_ );
                 assert( state_ == state::idle );
                 assert( receive.buffer && receive.size >= 2u );
-                assert( response_data.buffer );
 
                 bluetoe::link_layer::write_buffer advertising = advertising_data;
                 advertising.size = std::min< std::uint8_t >( advertising.size, maximum_advertising_pdu_size );
@@ -704,6 +703,10 @@ namespace bluetoe
                 static constexpr int          addr_size             = 6;
                 static constexpr std::uint8_t tx_add_mask           = 0x40;
                 static constexpr std::uint8_t rx_add_mask           = 0x80;
+
+                // the advertising type does not expect a scan request
+                if ( !response_data_.buffer )
+                    return false;
 
                 if ( Hardware::resolving_address_invalid() )
                     return true;
