@@ -594,12 +594,6 @@ namespace nrf52_details
         const bool          transmit,
         const std::uint32_t start_hfxo_offset )
     {
-        // High frequency clock is running and is running from the crystal oscillator
-        assert( ( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk ) )
-          ==
-          ( ( CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos )
-          | ( CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos ) ) );
-
         // Stop timer, stop HFXO
         nrf_timer->TASKS_STOP = 1;
         nrf_timer->TASKS_CLEAR = 1;
