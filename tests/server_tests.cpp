@@ -244,3 +244,88 @@ BOOST_FIXTURE_TEST_CASE( prepair_write_request, test::request_with_reponse< serv
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+
+BOOST_AUTO_TEST_SUITE( cccd_updates )
+
+    struct callback_t {
+        template < class Server >
+        void client_characteristic_configuration_updated( Server&, const bluetoe::details::client_characteristic_configuration& data )
+        {
+            ++cb_called;
+            BOOST_CHECK_EQUAL( std::size_t{Server::number_of_client_configs}, 2u );
+
+            notified0  = data.flags(0);
+            indicated1 = data.flags(1);
+        }
+
+        int cb_called = 0;
+        std::uint16_t notified0 = 0;
+        std::uint16_t indicated1 = 0;
+    } callback;
+
+    struct reset_callback {
+        reset_callback()
+        {
+            callback = callback_t();
+        }
+    };
+
+    char value1 = 0x42;
+    char value2 = 0x42;
+
+    using server_t = bluetoe::server<
+        bluetoe::no_gap_service_for_gatt_servers,
+        bluetoe::service<
+            bluetoe::service_uuid16< 0x0815 >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x0816 >,
+                bluetoe::bind_characteristic_value< char, &value1 >,
+                bluetoe::no_encryption_required,
+                bluetoe::notify
+            >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid16< 0x0817 >,
+                bluetoe::bind_characteristic_value< char, &value2 >,
+                bluetoe::no_encryption_required,
+                bluetoe::indicate
+            >
+        >,
+        bluetoe::client_characteristic_configuration_update_callback< callback_t, callback >,
+        bluetoe::mixin< reset_callback >
+    >;
+
+BOOST_FIXTURE_TEST_CASE( change_notification_subscription, test::request_with_reponse< server_t > )
+{
+    l2cap_input({ 0x12, 0x04, 0x00, 0x01, 0x00 });
+    expected_result( { 0x13 });
+
+    BOOST_CHECK_EQUAL( callback.cb_called, 1 );
+    BOOST_CHECK_EQUAL( callback.notified0, 0x01 );
+    BOOST_CHECK_EQUAL( callback.indicated1, 0x00 );
+}
+
+BOOST_FIXTURE_TEST_CASE( change_indication_subscription, test::request_with_reponse< server_t > )
+{
+    l2cap_input({ 0x12, 0x07, 0x00, 0x02, 0x00 });
+    expected_result( { 0x13 });
+
+    BOOST_CHECK_EQUAL( callback.cb_called, 1 );
+    BOOST_CHECK_EQUAL( callback.notified0, 0x00 );
+    BOOST_CHECK_EQUAL( callback.indicated1, 0x02 );
+}
+
+BOOST_FIXTURE_TEST_CASE( no_cb_call_on_none_changeing_write, test::request_with_reponse< server_t > )
+{
+    l2cap_input({ 0x12, 0x04, 0x00, 0x00, 0x00 });
+    expected_result( { 0x13 });
+
+    l2cap_input({ 0x12, 0x07, 0x00, 0x00, 0x00 });
+    expected_result( { 0x13 });
+
+    BOOST_CHECK_EQUAL( callback.cb_called, 0 );
+    BOOST_CHECK_EQUAL( callback.notified0, 0x00 );
+    BOOST_CHECK_EQUAL( callback.indicated1, 0x00 );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

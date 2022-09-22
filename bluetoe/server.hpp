@@ -326,6 +326,8 @@ namespace bluetoe {
             , public connection_data
         {
         };
+
+        void notification_subscription_changed( const details::client_characteristic_configuration& );
         /** @endcond */
 
     private:
@@ -1651,6 +1653,17 @@ namespace bluetoe {
     details::notification_data server< Options... >::find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const
     {
         return details::find_notification_data_in_list< notification_priority, services >::find_notification_data_by_index( client_characteristic_configuration_index );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_subscription_changed( const details::client_characteristic_configuration& data )
+    {
+        using cb_t = typename details::find_by_meta_type<
+            details::cccd_callback_meta_type,
+            Options...,
+            no_client_characteristic_configuration_update_callback >::type;
+
+        cb_t::client_characteristic_configuration_updated( *this, data );
     }
 
     /** @endcond */
