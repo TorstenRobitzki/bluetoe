@@ -42,6 +42,7 @@ namespace bluetoe {
         };
 
         struct security_manager_meta_type {};
+        struct authentication_requirements_flags_meta_type {};
 
         enum class sm_error_codes : std::uint8_t {
             passkey_entry_failed        = 0x01,
@@ -95,7 +96,10 @@ namespace bluetoe {
         };
 
         enum class authentication_requirements_flags : std::uint8_t {
-            secure_connections      = 0x08
+            bonding                 = 0x01,
+            mitm                    = 0x04,
+            secure_connections      = 0x08,
+            keypress                = 0x10
         };
 
         inline void error_response( details::sm_error_codes error_code, std::uint8_t* output, std::size_t& out_size )
@@ -105,6 +109,23 @@ namespace bluetoe {
 
             out_size = 2;
         }
+
+        template < typename ... Options >
+        struct accumulate_authentication_requirements_flags;
+
+        template <>
+        struct accumulate_authentication_requirements_flags< std::tuple<> >
+        {
+            static constexpr std::uint8_t flags = 0;
+        };
+
+        template < typename Option, class ... Options >
+        struct accumulate_authentication_requirements_flags< std::tuple< Option, Options... > > :
+            accumulate_authentication_requirements_flags< std::tuple< Options... > >
+        {
+            static constexpr std::uint8_t flags = Option::flags
+                | accumulate_authentication_requirements_flags< std::tuple< Options... > >::flags;
+        };
 
         template < class OtherConnectionData >
         class security_connection_data_base : public OtherConnectionData
@@ -669,6 +690,11 @@ namespace bluetoe {
             details::no_oob_authentication >::type
         {
         protected:
+            static constexpr std::uint8_t authentication_requirements_flags =
+                accumulate_authentication_requirements_flags<
+                    typename find_all_by_meta_type< authentication_requirements_flags_meta_type, Options... >::type
+                >::flags;
+
             template < class Connection >
             void error_response( details::sm_error_codes error_code, std::uint8_t* output, std::size_t& out_size, Connection& state )
             {
@@ -953,6 +979,52 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief requests bonding during pairing
+     *
+     * This will set bonding flags in the pairing response to "Bonding"
+     */
+    struct enable_bonding
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
+                            details::authentication_requirements_flags_meta_type {};
+
+        static constexpr std::uint8_t flags = static_cast< std::uint8_t >(
+            details::authentication_requirements_flags::bonding );
+        /** @endcond */
+    };
+
+    /**
+     * @brief set the MITM flag in the Authentication requirements flags of the
+     *        pairing response.
+     */
+    struct require_man_in_the_middle_protection
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
+                            details::authentication_requirements_flags_meta_type {};
+
+        static constexpr std::uint8_t flags = static_cast< std::uint8_t >(
+            details::authentication_requirements_flags::mitm );
+        /** @endcond */
+    };
+
+    /**
+     * @brief set the MITM flag in the Authentication requirements flags of the
+     *        pairing response.
+     */
+    struct enable_keypress_notifications
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :  link_layer::details::valid_link_layer_option_meta_type,
+                            details::authentication_requirements_flags_meta_type {};
+
+        static constexpr std::uint8_t flags = static_cast< std::uint8_t >(
+            details::authentication_requirements_flags::keypress );
+        /** @endcond */
+    };
+
     /*
      * Implementation
      */
@@ -1226,7 +1298,7 @@ namespace bluetoe {
             this->has_oob_data_for_remote_device()
             ? oob_authentication_data_from_remote_device_present
             : oob_authentication_data_not_present,
-            0 }};
+            authentication_requirements_flags }};
     }
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -1235,7 +1307,7 @@ namespace bluetoe {
         return {{
             static_cast< std::uint8_t >( io_device_t::get_io_capabilities() ),
             0,
-            static_cast< std::uint8_t >( details::authentication_requirements_flags::secure_connections ) }};
+            authentication_requirements_flags | static_cast< std::uint8_t >( details::authentication_requirements_flags::secure_connections ) }};
     }
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
