@@ -164,6 +164,10 @@ namespace link_layer {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
                         that().start_transmit_encrypted();
                         encryption_changed = that().connection_data_.is_encrypted( true );
+
+                        if ( encryption_changed )
+                            that().connection_data_.restore_bonded_cccds( that().connection_data_ );
+
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {

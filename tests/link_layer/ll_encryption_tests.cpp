@@ -61,6 +61,11 @@ namespace test {
                 {
                     return bluetoe::device_pairing_status::no_key;
                 }
+
+                template < typename Connection >
+                void restore_bonded_cccds( Connection& )
+                {
+                }
             };
 
             template < class Connection >

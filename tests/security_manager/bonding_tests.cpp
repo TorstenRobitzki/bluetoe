@@ -11,7 +11,7 @@ struct data_base_t
     bluetoe::details::longterm_key_t create_new_bond(
         Radio& /*radio*/, const bluetoe::link_layer::device_address& mac )
     {
-        requesting_mac = mac;
+        creating_mac = mac;
 
         return bluetoe::details::longterm_key_t{
             .longterm_key = {
@@ -25,10 +25,20 @@ struct data_base_t
         };
     }
 
-    std::pair< bool, bluetoe::details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
+    template < class Connection >
+    void store_bond(
+        const bluetoe::details::longterm_key_t& key,
+        const Connection& connection)
+    {
+        stored_bond_key = key;
+        stored_bond_mac = connection.remote_address();
+    }
+
+    std::pair< bool, bluetoe::details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand, const bluetoe::link_layer::device_address& remote_address ) const
     {
         requesting_ediv = ediv;
         requesting_rand = rand;
+        requesting_mac  = remote_address;
 
         return stored_key;
     }
@@ -36,8 +46,11 @@ struct data_base_t
     std::pair< bool, bluetoe::details::uint128_t > stored_key = { false, {} };
     mutable std::uint16_t requesting_ediv = ~0;
     mutable std::uint64_t requesting_rand = ~0;
-    bluetoe::link_layer::device_address requesting_mac;
+    mutable bluetoe::link_layer::device_address requesting_mac;
+    mutable bluetoe::link_layer::device_address creating_mac;
 
+    bluetoe::details::longterm_key_t     stored_bond_key;
+    bluetoe::link_layer::device_address  stored_bond_mac;
 } data_base;
 
 struct use_data_base : test::legacy_security_manager<

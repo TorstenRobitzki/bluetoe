@@ -65,10 +65,19 @@ namespace bluetoe {
      *   template < class Radio >
      *   longterm_key_t create_new_bond( Radio& radio, const bluetoe::link_layer::device_address& mac );
      *
-     *   std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const;
+     *   void store_bond(
+     *       const bluetoe::details::longterm_key_t& key,
+     *       const bluetoe::link_layer::device_address& mac)
+     *
+     *   std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand, const bluetoe::link_layer::device_address& remote_address ) const;
+     *
+     *   template < class Connection >
+     *   void restore_cccds( Connection& connection );
      *
      * create_new_bond() is used to create a longterm key für a bond with the given device. `radio` can be used
      * to generate random numbers.
+     *
+     * store_bond() is used to store a key that was either created by store_bond(), or during the LESC paring process.
      *
      * find_key() will be called to lookup a stored long term key. If it does not exists, the function should return
      * a pair with the first member set to false.
@@ -102,16 +111,23 @@ namespace bluetoe {
                 if ( local_key.first )
                     return local_key;
 
-                return obj.find_key( ediv, rand );
+                return obj.find_key( ediv, rand, this->remote_address() );
             }
 
-            template < class Radio >
-            void arm_key_distribution( Radio& radio, const bluetoe::link_layer::device_address& remote_address )
+            template < class Radio, class Connection >
+            void arm_key_distribution( Radio& radio, const Connection& connection )
             {
                 pending_encryption_information = true;
                 pending_central_identification = true;
 
-                pending_key = obj.create_new_bond( radio, remote_address );
+                pending_key = obj.create_new_bond( radio, connection.remote_address() );
+                obj.store_bond( pending_key, connection );
+            }
+
+            template < typename Connection >
+            void store_lesc_key_in_bond_db( const details::uint128_t& key, const Connection& connection )
+            {
+                obj.store_bond( details::longterm_key_t{ key, 0u, 0u }, connection );
             }
 
             template < typename Connection >
@@ -144,6 +160,12 @@ namespace bluetoe {
                 }
             }
 
+            template < typename Connection >
+            void restore_bonded_cccds( Connection& connection )
+            {
+                obj.restore_cccds( connection );
+            }
+
         private:
             bool pending_encryption_information;
             bool pending_central_identification;
@@ -165,8 +187,8 @@ namespace bluetoe {
         template < class OtherConnectionData >
         struct bonding_db_data_t : OtherConnectionData
         {
-            template < class Radio >
-            void arm_key_distribution( Radio&, const bluetoe::link_layer::device_address& )
+            template < class Radio, class Connection >
+            void arm_key_distribution( Radio&, const Connection& )
             {
             }
 
@@ -174,6 +196,16 @@ namespace bluetoe {
             void distribute_keys( std::uint8_t*, std::size_t& out_size, Connection& )
             {
                 out_size = 0;
+            }
+
+            template < typename Connection >
+            void store_lesc_key_in_bond_db( const details::uint128_t&, const Connection& )
+            {
+            }
+
+            template < typename Connection >
+            void restore_bonded_cccds( Connection& )
+            {
             }
         };
 
@@ -703,7 +735,7 @@ namespace bluetoe {
 
         const auto stk = security_functions().s1( temp_key, srand, mrand );
         state.legacy_pairing_completed( stk );
-        state.arm_key_distribution( security_functions(), state.remote_address() );
+        state.arm_key_distribution( security_functions(), state );
     }
 
     template < typename SecurityFunctions, template < class OtherConnectionData > class ConnectionData, typename ... Options >
@@ -969,6 +1001,7 @@ namespace bluetoe {
             std::copy( eb.begin(), eb.end(), &output[ 1 ] );
 
             state.lesc_pairing_completed( ltk );
+            state.store_lesc_key_in_bond_db( ltk, state );
         }
     }
 
@@ -1017,6 +1050,7 @@ namespace bluetoe {
             std::copy( eb.begin(), eb.end(), &output[ 1 ] );
 
             state.lesc_pairing_completed( ltk );
+            state.store_lesc_key_in_bond_db( ltk, state );
         }
         else
         {
@@ -1179,7 +1213,7 @@ namespace bluetoe {
         }
         else
         {
-            out_size = 0;
+            state.distribute_keys( output, out_size, state );
         }
     }
 
