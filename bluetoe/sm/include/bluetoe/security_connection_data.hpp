@@ -23,6 +23,18 @@ namespace bluetoe {
             std::array< std::uint8_t, 16 >  longterm_key;
             std::uint64_t                   rand;
             std::uint16_t                   ediv;
+
+            bool operator==(const longterm_key_t& rhs) const
+            {
+                return longterm_key == rhs.longterm_key
+                    && rand         == rhs.rand
+                    && ediv         == rhs.ediv;
+            }
+
+            bool operator!=(const longterm_key_t& rhs) const
+            {
+                return !(*this == rhs);
+            }
         };
 
         struct security_manager_meta_type {};
@@ -144,12 +156,6 @@ namespace bluetoe {
                 return std::pair< bool, details::uint128_t >{};
             }
 
-            void restore_bond( const details::uint128_t& key )
-            {
-                state_data_.completed_state.short_term_key = key;
-                this->state( details::sm_pairing_state::pairing_completed );
-            }
-
             const details::uint128_t& c1_p1() const
             {
                 return state_data_.pairing_state.c1_p1;
@@ -249,16 +255,10 @@ namespace bluetoe {
 
             std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
             {
-                if ( ediv == 0 && rand == 0 )
+                if ( this->state() == details::sm_pairing_state::pairing_completed && ediv == 0 && rand == 0 )
                     return { true, long_term_key_ };
 
                 return std::pair< bool, details::uint128_t >{};
-            }
-
-            void restore_bond( const details::uint128_t& key )
-            {
-                long_term_key_ = key;
-                this->state( details::sm_pairing_state::pairing_completed );
             }
 
             void pairing_requested( const io_capabilities_t& remote_io_caps )
@@ -559,16 +559,10 @@ namespace bluetoe {
 
             std::pair< bool, details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
             {
-                if ( ediv == 0 && rand == 0 )
+                if ( this->state() == details::sm_pairing_state::pairing_completed && ediv == 0 && rand == 0 )
                     return { true, long_term_key_ };
 
                 return std::pair< bool, details::uint128_t >{};
-            }
-
-            void restore_bond( const details::uint128_t& key )
-            {
-                long_term_key_ = key;
-                this->state( details::sm_pairing_state::pairing_completed );
             }
 
             device_pairing_status local_device_pairing_status() const
