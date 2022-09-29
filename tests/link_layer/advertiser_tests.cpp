@@ -37,6 +37,16 @@ struct link_layer_base
     {
     }
 
+    std::size_t fill_l2cap_advertising_data( std::uint8_t*, std::size_t ) const
+    {
+        return 0;
+    }
+
+    std::size_t fill_l2cap_scan_response_data( std::uint8_t*, std::size_t ) const
+    {
+        return 0;
+    }
+
     const bluetoe::link_layer::device_address& local_address() const
     {
         static const bluetoe::link_layer::random_device_address addr( { 0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0 } );

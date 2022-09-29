@@ -781,7 +781,7 @@ BOOST_FIXTURE_TEST_CASE( can_switch_type_before_starting, scannable_and_connecta
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( can_not_switch_type_after_starting, scannable_and_connectable_advertising )
+BOOST_FIXTURE_TEST_CASE( can_switch_type_after_starting, scannable_and_connectable_advertising )
 {
     run();
 
@@ -789,19 +789,27 @@ BOOST_FIXTURE_TEST_CASE( can_not_switch_type_after_starting, scannable_and_conne
 
     run();
 
-    check_scheduling(
+    // Both advertising types must be present now
+    BOOST_TEST(count_data(
         [&]( const test::advertising_data& data )
         {
             const auto& pdu = data.transmitted_data;
 
             return pdu.size() >= 1
-                && ( pdu[ 0 ] & 0xf ) == 0;
-        },
-        "can_not_switch_type_after_starting"
-    );
+                &&  ( pdu[ 0 ] & 0xf ) == 0;
+        }) >= 0u );
+
+    BOOST_TEST(count_data(
+        [&]( const test::advertising_data& data )
+        {
+            const auto& pdu = data.transmitted_data;
+
+            return pdu.size() >= 1
+                &&  ( pdu[ 0 ] & 0xf ) == 6;
+        }) >= 0u );
 }
 
-BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, scannable_and_connectable_advertising )
+BOOST_FIXTURE_TEST_CASE( switching_type_is_not_defered_until_the_next_adv_start, scannable_and_connectable_advertising )
 {
     run();
 
@@ -828,7 +836,7 @@ BOOST_FIXTURE_TEST_CASE( switching_type_is_defered_until_the_next_adv_start, sca
     end_of_simulation( bluetoe::link_layer::delta_time::seconds( 20 ) );
     run();
 
-    BOOST_REQUIRE( !connection_events().empty() );
+    BOOST_REQUIRE( connection_events().empty() );
 
     BOOST_CHECK_GT( count_data(
         [&]( const test::advertising_data& data )
