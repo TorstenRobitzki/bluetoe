@@ -1149,14 +1149,13 @@ namespace link_layer {
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
-        static constexpr auto       max_peripheral_latency = 499;
 
         return transmit_window_size_ <= maximum_transmit_window_offset
             && transmit_window_size_ <= connection_interval_
             && connection_timeout_ >= minimum_connection_timeout
             && connection_timeout_ <= maximum_connection_timeout
             && connection_timeout_ >= ( peripheral_latency_ + 1 ) * 2 * connection_interval_
-            && peripheral_latency_ <= max_peripheral_latency;
+            && peripheral_latency_ <= maximum_link_layer_peripheral_latency;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
