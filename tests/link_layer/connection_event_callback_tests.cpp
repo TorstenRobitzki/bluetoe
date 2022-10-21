@@ -235,6 +235,30 @@ BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
     BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( force_callback_call_while_using_latency, server_7ms_minus_100us )
+{
+    callbacks.planned_latency = { 2u, 2u, 2u, 2u, 2u, 2u };
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_function_call([this](){
+        force_synchronized_connection_event_callback();
+    });
+    ll_empty_pdu();
+
+    run();
+
+    static const auto expected = {
+        0u,        3u,
+        0u,        3u,    // at the second connection event, the
+                          // callback is forces
+            1u,        4u
+    };
+
+    BOOST_TEST(
+        take( callbacks.instants, expected.size() ) == expected,
+        boost::test_tools::per_element() );
+}
+
 BOOST_FIXTURE_TEST_CASE( correct_instance, server_7ms_minus_100us )
 {
     this->respond_to( 37, valid_connection_request_pdu );
