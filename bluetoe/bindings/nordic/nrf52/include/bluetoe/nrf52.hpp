@@ -381,8 +381,14 @@ namespace bluetoe
                 bluetoe::link_layer::delta_time             end_receive,
                 bluetoe::link_layer::delta_time             connection_interval )
             {
+                assert( !end_evt_ );
                 assert( state_ == state::idle );
                 assert( start_receive < end_receive );
+
+                // in case of a call to nrf_flash_memory_access_end, evt_timeout_ will be set
+                // and needs to be consumed by the timeout handler
+                if ( evt_timeout_ )
+                    return connection_interval;
 
                 // Stop all interrupts so that the calculation, that enough CPU time is available to setup everything, will not
                 // be disturbed by any interrupt.
@@ -455,8 +461,11 @@ namespace bluetoe
                 while ( !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
                     __WFI();
 
+                // For every event, but the wakeup request, the radio should be in an idle state
+                // because it's up to the event handler to defined what should happen next
                 if ( adv_received_ )
                 {
+                    assert( state_ == state::idle );
                     assert( reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ) == receive_buffer_.buffer );
 
                     receive_buffer_.size = std::min< std::size_t >(
@@ -470,18 +479,21 @@ namespace bluetoe
 
                 if ( adv_timeout_ )
                 {
+                    assert( state_ == state::idle );
                     adv_timeout_ = false;
                     static_cast< CallBacks* >( this )->adv_timeout();
                 }
 
                 if ( evt_timeout_ )
                 {
+                    assert( state_ == state::idle );
                     evt_timeout_ = false;
                     static_cast< CallBacks* >( this )->timeout();
                 }
 
                 if ( end_evt_ )
                 {
+                    assert( state_ == state::idle );
                     end_evt_ = false;
                     static_cast< CallBacks* >( this )->end_event( events_ );
 
@@ -514,6 +526,9 @@ namespace bluetoe
 
             void nrf_flash_memory_access_end()
             {
+                // radio should still be in idle state, otherwise there was some interaction with the
+                // radio that was not expected by this function.
+                assert( state_ == state::idle );
                 // this kicks the CPU out of the loop in run() and requests the link layer to setup the next connection event
                 evt_timeout_ = true;
             }
