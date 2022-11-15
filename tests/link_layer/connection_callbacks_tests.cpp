@@ -65,6 +65,11 @@ struct only_disconnect_callback_t
 
 } only_disconnect_callback;
 
+struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
+{
+
+} connect_and_disconnect_callback;
+
 struct reset_callbacks
 {
     reset_callbacks()
@@ -72,6 +77,7 @@ struct reset_callbacks
         only_connect_callback = only_connect_callback_t();
         only_changed_callback = only_changed_callback_t();
         only_disconnect_callback = only_disconnect_callback_t();
+        connect_and_disconnect_callback = connect_and_disconnect_callback_t();
     }
 };
 
@@ -103,6 +109,15 @@ using link_layer_only_disconnect_callback = mixin_reset_callbacks<
     >
 >;
 
+using link_layer_connect_and_disconnect_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< connect_and_disconnect_callback_t, connect_and_disconnect_callback >,
+        bluetoe::link_layer::sleep_clock_accuracy_ppm< 100u >,
+        bluetoe::link_layer::static_address< 0xc0, 0x0f, 0x15, 0x08, 0x11, 0x47 >,
+        test::buffer_sizes
+    >
+>;
+
 BOOST_FIXTURE_TEST_CASE( connection_is_not_established_before_the_first_connection_event, link_layer_only_connect_callback )
 {
     BOOST_CHECK( !only_connect_callback.connection_established_called );
@@ -111,6 +126,15 @@ BOOST_FIXTURE_TEST_CASE( connection_is_not_established_before_the_first_connecti
     run();
 
     BOOST_CHECK( !only_connect_callback.connection_established_called );
+}
+
+BOOST_FIXTURE_TEST_CASE( timedout_connection_attempt_is_not_reported, link_layer_connect_and_disconnect_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    run();
+
+    BOOST_CHECK( !connect_and_disconnect_callback.connection_established_called );
+    BOOST_CHECK( !connect_and_disconnect_callback.only_disconnect_called );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_is_established_after_the_first_connection_event, link_layer_only_connect_callback )
@@ -278,7 +302,7 @@ BOOST_FIXTURE_TEST_CASE( connection_lost_by_timeout, link_layer_only_disconnect_
     respond_to( 37, valid_connection_request_pdu );
     run( 2 );
 
-    BOOST_CHECK( only_disconnect_callback.only_disconnect_called );
+    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconnect_callback )
