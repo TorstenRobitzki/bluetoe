@@ -799,14 +799,6 @@ namespace link_layer {
         }
 
         radio_t::run();
-
-        if ( state_ == state::connected )
-        {
-            this->transmit_pending_l2cap_output( connection_data_ );
-            transmit_pending_control_pdus();
-        }
-
-        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -946,6 +938,14 @@ namespace link_layer {
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
         }
+
+        if ( state_ == state::connected )
+        {
+            this->transmit_pending_l2cap_output( connection_data_ );
+            transmit_pending_control_pdus();
+        }
+
+        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
