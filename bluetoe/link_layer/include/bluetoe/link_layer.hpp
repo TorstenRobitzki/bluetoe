@@ -937,12 +937,13 @@ namespace link_layer {
                 const delta_time time_till_next_event = setup_next_connection_event();
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
+
         }
 
-        if ( state_ == state::connected )
+        if ( state_ == state::connected || state_ == state::connecting )
         {
-            this->transmit_pending_l2cap_output( connection_data_ );
             transmit_pending_control_pdus();
+            this->transmit_pending_l2cap_output( connection_data_ );
         }
 
         this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
@@ -1231,6 +1232,7 @@ namespace link_layer {
             if ( llid == ll_control_pdu_code )
             {
                 const read_buffer output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
+
                 if ( output.size )
                 {
                     result = handle_ll_control_data( pdu, output );
