@@ -645,7 +645,7 @@ namespace link_layer {
         connection_details details() const;
 
         static constexpr unsigned       first_advertising_channel   = 37;
-        static constexpr unsigned       num_windows_til_timeout     = 5;
+        static constexpr unsigned       num_windows_til_timeout     = 6;
         static constexpr auto           us_per_digits               = 1250;
 
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
