@@ -101,6 +101,7 @@ function(add_bluetoe_example target_name)
         PUBLIC
             assert::arm
         PRIVATE
+            spl
             toolchain::${BINDING}
             startup::${BINDING}
             bluetoe::bindings::${BINDING}
