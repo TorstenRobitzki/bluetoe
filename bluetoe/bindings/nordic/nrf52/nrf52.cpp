@@ -335,7 +335,6 @@ namespace nrf52_details
     static void init_timer()
     {
         configure_timer_for_1us( *nrf_timer );
-        nrf_timer->TASKS_START = 1;
     }
 
     static void init_ppi()
@@ -653,6 +652,10 @@ namespace nrf52_details
     {
         if ( when.zero() )
         {
+            // capture the current time as anchor for the next advertisment
+            nrf_timer->TASKS_CAPTURE[ tim_cc_start_radio ] = 1;
+            nrf_rtc->CC[ rtc_cc_start_timer ] = nrf_rtc->COUNTER;
+
             // immediately start the radio
             nrf_timer->TASKS_START = 1;
             nrf_timer->TASKS_CAPTURE[ tim_cc_timeout ]  = 1;
