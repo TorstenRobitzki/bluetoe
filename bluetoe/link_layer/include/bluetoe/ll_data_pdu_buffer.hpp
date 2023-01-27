@@ -259,7 +259,7 @@ namespace link_layer {
          * @brief allocates a buffer for the next PDU to be received.
          *
          * Once a buffer was allocated to the radio hardware is will be released by the hardware by calling
-         * one of received(), crc_error() or timeout().
+         * one of received() or crc_error().
          *
          * This function can return an empty buffer if the receive buffers are all still allocated. The radio is
          * than required to ignore all incoming trafic.
@@ -282,11 +282,6 @@ namespace link_layer {
          * @brief This function will be called by the scheduled radio when a PDU was received with CRC error
          */
         write_buffer crc_error();
-
-        /**
-         * @brief This function will be called by the scheduled radio when a timeout occured.
-         */
-        void timeout();
 
         /**
          * @brief returns the next PDU to be transmitted
@@ -585,10 +580,6 @@ namespace link_layer {
         return write_buffer{ 0, 0 };
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::timeout()
-    {
-    }
 }
 }
 
