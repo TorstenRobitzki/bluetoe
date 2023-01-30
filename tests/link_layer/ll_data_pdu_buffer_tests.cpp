@@ -126,6 +126,31 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
         receive_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn );
     }
 
+    template < class Iter >
+    bluetoe::link_layer::write_buffer acknowledge_pdu( Iter begin, Iter end, bool sn, bool nesn )
+    {
+        const auto size = std::distance( begin, end );
+        auto pdu = this->allocate_receive_buffer();
+
+        std::uint16_t header = 1 | ( size << 8 );
+
+        if ( sn )
+            header |= 8;
+
+        if ( nesn )
+            header |= 4;
+
+        layout::header( pdu, header );
+        std::copy( begin, end, layout::body( pdu ).first );
+
+        return this->acknowledge( pdu );
+    }
+
+    bluetoe::link_layer::write_buffer acknowledge_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn )
+    {
+        return acknowledge_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn );
+    }
+
     std::vector< std::uint8_t > random_data( std::size_t s )
     {
         std::uniform_int_distribution< std::uint8_t > dist;
@@ -857,6 +882,44 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         receive_pdu( {}, false, false );
         receive_pdu( {}, true, true );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 0 );
+    }
+
+    /*
+     * #102 if the master resends a not empty PDU, while the connection is encrypted,
+     *      the CRC of the received PDU is ok, but the MIC will not be ok, due to the
+     *      reused nonce.
+     *
+     *      In this case, the last PDU must be resend and the receive packet counter
+     *      must not be incremented.
+     */
+    BOOST_FIXTURE_TEST_CASE( do_not_increment_when_crc_is_ok_but_mic_is_not, running_mode )
+    {
+        receive_pdu( { 0x11 }, false, false );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
+        acknowledge_pdu( { 0x11 }, false, false );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
+    }
+
+    /*
+     * #102 When receiving a PDU with valid CRC but invalid MIC, last message has to
+     *      be repeated.
+     */
+    BOOST_FIXTURE_TEST_CASE( resend_when_crc_is_ok_but_mic_is_not, running_mode )
+    {
+        transmit_pdu( { 1 } );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+
+        receive_pdu( { 0x11 }, false, false );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
+
+        const auto pdu = acknowledge_pdu( { 0x11 }, false, false );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
+        BOOST_CHECK_EQUAL( pdu.size, 1u + 2u );
+
+        receive_pdu( { 0x22 }, true, true );
+        BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
+        BOOST_CHECK_EQUAL( receive_packet_counter(), 2 );
     }
 
     BOOST_FIXTURE_TEST_CASE( increment_when_receiving_none_empty_pdu, running_mode )

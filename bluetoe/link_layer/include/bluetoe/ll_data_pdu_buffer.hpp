@@ -279,6 +279,16 @@ namespace link_layer {
         write_buffer received( read_buffer );
 
         /**
+         * @brief This function will be called, instead of received(), when the CRC of a received
+         *        PDU is ok, but the MIC is not ok.
+         *
+         * In this case, the MIC might not be ok, due to a PDU beeing resent. In this case, the
+         * the last send message can be acknowlaged, but the received PDU should not be queued in
+         * the buffer.
+         */
+        write_buffer acknowledge( read_buffer );
+
+        /**
          * @brief returns the next PDU to be transmitted
          *
          * If the transmit buffer is empty, the function will return an empty PDU.
@@ -563,6 +573,26 @@ namespace link_layer {
                     receive_buffer_.push_front( receive_buffer(), pdu );
                     static_cast< Radio* >( this )->increment_receive_packet_counter();
                 }
+            }
+        }
+
+        return next_transmit();
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( read_buffer pdu )
+    {
+        const std::uint16_t header = layout::header( pdu );
+
+        // invalid LLID
+        if ( ( header & 0x3 ) != 0 )
+        {
+            acknowledge( header & nesn_flag );
+
+            // resent PDU?
+            if ( static_cast< bool >( header & sn_flag ) == next_expected_sequence_number_ )
+            {
+                next_expected_sequence_number_ = !next_expected_sequence_number_;
             }
         }
 
