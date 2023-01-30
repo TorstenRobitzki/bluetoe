@@ -259,7 +259,7 @@ namespace link_layer {
          * @brief allocates a buffer for the next PDU to be received.
          *
          * Once a buffer was allocated to the radio hardware is will be released by the hardware by calling
-         * one of received() or crc_error().
+         * received().
          *
          * This function can return an empty buffer if the receive buffers are all still allocated. The radio is
          * than required to ignore all incoming trafic.
@@ -277,11 +277,6 @@ namespace link_layer {
          * the Radio if the counter part of the encryption IV part have to be incremented.
          */
         write_buffer received( read_buffer );
-
-        /**
-         * @brief This function will be called by the scheduled radio when a PDU was received with CRC error
-         */
-        write_buffer crc_error();
 
         /**
          * @brief returns the next PDU to be transmitted
@@ -572,12 +567,6 @@ namespace link_layer {
         }
 
         return next_transmit();
-    }
-
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::crc_error()
-    {
-        return write_buffer{ 0, 0 };
     }
 
 }

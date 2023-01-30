@@ -759,7 +759,7 @@ namespace test {
             if ( response.second.has_crc_error )
             {
                 idle_ = true;
-                static_cast< CallBack* >( this )->crc_error();
+                static_cast< CallBack* >( this )->adv_timeout();
             }
             else
             {
