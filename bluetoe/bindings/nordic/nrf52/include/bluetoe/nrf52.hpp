@@ -131,10 +131,11 @@ namespace bluetoe
              * @brief returns details to a received PDU
              *
              * Returns { true, X } if a PDU was received
-             * Returns { true, true } if that PDU is valid
-             * Returns { true, false } if that PDU has a CRC or MIC error
+             * Returns { true, true, X } if that PDU is valid
+             * Returns { true, false, true } if that PDU has a valid CRC but maybe a MIC error
+             * Returns { true, false, false } if that PDU has an invalid CRC
              */
-            static std::pair< bool, bool > received_pdu();
+            static std::tuple< bool, bool, bool > received_pdu();
 
             /**
              * @brief elapsed time in µs since the last anchor
@@ -262,7 +263,7 @@ namespace bluetoe
 
             static void store_timer_anchor( int offset_us );
 
-            static std::pair< bool, bool > received_pdu();
+            static std::tuple< bool, bool, bool > received_pdu();
 
             static void configure_encryption( bool receive, bool transmit );
 
@@ -602,10 +603,10 @@ namespace bluetoe
                 }
                 else if ( state_ == state::adv_receiving )
                 {
-                    bool valid_anchor, valid_pdu;
-                    std::tie( valid_anchor, valid_pdu ) = Hardware::received_pdu();
+                    bool valid_anchor, valid_pdu, valid_crc;
+                    std::tie( valid_anchor, valid_pdu, valid_crc ) = Hardware::received_pdu();
 
-                    if ( valid_anchor && valid_pdu )
+                    if ( valid_anchor && valid_pdu && valid_crc )
                     {
                         Hardware::stop_timeout_timer();
 
@@ -641,15 +642,17 @@ namespace bluetoe
                 }
                 else if ( state_ == state::evt_wait_connect )
                 {
-                    bool valid_anchor, valid_pdu;
-                    std::tie( valid_anchor, valid_pdu ) = Hardware::received_pdu();
+                    bool valid_anchor, valid_pdu, valid_crc;
+                    std::tie( valid_anchor, valid_pdu, valid_crc ) = Hardware::received_pdu();
 
                     if ( valid_anchor )
                     {
                         // switch to transmission
-                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_pdu )
+                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_crc )
                             ? this->next_transmit()
-                            : this->received( receive_buffer_ );
+                            : ( valid_pdu
+                                ? this->received( receive_buffer_ )
+                                : this->acknowledge( receive_buffer_ ) );
 
                         // TODO: Hack to disable the more data flag, because this radio implementation is currently
                         // not able to do this (but it should be possible with the given hardware).
@@ -665,7 +668,7 @@ namespace bluetoe
                         // TODO as we currently take the anchor from the end of the PDU, we should be
                         // sure that the length of the PDU is correct!
                         // Issue: #76 Taking Anchor from End of PDU
-                        if ( valid_pdu )
+                        if ( valid_pdu || valid_crc )
                         {
                             // TODO: Couldn't we just capture the time at the start of the PDU?
                             // the timer was captured with the end event; the anchor is the start of the receiving.

@@ -521,12 +521,12 @@ namespace nrf52_details
         ++user_timer_anchor_version_;
     }
 
-    std::pair< bool, bool > radio_hardware_without_crypto_support::received_pdu()
+    std::tuple< bool, bool, bool > radio_hardware_without_crypto_support::received_pdu()
     {
         const bool result = ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk && nrf_radio->EVENTS_PAYLOAD;
         nrf_radio->EVENTS_PAYLOAD = 0;
 
-        return { result, result };
+        return { result, result, result };
     }
 
     std::uint32_t radio_hardware_without_crypto_support::now()
@@ -1036,7 +1036,7 @@ namespace nrf52_details
         radio_hardware_without_crypto_support::store_timer_anchor( offset_us );
     }
 
-    std::pair< bool, bool > radio_hardware_with_crypto_support::received_pdu()
+    std::tuple< bool, bool, bool > radio_hardware_with_crypto_support::received_pdu()
     {
         const auto receive_size = [](){
             return reinterpret_cast< const std::uint8_t* >( nrf_radio->PACKETPTR )[ 1 ];
@@ -1053,7 +1053,7 @@ namespace nrf52_details
 
         nrf_radio->EVENTS_PAYLOAD = 0;
 
-        return { valid_anchor, valid_pdu };
+        return { valid_anchor, valid_pdu, !crc_error };
     }
 
     void radio_hardware_with_crypto_support::configure_encryption( bool receive, bool transmit )
