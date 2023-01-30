@@ -304,11 +304,11 @@ using intt = std::integral_constant< std::size_t, V >;
 
 typedef boost::mpl::list<
     //          max_rx_size  min payload  max payload
-    std::tuple< intt< 29 >,  intt< 1 >,   intt< 25 > >
-    // std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
-    // std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
-    // std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
-    // std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 25 > >,
+    std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
+    std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
+    std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
+    std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >
 > test_sizes;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_sizes )
