@@ -520,6 +520,7 @@ namespace bluetoe
             void nrf_flash_memory_access_begin()
             {
                 lock_guard lock;
+
                 Hardware::stop_radio();
                 low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
                 state_ = state::idle;
@@ -531,7 +532,8 @@ namespace bluetoe
                 // radio that was not expected by this function.
                 assert( state_ == state::idle );
                 // this kicks the CPU out of the loop in run() and requests the link layer to setup the next connection event
-                evt_timeout_ = true;
+                // unless, there is already a pending call to the end_event() handler.
+                evt_timeout_ = !end_evt_;
             }
 
             void radio_set_phy(
@@ -645,7 +647,7 @@ namespace bluetoe
                     bool valid_anchor, valid_pdu, valid_crc;
                     std::tie( valid_anchor, valid_pdu, valid_crc ) = Hardware::received_pdu();
 
-                    if ( valid_anchor )
+                    if ( valid_anchor && ( valid_pdu || valid_crc ) )
                     {
                         // switch to transmission
                         const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_crc )
@@ -664,33 +666,6 @@ namespace bluetoe
 
                         Hardware::configure_final_transmit( trans );
                         state_   = state::evt_transmiting_closing;
-
-                        // TODO as we currently take the anchor from the end of the PDU, we should be
-                        // sure that the length of the PDU is correct!
-                        // Issue: #76 Taking Anchor from End of PDU
-                        if ( valid_pdu || valid_crc )
-                        {
-                            // TODO: Couldn't we just capture the time at the start of the PDU?
-                            // the timer was captured with the end event; the anchor is the start of the receiving.
-                            // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
-                            // Issue: #76 Taking Anchor from End of PDU
-                            static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
-                            const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
-
-                            // TODO: Anchor must also be taken, if PDU has a CRC error
-                            // Issue: #76 Taking Anchor from End of PDU
-                            Hardware::store_timer_anchor( -total_pdu_length );
-
-                            if ( receive_buffer_.buffer[ 1 ] != 0 )
-                                events_.last_received_not_empty = true;
-
-                            if ( receive_buffer_.buffer[ 0 ] & more_data_flag )
-                                events_.last_received_had_more_data = true;
-                        }
-                        else
-                        {
-                            events_.error_occured = true;
-                        }
                     }
                     else
                     {
@@ -702,6 +677,23 @@ namespace bluetoe
                 }
                 else if ( state_ == state::evt_transmiting_closing )
                 {
+                    // TODO: Couldn't we just capture the time at the start of the PDU?
+                    // the timer was captured with the end event; the anchor is the start of the receiving.
+                    // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
+                    // Issue: #76 Taking Anchor from End of PDU
+                    static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
+                    const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
+
+                    // TODO: Anchor must also be taken, if PDU has a CRC error
+                    // Issue: #76 Taking Anchor from End of PDU
+                    Hardware::store_timer_anchor( -total_pdu_length );
+
+                    if ( receive_buffer_.buffer[ 1 ] != 0 )
+                        events_.last_received_not_empty = true;
+
+                    if ( receive_buffer_.buffer[ 0 ] & more_data_flag )
+                        events_.last_received_had_more_data = true;
+
                     Hardware::stop_radio();
                     state_   = state::idle;
                     end_evt_ = true;

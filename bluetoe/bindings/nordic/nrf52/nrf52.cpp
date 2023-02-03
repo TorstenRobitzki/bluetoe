@@ -509,6 +509,10 @@ namespace nrf52_details
 
         // disable radio
         nrf_radio->TASKS_DISABLE = 1;
+
+        // consume event to not fire, once the radio is enabled again
+        bluetoe::nrf::nrf_radio->EVENTS_DISABLED  = 0;
+        NVIC_ClearPendingIRQ( RADIO_IRQn );
     }
 
     void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
