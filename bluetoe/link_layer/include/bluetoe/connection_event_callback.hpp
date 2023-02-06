@@ -189,6 +189,7 @@ namespace link_layer {
             {
                 instance_         = 0;
                 latency_          = 0;
+                num_intervals_since_anchor_moved_ = 0;
 
                 stopped_ = false;
                 link_layer().restart_user_timer();
@@ -205,7 +206,7 @@ namespace link_layer {
                     return;
 
                 connection_value_ = typename T::connection();
-                instance_         = 0;
+                instance_         = PhaseShiftUS > 0 ? 1 : 0;
                 latency_          = 0;
 
                 calculate_effective_period( connection_interval );
@@ -224,7 +225,7 @@ namespace link_layer {
                 if ( stopped_ )
                     return;
 
-                instance_         = 0;
+                instance_         = PhaseShiftUS > 0 ? 1 : 0;
                 latency_          = 0;
 
                 calculate_effective_period( connection_interval );
@@ -238,7 +239,7 @@ namespace link_layer {
                 link_layer().cancel_synchronized_user_timer();
             }
 
-            void synchronized_connection_event_callback_timeout()
+            void synchronized_connection_event_callback_timeout( bool anchor_moved )
             {
                 if ( stopped_ )
                     return;
@@ -256,7 +257,17 @@ namespace link_layer {
                 if ( num_calls_ )
                     instance_ = ( instance_ + 1 ) % num_calls_;
 
-                setup_timer( effective_period_ );
+                // if the PhaseShiftUS is negative, the first callback is already first_timeout()
+                // away from the anchor
+                static constexpr unsigned first_interval_after_anchor = ( PhaseShiftUS < 0 )
+                    ? 1
+                    : 0;
+
+                num_intervals_since_anchor_moved_ = anchor_moved
+                    ? first_interval_after_anchor
+                    : num_intervals_since_anchor_moved_ + 1;
+
+                setup_timer( first_timeout() + num_intervals_since_anchor_moved_ * effective_period_ );
             }
 
         private:
@@ -321,7 +332,6 @@ namespace link_layer {
                     num_calls_         = ( interval_us + MaximumPeriodUS - 1 ) / MaximumPeriodUS;
                     num_intervals_     = 0;
                     effective_period_  = delta_time( interval_us / num_calls_ );
-                    assert( interval_us % num_calls_ == 0 );
                 }
                 else
                 {
@@ -329,6 +339,8 @@ namespace link_layer {
                     num_intervals_    = MaximumPeriodUS / interval_us;
                     effective_period_ = delta_time( num_intervals_ * interval_us );
                 }
+
+                num_intervals_since_anchor_moved_ = 0;
 
                 assert( effective_period_.usec() <= MaximumPeriodUS );
             }
@@ -350,6 +362,8 @@ namespace link_layer {
 
             // > 1 if there are more that 1 interval between two CB calls
             unsigned num_intervals_;
+
+            unsigned num_intervals_since_anchor_moved_;
 
             typename T::connection connection_value_;
 
@@ -383,7 +397,7 @@ namespace link_layer {
             {
             }
 
-            void synchronized_connection_event_callback_timeout()
+            void synchronized_connection_event_callback_timeout( bool )
             {
             }
 

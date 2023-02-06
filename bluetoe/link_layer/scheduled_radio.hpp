@@ -100,13 +100,13 @@ namespace link_layer {
         /**
          * @brief sets up a timer
          *
-         * Calls CallBack::user_timer() from an unspecified CPU context. timeout is based
-         * on the last timers anchor. If the last connection event timed out,
-         * the anchor moved by the connection_interval given to schedule_connection_event().
-         * The anchor will be adjusted by the radio connection events.
+         * The timeout is based on the connects last anchor. Which then means, that there
+         * has to be a connection and that the anchor will not move, if there was a timeout
+         * while waiting for the next connection event.
          *
-         * max_cb_runtime is the maximum intended runtime of the callback. An implementation
-         * of this interface can use this value to assert, that the runtime was not exceeded.
+         * Calls CallBack::user_timer( bool anchor_moved ) from an unspecified CPU context.
+         * anchor_moved is set to true, if the anchor moved inbetween setting up the timer
+         * and the timer callback beeing called.
          */
         bool schedule_synchronized_user_timer(
             bluetoe::link_layer::delta_time timeout,

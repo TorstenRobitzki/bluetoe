@@ -196,6 +196,12 @@ namespace bluetoe
 
             static void debug_toggle();
 
+            /**
+             * @brief returns true, if the anchor was move since the last call to this function
+             *        and resets the flag.
+             */
+            static bool user_timer_anchor_moved();
+
             class lock_guard
             {
             public:
@@ -226,13 +232,13 @@ namespace bluetoe
 
             // as the end of the PDU is captured and the start of the connection event
             // then calculated based on the PDU size, HF frequency domain anchor can be negativ
-            static int           hf_connection_event_anchor_;
-            static std::uint32_t lf_connection_event_anchor_;
+            volatile static int           hf_connection_event_anchor_;
+            volatile static std::uint32_t lf_connection_event_anchor_;
 
-            volatile static int           hf_user_timer_anchor_;
-            volatile static std::uint32_t lf_user_timer_anchor_;
-            volatile static int           user_timer_anchor_version_;
-            volatile static bool          user_timer_start_;
+            // if between setting up a user timer and calling the corresponding callback,
+            // the anchor moved, inform the callback, so that the callback can schedule
+            // the next call to the new anchor
+            volatile static bool user_timer_anchor_moved_;
         };
 
         /**
@@ -442,7 +448,7 @@ namespace bluetoe
                     const auto this_ = static_cast< nrf52_radio_base* >( that );
                     const auto callbacks = static_cast< CallBacks* >( this_ );
 
-                    callbacks->user_timer();
+                    callbacks->user_timer( Hardware::user_timer_anchor_moved() );
 
                 }, timer.usec(), max_cb_runtime.usec() );
             }

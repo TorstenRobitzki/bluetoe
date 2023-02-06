@@ -525,7 +525,7 @@ namespace link_layer {
         /**
          * @brief call back that will be called on expired user timer.
          */
-        void user_timer();
+        void user_timer( bool anchor_moved );
 
         /**
          * @brief initiating the change of communication parameters of an established connection
@@ -956,9 +956,9 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::user_timer()
+    void link_layer< Server, ScheduledRadio, Options... >::user_timer( bool anchor_moved )
     {
-        this->synchronized_connection_event_callback_timeout();
+        this->synchronized_connection_event_callback_timeout( anchor_moved );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

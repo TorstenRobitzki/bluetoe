@@ -520,9 +520,7 @@ namespace nrf52_details
         hf_connection_event_anchor_ = static_cast< int >( nrf_timer->CC[ tim_cc_capture_anchor ] ) + offset_us;
         lf_connection_event_anchor_ = nrf_rtc->CC[ rtc_cc_start_timer ];
 
-        hf_user_timer_anchor_ = hf_connection_event_anchor_;
-        lf_user_timer_anchor_ = lf_connection_event_anchor_;
-        ++user_timer_anchor_version_;
+        user_timer_anchor_moved_ = true;
     }
 
     std::tuple< bool, bool, bool > radio_hardware_without_crypto_support::received_pdu()
@@ -710,7 +708,8 @@ namespace nrf52_details
         assert( !nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_assert_end_cb ] );
         assert( max_cb_runtimer_ms > 0 );
 
-        user_timer_isr_handler = isr;
+        user_timer_isr_handler   = isr;
+        user_timer_anchor_moved_ = false;
 
         // configure timer and PPI. If the user timer is not used, the application is free to use
         // timer and PPI
@@ -726,27 +725,14 @@ namespace nrf52_details
         NVIC_ClearPendingIRQ( TIMER1_IRQn );
         NVIC_EnableIRQ( TIMER1_IRQn );
 
-        int anchor_version;
         int hf_anchor;
         std::uint32_t lf_anchor;
 
         {
             lock_guard lock;
-            anchor_version = user_timer_anchor_version_;
-            hf_anchor = hf_user_timer_anchor_;
-            lf_anchor = lf_user_timer_anchor_;
+            hf_anchor = hf_connection_event_anchor_;
+            lf_anchor = lf_connection_event_anchor_;
         }
-
-        const auto counter = nrf_rtc->COUNTER;
-        const auto anchor_distance = bluetoe::details::distance_n< 24u >( counter, lf_anchor );
-
-        // The anchor was reset during the last connection event Simply wait for 2 * time_us
-        // except for the very first call
-        if ( static_cast< unsigned >( std::abs( anchor_distance ) ) > 5u && !user_timer_start_ )
-        {
-            time_us = 2 * time_us;
-        }
-        user_timer_start_ = false;
 
         // -1 to prevent the calculation to endup with starting the Radio at TIMER1 beeing 0
         static constexpr auto us_offset   = 1;
@@ -763,23 +749,15 @@ namespace nrf52_details
 
         nrf_rtc->CC[ rtc_cc_start_cb_timer ] = lf_anchor + lf_call_cb_time;
 
+        const auto counter = nrf_rtc->COUNTER;
+        static_cast< void >( counter );
+
         assert( ( bluetoe::details::distance_n< 24u, std::uint32_t >( counter, nrf_rtc->CC[ rtc_cc_start_cb_timer ] ) > 0 ) );
 
         nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] = hf_call_cb_time + us_offset;
         nrf_cb_timer->CC[ cb_tim_cc_assert_end_cb ] = nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] + max_cb_runtimer_ms;
 
         assert( nrf_cb_timer->CC[ cb_tim_cc_assert_end_cb ] > nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] );
-
-        // set anchor to the destination time
-        {
-            lock_guard lock;
-
-            if ( anchor_version == user_timer_anchor_version_ )
-            {
-                hf_user_timer_anchor_ = nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ];
-                lf_user_timer_anchor_ = nrf_rtc->CC[ rtc_cc_start_cb_timer ];
-            }
-        }
 
         return true;
     }
@@ -790,8 +768,6 @@ namespace nrf52_details
         nrf_cb_timer->INTENCLR = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos;
         nrf_cb_timer->TASKS_STOP = 1;
         nrf_cb_timer->INTENCLR = 0xFFFFFFFF;
-
-        user_timer_start_ = true;
 
         const bool result = nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_start_exec_cb ] == 0;
         nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_start_exec_cb ] = 0;
@@ -821,15 +797,19 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
+    bool radio_hardware_without_crypto_support::user_timer_anchor_moved()
+    {
+        bool result = user_timer_anchor_moved_;
+        user_timer_anchor_moved_ = false;
+
+        return result;
+    }
 
     bool                   radio_hardware_without_crypto_support::receive_2mbit_;
     bool                   radio_hardware_without_crypto_support::transmit_2mbit_;
-    int                    radio_hardware_without_crypto_support::hf_connection_event_anchor_;
-    std::uint32_t          radio_hardware_without_crypto_support::lf_connection_event_anchor_;
-    volatile int           radio_hardware_without_crypto_support::hf_user_timer_anchor_;
-    volatile std::uint32_t radio_hardware_without_crypto_support::lf_user_timer_anchor_;
-    volatile int           radio_hardware_without_crypto_support::user_timer_anchor_version_;
-    volatile bool          radio_hardware_without_crypto_support::user_timer_start_;
+    volatile int           radio_hardware_without_crypto_support::hf_connection_event_anchor_;
+    volatile std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
+    volatile bool          radio_hardware_without_crypto_support::user_timer_anchor_moved_;
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
