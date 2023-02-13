@@ -528,6 +528,11 @@ namespace link_layer {
         void user_timer( bool anchor_moved );
 
         /**
+         * @brief call back that will try to reschedule the connection event
+         */
+        void try_event_cancelation();
+
+        /**
          * @brief initiating the change of communication parameters of an established connection
          *
          * If it was not possible to initiate the connection parameter update, the function returns false.
@@ -962,6 +967,16 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::try_event_cancelation()
+    {
+        if ( ( state_ == state::connected || state_ == state::connecting )
+          && pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
+        {
+            setup_next_connection_event();
+        }
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
     {
         if ( used_features_ & link_layer_feature::connection_parameters_request_procedure )
@@ -1116,14 +1131,15 @@ namespace link_layer {
     {
         auto& connection = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->connection_data_;
 
+        bool new_data = false;
         // TODO: Synchronization required!!!
         switch ( type )
         {
             case bluetoe::details::notification_type::notification:
-                return connection.queue_notification( item.client_characteristic_configuration_index() );
+                new_data = connection.queue_notification( item.client_characteristic_configuration_index() );
                 break;
             case bluetoe::details::notification_type::indication:
-                return connection.queue_indication( item.client_characteristic_configuration_index() );
+                new_data = connection.queue_indication( item.client_characteristic_configuration_index() );
                 break;
             case bluetoe::details::notification_type::confirmation:
                 connection.indication_confirmed();
@@ -1131,7 +1147,10 @@ namespace link_layer {
                 break;
         }
 
-        return true;
+        if ( new_data )
+            static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->request_event_cancelation();
+
+        return new_data;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1519,11 +1538,6 @@ namespace link_layer {
             static_cast< std::uint8_t >( buffer.first & 0xff ) } );
 
         this->commit_l2cap_transmit_buffer( out_buffer );
-
-        if ( pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
-        {
-            setup_next_connection_event();
-        }
     }
     /** @endcond */
 

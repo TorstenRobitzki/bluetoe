@@ -507,6 +507,12 @@ namespace bluetoe
                     events_ = link_layer::connection_event_events();
                 }
 
+                if ( request_event_cancelation_ )
+                {
+                    request_event_cancelation_ = false;
+                    static_cast< CallBacks* >( this )->try_event_cancelation();
+                }
+
                 if ( wake_up_ )
                 {
                     --wake_up_;
@@ -517,6 +523,12 @@ namespace bluetoe
             {
                 ++wake_up_;
             }
+
+            void request_event_cancelation()
+            {
+                request_event_cancelation_ = true;
+            }
+
 
             std::uint32_t static_random_address_seed() const
             {
@@ -754,6 +766,7 @@ namespace bluetoe
             volatile bool adv_received_;
             volatile bool evt_timeout_;
             volatile bool end_evt_;
+            volatile bool request_event_cancelation_;
             volatile int  wake_up_;
 
             enum class state {

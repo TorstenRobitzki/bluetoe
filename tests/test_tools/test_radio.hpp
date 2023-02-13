@@ -413,10 +413,14 @@ namespace test {
 
         void wake_up();
 
+        void request_event_cancelation();
+
         /**
          * @brief runs the simulation
          */
         void run();
+
+        bool event_cancelation_requested();
 
         static constexpr bool hardware_supports_encryption = false;
 
@@ -452,6 +456,7 @@ namespace test {
         bool idle_;
         bool advertising_response_;
         bool connection_event_response_;
+        bool request_event_cancelation_;
         int  wake_ups_;
         bool timer_set_;
 
@@ -608,6 +613,7 @@ namespace test {
         , idle_( true )
         , advertising_response_( false )
         , connection_event_response_( false )
+        , request_event_cancelation_( false )
         , wake_ups_( 0 )
         , timer_set_( false )
         , user_timer_anchor_moved_( false )
@@ -720,6 +726,21 @@ namespace test {
     void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::wake_up()
     {
         ++wake_ups_;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::request_event_cancelation()
+    {
+        request_event_cancelation_ = true;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    bool radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::event_cancelation_requested()
+    {
+        const bool result = request_event_cancelation_;
+        request_event_cancelation_ = false;
+
+        return result;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
