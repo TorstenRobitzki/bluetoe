@@ -1312,7 +1312,6 @@ namespace link_layer {
 
         const std::uint8_t* const body       = layout_t::body( pdu ).first;
         const std::uint16_t       header     = layout_t::header( pdu );
-              std::uint8_t* const write_body = layout_t::body( write ).first;
 
         if ( ( header & 0x3 ) == ll_control_pdu_code )
         {
@@ -1407,9 +1406,12 @@ namespace link_layer {
             }
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
             {
-                fill< layout_t >( write, { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
+                using connection_param_responder = typename bluetoe::details::find_by_meta_type<
+                    bluetoe::link_layer::details::desired_connection_parameters_meta_type,
+                    Options...,
+                    no_desired_connection_parameters >::type;
 
-                std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
+                connection_param_responder::template fill_response< layout_t >( pdu, write );
             }
             else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
             {
