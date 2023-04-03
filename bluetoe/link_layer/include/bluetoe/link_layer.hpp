@@ -882,6 +882,8 @@ namespace link_layer {
         {
             force_disconnect();
         }
+
+        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

@@ -295,14 +295,30 @@ BOOST_FIXTURE_TEST_CASE( connection_not_lost, link_layer_only_disconnect_callbac
     BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
 }
 
+/*
+ * If the establishment of a new connection was never reported (because a connection event never happend)
+ * the timeout of that connection attempt should not be reported
+ */
+BOOST_FIXTURE_TEST_CASE( connection_lost_by_timeout_never_connected, link_layer_connect_and_disconnect_callback )
+{
+    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
+
+    respond_to( 37, valid_connection_request_pdu );
+    run( 20 );
+
+    BOOST_CHECK( !only_connect_callback.connection_established_called );
+    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
+}
+
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_timeout, link_layer_only_disconnect_callback )
 {
     BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
 
     respond_to( 37, valid_connection_request_pdu );
-    run( 2 );
+    ll_empty_pdus( 2 );
+    run( 20 );
 
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
+    BOOST_CHECK( only_disconnect_callback.only_disconnect_called );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconnect_callback )
