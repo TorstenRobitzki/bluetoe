@@ -147,7 +147,7 @@ namespace link_layer
             static constexpr std::uint8_t   ll_control_pdu_code         = 3;
             static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
         };
-    };
+    }
 
     /**
      * @brief static, desired connection parameters
