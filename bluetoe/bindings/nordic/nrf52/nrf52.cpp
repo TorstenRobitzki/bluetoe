@@ -966,6 +966,11 @@ namespace nrf52_details
             nrf_ccm->EVENTS_ENDCRYPT = 0;
             nrf_ccm->EVENTS_ERROR = 0;
 
+            // Maximum package payload size is, the buffer size minus the LL header and the one reserve
+            // byte that is required by the nrf52 radio hardware:
+            static constexpr std::size_t radio_pdu_to_payload_overhead = 3;
+            nrf_ccm->MAXPACKETSIZE= receive_buffer.size - radio_pdu_to_payload_overhead;
+
             nrf_ccm->TASKS_KSGEN = 1;
         }
 
