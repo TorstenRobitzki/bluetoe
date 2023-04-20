@@ -148,6 +148,6 @@ BOOST_FIXTURE_TEST_CASE( make_sure_other_service_args_are_forwarded, test::gatt_
         0x0A,                       // read request
         low( value_char.value_handle ),
         high( value_char.value_handle ),
-        0x02                        // Read Not Permitted
+        0x05                        // Insufficient Authentication
     });
 }

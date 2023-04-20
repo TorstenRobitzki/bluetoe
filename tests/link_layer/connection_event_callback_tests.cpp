@@ -189,10 +189,15 @@ BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_phase, server_7
 
     const auto timers = scheduled_user_timers();
 
-    BOOST_REQUIRE_GT( timers.size(), 2u );
+    BOOST_REQUIRE_GT( timers.size(), 7u );
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 18 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 24 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 36 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 6 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_positive_phase, server_7ms_plus_100us )
@@ -207,10 +212,15 @@ BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_positive_phase,
 
     const auto timers = scheduled_user_timers();
 
-    BOOST_REQUIRE_GT( timers.size(), 2u );
+    BOOST_REQUIRE_GT( timers.size(), 7u );
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 18 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 24 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 30 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 6 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
@@ -225,14 +235,39 @@ BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
 
     const auto timers = scheduled_user_timers();
 
-    BOOST_REQUIRE_GT( timers.size(), 5u );
+    BOOST_REQUIRE_GT( timers.size(), 7u );
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
-    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
-    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 18 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 24 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 36 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 6 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( force_callback_call_while_using_latency, server_7ms_minus_100us )
+{
+    callbacks.planned_latency = { 2u, 2u, 2u, 2u, 2u, 2u };
+    this->respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdu();
+    ll_function_call([this](){
+        force_synchronized_connection_event_callback();
+    });
+    ll_empty_pdu();
+
+    run();
+
+    static const auto expected = {
+        0u,        3u,
+        0u,        3u,    // at the second connection event, the
+                          // callback is forces
+            1u,        4u
+    };
+
+    BOOST_TEST(
+        take( callbacks.instants, expected.size() ) == expected,
+        boost::test_tools::per_element() );
 }
 
 BOOST_FIXTURE_TEST_CASE( correct_instance, server_7ms_minus_100us )
@@ -320,19 +355,22 @@ using server_60ms_minus_100us  = unconnected_server< 60000, -100 >;
 BOOST_FIXTURE_TEST_CASE( larger_min_period, server_60ms_minus_100us )
 {
     this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
+    ll_empty_pdus( 30 );
 
     run();
 
     const auto timers = scheduled_user_timers();
 
-    BOOST_REQUIRE_GT( timers.size(), 3u );
+    BOOST_REQUIRE_GT( timers.size(), 7u );
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 60 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 60 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 60 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 60 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 4 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 5 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 6 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 7 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( larger_min_period_instance, server_60ms_minus_100us )
@@ -382,10 +420,10 @@ BOOST_FIXTURE_TEST_CASE( reconnect_with_different_interval, server_20ms_minus_10
     BOOST_REQUIRE_GT( timers.size(), 3u );
 
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 15 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
 
     BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 20 ) );
+    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 40 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minus_100us )
@@ -394,7 +432,7 @@ BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minu
     ll_empty_pdu();
     add_connection_update_request(
         0x08, 0x08, 0x08, 0, 100, 8 );
-    ll_empty_pdus( 10 );
+    ll_empty_pdus( 30 );
     run();
 
     const auto timers = scheduled_user_timers();
@@ -402,13 +440,13 @@ BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minu
 
     // instance 0
     BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 15 ) );
+    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
 
     // ...
-    BOOST_CHECK_EQUAL( timers[ 13 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 14 ].delay, delta_time::msec( 20 ) );
-    BOOST_CHECK_EQUAL( timers[ 15 ].delay, delta_time::msec( 20 ) );
-    BOOST_CHECK_EQUAL( timers[ 16 ].delay, delta_time::msec( 20 ) );
+    BOOST_CHECK_EQUAL( timers[ 13 ].delay, delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 14 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 15 ].delay, delta_time::msec( 40 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    BOOST_CHECK_EQUAL( timers[ 16 ].delay, delta_time::msec( 40 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
 }
 
 struct callbacks_with_optional_callbacks_t

@@ -164,6 +164,10 @@ namespace link_layer {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
                         that().start_transmit_encrypted();
                         encryption_changed = that().connection_data_.is_encrypted( true );
+
+                        if ( encryption_changed )
+                            that().connection_data_.restore_bonded_cccds( that().connection_data_ );
+
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
@@ -184,7 +188,10 @@ namespace link_layer {
                     }
 
                     if ( encryption_changed )
+                    {
+                        that().connection_data_.pairing_status(that().connection_data_.local_device_pairing_status());
                         that().connection_changed( that().details(), that().connection_data_, static_cast< typename LinkLayer::radio_t& >( that() ) );
+                    }
 
                     return true;
                 }
@@ -518,7 +525,12 @@ namespace link_layer {
         /**
          * @brief call back that will be called on expired user timer.
          */
-        void user_timer();
+        void user_timer( bool anchor_moved );
+
+        /**
+         * @brief call back that will try to reschedule the connection event
+         */
+        void try_event_cancelation();
 
         /**
          * @brief initiating the change of communication parameters of an established connection
@@ -638,7 +650,7 @@ namespace link_layer {
         connection_details details() const;
 
         static constexpr unsigned       first_advertising_channel   = 37;
-        static constexpr unsigned       num_windows_til_timeout     = 5;
+        static constexpr unsigned       num_windows_til_timeout     = 6;
         static constexpr auto           us_per_digits               = 1250;
 
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
@@ -792,14 +804,6 @@ namespace link_layer {
         }
 
         radio_t::run();
-
-        if ( state_ == state::connected )
-        {
-            this->transmit_pending_l2cap_output( connection_data_ );
-            transmit_pending_control_pdus();
-        }
-
-        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -878,6 +882,8 @@ namespace link_layer {
         {
             force_disconnect();
         }
+
+        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -938,7 +944,16 @@ namespace link_layer {
                 const delta_time time_till_next_event = setup_next_connection_event();
                 connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
+
         }
+
+        if ( state_ == state::connected || state_ == state::connecting )
+        {
+            transmit_pending_control_pdus();
+            this->transmit_pending_l2cap_output( connection_data_ );
+        }
+
+        this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -948,9 +963,19 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::user_timer()
+    void link_layer< Server, ScheduledRadio, Options... >::user_timer( bool anchor_moved )
     {
-        this->synchronized_connection_event_callback_timeout();
+        this->synchronized_connection_event_callback_timeout( anchor_moved );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::try_event_cancelation()
+    {
+        if ( ( state_ == state::connected || state_ == state::connecting )
+          && pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
+        {
+            setup_next_connection_event();
+        }
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1108,14 +1133,15 @@ namespace link_layer {
     {
         auto& connection = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->connection_data_;
 
+        bool new_data = false;
         // TODO: Synchronization required!!!
         switch ( type )
         {
             case bluetoe::details::notification_type::notification:
-                return connection.queue_notification( item.client_characteristic_configuration_index() );
+                new_data = connection.queue_notification( item.client_characteristic_configuration_index() );
                 break;
             case bluetoe::details::notification_type::indication:
-                return connection.queue_indication( item.client_characteristic_configuration_index() );
+                new_data = connection.queue_indication( item.client_characteristic_configuration_index() );
                 break;
             case bluetoe::details::notification_type::confirmation:
                 connection.indication_confirmed();
@@ -1123,7 +1149,10 @@ namespace link_layer {
                 break;
         }
 
-        return true;
+        if ( new_data )
+            static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->request_event_cancelation();
+
+        return new_data;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1142,14 +1171,13 @@ namespace link_layer {
         static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
-        static constexpr auto       max_peripheral_latency = 499;
 
         return transmit_window_size_ <= maximum_transmit_window_offset
             && transmit_window_size_ <= connection_interval_
             && connection_timeout_ >= minimum_connection_timeout
             && connection_timeout_ <= maximum_connection_timeout
             && connection_timeout_ >= ( peripheral_latency_ + 1 ) * 2 * connection_interval_
-            && peripheral_latency_ <= max_peripheral_latency;
+            && peripheral_latency_ <= maximum_link_layer_peripheral_latency;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1187,10 +1215,15 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::force_disconnect()
     {
-        this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
-        this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
         this->reset_phy( *this );
+
+        if ( state_ != state::connecting )
+        {
+            this->synchronized_connection_event_callback_disconnect();
+            this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
+        }
+
         start_advertising_impl();
     }
 
@@ -1220,6 +1253,7 @@ namespace link_layer {
             if ( llid == ll_control_pdu_code )
             {
                 const read_buffer output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
+
                 if ( output.size )
                 {
                     result = handle_ll_control_data( pdu, output );
@@ -1280,7 +1314,6 @@ namespace link_layer {
 
         const std::uint8_t* const body       = layout_t::body( pdu ).first;
         const std::uint16_t       header     = layout_t::header( pdu );
-              std::uint8_t* const write_body = layout_t::body( write ).first;
 
         if ( ( header & 0x3 ) == ll_control_pdu_code )
         {
@@ -1375,9 +1408,12 @@ namespace link_layer {
             }
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
             {
-                fill< layout_t >( write, { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
+                using connection_param_responder = typename bluetoe::details::find_by_meta_type<
+                    bluetoe::link_layer::details::desired_connection_parameters_meta_type,
+                    Options...,
+                    no_desired_connection_parameters >::type;
 
-                std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
+                connection_param_responder::template fill_response< layout_t >( pdu, write );
             }
             else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
             {
@@ -1506,11 +1542,6 @@ namespace link_layer {
             static_cast< std::uint8_t >( buffer.first & 0xff ) } );
 
         this->commit_l2cap_transmit_buffer( out_buffer );
-
-        if ( pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
-        {
-            setup_next_connection_event();
-        }
     }
     /** @endcond */
 

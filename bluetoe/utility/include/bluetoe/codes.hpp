@@ -117,6 +117,8 @@ namespace details {
         complete_service_uuids_128      = 0x07,
         complete_local_name             = 0x09,
         shortened_local_name            = 0x08,
+        tx_power_level                  = 0x0a,
+        appearance                      = 0x19,
     };
 
     constexpr std::uint8_t bits( gap_types c )

@@ -55,19 +55,14 @@ namespace link_layer {
         void commit_ll_transmit_buffer( read_buffer buffer );
 
         /**
-         * @brief try to send pending L2CAP content
-         *
-         * This function is expected to be called if there is a chance that the radio
-         * has free transmit capabilities.
-         */
-        void commit_pending_l2cap_transmit_buffers();
-
-        /**
          * @brief returns the oldest link layer PDU or L2CAP SDU out of the receive buffer.
          *
          * If there is no oldest received PDU/SDU, an empty PDU will be returned (size == 0 ).
          * The returned PDU is not removed from the buffer. To remove the buffer after it is
          * not used any more, free_ll_l2cap_received() must be called.
+         *
+         * If there are pending outgoing PDUs there will be an attempt to write then to the
+         * link layer.
          *
          * @pre buffer is in running mode
          *
@@ -127,7 +122,6 @@ namespace link_layer {
         read_buffer allocate_ll_transmit_buffer( std::size_t size );
         void commit_l2cap_transmit_buffer( read_buffer buffer );
         void commit_ll_transmit_buffer( read_buffer buffer );
-        void commit_pending_l2cap_transmit_buffers();
         write_buffer next_ll_l2cap_received() const;
         void free_ll_l2cap_received();
     private:
@@ -186,14 +180,10 @@ namespace link_layer {
     }
 
     template < class BufferedRadio, std::size_t MTUSize >
-    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::commit_pending_l2cap_transmit_buffers()
-    {
-        try_send_pdus();
-    }
-
-    template < class BufferedRadio, std::size_t MTUSize >
     write_buffer ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::next_ll_l2cap_received()
     {
+        try_send_pdus();
+
         // is there already a defragmented L2CAP SDU?
         if ( receive_buffer_used_ != 0 && receive_size_ == 0 )
             return { receive_buffer_, receive_buffer_used_ };
@@ -337,11 +327,6 @@ namespace link_layer {
     void ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::commit_ll_transmit_buffer( read_buffer buffer )
     {
         return this->commit_transmit_buffer( buffer );
-    }
-
-    template < class BufferedRadio >
-    void ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::commit_pending_l2cap_transmit_buffers()
-    {
     }
 
     template < class BufferedRadio >

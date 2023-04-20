@@ -219,3 +219,102 @@ BOOST_FIXTURE_TEST_CASE( legacy_not_supported, test::lesc_security_manager<> )
     );
 }
 
+BOOST_AUTO_TEST_SUITE( auth_req_field )
+
+using legacy_bonding_response = test::legacy_security_manager< 23, bluetoe::enable_bonding >;
+
+BOOST_FIXTURE_TEST_CASE( bonding_flag_in_response, legacy_bonding_response )
+{
+    expected(
+        {
+            0x01,                   // Pairing Request
+            0x01, 0x00, 0x00, 0x10, 0x07, 0x07
+        },
+        {
+            0x02,                   // Pairing Response
+            0x03, 0x00, 0x01, 0x10, 0x00, 0x00
+        }
+    );
+}
+
+using legacy_mitm_response = test::legacy_security_manager< 23, bluetoe::require_man_in_the_middle_protection >;
+
+BOOST_FIXTURE_TEST_CASE( mitm_flag_in_response, legacy_mitm_response )
+{
+    expected(
+        {
+            0x01,                   // Pairing Request
+            0x01, 0x00, 0x00, 0x10, 0x07, 0x07
+        },
+        {
+            0x02,                   // Pairing Response
+            0x03, 0x00, 0x04, 0x10, 0x00, 0x00
+        }
+    );
+}
+
+using legacy_keypress_response = test::legacy_security_manager< 23, bluetoe::enable_keypress_notifications >;
+
+BOOST_FIXTURE_TEST_CASE( keypress_flag_in_response, legacy_keypress_response )
+{
+    expected(
+        {
+            0x01,                   // Pairing Request
+            0x01, 0x00, 0x00, 0x10, 0x07, 0x07
+        },
+        {
+            0x02,                   // Pairing Response
+            0x03, 0x00, 0x10, 0x10, 0x00, 0x00
+        }
+    );
+}
+
+using lesc_bonding_response = test::lesc_security_manager< 65, bluetoe::enable_bonding >;
+
+BOOST_FIXTURE_TEST_CASE( lesc_bonding_flag_in_response, lesc_bonding_response )
+{
+    expected(
+        {
+            0x01,                   // Pairing Request
+            0x01, 0x00, 0x08, 0x10, 0x07, 0x07
+        },
+        {
+            0x02,                   // Pairing Response
+            0x03, 0x00, 0x09, 0x10, 0x00, 0x00
+        }
+    );
+}
+
+using lesc_mitm_response = test::lesc_security_manager< 65, bluetoe::require_man_in_the_middle_protection >;
+
+BOOST_FIXTURE_TEST_CASE( lesc_mitm_flag_in_response, lesc_mitm_response )
+{
+    expected(
+        {
+            0x01,                   // Pairing Request
+            0x01, 0x00, 0x08, 0x10, 0x07, 0x07
+        },
+        {
+            0x02,                   // Pairing Response
+            0x03, 0x00, 0x0C, 0x10, 0x00, 0x00
+        }
+    );
+}
+
+using lesc_keypress_response = test::lesc_security_manager< 65, bluetoe::enable_keypress_notifications >;
+
+BOOST_FIXTURE_TEST_CASE( lesc_keypress_flag_in_response, lesc_keypress_response )
+{
+    expected(
+        {
+            0x01,                   // Pairing Request
+            0x01, 0x00, 0x08, 0x10, 0x07, 0x07
+        },
+        {
+            0x02,                   // Pairing Response
+            0x03, 0x00, 0x18, 0x10, 0x00, 0x00
+        }
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

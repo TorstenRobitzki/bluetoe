@@ -131,10 +131,11 @@ namespace bluetoe
              * @brief returns details to a received PDU
              *
              * Returns { true, X } if a PDU was received
-             * Returns { true, true } if that PDU is valid
-             * Returns { true, false } if that PDU has a CRC or MIC error
+             * Returns { true, true, X } if that PDU is valid
+             * Returns { true, false, true } if that PDU has a valid CRC but maybe a MIC error
+             * Returns { true, false, false } if that PDU has an invalid CRC
              */
-            static std::pair< bool, bool > received_pdu();
+            static std::tuple< bool, bool, bool > received_pdu();
 
             /**
              * @brief elapsed time in µs since the last anchor
@@ -195,6 +196,12 @@ namespace bluetoe
 
             static void debug_toggle();
 
+            /**
+             * @brief returns true, if the anchor was move since the last call to this function
+             *        and resets the flag.
+             */
+            static bool user_timer_anchor_moved();
+
             class lock_guard
             {
             public:
@@ -225,13 +232,13 @@ namespace bluetoe
 
             // as the end of the PDU is captured and the start of the connection event
             // then calculated based on the PDU size, HF frequency domain anchor can be negativ
-            static int           hf_connection_event_anchor_;
-            static std::uint32_t lf_connection_event_anchor_;
+            volatile static int           hf_connection_event_anchor_;
+            volatile static std::uint32_t lf_connection_event_anchor_;
 
-            volatile static int           hf_user_timer_anchor_;
-            volatile static std::uint32_t lf_user_timer_anchor_;
-            volatile static int           user_timer_anchor_version_;
-            volatile static bool          user_timer_start_;
+            // if between setting up a user timer and calling the corresponding callback,
+            // the anchor moved, inform the callback, so that the callback can schedule
+            // the next call to the new anchor
+            volatile static bool user_timer_anchor_moved_;
         };
 
         /**
@@ -262,7 +269,7 @@ namespace bluetoe
 
             static void store_timer_anchor( int offset_us );
 
-            static std::pair< bool, bool > received_pdu();
+            static std::tuple< bool, bool, bool > received_pdu();
 
             static void configure_encryption( bool receive, bool transmit );
 
@@ -353,7 +360,6 @@ namespace bluetoe
                 assert( !adv_timeout_ );
                 assert( state_ == state::idle );
                 assert( receive.buffer && receive.size >= 2u );
-                assert( response_data.buffer );
 
                 bluetoe::link_layer::write_buffer advertising = advertising_data;
                 advertising.size = std::min< std::uint8_t >( advertising.size, maximum_advertising_pdu_size );
@@ -382,8 +388,14 @@ namespace bluetoe
                 bluetoe::link_layer::delta_time             end_receive,
                 bluetoe::link_layer::delta_time             connection_interval )
             {
+                assert( !end_evt_ );
                 assert( state_ == state::idle );
                 assert( start_receive < end_receive );
+
+                // in case of a call to nrf_flash_memory_access_end, evt_timeout_ will be set
+                // and needs to be consumed by the timeout handler
+                if ( evt_timeout_ )
+                    return connection_interval;
 
                 // Stop all interrupts so that the calculation, that enough CPU time is available to setup everything, will not
                 // be disturbed by any interrupt.
@@ -436,7 +448,7 @@ namespace bluetoe
                     const auto this_ = static_cast< nrf52_radio_base* >( that );
                     const auto callbacks = static_cast< CallBacks* >( this_ );
 
-                    callbacks->user_timer();
+                    callbacks->user_timer( Hardware::user_timer_anchor_moved() );
 
                 }, timer.usec(), max_cb_runtime.usec() );
             }
@@ -456,8 +468,11 @@ namespace bluetoe
                 while ( !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
                     __WFI();
 
+                // For every event, but the wakeup request, the radio should be in an idle state
+                // because it's up to the event handler to defined what should happen next
                 if ( adv_received_ )
                 {
+                    assert( state_ == state::idle );
                     assert( reinterpret_cast< std::uint8_t* >( NRF_RADIO->PACKETPTR ) == receive_buffer_.buffer );
 
                     receive_buffer_.size = std::min< std::size_t >(
@@ -471,22 +486,31 @@ namespace bluetoe
 
                 if ( adv_timeout_ )
                 {
+                    assert( state_ == state::idle );
                     adv_timeout_ = false;
                     static_cast< CallBacks* >( this )->adv_timeout();
                 }
 
                 if ( evt_timeout_ )
                 {
+                    assert( state_ == state::idle );
                     evt_timeout_ = false;
                     static_cast< CallBacks* >( this )->timeout();
                 }
 
                 if ( end_evt_ )
                 {
+                    assert( state_ == state::idle );
                     end_evt_ = false;
                     static_cast< CallBacks* >( this )->end_event( events_ );
 
                     events_ = link_layer::connection_event_events();
+                }
+
+                if ( request_event_cancelation_ )
+                {
+                    request_event_cancelation_ = false;
+                    static_cast< CallBacks* >( this )->try_event_cancelation();
                 }
 
                 if ( wake_up_ )
@@ -500,6 +524,12 @@ namespace bluetoe
                 ++wake_up_;
             }
 
+            void request_event_cancelation()
+            {
+                request_event_cancelation_ = true;
+            }
+
+
             std::uint32_t static_random_address_seed() const
             {
                 return Hardware::static_random_address_seed();
@@ -508,6 +538,7 @@ namespace bluetoe
             void nrf_flash_memory_access_begin()
             {
                 lock_guard lock;
+
                 Hardware::stop_radio();
                 low_frequency_clock_t::stop_high_frequency_crystal_oscilator();
                 state_ = state::idle;
@@ -515,8 +546,12 @@ namespace bluetoe
 
             void nrf_flash_memory_access_end()
             {
+                // radio should still be in idle state, otherwise there was some interaction with the
+                // radio that was not expected by this function.
+                assert( state_ == state::idle );
                 // this kicks the CPU out of the loop in run() and requests the link layer to setup the next connection event
-                evt_timeout_ = true;
+                // unless, there is already a pending call to the end_event() handler.
+                evt_timeout_ = !end_evt_;
             }
 
             void radio_set_phy(
@@ -588,10 +623,10 @@ namespace bluetoe
                 }
                 else if ( state_ == state::adv_receiving )
                 {
-                    bool valid_anchor, valid_pdu;
-                    std::tie( valid_anchor, valid_pdu ) = Hardware::received_pdu();
+                    bool valid_anchor, valid_pdu, valid_crc;
+                    std::tie( valid_anchor, valid_pdu, valid_crc ) = Hardware::received_pdu();
 
-                    if ( valid_anchor && valid_pdu )
+                    if ( valid_anchor && valid_pdu && valid_crc )
                     {
                         Hardware::stop_timeout_timer();
 
@@ -627,15 +662,17 @@ namespace bluetoe
                 }
                 else if ( state_ == state::evt_wait_connect )
                 {
-                    bool valid_anchor, valid_pdu;
-                    std::tie( valid_anchor, valid_pdu ) = Hardware::received_pdu();
+                    bool valid_anchor, valid_pdu, valid_crc;
+                    std::tie( valid_anchor, valid_pdu, valid_crc ) = Hardware::received_pdu();
 
-                    if ( valid_anchor )
+                    if ( valid_anchor && ( valid_pdu || valid_crc ) )
                     {
                         // switch to transmission
-                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_pdu )
+                        const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_crc )
                             ? this->next_transmit()
-                            : this->received( receive_buffer_ );
+                            : ( valid_pdu
+                                ? this->received( receive_buffer_ )
+                                : this->acknowledge( receive_buffer_ ) );
 
                         // TODO: Hack to disable the more data flag, because this radio implementation is currently
                         // not able to do this (but it should be possible with the given hardware).
@@ -647,33 +684,6 @@ namespace bluetoe
 
                         Hardware::configure_final_transmit( trans );
                         state_   = state::evt_transmiting_closing;
-
-                        // TODO as we currently take the anchor from the end of the PDU, we should be
-                        // sure that the length of the PDU is correct!
-                        // Issue: #76 Taking Anchor from End of PDU
-                        if ( valid_pdu )
-                        {
-                            // TODO: Couldn't we just capture the time at the start of the PDU?
-                            // the timer was captured with the end event; the anchor is the start of the receiving.
-                            // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
-                            // Issue: #76 Taking Anchor from End of PDU
-                            static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
-                            const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
-
-                            // TODO: Anchor must also be taken, if PDU has a CRC error
-                            // Issue: #76 Taking Anchor from End of PDU
-                            Hardware::store_timer_anchor( -total_pdu_length );
-
-                            if ( receive_buffer_.buffer[ 1 ] != 0 )
-                                events_.last_received_not_empty = true;
-
-                            if ( receive_buffer_.buffer[ 0 ] & more_data_flag )
-                                events_.last_received_had_more_data = true;
-                        }
-                        else
-                        {
-                            events_.error_occured = true;
-                        }
                     }
                     else
                     {
@@ -685,6 +695,23 @@ namespace bluetoe
                 }
                 else if ( state_ == state::evt_transmiting_closing )
                 {
+                    // TODO: Couldn't we just capture the time at the start of the PDU?
+                    // the timer was captured with the end event; the anchor is the start of the receiving.
+                    // Additional to the ll PDU length there are 1 byte preamble, 4 byte access address, 2 byte LL header and 3 byte crc.
+                    // Issue: #76 Taking Anchor from End of PDU
+                    static constexpr std::size_t ll_pdu_overhead = 1 + 4 + 2 + 3;
+                    const int total_pdu_length = ( receive_buffer_.buffer[ 1 ] + ll_pdu_overhead ) * 8;
+
+                    // TODO: Anchor must also be taken, if PDU has a CRC error
+                    // Issue: #76 Taking Anchor from End of PDU
+                    Hardware::store_timer_anchor( -total_pdu_length );
+
+                    if ( receive_buffer_.buffer[ 1 ] != 0 )
+                        events_.last_received_not_empty = true;
+
+                    if ( receive_buffer_.buffer[ 0 ] & more_data_flag )
+                        events_.last_received_had_more_data = true;
+
                     Hardware::stop_radio();
                     state_   = state::idle;
                     end_evt_ = true;
@@ -704,6 +731,10 @@ namespace bluetoe
                 static constexpr int          addr_size             = 6;
                 static constexpr std::uint8_t tx_add_mask           = 0x40;
                 static constexpr std::uint8_t rx_add_mask           = 0x80;
+
+                // the advertising type does not expect a scan request
+                if ( !response_data_.buffer )
+                    return false;
 
                 if ( Hardware::resolving_address_invalid() )
                     return true;
@@ -735,6 +766,7 @@ namespace bluetoe
             volatile bool adv_received_;
             volatile bool evt_timeout_;
             volatile bool end_evt_;
+            volatile bool request_event_cancelation_;
             volatile int  wake_up_;
 
             enum class state {

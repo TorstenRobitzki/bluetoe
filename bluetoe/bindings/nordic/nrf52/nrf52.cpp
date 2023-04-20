@@ -90,7 +90,6 @@ namespace nrf52_details
 
     static constexpr std::uint32_t timer_prescale_for_1us_resolution = 4;
 
-#define BLUETOE_NRF52_RADIO_DEBUG 1
 #   if defined BLUETOE_NRF52_RADIO_DEBUG
         static constexpr int debug_pin_end_crypt     = 11;
         static constexpr int debug_pin_ready_disable = 12;
@@ -336,7 +335,6 @@ namespace nrf52_details
     static void init_timer()
     {
         configure_timer_for_1us( *nrf_timer );
-        nrf_timer->TASKS_START = 1;
     }
 
     static void init_ppi()
@@ -456,6 +454,8 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::configure_final_transmit(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
+        assert( transmit_data.buffer );
+
         nrf_radio->MODE        =
             ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
 
@@ -509,6 +509,10 @@ namespace nrf52_details
 
         // disable radio
         nrf_radio->TASKS_DISABLE = 1;
+
+        // consume event to not fire, once the radio is enabled again
+        bluetoe::nrf::nrf_radio->EVENTS_DISABLED  = 0;
+        NVIC_ClearPendingIRQ( RADIO_IRQn );
     }
 
     void radio_hardware_without_crypto_support::store_timer_anchor( int offset_us )
@@ -516,17 +520,15 @@ namespace nrf52_details
         hf_connection_event_anchor_ = static_cast< int >( nrf_timer->CC[ tim_cc_capture_anchor ] ) + offset_us;
         lf_connection_event_anchor_ = nrf_rtc->CC[ rtc_cc_start_timer ];
 
-        hf_user_timer_anchor_ = hf_connection_event_anchor_;
-        lf_user_timer_anchor_ = lf_connection_event_anchor_;
-        ++user_timer_anchor_version_;
+        user_timer_anchor_moved_ = true;
     }
 
-    std::pair< bool, bool > radio_hardware_without_crypto_support::received_pdu()
+    std::tuple< bool, bool, bool > radio_hardware_without_crypto_support::received_pdu()
     {
         const bool result = ( nrf_radio->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk && nrf_radio->EVENTS_PAYLOAD;
         nrf_radio->EVENTS_PAYLOAD = 0;
 
-        return { result, result };
+        return { result, result, result };
     }
 
     std::uint32_t radio_hardware_without_crypto_support::now()
@@ -593,12 +595,6 @@ namespace nrf52_details
         const bool          transmit,
         const std::uint32_t start_hfxo_offset )
     {
-        // High frequency clock is running and is running from the crystal oscillator
-        assert( nrf_clock->HFCLKSTAT & ( CLOCK_HFCLKSTAT_STATE_Msk | CLOCK_HFCLKSTAT_SRC_Msk )
-          ==
-            ( CLOCK_HFCLKSTAT_STATE_Running << CLOCK_HFCLKSTAT_STATE_Pos )
-          | ( CLOCK_HFCLKSTAT_SRC_Xtal << CLOCK_HFCLKSTAT_SRC_Pos ) );
-
         // Stop timer, stop HFXO
         nrf_timer->TASKS_STOP = 1;
         nrf_timer->TASKS_CLEAR = 1;
@@ -658,6 +654,10 @@ namespace nrf52_details
     {
         if ( when.zero() )
         {
+            // capture the current time as anchor for the next advertisment
+            nrf_timer->TASKS_CAPTURE[ tim_cc_start_radio ] = 1;
+            nrf_rtc->CC[ rtc_cc_start_timer ] = nrf_rtc->COUNTER;
+
             // immediately start the radio
             nrf_timer->TASKS_START = 1;
             nrf_timer->TASKS_CAPTURE[ tim_cc_timeout ]  = 1;
@@ -708,7 +708,8 @@ namespace nrf52_details
         assert( !nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_assert_end_cb ] );
         assert( max_cb_runtimer_ms > 0 );
 
-        user_timer_isr_handler = isr;
+        user_timer_isr_handler   = isr;
+        user_timer_anchor_moved_ = false;
 
         // configure timer and PPI. If the user timer is not used, the application is free to use
         // timer and PPI
@@ -724,27 +725,14 @@ namespace nrf52_details
         NVIC_ClearPendingIRQ( TIMER1_IRQn );
         NVIC_EnableIRQ( TIMER1_IRQn );
 
-        int anchor_version;
         int hf_anchor;
         std::uint32_t lf_anchor;
 
         {
             lock_guard lock;
-            anchor_version = user_timer_anchor_version_;
-            hf_anchor = hf_user_timer_anchor_;
-            lf_anchor = lf_user_timer_anchor_;
+            hf_anchor = hf_connection_event_anchor_;
+            lf_anchor = lf_connection_event_anchor_;
         }
-
-        const auto counter = nrf_rtc->COUNTER;
-        const auto anchor_distance = bluetoe::details::distance_n< 24u >( counter, lf_anchor );
-
-        // The anchor was reset during the last connection event Simply wait for 2 * time_us
-        // except for the very first call
-        if ( std::abs( anchor_distance ) > 5u && !user_timer_start_ )
-        {
-            time_us = 2 * time_us;
-        }
-        user_timer_start_ = false;
 
         // -1 to prevent the calculation to endup with starting the Radio at TIMER1 beeing 0
         static constexpr auto us_offset   = 1;
@@ -761,23 +749,15 @@ namespace nrf52_details
 
         nrf_rtc->CC[ rtc_cc_start_cb_timer ] = lf_anchor + lf_call_cb_time;
 
+        const auto counter = nrf_rtc->COUNTER;
+        static_cast< void >( counter );
+
         assert( ( bluetoe::details::distance_n< 24u, std::uint32_t >( counter, nrf_rtc->CC[ rtc_cc_start_cb_timer ] ) > 0 ) );
 
         nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] = hf_call_cb_time + us_offset;
         nrf_cb_timer->CC[ cb_tim_cc_assert_end_cb ] = nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] + max_cb_runtimer_ms;
 
         assert( nrf_cb_timer->CC[ cb_tim_cc_assert_end_cb ] > nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ] );
-
-        // set anchor to the destination time
-        {
-            lock_guard lock;
-
-            if ( anchor_version == user_timer_anchor_version_ )
-            {
-                hf_user_timer_anchor_ = nrf_cb_timer->CC[ cb_tim_cc_start_exec_cb ];
-                lf_user_timer_anchor_ = nrf_rtc->CC[ rtc_cc_start_cb_timer ];
-            }
-        }
 
         return true;
     }
@@ -788,8 +768,6 @@ namespace nrf52_details
         nrf_cb_timer->INTENCLR = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos;
         nrf_cb_timer->TASKS_STOP = 1;
         nrf_cb_timer->INTENCLR = 0xFFFFFFFF;
-
-        user_timer_start_ = true;
 
         const bool result = nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_start_exec_cb ] == 0;
         nrf_cb_timer->EVENTS_COMPARE[ cb_tim_cc_start_exec_cb ] = 0;
@@ -819,15 +797,19 @@ namespace nrf52_details
         toggle_debug_pin();
     }
 
+    bool radio_hardware_without_crypto_support::user_timer_anchor_moved()
+    {
+        bool result = user_timer_anchor_moved_;
+        user_timer_anchor_moved_ = false;
+
+        return result;
+    }
 
     bool                   radio_hardware_without_crypto_support::receive_2mbit_;
     bool                   radio_hardware_without_crypto_support::transmit_2mbit_;
-    int                    radio_hardware_without_crypto_support::hf_connection_event_anchor_;
-    std::uint32_t          radio_hardware_without_crypto_support::lf_connection_event_anchor_;
-    volatile int           radio_hardware_without_crypto_support::hf_user_timer_anchor_;
-    volatile std::uint32_t radio_hardware_without_crypto_support::lf_user_timer_anchor_;
-    volatile int           radio_hardware_without_crypto_support::user_timer_anchor_version_;
-    volatile bool          radio_hardware_without_crypto_support::user_timer_start_;
+    volatile int           radio_hardware_without_crypto_support::hf_connection_event_anchor_;
+    volatile std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
+    volatile bool          radio_hardware_without_crypto_support::user_timer_anchor_moved_;
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
@@ -928,7 +910,8 @@ namespace nrf52_details
             nrf_ccm->SHORTS  = CCM_SHORTS_ENDKSGEN_CRYPT_Msk;
             nrf_ccm->MODE    =
                   ( CCM_MODE_MODE_Encryption << CCM_MODE_MODE_Pos )
-                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
+                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos )
+                | ( ( transmit_2mbit_ ? CCM_MODE_DATARATE_2Mbit : CCM_MODE_DATARATE_1Mbit ) << CCM_MODE_DATARATE_Pos );
             nrf_ccm->OUTPTR     = reinterpret_cast< std::uint32_t >( encrypted_area_ );
             nrf_ccm->INPTR      = reinterpret_cast< std::uint32_t >( transmit_data.buffer );
             nrf_ccm->SCRATCHPTR = reinterpret_cast< std::uintptr_t >( &scratch_area );
@@ -972,7 +955,8 @@ namespace nrf52_details
             nrf_ccm->ENABLE = CCM_ENABLE_ENABLE_Enabled;
             nrf_ccm->MODE   =
                   ( CCM_MODE_MODE_Decryption << CCM_MODE_MODE_Pos )
-                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos );
+                | ( CCM_MODE_LENGTH_Extended << CCM_MODE_LENGTH_Pos )
+                | ( ( receive_2mbit_ ? CCM_MODE_DATARATE_2Mbit : CCM_MODE_DATARATE_1Mbit ) << CCM_MODE_DATARATE_Pos );
             nrf_ccm->CNFPTR     = reinterpret_cast< std::uintptr_t >( &ccm_data_struct );
             nrf_ccm->INPTR      = reinterpret_cast< std::uint32_t >( encrypted_area_ );
             nrf_ccm->OUTPTR     = reinterpret_cast< std::uint32_t >( receive_buffer.buffer );
@@ -981,6 +965,11 @@ namespace nrf52_details
             nrf_ccm->EVENTS_ENDKSGEN = 0;
             nrf_ccm->EVENTS_ENDCRYPT = 0;
             nrf_ccm->EVENTS_ERROR = 0;
+
+            // Maximum package payload size is, the buffer size minus the LL header and the one reserve
+            // byte that is required by the nrf52 radio hardware:
+            static constexpr std::size_t radio_pdu_to_payload_overhead = 3;
+            nrf_ccm->MAXPACKETSIZE= receive_buffer.size - radio_pdu_to_payload_overhead;
 
             nrf_ccm->TASKS_KSGEN = 1;
         }
@@ -1036,7 +1025,7 @@ namespace nrf52_details
         radio_hardware_without_crypto_support::store_timer_anchor( offset_us );
     }
 
-    std::pair< bool, bool > radio_hardware_with_crypto_support::received_pdu()
+    std::tuple< bool, bool, bool > radio_hardware_with_crypto_support::received_pdu()
     {
         const auto receive_size = [](){
             return reinterpret_cast< const std::uint8_t* >( nrf_radio->PACKETPTR )[ 1 ];
@@ -1053,7 +1042,7 @@ namespace nrf52_details
 
         nrf_radio->EVENTS_PAYLOAD = 0;
 
-        return { valid_anchor, valid_pdu };
+        return { valid_anchor, valid_pdu, !crc_error };
     }
 
     void radio_hardware_with_crypto_support::configure_encryption( bool receive, bool transmit )

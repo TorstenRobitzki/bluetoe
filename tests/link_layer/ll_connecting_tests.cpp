@@ -359,13 +359,12 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
 }
 
 /*
- * The first connection timeout is reached after 6 times the conenction interval is reached. Because the first
- * connection windows is already at least 1.25ms after the connection request, the sixed window would be already
- * after 6 * connectionInterval.
+ * 4.5.2.: If the ACL connection is not established after 6 connection events,
+ * it shall be considered lost. This enables fast termination of ACL connections that fail to establish.
  */
 BOOST_FIXTURE_TEST_CASE( there_should_be_5_receive_attempts_before_the_connecting_times_out, connecting )
 {
-    BOOST_CHECK_EQUAL( connection_events().size(), 5u );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
 /*
@@ -396,7 +395,7 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
 
 BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_central_channels_are_hopped, connecting )
 {
-    std::vector< unsigned > expected_channels = { 10, 20, 30, 3, 13 };
+    std::vector< unsigned > expected_channels = { 10, 20, 30, 3, 13, 23 };
     std::vector< unsigned > channels;
 
     for ( const auto& ev: connection_events() )

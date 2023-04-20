@@ -25,6 +25,11 @@ namespace link_layer {
     }
 
     /**
+     * @brief this constant is defined by the core spec
+     */
+    static constexpr auto       maximum_link_layer_peripheral_latency = 499;
+
+    /**
      * @brief detailed options for the peripheral latency behavior
      *
      * Every option defines a set of events / circumstances under which
@@ -383,8 +388,14 @@ namespace link_layer {
             void peripheral_latency_move_connection_event( int count, delta_time connection_iterval )
             {
                 assert( count <= 0 );
+                assert( -count <= maximum_link_layer_peripheral_latency );
 
-                channel_index_  = ( channel_index_ + count + channel_map::max_number_of_data_channels ) % channel_map::max_number_of_data_channels;
+                // to have the left side of the modulo beeing always positiv, the largest necessary multiple of
+                // channel_map::max_number_of_data_channels is added. count is bound by the maximum peripheral
+                // latency.
+                static constexpr unsigned offset = ( maximum_link_layer_peripheral_latency / channel_map::max_number_of_data_channels + 1 ) * channel_map::max_number_of_data_channels;
+
+                channel_index_  = ( channel_index_ + count + offset ) % channel_map::max_number_of_data_channels;
                 event_counter_ += count;
 
                 time_since_last_event_ -= -count * connection_iterval;

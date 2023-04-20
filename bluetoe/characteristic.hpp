@@ -459,8 +459,9 @@ namespace bluetoe {
 
                     if ( args.buffer_offset == 0 )
                     {
+                        const std::uint16_t old_config = args.client_config.flags( cccd_position );
                         std::uint8_t serialized_value[ flags_size ];
-                        write_16bit( &serialized_value[ 0 ], args.client_config.flags( cccd_position ) );
+                        write_16bit( &serialized_value[ 0 ], old_config );
 
                         const std::size_t write_size = std::min( args.buffer_size, flags_size - args.buffer_offset );
                         std::copy( &args.buffer[ args.buffer_offset ], &args.buffer[ args.buffer_offset + write_size ], serialized_value );
@@ -475,6 +476,9 @@ namespace bluetoe {
                         subscription_callback::template on_subscription< uuid >(
                             args.client_config.flags( cccd_position ),
                             *static_cast< Server* >( args.server ) );
+
+                        if ( old_config != args.client_config.flags( cccd_position ) )
+                            static_cast< Server* >( args.server )->notification_subscription_changed( args.client_config );
                     }
 
                     result = attribute_access_result::success;

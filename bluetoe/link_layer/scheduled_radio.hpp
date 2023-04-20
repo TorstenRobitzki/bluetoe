@@ -62,10 +62,14 @@ namespace link_layer {
          * @brief schedules a connection event
          *
          * The function will return immediately and schedule the receiver to start at start_receive.
-         * CallBack::timeout() is called when between start_receive and end_receive no valid pdu is received. The new T0 is then the old T0.
-         * CallBack::end_event(connection_event_event evts) is called when the connection event is over. The evts
-         * object passed to the end_event() callback will give some details about what happend in that connection
-         * event. The new T0 is the time point where the first PDU was received from the central.
+         *
+         * CallBack::timeout() is called when between start_receive and end_receive no valid pdu is received.
+         * The new T0 is then the old T0.
+         *
+         * CallBack::end_event(connection_event_event evts) is called when
+         * the connection event is over. The evts object passed to the end_event() callback will give
+         * some details about what happend in that connection event.
+         * The new T0 is the time point where the first PDU was received from the central.
          *
          * In any case is one (and only one) of the callbacks called (timeout(), end_event()), unless the connection event
          * is disarmed prior, by a call to disarm_connection_event(). The context of the callback call is run().
@@ -100,13 +104,13 @@ namespace link_layer {
         /**
          * @brief sets up a timer
          *
-         * Calls CallBack::user_timer() from an unspecified CPU context. timeout is based
-         * on the last timers anchor. If the last connection event timed out,
-         * the anchor moved by the connection_interval given to schedule_connection_event().
-         * The anchor will be adjusted by the radio connection events.
+         * The timeout is based on the connects last anchor. Which then means, that there
+         * has to be a connection and that the anchor will not move, if there was a timeout
+         * while waiting for the next connection event.
          *
-         * max_cb_runtime is the maximum intended runtime of the callback. An implementation
-         * of this interface can use this value to assert, that the runtime was not exceeded.
+         * Calls CallBack::user_timer( bool anchor_moved ) from an unspecified CPU context.
+         * anchor_moved is set to true, if the anchor moved inbetween setting up the timer
+         * and the timer callback beeing called.
          */
         bool schedule_synchronized_user_timer(
             bluetoe::link_layer::delta_time timeout,
@@ -147,6 +151,17 @@ namespace link_layer {
          */
         void wake_up();
 
+        /**
+         * @brief forces the call of CallBack::try_event_cancelation() from the context of the run() function
+         *
+         * The function queues the request until control is passed back to run().
+         *
+         * The function is intended to be used from interrupt handler to synchronize with the main thread.
+         */
+        void request_event_cancelation();
+
+        /**
+         * @brief forces the call of the
         /**
          * @brief type to allow ll_data_pdu_buffer to synchronize the access to the buffer data structures.
          */

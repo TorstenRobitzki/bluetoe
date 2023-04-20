@@ -259,7 +259,7 @@ namespace link_layer {
          * @brief allocates a buffer for the next PDU to be received.
          *
          * Once a buffer was allocated to the radio hardware is will be released by the hardware by calling
-         * one of received(), crc_error() or timeout().
+         * received().
          *
          * This function can return an empty buffer if the receive buffers are all still allocated. The radio is
          * than required to ignore all incoming trafic.
@@ -279,14 +279,14 @@ namespace link_layer {
         write_buffer received( read_buffer );
 
         /**
-         * @brief This function will be called by the scheduled radio when a PDU was received with CRC error
+         * @brief This function will be called, instead of received(), when the CRC of a received
+         *        PDU is ok, but the MIC is not ok.
+         *
+         * In this case, the MIC might not be ok, due to a PDU beeing resent. In this case, the
+         * the last send message can be acknowlaged, but the received PDU should not be queued in
+         * the buffer.
          */
-        write_buffer crc_error();
-
-        /**
-         * @brief This function will be called by the scheduled radio when a timeout occured.
-         */
-        void timeout();
+        write_buffer acknowledge( read_buffer );
 
         /**
          * @brief returns the next PDU to be transmitted
@@ -580,15 +580,25 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::crc_error()
+    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( read_buffer pdu )
     {
-        return write_buffer{ 0, 0 };
+        const std::uint16_t header = layout::header( pdu );
+
+        // invalid LLID
+        if ( ( header & 0x3 ) != 0 )
+        {
+            acknowledge( header & nesn_flag );
+
+            // resent PDU?
+            if ( static_cast< bool >( header & sn_flag ) == next_expected_sequence_number_ )
+            {
+                next_expected_sequence_number_ = !next_expected_sequence_number_;
+            }
+        }
+
+        return next_transmit();
     }
 
-    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::timeout()
-    {
-    }
 }
 }
 

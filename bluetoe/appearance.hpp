@@ -7,6 +7,7 @@ namespace bluetoe {
 
     namespace details {
         struct device_appearance_meta_type {};
+        struct advertise_appearance_meta_type {};
     }
 
     /**
@@ -32,12 +33,15 @@ namespace bluetoe {
      *
      * This will define, the GAP Appearance Characteristic value of the GAP service for GATT server.
      *
+     * @sa advertise_appearance
+     *
      * @code
     unsigned temperature_value = 0;
 
     typedef bluetoe::server<
         bluetoe::service<
-            bluetoe::appearance::thermometer
+            bluetoe::appearance::thermometer,
+            bluetoe::advertise_appearance
             ...
         >
     > small_temperature_service;
@@ -146,7 +150,54 @@ namespace bluetoe {
         using location_and_navigation_pod             = device_appearance< 0x1444 >;
     };
 
+    /**
+     * @brief add the appearance of the device to the advertising data
+     *
+     * If no advertising is configured, `unknown` appearance is advertised.
+     *
+     * @sa device_appearance
+     */
+    struct advertise_appearance
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::advertise_appearance_meta_type,
+            details::valid_server_option_meta_type {};
 
+        template < typename Adv >
+        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* end )
+        {
+            static constexpr std::size_t adv_data_size = 4u;
+
+            if ( std::size_t(end - begin) >= adv_data_size )
+            {
+                *begin = static_cast< std::uint8_t >( adv_data_size - 1 );
+                ++begin;
+                *begin = bits( details::gap_types::appearance );
+                ++begin;
+                begin = details::write_16bit( begin, Adv::value );
+            }
+
+            return begin;
+        }
+        /** @endcond */
+    };
+
+    /** @cond HIDDEN_SYMBOLS */
+    // the default to use
+    struct no_advertise_appearance
+    {
+        struct meta_type :
+            details::advertise_appearance_meta_type,
+            details::valid_server_option_meta_type {};
+
+        template < typename >
+        static std::uint8_t* advertising_data( std::uint8_t* begin, std::uint8_t* )
+        {
+            return begin;
+        }
+    };
+    /** @endcond */
 }
 
 #endif // include guard

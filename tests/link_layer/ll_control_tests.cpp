@@ -161,3 +161,102 @@ BOOST_FIXTURE_TEST_CASE( Channel_Map_Update_procedure_With_Latency, unconnected 
     // First event at instant 0; second at 41, third at 82; 4th at 100
     BOOST_CHECK_EQUAL( connection_events()[ 3 ].channel, 12u );
 }
+
+std::uint8_t notify_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size );
+
+using constantly_fireing_notifications_server =
+    bluetoe::server<
+        bluetoe::service<
+            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
+            bluetoe::characteristic<
+                bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
+                bluetoe::free_read_handler< notify_read_handler >,
+                bluetoe::no_write_access,
+                bluetoe::notify
+            >
+        >,
+        bluetoe::no_gap_service_for_gatt_servers
+    >;
+
+static constantly_fireing_notifications_server* server_ptr = nullptr;
+
+struct enable_notifications_t {
+    template < typename ConnectionData >
+    void ll_connection_established(
+          const bluetoe::link_layer::connection_details&   ,
+          const bluetoe::link_layer::connection_addresses& ,
+                ConnectionData&                            connection )
+    {
+        connection.client_configurations().flags( 0u, bluetoe::details::client_characteristic_configuration_notification_enabled );
+    }
+
+} enable_notifications;
+
+struct constantly_fireing_notifications : unconnected_base_t<
+    constantly_fireing_notifications_server,
+    test::radio,
+    bluetoe::link_layer::connection_callbacks<
+        enable_notifications_t, enable_notifications
+    >
+>
+{
+    constantly_fireing_notifications()
+    {
+        this->respond_to( 37, valid_connection_request_pdu );
+
+        server_ptr = this;
+    }
+};
+
+std::uint8_t notify_read_handler( std::size_t, std::uint8_t* out_buffer, std::size_t& out_size )
+{
+    *out_buffer = 42;
+    out_size = 1;
+
+    server_ptr->notify< bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA > >();
+
+    return bluetoe::error_codes::success;
+}
+/*
+ * To not run into a procedure timeout, the link layer has to favor link layer responses over
+ * GATT.
+ */
+BOOST_FIXTURE_TEST_CASE( Favor_LL_Procedures_Over_Notifivations, constantly_fireing_notifications )
+{
+    static_assert( constantly_fireing_notifications::number_of_client_configs == 1, "" );
+
+    ll_empty_pdu();
+    ll_function_call([]{
+        BOOST_REQUIRE( ( server_ptr->notify< bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA > >() ) );
+    });
+    ll_control_pdu( {
+        0x12                // LL_PING_REQ
+    });
+    add_empty_pdus(10);
+
+    run(10);
+
+    bool ping_response_found = false;
+    int notification_found_cnt = 0;
+    bool ping_before_notification = false;
+
+    check_connection_events( [&]( const test::connection_event& evt ) -> bool {
+        using test::X;
+        using test::and_so_on;
+
+        for ( const auto& response: evt.transmitted_data )
+        {
+            ping_response_found = ping_response_found || check_pdu( response, { X, X, 0x13 } );
+            notification_found_cnt += check_pdu( response, { X, X, 0x04, 0x00, X, 0x00, 0x1b, and_so_on }) ? 1 : 0;
+
+            ping_before_notification = ping_before_notification
+                || ( ping_response_found && notification_found_cnt < 5);
+        }
+
+        return true;
+    }, "LL_PING_RSP missing" );
+
+    BOOST_CHECK( ping_response_found );
+    BOOST_CHECK_GT( notification_found_cnt, 10 );
+    BOOST_CHECK( ping_before_notification );
+}

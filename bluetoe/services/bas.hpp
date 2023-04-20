@@ -71,7 +71,8 @@ namespace bluetoe
                         bluetoe::characteristic<
                             level_uuid,
                             typename handler_impl< Handler >::read_handler,
-                            bluetoe::notify
+                            bluetoe::notify,
+                            bluetoe::notify_on_subscription
                         >,
                         bluetoe::mixin< handler_impl< Handler > >,
                         Options...

@@ -23,7 +23,7 @@ namespace link_layer {
     }
 
     /**
-     * @brief install a callback that will be called, when a connection event happend.
+     * @brief install a callback that will be called, when a connection event happened.
      *
      * The intended use for this feature are cases, where the CPU is switched off and even the high priority
      * ISR of the scheduled radio will not be served.
@@ -55,14 +55,14 @@ namespace link_layer {
      * @brief Install a callback that will be called with a maximum period synchronized
      *        to the connection events of established connections.
      *
-     * @tparam T has to be of class type and fullfil this set of requirements:
+     * @tparam T has to be of class type and fulfil this set of requirements:
      *
      * - A public, default constructible type `connection`
      * - A public, none static member function:
      *
      *   unsigned ll_synchronized_callback( unsigned instant, connection& )
      *
-     * - Optional, T contains the following public, none static memberfunctions:
+     * - Optional, T contains the following public, none static member functions:
      *
      *   connection ll_synchronized_callback_connect(
      *                  bluetoe::link_layer::delta_time connection_interval,
@@ -95,21 +95,21 @@ namespace link_layer {
      *                      => Effective Period = 45ms (callback will be call every second connection event)
 
      *         If the connections interval changes, the period at which the callback is called also
-     *         changes. The callback will be called irespectable of the connection event. Even when the
+     *         changes. The callback will be called irrespectively of the connection event. Even when the
      *         connect event times out or is planned to not happen, due to peripheral latency applied.
      *
-     * @tparam PhaseShiftUS The offset to the connection anchor in µs. A possitive value denotes that
+     * @tparam PhaseShiftUS The offset to the connection anchor in µs. A positive value denotes that
      *         the call has to be called PhaseShiftUS µs after the anchor. Note, that in this case,
      *         high priority CPU processing near the connection event might interrupt the given callback
-     *         invokation. A negativ value denotes a call to the callback prior to the connection anchor
+     *         invocation. A negative value denotes a call to the callback prior to the connection anchor
      *         by the given number of µs.
      *
      * @tparam MaximumExecutionTimeUS The estimated, maximum execution time of the callback. This helps
-     *         the library to make sure, that the callback invokation in front of the connection event
-     *         will return, before the connection event happens. If the hardware abstration provides
+     *         the library to make sure, that the callback invocation in front of the connection event
+     *         will return, before the connection event happens. If the hardware abstraction provides
      *         information about a minimum setup time, the library take that also into account.
      *
-     *         If PhaseShiftUS is negativ, a compiletime check tests that the execution of the callback
+     *         If PhaseShiftUS is negative, a compile time check tests that the execution of the callback
      *         will not run into the setup of the connection event.
      *
      * Once a new connection is established, Obj.ll_synchronized_callback_connect() is called (if given)
@@ -123,22 +123,22 @@ namespace link_layer {
      * If the connection interval changes, Obj.ll_synchronized_callback_period_update() is called (if given)
      * with the connection interval and the number of times, the callback will be called during one interval.
      *
-     * ll_synchronized_callback() will be call with the first parameter beeing 0 for the first invokation
+     * ll_synchronized_callback() will be call with the first parameter being 0 for the first invocation
      * after the connection event and then with increased values until the value calls_per_interval - 1
      * is reached (calls_per_interval can be obtained by having ll_synchronized_callback_connect() and
      * ll_synchronized_callback_period_update() defined). The return value of ll_synchronized_callback()
-     * denotes the number of times, the invokation of the callback should be omitted. For example, when
-     * ll_synchronized_callback() returns 2, two planned callback invokaions are omitted until the callback
+     * denotes the number of times, the invocation of the callback should be omitted. For example, when
+     * ll_synchronized_callback() returns 2, two planned callback invocations are omitted until the callback
      * is called again.
      *
      * If the anchor is going to move due to a planned connection update procedure, there is danger
-     * of overlapping calls to the callback due to the uncertency given by the range of transmission
+     * of overlapping calls to the callback due to the uncertainty given by the range of transmission
      * window size and offset. In this case, the last callback call before the instant of the update will
-     * be ommitted. And the next time, the callback will be called, is after the first connection event
+     * be omitted. And the next time, the callback will be called, is after the first connection event
      * with updated connection parameters toke place.
      *
      * @note This feature requires support by the hardware abstraction and thus might not be available
-     * on all plattforms.
+     * on all platforms.
      *
      * @note due to connection parameter updates, there is no guaranty, that the callback will be
      *       called with the requested MaximumPeriodUS.
@@ -155,17 +155,24 @@ namespace link_layer {
         void stop_synchronized_connection_event_callbacks();
 
         /**
-         * @brief restart the invokation of synchronized callbacks, after they where stopped.
+         * @brief restart the invocation of synchronized callbacks, after they where stopped.
          *
          * @pre stop_synchronized_connection_event_callbacks()
          */
         void restart_synchronized_connection_event_callbacks();
+
+        /**
+         * @brief Ask Bluetoe to ignore the last return value of ll_synchronized_callback() and call the
+         *        callback at the next possible time.
+         */
+        void force_synchronized_connection_event_callback();
 
         /** @cond HIDDEN_SYMBOLS */
         template < typename LinkLayer >
         struct impl {
             impl()
                 : stopped_( false )
+                , force_( false )
             {
                 static_assert( LinkLayer::hardware_supports_synchronized_user_timer, "choosen binding does not support the use of user timer!" );
             }
@@ -173,6 +180,8 @@ namespace link_layer {
             void stop_synchronized_connection_event_callbacks()
             {
                 stopped_ = true;
+                force_   = false;
+
                 link_layer().cancel_synchronized_user_timer();
             }
 
@@ -180,9 +189,15 @@ namespace link_layer {
             {
                 instance_         = 0;
                 latency_          = 0;
+                num_intervals_since_anchor_moved_ = 0;
 
                 stopped_ = false;
                 link_layer().restart_user_timer();
+            }
+
+            void force_synchronized_connection_event_callback()
+            {
+                force_ = true;
             }
 
             void synchronized_connection_event_callback_new_connection( delta_time connection_interval )
@@ -191,7 +206,7 @@ namespace link_layer {
                     return;
 
                 connection_value_ = typename T::connection();
-                instance_         = 0;
+                instance_         = PhaseShiftUS > 0 ? 1 : 0;
                 latency_          = 0;
 
                 calculate_effective_period( connection_interval );
@@ -210,7 +225,7 @@ namespace link_layer {
                 if ( stopped_ )
                     return;
 
-                instance_         = 0;
+                instance_         = PhaseShiftUS > 0 ? 1 : 0;
                 latency_          = 0;
 
                 calculate_effective_period( connection_interval );
@@ -224,10 +239,16 @@ namespace link_layer {
                 link_layer().cancel_synchronized_user_timer();
             }
 
-            void synchronized_connection_event_callback_timeout()
+            void synchronized_connection_event_callback_timeout( bool anchor_moved )
             {
                 if ( stopped_ )
                     return;
+
+                if ( force_ )
+                {
+                    force_   = false;
+                    latency_ = 0;
+                }
 
                 latency_ = latency_ == 0
                     ? Obj.ll_synchronized_callback( instance_, connection_value_ )
@@ -236,7 +257,17 @@ namespace link_layer {
                 if ( num_calls_ )
                     instance_ = ( instance_ + 1 ) % num_calls_;
 
-                setup_timer( effective_period_ );
+                // if the PhaseShiftUS is negative, the first callback is already first_timeout()
+                // away from the anchor
+                static constexpr unsigned first_interval_after_anchor = ( PhaseShiftUS < 0 )
+                    ? 1
+                    : 0;
+
+                num_intervals_since_anchor_moved_ = anchor_moved
+                    ? first_interval_after_anchor
+                    : num_intervals_since_anchor_moved_ + 1;
+
+                setup_timer( first_timeout() + num_intervals_since_anchor_moved_ * effective_period_ );
             }
 
         private:
@@ -301,7 +332,6 @@ namespace link_layer {
                     num_calls_         = ( interval_us + MaximumPeriodUS - 1 ) / MaximumPeriodUS;
                     num_intervals_     = 0;
                     effective_period_  = delta_time( interval_us / num_calls_ );
-                    assert( interval_us % num_calls_ == 0 );
                 }
                 else
                 {
@@ -309,6 +339,8 @@ namespace link_layer {
                     num_intervals_    = MaximumPeriodUS / interval_us;
                     effective_period_ = delta_time( num_intervals_ * interval_us );
                 }
+
+                num_intervals_since_anchor_moved_ = 0;
 
                 assert( effective_period_.usec() <= MaximumPeriodUS );
             }
@@ -331,9 +363,12 @@ namespace link_layer {
             // > 1 if there are more that 1 interval between two CB calls
             unsigned num_intervals_;
 
+            unsigned num_intervals_since_anchor_moved_;
+
             typename T::connection connection_value_;
 
             volatile bool stopped_;
+            volatile bool force_;
         };
 
         typedef details::synchronized_connection_event_callback_meta_type meta_type;
@@ -362,7 +397,7 @@ namespace link_layer {
             {
             }
 
-            void synchronized_connection_event_callback_timeout()
+            void synchronized_connection_event_callback_timeout( bool )
             {
             }
 

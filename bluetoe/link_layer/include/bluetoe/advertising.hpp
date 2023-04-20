@@ -893,7 +893,7 @@ namespace link_layer {
     };
 
     /**
-     * @brief adds the abillity to change the advertising channel
+     * @brief adds the abillity to change the advertising interval
      *
      * Using this type as an option to the link_layer, adds the documented
      * functions to the link_layer.
@@ -1295,7 +1295,13 @@ namespace link_layer {
 
             void handle_adv_timeout()
             {
-                const read_buffer advertising_data = this->get_advertising_data( selected_ );
+                const bool fill_data = selected_ != proposal_;
+
+                selected_ = proposal_;
+                const read_buffer advertising_data = fill_data
+                    ? this->fill_advertising_data( selected_ )
+                    : this->get_advertising_data( selected_ );
+
                 const read_buffer response_data    = this->get_advertising_response_data( selected_ );
 
                 if ( !advertising_data.empty() && this->continued_advertising_events() )
@@ -1318,6 +1324,7 @@ namespace link_layer {
             void change_advertising()
             {
                 proposal_ = bluetoe::details::index_of< Type, FirstAdv, SecondAdv, Advertisings... >::value;
+                assert( proposal_ != sizeof...(Advertisings) + 2 );
             }
 
         private:

@@ -187,6 +187,7 @@ namespace test {
     struct scheduled_user_timer
     {
         bluetoe::link_layer::delta_time     schedule_time;      // when was the actions scheduled (from start of simulation)
+        bluetoe::link_layer::delta_time     current_anchor;     // Anchor on which delay is based
         bluetoe::link_layer::delta_time     delay;
     };
 
@@ -412,10 +413,14 @@ namespace test {
 
         void wake_up();
 
+        void request_event_cancelation();
+
         /**
          * @brief runs the simulation
          */
         void run();
+
+        bool event_cancelation_requested();
 
         static constexpr bool hardware_supports_encryption = false;
 
@@ -441,6 +446,7 @@ namespace test {
         std::vector< std::uint8_t > memory_to_air( bluetoe::link_layer::write_buffer );
 
         bluetoe::link_layer::delta_time now_;
+        bluetoe::link_layer::delta_time last_anchor_;
 
         void simulate_advertising_response();
         void simulate_connection_event_response();
@@ -450,8 +456,13 @@ namespace test {
         bool idle_;
         bool advertising_response_;
         bool connection_event_response_;
+        bool request_event_cancelation_;
         int  wake_ups_;
         bool timer_set_;
+
+        // to be set to true, if a connection event was simulated, set back to false, when
+        // use callback get called.
+        bool user_timer_anchor_moved_;
 
     protected:
         bool reception_encrypted_;
@@ -598,11 +609,14 @@ namespace test {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
     radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::radio_impl()
         : now_( bluetoe::link_layer::delta_time::now() )
+        , last_anchor_( bluetoe::link_layer::delta_time::now() )
         , idle_( true )
         , advertising_response_( false )
         , connection_event_response_( false )
+        , request_event_cancelation_( false )
         , wake_ups_( 0 )
         , timer_set_( false )
+        , user_timer_anchor_moved_( false )
         , reception_encrypted_( false )
         , transmition_encrypted_( false )
     {
@@ -684,7 +698,9 @@ namespace test {
     {
         assert( !timer_set_ );
 
-        const scheduled_user_timer new_timer = { now_, time };
+        user_timer_anchor_moved_ = false;
+
+        const scheduled_user_timer new_timer = { now_, last_anchor_, time };
         scheduled_user_timers_.push_back( new_timer );
 
         timer_set_ = true;
@@ -710,6 +726,21 @@ namespace test {
     void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::wake_up()
     {
         ++wake_ups_;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    void radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::request_event_cancelation()
+    {
+        request_event_cancelation_ = true;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    bool radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::event_cancelation_requested()
+    {
+        const bool result = request_event_cancelation_;
+        request_event_cancelation_ = false;
+
+        return result;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
@@ -759,7 +790,7 @@ namespace test {
             if ( response.second.has_crc_error )
             {
                 idle_ = true;
-                static_cast< CallBack* >( this )->crc_error();
+                static_cast< CallBack* >( this )->adv_timeout();
             }
             else
             {
@@ -802,7 +833,9 @@ namespace test {
         }
         else
         {
+            last_anchor_ = now_;
             now_ = simulate_user_timer_response( now_, now_ + event.start_receive );
+            user_timer_anchor_moved_ = true;
 
             static constexpr std::uint8_t sn_flag        = 0x8;
             static constexpr std::uint8_t nesn_flag      = 0x4;
@@ -874,11 +907,14 @@ namespace test {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
     bluetoe::link_layer::delta_time radio_impl< TransmitSize, ReceiveSize, CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::simulate_user_timer_response( bluetoe::link_layer::delta_time /* start */, bluetoe::link_layer::delta_time end )
     {
-        while ( timer_set_ && scheduled_user_timers_.back().schedule_time + scheduled_user_timers_.back().delay <= end )
+        while ( timer_set_ && !scheduled_user_timers_.empty() && scheduled_user_timers_.back().current_anchor + scheduled_user_timers_.back().delay < end )
         {
-            now_ = scheduled_user_timers_.back().schedule_time + scheduled_user_timers_.back().delay;
+            now_ = scheduled_user_timers_.back().current_anchor + scheduled_user_timers_.back().delay;
+
             timer_set_ = false;
-            static_cast< CallBack* >( this )->user_timer();
+            const bool anchor = user_timer_anchor_moved_;
+            user_timer_anchor_moved_ = false;
+            static_cast< CallBack* >( this )->user_timer( anchor );
         }
 
         return end;

@@ -364,3 +364,37 @@ BOOST_FIXTURE_TEST_CASE( custom_scan_response_test, custom_advertising )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( appearance_advertised )
+
+using default_appearance_advertising = bluetoe::extend_server<
+    test::small_temperature_service,
+    bluetoe::no_list_of_service_uuids,
+    bluetoe::advertise_appearance >;
+
+BOOST_FIXTURE_TEST_CASE( by_default_unknown_is_used, default_appearance_advertising )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x03, 0x19, 0x00, 0x00,
+        0x00, 0x00
+    }, *this );
+}
+
+using hoverboard_server = bluetoe::extend_server<
+    test::small_temperature_service,
+    bluetoe::appearance::location_pod,
+    bluetoe::no_list_of_service_uuids,
+    bluetoe::advertise_appearance >;
+
+
+BOOST_FIXTURE_TEST_CASE( configured_appearance, hoverboard_server )
+{
+    expected_advertising( {
+        0x02, 0x01, 0x06,
+        0x03, 0x19, 0x43, 0x14,
+        0x00, 0x00
+    }, *this );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

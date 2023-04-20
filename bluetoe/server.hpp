@@ -326,6 +326,8 @@ namespace bluetoe {
             , public connection_data
         {
         };
+
+        void notification_subscription_changed( const details::client_characteristic_configuration& );
         /** @endcond */
 
     private:
@@ -635,6 +637,19 @@ namespace bluetoe {
 
             begin += 3;
         }
+
+        using device_appearance = typename details::find_by_meta_type<
+                details::device_appearance_meta_type,
+                Options...,
+                appearance::unknown
+            >::type;
+
+        using appearance_advertising_config = typename details::find_by_meta_type<
+            details::advertise_appearance_meta_type,
+            Options...,
+            no_advertise_appearance >::type;
+
+        begin = appearance_advertising_config::template advertising_data< device_appearance >( begin, end );
 
         typedef typename details::find_by_meta_type< details::server_name_meta_type, Options..., server_name< nullptr > >::type name;
 
@@ -1085,7 +1100,7 @@ namespace bluetoe {
         }
         else
         {
-            error_response( *input, details::att_error_codes::read_not_permitted, handle, output, out_size );
+            error_response( *input, access_result_to_att_code( rc, details::att_error_codes::read_not_permitted ), handle, output, out_size );
         }
     }
 
@@ -1109,13 +1124,9 @@ namespace bluetoe {
             *output  = bits( details::att_opcodes::read_blob_response );
             out_size = 1 + read.buffer_size;
         }
-        else if ( rc == details::attribute_access_result::invalid_offset )
-        {
-            error_response( *input, details::att_error_codes::invalid_offset, handle, output, out_size );
-        }
         else
         {
-            error_response( *input, details::att_error_codes::read_not_permitted, handle, output, out_size );
+            error_response( *input, access_result_to_att_code( rc, details::att_error_codes::read_not_permitted ), handle, output, out_size );
         }
      }
 
@@ -1347,7 +1358,7 @@ namespace bluetoe {
             }
             else
             {
-                return error_response( opcode, details::att_error_codes::read_not_permitted, handle, output, out_size );
+                return error_response( opcode, access_result_to_att_code( rc, details::att_error_codes::read_not_permitted ), handle, output, out_size );
             }
         }
 
@@ -1374,10 +1385,6 @@ namespace bluetoe {
         {
             *output  = bits( details::att_opcodes::write_response );
             out_size = 1;
-        }
-        else if ( rc == details::attribute_access_result::invalid_attribute_value_length )
-        {
-            error_response( *input, details::att_error_codes::invalid_attribute_value_length, handle, output, out_size );
         }
         else
         {
@@ -1419,8 +1426,8 @@ namespace bluetoe {
         auto write = details::attribute_access_arguments::check_write( this );
         auto rc    = attribute_at( index ).access( write, index );
 
-        if ( rc == details::attribute_access_result::write_not_permitted )
-            return error_response( *input, details::att_error_codes::write_not_permitted, handle, output, out_size );
+        if ( rc != details::attribute_access_result::success )
+            return error_response( *input, access_result_to_att_code( rc, details::att_error_codes::write_not_permitted ), handle, output, out_size );
 
         // find size in the queue to write all but the opcode
         std::uint8_t* const queue_element = this->allocate_from_write_queue( in_size - 1, client );
@@ -1646,6 +1653,17 @@ namespace bluetoe {
     details::notification_data server< Options... >::find_notification_data_by_index( std::size_t client_characteristic_configuration_index ) const
     {
         return details::find_notification_data_in_list< notification_priority, services >::find_notification_data_by_index( client_characteristic_configuration_index );
+    }
+
+    template < typename ... Options >
+    void server< Options... >::notification_subscription_changed( const details::client_characteristic_configuration& data )
+    {
+        using cb_t = typename details::find_by_meta_type<
+            details::cccd_callback_meta_type,
+            Options...,
+            no_client_characteristic_configuration_update_callback >::type;
+
+        cb_t::client_characteristic_configuration_updated( *this, data );
     }
 
     /** @endcond */

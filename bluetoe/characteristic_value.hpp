@@ -607,6 +607,11 @@ namespace bluetoe {
                         return attribute_access_result::request_not_supported;
                     }
                 }
+
+                static constexpr bool is_this( const void* /* value */ )
+                {
+                    return false;
+                }
             };
 
             struct meta_type :

@@ -82,6 +82,46 @@ namespace details {
             return client_characteristic_configuration( &configs_[ 0 ], Size );
         };
 
+        /**
+         * @brief begin of the serialized CCCDs
+         *
+         * This can be used to store the state of the CCCDs in bonding data.
+         */
+        const std::uint8_t* serialized_cccds_begin() const
+        {
+            return std::begin( configs_ );
+        }
+
+        /**
+         * @brief end of the serialized CCCDs
+         *
+         * This can be used to store the state of the CCCDs in bonding data.
+         */
+        const std::uint8_t* serialized_cccds_end() const
+        {
+            return std::end( configs_ );
+        }
+
+        /**
+         * @brief begin of the serialized CCCDs
+         *
+         * This can be used to restores the state of the CCCDs from bonding data.
+         */
+        std::uint8_t* serialized_cccds_begin()
+        {
+            return std::begin( configs_ );
+        }
+
+        /**
+         * @brief end of the serialized CCCDs
+         *
+         * This can be used to restores the state of the CCCDs from bonding data.
+         */
+        std::uint8_t* serialized_cccds_end()
+        {
+            return std::end( configs_ );
+        }
+
     private:
         std::uint8_t configs_[ ( Size * client_characteristic_configuration::bits_per_config + 7 ) / 8 ];
     };

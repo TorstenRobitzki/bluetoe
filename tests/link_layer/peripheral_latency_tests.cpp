@@ -780,6 +780,24 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
     }
 
+    // see #97 for more context
+    BOOST_AUTO_TEST_CASE( reschedule_after_applying_very_large_latency )
+    {
+        plan_next_connection_event( 100, no_events, typical_connection_interval, no_pending_instance );
+
+        BOOST_TEST( current_channel_index() == 101u % 37 );
+        BOOST_TEST( connection_event_counter() == 101u );
+        BOOST_TEST( time_since_last_event() == 101 * typical_connection_interval );
+
+        // now, new outgoing data became pending
+        disarm_connection_event_result = { true, 3 * typical_connection_interval + half_typical_connection_interval };
+        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+
+        BOOST_TEST( current_channel_index() == 4u );
+        BOOST_TEST( connection_event_counter() == 4u );
+        BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
+    }
+
     BOOST_AUTO_TEST_CASE( take_next_event_on_error )
     {
         plan_next_connection_event(

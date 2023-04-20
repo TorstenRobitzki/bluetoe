@@ -527,7 +527,9 @@ BOOST_AUTO_TEST_SUITE( transmit_l2cap_sdus )
 
         // make an addition transmit buffer available
         add_free_ll_pdus(1);
-        commit_pending_l2cap_transmit_buffers();
+        // Next, when looking for new PDUs, the freed buffer is used to output
+        // the pending buffer
+        next_ll_l2cap_received();
 
         BOOST_TEST( next_transmitted_pdu() == std::vector< std::uint8_t >({
             0x01, 0x16, 0x00,
