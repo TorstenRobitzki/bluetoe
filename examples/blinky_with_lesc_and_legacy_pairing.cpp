@@ -1,5 +1,5 @@
 /**
- * @example blinky.cpp
+ * @example blinky_with_lesc_and_legacy_pairing.cpp
  *
  * This example shows, how to implement a very simple GATT server that
  * provides one service to switch an LED.
