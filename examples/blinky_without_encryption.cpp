@@ -1,12 +1,21 @@
+/**
+ * @example blinky.cpp
+ *
+ * This example shows, how to implement a very simple GATT server that
+ * provides one service to switch an LED.
+ *
+ * The example servers does not require encryption, which automatically results
+ * in Bluetoe dropping any support for encryption / pairing.
+ */
+
 #include <bluetoe/server.hpp>
 #include <bluetoe/device.hpp>
 
 #include "resources.hpp"
 
-using namespace bluetoe;
-
-// mapping to LED defined in resources.hpp
 static examples::led output;
+
+using namespace bluetoe;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
