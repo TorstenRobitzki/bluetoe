@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['radio_5fmaximum_5fwhite_5flist_5fentries_0',['radio_maximum_white_list_entries',['../classbluetoe_1_1link__layer_1_1scheduled__radio.html#a9bcf918b88aceffc880ce2049ede5947',1,'bluetoe::link_layer::scheduled_radio']]],
-  ['radio_5fpackage_5foverhead_1',['radio_package_overhead',['../classbluetoe_1_1link__layer_1_1scheduled__radio.html#a05028ea1473d2778024d1e7d155504ad',1,'bluetoe::link_layer::scheduled_radio']]],
-  ['receive_5fbuffer_5fsize_2',['receive_buffer_size',['../structbluetoe_1_1link__layer_1_1buffer__sizes.html#ac44df9e5e10467bc8dc721db8ee7290b',1,'bluetoe::link_layer::buffer_sizes']]]
+  ['pairing_5fstatus_0',['pairing_status',['../structbluetoe_1_1connection__security__attributes.html#a15112039b65e2894419669281def5d6e',1,'bluetoe::connection_security_attributes']]],
+  ['pending_5foutgoing_5fdata_1',['pending_outgoing_data',['../structbluetoe_1_1link__layer_1_1connection__event__events.html#af1f78da7499bf866aee102d0b3220cdb',1,'bluetoe::link_layer::connection_event_events']]]
 ];

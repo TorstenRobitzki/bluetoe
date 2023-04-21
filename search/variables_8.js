@@ -1,4 +1,6 @@
 var searchData=
 [
-  ['size_0',['size',['../structbluetoe_1_1link__layer_1_1read__buffer.html#a45f731f6cc61ddb3702049a9d6880086',1,'bluetoe::link_layer::read_buffer::size()'],['../structbluetoe_1_1link__layer_1_1write__buffer.html#ae2f0fe94eebbd629bae528352fb32df5',1,'bluetoe::link_layer::write_buffer::size()'],['../classbluetoe_1_1link__layer_1_1ll__data__pdu__buffer.html#a875552bde9322f3d07ad9e9a9dc90a30',1,'bluetoe::link_layer::ll_data_pdu_buffer::size()'],['../classbluetoe_1_1link__layer_1_1pdu__ring__buffer.html#ad85fb9032b33b0370644d775e4069d6d',1,'bluetoe::link_layer::pdu_ring_buffer::size()']]]
+  ['radio_5fmaximum_5fwhite_5flist_5fentries_0',['radio_maximum_white_list_entries',['../classbluetoe_1_1link__layer_1_1scheduled__radio.html#a9bcf918b88aceffc880ce2049ede5947',1,'bluetoe::link_layer::scheduled_radio']]],
+  ['radio_5fpackage_5foverhead_1',['radio_package_overhead',['../classbluetoe_1_1link__layer_1_1scheduled__radio.html#a05028ea1473d2778024d1e7d155504ad',1,'bluetoe::link_layer::scheduled_radio']]],
+  ['receive_5fbuffer_5fsize_2',['receive_buffer_size',['../structbluetoe_1_1link__layer_1_1buffer__sizes.html#ac44df9e5e10467bc8dc721db8ee7290b',1,'bluetoe::link_layer::buffer_sizes']]]
 ];
