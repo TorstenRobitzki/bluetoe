@@ -2,6 +2,7 @@
 #define BLUETOE_EXAMPLES_RESOURCES_HPP
 
 #include <spl/gpio.hpp>
+#include <spl/temperature.hpp>
 
 namespace examples {
 
@@ -55,6 +56,7 @@ namespace examples {
 
     using led    = led1;
     using button = button1;
+    using temperature = spl::temperature<>;
 
 } // namespace examples
 

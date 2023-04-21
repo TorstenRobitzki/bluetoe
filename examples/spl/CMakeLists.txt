@@ -1,4 +1,6 @@
-add_library(spl INTERFACE)
+add_library(spl STATIC)
 
-target_include_directories(spl INTERFACE ${CMAKE_CURRENT_LIST_DIR}/..)
-target_link_libraries(spl INTERFACE bluetoe_utility)
+target_include_directories(spl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
+target_link_libraries(spl PUBLIC toolchain::nrf52 bluetoe_utility)
+
+target_sources(spl PRIVATE temperature.cpp)
