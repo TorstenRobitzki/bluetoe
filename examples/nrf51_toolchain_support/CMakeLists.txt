@@ -48,9 +48,9 @@ if(CMAKE_CROSSCOMPILING)
         add_dependencies(${target} linker_script)
     endfunction()
 
-    if (DEFINED NRFJPROG_DEVICE)
-        message( WARNING "nrfjprog ${NRFJPROG_DEVICE} selected")
-        set(SELECT_JLINK_DEVICE --snr ${NRFJPROG_DEVICE} PARENT_SCOPE)
+    if (DEFINED BLUETOE_JLINK)
+        message( WARNING "nrfjprog ${BLUETOE_JLINK} selected")
+        set(SELECT_JLINK_DEVICE --snr ${BLUETOE_JLINK} PARENT_SCOPE)
     endif()
 
     function(define_flash_command target)
