@@ -1,6 +1,5 @@
 #include <bluetoe/server.hpp>
 #include <bluetoe/device.hpp>
-#include <nrf.h>
 
 #include "resources.hpp"
 
