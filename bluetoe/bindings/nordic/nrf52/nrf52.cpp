@@ -316,6 +316,9 @@ namespace nrf52_details
 
         // TIFS is only enforced if END_DISABLE and DISABLED_TXEN shortcuts are enabled.
         nrf_radio->TIFS      = 150;
+
+        // increase transmission power to 8dBm
+        nrf_radio->TXPOWER   = ( RADIO_TXPOWER_TXPOWER_Pos8dBm << RADIO_TXPOWER_TXPOWER_Pos );
     }
 
     static void configure_timer_for_1us( NRF_TIMER_Type& timer )
