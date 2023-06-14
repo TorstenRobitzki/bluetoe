@@ -64,9 +64,12 @@ struct example_callbacks
 
     /**
      * @brief call back that will be called, if a connection event was canceled
+     *
+     * @param now The current time.
+     *
      * @sa scheduled_radio2::cancel_radio_event()
      */
-    void connection_event_canceled();
+    void connection_event_canceled( time_point_t now );
 
     /**
      * @brief call back that will be called on an expired user timer.
@@ -81,6 +84,20 @@ struct example_callbacks
      */
     void user_timer_canceled();
 
+    /**
+     * @brief type to retrieve outgoing PDUs from and to store incomming PDUs to.
+     */
+    using link_layer_pdu_buffer_t = ...;
+
+    /**
+     * @brief function to privide access to a PDU buffer to the radio
+     *
+     * This function is used by the radio to get access to the PDU buffer of the current
+     * connection. This function must be called only when a connection event was scheduled
+     * and the implementation has to make sure, that the function returns the buffer for
+     * the current connection (if multiple connections are supported).
+     */
+    link_layer_pdu_buffer_t& link_layer_pdu_buffer();
 };
 
 /**
@@ -322,11 +339,11 @@ public:
     /**@}*/
 
     /**@{
-     * @name Scheduling Radion Functions
+     * @name Scheduling Radio Functions
      *
-     * Functions that schedule an radion action on the scheduled_radio2.
+     * Functions that schedule a radio action on the scheduled_radio2.
      * Every of this function is associated with one or more callback functions.
-     * If one of this functions is called, there is a action pending on the radio,
+     * If one of this functions is called, there is an action pending on the radio,
      * until one of the corresponding callbacks is called.
      *
      * As long as there is a pending radio action on the radio, no other scheduling
@@ -335,6 +352,24 @@ public:
 
     /**
      * @brief schedule an advertising event
+     *
+     * The function will return immediately. Depending on whether a response is received
+     * or the receiving times out, CallBack::adv_received() or CallBack::adv_timeout()
+     * is called.
+     *
+     * White list filtering is applied by calling CallBack::is_scan_request_in_filter().
+     *
+     * This function is intended to be used for sending advertising PDUs.
+     *
+     * @param channel Channel to transmit and to receive on.
+     * @param when Point in time, when the first bit of data should be started to be transmitted.
+     * @param advertising_data The advertising data to be send out.
+     * @param response_data The response data used to reply to a scan request, in case the request was in the white list.
+     * @param receive Buffer where the radio will copy the received data, before calling Callback::adv_receive().
+     *        This buffer have to have at least room for two bytes.
+     *
+     * @return True, if it was possible to schedule the advertisment. If the function returns false, it
+     *         was already to late to schedule the event.
      */
     bool schedule_advertising_event(
         unsigned                                    channel,
@@ -343,12 +378,53 @@ public:
         const bluetoe::link_layer::write_buffer&    response_data,
         const bluetoe::link_layer::read_buffer&     receive );
 
-    void schedule_connection_event(
+    /**
+     * @brief schedule a connection event
+     *
+     * The function will return immediately. The function handles a connection event by receiving
+     * PDUs and responding with pending PDUs. The function will retriev the outgoing PDUs by a call
+     * to CallBacks::link_layer_pdu_buffer() and will post received PDUs by a call to the very same
+     * function.
+     *
+     * If the connection event toke place, CallBacks::connection_end_event() is called with the time,
+     * the connection event started and some details about the connection event. If the connection event
+     * timed out, CallBacks::connection_timeout() will be called with `end`. If the connection event
+     * is successfully canceled, CallBacks::connection_event_canceled() is called with the current time.
+     *
+     * @pre CallBacks::link_layer_pdu_buffer() has to return a valid buffer for the handled connection.
+     * @pre set_access_address_and_crc_init() has to be called with the value associated with the current connection.
+     *
+     * @param channel Channel to transmit and to receive on.
+     * @param start   Point in time, when the radio start waiting for incomming PDUs.
+     * @param end     Point in time, where the radio is turned of and the event considered to be timed out, if no PDU is
+     *                received.
+     * @return True, if it was possible to schedule the connection event. If the function returns false, it
+     *         was already to late to schedule the event.
+     *
+     * @sa CallBacks::connection_end_event()
+     * @sa CallBacks::connection_timeout()
+     * @sa CallBacks::connection_event_canceled()
+     * @sa cancel_radio_event()
+     */
+    bool schedule_connection_event(
         unsigned            channel,
         time_point_t        start,
         time_point_t        end );
 
-    bool cancel_radio_event();
+    /**
+     * @brief cancel a pending connection event
+     *
+     * If there is a connection event pending and if this connection event can be canceled in time,
+     * the event is canceled and and CallBacks::connection_event_canceled() will be called at some time.
+     *
+     * If no connection event is currently pending or if it is too late to cancel the currently scheduled
+     * connection event, the function will have no effect.
+     *
+     * @sa CallBacks::connection_event_canceled()
+     * @sa schedule_connection_event()
+     */
+    void cancel_radio_event();
+
     /**@}*/
 
     /**@{
@@ -363,11 +439,11 @@ public:
      * If the given point in time (when) is reached, the callback function
      * user_timer() will be called with the scheduled time (which could be
      * different from the actual time). If `when` is already in the past, when
-     * the function is called, the function will return false and not timer is
+     * the function is called, the function will return false and no timer is
      * scheduled. If the function returns true, the timer is scheduled and the
      * callback will be called (unless the timer is canceled later).
      *
-     * Once the callback is called, there is no timer scheduled anymore.
+     * Once the callback fuis called, there is no timer scheduled anymore.
      */
     bool schedule_timer( time_point_t when );
 
