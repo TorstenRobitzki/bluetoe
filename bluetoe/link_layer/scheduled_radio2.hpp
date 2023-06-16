@@ -336,6 +336,32 @@ public:
      */
     void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
+    /**
+     * @brief Counter used for CCM
+     *
+     * Type to store the CCM receive and transmit counters. Only public requirement is a
+     * default c'tor, copy and assignment.
+     */
+    struct ccm_counter_t {
+        // set to zero
+        ccm_counter_t();
+    };
+
+    /**
+     * @brief set the packet counters for receiving and transmitting
+     *
+     * This counters are required as part of the CCM nonce and will be changed, if data
+     * was exchanged in a subsequent connection event.
+     */
+    void set_ccm_counter( ccm_counter_t& receive_counter, ccm_counter_t& transmit_counter );
+
+    /**
+     * @brief set the phy to use for the next connection event
+     */
+    void set_phy(
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+
     /**@}*/
 
     /**@{
@@ -393,6 +419,9 @@ public:
      *
      * @pre CallBacks::link_layer_pdu_buffer() has to return a valid buffer for the handled connection.
      * @pre set_access_address_and_crc_init() has to be called with the value associated with the current connection.
+     * @pre set_ccm_counter() has to be called if connection is in a encrypted connection to set the counters for
+     *                        transmission and reception
+     * @pre set_phy() has to be called if connections with different phys are supported
      *
      * @param channel Channel to transmit and to receive on.
      * @param start   Point in time, when the radio start waiting for incomming PDUs.
