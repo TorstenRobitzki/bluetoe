@@ -932,7 +932,7 @@ namespace bluetoe {
 
         if ( index == details::invalid_attribute_index )
         {
-            error_response( *input, details::att_error_codes::attribute_not_found, handle, output, out_size );
+            error_response( *input, details::att_error_codes::invalid_handle, handle, output, out_size );
             return false;
         }
 
