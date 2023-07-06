@@ -17,8 +17,8 @@ BOOST_FIXTURE_TEST_CASE( pdu_to_large, test::small_temperature_service_with_resp
 
 BOOST_FIXTURE_TEST_CASE( no_such_handle, test::small_temperature_service_with_response<> )
 {
-    BOOST_CHECK( check_error_response( { 0x0C, 0x17, 0xAA, 0x00, 0x00 }, 0x0C, 0xAA17, 0x0A ) );
-    BOOST_CHECK( check_error_response( { 0x0C, 0x04, 0x00, 0x00, 0x00 }, 0x0C, 0x0004, 0x0A ) );
+    BOOST_CHECK( check_error_response( { 0x0C, 0x17, 0xAA, 0x00, 0x00 }, 0x0C, 0xAA17, 0x01 ) );
+    BOOST_CHECK( check_error_response( { 0x0C, 0x04, 0x00, 0x00, 0x00 }, 0x0C, 0x0004, 0x01 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( invalid_handle, test::small_temperature_service_with_response<> )

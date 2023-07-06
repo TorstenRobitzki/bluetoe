@@ -161,8 +161,6 @@ namespace link_layer {
         void request_event_cancelation();
 
         /**
-         * @brief forces the call of the
-        /**
          * @brief type to allow ll_data_pdu_buffer to synchronize the access to the buffer data structures.
          */
         class lock_guard;
@@ -342,8 +340,8 @@ namespace link_layer {
          * legacy pairing process.
          *
          * @param temp_key the temporary key from the LE legacy pairing algorithm
-         * @param srand The peripheral random value (Srand).
-         * @param mrand The central random value (Mrand).
+         * @param prand The peripheral random value (Prand).
+         * @param crand The central random value (Crand).
          */
         bluetoe::details::uint128_t s1(
             const bluetoe::details::uint128_t& temp_key,
@@ -507,7 +505,6 @@ namespace link_layer {
          */
         static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size );
     };
-
 }
 
 }

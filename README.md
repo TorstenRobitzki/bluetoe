@@ -9,7 +9,7 @@ Please consider donating to one of the funds that help victims of the war in Ukr
 
 ## Overview
 
-Bluetoe implements a GATT server with a very low memory footprint and a convenience C++ interface. Bluetoe makes easy things easy but gives the opportunity to fiddle with all the low level GATT details if necessary. The main target of Bluetoe is to be implemented on very small microcontrollers. Here is a complete example of a small GATT server, that allows a client to controll an IO pin, running on a nrf52832:
+Bluetoe implements a GATT server with a very low memory footprint and a convenient C++ interface. Bluetoe makes things easy but gives you the opportunity to fiddle with all the low-level GATT details if necessary. Bluetoe's primary target is very small microcontrollers. Here is a complete example of a small GATT server that allows a client to controll an IO pin, running on a nRF52832:
 
     #include <bluetoe/server.hpp>
     #include <bluetoe/device.hpp>
@@ -22,7 +22,7 @@ Bluetoe implements a GATT server with a very low memory footprint and a convenie
 
     static std::uint8_t io_pin_write_handler( bool state )
     {
-        // on an nRF52 eval board, the pin is connected to the LED's cathode, this inverts the logic.
+        // On an nRF52 eval board, the pin is connected to the LED's cathode. This inverts the logic.
         NRF_GPIO->OUT = state
             ? NRF_GPIO->OUT & ~( 1 << io_pin )
             : NRF_GPIO->OUT | ( 1 << io_pin );
@@ -61,11 +61,11 @@ http://torstenrobitzki.github.io/bluetoe/
 
 ## L2CAP
 
-Bluetoe ships with its own link layer. Currently a link layer based on the nrf52832 is implemented and usable. The link layer implementation will be based and tested on an abstract device, called a scheduled radio and should be easily ported to similar hardware. As Bluetoe is a GATT server implementation, only that parts of the link layer are implemented, that are nessary. Bluetoe can easily adapted to any other existing L2CAP implementation (based on HCI for example).
+Bluetoe ships with its own fully-usable link layer based on the nRF52832. The link layer implementation is based and tested on an abstract device called a scheduled radio, and should be easy to port to similar hardware. As Bluetoe is a GATT server implementation, only parts of the link layer relevant to GATT have been implemented. Bluetoe can be easily adapted to any other existing L2CAP implementation (those based on HCI, for example).
 
 ## Current State
 
-The following table show the list of GATT procedures and there implementation status and there planned implementation status:
+The following table shows the list of supported GATT procedures, along with and their current and planned implementation status:
 
 Feature | Sub-Procedure | Status
 --------|---------------|-------
@@ -142,17 +142,18 @@ Feature Support|LE Encryption|implemented
 <br/> |LL Privacy|not planned
 <br/> |Extended Scanner Filter Policies|not planned
 
-Pullrequests are wellcome.
+<br/> Pull requests are welcome.
 
 ## Dependencies
-- boost for Unittests
+
+- Boost for Unit tests
 - CMake for build
-- a decent C++ compiler supporting C++11
+- A decent C++ compiler supporting C++11
 
 # Current Measurements
 
-All measurements done without any traffic and a slave latency of 0.
-Average current measured with different connection intervals.
+All measurements were done without any traffic and a slave latency of 0.
+Average current was measured using various connection intervals.
 
 ## nRF52840 blinky without encryption
 

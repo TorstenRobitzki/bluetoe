@@ -37,7 +37,7 @@ BOOST_FIXTURE_TEST_CASE( pdu_to_small, large_fixture )
 
 BOOST_FIXTURE_TEST_CASE( no_such_handle, large_fixture )
 {
-    BOOST_CHECK( check_error_response( { 0x16, 0x17, 0xAA, 0x00, 0x00, 0x12, 0x23 }, 0x16, 0xAA17, 0x0A ) );
+    BOOST_CHECK( check_error_response( { 0x16, 0x17, 0xAA, 0x00, 0x00, 0x12, 0x23 }, 0x16, 0xAA17, 0x01 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( invalid_handle, large_fixture )

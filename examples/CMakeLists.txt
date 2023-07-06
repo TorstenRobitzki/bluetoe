@@ -4,20 +4,48 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
+set(AVAILABLE_BOARDS PCA10056 PCA10040)
+set(AVAILABLE_BINDINGS NRF52840 NRF52833 NRF52832 NRF52820 NRF52811 NRF52810 NRF52805)
+
+include(./cmake/deduce.cmake)
+
+# Check BLUETOE_BOARD and BLUETOE_BINDING for correct values / combinations
+if (DEFINED BLUETOE_BOARD)
+    set_property(CACHE BLUETOE_BOARD PROPERTY STRINGS ${AVAILABLE_BOARDS})
+
+    if (DEFINED BLUETOE_BINDING)
+        message(FATAL_ERROR "'BLUETOE_BOARD' is set to '${BLUETOE_BOARD}' while 'BLUETOE_BINDING' is set to '${BLUETOE_BINDING}'. It is not expected to have both variables beeing set!")
+    endif()
+
+    if (NOT ${BLUETOE_BOARD} IN_LIST AVAILABLE_BOARDS)
+        message(FATAL_ERROR "'BLUETOE_BOARD' is set to '${BLUETOE_BOARD}', which is an invalid value. Supported values are: ${AVAILABLE_BOARDS}")
+    endif()
+
+    deduce_binding(BLUETOE_BINDING ${BLUETOE_BOARD})
+else()
+    if (NOT DEFINED BLUETOE_BINDING)
+        message(FATAL_ERROR "For a custom hardware, the 'BLUETOE_BINDING' cache variable is expected to be set.")
+    endif()
+
+    if (NOT ${BLUETOE_BINDING} IN_LIST AVAILABLE_BINDINGS)
+        message(FATAL_ERROR "'BLUETOE_BINDING' is set to '${BLUETOE_BINDING}', which is an invalid value. Supported values are: ${AVAILABLE_BINDINGS}")
+    endif()
+
+    set_property(CACHE BLUETOE_BINDING PROPERTY STRINGS ${AVAILABLE_BINDINGS})
+endif()
+
+
+# Currently all examples are compiled with arm-none-eabi-gcc
+set(CMAKE_TOOLCHAIN_FILE ./cmake/gcc-arm-none-eabi.cmake)
+
 project(bluetoe_examples CXX C)
 
-if (NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR " examples can only be cross compiled to arm cortex-m, missing -Dtoolchain_file on cmake invocation?")
-endif()
+# set_preprocessore_macros(${BLUETOE_BOARD} ${BLUETOE_BINDING})
+deduce_bluetoe_binding(BINDING ${BLUETOE_BINDING})
 
-set(AVAILABLE_BINDINGS nrf51 nrf52)
-
-set(BINDING nrf52 CACHE STRING "Microcontroller target to build for")
-set_property(CACHE BINDING PROPERTY STRINGS ${AVAILABLE_BINDINGS})
-
-if (NOT BINDING)
-    message(FATAL_ERROR " A binding must be defined. Use -DBINDING=nrf51. Current available bindings are ${AVAILABLE_BINDINGS}")
-endif()
+message("BLUETOE_BOARD: ${BLUETOE_BOARD}")
+message("BLUETOE_BINDING: ${BLUETOE_BINDING}")
+message("BINDING: ${BINDING}")
 
 # include hardware specific compile options and definitions that must be apllied to the whole project
 include(${BINDING}_toolchain_support/platform.cmake)
@@ -55,6 +83,9 @@ add_subdirectory(assert)
 # bluetoe library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/bluetoe)
 
+# Support for basic peripherals used in the examples
+add_subdirectory(spl)
+
 # Additional settings for the Bluetoe library itself:
 target_link_libraries(bluetoe_iface INTERFACE assert::arm)
 
@@ -70,6 +101,7 @@ function(add_bluetoe_example target_name)
         PUBLIC
             assert::arm
         PRIVATE
+            spl
             toolchain::${BINDING}
             startup::${BINDING}
             bluetoe::bindings::${BINDING}

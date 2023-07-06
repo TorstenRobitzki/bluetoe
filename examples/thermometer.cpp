@@ -1,6 +1,17 @@
+/**
+ * @example thermometer.cpp
+ *
+ * This example demonstrates, how notifications work in Bluetoe. To send out a notification
+ * one of the server::notify() functions has to be called. Bluetoe uses then the existing read
+ * handler to send out the notification.
+ *
+ * The example also uses a connection callback to set the connection to 2MBit.
+ */
+
 #include <bluetoe/server.hpp>
 #include <bluetoe/device.hpp>
-#include <nrf.h>
+
+#include "resources.hpp"
 
 std::int32_t temperature_value = 0x12345678;
 static constexpr char server_name[] = "Temperature";
@@ -47,30 +58,24 @@ void callbacks_t::ll_connection_established(
     server.phy_update_request_to_2mbit();
 }
 
+static examples::temperature temperature_sensor;
+
 int main()
 {
-    NVIC_SetPriority( TEMP_IRQn, 3 );
-    NVIC_ClearPendingIRQ( TEMP_IRQn );
-    NVIC_EnableIRQ( TEMP_IRQn );
-    NRF_TEMP->INTENSET    = TEMP_INTENSET_DATARDY_Set;
-    NRF_TEMP->TASKS_START = 1;
 
-    for ( ;; )
-        server.run();
-}
-
-extern "C" void TEMP_IRQHandler(void)
-{
-    NRF_TEMP->EVENTS_DATARDY = 0;
-
-    const auto delta = std::abs( NRF_TEMP->TEMP - temperature_value );
-
-    if ( delta >= 3 )
+    for ( ; ; )
     {
-        temperature_value = NRF_TEMP->TEMP;
-        server.notify( temperature_value );
-        server.wake_up();
-    }
+        server.run();
 
-    NRF_TEMP->TASKS_START = 1;
+        temperature_sensor.handle_event();
+
+        const std::int32_t new_value = temperature_sensor.value();
+        const auto delta = std::abs( new_value - temperature_value );
+
+        if ( delta >= 3 )
+        {
+            temperature_value = new_value;
+            server.notify( temperature_value );
+        }
+    }
 }

@@ -1,18 +1,26 @@
+/**
+ * @example blinky.cpp
+ *
+ * This example shows, how to implement a very simple GATT server that
+ * provides one service to switch an LED.
+ *
+ * The example servers only characteristic requires encryption. By default,
+ * the server implements only LESC pairing. Bonding is not implemented in
+ * this example.
+ */
+
 #include <bluetoe/server.hpp>
 #include <bluetoe/device.hpp>
-#include <nrf.h>
+
+#include "resources.hpp"
+
+static examples::led output;
 
 using namespace bluetoe;
 
-// LED1 on a nRF52 eval board
-static constexpr int io_pin = 13;
-
 static std::uint8_t io_pin_write_handler( bool state )
 {
-    // on an nRF52 eval board, the pin is connected to the LED's cathode, this inverts the logic.
-    NRF_GPIO->OUT = state
-        ? NRF_GPIO->OUT & ~( 1 << io_pin )
-        : NRF_GPIO->OUT | ( 1 << io_pin );
+    output.value( state );
 
     return error_codes::success;
 }
@@ -35,11 +43,6 @@ device<
 
 int main()
 {
-    // Init GPIO pin
-    NRF_GPIO->PIN_CNF[ io_pin ] =
-        ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
-        ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
-
     for ( ;; )
         gatt_srv.run();
 }

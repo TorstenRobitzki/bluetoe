@@ -810,7 +810,7 @@ BOOST_AUTO_TEST_SUITE( double_used_uuid )
             0x01,                           // Error Response
             0x0A,                           // Request Opcode
             0x07, 0x00,                     // Handle
-            0x0A                            // Attribute Not Found
+            0x01                            // Invalid Handle
         } );
     }
 

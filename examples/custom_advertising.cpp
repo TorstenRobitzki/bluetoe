@@ -1,6 +1,6 @@
 /**
- * @file purpose of this example is, to show how any required advertising data of scan response can
- *       be archived, but circumventing all automatism provided by Bluetoe.
+ * @example purpose of this example is, to show how any required advertising data of scan response can
+ *          be archived, but circumventing all automatism provided by Bluetoe.
  */
 
 #include <bluetoe/server.hpp>

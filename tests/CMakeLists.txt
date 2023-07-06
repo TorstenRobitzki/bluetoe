@@ -13,7 +13,7 @@ add_subdirectory(test_tools)
 function(add_and_register_test test_runner)
     add_executable(${test_runner} ${test_runner}.cpp)
 
-    target_include_directories(${test_runner} PRIVATE ${Boost_INCLUDE_DIR})
+    target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
     target_link_libraries(${test_runner} PRIVATE bluetoe::iface bluetoe::sm bluetoe::utility test::tools)
     target_compile_features(${test_runner} PRIVATE cxx_std_11)
 
