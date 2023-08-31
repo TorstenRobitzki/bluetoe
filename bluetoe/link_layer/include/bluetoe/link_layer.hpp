@@ -565,6 +565,11 @@ namespace link_layer {
         std::size_t fill_l2cap_scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
         /**
+         * @brief returns the feature mask of supported link layer features
+         */
+        std::uint64_t supported_link_layer_features() const;
+
+        /**
          * @brief returns the own local device address
          */
         const device_address& local_address() const;
@@ -1516,6 +1521,12 @@ namespace link_layer {
     const device_address& link_layer< Server, ScheduledRadio, Options... >::local_address() const
     {
         return address_;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint64_t link_layer< Server, ScheduledRadio, Options... >::supported_link_layer_features() const
+    {
+        return supported_features;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

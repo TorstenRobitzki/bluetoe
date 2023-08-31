@@ -41,6 +41,11 @@ BOOST_FIXTURE_TEST_SUITE( no_support_by_hardware, no_2mbit )
         );
     }
 
+    BOOST_AUTO_TEST_CASE( no_phy_update_feature_feature_mask )
+    {
+        BOOST_CHECK_EQUAL( supported_link_layer_features() & 0x100, 0 );
+    }
+
     BOOST_AUTO_TEST_CASE( phy_request_not_supported )
     {
         ll_control_pdu(
@@ -122,6 +127,11 @@ BOOST_FIXTURE_TEST_SUITE( support_by_hardware, with_2mbit )
                 X, X, X, X
             }
         );
+    }
+
+    BOOST_AUTO_TEST_CASE( phy_update_feature_feature_mask )
+    {
+        BOOST_CHECK_EQUAL( supported_link_layer_features() & 0x100, 0x100 );
     }
 
     BOOST_AUTO_TEST_CASE( phy_response )
