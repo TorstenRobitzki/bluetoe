@@ -685,24 +685,28 @@ namespace link_layer {
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
 
         struct link_layer_feature {
-            enum : std::uint8_t {
-                le_encryption                           = 0x01,
-                connection_parameters_request_procedure = 0x02,
-                extended_reject_indication              = 0x04,
-                peripheral_initiated_features_exchange  = 0x08,
-                le_ping                                 = 0x10,
-                le_data_packet_length_extension         = 0x20,
-                ll_privacy                              = 0x40,
-                extended_scanner_filter_policies        = 0x80
+            enum : std::uint16_t {
+                le_encryption                           = 0x001,
+                connection_parameters_request_procedure = 0x002,
+                extended_reject_indication              = 0x004,
+                peripheral_initiated_features_exchange  = 0x008,
+                le_ping                                 = 0x010,
+                le_data_packet_length_extension         = 0x020,
+                ll_privacy                              = 0x040,
+                extended_scanner_filter_policies        = 0x080,
+                le_2m_phy_support                       = 0x100
             };
         };
 
-        static constexpr std::uint8_t   supported_features =
+        static constexpr std::uint16_t   supported_features =
             link_layer_feature::connection_parameters_request_procedure |
             link_layer_feature::extended_reject_indication |
             link_layer_feature::le_ping |
             ( bluetoe::details::requires_encryption_support_t< Server >::value
                 ? link_layer_feature::le_encryption
+                : 0 ) |
+            ( radio_t::hardware_supports_2mbit
+                ? link_layer_feature::le_2m_phy_support
                 : 0 );
 
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
@@ -724,7 +728,7 @@ namespace link_layer {
         write_buffer                    defered_ll_control_pdu_;
         connection_data_t               connection_data_;
         bool                            termination_send_;
-        std::uint8_t                    used_features_;
+        std::uint16_t                   used_features_;
         bool                            pending_event_;
         volatile bool                   restart_user_timer_requested_;
 
@@ -1307,6 +1311,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::handle_ll_control_data( const write_buffer& pdu, read_buffer write )
     {
+        using namespace ::bluetoe::details;
+
         ll_result result = ll_result::go_ahead;
         bool      commit = true;
 
@@ -1322,7 +1328,7 @@ namespace link_layer {
 
             if ( opcode == LL_CONNECTION_UPDATE_REQ && size == 12 )
             {
-                defered_conn_event_counter_ = bluetoe::details::read_16bit( &body[ 10 ] );
+                defered_conn_event_counter_ = read_16bit( &body[ 10 ] );
                 commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() + 1 ) & 0x8000
@@ -1352,7 +1358,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {
-                defered_conn_event_counter_ = bluetoe::details::read_16bit( &body[ 6 ] );
+                defered_conn_event_counter_ = read_16bit( &body[ 6 ] );
                 commit = false;
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() ) & 0x8000 )
@@ -1370,15 +1376,17 @@ namespace link_layer {
             }
             else if ( opcode == LL_FEATURE_REQ && size == 9 )
             {
-                used_features_ = used_features_ & body[ 1 ];
+                std::uint16_t remote_features = read_16bit( & body[ 1 ] );
+                used_features_ = used_features_ & remote_features;
 
-                static constexpr std::uint8_t LE_2M_PHY = 0x01;
-
+                // the LSB of the feature set has to be the actualy used set,
+                // while all remaining bytes are to be filled with the supported
+                // features
                 fill< layout_t >( write, {
                     ll_control_pdu_code, 9,
                     LL_FEATURE_RSP,
-                    used_features_,
-                    static_cast< std::uint8_t >( this->hardware_supports_2mbit ? LE_2M_PHY : 0x00 ),
+                    static_cast< std::uint8_t >( used_features_ ),
+                    static_cast< std::uint8_t >( supported_features >> 8 ),
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
 

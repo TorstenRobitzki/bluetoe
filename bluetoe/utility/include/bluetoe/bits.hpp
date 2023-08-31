@@ -74,7 +74,7 @@ namespace details {
     }
 
     /**
-     * @brief given to unsigned integers returning the absolute minimum distance between
+     * @brief given two unsigned integers returning the absolute minimum distance between
      *        both, taking overflow into account.
      *
      * Starting at start, incrementing start as until start reached end, would result in a
