@@ -90,7 +90,7 @@ struct example_callbacks
     using link_layer_pdu_buffer_t = ...;
 
     /**
-     * @brief function to privide access to a PDU buffer to the radio
+     * @brief function to provide access to a PDU buffer to the radio
      *
      * This function is used by the radio to get access to the PDU buffer of the current
      * connection. This function must be called only when a connection event was scheduled
@@ -361,6 +361,11 @@ public:
     void set_phy(
         bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
         bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+
+    /**
+     * @brief set the local address for advertising
+     */
+    void set_local_address( const bluetoe::link_layer::device_address& );
 
     /**@}*/
 
