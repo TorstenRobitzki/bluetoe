@@ -570,6 +570,16 @@ namespace link_layer {
         std::uint64_t supported_link_layer_features() const;
 
         /**
+         * @brief returns the Version field of the LL_VERSION_IND PDU
+         */
+        std::uint8_t supported_link_layer_version() const;
+
+        /**
+         * @brief returns the Company_Identifier field of the LL_VERSION_IND PDU
+         */
+        std::uint16_t link_layer_company_identifier() const;
+
+        /**
          * @brief returns the own local device address
          */
         const device_address& local_address() const;
@@ -688,6 +698,7 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_VERSION_40               = 0x06;
 
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
+        static constexpr std::uint16_t  company_identifier          = 0x0269;
 
         struct link_layer_feature {
             enum : std::uint16_t {
@@ -1358,7 +1369,10 @@ namespace link_layer {
 
                 fill< layout_t >( write, {
                     ll_control_pdu_code, 6, LL_VERSION_IND,
-                    LL_VERSION_NR, 0x69, 0x02, 0x00, 0x00
+                    LL_VERSION_NR,
+                    static_cast< std::uint8_t >( company_identifier ),
+                    static_cast< std::uint8_t >( company_identifier >> 8 ),
+                    0x00, 0x00
                 } );
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
@@ -1527,6 +1541,18 @@ namespace link_layer {
     std::uint64_t link_layer< Server, ScheduledRadio, Options... >::supported_link_layer_features() const
     {
         return supported_features;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint8_t link_layer< Server, ScheduledRadio, Options... >::supported_link_layer_version() const
+    {
+        return LL_VERSION_NR;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    std::uint16_t link_layer< Server, ScheduledRadio, Options... >::link_layer_company_identifier() const
+    {
+        return company_identifier;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
