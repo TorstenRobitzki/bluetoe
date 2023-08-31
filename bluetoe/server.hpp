@@ -21,6 +21,7 @@
 #include <bluetoe/attribute_handle.hpp>
 #include <bluetoe/l2cap_channels.hpp>
 #include <bluetoe/notification_queue.hpp>
+#include <bluetoe/custom_advertising.hpp>
 
 #include <cstdint>
 #include <cstddef>
@@ -29,6 +30,25 @@
 #include <cassert>
 
 namespace bluetoe {
+    namespace details {
+
+        template < typename ... Options >
+        using selected_advertising_data_source =
+            typename details::find_by_meta_type<
+                        details::advertising_data_meta_type,
+                        Options...,
+                        auto_advertising_data
+                    >::type;
+
+        template < typename ... Options >
+        using selected_scan_response_data_source =
+            typename details::find_by_meta_type<
+                        details::scan_response_data_meta_type,
+                        Options...,
+                        auto_scan_response_data
+                    >::type;
+    }
+
     /**
      * @brief Root of the declaration of a GATT server.
      *
@@ -60,6 +80,8 @@ namespace bluetoe {
     class server
         : private details::write_queue< typename details::find_by_meta_type< details::write_queue_meta_type, Options... >::type >
         , public details::derive_from< typename details::collect_mixins< Options... >::type >
+        , public details::selected_advertising_data_source< Options ... >
+        , public details::selected_scan_response_data_source< Options ... >
     {
     public:
         /** @cond HIDDEN_SYMBOLS */
@@ -393,12 +415,12 @@ namespace bluetoe {
         // mapping of a last handle to a valid attribute index
         std::size_t last_handle_index( std::uint16_t ending_handle );
 
-        std::size_t advertising_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const details::no_such_type& ) const;
+        std::size_t advertising_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const auto_advertising_data& ) const;
 
         template < class T >
         std::size_t advertising_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& ) const;
 
-        std::size_t scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const details::no_such_type& ) const;
+        std::size_t scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const auto_scan_response_data& ) const;
 
         template < class T >
         std::size_t scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& ) const;
@@ -612,19 +634,20 @@ namespace bluetoe {
         return advertising_data_impl( begin, buffer_size,
                     typename details::find_by_meta_type<
                         details::advertising_data_meta_type,
-                        Options...
+                        Options...,
+                        auto_advertising_data
                     >::type() );
     }
 
     template < typename ... Options >
     template < class Advertiser >
-    std::size_t server< Options... >::advertising_data_impl( std::uint8_t* begin, std::size_t buffer_size, const Advertiser& advertiser ) const
+    std::size_t server< Options... >::advertising_data_impl( std::uint8_t* begin, std::size_t buffer_size, const Advertiser& ) const
     {
-        return advertiser.advertising_data( begin, buffer_size );
+        return static_cast< const Advertiser& >( *this ).advertising_data( begin, buffer_size );
     }
 
     template < typename ... Options >
-    std::size_t server< Options... >::advertising_data_impl( std::uint8_t* begin, std::size_t buffer_size, const details::no_such_type& ) const
+    std::size_t server< Options... >::advertising_data_impl( std::uint8_t* begin, std::size_t buffer_size, const auto_advertising_data& ) const
     {
         std::uint8_t* const end = begin + buffer_size;
 
@@ -697,12 +720,13 @@ namespace bluetoe {
         return scan_response_data_impl( buffer, buffer_size,
                     typename details::find_by_meta_type<
                         details::scan_response_data_meta_type,
-                        Options...
+                        Options...,
+                        auto_scan_response_data
                     >::type() );
     }
 
     template < typename ... Options >
-    std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t /* buffer_size */, const details::no_such_type& ) const
+    std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t /* buffer_size */, const auto_scan_response_data& ) const
     {
         // add aditional empty AD to be visible to Nordic sniffer.
         // Some stacks do not recognize the response without this empty AD.
@@ -714,9 +738,9 @@ namespace bluetoe {
 
     template < typename ... Options >
     template < class T >
-    std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& responder ) const
+    std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& ) const
     {
-        return responder.scan_response_data( buffer, buffer_size );
+        return static_cast< const T& >( *this ).scan_response_data( buffer, buffer_size );
     }
 
     template < typename ... Options >
