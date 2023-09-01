@@ -1134,3 +1134,141 @@ BOOST_AUTO_TEST_SUITE( advertising_custom_data )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( channel_map )
+
+    using variable_channel_map = advertising_base<
+        bluetoe::link_layer::variable_advertising_channel_map,
+        bluetoe::link_layer::no_auto_start_advertising >;
+
+    BOOST_FIXTURE_TEST_CASE( advertising_uses_all_three_adv_channels, variable_channel_map )
+    {
+        std::map< unsigned, unsigned > channel;
+        start_advertising();
+
+        run();
+
+        all_data( [&]( const test::advertising_data& d ) { ++channel[ d.channel ]; } );
+
+        BOOST_CHECK_EQUAL( channel.size(), 3u );
+        BOOST_CHECK_GT( channel[ 37 ], 0u );
+        BOOST_CHECK_GT( channel[ 38 ], 0u );
+        BOOST_CHECK_GT( channel[ 39 ], 0u );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( advertising_uses_just_2_adv_channels, variable_channel_map )
+    {
+        std::map< unsigned, unsigned > channel;
+        remove_channel_from_advertsing_channel_map( 37 );
+        start_advertising();
+
+        run();
+
+        all_data( [&]( const test::advertising_data& d ) { ++channel[ d.channel ]; } );
+
+        BOOST_CHECK_EQUAL( channel.size(), 2u );
+        BOOST_CHECK_EQUAL( channel[ 37 ], 0u );
+        BOOST_CHECK_GT( channel[ 38 ], 0u );
+        BOOST_CHECK_GT( channel[ 39 ], 0u );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( advertising_uses_just_1_adv_channels, variable_channel_map )
+    {
+        std::map< unsigned, unsigned > channel;
+        remove_channel_from_advertsing_channel_map( 37 );
+        remove_channel_from_advertsing_channel_map( 39 );
+        start_advertising();
+
+        run();
+
+        all_data( [&]( const test::advertising_data& d ) { ++channel[ d.channel ]; } );
+
+        BOOST_CHECK_EQUAL( channel.size(), 1u );
+        BOOST_CHECK_EQUAL( channel[ 37 ], 0u );
+        BOOST_CHECK_GT( channel[ 38 ], 0u );
+        BOOST_CHECK_EQUAL( channel[ 39 ], 0u );
+    }
+
+
+    BOOST_FIXTURE_TEST_CASE( advertising_uses_just_1_adv_channels_remove_all_and_add, variable_channel_map )
+    {
+        std::map< unsigned, unsigned > channel;
+        remove_channel_from_advertsing_channel_map( 37 );
+        remove_channel_from_advertsing_channel_map( 38 );
+        remove_channel_from_advertsing_channel_map( 39 );
+
+        add_channel_to_advertising_channel_map( 37 );
+
+        start_advertising();
+
+        run();
+
+        all_data( [&]( const test::advertising_data& d ) { ++channel[ d.channel ]; } );
+
+        BOOST_CHECK_EQUAL( channel.size(), 1u );
+        BOOST_CHECK_GT( channel[ 37 ], 0u );
+        BOOST_CHECK_EQUAL( channel[ 38 ], 0u );
+        BOOST_CHECK_EQUAL( channel[ 39 ], 0u );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( advertising_uses_all_three_adv_channels_observice_time, variable_channel_map )
+    {
+        std::vector< bluetoe::link_layer::delta_time > on_air_times;
+        start_advertising();
+
+        run();
+
+        all_data( [&]( const test::advertising_data& d ) { on_air_times.push_back( d.on_air_time ); } );
+
+        static const bluetoe::link_layer::delta_time expected[] = {
+            bluetoe::link_layer::delta_time::msec( 0 ),
+            bluetoe::link_layer::delta_time::msec( 0 ),
+            bluetoe::link_layer::delta_time::msec( 0 ),
+            bluetoe::link_layer::delta_time::msec( 107 ),
+            bluetoe::link_layer::delta_time::msec( 107 ),
+            bluetoe::link_layer::delta_time::msec( 107 ),
+            bluetoe::link_layer::delta_time::msec( 210 ),
+            bluetoe::link_layer::delta_time::msec( 210 ),
+            bluetoe::link_layer::delta_time::msec( 210 ),
+        };
+
+        static const auto expected_size = std::distance( std::begin(expected), std::end(expected) );
+
+        BOOST_REQUIRE_LE( expected_size, on_air_times.size() );
+        on_air_times.erase(
+            std::next( on_air_times.begin(), expected_size ), on_air_times.end() );
+
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            on_air_times.begin(), on_air_times.end(),
+            std::begin(expected), std::end(expected) );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( advertising_uses_single_adv_channels_observice_time, variable_channel_map )
+    {
+        std::vector< bluetoe::link_layer::delta_time > on_air_times;
+        remove_channel_from_advertsing_channel_map( 38 );
+        remove_channel_from_advertsing_channel_map( 39 );
+        start_advertising();
+
+        run();
+
+        all_data( [&]( const test::advertising_data& d ) { on_air_times.push_back( d.on_air_time ); } );
+
+        static const bluetoe::link_layer::delta_time expected[] = {
+            bluetoe::link_layer::delta_time::msec( 0 ),
+            bluetoe::link_layer::delta_time::msec( 107 ),
+            bluetoe::link_layer::delta_time::msec( 210 ),
+        };
+
+        static const auto expected_size = std::distance( std::begin(expected), std::end(expected) );
+
+        BOOST_REQUIRE_LE( expected_size, on_air_times.size() );
+        on_air_times.erase(
+            std::next( on_air_times.begin(), expected_size ), on_air_times.end() );
+
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            on_air_times.begin(), on_air_times.end(),
+            std::begin(expected), std::end(expected) );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -25,6 +25,7 @@ namespace link_layer {
         struct advertising_type_meta_type {};
         struct advertising_startup_meta_type {};
         struct advertising_interval_meta_type {};
+        struct advertising_channel_map_meta_type {};
 
         template < unsigned long long AdvertisingIntervalMilliSeconds >
         struct check_advertising_interval_parameter {
@@ -942,6 +943,137 @@ namespace link_layer {
     };
 
     namespace details {
+        struct advertising_channel_map_base {
+            static constexpr unsigned       first_advertising_channel   = 37;
+            static constexpr unsigned       last_advertising_channel    = 39;
+        };
+    }
+
+    /**
+     * @brief adds the abillity to set a channel map for advertising
+     *
+     * Using this type as an option to the link_layer, adds the documented
+     * functions to the link_layer.
+     *
+     * By default, all 3 channels are enabled. Setting the channel map to
+     * empty is not supported.
+     *
+     * It is not supported to change the channel map during advertising.
+     */
+    struct variable_advertising_channel_map : details::advertising_channel_map_base
+    {
+        void add_channel_to_advertising_channel_map( unsigned channel )
+        {
+            assert( channel >= first_advertising_channel );
+            assert( channel <= last_advertising_channel );
+
+            channel -= first_advertising_channel;
+            map_ = map_ | ( 1 << channel );
+
+            current_channel_index_ = first_channel_index();
+        }
+
+        void remove_channel_from_advertsing_channel_map( unsigned channel )
+        {
+            assert( channel >= first_advertising_channel );
+            assert( channel <= last_advertising_channel );
+
+            channel -= first_advertising_channel;
+            map_ = map_ & ~( 1 << channel );
+
+            if ( map_ )
+                current_channel_index_ = first_channel_index();
+        }
+
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::advertising_channel_map_meta_type,
+            details::valid_link_layer_option_meta_type {};
+    protected:
+        variable_advertising_channel_map()
+            : current_channel_index_( 0 )
+            , map_( 0x7 )
+        {}
+
+        unsigned current_channel() const
+        {
+            return current_channel_index_ + first_advertising_channel;
+        }
+
+        void next_channel()
+        {
+            assert( map_ != 0 );
+
+            ++current_channel_index_;
+
+            // seek next position in map that is set to 1
+            for ( ; ( 1 << current_channel_index_ ) == 0 && ( 1 << current_channel_index_ ) <= map_; ++current_channel_index_ )
+                ;
+
+            if ( ( 1 << current_channel_index_ ) > map_ )
+                current_channel_index_ = first_channel_index();
+        }
+
+        bool first_channel_selected() const
+        {
+            return current_channel_index_ == first_channel_index();
+        }
+
+    private:
+        unsigned first_channel_index() const
+        {
+            unsigned result = 0;
+            for ( ; ( map_ & ( 1 << result ) ) == 0; ++result )
+                ;
+
+            return result;
+        }
+
+        unsigned    current_channel_index_;
+        unsigned    map_;
+        /** @endcond */
+    };
+
+    /**
+     * @brief channel map that contains all three advertising channels
+     *
+     * This is the default behaviour
+     */
+    struct all_advertising_channel_map : details::advertising_channel_map_base
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::advertising_channel_map_meta_type,
+            details::valid_link_layer_option_meta_type {};
+
+    protected:
+        all_advertising_channel_map()
+            : current_channel_index_( first_advertising_channel )
+        {}
+
+        unsigned current_channel() const
+        {
+            return current_channel_index_;
+        }
+
+        void next_channel()
+        {
+            current_channel_index_ = current_channel_index_ == last_advertising_channel
+                ? first_advertising_channel
+                : current_channel_index_ + 1;
+        }
+
+        bool first_channel_selected() const
+        {
+            return current_channel_index_ == this->first_advertising_channel;
+        }
+
+    private:
+        unsigned    current_channel_index_;
+        /** @endcond */
+    };
+
+    namespace details {
         /*
          * Type to implement the single and multiple adverting type advertisings
          */
@@ -952,9 +1084,6 @@ namespace link_layer {
         {
             static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
             static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
-
-            static constexpr unsigned       first_advertising_channel   = 37;
-            static constexpr unsigned       last_advertising_channel    = 39;
         };
 
         template < typename ... Options >
@@ -962,18 +1091,20 @@ namespace link_layer {
             public advertiser_base_base,
             public bluetoe::details::find_by_meta_type<
                     details::advertising_interval_meta_type,
-                    Options..., advertising_interval< 100 > >::type
+                    Options..., advertising_interval< 100 > >::type,
+            public bluetoe::details::find_by_meta_type<
+                    details::advertising_channel_map_meta_type,
+                    Options..., all_advertising_channel_map >::type
         {
         protected:
             advertiser_base()
-                : current_channel_index_( first_advertising_channel )
-                , adv_perturbation_( 0 )
+                : adv_perturbation_( 0 )
             {
             }
 
             delta_time next_adv_event()
             {
-                if ( current_channel_index_ != this->first_advertising_channel )
+                if ( !this->first_channel_selected() )
                     return delta_time::now();
 
                 adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
@@ -981,22 +1112,9 @@ namespace link_layer {
                 return this->current_advertising_interval() + delta_time::msec( adv_perturbation_ );
             }
 
-            unsigned current_channel() const
-            {
-                return current_channel_index_;
-            }
-
-            void next_channel()
-            {
-                current_channel_index_ = current_channel_index_ == last_advertising_channel
-                    ? first_advertising_channel
-                    : current_channel_index_ + 1;
-            }
-
         private:
             static constexpr unsigned       max_adv_perturbation_ = 10;
 
-            unsigned                        current_channel_index_;
             unsigned                        adv_perturbation_;
         };
 
