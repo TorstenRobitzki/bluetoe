@@ -1007,10 +1007,10 @@ namespace link_layer {
             ++current_channel_index_;
 
             // seek next position in map that is set to 1
-            for ( ; ( 1 << current_channel_index_ ) == 0 && ( 1 << current_channel_index_ ) <= map_; ++current_channel_index_ )
+            for ( ; ( 1u << current_channel_index_ ) == 0 && ( 1u << current_channel_index_ ) <= map_; ++current_channel_index_ )
                 ;
 
-            if ( ( 1 << current_channel_index_ ) > map_ )
+            if ( ( 1u << current_channel_index_ ) > map_ )
                 current_channel_index_ = first_channel_index();
         }
 
