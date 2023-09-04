@@ -49,6 +49,7 @@ namespace bluetoe
             struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
             struct sleep_clock_source_meta_type : radio_option_meta_type {};
             struct hfxo_startup_time_meta_type : radio_option_meta_type {};
+            struct leave_run_on_interrupt_type : radio_option_meta_type {};
 
             static void start_high_frequency_clock()
             {
@@ -213,6 +214,19 @@ namespace bluetoe
          * @sa bluetoe::nrf::high_frequency_crystal_oscillator_startup_time
          */
         using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 300 >;
+
+        /**
+         * @brief configures the radio::run() function to return on every interrupt
+         *
+         * Usually, run() will return on a call to radio::wake(). With this option, run()
+         * will only block for a single call to the WFI ARM assembler instruction. Once that
+         * instruction returns, the function will be left.
+         */
+        struct leave_run_on_interrupt {
+            /** @cond HIDDEN_SYMBOLS */
+            using meta_type = nrf_details::leave_run_on_interrupt_type;
+            /** @endcond */
+        };
     }
 
     namespace nrf_details

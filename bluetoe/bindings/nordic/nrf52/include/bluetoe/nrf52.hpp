@@ -465,7 +465,10 @@ namespace bluetoe
 
             void run()
             {
-                while ( !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
+                static constexpr bool single_wfi = bluetoe::details::has_option<
+                    nrf::leave_run_on_interrupt, RadioOptions... >::value;
+
+                while ( !single_wfi && !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
                     __WFI();
 
                 // For every event, but the wakeup request, the radio should be in an idle state
@@ -971,6 +974,7 @@ namespace bluetoe
      * bluetoe::nrf::sleep_clock_crystal_oscillator
      * bluetoe::nrf::calibrated_sleep_clock
      * bluetoe::nrf::synthesized_sleep_clock
+     * bluetoe::nrf::leave_run_on_interrupt
      */
     template < class Server, typename ... Options >
     using nrf52 = typename nrf52_details::link_layer_factory<
