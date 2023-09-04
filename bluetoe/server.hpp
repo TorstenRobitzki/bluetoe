@@ -86,6 +86,8 @@ namespace bluetoe {
     public:
         /** @cond HIDDEN_SYMBOLS */
         using services_without_gap = typename details::find_all_by_meta_type< details::service_meta_type, Options... >::type;
+        using selected_advertising_data_t = details::selected_advertising_data_source< Options ... >;
+        using selected_scan_response_data_t = details::selected_scan_response_data_source< Options ... >;
 
         // append gap serivce for gatt servers
         using gap_service_definition = typename details::find_by_meta_type< details::gap_service_definition_meta_type,
@@ -310,6 +312,11 @@ namespace bluetoe {
          * @brief returns the scan response data to the L2CAP implementation
          */
         std::size_t scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
+
+        /**
+         * @brief returns true, if there is a chance that advertising data has been changed
+         */
+        bool advertising_or_scan_response_data_has_been_changed();
 
         typedef bool (*lcap_notification_callback_t)( const details::notification_data& item, void* usr_arg, details::notification_type type );
 
@@ -631,12 +638,7 @@ namespace bluetoe {
     template < typename ... Options >
     std::size_t server< Options... >::advertising_data( std::uint8_t* begin, std::size_t buffer_size ) const
     {
-        return advertising_data_impl( begin, buffer_size,
-                    typename details::find_by_meta_type<
-                        details::advertising_data_meta_type,
-                        Options...,
-                        auto_advertising_data
-                    >::type() );
+        return advertising_data_impl( begin, buffer_size, selected_advertising_data_t() );
     }
 
     template < typename ... Options >
@@ -717,12 +719,7 @@ namespace bluetoe {
     template < typename ... Options >
     std::size_t server< Options... >::scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const
     {
-        return scan_response_data_impl( buffer, buffer_size,
-                    typename details::find_by_meta_type<
-                        details::scan_response_data_meta_type,
-                        Options...,
-                        auto_scan_response_data
-                    >::type() );
+        return scan_response_data_impl( buffer, buffer_size, selected_scan_response_data_t() );
     }
 
     template < typename ... Options >
@@ -741,6 +738,15 @@ namespace bluetoe {
     std::size_t server< Options... >::scan_response_data_impl( std::uint8_t* buffer, std::size_t buffer_size, const T& ) const
     {
         return static_cast< const T& >( *this ).scan_response_data( buffer, buffer_size );
+    }
+
+    template < typename ... Options >
+    bool server< Options... >::advertising_or_scan_response_data_has_been_changed()
+    {
+        const bool advertising_changed   = this->advertising_data_dirty();
+        const bool scan_response_changed = this->scan_response_data_dirty();
+
+        return advertising_changed || scan_response_changed;
     }
 
     template < typename ... Options >

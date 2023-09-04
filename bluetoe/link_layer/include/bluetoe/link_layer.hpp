@@ -565,6 +565,11 @@ namespace link_layer {
         std::size_t fill_l2cap_scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
 
         /**
+         * @brief returns true, if advertising or scan response data might have changed.
+         */
+        bool l2cap_adverting_data_or_scan_response_data_changed();
+
+        /**
          * @brief returns the feature mask of supported link layer features
          */
         std::uint64_t supported_link_layer_features() const;
@@ -1529,6 +1534,12 @@ namespace link_layer {
     std::size_t link_layer< Server, ScheduledRadio, Options... >::fill_l2cap_scan_response_data( std::uint8_t* buffer, std::size_t buffer_size ) const
     {
         return this->scan_response_data( buffer, buffer_size );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::l2cap_adverting_data_or_scan_response_data_changed()
+    {
+        return this->advertising_or_scan_response_data_has_been_changed();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >

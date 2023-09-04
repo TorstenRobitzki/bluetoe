@@ -1110,7 +1110,7 @@ BOOST_AUTO_TEST_SUITE( advertising_custom_data )
         }
     };
 
-    BOOST_FIXTURE_TEST_CASE( advertisng_data, custom_advertising<> )
+    BOOST_FIXTURE_TEST_CASE( advertising_data, custom_advertising<> )
     {
         run();
 
@@ -1270,5 +1270,69 @@ BOOST_AUTO_TEST_SUITE( channel_map )
             on_air_times.begin(), on_air_times.end(),
             std::begin(expected), std::end(expected) );
     }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( dynamically_changed_advertising_data )
+
+    using server = bluetoe::extend_server<
+        test::small_temperature_service,
+        bluetoe::runtime_custom_advertising_data,
+        bluetoe::runtime_custom_scan_response_data
+    >;
+
+    template < typename ... Options >
+    struct runtime_advertising : bluetoe::link_layer::link_layer< server, test::radio, Options... >
+    {
+        runtime_advertising()
+        {
+        }
+    };
+
+    using test_fixtures = std::tuple<
+        // Single advertisment type
+        runtime_advertising<>,
+        // multiple advertisment types
+        runtime_advertising<
+            bluetoe::link_layer::connectable_undirected_advertising,
+            bluetoe::link_layer::scannable_undirected_advertising >
+    >;
+
+    BOOST_AUTO_TEST_CASE_TEMPLATE( changed_advertising_data, fixture, test_fixtures )
+    {
+        fixture server;
+
+        static const std::uint8_t advertising_data1[ 5 ] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        server.set_runtime_custom_advertising_data( std::begin( advertising_data1 ), 5 );
+        server.run();
+
+        auto last_advertising = server.advertisings().back().transmitted_data;
+        const std::initializer_list< std::uint8_t > expected1 = {
+            0x40, 0x0b,                             // header
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0,     // AdvA:  c0:0f:15:08:11:47 (random)
+            0x01, 0x02, 0x03, 0x04, 0x05
+        };
+
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            last_advertising.begin(), last_advertising.end(),
+            expected1.begin(), expected1.end() );
+
+        // now, change adverting data:
+        static const std::uint8_t advertising_data2[ 3 ] = { 0x0a, 0x0b, 0x0c };
+        server.set_runtime_custom_advertising_data( std::begin( advertising_data2 ), 3 );
+        server.run();
+
+        last_advertising = server.advertisings().back().transmitted_data;
+        const std::initializer_list< std::uint8_t > expected2 = {
+            0x40, 0x09,                             // header
+            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0,     // AdvA:  c0:0f:15:08:11:47 (random)
+            0x0a, 0x0b, 0x0c
+        };
+
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            last_advertising.begin(), last_advertising.end(),
+            expected2.begin(), expected2.end() );
+    }
+
 
 BOOST_AUTO_TEST_SUITE_END()

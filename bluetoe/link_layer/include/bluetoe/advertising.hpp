@@ -1153,13 +1153,11 @@ namespace link_layer {
 
                 if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
-                    LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
-
-                    link_layer.set_access_address_and_crc_init(
+                    link_layer().set_access_address_and_crc_init(
                         this->advertising_radio_access_address,
                         this->advertising_crc_init );
 
-                    link_layer.schedule_advertisment(
+                    link_layer().schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
                         write_buffer( response_data ),
@@ -1178,8 +1176,6 @@ namespace link_layer {
              */
             bool handle_adv_receive( read_buffer receive, device_address& remote_address )
             {
-                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
-
                 if ( this->is_valid_connect_request( receive ) )
                 {
                     using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
@@ -1189,7 +1185,7 @@ namespace link_layer {
 
                     remote_address = device_address( &body[ 0 ], header & 0x40 );
 
-                    if ( link_layer.is_connection_request_in_filter( remote_address ) )
+                    if ( link_layer().is_connection_request_in_filter( remote_address ) )
                         return true;
                 }
 
@@ -1200,20 +1196,28 @@ namespace link_layer {
 
             void handle_adv_timeout()
             {
-                const read_buffer advertising_data = this->get_advertising_data();
+                const read_buffer advertising_data = link_layer().l2cap_adverting_data_or_scan_response_data_changed()
+                    ? this->fill_advertising_data()
+                    : this->get_advertising_data();
+
                 const read_buffer response_data    = this->get_advertising_response_data();
 
                 if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
 
-                    static_cast< LinkLayer& >( *this ).schedule_advertisment(
+                    link_layer().schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
                         write_buffer( response_data ),
                         this->next_adv_event(),
                         this->advertising_receive_buffer() );
                 }
+            }
+        private:
+            LinkLayer& link_layer()
+            {
+                return static_cast< LinkLayer& >( *this );
             }
         };
 
@@ -1369,13 +1373,11 @@ namespace link_layer {
 
                 if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
-                    LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
-
-                    link_layer.set_access_address_and_crc_init(
+                    link_layer().set_access_address_and_crc_init(
                         this->advertising_radio_access_address,
                         this->advertising_crc_init );
 
-                    link_layer.schedule_advertisment(
+                    link_layer().schedule_advertisment(
                         this->current_channel(),
                         write_buffer( advertising_data ),
                         write_buffer( response_data ),
@@ -1391,8 +1393,6 @@ namespace link_layer {
 
             bool handle_adv_receive( read_buffer receive, device_address& remote_address )
             {
-                LinkLayer& link_layer  = static_cast< LinkLayer& >( *this );
-
                 if ( this->is_valid_connect_request( receive, selected_ ) )
                 {
                     using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
@@ -1402,7 +1402,7 @@ namespace link_layer {
 
                     remote_address = device_address( &body[ 0 ], header & 0x40 );
 
-                    if ( link_layer.is_connection_request_in_filter( remote_address ) )
+                    if ( link_layer().is_connection_request_in_filter( remote_address ) )
                         return true;
                 }
 
@@ -1413,7 +1413,8 @@ namespace link_layer {
 
             void handle_adv_timeout()
             {
-                const bool fill_data = selected_ != proposal_;
+                const bool fill_data = selected_ != proposal_
+                    || link_layer().l2cap_adverting_data_or_scan_response_data_changed();
 
                 selected_ = proposal_;
                 const read_buffer advertising_data = fill_data
@@ -1446,6 +1447,10 @@ namespace link_layer {
             }
 
         private:
+            LinkLayer& link_layer()
+            {
+                return static_cast< LinkLayer& >( *this );
+            }
 
             unsigned selected_;
             unsigned proposal_;
