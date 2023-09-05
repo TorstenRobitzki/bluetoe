@@ -28,6 +28,11 @@ struct link_layer_base
         return Respond;
     }
 
+    bool l2cap_adverting_data_or_scan_response_data_changed() const
+    {
+        return false;
+    }
+
     void schedule_advertisment(
         unsigned,
         const bluetoe::link_layer::write_buffer&,
