@@ -589,6 +589,15 @@ namespace link_layer {
          */
         const device_address& local_address() const;
 
+        /**
+         * @brief set the local address
+         *
+         * The prefered method to define the address of the device is still through the
+         * use of bluetoe::link_layer::static_address. This function is intendet to be
+         * used, if the device has to change it's address at runtime.
+         */
+        void local_address( const device_address& new_address );
+
         /** @cond HIDDEN_SYMBOLS */
         using radio_t = ScheduledRadio<
                 details::buffer_sizes< Options... >::tx_size,
@@ -1546,6 +1555,12 @@ namespace link_layer {
     const device_address& link_layer< Server, ScheduledRadio, Options... >::local_address() const
     {
         return address_;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::local_address( const device_address& new_address )
+    {
+        address_ = new_address;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
