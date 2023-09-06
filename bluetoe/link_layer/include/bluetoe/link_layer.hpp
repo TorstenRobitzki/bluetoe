@@ -745,7 +745,7 @@ namespace link_layer {
         // TODO: calculate the maximum required LL buffer size based on the supported features
         static constexpr std::size_t    maximum_ll_payload_size = 27u;
 
-        const device_address            address_;
+        device_address                  address_;
         channel_map                     channels_;
         unsigned                        cumulated_sleep_clock_accuracy_;
         delta_time                      transmit_window_offset_;
