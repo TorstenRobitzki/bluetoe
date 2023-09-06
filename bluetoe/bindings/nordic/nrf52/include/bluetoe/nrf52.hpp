@@ -566,6 +566,9 @@ namespace bluetoe
 
             using lock_guard = typename Hardware::lock_guard;
 
+            // no native white list implementation atm
+            static constexpr std::size_t radio_maximum_white_list_entries = 0;
+
             /**
              * @brief indicates support for 2Mbit
              */
