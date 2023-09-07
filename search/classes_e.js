@@ -14,5 +14,7 @@ var searchData=
   ['read_5fhandler_5fcv_11',['read_handler_cv',['../structbluetoe_1_1read__handler__cv.html',1,'bluetoe']]],
   ['read_5fhandler_5fv_12',['read_handler_v',['../structbluetoe_1_1read__handler__v.html',1,'bluetoe']]],
   ['require_5fman_5fin_5fthe_5fmiddle_5fprotection_13',['require_man_in_the_middle_protection',['../structbluetoe_1_1require__man__in__the__middle__protection.html',1,'bluetoe']]],
-  ['requires_5fencryption_14',['requires_encryption',['../structbluetoe_1_1requires__encryption.html',1,'bluetoe']]]
+  ['requires_5fencryption_14',['requires_encryption',['../structbluetoe_1_1requires__encryption.html',1,'bluetoe']]],
+  ['runtime_5fcustom_5fadvertising_5fdata_15',['runtime_custom_advertising_data',['../structbluetoe_1_1runtime__custom__advertising__data.html',1,'bluetoe']]],
+  ['runtime_5fcustom_5fscan_5fresponse_5fdata_16',['runtime_custom_scan_response_data',['../structbluetoe_1_1runtime__custom__scan__response__data.html',1,'bluetoe']]]
 ];

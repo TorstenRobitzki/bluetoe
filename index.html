@@ -157,7 +157,7 @@ Server</h2>
 <div class="line">    <a class="code hl_class" href="classbluetoe_1_1server.html">bluetoe::server</a>&lt;</div>
 <div class="line">       temperature_and_io_pin_service</div>
 <div class="line">    &gt;;</div>
-<div class="ttc" id="aclassbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server.</div><div class="ttdef"><b>Definition:</b> server.hpp:63</div></div>
+<div class="ttc" id="aclassbluetoe_1_1server_html"><div class="ttname"><a href="classbluetoe_1_1server.html">bluetoe::server</a></div><div class="ttdoc">Root of the declaration of a GATT server.</div><div class="ttdef"><b>Definition:</b> server.hpp:85</div></div>
 </div><!-- fragment --><p>This is a very minimalistic example. A more sophisticated example would take serveral services and would give the server a name and such details. Bluetoe already applies a lot of defaults. A <a class="el" href="structbluetoe_1_1gap__service__for__gatt__servers.html">bluetoe::gap_service_for_gatt_servers</a> is added by default to the server.</p>
 <h1><a class="anchor" id="hardware_binding"></a>
 Binding to Hardware</h1>
@@ -169,7 +169,7 @@ Binding to Hardware</h1>
 <div class="line">    <span class="keywordflow">for</span> ( ;; )</div>
 <div class="line">        server.run();</div>
 <div class="line">}</div>
-<div class="ttc" id="anrf52_8hpp_html_a494ce89968171ec5603fb785266aeb03"><div class="ttname"><a href="nrf52_8hpp.html#a494ce89968171ec5603fb785266aeb03">bluetoe::nrf52</a></div><div class="ttdeci">typename nrf52_details::link_layer_factory&lt; Server, details::requires_encryption_support_t&lt; Server &gt;::value, typename nrf52_details::radio_options&lt; Options... &gt;::result, typename nrf52_details::link_layer_options&lt; Options... &gt;::result &gt;::link_layer nrf52</div><div class="ttdoc">binding for nRF52 microcontrollers</div><div class="ttdef"><b>Definition:</b> nrf52.hpp:981</div></div>
+<div class="ttc" id="anrf52_8hpp_html_a494ce89968171ec5603fb785266aeb03"><div class="ttname"><a href="nrf52_8hpp.html#a494ce89968171ec5603fb785266aeb03">bluetoe::nrf52</a></div><div class="ttdeci">typename nrf52_details::link_layer_factory&lt; Server, details::requires_encryption_support_t&lt; Server &gt;::value, typename nrf52_details::radio_options&lt; Options... &gt;::result, typename nrf52_details::link_layer_options&lt; Options... &gt;::result &gt;::link_layer nrf52</div><div class="ttdoc">binding for nRF52 microcontrollers</div><div class="ttdef"><b>Definition:</b> nrf52.hpp:988</div></div>
 </div><!-- fragment --><p><a class="el" href="nrf52_8hpp.html#a494ce89968171ec5603fb785266aeb03" title="binding for nRF52 microcontrollers">bluetoe::nrf52&lt;&gt;</a> is just a template alias that points to <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html" title="link layer implementation">bluetoe::link_layer::link_layer</a>, which takes additonal link layer configuration arguments. Again, Bluetoe applies resonable default to the link layer configuration. But if needed, parameters like buffer sizes, are configurable.</p>
 <h1><a class="anchor" id="define_gap"></a>
 And what's with GAP?</h1>
@@ -181,7 +181,7 @@ Advertising</h1>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Apr 21 2023 10:13:56 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.6
+Generated on Thu Sep 7 2023 13:18:53 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.6
 </small></address>
 </body>
 </html>

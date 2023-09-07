@@ -139,10 +139,29 @@ std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>fill_l2cap_adv
 std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>fill_l2cap_scan_response_data</b> (std::uint8_t *buffer, std::size_t buffer_size) const</td></tr>
 <tr class="memdesc:a37d908f87d6958ccbdff8187827d4ad9"><td class="mdescLeft">&#160;</td><td class="mdescRight">fills the given buffer with l2cap scan response payload <br /></td></tr>
 <tr class="separator:a37d908f87d6958ccbdff8187827d4ad9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a27e9782daca961ad29b19deb514fc58d"><td class="memItemLeft" align="right" valign="top"><a id="a27e9782daca961ad29b19deb514fc58d" name="a27e9782daca961ad29b19deb514fc58d"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>l2cap_adverting_data_or_scan_response_data_changed</b> ()</td></tr>
+<tr class="memdesc:a27e9782daca961ad29b19deb514fc58d"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns true, if advertising or scan response data might have changed. <br /></td></tr>
+<tr class="separator:a27e9782daca961ad29b19deb514fc58d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2d8f072eae20653eb42ce0c4b027dc12"><td class="memItemLeft" align="right" valign="top"><a id="a2d8f072eae20653eb42ce0c4b027dc12" name="a2d8f072eae20653eb42ce0c4b027dc12"></a>
+std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><b>supported_link_layer_features</b> () const</td></tr>
+<tr class="memdesc:a2d8f072eae20653eb42ce0c4b027dc12"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the feature mask of supported link layer features <br /></td></tr>
+<tr class="separator:a2d8f072eae20653eb42ce0c4b027dc12"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afa580f51793d5a89aa16d67c9f93e571"><td class="memItemLeft" align="right" valign="top"><a id="afa580f51793d5a89aa16d67c9f93e571" name="afa580f51793d5a89aa16d67c9f93e571"></a>
+std::uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>supported_link_layer_version</b> () const</td></tr>
+<tr class="memdesc:afa580f51793d5a89aa16d67c9f93e571"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the Version field of the LL_VERSION_IND PDU <br /></td></tr>
+<tr class="separator:afa580f51793d5a89aa16d67c9f93e571"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a36a5ef95578051ffb8679e48c8bb84e1"><td class="memItemLeft" align="right" valign="top"><a id="a36a5ef95578051ffb8679e48c8bb84e1" name="a36a5ef95578051ffb8679e48c8bb84e1"></a>
+std::uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>link_layer_company_identifier</b> () const</td></tr>
+<tr class="memdesc:a36a5ef95578051ffb8679e48c8bb84e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the Company_Identifier field of the LL_VERSION_IND PDU <br /></td></tr>
+<tr class="separator:a36a5ef95578051ffb8679e48c8bb84e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb646c65ceaab630e7d25d2190149d6d"><td class="memItemLeft" align="right" valign="top"><a id="aeb646c65ceaab630e7d25d2190149d6d" name="aeb646c65ceaab630e7d25d2190149d6d"></a>
 const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>local_address</b> () const</td></tr>
 <tr class="memdesc:aeb646c65ceaab630e7d25d2190149d6d"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the own local device address <br /></td></tr>
 <tr class="separator:aeb646c65ceaab630e7d25d2190149d6d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a22b83872029abde52232f5dcd81cbbe7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html#a22b83872029abde52232f5dcd81cbbe7">local_address</a> (const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;new_address)</td></tr>
+<tr class="memdesc:a22b83872029abde52232f5dcd81cbbe7"><td class="mdescLeft">&#160;</td><td class="mdescRight">set the local address  <br /></td></tr>
+<tr class="separator:a22b83872029abde52232f5dcd81cbbe7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html">bluetoe::link_layer::ll_l2cap_sdu_buffer&lt; ScheduledRadio&lt; details::buffer_sizes&lt; Options... &gt;::tx_size, details::buffer_sizes&lt; Options... &gt;::rx_size, link_layer&lt; Server, ScheduledRadio, Options... &gt; &gt;, details::l2cap_layer&lt; Server, ScheduledRadio, Options... &gt;::required_minimum_l2cap_buffer_size &gt;</a></td></tr>
 <tr class="memitem:a0150d85cc948a6edd3d1bfa2d963a171 inherit pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structbluetoe_1_1link__layer_1_1read__buffer.html">read_buffer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer.html#a0150d85cc948a6edd3d1bfa2d963a171">allocate_l2cap_transmit_buffer</a> (std::size_t payload_size)</td></tr>
 <tr class="memdesc:a0150d85cc948a6edd3d1bfa2d963a171 inherit pub_methods_classbluetoe_1_1link__layer_1_1ll__l2cap__sdu__buffer"><td class="mdescLeft">&#160;</td><td class="mdescRight">allocate a L2CAP buffer that is ready to be filled by the L2CAP layer  <br /></td></tr>
@@ -322,6 +341,29 @@ template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t Re
 
 </div>
 </div>
+<a id="a22b83872029abde52232f5dcd81cbbe7" name="a22b83872029abde52232f5dcd81cbbe7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a22b83872029abde52232f5dcd81cbbe7">&#9670;&#160;</a></span>local_address()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t ReceiveSize, class CallBack &gt; class ScheduledRadio, typename ... Options&gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classbluetoe_1_1link__layer_1_1link__layer.html">bluetoe::link_layer::link_layer</a>&lt; Server, ScheduledRadio, Options &gt;::local_address </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classbluetoe_1_1link__layer_1_1device__address.html">device_address</a> &amp;&#160;</td>
+          <td class="paramname"><em>new_address</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>set the local address </p>
+<p>The prefered method to define the address of the device is still through the use of <a class="el" href="structbluetoe_1_1link__layer_1_1static__address.html" title="defines a defined static random address">bluetoe::link_layer::static_address</a>. This function is intendet to be used, if the device has to change it's address at runtime. </p>
+
+</div>
+</div>
 <a id="a25ca1cf2ef1af2cecf426d943b1d05ab" name="a25ca1cf2ef1af2cecf426d943b1d05ab"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a25ca1cf2ef1af2cecf426d943b1d05ab">&#9670;&#160;</a></span>phy_update_request_to_2mbit()</h2>
 
@@ -394,7 +436,7 @@ template&lt;class Server , template&lt; std::size_t TransmitSize, std::size_t Re
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri Apr 21 2023 10:13:56 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.6
+Generated on Thu Sep 7 2023 13:18:53 for BlueToe by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.6
 </small></address>
 </body>
 </html>
