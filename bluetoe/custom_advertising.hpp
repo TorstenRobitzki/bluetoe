@@ -57,6 +57,12 @@ namespace bluetoe {
      */
     struct runtime_custom_advertising_data
     {
+        /**
+         * @brief set the advertising data to be used.
+         *
+         * The function copies to the data given by begin and buffer_size into an
+         * internal buffer.
+         */
         void set_runtime_custom_advertising_data( const std::uint8_t* begin, std::size_t buffer_size )
         {
             advertising_data_size_ = std::min( std::size_t{ advertising_data_max_size }, buffer_size );
@@ -102,6 +108,9 @@ namespace bluetoe {
 
     /**
      * @brief provides data to be use in response to a scan request
+     *
+     * @sa runtime_custom_scan_response_data
+     * @sa auto_scan_response_data
      */
     template < std::size_t Size, const std::uint8_t (&Data)[ Size ] >
     struct custom_scan_response_data
@@ -126,6 +135,15 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief options, that allows Bluetoe to create the scan response data
+     *
+     * This is the default and currently, the implementation provides an empty
+     * scan response.
+     *
+     * @sa runtime_custom_scan_response_data
+     * @sa custom_scan_response_data
+     */
     struct auto_scan_response_data
     {
         /** @cond HIDDEN_SYMBOLS */
@@ -140,8 +158,20 @@ namespace bluetoe {
         /** @endcond */
     };
 
+    /**
+     * @brief option, that allows to define the scan response data at runtime
+     *
+     * @sa auto_scan_response_data
+     * @sa custom_scan_response_data
+     */
     struct runtime_custom_scan_response_data
     {
+        /**
+         * @brief set the scan response data to be used.
+         *
+         * The function copies to the data given by begin and buffer_size into an
+         * internal buffer.
+         */
         void set_runtime_custom_scan_response_data( const std::uint8_t* begin, std::size_t buffer_size )
         {
             scan_response_data_size_ = std::min( std::size_t{ scan_response_data_max_size }, buffer_size );

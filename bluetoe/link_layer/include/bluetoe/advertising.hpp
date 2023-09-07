@@ -888,6 +888,9 @@ namespace link_layer {
      */
     struct variable_advertising_channel_map : details::advertising_channel_map_base
     {
+        /**
+         * @brief adds the given channel to the map
+         */
         void add_channel_to_advertising_channel_map( unsigned channel )
         {
             assert( channel >= first_advertising_channel );
@@ -899,6 +902,11 @@ namespace link_layer {
             current_channel_index_ = first_channel_index();
         }
 
+        /**
+         * @brief removes the channel from the map.
+         *
+         * Make sure to have at least one remaining channel when starting advertising.
+         */
         void remove_channel_from_advertsing_channel_map( unsigned channel )
         {
             assert( channel >= first_advertising_channel );
