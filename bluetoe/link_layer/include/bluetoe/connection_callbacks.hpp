@@ -30,6 +30,10 @@ namespace link_layer {
      *
      * template < typename ConnectionData >
      * void ll_connection_closed( ConnectionData& connection );
+     *
+     * template < typename ConnectionData >
+     * void ll_version( std::uint8_t version, std::uint16_t company, std::uint16_t subversion, const ConnectionData& connection );
+     *
      */
     template < typename T, T& Obj >
     struct connection_callbacks {
@@ -86,6 +90,16 @@ namespace link_layer {
                 r.wake_up();
             }
 
+            template < class Connection, class Radio >
+            void version_indication_received( const std::uint8_t* details, Connection& connection, Radio& r )
+            {
+                event_type_ = version;
+                connection_ = &connection;
+                std::copy( details, details + version_ind_size, &raw_details_[ 0 ] );
+
+                r.wake_up();
+            }
+
             template < class LinkLayer >
             void handle_connection_events() {
                 if ( event_type_ == established )
@@ -100,6 +114,10 @@ namespace link_layer {
                 {
                     call_ll_connection_closed< T >( Obj, connection_data< LinkLayer >() );
                 }
+                else if ( event_type_ == version )
+                {
+                    call_ll_version< T >( Obj, connection_data< LinkLayer >() );
+                }
 
                 event_type_ = none;
                 connection_ = nullptr;
@@ -110,12 +128,16 @@ namespace link_layer {
                 none,
                 established,
                 changed,
-                closed
+                closed,
+                version
             } event_type_;
 
             void*                   connection_;
             connection_details      details_;
             connection_addresses    addresses_;
+
+            static constexpr std::size_t version_ind_size = 5u;
+            std::uint8_t raw_details_[ version_ind_size ];
 
             template < typename LinkLayer >
             typename LinkLayer::connection_data_t& connection_data()
@@ -155,6 +177,19 @@ namespace link_layer {
                 return 0;
             }
 
+            template < typename TT, typename Connection >
+            auto call_ll_version( TT& obj, Connection& connection )
+                -> decltype(&TT::template ll_version< Connection >)
+            {
+                obj.ll_version(
+                    raw_details_[ 0 ],
+                    bluetoe::details::read_16bit( &raw_details_[ 1 ] ),
+                    bluetoe::details::read_16bit( &raw_details_[ 3 ] ),
+                    connection );
+
+                return 0;
+            }
+
             template < typename TT >
             void call_ll_connection_established( ... )
             {
@@ -167,6 +202,11 @@ namespace link_layer {
 
             template < typename TT >
             void call_ll_connection_closed( ... )
+            {
+            }
+
+            template < typename TT >
+            void call_ll_version( ... )
             {
             }
         };
@@ -197,6 +237,9 @@ namespace link_layer {
 
                 template < class LinkLayer >
                 void handle_connection_events() {}
+
+                template < class Connection, class Radio >
+                void version_indication_received( const std::uint8_t*, Connection&, Radio& ) {}
             };
         };
     }

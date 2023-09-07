@@ -1388,6 +1388,8 @@ namespace link_layer {
                     static_cast< std::uint8_t >( company_identifier >> 8 ),
                     0x00, 0x00
                 } );
+
+                this->version_indication_received( &body[ 1 ], connection_data_, static_cast< radio_t& >( *this ) );
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {

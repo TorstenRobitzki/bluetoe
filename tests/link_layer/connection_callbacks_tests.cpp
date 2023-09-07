@@ -65,6 +65,29 @@ struct only_disconnect_callback_t
 
 } only_disconnect_callback;
 
+struct only_version_callback_t
+{
+    only_version_callback_t()
+        : only_version_called( false )
+    {
+    }
+
+    template < typename ConnectionData >
+    void ll_version( std::uint8_t version, std::uint16_t company, std::uint16_t subversion, const ConnectionData& )
+    {
+        only_version_called = true;
+        version_version = version;
+        version_company = company;
+        version_subversion = subversion;
+    }
+
+    bool only_version_called;
+    std::uint8_t version_version;
+    std::uint16_t version_company;
+    std::uint16_t version_subversion;
+
+} only_version_callback;
+
 struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
 {
 
@@ -336,4 +359,31 @@ BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconne
     run( 2 );
 
     BOOST_CHECK( only_disconnect_callback.only_disconnect_called );
+}
+
+using link_layer_only_version_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< only_version_callback_t, only_version_callback >,
+        test::buffer_sizes
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( version_indication, link_layer_only_version_callback )
+{
+    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
+
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    add_connection_event_respond(
+        {
+            0x03, 0x06,
+            0x0c, 0x08, 0x22, 0x33, 0xbb, 0xaa
+        } );
+
+    run( 2 );
+
+    BOOST_REQUIRE( only_version_callback.only_version_called );
+    BOOST_CHECK_EQUAL( only_version_callback.version_version, 0x08 );
+    BOOST_CHECK_EQUAL( only_version_callback.version_company, 0x3322 );
+    BOOST_CHECK_EQUAL( only_version_callback.version_subversion, 0xaabb );
 }
