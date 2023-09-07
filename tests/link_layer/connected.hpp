@@ -212,9 +212,9 @@ using unconnected_base = unconnected_base_t< test::small_temperature_service, te
 struct unconnected : unconnected_base< bluetoe::link_layer::buffer_sizes< 61u, 61u > > {};
 
 template < typename ... Options >
-struct connecting_base : unconnected
+struct connecting_base : unconnected_base< Options... >
 {
-    typedef bluetoe::link_layer::link_layer< test::small_temperature_service, test::radio, Options... > base;
+    using base = unconnected_base< Options... >;
 
     connecting_base()
     {

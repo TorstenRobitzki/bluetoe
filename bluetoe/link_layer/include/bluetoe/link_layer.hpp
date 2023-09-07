@@ -548,6 +548,12 @@ namespace link_layer {
         bool phy_update_request_to_2mbit();
 
         /**
+         * @brief initiate a remote version request
+         * @todo Add parameter that identifies the connection.
+         */
+        bool remote_versions_request();
+
+        /**
          * @brief terminates the give connection
          *
          * @todo Add parameter that identifies the connection.
@@ -779,6 +785,7 @@ namespace link_layer {
         bool                            connection_parameters_request_pending_;
         bool                            connection_parameters_request_running_;
         bool                            phy_update_request_pending_;
+        bool                            remote_versions_request_pending_;
 
         // default configuration parameters
         typedef                         advertising_interval< 100 >         default_advertising_interval;
@@ -811,6 +818,7 @@ namespace link_layer {
         , connection_parameters_request_pending_( false )
         , connection_parameters_request_running_( false )
         , phy_update_request_pending_( false )
+        , remote_versions_request_pending_( false )
     {
         using user_timer_t = typename bluetoe::details::find_by_meta_type<
             details::synchronized_connection_event_callback_meta_type,
@@ -866,6 +874,7 @@ namespace link_layer {
                 connection_parameters_request_running_  = false;
                 phy_update_request_pending_             = false;
                 pending_event_                          = false;
+                remote_versions_request_pending_        = false;
 
                 this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
 
@@ -1049,7 +1058,18 @@ namespace link_layer {
         this->wake_up();
 
         return true;
+    }
 
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::remote_versions_request()
+    {
+        if ( remote_versions_request_pending_ )
+            return false;
+
+        remote_versions_request_pending_ = true;
+        this->wake_up();
+
+        return true;
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1101,7 +1121,7 @@ namespace link_layer {
     {
         static constexpr std::uint8_t connection_param_req_size = 24u;
 
-        if ( !connection_parameters_request_pending_ && !phy_update_request_pending_ )
+        if ( !connection_parameters_request_pending_ && !phy_update_request_pending_ && !remote_versions_request_pending_ )
             return;
 
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
@@ -1142,6 +1162,20 @@ namespace link_layer {
             fill< layout_t >( out_buffer, {
                 ll_control_pdu_code, 3, LL_PHY_REQ,
                 details::phy_ll_encoding::le_2m_phy, details::phy_ll_encoding::le_2m_phy } );
+
+            this->commit_ll_transmit_buffer( out_buffer );
+        }
+        else if ( remote_versions_request_pending_ )
+        {
+            remote_versions_request_pending_ = false;
+
+            fill< layout_t >( out_buffer, {
+                ll_control_pdu_code, 6, LL_VERSION_IND,
+                LL_VERSION_NR,
+                static_cast< std::uint8_t >( company_identifier ),
+                static_cast< std::uint8_t >( company_identifier >> 8 ),
+                0x00, 0x00
+            } );
 
             this->commit_ll_transmit_buffer( out_buffer );
         }
