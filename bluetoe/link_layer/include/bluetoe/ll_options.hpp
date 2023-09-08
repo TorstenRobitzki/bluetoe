@@ -14,6 +14,7 @@ namespace link_layer
         struct device_address_meta_type {};
         struct buffer_sizes_meta_type {};
         struct desired_connection_parameters_meta_type {};
+        struct custom_l2cap_layer_meta_type {};
     }
 
     /**
@@ -243,6 +244,21 @@ namespace link_layer
     };
     /** @endcond */
 
+    /**
+     * @brief specify the l2cap layer to be used by the link_layer
+     */
+    template < template <class LinkLayer > class L2CapLayer >
+    struct ll_custom_l2cap_layer
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::custom_l2cap_layer_meta_type,
+            details::valid_link_layer_option_meta_type {};
+
+        template < class LinkLayer >
+        using l2cap_layer = L2CapLayer< LinkLayer >;
+        /** @endcond */
+    };
 }
 }
 

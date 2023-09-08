@@ -389,6 +389,9 @@ namespace link_layer {
                 no_phy_update_request_impl
             >::type;
 
+        /*
+         * Construct the l2cap layer
+         */
         template <
             class Server,
             template <
@@ -400,17 +403,39 @@ namespace link_layer {
             typename ... Options
         >
         struct l2cap_layer {
-            using impl = bluetoe::details::l2cap<
-                link_layer< Server, ScheduledRadio, Options... >,
-                details::select_link_layer_security_link_state< Server >,
-                Server,
-                typename details::signaling_channel< Options... >::type,
-                typename details::security_manager<
-                    link_layer< Server, ScheduledRadio, Options... >,
-                    Server, Options...
-                >::type
-            >;
+            using link_layer_t = link_layer< Server, ScheduledRadio, Options... >;
 
+            struct default_l2cap_layer {
+
+                using gatt_server       = Server;
+
+                using signaling_channel = typename details::signaling_channel<
+                    Options... >::type;
+
+                using security_manager  = typename details::security_manager<
+                    link_layer_t,
+                    gatt_server, Options...
+                >::type;
+
+                template < class LinkLayer >
+                using l2cap_layer = bluetoe::details::l2cap<
+                    LinkLayer,
+                    details::select_link_layer_security_link_state< gatt_server >,
+                    gatt_server,
+                    signaling_channel,
+                    security_manager
+                >;
+
+                using meta_type = details::custom_l2cap_layer_meta_type;
+            };
+
+            using container = typename bluetoe::details::find_by_meta_type<
+                details::custom_l2cap_layer_meta_type,
+                Options...,
+                default_l2cap_layer
+            >::type;
+
+            using impl = typename container::l2cap_layer< link_layer_t >;
             static constexpr std::size_t required_minimum_l2cap_buffer_size = impl::maximum_mtu_size;
         };
 
