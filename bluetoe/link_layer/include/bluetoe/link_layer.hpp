@@ -435,7 +435,7 @@ namespace link_layer {
                 default_l2cap_layer
             >::type;
 
-            using impl = typename container::l2cap_layer< link_layer_t >;
+            using impl = typename container::template l2cap_layer< link_layer_t >;
             static constexpr std::size_t required_minimum_l2cap_buffer_size = impl::maximum_mtu_size;
         };
 
