@@ -52,16 +52,19 @@ struct only_disconnect_callback_t
 {
     only_disconnect_callback_t()
         : only_disconnect_called( false )
+        , only_disconnect_reason( ~0 )
     {
     }
 
     template < typename ConnectionData >
-    void ll_connection_closed( const ConnectionData& )
+    void ll_connection_closed( std::uint8_t reason, const ConnectionData& )
     {
+        only_disconnect_reason = reason;
         only_disconnect_called = true;
     }
 
     bool only_disconnect_called;
+    std::uint8_t only_disconnect_reason;
 
 } only_disconnect_callback;
 
@@ -341,7 +344,8 @@ BOOST_FIXTURE_TEST_CASE( connection_lost_by_timeout, link_layer_only_disconnect_
     ll_empty_pdus( 2 );
     run( 20 );
 
-    BOOST_CHECK( only_disconnect_callback.only_disconnect_called );
+    BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
+    BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x08 );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconnect_callback )
@@ -358,7 +362,24 @@ BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconne
 
     run( 2 );
 
-    BOOST_CHECK( only_disconnect_callback.only_disconnect_called );
+    BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
+    BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x12 );
+}
+
+BOOST_FIXTURE_TEST_CASE( connection_closed, link_layer_only_disconnect_callback )
+{
+    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
+
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    add_connection_event_respond([&](){
+        disconnect( 0x22 );
+    });
+
+    run( 2 );
+
+    BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
+    BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x22 );
 }
 
 using link_layer_only_version_callback = mixin_reset_callbacks<

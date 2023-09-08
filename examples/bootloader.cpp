@@ -42,7 +42,7 @@ public:
              const ConnectionData&                           connection );
 
     template < typename ConnectionData >
-    void ll_connection_closed( const ConnectionData& connection );
+    void ll_connection_closed( std::uint8_t reason, const ConnectionData& connection );
 
 private:
     std::uint32_t crc_table_[ 256 ];
@@ -293,6 +293,6 @@ void flash_handler::ll_connection_changed(
 }
 
 template < typename ConnectionData >
-void flash_handler::ll_connection_closed( const ConnectionData& )
+void flash_handler::ll_connection_closed( std::uint8_t, const ConnectionData& )
 {
 }

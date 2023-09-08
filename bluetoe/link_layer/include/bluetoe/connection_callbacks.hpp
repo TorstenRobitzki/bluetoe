@@ -29,7 +29,7 @@ namespace link_layer {
      *                ConnectionData&                           connection );
      *
      * template < typename ConnectionData >
-     * void ll_connection_closed( ConnectionData& connection );
+     * void ll_connection_closed( std::uint8_t reason, ConnectionData& connection );
      *
      * template < typename ConnectionData >
      * void ll_version( std::uint8_t version, std::uint16_t company, std::uint16_t subversion, const ConnectionData& connection );
@@ -82,10 +82,11 @@ namespace link_layer {
             }
 
             template < class Connection, class Radio >
-            void connection_closed( Connection& connection, Radio& r )
+            void connection_closed( std::uint8_t reason, Connection& connection, Radio& r )
             {
                 event_type_ = closed;
                 connection_ = &connection;
+                raw_details_[ 0 ] = reason;
 
                 r.wake_up();
             }
@@ -112,7 +113,7 @@ namespace link_layer {
                 }
                 else if ( event_type_ == closed )
                 {
-                    call_ll_connection_closed< T >( Obj, connection_data< LinkLayer >() );
+                    call_ll_connection_closed< T >( Obj, raw_details_[ 0 ], connection_data< LinkLayer >() );
                 }
                 else if ( event_type_ == version )
                 {
@@ -169,10 +170,10 @@ namespace link_layer {
             }
 
             template < typename TT, typename Connection >
-            auto call_ll_connection_closed( TT& obj, Connection& connection )
+            auto call_ll_connection_closed( TT& obj, std::uint8_t reason, Connection& connection )
                 -> decltype(&TT::template ll_connection_closed< Connection >)
             {
-                obj.ll_connection_closed( connection );
+                obj.ll_connection_closed( reason, connection );
 
                 return 0;
             }
@@ -233,7 +234,7 @@ namespace link_layer {
                 void connection_changed( const bluetoe::link_layer::connection_details&, Connection&, Radio& ) {}
 
                 template < class Connection, class Radio >
-                void connection_closed( Connection&, Radio& ) {}
+                void connection_closed( std::uint8_t, Connection&, Radio& ) {}
 
                 template < class LinkLayer >
                 void handle_connection_events() {}

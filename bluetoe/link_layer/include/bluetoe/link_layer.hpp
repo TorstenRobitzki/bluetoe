@@ -561,6 +561,11 @@ namespace link_layer {
         void disconnect();
 
         /**
+         * @brief overload, that allows to specifiy the reason for disconnecting
+         */
+        void disconnect( std::uint8_t reason );
+
+        /**
          * @brief fills the given buffer with l2cap advertising payload
          */
         std::size_t fill_l2cap_advertising_data( std::uint8_t* buffer, std::size_t buffer_size ) const;
@@ -720,6 +725,9 @@ namespace link_layer {
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
         static constexpr std::uint16_t  company_identifier          = 0x0269;
 
+        static constexpr std::uint8_t   connection_terminated_by_local_host = 0x16;
+        static constexpr std::uint8_t   connection_timeout          = 0x08;
+
         struct link_layer_feature {
             enum : std::uint16_t {
                 le_encryption                           = 0x001,
@@ -767,6 +775,7 @@ namespace link_layer {
         std::uint16_t                   used_features_;
         bool                            pending_event_;
         volatile bool                   restart_user_timer_requested_;
+        std::uint8_t                    disconnecting_reason_;
 
         enum class state
         {
@@ -875,6 +884,7 @@ namespace link_layer {
                 phy_update_request_pending_             = false;
                 pending_event_                          = false;
                 remote_versions_request_pending_        = false;
+                disconnecting_reason_                   = connection_timeout;
 
                 this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
 
@@ -1075,8 +1085,15 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::disconnect()
     {
-        state_            = state::disconnecting;
-        termination_send_ = false;
+        disconnect( connection_terminated_by_local_host );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::disconnect( std::uint8_t reason )
+    {
+        state_                = state::disconnecting;
+        termination_send_     = false;
+        disconnecting_reason_ = reason;
 
         this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
@@ -1289,7 +1306,7 @@ namespace link_layer {
         if ( state_ != state::connecting )
         {
             this->synchronized_connection_event_callback_disconnect();
-            this->connection_closed( connection_data_, static_cast< radio_t& >( *this ) );
+            this->connection_closed( disconnecting_reason_, connection_data_, static_cast< radio_t& >( *this ) );
         }
 
         start_advertising_impl();
@@ -1351,8 +1368,6 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::send_control_pdus()
     {
-        static constexpr std::uint8_t connection_terminated_by_local_host = 0x16;
-
         if ( state_ == state::disconnecting && !termination_send_ )
         {
             auto output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
@@ -1361,7 +1376,7 @@ namespace link_layer {
             {
                 fill< layout_t >( output, {
                     ll_control_pdu_code, 2,
-                    LL_TERMINATE_IND, connection_terminated_by_local_host
+                    LL_TERMINATE_IND, disconnecting_reason_
                 } );
 
                 this->commit_ll_transmit_buffer( output );
@@ -1407,6 +1422,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_TERMINATE_IND && size == 2 )
             {
+                disconnecting_reason_ = body[ 1 ];
                 commit = false;
                 result = ll_result::disconnect;
             }
