@@ -61,7 +61,7 @@ namespace link_layer {
          * The returned PDU is not removed from the buffer. To remove the buffer after it is
          * not used any more, free_ll_l2cap_received() must be called.
          *
-         * If there are pending outgoing PDUs there will be an attempt to write then to the
+         * If there are pending outgoing PDUs there will be an attempt to write them to the
          * link layer.
          *
          * @pre buffer is in running mode
