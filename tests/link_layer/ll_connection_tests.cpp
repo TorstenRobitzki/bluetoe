@@ -48,11 +48,11 @@ BOOST_FIXTURE_TEST_CASE( window_size_is_increasing_with_connection_event_timeout
 /*
  * Once the link layer received a PDU from the central, the supervision timeout is in charge
  * In this example, the timeout is 720ms, the connection interval is 30ms, so the timeout is
- * reached after 24 connection intervals (that's the 25th schedule request; plus the first one after the con request).
+ * reached after 24 connection intervals (that's the 25th schedule request).
  */
 BOOST_FIXTURE_TEST_CASE( supervision_timeout_is_in_charge, only_one_pdu_from_central )
 {
-    BOOST_CHECK_EQUAL( connection_events().size(), 26u );
+    BOOST_CHECK_EQUAL( connection_events().size(), 25u );
 }
 
 void add_channel_map_request( unconnected& c, std::uint16_t instance, std::uint64_t map )
@@ -369,7 +369,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_timeout_used, unconnected )
 
     run();
 
-    BOOST_CHECK_EQUAL( connection_events().size(), std::size_t{ 8 + 5 } );
+    BOOST_CHECK_EQUAL( connection_events().size(), std::size_t{ 8 + 4 } );
 }
 
 static void simulate_connection_update_request(
@@ -394,7 +394,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_window_size_0, unconnected )
 {
     simulate_connection_update_request( *this, 5, 0, 40, 0, 25, 6 );
 
-    BOOST_CHECK_EQUAL( connection_events().size(), 17u );
+    BOOST_CHECK_EQUAL( connection_events().size(), 16u );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_offset, unconnected )

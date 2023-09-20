@@ -15,6 +15,7 @@ namespace link_layer
         struct buffer_sizes_meta_type {};
         struct desired_connection_parameters_meta_type {};
         struct custom_l2cap_layer_meta_type {};
+        struct ll_pdu_receive_data_callback_meta_type {};
     }
 
     /**
@@ -259,6 +260,34 @@ namespace link_layer
         using l2cap_layer = L2CapLayer< LinkLayer >;
         /** @endcond */
     };
+
+    template < class Obj, Obj& obj >
+    struct l2cap_callback
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        void pdu_receive_data_callback( const write_buffer& ll_pdu_containing_l2cap_package )
+        {
+            obj.l2cap_callback( ll_pdu_containing_l2cap_package );
+        }
+
+        struct meta_type :
+            details::ll_pdu_receive_data_callback_meta_type,
+            details::valid_link_layer_option_meta_type {};
+    };
+
+    struct no_l2cap_callback
+    {
+        /** @cond HIDDEN_SYMBOLS */
+        void pdu_receive_data_callback( const write_buffer& )
+        {
+        }
+
+        struct meta_type :
+            details::ll_pdu_receive_data_callback_meta_type,
+            details::valid_link_layer_option_meta_type {};
+    };
+
+
 }
 }
 

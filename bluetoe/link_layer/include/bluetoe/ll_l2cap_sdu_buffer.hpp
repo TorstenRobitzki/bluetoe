@@ -13,8 +13,10 @@ namespace link_layer {
      *
      * If the L2CAP MTU size is 23, this class shall no generate any overhead as SDUs are directly
      * mapped to LL PDUs.
+     *
+     * @tparam ReceiveCallbacks type that has to provide a callback for raw received PDUs
      */
-    template < class BufferedRadio, std::size_t MTUSize >
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
     class ll_l2cap_sdu_buffer : public BufferedRadio
     {
     public:
@@ -114,8 +116,8 @@ namespace link_layer {
      * @brief specialisation for the minimum MTU size, which would not require any addition
      *        fragmentation / defragmentation
      */
-    template < class BufferedRadio >
-    class ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size > : public BufferedRadio
+    template < class BufferedRadio, class ReceiveCallbacks >
+    class ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size > : public BufferedRadio
     {
     public:
         read_buffer allocate_l2cap_transmit_buffer( std::size_t size );
@@ -133,8 +135,8 @@ namespace link_layer {
     };
 
     // implementation
-    template < class BufferedRadio, std::size_t MTUSize >
-    ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::ll_l2cap_sdu_buffer()
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::ll_l2cap_sdu_buffer()
         : receive_size_( 0 )
         , receive_buffer_used_( 0 )
         , transmit_size_( 0 )
@@ -142,8 +144,8 @@ namespace link_layer {
     {
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::allocate_l2cap_transmit_buffer( std::size_t payload_size )
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::allocate_l2cap_transmit_buffer( std::size_t payload_size )
     {
         assert( payload_size <= MTUSize );
 
@@ -153,16 +155,16 @@ namespace link_layer {
         return { transmit_buffer_, payload_size + overall_overhead };
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::allocate_ll_transmit_buffer( std::size_t payload_size )
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::allocate_ll_transmit_buffer( std::size_t payload_size )
     {
         try_send_pdus();
 
         return this->allocate_transmit_buffer( payload_size + ll_overhead );
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::commit_l2cap_transmit_buffer( read_buffer buffer )
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::commit_l2cap_transmit_buffer( read_buffer buffer )
     {
         const auto          body    = layout::body( buffer );
         const std::size_t   size    = bluetoe::details::read_16bit( body.first ) + overall_overhead;
@@ -173,14 +175,14 @@ namespace link_layer {
         try_send_pdus();
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::commit_ll_transmit_buffer( read_buffer buffer )
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::commit_ll_transmit_buffer( read_buffer buffer )
     {
         this->commit_transmit_buffer( buffer );
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    write_buffer ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::next_ll_l2cap_received()
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    write_buffer ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::next_ll_l2cap_received()
     {
         try_send_pdus();
 
@@ -196,6 +198,8 @@ namespace link_layer {
             // link layer control PDUs are not fragmented by default
             if ( type == pdu_type_link_layer )
                 return pdu;
+
+            static_cast< ReceiveCallbacks* >( this )->pdu_receive_data_callback( pdu );
 
             // l2cap message
             const auto          body        = layout::body( pdu );
@@ -234,8 +238,8 @@ namespace link_layer {
         return { nullptr, 0 };
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::add_to_receive_buffer( const std::uint8_t* begin, const std::uint8_t* end )
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::add_to_receive_buffer( const std::uint8_t* begin, const std::uint8_t* end )
     {
         const std::size_t copy_size = std::min< std::size_t >( receive_size_, end - begin );
 
@@ -244,8 +248,8 @@ namespace link_layer {
         receive_size_ -= copy_size;
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::try_send_pdus()
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::try_send_pdus()
     {
         while ( transmit_size_ )
         {
@@ -289,8 +293,8 @@ namespace link_layer {
         transmit_buffer_used_ = 0;
     }
 
-    template < class BufferedRadio, std::size_t MTUSize >
-    void ll_l2cap_sdu_buffer< BufferedRadio, MTUSize >::free_ll_l2cap_received()
+    template < class BufferedRadio, class ReceiveCallbacks, std::size_t MTUSize >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, MTUSize >::free_ll_l2cap_received()
     {
         if (receive_buffer_used_)
         {
@@ -305,38 +309,38 @@ namespace link_layer {
 
 
     // implementation
-    template < class BufferedRadio >
-    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::allocate_l2cap_transmit_buffer( std::size_t size )
+    template < class BufferedRadio, class ReceiveCallbacks >
+    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size >::allocate_l2cap_transmit_buffer( std::size_t size )
     {
         return this->allocate_transmit_buffer( size + overall_overhead );
     }
 
-    template < class BufferedRadio >
-    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::allocate_ll_transmit_buffer( std::size_t size )
+    template < class BufferedRadio, class ReceiveCallbacks >
+    read_buffer ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size >::allocate_ll_transmit_buffer( std::size_t size )
     {
         return this->allocate_transmit_buffer( size + ll_overhead );
     }
 
-    template < class BufferedRadio >
-    void ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::commit_l2cap_transmit_buffer( read_buffer buffer )
+    template < class BufferedRadio, class ReceiveCallbacks >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size >::commit_l2cap_transmit_buffer( read_buffer buffer )
     {
         return this->commit_transmit_buffer( buffer );
     }
 
-    template < class BufferedRadio >
-    void ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::commit_ll_transmit_buffer( read_buffer buffer )
+    template < class BufferedRadio, class ReceiveCallbacks >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size >::commit_ll_transmit_buffer( read_buffer buffer )
     {
         return this->commit_transmit_buffer( buffer );
     }
 
-    template < class BufferedRadio >
-    write_buffer ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::next_ll_l2cap_received() const
+    template < class BufferedRadio, class ReceiveCallbacks >
+    write_buffer ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size >::next_ll_l2cap_received() const
     {
         return this->next_received();
     }
 
-    template < class BufferedRadio >
-    void ll_l2cap_sdu_buffer< BufferedRadio, bluetoe::details::default_att_mtu_size >::free_ll_l2cap_received()
+    template < class BufferedRadio, class ReceiveCallbacks >
+    void ll_l2cap_sdu_buffer< BufferedRadio, ReceiveCallbacks, bluetoe::details::default_att_mtu_size >::free_ll_l2cap_received()
     {
         return this->free_received();
     }

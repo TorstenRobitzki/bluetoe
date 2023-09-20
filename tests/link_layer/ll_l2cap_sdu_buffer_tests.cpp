@@ -99,15 +99,21 @@ namespace {
             std::copy( data.begin(), data.end(), buffer.buffer );
         }
 
+        void pdu_receive_data_callback( const bluetoe::link_layer::write_buffer pdu )
+        {
+            received_data_pdus_.push_back( pdu_t( pdu.buffer, pdu.buffer + pdu.size ) );
+        }
+
     private:
         using pdu_t = std::vector< std::uint8_t >;
         std::vector< pdu_t > received_pdus_;
         std::size_t          available_transmit_buffers_;
         std::vector< pdu_t > tranmitted_pdus_;
         std::uint8_t         transmit_buffer_[256];
+        std::vector< pdu_t > received_data_pdus_;
     };
 
-    class buffer_under_test : public bluetoe::link_layer::ll_l2cap_sdu_buffer< radio_mock_t, 100 >
+    class buffer_under_test : public bluetoe::link_layer::ll_l2cap_sdu_buffer< radio_mock_t, radio_mock_t, 100 >
     {
     public:
         void expect_next_received( std::initializer_list< std::uint8_t > expected )

@@ -484,6 +484,7 @@ namespace link_layer {
                 details::buffer_sizes< Options... >::rx_size,
                 link_layer< Server, ScheduledRadio, Options... >
             >,
+            link_layer< Server, ScheduledRadio, Options... >,
             details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
         >,
         public details::white_list<
@@ -493,6 +494,7 @@ namespace link_layer {
                     details::buffer_sizes< Options... >::rx_size,
                     link_layer< Server, ScheduledRadio, Options... >
                 >,
+                link_layer< Server, ScheduledRadio, Options... >,
                 details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
             >,
             link_layer< Server, ScheduledRadio, Options... >,
@@ -510,7 +512,12 @@ namespace link_layer {
                 link_layer< Server, ScheduledRadio, Options... >
             > >,
         public details::select_user_timer_impl<
-            link_layer< Server, ScheduledRadio, Options... >, Options ... >
+            link_layer< Server, ScheduledRadio, Options... >, Options ... >,
+        public bluetoe::details::find_by_meta_type<
+            details::ll_pdu_receive_data_callback_meta_type,
+            Options...,
+            no_l2cap_callback
+        >::type
     {
     public:
         link_layer();
@@ -752,6 +759,7 @@ namespace link_layer {
 
         static constexpr std::uint8_t   connection_terminated_by_local_host = 0x16;
         static constexpr std::uint8_t   connection_timeout          = 0x08;
+        static constexpr std::uint8_t   connection_instant_passed   = 0x28;
 
         struct link_layer_feature {
             enum : std::uint16_t {
@@ -942,7 +950,7 @@ namespace link_layer {
 
         const auto time_since_last_event = this->time_since_last_event();
 
-        if ( time_since_last_event <= connection_timeout_
+        if ( time_since_last_event < connection_timeout_
             && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
         {
             this->plan_next_connection_event_after_timeout( connection_interval_ );
@@ -1438,6 +1446,7 @@ namespace link_layer {
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() + 1 ) & 0x8000
                     || defered_conn_event_counter_ == this->connection_event_counter() + 1 )
                 {
+                    disconnecting_reason_ = connection_instant_passed;
                     result = ll_result::disconnect;
                 }
                 else
@@ -1473,6 +1482,7 @@ namespace link_layer {
 
                 if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() ) & 0x8000 )
                 {
+                    disconnecting_reason_ = connection_instant_passed;
                     result = ll_result::disconnect;
                 }
                 else
