@@ -5,6 +5,29 @@
 
 #include "connected.hpp"
 
+struct only_requested_callback_t
+{
+    only_requested_callback_t()
+        : connection_requested_called( false )
+    {
+    }
+
+    template < typename ConnectionData >
+    void ll_connection_requested(
+        const bluetoe::link_layer::connection_details&      details,
+        const bluetoe::link_layer::connection_addresses&    addresses,
+        const ConnectionData& )
+    {
+        connection_requested_called = true;
+        reported_details            = details;
+        reported_addresses          = addresses;
+    }
+
+    bool                                        connection_requested_called;
+    bluetoe::link_layer::connection_details     reported_details;
+    bluetoe::link_layer::connection_addresses   reported_addresses;
+} only_requested_callback;
+
 struct only_connect_callback_t
 {
     only_connect_callback_t()
@@ -169,7 +192,7 @@ BOOST_FIXTURE_TEST_CASE( connection_is_established_after_the_first_connection_ev
 
     respond_to( 37, valid_connection_request_pdu );
     add_connection_event_respond( { 0, 1 } );
-    run();
+    run( 5 );
 
     BOOST_CHECK( only_connect_callback.connection_established_called );
 }
@@ -181,7 +204,7 @@ BOOST_FIXTURE_TEST_CASE( connection_is_established_callback_called_only_once, li
     respond_to( 37, valid_connection_request_pdu );
     add_connection_event_respond( { 0, 1 } );
     add_connection_event_respond( { 0, 1 } );
-    run();
+    run( 5 );
 
     BOOST_CHECK( only_connect_callback.connection_established_called );
     only_connect_callback.connection_established_called = false;
@@ -253,7 +276,7 @@ BOOST_FIXTURE_TEST_CASE( addresses_reported_when_connection_established, link_la
     } );
 
     add_connection_event_respond( { 0, 1 } );
-    run();
+    run( 5 );
 
     const auto reported_addresses = only_connect_callback.reported_addresses;
     BOOST_CHECK_EQUAL( reported_addresses.remote_address(), bluetoe::link_layer::public_device_address( { 0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48 } ) );
@@ -266,7 +289,7 @@ BOOST_FIXTURE_TEST_CASE( connection_update_not_called_by_default, link_layer_onl
 
     respond_to( 37, valid_connection_request_pdu );
     add_connection_event_respond( { 0, 1 } );
-    run();
+    run( 5 );
 
     BOOST_CHECK( !only_changed_callback.only_changed_called );
 }
@@ -360,7 +383,7 @@ BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconne
             0x02, 0x12
         } );
 
-    run( 2 );
+    run( 4 );
 
     BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
     BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x12 );
@@ -376,7 +399,7 @@ BOOST_FIXTURE_TEST_CASE( connection_closed, link_layer_only_disconnect_callback 
         disconnect( 0x22 );
     });
 
-    run( 2 );
+    run( 4 );
 
     BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
     BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x22 );
@@ -401,10 +424,27 @@ BOOST_FIXTURE_TEST_CASE( version_indication, link_layer_only_version_callback )
             0x0c, 0x08, 0x22, 0x33, 0xbb, 0xaa
         } );
 
-    run( 2 );
+    run( 4 );
 
     BOOST_REQUIRE( only_version_callback.only_version_called );
     BOOST_CHECK_EQUAL( only_version_callback.version_version, 0x08 );
     BOOST_CHECK_EQUAL( only_version_callback.version_company, 0x3322 );
     BOOST_CHECK_EQUAL( only_version_callback.version_subversion, 0xaabb );
+}
+
+using link_layer_only_requested_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< only_requested_callback_t, only_requested_callback >,
+        test::buffer_sizes
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( connection_request, link_layer_only_requested_callback )
+{
+    BOOST_CHECK( !only_requested_callback.connection_requested_called );
+
+    respond_to( 37, valid_connection_request_pdu );
+    run();
+
+    BOOST_CHECK( only_requested_callback.connection_requested_called );
 }

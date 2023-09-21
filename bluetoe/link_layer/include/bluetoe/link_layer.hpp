@@ -925,6 +925,8 @@ namespace link_layer {
 
                 connection_data_ = connection_data_t();
                 connection_data_.remote_connection_created( remote_address );
+                this->connection_requested( details(), connection_data_, static_cast< radio_t& >( *this ) );
+                this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
             }
         }
     }

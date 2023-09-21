@@ -18,6 +18,12 @@ namespace link_layer {
      * functions:
      *
      * template < typename ConnectionData >
+     * void ll_connection_requested(
+     *          const bluetoe::link_layer::connection_details&   details,
+     *          const bluetoe::link_layer::connection_addresses& addresses,
+     *                ConnectionData&                            connection );
+     *
+     * template < typename ConnectionData >
      * void ll_connection_established(
      *          const bluetoe::link_layer::connection_details&   details,
      *          const bluetoe::link_layer::connection_addresses& addresses,
@@ -34,6 +40,8 @@ namespace link_layer {
      * template < typename ConnectionData >
      * void ll_version( std::uint8_t version, std::uint16_t company, std::uint16_t subversion, const ConnectionData& connection );
      *
+     * ll_connection_requested() will be called, as soon, as a connection request is received.
+     * ll_connection_established() is called, after the first connection event actually toke place.
      */
     template < typename T, T& Obj >
     struct connection_callbacks {
@@ -54,6 +62,19 @@ namespace link_layer {
             void connection_request( const connection_addresses& addresses )
             {
                 addresses_  = addresses;
+            }
+
+            template < class Connection, class Radio >
+            void connection_requested(
+                const connection_details&   details,
+                Connection&                 connection,
+                Radio&                      r )
+            {
+                event_type_ = requested;
+                connection_ = &connection;
+                details_    = details;
+
+                r.wake_up();
             }
 
             // this functions are called from the interrupt handlers of the scheduled radio and just store the informations that
@@ -103,7 +124,11 @@ namespace link_layer {
 
             template < class LinkLayer >
             void handle_connection_events() {
-                if ( event_type_ == established )
+                if ( event_type_ == requested )
+                {
+                    call_ll_connection_requested< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
+                }
+                else if ( event_type_ == established )
                 {
                     call_ll_connection_established< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
                 }
@@ -127,6 +152,7 @@ namespace link_layer {
         private:
             enum {
                 none,
+                requested,
                 established,
                 changed,
                 closed,
@@ -148,6 +174,19 @@ namespace link_layer {
             }
 
             template < typename TT, typename Connection >
+            auto call_ll_connection_requested(
+                TT&                                     obj,
+                const connection_details&               details,
+                const connection_addresses&             addr,
+                Connection&                             connection )
+                    -> decltype(&TT::template ll_connection_requested< Connection >)
+            {
+                obj.ll_connection_requested( details, addr, connection );
+
+                return nullptr;
+            }
+
+            template < typename TT, typename Connection >
             auto call_ll_connection_established(
                 TT&                                     obj,
                 const connection_details&               details,
@@ -157,7 +196,7 @@ namespace link_layer {
             {
                 obj.ll_connection_established( details, addr, connection );
 
-                return 0;
+                return nullptr;
             }
 
             template < typename TT, typename Connection >
@@ -166,7 +205,7 @@ namespace link_layer {
             {
                 obj.ll_connection_changed( details, connection );
 
-                return 0;
+                return nullptr;
             }
 
             template < typename TT, typename Connection >
@@ -175,7 +214,7 @@ namespace link_layer {
             {
                 obj.ll_connection_closed( reason, connection );
 
-                return 0;
+                return nullptr;
             }
 
             template < typename TT, typename Connection >
@@ -188,7 +227,12 @@ namespace link_layer {
                     bluetoe::details::read_16bit( &raw_details_[ 3 ] ),
                     connection );
 
-                return 0;
+                return nullptr;
+            }
+
+            template < typename TT >
+            void call_ll_connection_requested( ... )
+            {
             }
 
             template < typename TT >
@@ -223,6 +267,12 @@ namespace link_layer {
 
             struct impl {
                 void connection_request( const connection_addresses& ) {}
+
+                template < class Connection, class Radio >
+                void connection_requested(
+                    const connection_details&,
+                    Connection&,
+                    Radio& ) {}
 
                 template < class Connection, class Radio >
                 void connection_established(
