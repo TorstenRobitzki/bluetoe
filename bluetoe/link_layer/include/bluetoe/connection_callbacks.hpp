@@ -24,6 +24,10 @@ namespace link_layer {
      *                ConnectionData&                            connection );
      *
      * template < typename ConnectionData >
+     * void ll_connection_attempt_timeout(
+     *                ConnectionData&                            connection );
+     *
+     * template < typename ConnectionData >
      * void ll_connection_established(
      *          const bluetoe::link_layer::connection_details&   details,
      *          const bluetoe::link_layer::connection_addresses& addresses,
@@ -42,6 +46,10 @@ namespace link_layer {
      *
      * ll_connection_requested() will be called, as soon, as a connection request is received.
      * ll_connection_established() is called, after the first connection event actually toke place.
+     *
+     * ll_connection_attempt_timeout() will be called, when the connection was reported as beeing requested
+     * (ll_connection_requested()) but not established (ll_connection_established()) and then timed out, because
+     * not a single connection event happend.
      */
     template < typename T, T& Obj >
     struct connection_callbacks {
@@ -90,6 +98,15 @@ namespace link_layer {
         }
 
         template < class Connection, class Radio >
+        void connection_attempt_timeout( Connection& connection, Radio& r )
+        {
+            event_type_ = attempt_timeout;
+            connection_ = &connection;
+
+            r.wake_up();
+        }
+
+        template < class Connection, class Radio >
         void connection_changed( const bluetoe::link_layer::connection_details& details, Connection& connection, Radio& r )
         {
             event_type_ = changed;
@@ -125,6 +142,10 @@ namespace link_layer {
             {
                 call_ll_connection_requested< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
             }
+            else if ( event_type_ == attempt_timeout )
+            {
+                call_ll_connection_attempt_timeout< T >( Obj, connection_data< LinkLayer >() );
+            }
             else if ( event_type_ == established )
             {
                 call_ll_connection_established< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
@@ -150,6 +171,7 @@ namespace link_layer {
         enum {
             none,
             requested,
+            attempt_timeout,
             established,
             changed,
             closed,
@@ -179,6 +201,15 @@ namespace link_layer {
                 -> decltype(&TT::template ll_connection_requested< Connection >)
         {
             obj.ll_connection_requested( details, addr, connection );
+
+            return nullptr;
+        }
+
+        template < typename TT, typename Connection >
+        auto call_ll_connection_attempt_timeout( TT& obj, Connection& connection  )
+            -> decltype(&TT::template ll_connection_attempt_timeout< Connection >)
+        {
+            obj.ll_connection_attempt_timeout( connection );
 
             return nullptr;
         }
@@ -233,6 +264,11 @@ namespace link_layer {
         }
 
         template < typename TT >
+        void call_ll_connection_attempt_timeout( ... )
+        {
+        }
+
+        template < typename TT >
         void call_ll_connection_established( ... )
         {
         }
@@ -268,6 +304,9 @@ namespace link_layer {
                 const connection_details&,
                 Connection&,
                 Radio& ) {}
+
+            template < class Connection, class Radio >
+            void connection_attempt_timeout( Connection&, Radio& ) {}
 
             template < class Connection, class Radio >
             void connection_established(

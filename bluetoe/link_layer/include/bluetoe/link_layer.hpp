@@ -1337,6 +1337,10 @@ namespace link_layer {
             this->synchronized_connection_event_callback_disconnect();
             this->connection_closed( disconnecting_reason_, connection_data_, static_cast< radio_t& >( *this ) );
         }
+        else
+        {
+            this->connection_attempt_timeout( connection_data_, static_cast< radio_t& >( *this ) );
+        }
 
         start_advertising_impl();
     }

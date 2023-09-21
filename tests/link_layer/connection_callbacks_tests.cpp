@@ -28,6 +28,24 @@ struct only_requested_callback_t
     bluetoe::link_layer::connection_addresses   reported_addresses;
 } only_requested_callback;
 
+struct only_connect_attempt_timeout_callback_t
+{
+    only_connect_attempt_timeout_callback_t()
+        : connect_attempt_timeout_called( false )
+    {
+
+    }
+
+    template < typename ConnectionData >
+    void ll_connection_attempt_timeout( const ConnectionData& )
+    {
+        connect_attempt_timeout_called = true;
+    }
+
+    bool connect_attempt_timeout_called;
+
+} only_connect_attempt_timeout_callback;
+
 struct only_connect_callback_t
 {
     only_connect_callback_t()
@@ -447,4 +465,24 @@ BOOST_FIXTURE_TEST_CASE( connection_request, link_layer_only_requested_callback 
     run();
 
     BOOST_CHECK( only_requested_callback.connection_requested_called );
+}
+
+using link_layer_only_connect_attempt_timeout_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< only_connect_attempt_timeout_callback_t, only_connect_attempt_timeout_callback >,
+        test::buffer_sizes
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( connection_attempt_timeout, link_layer_only_connect_attempt_timeout_callback )
+{
+    BOOST_CHECK( !only_connect_attempt_timeout_callback.connect_attempt_timeout_called );
+
+    respond_to( 37, valid_connection_request_pdu );
+    run();
+
+    BOOST_CHECK( !only_connect_attempt_timeout_callback.connect_attempt_timeout_called );
+
+    run( 1000 );
+    BOOST_CHECK( only_connect_attempt_timeout_callback.connect_attempt_timeout_called );
 }
