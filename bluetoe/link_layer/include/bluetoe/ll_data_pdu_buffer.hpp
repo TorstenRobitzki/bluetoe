@@ -558,21 +558,20 @@ namespace link_layer {
     {
         const std::uint16_t header = layout::header( pdu );
 
-        // invalid LLID
-        if ( ( header & 0x3 ) != 0 )
+        acknowledge( header & nesn_flag );
+
+        // resent PDU?
+        if ( static_cast< bool >( header & sn_flag ) == next_expected_sequence_number_ )
         {
-            acknowledge( header & nesn_flag );
+            next_expected_sequence_number_ = !next_expected_sequence_number_;
 
-            // resent PDU?
-            if ( static_cast< bool >( header & sn_flag ) == next_expected_sequence_number_ )
+            if ( ( header & 0xff00 ) != 0 )
             {
-                next_expected_sequence_number_ = !next_expected_sequence_number_;
-
-                if ( ( header & 0xff00 ) != 0 )
-                {
+                // invalid LLID
+                if ( ( header & 0x3 ) != 0 )
                     receive_buffer_.push_front( receive_buffer(), pdu );
-                    static_cast< Radio* >( this )->increment_receive_packet_counter();
-                }
+
+                static_cast< Radio* >( this )->increment_receive_packet_counter();
             }
         }
 

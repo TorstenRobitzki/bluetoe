@@ -100,12 +100,12 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
     }
 
     template < class Iter >
-    void receive_pdu( Iter begin, Iter end, bool sn, bool nesn )
+    bluetoe::link_layer::write_buffer receive_pdu( Iter begin, Iter end, bool sn, bool nesn, std::uint8_t llid = 1 )
     {
         const auto size = std::distance( begin, end );
         auto pdu = this->allocate_receive_buffer();
 
-        std::uint16_t header = 1 | ( size << 8 );
+        std::uint16_t header = llid | ( size << 8 );
 
         if ( sn )
             header |= 8;
@@ -116,12 +116,12 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
         layout::header( pdu, header );
         std::copy( begin, end, layout::body( pdu ).first );
 
-        this->received( pdu );
+        return this->received( pdu );
     }
 
-    void receive_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn )
+    bluetoe::link_layer::write_buffer receive_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn, std::uint8_t llid = 1 )
     {
-        receive_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn );
+        return receive_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn, llid );
     }
 
     template < class Iter >
@@ -318,6 +318,62 @@ BOOST_FIXTURE_TEST_CASE( if_buffer_size_is_used_as_max_rx_size_one_pdu_should_fi
     max_rx_size( max_max_rx_size() );
 
     BOOST_CHECK_EQUAL( allocate_receive_buffer().size, max_max_rx_size() );
+}
+
+/*
+ * verfiy, that a PDU with invalid LLID will be acknowledged, but ignored
+ */
+BOOST_FIXTURE_TEST_CASE( LL_CON_PER_BI_17_C_ignore, running_mode )
+{
+    const auto response = receive_pdu( {
+        0x08,                       // LL_FEATURE_REQ
+        0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff },
+        false,                      // SN
+        false,                      // NESN
+        0                           // LLID = invalid
+    );
+
+    BOOST_REQUIRE( response.size != 0 );
+    const std::uint16_t header = layout::header( response );
+
+    BOOST_CHECK_EQUAL( header & 0x04, 0x04 );
+    BOOST_CHECK_EQUAL( header & 0x08, 0x00 );
+}
+
+/*
+ * verfiy, that a PDU with invalid LLID can acknowledge a transmitted PDU,
+ * but will be ignored
+ */
+BOOST_FIXTURE_TEST_CASE( LL_CON_PER_BI_17_C_ackn, running_mode )
+{
+    transmit_pdu( { 0xff } );
+
+    // first PDU is used to send the PDU about as a response
+    const auto transmit1 = receive_pdu(
+        {},                         // empty
+        false,                      // SN
+        false,                      // NESN
+        1                           // LLID = Empty PDU
+    );
+
+    BOOST_REQUIRE( transmit1.size != 0 );
+    const std::uint16_t transmit1_header = layout::header( transmit1 );
+    BOOST_CHECK_EQUAL( transmit1_header >> 8, 1 );
+
+    // second PDU has to acknowledge the send out PDU
+    const auto transmit2 = receive_pdu( {
+        0x08,                       // LL_FEATURE_REQ
+        0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff },
+        true,                       // SN
+        true,                       // NESN
+        0                           // LLID = invalid
+    );
+
+    BOOST_REQUIRE( transmit2.size != 0 );
+    const std::uint16_t transmit2_header = layout::header( transmit2 );
+    BOOST_CHECK_EQUAL( transmit2_header >> 8, 0 );
 }
 
 BOOST_FIXTURE_TEST_SUITE( move_random_data_through_the_buffer, running_mode )
