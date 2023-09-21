@@ -468,8 +468,16 @@ namespace bluetoe
                 static constexpr bool single_wfi = bluetoe::details::has_option<
                     nrf::leave_run_on_interrupt, RadioOptions... >::value;
 
-                while ( !single_wfi && !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
-                    __WFI();
+                if ( single_wfi )
+                {
+                    if ( !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
+                        __WFI();
+                }
+                else
+                {
+                    while ( !adv_received_ && !adv_timeout_ && !evt_timeout_ && !end_evt_ && wake_up_ == 0 )
+                        __WFI();
+                }
 
                 // For every event, but the wakeup request, the radio should be in an idle state
                 // because it's up to the event handler to defined what should happen next
