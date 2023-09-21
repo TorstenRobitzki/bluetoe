@@ -1,10 +1,8 @@
-#include <iostream>
 #include <buffer_io.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
-#include <boost/mpl/list.hpp>
 
 #include <initializer_list>
 #include <random>
@@ -327,14 +325,14 @@ BOOST_FIXTURE_TEST_SUITE( move_random_data_through_the_buffer, running_mode )
 template < std::size_t V >
 using intt = std::integral_constant< std::size_t, V >;
 
-typedef boost::mpl::list<
+using test_sizes = std::tuple<
     //          max_rx_size  min payload  max payload
     std::tuple< intt< 29 >,  intt< 1 >,   intt< 25 > >,
     std::tuple< intt< 50 >,  intt< 1 >,   intt< 48 > >,
     std::tuple< intt< 29 >,  intt< 1 >,   intt< 1 > >,
     std::tuple< intt< 29 >,  intt< 0 >,   intt< 25 > >,
     std::tuple< intt< 29 >,  intt< 25 >,  intt< 25 > >
-> test_sizes;
+>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( move_random_data_through_the_buffer, sizes, test_sizes )
 {
