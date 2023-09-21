@@ -87,12 +87,10 @@ namespace link_layer {
         template < typename LinkLayer, typename ... Options >
         struct connection_callbacks
         {
-            typedef typename bluetoe::details::find_by_meta_type<
+            using type = typename bluetoe::details::find_by_meta_type<
                 connection_callbacks_meta_type,
                 Options...,
-                no_connection_callbacks >::type callbacks;
-
-            typedef typename callbacks::impl type;
+                no_connection_callbacks >::type;
         };
 
         template < typename Radio, typename LinkLayer, typename ... Options >

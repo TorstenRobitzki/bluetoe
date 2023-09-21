@@ -50,211 +50,207 @@ namespace link_layer {
             details::connection_callbacks_meta_type,
             details::valid_link_layer_option_meta_type {};
 
-        // TODO No need for impl-indirection anymore
-        class impl {
-        public:
-            impl()
-                : event_type_( none )
-                , connection_( nullptr )
+        connection_callbacks()
+            : event_type_( none )
+            , connection_( nullptr )
+        {
+        }
+
+        void connection_request( const connection_addresses& addresses )
+        {
+            addresses_  = addresses;
+        }
+
+        template < class Connection, class Radio >
+        void connection_requested(
+            const connection_details&   details,
+            Connection&                 connection,
+            Radio&                      r )
+        {
+            event_type_ = requested;
+            connection_ = &connection;
+            details_    = details;
+
+            r.wake_up();
+        }
+
+        // this functions are called from the interrupt handlers of the scheduled radio and just store the informations that
+        // are provided.
+        template < class Connection, class Radio >
+        void connection_established(
+            const connection_details&   details,
+            Connection&                 connection,
+            Radio&                      r )
+        {
+            event_type_ = established;
+            connection_ = &connection;
+            details_    = details;
+
+            r.wake_up();
+        }
+
+        template < class Connection, class Radio >
+        void connection_changed( const bluetoe::link_layer::connection_details& details, Connection& connection, Radio& r )
+        {
+            event_type_ = changed;
+            connection_ = &connection;
+            details_    = details;
+
+            r.wake_up();
+        }
+
+        template < class Connection, class Radio >
+        void connection_closed( std::uint8_t reason, Connection& connection, Radio& r )
+        {
+            event_type_ = closed;
+            connection_ = &connection;
+            raw_details_[ 0 ] = reason;
+
+            r.wake_up();
+        }
+
+        template < class Connection, class Radio >
+        void version_indication_received( const std::uint8_t* details, Connection& connection, Radio& r )
+        {
+            event_type_ = version;
+            connection_ = &connection;
+            std::copy( details, details + version_ind_size, &raw_details_[ 0 ] );
+
+            r.wake_up();
+        }
+
+        template < class LinkLayer >
+        void handle_connection_events() {
+            if ( event_type_ == requested )
             {
+                call_ll_connection_requested< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
             }
-
-            void connection_request( const connection_addresses& addresses )
+            else if ( event_type_ == established )
             {
-                addresses_  = addresses;
+                call_ll_connection_established< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
             }
-
-            template < class Connection, class Radio >
-            void connection_requested(
-                const connection_details&   details,
-                Connection&                 connection,
-                Radio&                      r )
+            else if ( event_type_ == changed )
             {
-                event_type_ = requested;
-                connection_ = &connection;
-                details_    = details;
-
-                r.wake_up();
+                call_ll_connection_changed< T >( Obj, details_, connection_data< LinkLayer >() );
             }
-
-            // this functions are called from the interrupt handlers of the scheduled radio and just store the informations that
-            // are provided.
-            template < class Connection, class Radio >
-            void connection_established(
-                const connection_details&   details,
-                Connection&                 connection,
-                Radio&                      r )
+            else if ( event_type_ == closed )
             {
-                event_type_ = established;
-                connection_ = &connection;
-                details_    = details;
-
-                r.wake_up();
+                call_ll_connection_closed< T >( Obj, raw_details_[ 0 ], connection_data< LinkLayer >() );
             }
-
-            template < class Connection, class Radio >
-            void connection_changed( const bluetoe::link_layer::connection_details& details, Connection& connection, Radio& r )
+            else if ( event_type_ == version )
             {
-                event_type_ = changed;
-                connection_ = &connection;
-                details_    = details;
-
-                r.wake_up();
+                call_ll_version< T >( Obj, connection_data< LinkLayer >() );
             }
 
-            template < class Connection, class Radio >
-            void connection_closed( std::uint8_t reason, Connection& connection, Radio& r )
-            {
-                event_type_ = closed;
-                connection_ = &connection;
-                raw_details_[ 0 ] = reason;
+            event_type_ = none;
+            connection_ = nullptr;
+        }
 
-                r.wake_up();
-            }
+    private:
+        enum {
+            none,
+            requested,
+            established,
+            changed,
+            closed,
+            version
+        } event_type_;
 
-            template < class Connection, class Radio >
-            void version_indication_received( const std::uint8_t* details, Connection& connection, Radio& r )
-            {
-                event_type_ = version;
-                connection_ = &connection;
-                std::copy( details, details + version_ind_size, &raw_details_[ 0 ] );
+        void*                   connection_;
+        connection_details      details_;
+        connection_addresses    addresses_;
 
-                r.wake_up();
-            }
+        static constexpr std::size_t version_ind_size = 5u;
+        std::uint8_t raw_details_[ version_ind_size ];
 
-            template < class LinkLayer >
-            void handle_connection_events() {
-                if ( event_type_ == requested )
-                {
-                    call_ll_connection_requested< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
-                }
-                else if ( event_type_ == established )
-                {
-                    call_ll_connection_established< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
-                }
-                else if ( event_type_ == changed )
-                {
-                    call_ll_connection_changed< T >( Obj, details_, connection_data< LinkLayer >() );
-                }
-                else if ( event_type_ == closed )
-                {
-                    call_ll_connection_closed< T >( Obj, raw_details_[ 0 ], connection_data< LinkLayer >() );
-                }
-                else if ( event_type_ == version )
-                {
-                    call_ll_version< T >( Obj, connection_data< LinkLayer >() );
-                }
+        template < typename LinkLayer >
+        typename LinkLayer::connection_data_t& connection_data()
+        {
+            assert( connection_ );
+            return *static_cast< typename LinkLayer::connection_data_t* >( connection_ );
+        }
 
-                event_type_ = none;
-                connection_ = nullptr;
-            }
+        template < typename TT, typename Connection >
+        auto call_ll_connection_requested(
+            TT&                                     obj,
+            const connection_details&               details,
+            const connection_addresses&             addr,
+            Connection&                             connection )
+                -> decltype(&TT::template ll_connection_requested< Connection >)
+        {
+            obj.ll_connection_requested( details, addr, connection );
 
-        private:
-            enum {
-                none,
-                requested,
-                established,
-                changed,
-                closed,
-                version
-            } event_type_;
+            return nullptr;
+        }
 
-            void*                   connection_;
-            connection_details      details_;
-            connection_addresses    addresses_;
+        template < typename TT, typename Connection >
+        auto call_ll_connection_established(
+            TT&                                     obj,
+            const connection_details&               details,
+            const connection_addresses&             addr,
+            Connection&                             connection )
+                -> decltype(&TT::template ll_connection_established< Connection >)
+        {
+            obj.ll_connection_established( details, addr, connection );
 
-            static constexpr std::size_t version_ind_size = 5u;
-            std::uint8_t raw_details_[ version_ind_size ];
+            return nullptr;
+        }
 
-            template < typename LinkLayer >
-            typename LinkLayer::connection_data_t& connection_data()
-            {
-                assert( connection_ );
-                return *static_cast< typename LinkLayer::connection_data_t* >( connection_ );
-            }
+        template < typename TT, typename Connection >
+        auto call_ll_connection_changed( TT& obj, const bluetoe::link_layer::connection_details& details, Connection& connection )
+            -> decltype(&TT::template ll_connection_changed< Connection >)
+        {
+            obj.ll_connection_changed( details, connection );
 
-            template < typename TT, typename Connection >
-            auto call_ll_connection_requested(
-                TT&                                     obj,
-                const connection_details&               details,
-                const connection_addresses&             addr,
-                Connection&                             connection )
-                    -> decltype(&TT::template ll_connection_requested< Connection >)
-            {
-                obj.ll_connection_requested( details, addr, connection );
+            return nullptr;
+        }
 
-                return nullptr;
-            }
+        template < typename TT, typename Connection >
+        auto call_ll_connection_closed( TT& obj, std::uint8_t reason, Connection& connection )
+            -> decltype(&TT::template ll_connection_closed< Connection >)
+        {
+            obj.ll_connection_closed( reason, connection );
 
-            template < typename TT, typename Connection >
-            auto call_ll_connection_established(
-                TT&                                     obj,
-                const connection_details&               details,
-                const connection_addresses&             addr,
-                Connection&                             connection )
-                    -> decltype(&TT::template ll_connection_established< Connection >)
-            {
-                obj.ll_connection_established( details, addr, connection );
+            return nullptr;
+        }
 
-                return nullptr;
-            }
+        template < typename TT, typename Connection >
+        auto call_ll_version( TT& obj, Connection& connection )
+            -> decltype(&TT::template ll_version< Connection >)
+        {
+            obj.ll_version(
+                raw_details_[ 0 ],
+                bluetoe::details::read_16bit( &raw_details_[ 1 ] ),
+                bluetoe::details::read_16bit( &raw_details_[ 3 ] ),
+                connection );
 
-            template < typename TT, typename Connection >
-            auto call_ll_connection_changed( TT& obj, const bluetoe::link_layer::connection_details& details, Connection& connection )
-                -> decltype(&TT::template ll_connection_changed< Connection >)
-            {
-                obj.ll_connection_changed( details, connection );
+            return nullptr;
+        }
 
-                return nullptr;
-            }
+        template < typename TT >
+        void call_ll_connection_requested( ... )
+        {
+        }
 
-            template < typename TT, typename Connection >
-            auto call_ll_connection_closed( TT& obj, std::uint8_t reason, Connection& connection )
-                -> decltype(&TT::template ll_connection_closed< Connection >)
-            {
-                obj.ll_connection_closed( reason, connection );
+        template < typename TT >
+        void call_ll_connection_established( ... )
+        {
+        }
 
-                return nullptr;
-            }
+        template < typename TT >
+        void call_ll_connection_changed( ... )
+        {
+        }
 
-            template < typename TT, typename Connection >
-            auto call_ll_version( TT& obj, Connection& connection )
-                -> decltype(&TT::template ll_version< Connection >)
-            {
-                obj.ll_version(
-                    raw_details_[ 0 ],
-                    bluetoe::details::read_16bit( &raw_details_[ 1 ] ),
-                    bluetoe::details::read_16bit( &raw_details_[ 3 ] ),
-                    connection );
+        template < typename TT >
+        void call_ll_connection_closed( ... )
+        {
+        }
 
-                return nullptr;
-            }
-
-            template < typename TT >
-            void call_ll_connection_requested( ... )
-            {
-            }
-
-            template < typename TT >
-            void call_ll_connection_established( ... )
-            {
-            }
-
-            template < typename TT >
-            void call_ll_connection_changed( ... )
-            {
-            }
-
-            template < typename TT >
-            void call_ll_connection_closed( ... )
-            {
-            }
-
-            template < typename TT >
-            void call_ll_version( ... )
-            {
-            }
-        };
+        template < typename TT >
+        void call_ll_version( ... )
+        {
+        }
 
         /** @endcond */
     };
@@ -265,33 +261,31 @@ namespace link_layer {
                 details::connection_callbacks_meta_type,
                 details::valid_link_layer_option_meta_type {};
 
-            struct impl {
-                void connection_request( const connection_addresses& ) {}
+            void connection_request( const connection_addresses& ) {}
 
-                template < class Connection, class Radio >
-                void connection_requested(
-                    const connection_details&,
-                    Connection&,
-                    Radio& ) {}
+            template < class Connection, class Radio >
+            void connection_requested(
+                const connection_details&,
+                Connection&,
+                Radio& ) {}
 
-                template < class Connection, class Radio >
-                void connection_established(
-                    const connection_details&,
-                    Connection&,
-                    Radio& ) {}
+            template < class Connection, class Radio >
+            void connection_established(
+                const connection_details&,
+                Connection&,
+                Radio& ) {}
 
-                template < class Connection, class Radio >
-                void connection_changed( const bluetoe::link_layer::connection_details&, Connection&, Radio& ) {}
+            template < class Connection, class Radio >
+            void connection_changed( const bluetoe::link_layer::connection_details&, Connection&, Radio& ) {}
 
-                template < class Connection, class Radio >
-                void connection_closed( std::uint8_t, Connection&, Radio& ) {}
+            template < class Connection, class Radio >
+            void connection_closed( std::uint8_t, Connection&, Radio& ) {}
 
-                template < class LinkLayer >
-                void handle_connection_events() {}
+            template < class LinkLayer >
+            void handle_connection_events() {}
 
-                template < class Connection, class Radio >
-                void version_indication_received( const std::uint8_t*, Connection&, Radio& ) {}
-            };
+            template < class Connection, class Radio >
+            void version_indication_received( const std::uint8_t*, Connection&, Radio& ) {}
         };
     }
 
