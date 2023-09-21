@@ -488,14 +488,10 @@ namespace link_layer {
             details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
         >,
         public details::white_list<
-            bluetoe::link_layer::ll_l2cap_sdu_buffer<
-                ScheduledRadio<
-                    details::buffer_sizes< Options... >::tx_size,
-                    details::buffer_sizes< Options... >::rx_size,
-                    link_layer< Server, ScheduledRadio, Options... >
-                >,
-                link_layer< Server, ScheduledRadio, Options... >,
-                details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
+            ScheduledRadio<
+                details::buffer_sizes< Options... >::tx_size,
+                details::buffer_sizes< Options... >::rx_size,
+                link_layer< Server, ScheduledRadio, Options... >
             >,
             link_layer< Server, ScheduledRadio, Options... >,
             Options... >::type,
