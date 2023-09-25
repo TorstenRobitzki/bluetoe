@@ -15,10 +15,6 @@ BOOST_FIXTURE_TEST_CASE( respond_with_an_unknown_rsp, unconnected )
     );
 }
 
-BOOST_FIXTURE_TEST_CASE( responding_in_feature_setup, unconnected )
-{
-}
-
 BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
 {
     check_single_ll_control_pdu(
@@ -217,6 +213,7 @@ std::uint8_t notify_read_handler( std::size_t, std::uint8_t* out_buffer, std::si
 
     return bluetoe::error_codes::success;
 }
+
 /*
  * To not run into a procedure timeout, the link layer has to favor link layer responses over
  * GATT.
@@ -259,4 +256,82 @@ BOOST_FIXTURE_TEST_CASE( Favor_LL_Procedures_Over_Notifivations, constantly_fire
     BOOST_CHECK( ping_response_found );
     BOOST_CHECK_GT( notification_found_cnt, 10 );
     BOOST_CHECK( ping_before_notification );
+}
+
+template < typename ... Options >
+struct default_connected : unconnected_base< Options... >
+{
+    using base = unconnected_base< Options... >;
+
+    default_connected()
+    {
+        this->respond_to( 37, valid_connection_request_pdu );
+    }
+};
+
+
+BOOST_FIXTURE_TEST_CASE( local_disconnect_request, default_connected<> )
+{
+    ll_function_call([&]{
+        this->disconnect();
+    });
+    ll_empty_pdu();
+
+    run();
+
+    int num_terminates = 0;
+
+    check_connection_events( [&]( const test::connection_event& evt ) -> bool
+    {
+        using test::X;
+        using test::and_so_on;
+
+        for ( const auto& response: evt.transmitted_data )
+        {
+            if ( !check_pdu( response, { X, 0 } ) )
+            {
+                if ( !check_pdu( response, { X, 0x02, 0x02, 0x16 } ) )
+                    return false;
+
+                ++num_terminates;
+            }
+        }
+
+        return true;
+    }, "LL_TERMINATE_IND missing" );
+
+    BOOST_CHECK_EQUAL( num_terminates, 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( local_disconnect_requested_with_reason, default_connected<> )
+{
+    ll_function_call([&]{
+        this->disconnect( 0x42 );
+    });
+    ll_empty_pdu();
+
+    run();
+
+    int num_terminates = 0;
+
+    check_connection_events( [&]( const test::connection_event& evt ) -> bool
+    {
+        using test::X;
+        using test::and_so_on;
+
+        for ( const auto& response: evt.transmitted_data )
+        {
+            if ( !check_pdu( response, { X, 0 } ) )
+            {
+                if ( !check_pdu( response, { X, 0x02, 0x02, 0x42 } ) )
+                    return false;
+
+                ++num_terminates;
+            }
+        }
+
+        return true;
+    }, "LL_TERMINATE_IND missing" );
+
+    BOOST_CHECK_EQUAL( num_terminates, 1 );
 }

@@ -751,8 +751,9 @@ namespace link_layer {
         static constexpr std::uint8_t   err_pin_or_key_missing      = 0x06;
         static constexpr std::uint16_t  company_identifier          = 0x0269;
 
-        static constexpr std::uint8_t   connection_terminated_by_local_host = 0x16;
         static constexpr std::uint8_t   connection_timeout          = 0x08;
+        static constexpr std::uint8_t   connection_terminated_by_local_host = 0x16;
+        static constexpr std::uint8_t   connection_ll_response_timeout = 0x22;
         static constexpr std::uint8_t   connection_instant_passed   = 0x28;
 
         struct link_layer_feature {
