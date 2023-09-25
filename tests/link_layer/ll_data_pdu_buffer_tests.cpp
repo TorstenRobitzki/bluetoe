@@ -1046,3 +1046,46 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
     }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( stop_mode )
+
+    BOOST_FIXTURE_TEST_CASE( ignore_outgoing_pdus, running_mode )
+    {
+        // send out a single PDU
+        transmit_pdu( { 1 } );
+        stop_ll_pdu_buffer();
+
+        // not acknowledging the outgoing PDU
+        receive_pdu( {}, true, false );
+        receive_pdu( {}, false, false );
+
+        BOOST_CHECK( pending_outgoing_data_available() );
+
+        // adding a second PDU
+        transmit_pdu( { 2 } );
+
+        // acknowledging the first PDU
+        receive_pdu( {}, true, true );
+
+        // no pending PDU means, the second PDU was not stored
+        BOOST_CHECK( !pending_outgoing_data_available() );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( stop_reset, running_mode )
+    {
+        // send out a single PDU
+        transmit_pdu( { 1 } );
+        stop_ll_pdu_buffer();
+        reset_pdu_buffer();
+
+        // adding a second and third PDU
+        transmit_pdu( { 2 } );
+        transmit_pdu( { 3 } );
+
+        receive_pdu( {}, true, true );
+
+        // pending PDU means, the third PDU was not ignored
+        BOOST_CHECK( pending_outgoing_data_available() );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

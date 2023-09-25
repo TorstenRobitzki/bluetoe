@@ -161,14 +161,6 @@ namespace link_layer {
         std::uint8_t* raw_pdu_buffer();
 
         /**
-         * @brief places the buffer in stopped mode.
-         *
-         * If the buffer is in stopped mode, it's internal memory can be used for other
-         * purposes.
-         */
-        void stop_pdu_buffer();
-
-        /**
          * @brief places the buffer in running mode.
          *
          * Receive and transmit buffers are empty. Sequence numbers are reseted.
@@ -178,6 +170,15 @@ namespace link_layer {
          * @post max_rx_size() == 29u
          */
         void reset_pdu_buffer();
+
+        /**
+         * @brief puts the buffer into stop mode
+         *
+         * In stop mode, the buffer will acknowledge received PDUs, but will ignore them.
+         * Every commited transmit buffer will be ignored. Unacknowledged outgoing data will
+         * be resend until acknowledged.
+         */
+        void stop_ll_pdu_buffer();
 
         /**@}*/
 
@@ -312,6 +313,7 @@ namespace link_layer {
         uint8_t                 empty_[ layout::data_channel_pdu_memory_size( 0 ) ];
         bool                    next_empty_;
         bool                    empty_sequence_number_;
+        bool                    stopped_;
 
         static constexpr std::size_t  ll_header_size = 2;
         static constexpr std::uint8_t more_data_flag = 0x10;
@@ -350,6 +352,7 @@ namespace link_layer {
     ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::ll_data_pdu_buffer()
         : receive_buffer_( receive_buffer() )
         , transmit_buffer_( transmit_buffer() )
+        , stopped_( false )
     {
         layout::header( empty_, 0 );
         reset_pdu_buffer();
@@ -399,6 +402,13 @@ namespace link_layer {
         sequence_number_ = false;
         next_expected_sequence_number_ = false;
         next_empty_      = false;
+        stopped_         = false;
+    }
+
+    template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
+    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::stop_ll_pdu_buffer()
+    {
+        stopped_ = true;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -418,6 +428,9 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::commit_transmit_buffer( read_buffer pdu )
     {
+        if ( stopped_ )
+            return;
+
         static constexpr std::uint8_t header_rfu_mask = 0xe0;
         static_cast< void >( header_rfu_mask );
 
