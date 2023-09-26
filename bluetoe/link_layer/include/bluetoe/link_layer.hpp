@@ -947,7 +947,11 @@ namespace link_layer {
 
         const auto time_since_last_event = this->time_since_last_event();
 
-        if ( time_since_last_event < connection_timeout_
+        if ( state_ == state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
+        {
+            force_disconnect();
+        }
+        else if ( time_since_last_event < connection_timeout_
             && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
         {
             this->plan_next_connection_event_after_timeout( connection_interval_ );
@@ -1003,7 +1007,9 @@ namespace link_layer {
          * and has to be offset by 1 to see if there is a pending instant at this connection
          * event.
          */
-        if ( handle_received_data() == ll_result::disconnect || send_control_pdus() == ll_result::disconnect )
+        if ( ( state_ == state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
+          || handle_received_data() == ll_result::disconnect
+          || send_control_pdus() == ll_result::disconnect )
         {
             force_disconnect();
         }
@@ -1414,6 +1420,7 @@ namespace link_layer {
                 } );
 
                 this->commit_ll_transmit_buffer( output );
+                this->stop_ll_pdu_buffer();
                 termination_send_ = true;
             }
         }

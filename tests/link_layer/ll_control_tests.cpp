@@ -335,3 +335,18 @@ BOOST_FIXTURE_TEST_CASE( local_disconnect_requested_with_reason, default_connect
 
     BOOST_CHECK_EQUAL( num_terminates, 1 );
 }
+
+BOOST_FIXTURE_TEST_CASE( local_disconnect_stop_sending_after_ack, default_connected<> )
+{
+    ll_function_call([&]{
+        this->disconnect( 0x42 );
+    });
+    ll_empty_pdus(100);
+
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 30 ) );
+    run();
+
+    BOOST_CHECK_LT( connection_events().back().start_receive,
+        bluetoe::link_layer::delta_time::msec( 100 ) );
+    BOOST_CHECK_LT( connection_events().size(), 4 );
+}
