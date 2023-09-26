@@ -258,95 +258,238 @@ BOOST_FIXTURE_TEST_CASE( Favor_LL_Procedures_Over_Notifivations, constantly_fire
     BOOST_CHECK( ping_before_notification );
 }
 
-template < typename ... Options >
-struct default_connected : unconnected_base< Options... >
-{
-    using base = unconnected_base< Options... >;
+BOOST_AUTO_TEST_SUITE( disconnect )
 
-    default_connected()
+    template < typename ... Options >
+    struct default_connected : unconnected_base< Options... >
     {
-        this->respond_to( 37, valid_connection_request_pdu );
+        using base = unconnected_base< Options... >;
+
+        default_connected()
+        {
+            this->respond_to( 37, valid_connection_request_pdu );
+        }
+    };
+
+
+    BOOST_FIXTURE_TEST_CASE( local_disconnect_request, default_connected<> )
+    {
+        ll_function_call([&]{
+            this->disconnect();
+        });
+        ll_empty_pdu();
+
+        run();
+
+        int num_terminates = 0;
+
+        check_connection_events( [&]( const test::connection_event& evt ) -> bool
+        {
+            using test::X;
+            using test::and_so_on;
+
+            for ( const auto& response: evt.transmitted_data )
+            {
+                if ( !check_pdu( response, { X, 0 } ) )
+                {
+                    if ( !check_pdu( response, { X, 0x02, 0x02, 0x16 } ) )
+                        return false;
+
+                    ++num_terminates;
+                }
+            }
+
+            return true;
+        }, "LL_TERMINATE_IND missing" );
+
+        BOOST_CHECK_EQUAL( num_terminates, 1 );
     }
-};
 
-
-BOOST_FIXTURE_TEST_CASE( local_disconnect_request, default_connected<> )
-{
-    ll_function_call([&]{
-        this->disconnect();
-    });
-    ll_empty_pdu();
-
-    run();
-
-    int num_terminates = 0;
-
-    check_connection_events( [&]( const test::connection_event& evt ) -> bool
+    BOOST_FIXTURE_TEST_CASE( local_disconnect_requested_with_reason, default_connected<> )
     {
-        using test::X;
-        using test::and_so_on;
+        ll_function_call([&]{
+            this->disconnect( 0x42 );
+        });
+        ll_empty_pdu();
 
-        for ( const auto& response: evt.transmitted_data )
+        run();
+
+        int num_terminates = 0;
+
+        check_connection_events( [&]( const test::connection_event& evt ) -> bool
         {
-            if ( !check_pdu( response, { X, 0 } ) )
-            {
-                if ( !check_pdu( response, { X, 0x02, 0x02, 0x16 } ) )
-                    return false;
+            using test::X;
+            using test::and_so_on;
 
-                ++num_terminates;
+            for ( const auto& response: evt.transmitted_data )
+            {
+                if ( !check_pdu( response, { X, 0 } ) )
+                {
+                    if ( !check_pdu( response, { X, 0x02, 0x02, 0x42 } ) )
+                        return false;
+
+                    ++num_terminates;
+                }
             }
+
+            return true;
+        }, "LL_TERMINATE_IND missing" );
+
+        BOOST_CHECK_EQUAL( num_terminates, 1 );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( local_disconnect_stop_sending_after_ack, default_connected<> )
+    {
+        ll_function_call([&]{
+            this->disconnect( 0x42 );
+        });
+        ll_empty_pdus(100);
+
+        end_of_simulation( bluetoe::link_layer::delta_time::seconds( 30 ) );
+        run();
+
+        BOOST_CHECK_LT( connection_events().back().start_receive,
+            bluetoe::link_layer::delta_time::msec( 100 ) );
+        BOOST_CHECK_LT( connection_events().size(), 4 );
+    }
+
+    template < class layout >
+    static void copy_air_to_mem( const std::vector< std::uint8_t >& over_the_air, bluetoe::link_layer::read_buffer& in_memory )
+    {
+        static constexpr std::size_t ll_header_size = 2;
+
+        const std::uint16_t header = bluetoe::details::read_16bit( over_the_air.data() );
+        const std::size_t   size   = std::min< std::size_t >( header >> 8, over_the_air.size() - ll_header_size );
+        const auto          body   = layout::body( in_memory );
+
+        layout::header( in_memory, header );
+        std::copy( over_the_air.data() + ll_header_size, over_the_air.data() + ll_header_size + size, body.first );
+
+        in_memory.size = layout::data_channel_pdu_memory_size( size );
+    }
+
+    struct disconnect_cb_t
+    {
+        bool disconnected;
+        std::uint8_t reason;
+
+        template < typename ConnectionData >
+        void ll_connection_closed( std::uint8_t r, ConnectionData& )
+        {
+            reason = r;
+            disconnected = true;
         }
 
-        return true;
-    }, "LL_TERMINATE_IND missing" );
+    } disconnect_cb;
 
-    BOOST_CHECK_EQUAL( num_terminates, 1 );
-}
+    using connection_callbacks = unconnected_base<
+        bluetoe::link_layer::connection_callbacks< disconnect_cb_t, disconnect_cb >,
+        bluetoe::link_layer::no_auto_start_advertising
+    >;
 
-BOOST_FIXTURE_TEST_CASE( local_disconnect_requested_with_reason, default_connected<> )
-{
-    ll_function_call([&]{
-        this->disconnect( 0x42 );
-    });
-    ll_empty_pdu();
+    static const bluetoe::link_layer::connection_event_events no_special_event;
+    static constexpr std::uint8_t sn   = 0x08;
+    static constexpr std::uint8_t nesn = 0x04;
+    static constexpr std::uint8_t llid = 0x01;
 
-    run();
-
-    int num_terminates = 0;
-
-    check_connection_events( [&]( const test::connection_event& evt ) -> bool
+    /**
+     * LL/CON/PER/BI-02-C
+     */
+    BOOST_FIXTURE_TEST_CASE( Peripheral_T_Terminate_Timer, connection_callbacks )
     {
-        using test::X;
-        using test::and_so_on;
+        disconnect_cb.disconnected = false;
 
-        for ( const auto& response: evt.transmitted_data )
+        // currently, the test_radio ignores the SN and NESN of the simulation
+        // https://github.com/TorstenRobitzki/bluetoe/issues/134
+        // For now, simulation is done by calling the link_layer callbacks
+
+        // single call to run will cause the start of advertising
+        this->wake_up();
+        this->run();
+
+        bluetoe::link_layer::read_buffer connection_request = this->advertising_receive_buffer();
+        copy_air_to_mem< layout_t >( valid_connection_request_pdu, connection_request );
+        this->adv_received( connection_request );
+
+        // first connection event,
+        auto receive_buffer = this->allocate_receive_buffer();
+        copy_air_to_mem< layout_t >( { llid, 0x00 }, receive_buffer );
+        this->received( receive_buffer );
+        this->end_event( no_special_event );
+
+        // second connection event, transmitting the LL_TERMINATE_IND
+        this->disconnect( 0x13 );
+        receive_buffer = this->allocate_receive_buffer();
+        copy_air_to_mem< layout_t >( { llid | sn | nesn, 0x00 }, receive_buffer );
+        this->received( receive_buffer );
+        this->end_event( no_special_event );
+
+        // now, having connection events whithout acknowledging the transmitted LL_TERMINATE_IND
+        // interval is 30ms, timeout is 720ms (see definition of valid_connection_request_pdu)
+        for ( int i = 0; i != 23; ++i )
         {
-            if ( !check_pdu( response, { X, 0 } ) )
-            {
-                if ( !check_pdu( response, { X, 0x02, 0x02, 0x42 } ) )
-                    return false;
-
-                ++num_terminates;
-            }
+            const std::uint8_t serial_num = i % 2 == 1 ? sn : 0;
+            // second connection event, NOT acknowledging the transmitted LL_TERMINATE_IND
+            receive_buffer = this->allocate_receive_buffer();
+            copy_air_to_mem< layout_t >( {
+                static_cast< std::uint8_t >( llid | serial_num | nesn ),
+                0x00 }, receive_buffer );
+            this->received( receive_buffer );
+            this->end_event( no_special_event );
         }
 
-        return true;
-    }, "LL_TERMINATE_IND missing" );
+        BOOST_CHECK( disconnect_cb.disconnected );
+        BOOST_CHECK_EQUAL( disconnect_cb.reason, 0x22 );
+    }
 
-    BOOST_CHECK_EQUAL( num_terminates, 1 );
-}
+    /**
+     * LL/CON/PER/BI-02-C
+     *
+     * Same as above, make sure, that the disconnect happens, event when the
+     */
+    BOOST_FIXTURE_TEST_CASE( Peripheral_T_Terminate_Timer_With_Timeout, connection_callbacks )
+    {
+        disconnect_cb.disconnected = false;
 
-BOOST_FIXTURE_TEST_CASE( local_disconnect_stop_sending_after_ack, default_connected<> )
-{
-    ll_function_call([&]{
-        this->disconnect( 0x42 );
-    });
-    ll_empty_pdus(100);
+        this->wake_up();
+        this->run();
 
-    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 30 ) );
-    run();
+        bluetoe::link_layer::read_buffer connection_request = this->advertising_receive_buffer();
+        copy_air_to_mem< layout_t >( valid_connection_request_pdu, connection_request );
+        this->adv_received( connection_request );
 
-    BOOST_CHECK_LT( connection_events().back().start_receive,
-        bluetoe::link_layer::delta_time::msec( 100 ) );
-    BOOST_CHECK_LT( connection_events().size(), 4 );
-}
+        // first connection event,
+        auto receive_buffer = this->allocate_receive_buffer();
+        copy_air_to_mem< layout_t >( { llid, 0x00 }, receive_buffer );
+        this->received( receive_buffer );
+        this->end_event( no_special_event );
+
+        // second connection event, transmitting the LL_TERMINATE_IND
+        this->disconnect( 0x13 );
+        receive_buffer = this->allocate_receive_buffer();
+        copy_air_to_mem< layout_t >( { llid | sn | nesn, 0x00 }, receive_buffer );
+        this->received( receive_buffer );
+        this->end_event( no_special_event );
+
+        // now, having connection events whithout acknowledging the transmitted LL_TERMINATE_IND
+        // interval is 30ms, timeout is 720ms (see definition of valid_connection_request_pdu)
+        for ( int i = 0; i != 21; ++i )
+        {
+            const std::uint8_t serial_num = i % 2 == 1 ? sn : 0;
+            // second connection event, NOT acknowledging the transmitted LL_TERMINATE_IND
+            receive_buffer = this->allocate_receive_buffer();
+            copy_air_to_mem< layout_t >( {
+                static_cast< std::uint8_t >( llid | serial_num | nesn ),
+                0x00 }, receive_buffer );
+            this->received( receive_buffer );
+            this->end_event( no_special_event );
+        }
+
+        this->timeout();
+        this->timeout();
+
+        BOOST_CHECK( disconnect_cb.disconnected );
+        BOOST_CHECK_EQUAL( disconnect_cb.reason, 0x22 );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()

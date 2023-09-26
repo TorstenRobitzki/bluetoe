@@ -697,6 +697,7 @@ namespace link_layer {
         bool parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body );
         bool parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_connect_request );
         void force_disconnect();
+        void force_disconnect( std::uint8_t new_reason );
         void start_advertising_impl();
         delta_time setup_next_connection_event();
         void transmit_pending_control_pdus();
@@ -796,6 +797,7 @@ namespace link_layer {
         std::uint16_t                   peripheral_latency_;
         std::uint16_t                   timeout_value_;
         delta_time                      connection_timeout_;
+        delta_time                      procedure_timeout_;
         std::uint16_t                   defered_conn_event_counter_;
         write_buffer                    defered_ll_control_pdu_;
         connection_data_t               connection_data_;
@@ -913,6 +915,7 @@ namespace link_layer {
                 pending_event_                          = false;
                 remote_versions_request_pending_        = false;
                 disconnecting_reason_                   = connection_timeout;
+                procedure_timeout_                      = delta_time();
 
                 this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
 
@@ -950,6 +953,10 @@ namespace link_layer {
         if ( state_ == state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
         {
             force_disconnect();
+        }
+        else if ( !procedure_timeout_.zero() && procedure_timeout_ <= time_since_last_event )
+        {
+            force_disconnect( connection_ll_response_timeout );
         }
         else if ( time_since_last_event < connection_timeout_
             && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
@@ -1015,25 +1022,37 @@ namespace link_layer {
         }
         else
         {
-            this->transmit_pending_security_pdus();
+            const auto time_since_last_event = this->time_since_last_event();
+            const bool procedure_timed_out = !procedure_timeout_.zero() && procedure_timeout_ <= time_since_last_event;
 
-            const std::pair< bool, std::uint16_t > pending_instant = { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ };
+            if ( !procedure_timeout_.zero() && !procedure_timed_out )
+                procedure_timeout_ -= time_since_last_event;
 
-            evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
-            this->plan_next_connection_event(
-                peripheral_latency_, evts, connection_interval_, pending_instant );
-
-            // Handle pending LL control PDUs that will affect the _next_ connection event
-            if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
+            if ( procedure_timed_out )
             {
-                force_disconnect();
+                force_disconnect( connection_ll_response_timeout );
             }
             else
             {
-                const delta_time time_till_next_event = setup_next_connection_event();
-                connection_event_callback::call_connection_event_callback( time_till_next_event );
-            }
+                this->transmit_pending_security_pdus();
 
+                const std::pair< bool, std::uint16_t > pending_instant = { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ };
+
+                evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
+                this->plan_next_connection_event(
+                    peripheral_latency_, evts, connection_interval_, pending_instant );
+
+                // Handle pending LL control PDUs that will affect the _next_ connection event
+                if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
+                {
+                    force_disconnect();
+                }
+                else
+                {
+                    const delta_time time_till_next_event = setup_next_connection_event();
+                    connection_event_callback::call_connection_event_callback( time_till_next_event );
+                }
+            }
         }
 
         if ( state_ == state::connected || state_ == state::connecting )
@@ -1130,6 +1149,7 @@ namespace link_layer {
         state_                = state::disconnecting;
         termination_send_     = false;
         disconnecting_reason_ = reason;
+        procedure_timeout_    = connection_timeout_;
 
         this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
@@ -1350,6 +1370,13 @@ namespace link_layer {
         }
 
         start_advertising_impl();
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::force_disconnect( std::uint8_t new_reason )
+    {
+        disconnecting_reason_ = new_reason;
+        force_disconnect();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
