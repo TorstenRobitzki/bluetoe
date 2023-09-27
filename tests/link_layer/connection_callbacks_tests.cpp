@@ -132,6 +132,25 @@ struct only_version_callback_t
 
 } only_version_callback;
 
+struct only_rejected_callback_t
+{
+    only_rejected_callback_t()
+        : only_rejected_called( false )
+    {
+    }
+
+    template < typename ConnectionData >
+    void ll_rejected( std::uint8_t error_code, const ConnectionData&  )
+    {
+        only_rejected_called = true;
+        reject_error_code = error_code;
+    }
+
+    bool only_rejected_called;
+    std::uint8_t reject_error_code;
+
+} only_rejected_callback;
+
 struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
 {
 
@@ -145,6 +164,7 @@ struct reset_callbacks
         only_changed_callback = only_changed_callback_t();
         only_disconnect_callback = only_disconnect_callback_t();
         connect_and_disconnect_callback = connect_and_disconnect_callback_t();
+        only_rejected_callback = only_rejected_callback_t();
     }
 };
 
@@ -485,4 +505,46 @@ BOOST_FIXTURE_TEST_CASE( connection_attempt_timeout, link_layer_only_connect_att
 
     run( 1000 );
     BOOST_CHECK( only_connect_attempt_timeout_callback.connect_attempt_timeout_called );
+}
+
+using link_layer_only_rejected_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< only_rejected_callback_t, only_rejected_callback >,
+        test::buffer_sizes
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( procedure_rejected, link_layer_only_rejected_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x0D,                   // LL_REJECT_IND
+            0x42,                   // ErrorCode
+        }
+    );
+
+    run( 4 );
+
+    BOOST_REQUIRE( only_rejected_callback.only_rejected_called );
+    BOOST_CHECK_EQUAL( only_rejected_callback.reject_error_code, 0x42 );
+}
+
+BOOST_FIXTURE_TEST_CASE( procedure_ext_rejected, link_layer_only_rejected_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x11,                   // LL_REJECT_EXT_IND
+            0xff,                   // opcode
+            0x42,                   // ErrorCode
+        }
+    );
+
+    run( 4 );
+
+    BOOST_REQUIRE( only_rejected_callback.only_rejected_called );
+    BOOST_CHECK_EQUAL( only_rejected_callback.reject_error_code, 0x42 );
 }

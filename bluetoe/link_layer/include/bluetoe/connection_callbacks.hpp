@@ -44,6 +44,9 @@ namespace link_layer {
      * template < typename ConnectionData >
      * void ll_version( std::uint8_t version, std::uint16_t company, std::uint16_t subversion, const ConnectionData& connection );
      *
+     * template < typename ConnectionData >
+     * void ll_rejected( std::uint8_t error_code, const ConnectionData&  );
+     *
      * ll_connection_requested() will be called, as soon, as a connection request is received.
      * ll_connection_established() is called, after the first connection event actually toke place.
      *
@@ -127,6 +130,16 @@ namespace link_layer {
         }
 
         template < class Connection, class Radio >
+        void procedure_rejected( std::uint8_t error_code, Connection& connection, Radio& r )
+        {
+            event_type_ = rejected;
+            connection_ = &connection;
+            raw_details_[ 0 ] = error_code;
+
+            r.wake_up();
+        }
+
+        template < class Connection, class Radio >
         void version_indication_received( const std::uint8_t* details, Connection& connection, Radio& r )
         {
             event_type_ = version;
@@ -162,6 +175,10 @@ namespace link_layer {
             {
                 call_ll_version< T >( Obj, connection_data< LinkLayer >() );
             }
+            else if ( event_type_ == rejected )
+            {
+                call_ll_rejected< T >( Obj, connection_data< LinkLayer >() );
+            }
 
             event_type_ = none;
             connection_ = nullptr;
@@ -175,7 +192,8 @@ namespace link_layer {
             established,
             changed,
             closed,
-            version
+            version,
+            rejected
         } event_type_;
 
         void*                   connection_;
@@ -258,6 +276,17 @@ namespace link_layer {
             return nullptr;
         }
 
+        template < typename TT, typename Connection >
+        auto call_ll_rejected( TT& obj, Connection& connection )
+            -> decltype(&TT::template ll_rejected< Connection >)
+        {
+            obj.ll_rejected(
+                raw_details_[ 0 ],
+                connection );
+
+            return nullptr;
+        }
+
         template < typename TT >
         void call_ll_connection_requested( ... )
         {
@@ -285,6 +314,11 @@ namespace link_layer {
 
         template < typename TT >
         void call_ll_version( ... )
+        {
+        }
+
+        template < typename TT >
+        void call_ll_rejected( ... )
         {
         }
 
@@ -325,6 +359,9 @@ namespace link_layer {
 
             template < class Connection, class Radio >
             void version_indication_received( const std::uint8_t*, Connection&, Radio& ) {}
+
+            template < class Connection, class Radio >
+            void procedure_rejected( std::uint8_t, Connection&, Radio& ) {}
         };
     }
 

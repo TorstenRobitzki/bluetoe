@@ -832,6 +832,7 @@ namespace link_layer {
         std::uint16_t                   proposed_timeout_;
         bool                            connection_parameters_request_pending_;
         bool                            connection_parameters_request_running_;
+        bool                            connection_parameters_request_use_signaling_channel_;
         bool                            phy_update_request_pending_;
         bool                            remote_versions_request_pending_;
 
@@ -920,6 +921,7 @@ namespace link_layer {
                 used_features_                          = supported_features;
                 connection_parameters_request_pending_  = false;
                 connection_parameters_request_running_  = false;
+                connection_parameters_request_use_signaling_channel_ = false;
                 phy_update_request_pending_             = false;
                 pending_event_                          = false;
                 remote_versions_request_pending_        = false;
@@ -1108,6 +1110,7 @@ namespace link_layer {
             proposed_latency_       = latency;
             proposed_timeout_       = timeout;
             connection_parameters_request_pending_ = true;
+            connection_parameters_request_use_signaling_channel_ = true;
 
             this->wake_up();
 
@@ -1576,26 +1579,39 @@ namespace link_layer {
                 } );
 
             }
-            else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 && body[ 1 ] == LL_CONNECTION_PARAM_REQ )
-                || opcode == LL_REJECT_IND
-                || ( opcode == LL_REJECT_IND_EXT && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
+            else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_IND_EXT && size == 3 ) )
             {
-                if ( connection_parameters_request_running_ )
-                {
-                    connection_parameters_request_running_ = false;
+                bool opcode_contains_request = opcode == LL_UNKNOWN_RSP || opcode == LL_REJECT_IND_EXT;
 
-                    if ( signaling_channel_t::connection_parameter_update_request(
-                        proposed_interval_min_,
-                        proposed_interval_max_,
-                        proposed_latency_,
-                        proposed_timeout_ ) )
+                if ( !opcode_contains_request || ( opcode_contains_request && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
+                {
+                    if ( connection_parameters_request_running_ && connection_parameters_request_use_signaling_channel_ )
                     {
-                        this->wake_up();
+                        connection_parameters_request_use_signaling_channel_ = false;
+                        connection_parameters_request_running_ = false;
+
+                        if ( signaling_channel_t::connection_parameter_update_request(
+                            proposed_interval_min_,
+                            proposed_interval_max_,
+                            proposed_latency_,
+                            proposed_timeout_ ) )
+                        {
+                            this->wake_up();
+                        }
                     }
+
+                    if ( opcode == LL_UNKNOWN_RSP )
+                        used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
                 }
 
-                if ( opcode == LL_UNKNOWN_RSP )
-                    used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
+                if ( opcode != LL_UNKNOWN_RSP )
+                {
+                    const std::uint8_t error_code = opcode == LL_REJECT_IND
+                        ? body[ 1 ]
+                        : body[ 2 ];
+
+                    this->procedure_rejected( error_code, connection_data_, static_cast< radio_t& >( *this ) );
+                }
 
                 commit = false;
             }
