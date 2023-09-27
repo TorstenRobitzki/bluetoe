@@ -1612,6 +1612,11 @@ namespace link_layer {
 
                     this->procedure_rejected( error_code, connection_data_, static_cast< radio_t& >( *this ) );
                 }
+                else
+                {
+                    assert( opcode == LL_UNKNOWN_RSP );
+                    this->procedure_unknown( body[ 1 ], connection_data_, static_cast< radio_t& >( *this ) );
+                }
 
                 commit = false;
             }

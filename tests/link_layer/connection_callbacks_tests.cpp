@@ -151,6 +151,25 @@ struct only_rejected_callback_t
 
 } only_rejected_callback;
 
+struct only_unknown_callback_t
+{
+    only_unknown_callback_t()
+        : only_unknown_called( false )
+    {
+    }
+
+    template < typename ConnectionData >
+    void ll_unknown( std::uint8_t unknown_type, const ConnectionData&  )
+    {
+        only_unknown_called = true;
+        unknown_unknown_type = unknown_type;
+    }
+
+    bool only_unknown_called;
+    std::uint8_t unknown_unknown_type;
+
+} only_unknown_callback;
+
 struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
 {
 
@@ -547,4 +566,29 @@ BOOST_FIXTURE_TEST_CASE( procedure_ext_rejected, link_layer_only_rejected_callba
 
     BOOST_REQUIRE( only_rejected_callback.only_rejected_called );
     BOOST_CHECK_EQUAL( only_rejected_callback.reject_error_code, 0x42 );
+}
+
+using link_layer_only_unknown_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< only_unknown_callback_t, only_unknown_callback >,
+        test::buffer_sizes
+    >
+>;
+
+
+BOOST_FIXTURE_TEST_CASE( procedure_unknown, link_layer_only_unknown_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x07,                   // LL_UNKNOWN_RSP
+            0x99,                   // UnknownType
+        }
+    );
+
+    run( 4 );
+
+    BOOST_REQUIRE( only_unknown_callback.only_unknown_called );
+    BOOST_CHECK_EQUAL( only_unknown_callback.unknown_unknown_type, 0x99 );
 }
