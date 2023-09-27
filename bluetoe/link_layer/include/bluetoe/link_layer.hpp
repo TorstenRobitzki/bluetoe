@@ -567,6 +567,13 @@ namespace link_layer {
         bool connection_parameter_update_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
 
         /**
+         * @brief initiate a link layer Connection Parameters Request procedure
+         *
+         * If it was not possible to initiate the procedure, the function returns false.
+         */
+        bool initiating_connection_parameter_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout );
+
+        /**
          * @brief initiates a PHY Update Procedure to request to upgrade the PHY to 2MBit.
          *
          * The update procedure is started as soon as possible.
@@ -723,7 +730,7 @@ namespace link_layer {
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
         static constexpr std::uint8_t   lld_data_pdu_code           = 2;
 
-        static constexpr std::uint8_t   LL_CONNECTION_UPDATE_REQ    = 0x00;
+        static constexpr std::uint8_t   LL_CONNECTION_UPDATE_IND    = 0x00;
         static constexpr std::uint8_t   LL_CHANNEL_MAP_REQ          = 0x01;
         static constexpr std::uint8_t   LL_TERMINATE_IND            = 0x02;
         static constexpr std::uint8_t   LL_ENC_REQ                  = 0x03;
@@ -756,6 +763,8 @@ namespace link_layer {
         static constexpr std::uint8_t   connection_terminated_by_local_host = 0x16;
         static constexpr std::uint8_t   connection_ll_response_timeout = 0x22;
         static constexpr std::uint8_t   connection_instant_passed   = 0x28;
+
+        static constexpr std::uint32_t  default_procedure_timeout_us= 40 * 1000 * 1000;
 
         struct link_layer_feature {
             enum : std::uint16_t {
@@ -1114,6 +1123,23 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::initiating_connection_parameter_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
+    {
+        if ( connection_parameters_request_pending_ || !procedure_timeout_.zero() )
+            return false;
+
+        proposed_interval_min_  = interval_min;
+        proposed_interval_max_  = interval_max;
+        proposed_latency_       = latency;
+        proposed_timeout_       = timeout;
+        connection_parameters_request_pending_ = true;
+
+        this->wake_up();
+
+        return true;
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::phy_update_request_to_2mbit()
     {
         if ( phy_update_request_pending_ )
@@ -1128,7 +1154,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::remote_versions_request()
     {
-        if ( remote_versions_request_pending_ )
+        if ( remote_versions_request_pending_ || !procedure_timeout_.zero() )
             return false;
 
         remote_versions_request_pending_ = true;
@@ -1208,6 +1234,7 @@ namespace link_layer {
 
         if ( connection_parameters_request_pending_ )
         {
+            procedure_timeout_ = delta_time( default_procedure_timeout_us );
             connection_parameters_request_pending_ = false;
             connection_parameters_request_running_ = true;
 
@@ -1240,6 +1267,7 @@ namespace link_layer {
         }
         else if ( remote_versions_request_pending_ )
         {
+            procedure_timeout_ = delta_time( default_procedure_timeout_us );
             remote_versions_request_pending_ = false;
 
             fill< layout_t >( out_buffer, {
@@ -1473,7 +1501,7 @@ namespace link_layer {
             const std::uint8_t size   = header >> 8;
             const std::uint8_t opcode = size > 0 ? *body : 0xff;
 
-            if ( opcode == LL_CONNECTION_UPDATE_REQ && size == 12 )
+            if ( opcode == LL_CONNECTION_UPDATE_IND && size == 12 )
             {
                 defered_conn_event_counter_ = read_16bit( &body[ 10 ] );
                 commit = false;
@@ -1497,6 +1525,8 @@ namespace link_layer {
             }
             else if ( opcode == LL_VERSION_IND && size == 6 )
             {
+                procedure_timeout_ = delta_time();
+
                 if ( body[ 1 ] <= LL_VERSION_40 )
                     used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
 
@@ -1616,8 +1646,10 @@ namespace link_layer {
             {
                 channels_.reset( &body[ 1 ] );
             }
-            else if ( opcode == LL_CONNECTION_UPDATE_REQ )
+            else if ( opcode == LL_CONNECTION_UPDATE_IND )
             {
+                procedure_timeout_ = delta_time();
+
                 if ( parse_timing_parameters_from_connection_update_request( body ) )
                 {
                     state_ = state::connection_changed;
