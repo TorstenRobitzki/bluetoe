@@ -835,6 +835,7 @@ namespace link_layer {
         bool                            connection_parameters_request_use_signaling_channel_;
         bool                            phy_update_request_pending_;
         bool                            remote_versions_request_pending_;
+        bool                            version_indication_received_;
 
         // default configuration parameters
         typedef                         advertising_interval< 100 >         default_advertising_interval;
@@ -868,6 +869,7 @@ namespace link_layer {
         , connection_parameters_request_running_( false )
         , phy_update_request_pending_( false )
         , remote_versions_request_pending_( false )
+        , version_indication_received_( false )
     {
         using user_timer_t = typename bluetoe::details::find_by_meta_type<
             details::synchronized_connection_event_callback_meta_type,
@@ -925,6 +927,7 @@ namespace link_layer {
                 phy_update_request_pending_             = false;
                 pending_event_                          = false;
                 remote_versions_request_pending_        = false;
+                version_indication_received_            = false;
                 disconnecting_reason_                   = connection_timeout;
                 procedure_timeout_                      = delta_time();
 
@@ -1526,7 +1529,7 @@ namespace link_layer {
                 commit = false;
                 result = ll_result::disconnect;
             }
-            else if ( opcode == LL_VERSION_IND && size == 6 )
+            else if ( opcode == LL_VERSION_IND && size == 6 && !version_indication_received_ )
             {
                 procedure_timeout_ = delta_time();
 
@@ -1542,6 +1545,7 @@ namespace link_layer {
                 } );
 
                 this->version_indication_received( &body[ 1 ], connection_data_, static_cast< radio_t& >( *this ) );
+                version_indication_received_ = true;
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {

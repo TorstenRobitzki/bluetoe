@@ -3,6 +3,9 @@
 
 #include "connected.hpp"
 
+using test::X;
+using test::and_so_on;
+
 BOOST_FIXTURE_TEST_CASE( respond_with_an_unknown_rsp, unconnected )
 {
     check_single_ll_control_pdu(
@@ -34,6 +37,41 @@ BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
         },
         "respond_to_a_version_ind"
     );
+}
+
+/**
+ * LL/CON/PER/BI-15-C
+ */
+BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind_ignoring_additional_requests, unconnected )
+{
+    this->respond_to( 37, valid_connection_request_pdu );
+    for ( int times = 0; times != 5; ++times )
+    {
+        ll_control_pdu({
+            0x0C,               // LL_VERSION_IND
+            0x08,               // VersNr = Core Specification 4.2
+            0x00, 0x02,         // CompId
+            0x00, 0x00          // SubVersNr
+        });
+    }
+    ll_empty_pdus( 4 );
+
+    run( 5 );
+
+    int num_responses = 0;
+
+    check_connection_events( [&]( const test::connection_event& evt ) -> bool
+    {
+        for ( const auto& response: evt.transmitted_data )
+        {
+            if ( check_pdu( response, { X, X, 0x0C, and_so_on } ) )
+                ++num_responses;
+        }
+
+        return true;
+    }, "LL_VERSION_IND missing" );
+
+    BOOST_CHECK_EQUAL( num_responses, 1 );
 }
 
 BOOST_FIXTURE_TEST_CASE( respond_to_a_ping, unconnected )
