@@ -1578,6 +1578,7 @@ namespace link_layer {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
 
+                this->remote_features_received( &body[ 1 ], connection_data_, static_cast< radio_t& >( *this ) );
             }
             else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_IND_EXT && size == 3 ) )
             {

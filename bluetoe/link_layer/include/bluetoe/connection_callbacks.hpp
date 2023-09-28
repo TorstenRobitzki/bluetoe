@@ -50,6 +50,9 @@ namespace link_layer {
      * template < typename ConnectionData >
      * void ll_unknown( std::uint8_t unknown_type, const ConnectionData& connection );
      *
+     * template < typename ConnectionData >
+     * void ll_remote_features( std::uint8_t remote_features[ 8 ], const ConnectionData& connection );
+     *
      * ll_connection_requested() will be called, as soon, as a connection request is received.
      * ll_connection_established() is called, after the first connection event actually toke place.
      *
@@ -162,6 +165,16 @@ namespace link_layer {
             r.wake_up();
         }
 
+        template < class Connection, class Radio >
+        void remote_features_received( const std::uint8_t rf[ 8 ], Connection& connection, Radio& r )
+        {
+            event_type_ = remote_features;
+            connection_ = &connection;
+            std::copy( rf, rf + feature_field_size, &raw_details_[ 0 ] );
+
+            r.wake_up();
+        }
+
         template < class LinkLayer >
         void handle_connection_events() {
             if ( event_type_ == requested )
@@ -196,6 +209,10 @@ namespace link_layer {
             {
                 call_ll_unknown< T >( Obj, connection_data< LinkLayer >() );
             }
+            else if ( event_type_ == remote_features )
+            {
+                call_ll_remote_features< T >( Obj, connection_data< LinkLayer >() );
+            }
 
             event_type_ = none;
             connection_ = nullptr;
@@ -211,7 +228,8 @@ namespace link_layer {
             closed,
             version,
             rejected,
-            unknown
+            unknown,
+            remote_features
         } event_type_;
 
         void*                   connection_;
@@ -219,7 +237,9 @@ namespace link_layer {
         connection_addresses    addresses_;
 
         static constexpr std::size_t version_ind_size = 5u;
-        std::uint8_t raw_details_[ version_ind_size ];
+        static constexpr std::size_t feature_field_size = 8u;
+
+        std::uint8_t raw_details_[ feature_field_size ];
 
         template < typename LinkLayer >
         typename LinkLayer::connection_data_t& connection_data()
@@ -316,6 +336,17 @@ namespace link_layer {
             return nullptr;
         }
 
+        template < typename TT, typename Connection >
+        auto call_ll_remote_features( TT& obj, Connection& connection )
+            -> decltype(&TT::template ll_remote_features< Connection >)
+        {
+            obj.ll_remote_features(
+                &raw_details_[ 0 ],
+                connection );
+
+            return nullptr;
+        }
+
         template < typename TT >
         void call_ll_connection_requested( ... )
         {
@@ -353,6 +384,11 @@ namespace link_layer {
 
         template < typename TT >
         void call_ll_unknown( ... )
+        {
+        }
+
+        template < typename TT >
+        void call_ll_remote_features( ... )
         {
         }
 
@@ -399,6 +435,10 @@ namespace link_layer {
 
             template < class Connection, class Radio >
             void procedure_unknown( std::uint8_t, Connection&, Radio& ) {}
+
+            template < class Connection, class Radio >
+            void remote_features_received( const std::uint8_t[8], Connection&, Radio& ) {}
+
         };
     }
 

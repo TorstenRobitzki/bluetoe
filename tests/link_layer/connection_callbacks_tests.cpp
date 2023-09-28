@@ -170,6 +170,25 @@ struct only_unknown_callback_t
 
 } only_unknown_callback;
 
+struct only_remote_features_callback_t
+{
+    only_remote_features_callback_t()
+        : remote_features_called( false )
+    {
+        std::fill( remote_features, remote_features + 8, 0 );
+    }
+
+    template < typename ConnectionData >
+    void ll_remote_features( std::uint8_t rf[ 8 ], const ConnectionData& )
+    {
+        remote_features_called = true;
+        std::copy( rf, rf + 8, remote_features );
+    }
+
+    bool remote_features_called;
+    std::uint8_t remote_features[ 8 ];
+} only_remote_features_callback;
+
 struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
 {
 
@@ -184,6 +203,7 @@ struct reset_callbacks
         only_disconnect_callback = only_disconnect_callback_t();
         connect_and_disconnect_callback = connect_and_disconnect_callback_t();
         only_rejected_callback = only_rejected_callback_t();
+        only_remote_features_callback = only_remote_features_callback_t();
     }
 };
 
@@ -591,4 +611,39 @@ BOOST_FIXTURE_TEST_CASE( procedure_unknown, link_layer_only_unknown_callback )
 
     BOOST_REQUIRE( only_unknown_callback.only_unknown_called );
     BOOST_CHECK_EQUAL( only_unknown_callback.unknown_unknown_type, 0x99 );
+}
+
+using link_layer_only_remote_features_callback = mixin_reset_callbacks<
+    unconnected_base<
+        bluetoe::link_layer::connection_callbacks< only_remote_features_callback_t, only_remote_features_callback >,
+        test::buffer_sizes
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( remote_features, link_layer_only_remote_features_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x08,                   // LL_FEATURE_REQ
+            0x01, 0x02, 0x03, 0x04, // Feature set
+            0x05, 0x06, 0x07, 0x08
+        }
+    );
+
+    run( 4 );
+
+    static const std::uint8_t expected_features[] = {
+        0x01, 0x02, 0x03, 0x04,
+        0x05, 0x06, 0x07, 0x08
+    };
+
+    BOOST_REQUIRE( only_remote_features_callback.remote_features_called );
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        std::begin( only_remote_features_callback.remote_features ),
+        std::end( only_remote_features_callback.remote_features ),
+        std::begin( expected_features ),
+        std::end( expected_features ) );
+
 }
