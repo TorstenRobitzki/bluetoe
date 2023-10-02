@@ -511,6 +511,11 @@ namespace link_layer {
             details::ll_pdu_receive_data_callback_meta_type,
             Options...,
             no_l2cap_callback
+        >::type,
+        public bluetoe::details::find_by_meta_type<
+            details::desired_connection_parameters_meta_type,
+            Options...,
+            no_desired_connection_parameters
         >::type
     {
     public:
@@ -934,6 +939,7 @@ namespace link_layer {
                 this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
 
                 this->reset_pdu_buffer();
+                this->reset_connection_parameter_request();
                 setup_next_connection_event();
 
                 this->connection_request( connection_addresses( address_, remote_address ) );
@@ -1226,7 +1232,10 @@ namespace link_layer {
     {
         static constexpr std::uint8_t connection_param_req_size = 24u;
 
-        if ( !connection_parameters_request_pending_ && !phy_update_request_pending_ && !remote_versions_request_pending_ )
+        if ( !connection_parameters_request_pending_
+          && !phy_update_request_pending_
+          && !remote_versions_request_pending_
+          && !this->connection_parameters_response_pending() )
             return;
 
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
@@ -1284,6 +1293,11 @@ namespace link_layer {
                 0x00, 0x00
             } );
 
+            this->commit_ll_transmit_buffer( out_buffer );
+        }
+        else if ( this->connection_parameters_response_pending() )
+        {
+            this->template connection_parameters_response_fill< layout_t >( out_buffer );
             this->commit_ll_transmit_buffer( out_buffer );
         }
     }
@@ -1627,12 +1641,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
             {
-                using connection_param_responder = typename bluetoe::details::find_by_meta_type<
-                    bluetoe::link_layer::details::desired_connection_parameters_meta_type,
-                    Options...,
-                    no_desired_connection_parameters >::type;
-
-                connection_param_responder::template fill_response< layout_t >( pdu, write );
+                commit = this->template handle_connection_parameters_request< layout_t >( pdu, write );
             }
             else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
             {

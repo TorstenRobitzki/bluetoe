@@ -328,6 +328,7 @@ using desired_connection_parameters = bluetoe::link_layer::desired_connection_pa
     2, 20,
     1*20*4, 2*20*4
 >;
+
 struct link_layer_with_desired_connection_parameters : unconnected_base< bluetoe::l2cap::signaling_channel<>, test::buffer_sizes, desired_connection_parameters >
 {
     link_layer_with_desired_connection_parameters()
@@ -492,9 +493,52 @@ BOOST_FIXTURE_TEST_CASE( requested_timeout_outside_of_desired_values, link_layer
     } );
 }
 
+struct connection_parameter_update_cb_t
+{
+public:
+    connection_parameter_update_cb_t()
+        : remote_connection_parameter_request_received( false )
+    {
+    }
+
+    void ll_remote_connection_parameter_request(
+        std::uint16_t interval_min,
+        std::uint16_t interval_max,
+        std::uint16_t latency,
+        std::uint16_t timeout )
+    {
+        remote_connection_parameter_request_received = true;
+
+        requested_interval_min  = interval_min;
+        requested_interval_max  = interval_max;
+        requested_latency       = latency;
+        requested_timeout       = timeout;
+    }
+
+    bool remote_connection_parameter_request_received;
+    std::uint16_t requested_interval_min;
+    std::uint16_t requested_interval_max;
+    std::uint16_t requested_latency;
+    std::uint16_t requested_timeout;
+
+} connection_parameter_update_cb;
+
+struct link_layer_with_async_parameters : unconnected_base<
+    bluetoe::l2cap::signaling_channel<>,
+    test::buffer_sizes,
+    bluetoe::link_layer::asynchronous_connection_parameter_request< connection_parameter_update_cb_t, connection_parameter_update_cb > >
+{
+    link_layer_with_async_parameters()
+    {
+        connection_parameter_update_cb = connection_parameter_update_cb_t();
+        respond_to( 37, valid_connection_request_pdu );
+    }
+};
+
 using connection_parameters_configurations = std::tuple<
     link_layer_with_desired_connection_parameters,
-    link_layer_with_signaling_channel >;
+    link_layer_with_signaling_channel,
+    link_layer_with_async_parameters >;
 
 /**
  * LL/CON/PER/BI-16-C
@@ -629,5 +673,122 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_p
         0x11,                       // LL_REJECT_EXT_IND
         0x0F,                       // LL_CONNECTION_PARAM_REQ
         0x1E                        // ErrorCode
+    } );
+}
+
+BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_parameters_test, link_layer_with_async_parameters )
+{
+    ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // min interval
+        20, 0x00,                   // max interval
+        5, 0x00,                    // latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0 (none)
+        0x04, 0x00,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    check_connection_events( [&]( const test::connection_event& evt ) -> bool {
+        using test::X;
+        using test::and_so_on;
+
+        for ( const auto& response: evt.transmitted_data )
+        {
+            if ( check_pdu( response, { X, X, 0x11, and_so_on } )
+              || check_pdu( response, { X, X, 0x10, and_so_on } ) )
+                return false;
+        }
+
+        return true;
+    }, "no LL_REJECT_EXT_IND and no LL_CONNECTION_PARAM_RSP" );
+
+    BOOST_REQUIRE( connection_parameter_update_cb.remote_connection_parameter_request_received );
+    BOOST_CHECK_EQUAL( connection_parameter_update_cb.requested_interval_min, 10 );
+    BOOST_CHECK_EQUAL( connection_parameter_update_cb.requested_interval_max, 20 );
+    BOOST_CHECK_EQUAL( connection_parameter_update_cb.requested_latency, 5 );
+    BOOST_CHECK_EQUAL( connection_parameter_update_cb.requested_timeout, 2 * 20 * 4 );
+}
+
+BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_reply_test, link_layer_with_async_parameters )
+{
+    ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // min interval
+        20, 0x00,                   // max interval
+        5, 0x00,                    // latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0 (none)
+        0x04, 0x00,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+    ll_empty_pdus(3);
+    ll_function_call([this](){
+        connection_parameters_request_reply( 11, 19, 3, 2 * 20 * 4 - 5 );
+    });
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    check_outgoing_ll_control_pdu( {
+        0x10,                       // LL_CONNECTION_PARAM_RSP
+        11, 0x00,                   // min interval
+        19, 0x00,                   // max interval
+        3, 0x00,                    // latency
+        (2 * 20 * 4 - 5) & 0xff, (2 * 20 * 4 - 5) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+}
+
+BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_negative_reply_test, link_layer_with_async_parameters )
+{
+    ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // min interval
+        20, 0x00,                   // max interval
+        5, 0x00,                    // latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0 (none)
+        0x04, 0x00,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+    ll_empty_pdus(3);
+    ll_function_call([this](){
+        connection_parameters_request_negative_reply();
+    });
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    check_outgoing_ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x3B                        // UNACCEPTABLE CONNECTION PARAMETERS
     } );
 }

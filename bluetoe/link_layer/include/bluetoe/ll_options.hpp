@@ -159,6 +159,7 @@ namespace link_layer
             static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
             static constexpr std::uint8_t   LL_REJECT_EXT_IND           = 0x11;
             static constexpr std::uint8_t   invalid_ll_paramerters      = 0x1E;
+            static constexpr std::uint8_t   unacceptable_connection_parameters = 0x3B;
 
             template < class Layout >
             static bool parse_and_check_params( const write_buffer& request, read_buffer response, requested_connection_parameters& params )
@@ -206,6 +207,8 @@ namespace link_layer
      * Finally, Bluetoe should implement some mean / algorithm / heuristic to
      * establish the desired connection parameters. (for example, by requesting
      * them from the Central).
+     *
+     * @sa asynchronous_connection_parameter_request
      */
     template <
         std::uint16_t Interval_min,
@@ -222,7 +225,7 @@ namespace link_layer
             details::valid_link_layer_option_meta_type {};
 
         template < class Layout >
-        static void fill_response(
+        bool handle_connection_parameters_request(
             const write_buffer& request, read_buffer response )
         {
             const std::uint8_t* const body       = Layout::body( request ).first;
@@ -266,7 +269,131 @@ namespace link_layer
                 std::copy( &body[ 9 ], &body[ size ], &write_body[ 9 ] );
             }
 
+            return true;
         }
+
+        template < class Layout >
+        void connection_parameters_response_fill( read_buffer )
+        {}
+
+        bool connection_parameters_response_pending() const
+        {
+            return false;
+        }
+
+        void reset_connection_parameter_request()
+        {}
+        /** @endcond */
+    };
+
+    /**
+     * @brief configures the link_layer to implement the connection parameter update request / response
+     *        by upcalling a callback and then awaiting an response from the application.
+     *
+     * @sa desired_connection_parameters
+     */
+    template < class Callback, Callback& Obj >
+    struct asynchronous_connection_parameter_request : private details::desired_connection_parameters_base
+    {
+    public:
+        void connection_parameters_request_reply(
+            std::uint16_t interval_min,
+            std::uint16_t interval_max,
+            std::uint16_t latency,
+            std::uint16_t timeout )
+        {
+            pending_ = true;
+            negative_ = false;
+            interval_min_ = interval_min;
+            interval_max_ = interval_max;
+            latency_      = latency;
+            timeout_      = timeout;
+        }
+
+        void connection_parameters_request_negative_reply()
+        {
+            pending_ = true;
+            negative_ = true;
+        }
+
+        /** @cond HIDDEN_SYMBOLS */
+        struct meta_type :
+            details::desired_connection_parameters_meta_type,
+            details::valid_link_layer_option_meta_type {};
+
+    protected:
+        template < class Layout >
+        bool handle_connection_parameters_request(
+            const write_buffer& request, read_buffer response )
+        {
+            details::requested_connection_parameters params;
+            if ( !parse_and_check_params< Layout >( request, response, params ) )
+                return true;
+
+            Obj.ll_remote_connection_parameter_request(
+                params.min_interval, params.max_interval,
+                params.latency, params.timeout );
+
+            return false;
+        }
+
+        template < class Layout >
+        void connection_parameters_response_fill( read_buffer response )
+        {
+            if ( negative_ )
+            {
+                fill< Layout >( response, {
+                    ll_control_pdu_code, 3,
+                    LL_REJECT_EXT_IND,
+                    LL_CONNECTION_PARAM_REQ,
+                    unacceptable_connection_parameters
+                } );
+            }
+            else
+            {
+                fill< Layout >( response, {
+                    ll_control_pdu_code, size,
+                    LL_CONNECTION_PARAM_RSP,
+                    static_cast< std::uint8_t >( interval_min_ ),
+                    static_cast< std::uint8_t >( interval_min_ >> 8 ),
+                    static_cast< std::uint8_t >( interval_max_ ),
+                    static_cast< std::uint8_t >( interval_max_ >> 8 ),
+                    static_cast< std::uint8_t >( latency_ ),
+                    static_cast< std::uint8_t >( latency_ >> 8 ),
+                    static_cast< std::uint8_t >( timeout_ ),
+                    static_cast< std::uint8_t >( timeout_ >> 8 ),
+                    0,
+                    0xff, 0xff,
+                    0xff, 0xff,
+                    0xff, 0xff,
+                    0xff, 0xff,
+                    0xff, 0xff,
+                    0xff, 0xff,
+                    0xff, 0xff,
+                } );
+            }
+
+
+            pending_ = false;
+        }
+
+        bool connection_parameters_response_pending() const
+        {
+            return pending_;
+        }
+
+        void reset_connection_parameter_request()
+        {
+            pending_ = false;
+        }
+
+    private:
+        bool pending_;
+        bool negative_;
+        std::uint16_t interval_min_;
+        std::uint16_t interval_max_;
+        std::uint16_t latency_;
+        std::uint16_t timeout_;
         /** @endcond */
     };
 
@@ -278,7 +405,7 @@ namespace link_layer
             details::valid_link_layer_option_meta_type {};
 
         template < class Layout >
-        static void fill_response(
+        bool handle_connection_parameters_request(
             const write_buffer& request, read_buffer response )
         {
             details::requested_connection_parameters params;
@@ -291,7 +418,22 @@ namespace link_layer
 
                 std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
             }
+
+            return true;
         }
+
+        template < class Layout >
+        void connection_parameters_response_fill( read_buffer )
+        {}
+
+        bool connection_parameters_response_pending() const
+        {
+            return false;
+        }
+
+        void reset_connection_parameter_request()
+        {}
+
     };
     /** @endcond */
 
