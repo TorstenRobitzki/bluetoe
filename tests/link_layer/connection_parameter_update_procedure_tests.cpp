@@ -491,3 +491,143 @@ BOOST_FIXTURE_TEST_CASE( requested_timeout_outside_of_desired_values, link_layer
         0xff, 0xff                  // Offset5 (none)
     } );
 }
+
+using connection_parameters_configurations = std::tuple<
+    link_layer_with_desired_connection_parameters,
+    link_layer_with_signaling_channel >;
+
+/**
+ * LL/CON/PER/BI-16-C
+ */
+BOOST_AUTO_TEST_CASE_TEMPLATE( Reject_Invalid_Connection_Parameter_Request_Parameters, fixture_t, connection_parameters_configurations )
+{
+    fixture_t link_layer;
+
+    link_layer.ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        20, 0x00,                   // min interval
+        10, 0x00,                   // max interval
+        3, 0x00,                    // latency
+        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    link_layer.ll_empty_pdus(3);
+
+    link_layer.run( 5 );
+
+    link_layer.check_outgoing_ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x1E                        // ErrorCode
+    } );
+}
+
+/**
+ * LL/CON/PER/BI-08-C I
+ */
+BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_parameters_I, fixture_t, connection_parameters_configurations )
+{
+    fixture_t link_layer;
+
+    link_layer.ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        4, 0x00,                    // min interval
+        10, 0x00,                   // max interval
+        3, 0x00,                    // latency
+        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    link_layer.ll_empty_pdus(3);
+
+    link_layer.run( 5 );
+
+    link_layer.check_outgoing_ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x1E                        // ErrorCode
+    } );
+}
+
+/**
+ * LL/CON/PER/BI-08-C II
+ */
+BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_parameters_II, fixture_t, connection_parameters_configurations )
+{
+    fixture_t link_layer;
+
+    link_layer.ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        5, 0x00,                    // min interval
+        0x81, 0x0C,                 // max interval
+        3, 0x00,                    // latency
+        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    link_layer.ll_empty_pdus(3);
+
+    link_layer.run( 5 );
+
+    link_layer.check_outgoing_ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x1E                        // ErrorCode
+    } );
+}
+
+/**
+ * LL/CON/PER/BI-08-C III
+ */
+BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_parameters_III, fixture_t, connection_parameters_configurations )
+{
+    fixture_t link_layer;
+
+    link_layer.ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        5, 0x00,                    // min interval
+        10, 0x00,                   // max interval
+        0xf5, 0x01,                 // latency 501
+        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
+        0x00,                       // prefered periodicity (none)
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    link_layer.ll_empty_pdus(3);
+
+    link_layer.run( 5 );
+
+    link_layer.check_outgoing_ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x1E                        // ErrorCode
+    } );
+}

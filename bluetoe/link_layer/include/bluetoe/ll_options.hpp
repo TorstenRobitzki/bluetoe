@@ -143,11 +143,56 @@ namespace link_layer
 
     namespace details
     {
+        struct requested_connection_parameters
+        {
+            std::uint16_t min_interval;
+            std::uint16_t max_interval;
+            std::uint16_t latency;
+            std::uint16_t timeout;
+        };
+
         struct desired_connection_parameters_base
         {
             static constexpr std::size_t    size                        = 24;
             static constexpr std::uint8_t   ll_control_pdu_code         = 3;
+            static constexpr std::uint8_t   LL_CONNECTION_PARAM_REQ     = 0x0F;
             static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
+            static constexpr std::uint8_t   LL_REJECT_EXT_IND           = 0x11;
+            static constexpr std::uint8_t   invalid_ll_paramerters      = 0x1E;
+
+            template < class Layout >
+            static bool parse_and_check_params( const write_buffer& request, read_buffer response, requested_connection_parameters& params )
+            {
+                static constexpr std::uint16_t interval_minimum = 5u;
+                static constexpr std::uint16_t interval_maximum = 3200u;
+                static constexpr std::uint16_t latency_maximum  = 500u;
+
+                const std::uint8_t* const body       = Layout::body( request ).first;
+
+                using bluetoe::details::read_16bit;
+
+                params.min_interval = read_16bit( body + 1 );
+                params.max_interval = read_16bit( body + 3 );
+                params.latency      = read_16bit( body + 5 );
+                params.timeout      = read_16bit( body + 7 );
+
+                if ( params.max_interval < params.min_interval
+                  || params.min_interval < interval_minimum
+                  || params.max_interval > interval_maximum
+                  || params.latency > latency_maximum )
+                {
+                    fill< Layout >( response, {
+                        ll_control_pdu_code, 3,
+                        LL_REJECT_EXT_IND,
+                        LL_CONNECTION_PARAM_REQ,
+                        invalid_ll_paramerters
+                    } );
+
+                    return false;
+                }
+
+                return true;
+            }
         };
     }
 
@@ -183,43 +228,44 @@ namespace link_layer
             const std::uint8_t* const body       = Layout::body( request ).first;
                   std::uint8_t* const write_body = Layout::body( response ).first;
 
-            using bluetoe::details::read_16bit;
-
-            std::uint16_t min_interval = std::max( read_16bit( body + 1 ), Interval_min );
-            std::uint16_t max_interval = std::min( read_16bit( body + 3 ), Interval_max );
-            std::uint16_t latency      = read_16bit( body + 5 );
-            std::uint16_t timeout      = read_16bit( body + 7 );
-
-            if ( min_interval > max_interval )
+            details::requested_connection_parameters params;
+            if ( parse_and_check_params< Layout >( request, response, params ) )
             {
-                min_interval = Interval_min;
-                max_interval = Interval_max;
+                params.min_interval = std::max( params.min_interval, Interval_min );
+                params.max_interval = std::min( params.max_interval, Interval_max );
+
+                if ( params.min_interval > params.max_interval )
+                {
+                    params.min_interval = Interval_min;
+                    params.max_interval = Interval_max;
+                }
+
+                if ( params.latency < Latency_min || params.latency > Latency_max )
+                {
+                    params.latency = ( Latency_min + Latency_max ) / 2;
+                }
+
+                if ( params.timeout < Timeout_min || params.timeout > Timeout_max )
+                {
+                    params.timeout = ( Timeout_min + Timeout_max ) / 2;
+                }
+
+                fill< Layout >( response, {
+                    ll_control_pdu_code, size,
+                    LL_CONNECTION_PARAM_RSP,
+                    static_cast< std::uint8_t >( params.min_interval ),
+                    static_cast< std::uint8_t >( params.min_interval >> 8 ),
+                    static_cast< std::uint8_t >( params.max_interval ),
+                    static_cast< std::uint8_t >( params.max_interval >> 8 ),
+                    static_cast< std::uint8_t >( params.latency ),
+                    static_cast< std::uint8_t >( params.latency >> 8 ),
+                    static_cast< std::uint8_t >( params.timeout ),
+                    static_cast< std::uint8_t >( params.timeout >> 8 )
+                } );
+
+                std::copy( &body[ 9 ], &body[ size ], &write_body[ 9 ] );
             }
 
-            if ( latency < Latency_min || latency > Latency_max )
-            {
-                latency = ( Latency_min + Latency_max ) / 2;
-            }
-
-            if ( timeout < Timeout_min || timeout > Timeout_max )
-            {
-                timeout = ( Timeout_min + Timeout_max ) / 2;
-            }
-
-            fill< Layout >( response, {
-                ll_control_pdu_code, size,
-                LL_CONNECTION_PARAM_RSP,
-                static_cast< std::uint8_t >( min_interval ),
-                static_cast< std::uint8_t >( min_interval >> 8 ),
-                static_cast< std::uint8_t >( max_interval ),
-                static_cast< std::uint8_t >( max_interval >> 8 ),
-                static_cast< std::uint8_t >( latency ),
-                static_cast< std::uint8_t >( latency >> 8 ),
-                static_cast< std::uint8_t >( timeout ),
-                static_cast< std::uint8_t >( timeout >> 8 )
-            } );
-
-            std::copy( &body[ 9 ], &body[ size ], &write_body[ 9 ] );
         }
         /** @endcond */
     };
@@ -235,12 +281,16 @@ namespace link_layer
         static void fill_response(
             const write_buffer& request, read_buffer response )
         {
-            const std::uint8_t* const body       = Layout::body( request ).first;
-                  std::uint8_t* const write_body = Layout::body( response ).first;
+            details::requested_connection_parameters params;
+            if ( parse_and_check_params< Layout >( request, response, params ) )
+            {
+                const std::uint8_t* const body       = Layout::body( request ).first;
+                      std::uint8_t* const write_body = Layout::body( response ).first;
 
-            fill< Layout >( response, { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
+                fill< Layout >( response, { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
 
-            std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
+                std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
+            }
         }
     };
     /** @endcond */
