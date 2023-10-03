@@ -653,7 +653,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_p
         0x0F,                       // LL_CONNECTION_PARAM_REQ
         5, 0x00,                    // min interval
         10, 0x00,                   // max interval
-        0xf5, 0x01,                 // latency 501
+        0xf4, 0x01,                 // latency 500
         (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
         0x00,                       // prefered periodicity (none)
         0xff, 0xff,                 // ReferenceConnEventCount

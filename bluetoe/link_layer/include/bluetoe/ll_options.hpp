@@ -166,7 +166,7 @@ namespace link_layer
             {
                 static constexpr std::uint16_t interval_minimum = 5u;
                 static constexpr std::uint16_t interval_maximum = 3200u;
-                static constexpr std::uint16_t latency_maximum  = 500u;
+                static constexpr std::uint16_t latency_maximum  = 499u;
 
                 const std::uint8_t* const body       = Layout::body( request ).first;
 
