@@ -226,7 +226,7 @@ namespace link_layer
 
         template < class Layout >
         bool handle_connection_parameters_request(
-            const write_buffer& request, read_buffer response )
+            const write_buffer& request, read_buffer response, const connection_details& )
         {
             const std::uint8_t* const body       = Layout::body( request ).first;
                   std::uint8_t* const write_body = Layout::body( response ).first;
@@ -324,11 +324,26 @@ namespace link_layer
     protected:
         template < class Layout >
         bool handle_connection_parameters_request(
-            const write_buffer& request, read_buffer response )
+            const write_buffer& request, read_buffer response, const connection_details& details )
         {
             details::requested_connection_parameters params;
             if ( !parse_and_check_params< Layout >( request, response, params ) )
                 return true;
+
+            if ( params.min_interval == params.max_interval
+              && params.min_interval == details.interval()
+              && params.latency == details.latency()
+              && params.timeout == details.timeout() )
+            {
+                const std::uint8_t* const body       = Layout::body( request ).first;
+                      std::uint8_t* const write_body = Layout::body( response ).first;
+
+                fill< Layout >( response, { ll_control_pdu_code, size, LL_CONNECTION_PARAM_RSP } );
+
+                std::copy( &body[ 1 ], &body[ 1 + size - 1 ], &write_body[ 1 ] );
+
+                return true;
+            }
 
             Obj.ll_remote_connection_parameter_request(
                 params.min_interval, params.max_interval,
@@ -406,7 +421,7 @@ namespace link_layer
 
         template < class Layout >
         bool handle_connection_parameters_request(
-            const write_buffer& request, read_buffer response )
+            const write_buffer& request, read_buffer response, const connection_details& )
         {
             details::requested_connection_parameters params;
             if ( parse_and_check_params< Layout >( request, response, params ) )

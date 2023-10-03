@@ -1641,7 +1641,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
             {
-                commit = this->template handle_connection_parameters_request< layout_t >( pdu, write );
+                commit = this->template handle_connection_parameters_request< layout_t >( pdu, write, details() );
             }
             else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
             {

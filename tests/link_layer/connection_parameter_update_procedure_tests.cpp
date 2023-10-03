@@ -792,3 +792,46 @@ BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_negative_reply_test, link
         0x3B                        // UNACCEPTABLE CONNECTION PARAMETERS
     } );
 }
+
+/**
+ * LL/CON/PER/BV-30-C
+ */
+BOOST_FIXTURE_TEST_CASE( Accepting_Connection_Parameter_Request__preferred_anchor_points_only, link_layer_with_async_parameters )
+{
+    ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x18, 0x00,                 // min interval (30ms)
+        0x18, 0x00,                 // max interval (30ms)
+        0x00, 0x00,                 // latency latency
+        0x48, 0x00,                 // connection timeout (720ms)
+        0x00,                       // prefered periodicity (none)
+        0x20, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    check_outgoing_ll_control_pdu( {
+        0x10,                       // LL_CONNECTION_PARAM_RSP
+        0x18, 0x00,                 // min interval (30ms)
+        0x18, 0x00,                 // max interval (30ms)
+        0x00, 0x00,                 // latency latency
+        0x48, 0x00,                 // connection timeout (720ms)
+        0x00,                       // prefered periodicity (none)
+        0x20, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+
+    BOOST_REQUIRE( !connection_parameter_update_cb.remote_connection_parameter_request_received );
+}
