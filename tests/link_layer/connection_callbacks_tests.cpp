@@ -189,6 +189,29 @@ struct only_remote_features_callback_t
     std::uint8_t remote_features[ 8 ];
 } only_remote_features_callback;
 
+struct only_phy_updated_callback_t
+{
+    only_phy_updated_callback_t()
+        : phy_updated_called( false )
+    {
+    }
+
+    template < typename ConnectionData >
+    void ll_phy_updated(
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t te,
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t re,
+        const ConnectionData& )
+    {
+        phy_updated_called = true;
+        transmit_encoding = te;
+        receive_encoding  = re;
+    }
+
+    bool phy_updated_called;
+    bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmit_encoding;
+    bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receive_encoding;
+} only_phy_updated_callback;
+
 struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
 {
 
@@ -204,6 +227,7 @@ struct reset_callbacks
         connect_and_disconnect_callback = connect_and_disconnect_callback_t();
         only_rejected_callback = only_rejected_callback_t();
         only_remote_features_callback = only_remote_features_callback_t();
+        only_phy_updated_callback = only_phy_updated_callback_t();
     }
 };
 
@@ -646,4 +670,53 @@ BOOST_FIXTURE_TEST_CASE( remote_features, link_layer_only_remote_features_callba
         std::begin( expected_features ),
         std::end( expected_features ) );
 
+}
+
+using link_layer_only_phy_updated_callback = mixin_reset_callbacks<
+    unconnected_base_t<
+        test::small_temperature_service,
+        test::radio_with_2mbit,
+        bluetoe::link_layer::connection_callbacks< only_phy_updated_callback_t, only_phy_updated_callback >,
+        test::buffer_sizes
+    >
+>;
+
+BOOST_FIXTURE_TEST_CASE( phy_update_test, link_layer_only_phy_updated_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x18,                   // LL_PHY_UPDATE_IND
+            0x02,                   // PHY_C_TO_P
+            0x02,                   // PHY_P_TO_C
+            0x10, 0x00              // Instant
+        }
+    );
+
+    run( 40 );
+
+    BOOST_REQUIRE( only_phy_updated_callback.phy_updated_called );
+    BOOST_CHECK_EQUAL( only_phy_updated_callback.transmit_encoding, bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
+    BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
+}
+
+BOOST_FIXTURE_TEST_CASE( phy_update_test_II, link_layer_only_phy_updated_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x18,                   // LL_PHY_UPDATE_IND
+            0x00,                   // PHY_C_TO_P unchanged
+            0x01,                   // PHY_P_TO_C 1MB
+            0x10, 0x00              // Instant
+        }
+    );
+
+    run( 40 );
+
+    BOOST_REQUIRE( only_phy_updated_callback.phy_updated_called );
+    BOOST_CHECK_EQUAL( only_phy_updated_callback.transmit_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
+    BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 }

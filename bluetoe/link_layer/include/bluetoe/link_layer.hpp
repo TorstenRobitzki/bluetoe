@@ -323,6 +323,7 @@ namespace link_layer {
                     link_layer.defered_ll_control_pdu_ = { nullptr, 0 };
                     link_layer.radio_set_phy( c_to_p, p_to_c );
 
+                    link_layer.phy_update( c_to_p, p_to_c, link_layer.connection_data_, link_layer );
                     return true;
                 }
 

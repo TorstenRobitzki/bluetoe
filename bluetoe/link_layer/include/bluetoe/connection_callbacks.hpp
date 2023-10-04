@@ -54,6 +54,11 @@ namespace link_layer {
      * void ll_remote_features( std::uint8_t remote_features[ 8 ], const ConnectionData& connection );
      *
      * template < typename ConnectionData >
+     * void ll_phy_updated(
+     *  bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmit_encoding,
+     *  bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receive_encoding,
+     *  const ConnectionData& connection );
+     *
      * ll_connection_requested() will be called, as soon, as a connection request is received.
      * ll_connection_established() is called, after the first connection event actually toke place.
      *
@@ -176,6 +181,17 @@ namespace link_layer {
             r.wake_up();
         }
 
+        template < class Connection, class Radio >
+        void phy_update( std::uint8_t phy_c_to_p, std::uint8_t phy_p_to_c, Connection& connection, Radio& r )
+        {
+            event_type_ = update_phy;
+            connection_ = &connection;
+            raw_details_[ 0 ] = phy_c_to_p;
+            raw_details_[ 1 ] = phy_p_to_c;
+
+            r.wake_up();
+        }
+
         template < class LinkLayer >
         void handle_connection_events() {
             if ( event_type_ == requested )
@@ -214,6 +230,10 @@ namespace link_layer {
             {
                 call_ll_remote_features< T >( Obj, connection_data< LinkLayer >() );
             }
+            else if ( event_type_ == update_phy )
+            {
+                call_ll_phy_updated< T >( Obj, connection_data< LinkLayer >() );
+            }
 
             event_type_ = none;
             connection_ = nullptr;
@@ -230,7 +250,8 @@ namespace link_layer {
             version,
             rejected,
             unknown,
-            remote_features
+            remote_features,
+            update_phy
         } event_type_;
 
         void*                   connection_;
@@ -348,6 +369,18 @@ namespace link_layer {
             return nullptr;
         }
 
+        template < typename TT, typename Connection >
+        auto call_ll_phy_updated( TT& obj, Connection& connection )
+            -> decltype(&TT::template ll_phy_updated< Connection >)
+        {
+            obj.ll_phy_updated(
+                static_cast< bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t >( raw_details_[ 0 ] ),
+                static_cast< bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t >( raw_details_[ 1 ] ),
+                connection );
+
+            return nullptr;
+        }
+
         template < typename TT >
         void call_ll_connection_requested( ... )
         {
@@ -390,6 +423,11 @@ namespace link_layer {
 
         template < typename TT >
         void call_ll_remote_features( ... )
+        {
+        }
+
+        template < typename TT >
+        void call_ll_phy_updated( ... )
         {
         }
 
