@@ -310,10 +310,11 @@ namespace link_layer
             timeout_      = timeout;
         }
 
-        void connection_parameters_request_negative_reply()
+        void connection_parameters_request_negative_reply( std::uint8_t reason )
         {
             pending_ = true;
             negative_ = true;
+            reason_ = reason;
         }
 
         /** @cond HIDDEN_SYMBOLS */
@@ -361,7 +362,7 @@ namespace link_layer
                     ll_control_pdu_code, 3,
                     LL_REJECT_EXT_IND,
                     LL_CONNECTION_PARAM_REQ,
-                    unacceptable_connection_parameters
+                    reason_
                 } );
             }
             else
@@ -409,6 +410,7 @@ namespace link_layer
         std::uint16_t interval_max_;
         std::uint16_t latency_;
         std::uint16_t timeout_;
+        std::uint8_t  reason_;
         /** @endcond */
     };
 

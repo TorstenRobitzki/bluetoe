@@ -780,7 +780,7 @@ BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_negative_reply_test, link
     } );
     ll_empty_pdus(3);
     ll_function_call([this](){
-        connection_parameters_request_negative_reply();
+        connection_parameters_request_negative_reply(0x3B);
     });
     ll_empty_pdus(3);
 
