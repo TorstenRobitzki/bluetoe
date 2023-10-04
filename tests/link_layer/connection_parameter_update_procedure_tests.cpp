@@ -835,3 +835,32 @@ BOOST_FIXTURE_TEST_CASE( Accepting_Connection_Parameter_Request__preferred_ancho
 
     BOOST_REQUIRE( !connection_parameter_update_cb.remote_connection_parameter_request_received );
 }
+
+/**
+ * LL/CON/PER/BV-31-C
+ * LL/CON/PER/BV-32-C
+ */
+BOOST_FIXTURE_TEST_CASE( Accepting_Connection_Parameter_Request__Interval_Range_Not_Zero, link_layer_with_async_parameters )
+{
+    ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        0x18, 0x00,                 // min interval (30ms)
+        0x30, 0x00,                 // max interval (60ms)
+        0x00, 0x00,                 // latency latency
+        0x48, 0x00,                 // connection timeout (720ms)
+        0x08,                       // prefered periodicity (10ms)
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0 (none)
+        0xff, 0xff,                 // Offset1 (none)
+        0xff, 0xff,                 // Offset2 (none)
+        0xff, 0xff,                 // Offset3 (none)
+        0xff, 0xff,                 // Offset4 (none)
+        0xff, 0xff                  // Offset5 (none)
+    } );
+    ll_empty_pdus(3);
+
+    run( 5 );
+
+    // in this case, the upcall to the host is required
+    BOOST_REQUIRE( connection_parameter_update_cb.remote_connection_parameter_request_received );
+}
