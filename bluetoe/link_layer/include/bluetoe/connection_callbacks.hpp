@@ -53,6 +53,7 @@ namespace link_layer {
      * template < typename ConnectionData >
      * void ll_remote_features( std::uint8_t remote_features[ 8 ], const ConnectionData& connection );
      *
+     * template < typename ConnectionData >
      * ll_connection_requested() will be called, as soon, as a connection request is received.
      * ll_connection_established() is called, after the first connection event actually toke place.
      *

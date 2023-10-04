@@ -109,7 +109,7 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const pdu_t& data );
     std::ostream& operator<<( std::ostream& out, const pdu_list_t& data );
-    std::ostream& operator<<( std::ostream& out, bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t phy );
+    std::ostream& operator<<( std::ostream& out, bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t phy );
 
     struct connection_event
     {
@@ -121,8 +121,8 @@ namespace test {
         bluetoe::link_layer::delta_time     end_receive;
         bluetoe::link_layer::delta_time     connection_interval;
 
-        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding;
-        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmission_encoding;
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding;
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmission_encoding;
 
         std::uint32_t                       access_address;
         std::uint32_t                       crc_init;
@@ -327,8 +327,8 @@ namespace test {
         void increment_transmit_packet_counter() {}
 
         void radio_set_phy(
-            bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
-            bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+            bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+            bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
 
     protected:
         typedef std::vector< advertising_data > advertising_list;
@@ -352,8 +352,8 @@ namespace test {
         std::uint8_t    central_sequence_number_    = 0;
         std::uint8_t    central_ne_sequence_number_ = 0;
 
-        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t    receiving_encoding_;
-        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t    transmiting_encoding_;
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t    receiving_encoding_;
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t    transmiting_encoding_;
 
         static constexpr std::size_t ll_header_size = 2;
 

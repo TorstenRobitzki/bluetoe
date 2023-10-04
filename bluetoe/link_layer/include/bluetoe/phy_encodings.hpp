@@ -3,7 +3,6 @@
 
 namespace bluetoe {
 namespace link_layer {
-namespace details {
 
     namespace phy_ll_encoding {
         enum phy_ll_encoding_t : std::uint8_t {
@@ -15,5 +14,5 @@ namespace details {
     }
 }
 }
-}
+
 #endif

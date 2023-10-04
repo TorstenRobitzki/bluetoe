@@ -161,8 +161,8 @@ namespace bluetoe
             }
 
             static void set_phy(
-                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
-                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+                bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+                bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
 
             /**
              * @brief triggers the radio.start task at when, disables the radio timeout_us later
@@ -566,8 +566,8 @@ namespace bluetoe
             }
 
             void radio_set_phy(
-                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
-                bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding )
+                bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+                bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding )
             {
                 Hardware::set_phy( receiving_encoding, transmiting_c_encoding );
             }

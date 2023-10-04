@@ -81,6 +81,50 @@ BOOST_FIXTURE_TEST_CASE( request_to_2mbit, fixture )
     );
 }
 
+BOOST_FIXTURE_TEST_CASE( request_to_1_2mbit, fixture )
+{
+    ll_empty_pdus( 1 );
+    ll_function_call( [this](){
+        BOOST_CHECK(
+            phy_update_request(
+                bluetoe::link_layer::phy_ll_encoding::le_1m_phy,
+                bluetoe::link_layer::phy_ll_encoding::le_2m_phy ) );
+    });
+    ll_empty_pdus( 4 );
+
+    run( 5 );
+
+    check_outgoing_ll_control_pdu(
+        {
+            0x16,                   // LL_PHY_REQ
+            0x01,                   // LE 1M PHY
+            0x02                    // LE 2M PHY
+        }
+    );
+}
+
+BOOST_FIXTURE_TEST_CASE( request_to_2_xmbit, fixture )
+{
+    ll_empty_pdus( 1 );
+    ll_function_call( [this](){
+        BOOST_CHECK(
+            phy_update_request(
+                bluetoe::link_layer::phy_ll_encoding::le_2m_phy,
+                bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding ) );
+    });
+    ll_empty_pdus( 4 );
+
+    run( 5 );
+
+    check_outgoing_ll_control_pdu(
+        {
+            0x16,                   // LL_PHY_REQ
+            0x02,                   // LE 2M PHY
+            0x00                    // unchanged
+        }
+    );
+}
+
 BOOST_FIXTURE_TEST_CASE( request_to_remote_version, fixture )
 {
     ll_empty_pdus( 1 );

@@ -294,8 +294,8 @@ namespace link_layer {
 
                     commit = false;
 
-                    if ( c_to_p == details::phy_ll_encoding::le_unchanged_coding
-                      && p_to_c == details::phy_ll_encoding::le_unchanged_coding )
+                    if ( c_to_p == phy_ll_encoding::le_unchanged_coding
+                      && p_to_c == phy_ll_encoding::le_unchanged_coding )
                         return true;
 
                     link_layer.defered_ll_control_pdu_     = pdu;
@@ -586,6 +586,12 @@ namespace link_layer {
         bool phy_update_request_to_2mbit();
 
         /**
+         * @brief initiates a PHY Update Procedure to the requested PHYs
+         * The update procedure is started as soon as possible.
+         */
+        bool phy_update_request( std::uint8_t transmit, std::uint8_t receive );
+
+        /**
          * @brief initiate a remote version request
          * @todo Add parameter that identifies the connection.
          */
@@ -839,6 +845,8 @@ namespace link_layer {
         bool                            connection_parameters_request_running_;
         bool                            connection_parameters_request_use_signaling_channel_;
         bool                            phy_update_request_pending_;
+        std::uint8_t                    phy_update_request_transmit_;
+        std::uint8_t                    phy_update_request_receive_;
         bool                            remote_versions_request_pending_;
         bool                            version_indication_received_;
 
@@ -1154,10 +1162,20 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::phy_update_request_to_2mbit()
     {
+        return phy_update_request(
+            phy_ll_encoding::phy_ll_encoding_t::le_2m_phy,
+            phy_ll_encoding::phy_ll_encoding_t::le_2m_phy );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    bool link_layer< Server, ScheduledRadio, Options... >::phy_update_request( std::uint8_t transmit, std::uint8_t receive )
+    {
         if ( phy_update_request_pending_ )
             return false;
 
-        phy_update_request_pending_ = true;
+        phy_update_request_pending_  = true;
+        phy_update_request_transmit_ = transmit;
+        phy_update_request_receive_  = receive;
         this->wake_up();
 
         return true;
@@ -1276,7 +1294,7 @@ namespace link_layer {
 
             fill< layout_t >( out_buffer, {
                 ll_control_pdu_code, 3, LL_PHY_REQ,
-                details::phy_ll_encoding::le_2m_phy, details::phy_ll_encoding::le_2m_phy } );
+                phy_update_request_transmit_, phy_update_request_receive_ } );
 
             this->commit_ll_transmit_buffer( out_buffer );
         }

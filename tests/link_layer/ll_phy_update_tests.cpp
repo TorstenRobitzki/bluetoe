@@ -201,11 +201,11 @@ BOOST_FIXTURE_TEST_SUITE( support_by_hardware, with_2mbit )
 
         run( 8 );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 6 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 6 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 6 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 6 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 7 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 7 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_2m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 7 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 7 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
     }
 
     BOOST_AUTO_TEST_CASE( phy_update_no_update )
@@ -229,11 +229,11 @@ BOOST_FIXTURE_TEST_SUITE( support_by_hardware, with_2mbit )
 
         run( 8 );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 6 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 6 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 6 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 6 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 7 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 7 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 7 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 7 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
     }
 
     BOOST_AUTO_TEST_CASE( phy_p_to_c_update )
@@ -257,11 +257,11 @@ BOOST_FIXTURE_TEST_SUITE( support_by_hardware, with_2mbit )
 
         run( 8 );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 6 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 6 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 6 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 6 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 7 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 7 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_2m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 7 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 7 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
     }
 
     BOOST_AUTO_TEST_CASE( phy_update_wrong_size )
@@ -377,11 +377,11 @@ BOOST_FIXTURE_TEST_SUITE( with_peripheral_latency, with_2mbit_and_latency )
 
         run( 3 );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 0 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 0 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 0 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 0 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 
-        BOOST_CHECK_EQUAL( connection_events()[ 1 ].receiving_encoding   , bluetoe::link_layer::details::phy_ll_encoding::le_2m_phy );
-        BOOST_CHECK_EQUAL( connection_events()[ 1 ].transmission_encoding, bluetoe::link_layer::details::phy_ll_encoding::le_2m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 1 ].receiving_encoding   , bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
+        BOOST_CHECK_EQUAL( connection_events()[ 1 ].transmission_encoding, bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
     }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -576,14 +576,14 @@ namespace nrf52_details
     }
 
     void radio_hardware_without_crypto_support::set_phy(
-        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
-        bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t transmiting_encoding )
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmiting_encoding )
     {
-        if ( receiving_encoding != bluetoe::link_layer::details::phy_ll_encoding::le_unchanged_coding )
-            receive_2mbit_ = receiving_encoding == bluetoe::link_layer::details::phy_ll_encoding::le_2m_phy;
+        if ( receiving_encoding != bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding )
+            receive_2mbit_ = receiving_encoding == bluetoe::link_layer::phy_ll_encoding::le_2m_phy;
 
-        if ( transmiting_encoding != bluetoe::link_layer::details::phy_ll_encoding::le_unchanged_coding )
-            transmit_2mbit_ = transmiting_encoding == bluetoe::link_layer::details::phy_ll_encoding::le_2m_phy;
+        if ( transmiting_encoding != bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding )
+            transmit_2mbit_ = transmiting_encoding == bluetoe::link_layer::phy_ll_encoding::le_2m_phy;
     }
 
     static void setup_long_distance_timer(
