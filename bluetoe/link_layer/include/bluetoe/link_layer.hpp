@@ -296,7 +296,10 @@ namespace link_layer {
 
                     if ( c_to_p == phy_ll_encoding::le_unchanged_coding
                       && p_to_c == phy_ll_encoding::le_unchanged_coding )
+                    {
+                        link_layer.phy_update( c_to_p, p_to_c, link_layer.connection_data_, link_layer );
                         return true;
+                    }
 
                     link_layer.defered_ll_control_pdu_     = pdu;
                     link_layer.defered_conn_event_counter_ = ::bluetoe::details::read_16bit( pdu_body + 3 );
@@ -339,7 +342,7 @@ namespace link_layer {
         private:
             bool valid_phy_encoding( std::uint8_t c ) const
             {
-                return c == 0
+                return c == phy_ll_encoding::le_unchanged_coding
                     || c == phy_ll_encoding::le_1m_phy
                     || c == phy_ll_encoding::le_2m_phy;
             }

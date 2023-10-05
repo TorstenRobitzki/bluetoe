@@ -478,6 +478,9 @@ namespace link_layer {
             template < class Connection, class Radio >
             void remote_features_received( const std::uint8_t[8], Connection&, Radio& ) {}
 
+            template < class Connection, class Radio >
+            void phy_update( std::uint8_t, std::uint8_t, Connection&, Radio& ) {}
+
         };
     }
 

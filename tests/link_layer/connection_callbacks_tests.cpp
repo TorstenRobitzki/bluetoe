@@ -720,3 +720,23 @@ BOOST_FIXTURE_TEST_CASE( phy_update_test_II, link_layer_only_phy_updated_callbac
     BOOST_CHECK_EQUAL( only_phy_updated_callback.transmit_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
     BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 }
+
+BOOST_FIXTURE_TEST_CASE( phy_update_test_III, link_layer_only_phy_updated_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
+    ll_control_pdu(
+        {
+            0x18,                   // LL_PHY_UPDATE_IND
+            0x00,                   // PHY_C_TO_P unchanged
+            0x00,                   // PHY_P_TO_C unchanged
+            0x00, 0x00              // Instant
+        }
+    );
+
+    run( 40 );
+
+    BOOST_REQUIRE( only_phy_updated_callback.phy_updated_called );
+    BOOST_CHECK_EQUAL( only_phy_updated_callback.transmit_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
+    BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
+}
