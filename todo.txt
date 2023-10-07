@@ -1,0 +1,18 @@
+- Tests:
+  - create pending outgoing data while connection event already scheduled
+  - change configuration while in a connection
+  - check reconnection
+  - check behavior with timeout
+
+- Scheduled Radio Test Harnish:
+    - Runs on nRF52
+    - single binary, that could be simply shipped
+    - Functions to test:
+        - radio_ready()
+    - Test description
+        - Just
+
+    - RPC / IPC
+        - Text based
+    - Test evaluation
+    - Radio-Interface

@@ -8,7 +8,7 @@ It is essential, that all functions of a scheduled_radio are none-blocking. The 
 
 ## Tester
 
-The tester is a nRF52 eval board, that will have it's crystal oscillator replaced by a clock source with very high accuracy (e.g. SIT5358AN-FR-33N0-32.000000). The tester will call function on the scheduled_radio implementation and with observe activity over the air and / or interact with the DUT over the air. In addition, the tester will observe calls to the callbacks of the scheduled_radio implementation.
+The tester is a nRF52 eval board, that will have it's crystal oscillator replaced by a clock source with very high accuracy (e.g. SIT5358AN-FR-33N0-32.000000). The tester will call function on the scheduled_radio implementation and will observe activity over the air and / or interact with the DUT over the air. In addition, the tester will observe calls to the callbacks of the scheduled_radio implementation.
 
 ## Device Under Test (DUT)
 
@@ -18,4 +18,12 @@ The device under test combines the implementation of the scheduled_radio and the
 
 The test comes with its own, light weight RPC implementation.
 
-##
+## Test Framework
+
+The tests themself have to be expressed somehow. Usually a test framework would provide functionality to collect all test that are distributed over several source code files and some mean to express the expected outcomes of a test.
+
+Boost.test: seems to be not very configurable. Have not managed to get a binary that is smaller than 1MByte.
+
+lest: requires exceptions to be enabled
+
+doctest: Fine so far...; ~625k for a single test

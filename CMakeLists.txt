@@ -37,4 +37,3 @@ if (NOT CMAKE_CROSSCOMPILING AND BLUETOE_BUILD_UNIT_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
-
