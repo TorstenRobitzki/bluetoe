@@ -26,4 +26,14 @@ Boost.test: seems to be not very configurable. Have not managed to get a binary 
 
 lest: requires exceptions to be enabled
 
-doctest: Fine so far...; ~625k for a single test
+doctest: Fine so far...; ~625k for a single test; Mostly IO streams
+
+Catch2: Fine so far...; ~750k for a single test; Mostly IO streams
+
+Junity:
+
+CUTE:
+
+## External Flash
+
+As the test framework is pretty large, the firmware makes use of the PCA10056 external QSPI flash memory (8MByte).

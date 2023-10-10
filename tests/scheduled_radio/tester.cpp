@@ -1,25 +1,15 @@
-#include "boost_support.hpp"
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_session.hpp>
 
-#include "system_nrf52.h"
-
-#include <iostream>
-
-#include <doctest/doctest.h>
-
-int factorial(int number) { return number <= 1 ? number : factorial(number - 1) * number; }
-
-TEST_CASE("testing the factorial function") {
-    CHECK(factorial(1) == 1);
-    CHECK(factorial(2) == 2);
-    CHECK(factorial(3) == 6);
-    CHECK(factorial(10) == 3628800);
+uint32_t factorial( uint32_t number ) {
+    return number <= 1 ? number : factorial(number-1) * number;
 }
 
-TEST_CASE("testing the factorial function 2") {
-    CHECK(factorial(1) == 1);
-    CHECK(factorial(2) == 2);
-    CHECK(factorial(3) == 6);
-    CHECK(factorial(10) == 3628800);
+TEST_CASE( "Factorials are computed", "[factorial]" ) {
+    REQUIRE( factorial( 1) == 1 );
+    REQUIRE( factorial( 2) == 2 );
+    REQUIRE( factorial( 3) == 6 );
+    REQUIRE( factorial(10) == 3'628'800 );
 }
 
 #if 0
@@ -57,3 +47,10 @@ static bool test_schedule_advertising_event_timing_and_data(remote_t& con, teste
         receive );
 }
 #endif
+
+
+int main()
+{
+    Catch::Session session;
+    return session.run();
+}

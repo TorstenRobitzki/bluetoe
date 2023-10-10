@@ -51,6 +51,12 @@ SECTIONS
     .text :
     {
         KEEP(*(.isr_vector))
+        *system_nrf52.c.obj(.text*)
+        *gcc_startup_nrf52840.S.obj(.text*)
+    } > FLASH
+
+    .text :
+    {
         *(.text*)
 
         KEEP(*(.init))
@@ -73,18 +79,18 @@ SECTIONS
         *(.rodata*)
 
         KEEP(*(.eh_frame*))
-    } > FLASH
+    } > EXTFLASH
 
     .ARM.extab :
     {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
-    } > FLASH
+    } > EXTFLASH
 
     __exidx_start = .;
     .ARM.exidx :
     {
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-    } > FLASH
+    } > EXTFLASH
     __exidx_end = .;
 
     . = ALIGN(4);
@@ -160,10 +166,10 @@ SECTIONS
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    /* Check if text sections + data exceeds FLASH limit */
+    /* Check if text sections + data exceeds EXTFLASH limit */
     DataInitFlashUsed = __bss_start__ - __data_start__;
-    CodeFlashUsed = __etext - ORIGIN(FLASH);
+    CodeFlashUsed = __etext - ORIGIN(EXTFLASH);
     TotalFlashUsed = CodeFlashUsed + DataInitFlashUsed;
-    ASSERT(TotalFlashUsed <= LENGTH(FLASH), "region FLASH overflowed with .data and user data")
+    ASSERT(TotalFlashUsed <= LENGTH(EXTFLASH), "region EXTFLASH overflowed with .data and user data")
 
 }

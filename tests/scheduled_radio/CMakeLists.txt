@@ -28,24 +28,23 @@ add_link_options(-g)
 add_link_options(LINKER:--gc-sections LINKER:--warn-common)
 
 # Standard libraries
-add_compile_options(-nostdlib)
-add_link_options(--sysroot=/usr/local/arm/arm-none-eabi -lstdc++ -lsupc++ -nostdlib --specs=nano.specs -static)
+# add_compile_options(-nostdlib)
+# add_link_options(--sysroot=/usr/local/arm/arm-none-eabi -lstdc++ -lsupc++ -nostdlib --specs=nano.specs -static)
 
-set(DOCTEST_WITH_MAIN_IN_STATIC_LIB CACHE BOOL OFF)
-add_subdirectory(/Users/todi/doctest ${CMAKE_CURRENT_BINARY_DIR}/doctest)
+add_compile_definitions(
+    -DCATCH_CONFIG_NO_POSIX_SIGNALS=1
+    -DCATCH_CONFIG_NOSTDOUT=1
+    -DCATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
 
-target_compile_definitions(doctest_with_main
-    PUBLIC
-        -DSA_ONSTACK=1
-        -DDOCTEST_CONFIG_NO_MULTITHREADING=1)
+add_subdirectory(/Users/todi/Catch2 ${CMAKE_CURRENT_BINARY_DIR}/Catch2)
 
 add_executable(tester
     tester.cpp
-    boost_support.cpp
+    test_framework_support.cpp
     system_nrf52.c
     gcc_startup_nrf52840.S)
 
-target_link_libraries(tester PRIVATE doctest_with_main)
+target_link_libraries(tester PRIVATE Catch2::Catch2WithMain)
 target_include_directories(tester
     SYSTEM PRIVATE
         ${Boost_INCLUDE_DIR}
@@ -59,8 +58,10 @@ target_compile_definitions(tester
 target_link_directories(tester PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 set_property(
     TARGET tester
-    APPEND PROPERTY
-        INTERFACE_LINK_DEPENDS nrf52840_xxaa.ld)
+    PROPERTY
+        LINK_DEPENDS
+            ${CMAKE_CURRENT_SOURCE_DIR}/nrf52840_xxaa.ld
+            ${CMAKE_CURRENT_SOURCE_DIR}/nrf_common.ld)
 
 target_link_options(tester PRIVATE -T nrf52840_xxaa.ld -Wl,-Map=tester.map)
 

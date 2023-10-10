@@ -1,4 +1,6 @@
-#include "boost_support.hpp"
+#include "test_framework_support.hpp"
+
+#include "system_nrf52.h"
 
 extern "C" void _close(void) {}
 extern "C" void _fstat(void) {}
@@ -9,15 +11,19 @@ extern "C" void _kill(void) {}
 extern "C" void _lseek(void) {}
 extern "C" void _open(void) {}
 extern "C" void _read(void) {}
-extern "C" void _times(void) {}
 extern "C" void _write(void) {}
 
-extern "C" int sigaction(int, void*, void*)
+std::ostream& Catch::cout()
 {
-    return -1;
+    return *static_cast< std::ostream* >( 0 );
 }
 
-extern "C" int sigaltstack(const void*, void*)
+std::ostream& Catch::cerr()
 {
-    return -1;
+    return *static_cast< std::ostream* >( 0 );
+}
+
+std::ostream& Catch::clog()
+{
+    return *static_cast< std::ostream* >( 0 );
 }
