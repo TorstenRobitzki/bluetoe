@@ -17,6 +17,7 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-ftemplate-backtrace-limit=0>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
+add_compile_options(-Wno-psabi)
 
 # Optimizations / Debug
 add_compile_options($<IF:$<CONFIG:Debug>,-O0,-Os>)
@@ -24,12 +25,14 @@ add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:NDEBUG>)
 
 # Regardles of build type: Debug informations just make it into the elf file, never into the final binary
 add_compile_options(-g)
+add_compile_options(-mcpu=cortex-m4 -mthumb -mabi=aapcs -mfloat-abi=soft)
 add_link_options(-g)
 add_link_options(LINKER:--gc-sections LINKER:--warn-common)
+add_link_options(-mcpu=cortex-m4 -mthumb -mabi=aapcs -mfloat-abi=soft)
 
 # Standard libraries
 # add_compile_options(-nostdlib)
-# add_link_options(--sysroot=/usr/local/arm/arm-none-eabi -lstdc++ -lsupc++ -nostdlib --specs=nano.specs -static)
+add_link_options(--sysroot=/usr/local/arm/arm-none-eabi -lstdc++ -lsupc++ --specs=nano.specs -static)
 
 add_compile_definitions(
     -DCATCH_CONFIG_NO_POSIX_SIGNALS=1
@@ -42,7 +45,12 @@ add_executable(tester
     tester.cpp
     test_framework_support.cpp
     system_nrf52.c
-    gcc_startup_nrf52840.S)
+    gcc_startup_nrf52840.S
+    external_flash.cpp)
+
+set_target_properties(tester
+    PROPERTIES
+        OUTPUT_NAME tester.elf)
 
 target_link_libraries(tester PRIVATE Catch2::Catch2WithMain)
 target_include_directories(tester
@@ -65,4 +73,22 @@ set_property(
 
 target_link_options(tester PRIVATE -T nrf52840_xxaa.ld -Wl,-Map=tester.map)
 
-#target_compile_definitions(tester PRIVATE -DCLOCK_MONOTONIC=1)
+add_custom_target(tester.artifacts ALL
+        COMMAND ${CMAKE_OBJCOPY} -S -O ihex tester.elf tester.hex
+        COMMAND ${CMAKE_OBJDUMP} -hS tester.elf > tester.lss
+        COMMAND ${CMAKE_SIZE} tester.elf
+        )
+
+add_dependencies(tester.artifacts tester)
+
+if (DEFINED TESTER_JLINK)
+    message("nrfjprog ${TESTER_JLINK} selected")
+    set(SELECT_JLINK_DEVICE --snr ${TESTER_JLINK})
+endif()
+
+add_custom_target(tester.flash
+    COMMAND nrfjprog --chiperase --family NRF52 ${SELECT_JLINK_DEVICE} --program tester.hex --verify --reset --log
+    VERBATIM
+    )
+
+add_dependencies(tester.flash tester.artifacts)

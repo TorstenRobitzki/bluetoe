@@ -48,59 +48,21 @@ ENTRY(Reset_Handler)
 
 SECTIONS
 {
+    /* Set the location counter to start of FLASH */
+    . = ALIGN(ORIGIN(FLASH), 4);
+
+    /*
+     * Keep all regions that have to run before the
+     * external flash gets initialized or that are
+     * used to initialize the external flash, in
+     * the internal flash.
+     */
     .text :
     {
         KEEP(*(.isr_vector))
         *system_nrf52.c.obj(.text*)
         *gcc_startup_nrf52840.S.obj(.text*)
-    } > FLASH
-
-    .text :
-    {
-        *(.text*)
-
-        KEEP(*(.init))
-        KEEP(*(.fini))
-
-        /* .ctors */
-        *crtbegin.o(.ctors)
-        *crtbegin?.o(.ctors)
-        *(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
-        *(SORT(.ctors.*))
-        *(.ctors)
-
-        /* .dtors */
-        *crtbegin.o(.dtors)
-        *crtbegin?.o(.dtors)
-        *(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
-        *(SORT(.dtors.*))
-        *(.dtors)
-
-        *(.rodata*)
-
-        KEEP(*(.eh_frame*))
-    } > EXTFLASH
-
-    .ARM.extab :
-    {
-        *(.ARM.extab* .gnu.linkonce.armextab.*)
-    } > EXTFLASH
-
-    __exidx_start = .;
-    .ARM.exidx :
-    {
-        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-    } > EXTFLASH
-    __exidx_end = .;
-
-    . = ALIGN(4);
-    __etext = .;
-
-    .data : AT (__etext)
-    {
-        __data_start__ = .;
-        *(vtable)
-        *(.data*)
+        *external_flash.*(.text*)
 
         . = ALIGN(4);
         /* preinit data */
@@ -115,13 +77,42 @@ SECTIONS
         KEEP(*(.init_array))
         PROVIDE_HIDDEN (__init_array_end = .);
 
-
+        /*
+         * As this is an embedded application, do not execute global
+         * destructors!
+         */
         . = ALIGN(4);
         /* finit data */
         PROVIDE_HIDDEN (__fini_array_start = .);
-        KEEP(*(SORT(.fini_array.*)))
-        KEEP(*(.fini_array))
         PROVIDE_HIDDEN (__fini_array_end = .);
+
+    } > FLASH
+
+    .ARM.extab :
+    {
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
+    } > FLASH
+
+    __exidx_start = .;
+    .ARM.exidx :
+    {
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+    } > FLASH
+    __exidx_end = .;
+
+    /**
+     * Values for initialzed, global variables also need to be placed in the
+     * internal flash memory, otherwise, variables could not be initialized by
+     * the c-runtime.
+     */
+    . = ALIGN(4);
+    __etext = .;
+
+    .data : AT (__etext)
+    {
+        __data_start__ = .;
+        *(vtable)
+        *(.data*)
 
         KEEP(*(.jcr*))
         . = ALIGN(4);
@@ -157,6 +148,33 @@ SECTIONS
         KEEP(*(.stack*))
     } > RAM
 
+    .text :
+    {
+        external_flash_start_address = .;
+        *(.text*)
+
+        KEEP(*(.init))
+        KEEP(*(.fini))
+
+        /* .ctors */
+        *crtbegin.o(.ctors)
+        *crtbegin?.o(.ctors)
+        *(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
+        *(SORT(.ctors.*))
+        *(.ctors)
+
+        /* .dtors */
+        *crtbegin.o(.dtors)
+        *crtbegin?.o(.dtors)
+        *(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
+        *(SORT(.dtors.*))
+        *(.dtors)
+
+        *(.rodata*)
+
+        KEEP(*(.eh_frame*))
+    } > EXTFLASH
+
     /* Set stack top to end of RAM, and stack limit move down by
      * size of stack_dummy section */
     __StackTop = ORIGIN(RAM) + LENGTH(RAM);
@@ -166,10 +184,10 @@ SECTIONS
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    /* Check if text sections + data exceeds EXTFLASH limit */
+    /* Check if text sections + data exceeds FLASH limit */
     DataInitFlashUsed = __bss_start__ - __data_start__;
-    CodeFlashUsed = __etext - ORIGIN(EXTFLASH);
+    CodeFlashUsed = __etext - ORIGIN(FLASH);
     TotalFlashUsed = CodeFlashUsed + DataInitFlashUsed;
-    ASSERT(TotalFlashUsed <= LENGTH(EXTFLASH), "region EXTFLASH overflowed with .data and user data")
+    ASSERT(TotalFlashUsed <= LENGTH(FLASH), "region FLASH overflowed with .data and user data")
 
 }
