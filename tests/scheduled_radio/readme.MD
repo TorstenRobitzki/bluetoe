@@ -49,3 +49,9 @@ Create a build directory, change into that build directory and use CMake to crea
 * -DCMAKE_TOOLCHAIN_FILE= has to point to the gcc-arm-none-eabi.cmake in the expamples cmake directory.
 * -DTESTER_JLINK= can be set to the serial number of your JLink
 * -DNRF5_SDK_ROOT= has to point to an installation of the Nordic SDK
+
+Use
+
+    make tester.flash
+
+to build and flash the tester onto an PCA10056 eval board.
