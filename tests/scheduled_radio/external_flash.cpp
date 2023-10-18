@@ -3,8 +3,8 @@
 
 #include <initializer_list>
 
-static NRF_QSPI_Type& nrf_qspi = *NRF_QSPI;
-static NRF_GPIO_Type& nrf_p0   = *NRF_P0;
+#define nrf_qspi (*NRF_QSPI)
+#define nrf_p0  (*NRF_P0)
 
 extern char external_flash_start_address;
 
@@ -33,7 +33,7 @@ extern "C" void external_flash_init(void)
       | ( QSPI_IFCONFIG0_PPSIZE_256Bytes << QSPI_IFCONFIG0_PPSIZE_Pos );
 
     nrf_qspi.IFCONFIG1 =
-        ( 1 << QSPI_IFCONFIG1_SCKDELAY_Pos )
+        ( 0x80 << QSPI_IFCONFIG1_SCKDELAY_Pos )
       | ( QSPI_IFCONFIG1_SPIMODE_MODE0 << QSPI_IFCONFIG1_SPIMODE_Pos )
       | ( 0 << QSPI_IFCONFIG1_SCKFREQ_Pos );
 
