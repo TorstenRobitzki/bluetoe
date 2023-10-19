@@ -3,26 +3,24 @@
  *
  * Basic idea behind this Remote Procedure Call abstraction is,
  * to have a bidirectional, binary stream over which synchronous remote function calls
- * are serialized and performed. So, all functions on the remote side have to be
- * none blocking.
+ * are serialized and performed. All functions on the remote side have to be
+ * none blocking, otherwise, the remote side will also block.
  *
- * The usuall aproach for a basic RPC implementation is to serialize a function call,
+ * The usual approach for a basic RPC implementation is to serialize a function call,
  * by sending an opcode (that identified the function to be called on the remote side),
  * followed by the serialized function arguments of the call and then wait for
  * the serialized function return value.
  *
- * To be able to call remote prodcedures in both directions, there is a need to distiquish between
+ * To be able to call remote procedures in both directions, there is a need to distinguish between
  * the opcode of a function call (this is the one direction) and the function return value in the
- * oposite direction. This can be solved by using a dedicated opcode for function return values.
- * This implementation uses 0 for function return value. All other values are opcodes for
- * function calls.
+ * opposite direction. This can be solved by using a dedicated opcode for function return values.
  *
  * As the set of functions to be called needs to be known by both sides, the opcode can be
- * derived from an order of the functions (which then have to be equal for both).
+ * derived from an order of the functions (which then have to be equal for both sides).
  *
  * The set of function arguments and the function return type can be deduced by prototypes of
  * the function to be called. This also implies that there is no need to add a size of
- * parameters.
+ * parameters into the binary stream.
  *
  * References / pointers can not be serialized. For calls to global objects on the
  * remote side, it is necessary, to register the instance of that global instance.
@@ -125,11 +123,6 @@ namespace rpc {
         serialize( io, static_cast< std::uint16_t >( b >> 16 ) );
     }
 
-    template < stream IO >
-    void serialize( IO&, const std::tuple<>& )
-    {
-    }
-
     template < stream IO, typename... Ts >
     void serialize( IO& io, const std::tuple< Ts... >& t )
     {
@@ -174,40 +167,31 @@ namespace rpc {
         };
 
         template < typename F >
-        struct return_type;
+        struct function_details;
 
         template < typename R, typename... Args >
-        struct return_type< R(*)(Args...) >
+        struct function_details< R(*)(Args...) >
         {
-            using type = R;
+            using return_type    = R;
+            using arguments_type = std::tuple< Args... >;
+            static constexpr bool member_function = false;
         };
 
         template < typename R, typename Obj, typename... Args >
-        struct return_type< R (Obj::*)(Args...) >
+        struct function_details< R (Obj::*)(Args...) >
         {
-            using type = R;
-        };
-
-        template < typename F >
-        struct arguments_type;
-
-        template < typename R, typename... Args >
-        struct arguments_type< R(*)(Args...) >
-        {
-            using type = std::tuple< Args... >;
-        };
-
-        template < typename R, typename Obj, typename... Args >
-        struct arguments_type< R (Obj::*)(Args...) >
-        {
-            using type = std::tuple< Args... >;
+            using return_type    = R;
+            using arguments_type = std::tuple< Args... >;
+            static constexpr bool member_function = true;
         };
 
         template < typename F, F Func >
         struct wrapped_func
         {
-            using arguments_t = typename arguments_type< F >::type;
-            using result_t    = typename return_type< F >::type;
+            using details = function_details< F >;
+            using arguments_t = details::arguments_type;
+            using result_t    = details::return_type;
+            static constexpr bool member_function = details::member_function;
 
             template < stream IO >
             static void call( IO& io, const void* )
@@ -243,27 +227,18 @@ namespace rpc {
             }
         };
 
-        template < typename T >
-        struct deserialize_return_value;
-
-        template <>
-        struct deserialize_return_value< void >
+        template < stream IO, typename T >
+        T deserialize_return_value( IO& io, const T* )
         {
-            template < stream IO >
-            static void read( IO& ) {}
-        };
+            T result;
+            deserialize( io, result );
+            return result;
+        }
 
-        template < typename T >
-        struct deserialize_return_value
+        template < stream IO >
+        void deserialize_return_value( IO&, const void* )
         {
-            template < stream IO >
-            static T read( IO& io )
-            {
-                T result;
-                deserialize( io, result );
-                return result;
-            }
-        };
+        }
 
         template < typename TL >
         struct call_functions_from_set;
@@ -319,11 +294,11 @@ namespace rpc {
                 io.put( index + 1 );
                 serialize( io, typename func::arguments_t( args... ) );
 
-                return read_result< decltype(proc) >( io );
+                return read_result< typename func::result_t >( io );
             }
 
         private:
-            template < typename F, stream IO >
+            template < typename R, stream IO >
             auto read_result( IO& io ) const
             {
                 for ( std::uint8_t opcode = io.get(); opcode != return_value_opcode; opcode = io.get() )
@@ -331,7 +306,7 @@ namespace rpc {
                     // TODO if opcode != return_value_opcode; a call from the other side happend
                 }
 
-                return deserialize_return_value< typename return_type< F >::type >::read( io );
+                return deserialize_return_value( io, static_cast< R* >( nullptr ) );
             }
         };
 
