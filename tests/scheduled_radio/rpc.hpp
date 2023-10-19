@@ -91,6 +91,14 @@ namespace rpc {
         b = io.get();
     }
 
+    template < stream IO, typename... Ts >
+    void deserialize( IO& io, std::tuple< Ts... >& value )
+    {
+        std::apply([&io]( Ts&... args ) {
+            (deserialize( io, args ),...);
+        }, value );
+    }
+
     template < stream IO >
     void serialize( IO& io, std::uint8_t b )
     {
@@ -143,6 +151,9 @@ namespace rpc {
             // bool register_implementation( T& instance );
         };
 
+        static constexpr std::uint8_t no_such_function    = ~0;
+        static constexpr std::uint8_t return_value_opcode = 0;
+
         template < typename Proc, std::uint8_t Index, typename List >
         struct find_function;
 
@@ -159,7 +170,7 @@ namespace rpc {
         template < typename Proc, std::uint8_t Index >
         struct find_function< Proc, Index, std::tuple<> >
         {
-            static constexpr std::uint8_t value = ~0;
+            static constexpr std::uint8_t value = no_such_function;
         };
 
         template < typename F >
@@ -197,6 +208,39 @@ namespace rpc {
         {
             using arguments_t = typename arguments_type< F >::type;
             using result_t    = typename return_type< F >::type;
+
+            template < stream IO >
+            static void call( IO& io, const void* )
+            {
+                arguments_t args;
+                deserialize( io, args );
+
+                std::apply( [](const auto&... as ){
+                    Func( as... );
+                }, args );
+            }
+
+            template < stream IO, typename T >
+            static void call( IO& io, const T* )
+            {
+                arguments_t args;
+                deserialize( io, args );
+
+                result_t result;
+                std::apply( [&result](const auto&... as ){
+                    result = Func( as... );
+                }, args );
+
+                serialize( io, return_value_opcode );
+                serialize( io, result );
+            }
+
+            template < stream IO >
+            static void call( IO& io )
+            {
+                // dispatch to version with / without return value
+                call( io, static_cast< result_t* >( nullptr ) );
+            }
         };
 
         template < typename T >
@@ -221,8 +265,43 @@ namespace rpc {
             }
         };
 
-        template < typename... Procs >
-        class remote_protocol_t
+        template < typename TL >
+        struct call_functions_from_set;
+
+        template <>
+        struct call_functions_from_set< std::tuple<> >
+        {
+            template < stream IO >
+            static void call( std::uint8_t, IO& )
+            {
+            }
+        };
+
+        template < typename Proc, Proc Func, typename... Procs >
+        struct call_functions_from_set< std::tuple< details::wrapped_func< Proc, Func >, Procs... > >
+        {
+            template < stream IO >
+            static void call( std::uint8_t index, IO& io )
+            {
+                if ( index == 0 )
+                {
+                    details::wrapped_func< Proc, Func >::call( io );
+                }
+                else
+                {
+                    call_functions_from_set< std::tuple< Procs... > >::call( index - 1, io );
+                }
+            }
+        };
+
+        template < typename... Funcs >
+        class function_set_t {};
+
+        template < typename... WrappedFunc >
+        class remote_protocol_t;
+
+        template < typename... Procs, auto... Funcs >
+        class remote_protocol_t< details::wrapped_func< Procs, Funcs >... >
         {
         public:
             template < auto proc, stream IO, typename... Args >
@@ -233,9 +312,9 @@ namespace rpc {
                 constexpr std::uint8_t index = find_function<
                     func,
                     0,
-                    std::tuple< Procs... > >::value;
+                    std::tuple< details::wrapped_func< Procs, Funcs >... > >::value;
 
-                static_assert( index != ~0, "Function to be called is not member of the set declared for the set of remote functions. Add function to `function_set()`!" );
+                static_assert( index != no_such_function, "Function to be called is not member of the set declared for the set of remote functions. Add function to `function_set()`!" );
 
                 io.put( index + 1 );
                 serialize( io, typename func::arguments_t( args... ) );
@@ -244,27 +323,51 @@ namespace rpc {
             }
 
         private:
-            static constexpr std::uint8_t response_opcode = 0x00;
-
             template < typename F, stream IO >
             auto read_result( IO& io ) const
             {
-                for ( std::uint8_t opcode = io.get(); opcode != response_opcode; opcode = io.get() )
+                for ( std::uint8_t opcode = io.get(); opcode != return_value_opcode; opcode = io.get() )
                 {
-                    // TODO if opcode != response_opcode; a call from the other side happend
+                    // TODO if opcode != return_value_opcode; a call from the other side happend
                 }
 
                 return deserialize_return_value< typename return_type< F >::type >::read( io );
             }
         };
 
+        template < typename... WrappedFunc >
+        class local_protocol_t;
+
+        template < typename... Procs, auto... Funcs >
+        class local_protocol_t< details::wrapped_func< Procs, Funcs >... >
+        {
+        public:
+            template < stream IO >
+            void deserialize_call( IO& io ) const
+            {
+                const std::uint8_t opcode = io.get();
+
+                assert( opcode > 0 );
+                assert( opcode <= sizeof...( Procs ) );
+
+                call_functions_from_set<
+                    std::tuple< details::wrapped_func< Procs, Funcs >... > >::call( opcode - 1, io );
+            }
+        };
     }
 
     template < auto... procs >
-    consteval auto function_set()
+    consteval auto remote_protocol()
     {
-        return details::remote_protocol_t< details::wrapped_func<decltype(procs), procs >... >();
+        return details::remote_protocol_t< details::wrapped_func< decltype(procs), procs >... >();
     }
+
+    template < auto... procs >
+    consteval auto local_protocol()
+    {
+        return details::local_protocol_t< details::wrapped_func< decltype(procs), procs >... >();
+    }
+
     /*
 
     template < remote_procedure... RemoteProcs, remote_procedure... LocalProcs, stream Stream >
