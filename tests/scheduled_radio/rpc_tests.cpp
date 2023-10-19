@@ -58,8 +58,14 @@ public:
 
     void incomming_data( std::initializer_list< std::uint8_t > data )
     {
-        read_.insert( read_.begin(), data.begin(), data.end() );
+        read_.insert( read_.end(), data.begin(), data.end() );
     }
+
+    bool has_incomming_data() const
+    {
+        return !read_.empty();
+    }
+
 private:
     std::vector< std::uint8_t > written_;
     std::vector< std::uint8_t > read_;
@@ -217,4 +223,101 @@ BOOST_FIXTURE_TEST_CASE( deserialize_call_to_f_uint32, reset_call_markers )
     BOOST_TEST( f_uint32_u == 0xbbaa );
     BOOST_TEST( f_uint32_b == false );
     BOOST_TEST( io.data_written() == v({ 0x00, 0x00, 0xaa, 0xbb, 0x00 }), pp );
+}
+
+struct local_object_A
+{
+    void f1()
+    {
+        instance_used = this;
+        f1_called = true;
+    }
+
+    void f2( std::uint16_t a )
+    {
+        instance_used = this;
+        f2_called = true;
+        f2_a = a;
+    }
+
+    std::uint32_t f3()
+    {
+        instance_used = this;
+        f3_called = true;
+        return f3_result;
+    }
+
+    local_object_A* instance_used = nullptr;
+    bool f1_called = false;
+    bool f2_called = false;
+    std::uint16_t f2_a = 0;
+    bool f3_called = false;
+    std::uint32_t f3_result = 0x01020304;
+};
+
+struct local_object_B
+{
+    bool f1( std::tuple< std::uint8_t, std::uint32_t > t )
+    {
+        instance_used = this;
+        f1_called = true;
+        f1_t = t;
+
+        return f1_result;
+    }
+
+    local_object_B* instance_used = nullptr;
+    bool f1_called = false;
+    bool f1_result = true;
+    std::tuple< std::uint8_t, std::uint32_t > f1_t = { 0, 0 };
+};
+
+BOOST_AUTO_TEST_CASE( deserialize_call_to_member_functions )
+{
+    auto local_member_functions = rpc::local_protocol<
+        &local_object_A::f1,
+        &local_object_A::f2,
+        &local_object_A::f3,
+        &local_object_B::f1
+    >();
+
+    local_object_A local_a;
+    local_object_B local_b;
+
+    local_member_functions.register_implementation( local_a );
+    local_member_functions.register_implementation( local_b );
+
+    stream io;
+    io.incomming_data( { 0x01 } );
+    io.incomming_data( { 0x02, 0xaa, 0xbb } );
+    io.incomming_data( { 0x03 } );
+    io.incomming_data( { 0x04, 0xff, 0x11, 0x22, 0x33, 0x44 } );
+
+    while ( io.has_incomming_data() )
+        local_member_functions.deserialize_call( io );
+
+    // functions called:
+    BOOST_TEST( local_a.instance_used == &local_a );
+    BOOST_TEST( local_b.instance_used == &local_b );
+
+    BOOST_TEST( local_a.f1_called );
+
+    BOOST_TEST( local_a.f2_called );
+    BOOST_TEST( local_a.f2_a == 0xbbaa );
+
+    BOOST_TEST( local_a.f3_called );
+
+    BOOST_TEST( local_b.f1_called );
+    BOOST_TEST( std::get< 0 >( local_b.f1_t ) == 0xff );
+    BOOST_TEST( std::get< 1 >( local_b.f1_t ) == 0x44332211 );
+
+    // return values:
+    BOOST_TEST( io.data_written() == v(
+        {
+            0x00,
+            0x04, 0x03, 0x02, 0x01,
+            0x00,
+            0x01
+        }), pp );
+
 }

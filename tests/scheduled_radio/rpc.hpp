@@ -126,24 +126,13 @@ namespace rpc {
     template < stream IO, typename... Ts >
     void serialize( IO& io, const std::tuple< Ts... >& t )
     {
-        std::apply([&io]( const Ts&... args) {
-            (serialize( io, args ),...);
-        }, t);
+        std::apply( [&io]( const Ts&... args ) {
+            ( serialize( io, args ), ... );
+        }, t );
     }
 
     namespace details
     {
-        template < class RemoteCalls, class LocalFunctions >
-        class protocol_t : public RemoteCalls
-        {
-        public:
-            // template < class T, class Res, class C
-            // Res call( Res (C::&func)() );
-
-            // template < class T >
-            // bool register_implementation( T& instance );
-        };
-
         static constexpr std::uint8_t no_such_function    = ~0;
         static constexpr std::uint8_t return_value_opcode = 0;
 
@@ -166,23 +155,27 @@ namespace rpc {
             static constexpr std::uint8_t value = no_such_function;
         };
 
+        struct no_object_type {};
+
         template < typename F >
         struct function_details;
 
         template < typename R, typename... Args >
         struct function_details< R(*)(Args...) >
         {
-            using return_type    = R;
-            using arguments_type = std::tuple< Args... >;
-            static constexpr bool member_function = false;
+            using return_type     = R;
+            using arguments_type  = std::tuple< Args... >;
+            using object_type     = no_object_type;
+            using member_function = std::false_type;
         };
 
         template < typename R, typename Obj, typename... Args >
         struct function_details< R (Obj::*)(Args...) >
         {
-            using return_type    = R;
-            using arguments_type = std::tuple< Args... >;
-            static constexpr bool member_function = true;
+            using return_type     = R;
+            using arguments_type  = std::tuple< Args... >;
+            using object_type     = Obj;
+            using member_function = std::true_type;
         };
 
         template < typename F, F Func >
@@ -191,10 +184,31 @@ namespace rpc {
             using details = function_details< F >;
             using arguments_t = details::arguments_type;
             using result_t    = details::return_type;
-            static constexpr bool member_function = details::member_function;
+            using object_type = details::object_type;
+            using member_function = details::member_function;
 
-            template < stream IO >
-            static void call( IO& io, const void* )
+            /*
+             * Call to member function without return value
+             */
+            template < stream IO, typename Objs >
+            static void call( IO& io, const void*, const Objs& objs, const std::true_type& )
+            {
+                arguments_t args;
+                deserialize( io, args );
+
+                object_type* const obj = std::get< object_type* >( objs );
+                assert( obj );
+
+                std::apply( [obj](const auto&... as ){
+                    (obj->*Func)( as... );
+                }, args );
+            }
+
+            /*
+             * Call to static / free function without return value
+             */
+            template < stream IO, typename Objs >
+            static void call( IO& io, const void*, const Objs&, const std::false_type& )
             {
                 arguments_t args;
                 deserialize( io, args );
@@ -204,8 +218,32 @@ namespace rpc {
                 }, args );
             }
 
-            template < stream IO, typename T >
-            static void call( IO& io, const T* )
+            /*
+             * Call to member function with return value
+             */
+            template < stream IO, typename T, typename Objs >
+            static void call( IO& io, const T*, const Objs& objs, const std::true_type& )
+            {
+                arguments_t args;
+                deserialize( io, args );
+
+                object_type* const obj = std::get< object_type* >( objs );
+                assert( obj );
+
+                result_t result;
+                std::apply( [&result, obj](const auto&... as ){
+                    result = (obj->*Func)( as... );
+                }, args );
+
+                serialize( io, return_value_opcode );
+                serialize( io, result );
+            }
+
+            /*
+             * Call to static / free function with return value
+             */
+            template < stream IO, typename T, typename Objs >
+            static void call( IO& io, const T*, const Objs&, const std::false_type& )
             {
                 arguments_t args;
                 deserialize( io, args );
@@ -219,11 +257,11 @@ namespace rpc {
                 serialize( io, result );
             }
 
-            template < stream IO >
-            static void call( IO& io )
+            template < stream IO, typename Objs >
+            static void call( IO& io, const Objs& obj )
             {
                 // dispatch to version with / without return value
-                call( io, static_cast< result_t* >( nullptr ) );
+                call( io, static_cast< result_t* >( nullptr ), obj, member_function() );
             }
         };
 
@@ -241,30 +279,30 @@ namespace rpc {
         }
 
         template < typename TL >
-        struct call_functions_from_set;
+        struct call_function_from_set;
 
         template <>
-        struct call_functions_from_set< std::tuple<> >
+        struct call_function_from_set< std::tuple<> >
         {
-            template < stream IO >
-            static void call( std::uint8_t, IO& )
+            template < stream IO, typename Objs >
+            static void call( std::uint8_t, IO&, const Objs& )
             {
             }
         };
 
         template < typename Proc, Proc Func, typename... Procs >
-        struct call_functions_from_set< std::tuple< details::wrapped_func< Proc, Func >, Procs... > >
+        struct call_function_from_set< std::tuple< details::wrapped_func< Proc, Func >, Procs... > >
         {
-            template < stream IO >
-            static void call( std::uint8_t index, IO& io )
+            template < stream IO, typename Objs >
+            static void call( std::uint8_t index, IO& io, const Objs& objs )
             {
                 if ( index == 0 )
                 {
-                    details::wrapped_func< Proc, Func >::call( io );
+                    details::wrapped_func< Proc, Func >::call( io, objs );
                 }
                 else
                 {
-                    call_functions_from_set< std::tuple< Procs... > >::call( index - 1, io );
+                    call_function_from_set< std::tuple< Procs... > >::call( index - 1, io, objs );
                 }
             }
         };
@@ -325,9 +363,57 @@ namespace rpc {
                 assert( opcode > 0 );
                 assert( opcode <= sizeof...( Procs ) );
 
-                call_functions_from_set<
-                    std::tuple< details::wrapped_func< Procs, Funcs >... > >::call( opcode - 1, io );
+                call_function_from_set<
+                    std::tuple< details::wrapped_func< Procs, Funcs >... > >::call( opcode - 1, io, local_objects_ );
             }
+
+            template < typename T >
+            void register_implementation( T& local_object )
+            {
+                std::get< T* >( local_objects_ ) = &local_object;
+            }
+
+        private:
+            template < typename T, typename Types >
+            struct is_element;
+
+            template < typename T, typename Type, typename... Types >
+            struct is_element< T, std::tuple< Type, Types... > > :
+                std::integral_constant< bool,
+                    std::is_same< T, Type >::value
+                 || is_element< T, std::tuple< Types... > >::value
+                >
+            {};
+
+            template < typename T >
+            struct is_element< T, std::tuple<> > : std::false_type {};
+
+            template < class ObjectTypes, class FunctionTypes >
+            struct local_objects_impl;
+
+            template < typename... ObjectTypes >
+            struct local_objects_impl< std::tuple< ObjectTypes... >, std::tuple<> >
+            {
+                using type = std::tuple< ObjectTypes... >;
+            };
+
+            template < typename... ObjectTypes, typename Fkt, typename... FunctionTypes >
+            struct local_objects_impl< std::tuple< ObjectTypes... >, std::tuple< Fkt, FunctionTypes... > >
+            {
+                using object_type = Fkt::object_type*;
+
+                static constexpr bool take = Fkt::member_function::value && !is_element< object_type, std::tuple< ObjectTypes... > >::value;
+
+                using objects = std::conditional<
+                    take,
+                    std::tuple< ObjectTypes..., object_type >,
+                    std::tuple< ObjectTypes... > >::type;
+
+                using type = local_objects_impl< objects, std::tuple< FunctionTypes... > >::type;
+            };
+
+            using local_objects_t = typename local_objects_impl< std::tuple<>, std::tuple< details::wrapped_func< Procs, Funcs >... > >::type;
+            local_objects_t local_objects_;
         };
     }
 
