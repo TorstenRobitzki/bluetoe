@@ -310,11 +310,21 @@ namespace rpc {
         template < typename... Funcs >
         class function_set_t {};
 
-        template < typename... WrappedFunc >
+        struct no_local {
+        protected:
+            template < stream IO >
+            void deserialize_call( std::uint8_t, IO& ) const
+            {
+                assert( !"invalid return code from remote" );
+            }
+        };
+
+        template < typename Local, typename... WrappedFunc >
         class remote_protocol_t;
 
-        template < typename... Procs, auto... Funcs >
-        class remote_protocol_t< details::wrapped_func< Procs, Funcs >... >
+        template < typename Local, typename... Procs, auto... Funcs >
+        class remote_protocol_t< Local, details::wrapped_func< Procs, Funcs >... >
+            : public Local
         {
         public:
             template < auto proc, stream IO, typename... Args >
@@ -341,7 +351,7 @@ namespace rpc {
             {
                 for ( std::uint8_t opcode = io.get(); opcode != return_value_opcode; opcode = io.get() )
                 {
-                    // TODO if opcode != return_value_opcode; a call from the other side happend
+                    this->deserialize_call( opcode, io );
                 }
 
                 return deserialize_return_value( io, static_cast< R* >( nullptr ) );
@@ -358,19 +368,24 @@ namespace rpc {
             template < stream IO >
             void deserialize_call( IO& io ) const
             {
-                const std::uint8_t opcode = io.get();
-
-                assert( opcode > 0 );
-                assert( opcode <= sizeof...( Procs ) );
-
-                call_function_from_set<
-                    std::tuple< details::wrapped_func< Procs, Funcs >... > >::call( opcode - 1, io, local_objects_ );
+                deserialize_call( io.get(), io );
             }
 
             template < typename T >
             void register_implementation( T& local_object )
             {
                 std::get< T* >( local_objects_ ) = &local_object;
+            }
+
+        protected:
+            template < stream IO >
+            void deserialize_call( std::uint8_t opcode, IO& io ) const
+            {
+                assert( opcode > 0 );
+                assert( opcode <= sizeof...( Procs ) );
+
+                call_function_from_set<
+                    std::tuple< details::wrapped_func< Procs, Funcs >... > >::call( opcode - 1, io, local_objects_ );
             }
 
         private:
@@ -420,7 +435,9 @@ namespace rpc {
     template < auto... procs >
     consteval auto remote_protocol()
     {
-        return details::remote_protocol_t< details::wrapped_func< decltype(procs), procs >... >();
+        return details::remote_protocol_t<
+            details::no_local,
+            details::wrapped_func< decltype(procs), procs >... >();
     }
 
     template < auto... procs >
@@ -429,14 +446,12 @@ namespace rpc {
         return details::local_protocol_t< details::wrapped_func< decltype(procs), procs >... >();
     }
 
-    /*
-
-    template < remote_procedure... RemoteProcs, remote_procedure... LocalProcs, stream Stream >
-    auto protocol( const details::remote_protocol_t< RemoteProcs... > &, const details::remote_protocol_t< LocalProcs... > &, Stream& io)
+    template < typename Loc, typename... RemoteProcs, typename... LocalProcs >
+    auto protocol( const details::remote_protocol_t< Loc, RemoteProcs... > &, const details::local_protocol_t< LocalProcs... > & )
     {
-        return details::protocol_t<
-            details::remote_protocol_t< RemoteProcs... >,
-            details::remote_protocol_t< LocalProcs... > >();
+        return
+            details::remote_protocol_t<
+                details::local_protocol_t< LocalProcs... >,
+                RemoteProcs... >();
     }
-*/
 }

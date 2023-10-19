@@ -17,9 +17,7 @@ struct remote_prototype {
     bool prototype_with_args( std::uint8_t p1, std::uint16_t p2 );
 };
 
-bool remote_bool() {
-    return false;
-}
+bool remote_bool();
 
 static const auto remote_functions = rpc::remote_protocol<
     &virtual_remote_class::virtual_void,
@@ -320,4 +318,35 @@ BOOST_AUTO_TEST_CASE( deserialize_call_to_member_functions )
             0x01
         }), pp );
 
+}
+
+const auto bidirectional_protocol = rpc::protocol(
+    rpc::remote_protocol< &remote_bool >(),
+    rpc::local_protocol< &f_void1, &f_uint32 >()
+);
+
+BOOST_AUTO_TEST_CASE( mixed_directions_remote_call )
+{
+    stream io;
+    bidirectional_protocol.call< &remote_bool >( io );
+
+    BOOST_TEST( io.data_written() == v( { 0x01 } ), pp );
+}
+
+BOOST_FIXTURE_TEST_CASE( mixed_directions_remote_call_with_incomming_calls, reset_call_markers )
+{
+    stream io;
+    // call to f_uint32( 0xbbaa, true )
+    io.incomming_data( { 0x02, 0xaa, 0xbb, 0x01 } );
+
+    // call to remote, while there is a call to f_uint32 from the remote side
+    // on the line already
+    bidirectional_protocol.call< &remote_bool >( io );
+
+    BOOST_TEST( f_uint32_called );
+    BOOST_TEST( f_uint32_u == 0xbbaa );
+    BOOST_TEST( f_uint32_b == true );
+
+    // the call to remote_bool(), followed by the result of f_uint32
+    BOOST_TEST( io.data_written() == v( { 0x01, 0x00, 0x00, 0xaa, 0xbb, 0x00 } ), pp );
 }
