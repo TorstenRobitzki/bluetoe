@@ -91,6 +91,45 @@ namespace rpc {
         b = io.get();
     }
 
+    template < stream IO >
+    void serialize( IO& io, std::uint8_t b )
+    {
+        io.put( b );
+    }
+
+    template < stream IO >
+    void serialize( IO& io, bool b )
+    {
+        io.put( b ? 1 : 0 );
+    }
+
+    template < stream IO >
+    void serialize( IO& io, std::uint16_t b )
+    {
+        serialize( io, static_cast< std::uint8_t >( b & 0xff ) );
+        serialize( io, static_cast< std::uint8_t >( b >> 8 ) );
+    }
+
+    template < stream IO >
+    void serialize( IO& io, std::uint32_t b )
+    {
+        serialize( io, static_cast< std::uint16_t >( b & 0xffff ) );
+        serialize( io, static_cast< std::uint16_t >( b >> 16 ) );
+    }
+
+    template < stream IO >
+    void serialize( IO&, const std::tuple<>& )
+    {
+    }
+
+    template < stream IO, typename... Ts >
+    void serialize( IO& io, const std::tuple< Ts... >& t )
+    {
+        std::apply([&io]( const Ts&... args) {
+            (serialize( io, args ),...);
+        }, t);
+    }
+
     namespace details
     {
         template < class RemoteCalls, class LocalFunctions >
@@ -138,9 +177,26 @@ namespace rpc {
             using type = R;
         };
 
+        template < typename F >
+        struct arguments_type;
+
+        template < typename R, typename... Args >
+        struct arguments_type< R(*)(Args...) >
+        {
+            using type = std::tuple< Args... >;
+        };
+
+        template < typename R, typename Obj, typename... Args >
+        struct arguments_type< R (Obj::*)(Args...) >
+        {
+            using type = std::tuple< Args... >;
+        };
+
         template < typename F, F Func >
         struct wrapped_func
         {
+            using arguments_t = typename arguments_type< F >::type;
+            using result_t    = typename return_type< F >::type;
         };
 
         template < typename T >
@@ -169,8 +225,8 @@ namespace rpc {
         class remote_protocol_t
         {
         public:
-            template < auto proc, stream IO >
-            auto call( IO& io ) const
+            template < auto proc, stream IO, typename... Args >
+            auto call( IO& io, Args... args ) const
             {
                 using func = wrapped_func< decltype(proc), proc >;
 
@@ -182,6 +238,7 @@ namespace rpc {
                 static_assert( index != ~0, "Function to be called is not member of the set declared for the set of remote functions. Add function to `function_set()`!" );
 
                 io.put( index + 1 );
+                serialize( io, typename func::arguments_t( args... ) );
 
                 return read_result< decltype(proc) >( io );
             }

@@ -14,6 +14,7 @@ struct virtual_remote_class {
 
 struct remote_prototype {
     std::uint32_t prototype_f();
+    bool prototype_with_args( std::uint8_t p1, std::uint16_t p2 );
 };
 
 bool remote_bool() {
@@ -23,7 +24,8 @@ bool remote_bool() {
 static const auto remote_functions = rpc::function_set<
     &virtual_remote_class::virtual_void,
     &remote_bool,
-    &remote_prototype::prototype_f
+    &remote_prototype::prototype_f,
+    &remote_prototype::prototype_with_args
 >();
 
 class stream
@@ -63,6 +65,8 @@ private:
     std::vector< std::uint8_t > read_;
 };
 
+const auto pp = boost::test_tools::per_element();
+
 BOOST_AUTO_TEST_CASE( call_first_function )
 {
     stream io;
@@ -93,4 +97,16 @@ BOOST_AUTO_TEST_CASE( call_function_from_prototype )
 
     BOOST_TEST( io.data_written() == std::vector< std::uint8_t >({ 0x03 }) );
     BOOST_TEST( rc == 0x04030201 );
+}
+
+BOOST_AUTO_TEST_CASE( call_function_from_prototype_with_args )
+{
+    stream io;
+    static_assert( std::is_same< decltype( remote_functions.call< &remote_prototype::prototype_with_args >( io ) ), bool >::value );
+
+    io.incomming_data( { 0x00, 0x01 } );
+    const auto rc = remote_functions.call< &remote_prototype::prototype_with_args >( io, 0x42, 0x0102 );
+
+    BOOST_TEST( io.data_written() == std::vector< std::uint8_t >({ 0x04, 0x42, 0x02, 0x01 }), pp );
+    BOOST_TEST( rc == true );
 }
