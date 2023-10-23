@@ -1,3 +1,6 @@
+#ifndef BLUETOE_TESTS_LINK_LAYER_RPC_HPP
+#define BLUETOE_TESTS_LINK_LAYER_RPC_HPP
+
 /**
  * @file rpc.hpp
  *
@@ -50,10 +53,6 @@ namespace rpc {
         stream.put( p1 );
         { stream.get() } ->  std::same_as< std::uint8_t >;
     };
-
-    template < class T >
-    concept remote_procedure = true;
-
 
     template < stream IO >
     void deserialize( IO& io, std::uint8_t& b )
@@ -154,6 +153,20 @@ namespace rpc {
         {
             static constexpr std::uint8_t value = no_such_function;
         };
+
+        template < typename T, typename Types >
+        struct is_element;
+
+        template < typename T, typename Type, typename... Types >
+        struct is_element< T, std::tuple< Type, Types... > > :
+            std::integral_constant< bool,
+                std::is_same< T, Type >::value
+             || is_element< T, std::tuple< Types... > >::value
+            >
+        {};
+
+        template < typename T >
+        struct is_element< T, std::tuple<> > : std::false_type {};
 
         struct no_object_type {};
 
@@ -307,9 +320,6 @@ namespace rpc {
             }
         };
 
-        template < typename... Funcs >
-        class function_set_t {};
-
         struct no_local {
         protected:
             template < stream IO >
@@ -372,9 +382,11 @@ namespace rpc {
             }
 
             template < typename T >
-            void register_implementation( T& local_object )
+            bool register_implementation( T& local_object )
             {
                 std::get< T* >( local_objects_ ) = &local_object;
+
+                return true;
             }
 
         protected:
@@ -389,20 +401,6 @@ namespace rpc {
             }
 
         private:
-            template < typename T, typename Types >
-            struct is_element;
-
-            template < typename T, typename Type, typename... Types >
-            struct is_element< T, std::tuple< Type, Types... > > :
-                std::integral_constant< bool,
-                    std::is_same< T, Type >::value
-                 || is_element< T, std::tuple< Types... > >::value
-                >
-            {};
-
-            template < typename T >
-            struct is_element< T, std::tuple<> > : std::false_type {};
-
             template < class ObjectTypes, class FunctionTypes >
             struct local_objects_impl;
 
@@ -430,6 +428,14 @@ namespace rpc {
             using local_objects_t = typename local_objects_impl< std::tuple<>, std::tuple< details::wrapped_func< Procs, Funcs >... > >::type;
             local_objects_t local_objects_;
         };
+
+        template < typename... WrappedFunc >
+        class functions_t;
+
+        template < typename... Procs, auto... Funcs >
+        class functions_t< details::wrapped_func< Procs, Funcs >... >
+        {
+        };
     }
 
     template < auto... procs >
@@ -447,11 +453,29 @@ namespace rpc {
     }
 
     template < typename Loc, typename... RemoteProcs, typename... LocalProcs >
-    auto protocol( const details::remote_protocol_t< Loc, RemoteProcs... > &, const details::local_protocol_t< LocalProcs... > & )
+    consteval auto protocol( const details::remote_protocol_t< Loc, RemoteProcs... > &, const details::local_protocol_t< LocalProcs... > & )
     {
         return
             details::remote_protocol_t<
                 details::local_protocol_t< LocalProcs... >,
                 RemoteProcs... >();
     }
+
+    template < auto... procs >
+    consteval auto functions()
+    {
+        return details::functions_t< details::wrapped_func< decltype(procs), procs >... >();
+    }
+
+    template < typename... RemoteProcs, typename... LocalProcs >
+    consteval auto protocol( const details::functions_t< RemoteProcs... > &, const details::functions_t< LocalProcs... > & )
+    {
+        return
+            details::remote_protocol_t<
+                details::local_protocol_t< LocalProcs... >,
+                RemoteProcs... >();
+    }
+
 }
+
+#endif

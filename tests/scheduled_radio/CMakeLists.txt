@@ -36,9 +36,15 @@ if (CMAKE_CROSSCOMPILING)
     add_compile_definitions(
         -DCATCH_CONFIG_NO_POSIX_SIGNALS=1
         -DCATCH_CONFIG_NOSTDOUT=1
-        -DCATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
+        -DCATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1
+        -DNRF52840_XXAA=1)
 
     add_subdirectory(/Users/todi/Catch2 ${CMAKE_CURRENT_BINARY_DIR}/Catch2)
+
+    add_library(binding_dummy INTERFACE)
+    add_library(toolchain::dummy ALIAS binding_dummy)
+    set(BINDING dummy)
+    add_subdirectory( ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_BINARY_DIR}/bluetoe)
 
     add_executable(tester
         tester.cpp
@@ -47,11 +53,12 @@ if (CMAKE_CROSSCOMPILING)
         gcc_startup_nrf52840.S
         external_flash.cpp)
 
+    set_property(TARGET tester PROPERTY CXX_STANDARD 20)
     set_target_properties(tester
         PROPERTIES
             OUTPUT_NAME tester.elf)
 
-    target_link_libraries(tester PRIVATE Catch2::Catch2WithMain)
+    target_link_libraries(tester PRIVATE Catch2::Catch2WithMain bluetoe::link_layer)
     target_include_directories(tester
         SYSTEM PRIVATE
             ${Boost_INCLUDE_DIR}
@@ -72,25 +79,48 @@ if (CMAKE_CROSSCOMPILING)
 
     target_link_options(tester PRIVATE -T nrf52840_xxaa.ld -Wl,-Map=tester.map)
 
-    add_custom_target(tester.artifacts ALL
-            COMMAND ${CMAKE_OBJCOPY} -S -O ihex tester.elf tester.hex
-            COMMAND ${CMAKE_OBJDUMP} -hS tester.elf > tester.lss
-            COMMAND ${CMAKE_SIZE} tester.elf
+    function(artifacts_target target)
+        add_custom_target(${target}.artifacts ALL
+                COMMAND ${CMAKE_OBJCOPY} -S -O ihex ${target}.elf ${target}.hex
+                COMMAND ${CMAKE_OBJDUMP} -hS ${target}.elf > ${target}.lss
+                COMMAND ${CMAKE_SIZE} ${target}.elf
+                )
+
+        add_dependencies(${target}.artifacts ${target})
+
+        if (DEFINED ${target}_JLINK)
+            message("nrfjprog ${${target}_JLINK} selected")
+            set(SELECT_JLINK_DEVICE --snr ${${target}_JLINK})
+        endif()
+
+        add_custom_target(${target}.flash
+            COMMAND nrfjprog --chiperase --family NRF52 ${SELECT_JLINK_DEVICE} --program ${target}.hex --verify --reset --log
+            VERBATIM
             )
 
-    add_dependencies(tester.artifacts tester)
+        add_dependencies(${target}.flash ${target}.artifacts)
+    endfunction()
 
-    if (DEFINED TESTER_JLINK)
-        message("nrfjprog ${TESTER_JLINK} selected")
-        set(SELECT_JLINK_DEVICE --snr ${TESTER_JLINK})
-    endif()
+    artifacts_target(tester)
 
-    add_custom_target(tester.flash
-        COMMAND nrfjprog --chiperase --family NRF52 ${SELECT_JLINK_DEVICE} --program tester.hex --verify --reset --log
-        VERBATIM
-        )
+    add_executable(nrf52_scheduled_radio_dut EXCLUDE_FROM_ALL
+        dut.cpp)
 
-    add_dependencies(tester.flash tester.artifacts)
+    target_compile_options(nrf52_scheduled_radio_dut PUBLIC -nostdlib)
+    target_link_options(nrf52_scheduled_radio_dut PRIVATE -nostdlib)
+    target_link_libraries(nrf52_scheduled_radio_dut PRIVATE bluetoe::link_layer)
+    target_include_directories(nrf52_scheduled_radio_dut
+        SYSTEM PRIVATE
+            ${NRF5_SDK_ROOT}/modules/nrfx/mdk/
+            ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include/ )
+
+    set_property(TARGET nrf52_scheduled_radio_dut PROPERTY CXX_STANDARD 20)
+    set_target_properties(nrf52_scheduled_radio_dut
+        PROPERTIES
+            OUTPUT_NAME nrf52_scheduled_radio_dut.elf)
+
+    artifacts_target(nrf52_scheduled_radio_dut)
+
 else()
 
     find_package( Boost REQUIRED )

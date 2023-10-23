@@ -2,9 +2,13 @@
 #define BLUETOE_LINK_LAYER_SCHEDULED_RADIO2_HPP
 
 #include <cstdint>
-#include <buffer.hpp>
-#include <address.hpp>
-#include <ll_data_pdu_buffer.hpp>
+#include <bluetoe/buffer.hpp>
+#include <bluetoe/address.hpp>
+#include <bluetoe/ll_data_pdu_buffer.hpp>
+#include <bluetoe/connection_events.hpp>
+#include <bluetoe/security_connection_data.hpp>
+#include <bluetoe/phy_encodings.hpp>
+#include <bluetoe/abs_time.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -28,7 +32,7 @@ struct example_callbacks
      * The link_layer shall not call any of the scheduling functions
      * before the radio_ready() callback was called.
      */
-    void radio_ready( time_point_t now );
+    void radio_ready( abs_time now );
 
     /**
      * @brief will be called from the scheduled_radio2, if the
@@ -41,26 +45,26 @@ struct example_callbacks
      *
      * @sa scheduled_radio2::schedule_advertisment()
      */
-    void adv_received( time_point_t when, const read_buffer& response );
+    void adv_received( abs_time when, const read_buffer& response );
 
     /**
      * @brief call back that will be called when the central does not respond to an advertising PDU
      *
      * @sa scheduled_radio2::schedule_advertisment()
      */
-    void adv_timeout( time_point_t now );
+    void adv_timeout( abs_time now );
 
     /**
      * @brief call back that will be called when connect event times out
      * @sa scheduled_radio2::schedule_connection_event
      */
-    void connection_timeout( time_point_t now );
+    void connection_timeout( abs_time now );
 
     /**
      * @brief call back that will be called after a connect event was closed.
      * @sa scheduled_radio2::schedule_connection_event
      */
-    void connection_end_event( time_point_t when, connection_event_events evts );
+    void connection_end_event( abs_time when, connection_event_events evts );
 
     /**
      * @brief call back that will be called, if a connection event was canceled
@@ -69,14 +73,14 @@ struct example_callbacks
      *
      * @sa scheduled_radio2::cancel_radio_event()
      */
-    void connection_event_canceled( time_point_t now );
+    void connection_event_canceled( abs_time now );
 
     /**
      * @brief call back that will be called on an expired user timer.
      *
      * @param when point in time, the timer was scheduled.
      */
-    void user_timer( time_point_t when );
+    void user_timer( abs_time when );
 
     /**
      * @brief call back that will be called, if a connection event was canceled
@@ -87,7 +91,7 @@ struct example_callbacks
     /**
      * @brief type to retrieve outgoing PDUs from and to store incomming PDUs to.
      */
-    using link_layer_pdu_buffer_t = ...;
+    struct link_layer_pdu_buffer_t {};
 
     /**
      * @brief function to provide access to a PDU buffer to the radio
@@ -112,42 +116,10 @@ class radio_time
 {
 public:
     /**
-     * @brief type that allows to store a point in time with a resolution
-     *        of at least 1µs.
-     *
-     * It is expected that this time overflows once in a while. It should be capable
-     * of representing points in time in a range of at least 2007s (4s maximum connection
-     * interval times, a peripheral latency of 500 and a total, worst case sleep clock accuracy
-     * of 0.1%).
-     *
-     * This means, that a given point in time has to be advanced by at least 2007s without
-     * the representation of the time point overflowing more than once.
-     */
-    using time_point_t = std::uint32_t;
-
-    /**
-     * @brief type that allow to store a time duration with a resolution of at least 1µs.
-     *
-     * This type must be able to represent value from 0s to at least 2007s.
-     */
-    using time_duration_t = std::uint32_t;
-
-    /**
-     * @brief advances now by margin_us µs
-     */
-    static constexpr time_point_t time_advance(time_point_t now, time_duration_t margin_us);
-
-    /**
-     * @brief compares two time points
-     *
-     * Compares two points in time for beeing in the relation "first is before second".
-     */
-    static constexpr bool time_is_before(time_point_t first, time_point_t second);
-
     /**
      * @brief returns the current time
      */
-    static time_point_t time_now();
+    static abs_time time_now();
 };
 
 /**
@@ -234,7 +206,7 @@ class pairing_security_toolbox
  *
  *
  */
-template < typename CallBacks, typename Options... >
+template < typename CallBacks, typename... Options >
 class scheduled_radio2 : public CallBacks, public radio_time, public pairing_security_toolbox
 {
 public:
@@ -251,7 +223,7 @@ public:
      * link. If the radio supports pairing, it should also support
      * encryption.
      */
-    static constexpr bool hardware_supports_encryption;
+    static constexpr bool hardware_supports_encryption = true;
 
     /**
      * @brief indicates the support for LESC pairing
@@ -260,12 +232,12 @@ public:
      * and thus have to implement the corresponding functions described
      * in pairing_security_toolbox.
      */
-    static constexpr bool hardware_supports_lesc_pairing;
+    static constexpr bool hardware_supports_lesc_pairing = true;
 
     /**
      * @brief indicates the support for legacy pairing
      */
-    static constexpr bool hardware_supports_legacy_pairing;
+    static constexpr bool hardware_supports_legacy_pairing = true;
 
     /**
      * @brief indication support for pairing
@@ -273,26 +245,18 @@ public:
     static constexpr bool hardware_supports_pairing = hardware_supports_lesc_pairing || hardware_supports_legacy_pairing;
 
     /**
-     * @brief indication of support for pairing
-     *
-     * If that constant is true, the radio support the encryption of a
-     * link.
-     */
-    static constexpr bool hardware_supports_encryption;
-
-    /**
      * @brief indicates support for 2Mbit
      *
      * If that constant is true, the radio support the 2Mbit PHY.
      */
-    static constexpr bool hardware_supports_2mbit;
+    static constexpr bool hardware_supports_2mbit = true;
 
     /**
      * @brief indicates support for schedule_synchronized_user_timer()
      *
      * @sa scheduled_radio2::
      */
-    static constexpr bool hardware_supports_synchronized_user_timer;
+    static constexpr bool hardware_supports_synchronized_user_timer = true;
 
     /**@}*/
 
@@ -404,7 +368,7 @@ public:
      */
     bool schedule_advertising_event(
         unsigned                                    channel,
-        time_point_t                                when,
+        abs_time                                    when,
         const bluetoe::link_layer::write_buffer&    advertising_data,
         const bluetoe::link_layer::write_buffer&    response_data,
         const bluetoe::link_layer::read_buffer&     receive );
@@ -442,8 +406,8 @@ public:
      */
     bool schedule_connection_event(
         unsigned            channel,
-        time_point_t        start,
-        time_point_t        end );
+        abs_time            start,
+        abs_time            end );
 
     /**
      * @brief cancel a pending connection event
@@ -479,7 +443,7 @@ public:
      *
      * Once the callback fuis called, there is no timer scheduled anymore.
      */
-    bool schedule_timer( time_point_t when );
+    bool schedule_timer( abs_time when );
 
     /**
      * @brief Cancel the timer
