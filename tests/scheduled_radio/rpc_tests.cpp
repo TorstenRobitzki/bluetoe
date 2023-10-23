@@ -30,9 +30,14 @@ class stream
 {
 public:
 
-    void put(std::uint8_t p)
+    void put( std::uint8_t p )
     {
         written_.push_back(p);
+    }
+
+    void put( const std::uint8_t* p, std::size_t len )
+    {
+        written_.insert( written_.end(), p, p + len );
     }
 
     std::uint8_t get()
@@ -44,6 +49,12 @@ public:
         read_.erase( read_.begin() );
 
         return result;
+    }
+
+    void get( std::uint8_t* p, std::size_t len )
+    {
+        for ( ; len; ++p, --len )
+            *p = get();
     }
 
     std::vector< std::uint8_t > data_written()
@@ -349,4 +360,14 @@ BOOST_FIXTURE_TEST_CASE( mixed_directions_remote_call_with_incomming_calls, rese
 
     // the call to remote_bool(), followed by the result of f_uint32
     BOOST_TEST( io.data_written() == v( { 0x01, 0x00, 0x00, 0xaa, 0xbb, 0x00 } ), pp );
+}
+
+void func_ref( const uint8_t& );
+
+BOOST_AUTO_TEST_CASE( call_functions_with_reference_parameter_types )
+{
+    stream io;
+
+    auto prot = rpc::remote_protocol< &func_ref >();
+    prot.call< &func_ref >( io, uint8_t{ 42 } );
 }

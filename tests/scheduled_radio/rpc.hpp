@@ -48,10 +48,12 @@
 namespace rpc {
 
     template < class T >
-    concept stream = requires( T stream, std::uint8_t p1 )
+    concept stream = requires( T stream, std::size_t len, const std::uint8_t p1, std::uint8_t p2 )
     {
         stream.put( p1 );
+        stream.put( &p1, len );
         { stream.get() } ->  std::same_as< std::uint8_t >;
+        stream.get( &p2, len );
     };
 
     template < stream IO >
@@ -177,7 +179,7 @@ namespace rpc {
         struct function_details< R(*)(Args...) >
         {
             using return_type     = R;
-            using arguments_type  = std::tuple< Args... >;
+            using arguments_type  = std::tuple< std::remove_reference_t<Args>... >;
             using object_type     = no_object_type;
             using member_function = std::false_type;
         };
@@ -186,7 +188,7 @@ namespace rpc {
         struct function_details< R (Obj::*)(Args...) >
         {
             using return_type     = R;
-            using arguments_type  = std::tuple< Args... >;
+            using arguments_type  = std::tuple< std::remove_reference_t<Args>... >;
             using object_type     = Obj;
             using member_function = std::true_type;
         };
