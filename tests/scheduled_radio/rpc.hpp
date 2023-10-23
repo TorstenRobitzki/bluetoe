@@ -179,7 +179,7 @@ namespace rpc {
         struct function_details< R(*)(Args...) >
         {
             using return_type     = R;
-            using arguments_type  = std::tuple< std::remove_reference_t<Args>... >;
+            using arguments_type  = std::tuple< std::remove_cvref_t<Args>... >;
             using object_type     = no_object_type;
             using member_function = std::false_type;
         };
@@ -188,7 +188,7 @@ namespace rpc {
         struct function_details< R (Obj::*)(Args...) >
         {
             using return_type     = R;
-            using arguments_type  = std::tuple< std::remove_reference_t<Args>... >;
+            using arguments_type  = std::tuple< std::remove_cvref_t<Args>... >;
             using object_type     = Obj;
             using member_function = std::true_type;
         };
