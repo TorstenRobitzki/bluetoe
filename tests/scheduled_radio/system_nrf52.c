@@ -90,8 +90,6 @@ void SystemCoreClockUpdate(void)
 
 void SystemInit(void)
 {
-    external_flash_init();
-
     /* Enable SWO trace functionality. If ENABLE_SWO is not defined, SWO pin will be used as GPIO (see Product
        Specification to see which one). */
     #if defined (ENABLE_SWO) && defined(CLOCK_TRACECONFIG_TRACEMUX_Pos)
@@ -317,4 +315,5 @@ void SystemInit(void)
     #endif
 
     SystemCoreClockUpdate();
+    external_flash_init();
 }
