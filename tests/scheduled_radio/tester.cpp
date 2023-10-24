@@ -54,5 +54,8 @@ static bool test_schedule_advertising_event_timing_and_data(remote_t& con, teste
 int main()
 {
     Catch::Session session;
-    return session.run();
+    volatile int rc = session.run();
+
+    for ( ;; )
+        ;
 }
