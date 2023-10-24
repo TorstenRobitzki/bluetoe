@@ -10,7 +10,9 @@ class nrf_uart_stream
 {
 public:
     void put( std::uint8_t );
+    void put( const std::uint8_t* p, std::size_t len );
     std::uint8_t get();
+    void get( std::uint8_t* p, std::size_t len );
 };
 
 #endif

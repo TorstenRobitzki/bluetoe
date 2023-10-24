@@ -367,7 +367,7 @@ public:
      *         was already to late to schedule the event.
      */
     bool schedule_advertising_event(
-        unsigned                                    channel,
+        std::uint32_t                               channel,
         abs_time                                    when,
         const bluetoe::link_layer::write_buffer&    advertising_data,
         const bluetoe::link_layer::write_buffer&    response_data,
@@ -405,7 +405,7 @@ public:
      * @sa cancel_radio_event()
      */
     bool schedule_connection_event(
-        unsigned            channel,
+        std::uint32_t       channel,
         abs_time            start,
         abs_time            end );
 

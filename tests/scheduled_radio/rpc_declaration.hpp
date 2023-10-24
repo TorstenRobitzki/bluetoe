@@ -8,9 +8,9 @@ using scheduled_radio = bluetoe::link_layer::scheduled_radio2<
     bluetoe::link_layer::example_callbacks >;
 
 using tester_calling_iut_rpc_t = decltype( rpc::functions<
-    &scheduled_radio::time_now/*,
+    &scheduled_radio::time_now,
     &scheduled_radio::set_local_address,
-    &scheduled_radio::schedule_advertising_event,
+    &scheduled_radio::schedule_advertising_event/*,
     &scheduled_radio::schedule_connection_event,
     &scheduled_radio::cancel_radio_event */ >() );
 

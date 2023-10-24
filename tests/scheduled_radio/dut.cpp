@@ -56,6 +56,6 @@ void bluetoe::link_layer::example_callbacks::user_timer_canceled()
 
 int main()
 {
-    // for ( ;; )
-    //     protocol.deserialize_call( io );
+    for ( ;; )
+        protocol.deserialize_call( io );
 }
