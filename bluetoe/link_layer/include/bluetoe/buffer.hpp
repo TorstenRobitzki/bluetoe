@@ -122,6 +122,13 @@ namespace link_layer {
             , size( s )
         {
         }
+
+        template < std::size_t Size >
+        write_buffer( const std::uint8_t (&b)[ Size ] )
+            : buffer( b )
+            , size( Size )
+        {
+        }
     };
 }
 }

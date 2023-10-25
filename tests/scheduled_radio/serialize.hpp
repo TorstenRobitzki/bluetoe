@@ -5,6 +5,8 @@
 
 #include "rpc.hpp"
 
+#include  <type_traits>
+
 template < typename IO >
 void serialize( IO& io, const bluetoe::link_layer::abs_time& t )
 {
@@ -46,7 +48,7 @@ template < typename IO >
 void serialize( IO& io, const bluetoe::link_layer::device_address& addr )
 {
     rpc::serialize( io, addr.is_random() );
-    rpc::serialize( io, addr.begin(), 6u );
+    io.put( addr.begin(), 6u );
 }
 
 template < typename IO >
@@ -103,6 +105,21 @@ void deserialize( IO& io, bluetoe::link_layer::read_buffer& b )
     io.get( buffer, length );
 
     b = bluetoe::link_layer::read_buffer( buffer, length );
+}
+
+template < typename IO >
+void serialize( IO& io, bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t enc )
+{
+    rpc::serialize( io, static_cast< std::underlying_type_t< bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t > >( enc ) );
+}
+
+template < typename IO >
+void deserialize( IO& io, bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t& enc )
+{
+    std::underlying_type_t< bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t > raw;
+    rpc::deserialize( io, raw );
+
+    enc = static_cast< bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t >( raw );
 }
 
 #endif

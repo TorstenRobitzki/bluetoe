@@ -33,8 +33,8 @@ namespace link_layer {
         bool operator==( abs_time& rhs ) const;
         bool operator!=( abs_time& rhs ) const;
 
-        delta_time operator-=( delta_time rhs );
-        delta_time operator+=( delta_time rhs );
+        abs_time& operator-=( delta_time rhs );
+        abs_time& operator+=( delta_time rhs );
 
         representation_type data() const;
     private:
@@ -45,6 +45,11 @@ namespace link_layer {
      * @brief human readable interpretation of t
      */
     std::ostream& operator<<( std::ostream& out, const abs_time& t );
+
+    abs_time operator+(abs_time, delta_time);
+    abs_time operator+(delta_time, abs_time);
+    abs_time operator-(abs_time, delta_time);
+    delta_time operator-(abs_time, abs_time);
 }
 }
 

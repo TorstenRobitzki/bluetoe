@@ -48,6 +48,7 @@ if (CMAKE_CROSSCOMPILING)
 
     add_executable(tester
         tester.cpp
+        radio.cpp
         test_framework_support.cpp
         system_nrf52.c
         gcc_startup_nrf52840.S
