@@ -26,6 +26,8 @@ static const auto remote_functions = rpc::remote_protocol<
     &remote_prototype::prototype_with_args
 >();
 
+static const std::uint16_t flush = 0x100;
+
 class stream
 {
 public:
@@ -57,9 +59,14 @@ public:
             *p = get();
     }
 
-    std::vector< std::uint8_t > data_written()
+    void flush()
     {
-        std::vector< std::uint8_t > result;
+        written_.push_back(::flush);
+    }
+
+    std::vector< std::uint16_t > data_written()
+    {
+        std::vector< std::uint16_t > result;
         result.swap( written_ );
 
         return result;
@@ -76,13 +83,13 @@ public:
     }
 
 private:
-    std::vector< std::uint8_t > written_;
+    std::vector< std::uint16_t > written_;
     std::vector< std::uint8_t > read_;
 };
 
 const auto pp = boost::test_tools::per_element();
 
-std::vector< std::uint8_t > v( std::initializer_list< std::uint8_t > l )
+std::vector< std::uint16_t > v( std::initializer_list< std::uint16_t > l )
 {
     return l;
 }
@@ -93,7 +100,7 @@ BOOST_AUTO_TEST_CASE( call_first_function )
     static_assert( std::is_same< decltype( remote_functions.call< &virtual_remote_class::virtual_void >( io ) ), void >::value );
 
     remote_functions.call< &virtual_remote_class::virtual_void >( io );
-    BOOST_TEST( io.data_written() == v({ 0x01 }), pp );
+    BOOST_TEST( io.data_written() == v({ 0x01, flush }), pp );
 }
 
 BOOST_AUTO_TEST_CASE( call_second_function )
@@ -103,7 +110,7 @@ BOOST_AUTO_TEST_CASE( call_second_function )
 
     const auto rc = remote_functions.call< &remote_bool >( io );
 
-    BOOST_TEST( io.data_written() == v({ 0x02 }), pp );
+    BOOST_TEST( io.data_written() == v({ 0x02, flush }), pp );
     BOOST_TEST( rc == false );
 }
 
@@ -115,7 +122,7 @@ BOOST_AUTO_TEST_CASE( call_function_from_prototype )
     io.incomming_data( { 0x00, 0x01, 0x02, 0x03, 0x04 } );
     const auto rc = remote_functions.call< &remote_prototype::prototype_f >( io );
 
-    BOOST_TEST( io.data_written() == v({ 0x03 }), pp );
+    BOOST_TEST( io.data_written() == v({ 0x03, flush }), pp );
     BOOST_TEST( rc == 0x04030201 );
 }
 
@@ -127,7 +134,7 @@ BOOST_AUTO_TEST_CASE( call_function_from_prototype_with_args )
     io.incomming_data( { 0x00, 0x01 } );
     const auto rc = remote_functions.call< &remote_prototype::prototype_with_args >( io, 0x42, 0x0102 );
 
-    BOOST_TEST( io.data_written() == v({ 0x04, 0x42, 0x02, 0x01 }), pp );
+    BOOST_TEST( io.data_written() == v({ 0x04, 0x42, 0x02, 0x01, flush }), pp );
     BOOST_TEST( rc == true );
 }
 
@@ -219,7 +226,7 @@ BOOST_FIXTURE_TEST_CASE( deserialize_call_to_f_bool, reset_call_markers )
 
     BOOST_TEST( f_bool_called );
     BOOST_TEST( f_bool_r == 0x42 );
-    BOOST_TEST( io.data_written() == v({ 0x00, 0x00 }), pp );
+    BOOST_TEST( io.data_written() == v({ 0x00, 0x00, flush }), pp );
 }
 
 BOOST_FIXTURE_TEST_CASE( deserialize_call_to_f_uint32, reset_call_markers )
@@ -231,7 +238,7 @@ BOOST_FIXTURE_TEST_CASE( deserialize_call_to_f_uint32, reset_call_markers )
     BOOST_TEST( f_uint32_called );
     BOOST_TEST( f_uint32_u == 0xbbaa );
     BOOST_TEST( f_uint32_b == false );
-    BOOST_TEST( io.data_written() == v({ 0x00, 0x00, 0xaa, 0xbb, 0x00 }), pp );
+    BOOST_TEST( io.data_written() == v({ 0x00, 0x00, 0xaa, 0xbb, 0x00, flush }), pp );
 }
 
 struct local_object_A
@@ -325,8 +332,10 @@ BOOST_AUTO_TEST_CASE( deserialize_call_to_member_functions )
         {
             0x00,
             0x04, 0x03, 0x02, 0x01,
+            flush,
             0x00,
-            0x01
+            0x01,
+            flush
         }), pp );
 
 }
@@ -341,7 +350,7 @@ BOOST_AUTO_TEST_CASE( mixed_directions_remote_call )
     stream io;
     bidirectional_protocol.call< &remote_bool >( io );
 
-    BOOST_TEST( io.data_written() == v( { 0x01 } ), pp );
+    BOOST_TEST( io.data_written() == v( { 0x01, flush } ), pp );
 }
 
 BOOST_FIXTURE_TEST_CASE( mixed_directions_remote_call_with_incomming_calls, reset_call_markers )
@@ -359,7 +368,7 @@ BOOST_FIXTURE_TEST_CASE( mixed_directions_remote_call_with_incomming_calls, rese
     BOOST_TEST( f_uint32_b == true );
 
     // the call to remote_bool(), followed by the result of f_uint32
-    BOOST_TEST( io.data_written() == v( { 0x01, 0x00, 0x00, 0xaa, 0xbb, 0x00 } ), pp );
+    BOOST_TEST( io.data_written() == v( { 0x01, flush, 0x00, 0x00, 0xaa, 0xbb, 0x00, flush } ), pp );
 }
 
 void func_ref( const uint8_t& );

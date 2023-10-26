@@ -54,6 +54,7 @@ namespace rpc {
         stream.put( &p1, len );
         { stream.get() } ->  std::same_as< std::uint8_t >;
         stream.get( &p2, len );
+        stream.flush();
     };
 
     template < stream IO >
@@ -261,6 +262,7 @@ namespace rpc {
 
                 serialize( io, return_value_opcode );
                 serialize( io, result );
+                io.flush();
             }
 
             /*
@@ -279,6 +281,7 @@ namespace rpc {
 
                 serialize( io, return_value_opcode );
                 serialize( io, result );
+                io.flush();
             }
 
             template < stream IO, typename Objs >
@@ -362,6 +365,7 @@ namespace rpc {
 
                 io.put( index + 1 );
                 serialize( io, typename func::arguments_t( args... ) );
+                io.flush();
 
                 return read_result< typename func::result_t >( io );
             }
