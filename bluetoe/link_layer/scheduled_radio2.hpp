@@ -491,7 +491,7 @@ public:
     /**
      * @brief return the clock accuracy of the DUT in ppm
      */
-    std::uint32_t dut_time_accuracy_ppm() /* const */;
+    std::uint32_t dut_time_accuracy_ppm() const;
 
     /**@}*/
 };

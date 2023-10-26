@@ -371,3 +371,15 @@ BOOST_AUTO_TEST_CASE( call_functions_with_reference_parameter_types )
     auto prot = rpc::remote_protocol< &func_ref >();
     prot.call< &func_ref >( io, uint8_t{ 42 } );
 }
+
+struct type_with_const {
+    std::uint16_t get_x() const;
+};
+
+BOOST_AUTO_TEST_CASE( call_remote_const_x )
+{
+    stream io;
+
+    auto prot = rpc::remote_protocol< &type_with_const::get_x >();
+    prot.call< &type_with_const::get_x >( io );
+}

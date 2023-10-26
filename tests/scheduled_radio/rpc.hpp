@@ -193,6 +193,15 @@ namespace rpc {
             using member_function = std::true_type;
         };
 
+        template < typename R, typename Obj, typename... Args >
+        struct function_details< R (Obj::*)(Args...) const >
+        {
+            using return_type     = R;
+            using arguments_type  = std::tuple< std::remove_cvref_t<Args>... >;
+            using object_type     = Obj;
+            using member_function = std::true_type;
+        };
+
         template < typename F, F Func >
         struct wrapped_func
         {
