@@ -1,6 +1,7 @@
 #include "test_framework_support.hpp"
 
 #include "system_nrf52.h"
+#include "tester_config.hpp"
 #include <nrf.h>
 
 #include <cassert>
@@ -66,7 +67,7 @@ private:
 
 std::ostream& Catch::cout()
 {
-    static uart_stream_buf< 6 > buf;
+    static uart_stream_buf< loggin_uart_transmit_pin > buf;
     static std::ostream out( &buf );
 
     return out;

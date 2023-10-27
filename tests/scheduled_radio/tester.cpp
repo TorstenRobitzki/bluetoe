@@ -5,6 +5,7 @@
 #include "nrf_uart_stream.hpp"
 #include "serialize.hpp"
 #include "radio.hpp"
+#include "radio_callbacks.hpp"
 
 auto protocol = rpc::protocol(
     tester_calling_iut_rpc_t(), iut_calling_tester_rpc_t() );
@@ -48,6 +49,9 @@ TEST_CASE( "advertising" )
     const read_buffer  receive_buffer = { nullptr, 0 };
     const delta_time   receive_timeout = delta_time::seconds( 5 );
 
+    dut_callbacks callbacks;
+    protocol.register_implementation< bluetoe::link_layer::example_callbacks >( callbacks );
+
     SECTION( "resonable timeing, correct data" )
     {
         const auto test_time = delta_time::seconds( 1 );
@@ -69,6 +73,9 @@ TEST_CASE( "advertising" )
             auto actual_t1 = radio::receive( 37u, access_address, le_1m_phy, receive_timeout );
             REQUIRE( actual_t1 );
 
+            protocol.call< &scheduled_radio::schedule_advertising_event >( io,
+                37u, t2, adv_data_buffer, adv_response_data_buffer, receive_buffer );
+
             auto actual_t2 = radio::receive( 37u, access_address, le_1m_phy, receive_timeout );
             REQUIRE( actual_t2 );
 
@@ -85,6 +92,9 @@ TEST_CASE( "advertising" )
             auto actual_t1 = radio::receive( 38u, access_address, le_1m_phy, receive_timeout );
             REQUIRE( actual_t1 );
 
+            protocol.call< &scheduled_radio::schedule_advertising_event >( io,
+                38u, t2, adv_data_buffer, adv_response_data_buffer, receive_buffer );
+
             auto actual_t2 = radio::receive( 38u, access_address, le_1m_phy, receive_timeout );
             REQUIRE( actual_t2 );
 
@@ -100,6 +110,9 @@ TEST_CASE( "advertising" )
 
             auto actual_t1 = radio::receive( 39u, access_address, le_1m_phy, receive_timeout );
             REQUIRE( actual_t1 );
+
+            protocol.call< &scheduled_radio::schedule_advertising_event >( io,
+                39u, t2, adv_data_buffer, adv_response_data_buffer, receive_buffer );
 
             auto actual_t2 = radio::receive( 39u, access_address, le_1m_phy, receive_timeout );
             REQUIRE( actual_t2 );
