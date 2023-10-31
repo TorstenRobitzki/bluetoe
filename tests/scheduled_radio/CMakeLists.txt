@@ -30,14 +30,12 @@ if (CMAKE_CROSSCOMPILING)
     add_link_options(-mcpu=cortex-m4 -mthumb -mabi=aapcs -mfloat-abi=soft)
 
     # Standard libraries
-    # add_compile_options(-nostdlib)
     add_link_options(--sysroot=/usr/local/arm/arm-none-eabi -lstdc++ -lsupc++ --specs=nano.specs -static)
 
     add_compile_definitions(
         -DCATCH_CONFIG_NO_POSIX_SIGNALS=1
         -DCATCH_CONFIG_NOSTDOUT=1
-        -DCATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1
-        -DNRF52840_XXAA=1)
+        -DCATCH_CONFIG_ENABLE_ALL_STRINGMAKERS=1)
 
     add_subdirectory(/Users/todi/Catch2 ${CMAKE_CURRENT_BINARY_DIR}/Catch2)
 

@@ -1,6 +1,11 @@
 #include "serialize.hpp"
 #include "nrf_uart_stream.hpp"
 
+#include <bluetoe/device.hpp>
+
+// TODO should be hidden with something similar to bluetoe::device
+using scheduled_radio = bluetoe::nrf52_radio< true >::template radio_t< bluetoe::link_layer::example_callbacks >;
+
 #include "rpc_declaration.hpp"
 
 
@@ -21,7 +26,7 @@ void bluetoe::link_layer::example_callbacks::radio_ready( bluetoe::link_layer::a
 
 void bluetoe::link_layer::example_callbacks::adv_received( bluetoe::link_layer::abs_time when, const read_buffer& response )
 {
-//    protocol.call< &bluetoe::link_layer::example_callbacks::adv_received >( io, when,  );
+    protocol.call< &bluetoe::link_layer::example_callbacks::adv_received >( io, when, response );
 }
 
 void bluetoe::link_layer::example_callbacks::adv_timeout( bluetoe::link_layer::abs_time now )
@@ -54,8 +59,13 @@ void bluetoe::link_layer::example_callbacks::user_timer_canceled()
     protocol.call< &bluetoe::link_layer::example_callbacks::user_timer_canceled >( io );
 }
 
+scheduled_radio radio;
+
 int main()
 {
+    // This probably invokes UB
+    protocol.register_implementation( radio );
+
     for ( ;; )
         protocol.deserialize_call( io );
 }

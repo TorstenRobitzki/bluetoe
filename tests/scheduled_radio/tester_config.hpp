@@ -12,6 +12,7 @@ static constexpr std::uint32_t ext_flash_cs  = 17;
 static constexpr std::uint32_t ext_flash_clk = 19;
 
 // UART config -> logging of test results
+static constexpr std::uint32_t loggin_uart_transmit_pin = 6u;
 
 // UART config -> communication with DUT
 

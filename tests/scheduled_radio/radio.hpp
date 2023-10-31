@@ -8,6 +8,9 @@
 
 namespace radio
 {
+    /**
+     * @brief start receiving on the given channel with the given access address
+     */
     std::optional< bluetoe::link_layer::abs_time > receive(
             unsigned channel,
             std::uint32_t access_address,

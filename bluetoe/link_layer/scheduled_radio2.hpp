@@ -9,6 +9,7 @@
 #include <bluetoe/security_connection_data.hpp>
 #include <bluetoe/phy_encodings.hpp>
 #include <bluetoe/abs_time.hpp>
+#include <bluetoe/radio_properties.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -115,7 +116,6 @@ struct example_callbacks
 class radio_time
 {
 public:
-    /**
     /**
      * @brief returns the current time
      */
@@ -278,7 +278,12 @@ public:
     /**
      * @brief maximum length of a radio package payload supported by the radio
      */
-    static constexpr std::size_t radio_max_supported_payload_length = 255u;
+    static constexpr std::uint32_t radio_max_supported_payload_length = 255u;
+
+    /**
+     * @brief minimum accuracy of the sleep clock
+     */
+    static constexpr std::uint32_t sleep_time_accuracy_ppm = 20u;
 
     /**@}*/
 
@@ -489,9 +494,9 @@ public:
     void reset_dut();
 
     /**
-     * @brief return the clock accuracy of the DUT in ppm
+     * @brief static radio properties as runtime information
      */
-    std::uint32_t dut_time_accuracy_ppm() const;
+    bluetoe::link_layer::radio_properties properties() const;
 
     /**@}*/
 };

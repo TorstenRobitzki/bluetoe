@@ -122,4 +122,28 @@ void deserialize( IO& io, bluetoe::link_layer::details::phy_ll_encoding::phy_ll_
     enc = static_cast< bluetoe::link_layer::details::phy_ll_encoding::phy_ll_encoding_t >( raw );
 }
 
+template < typename IO >
+void serialize( IO& io, const bluetoe::link_layer::radio_properties& props )
+{
+    rpc::serialize( io, props.hardware_supports_encryption );
+    rpc::serialize( io, props.hardware_supports_lesc_pairing );
+    rpc::serialize( io, props.hardware_supports_legacy_pairing );
+    rpc::serialize( io, props.hardware_supports_2mbit );
+    rpc::serialize( io, props.hardware_supports_synchronized_user_timer );
+    rpc::serialize( io, props.radio_max_supported_payload_length );
+    rpc::serialize( io, props.sleep_time_accuracy_ppm );
+}
+
+template < typename IO >
+void deserialize( IO& io, bluetoe::link_layer::radio_properties& props )
+{
+    rpc::deserialize( io, props.hardware_supports_encryption );
+    rpc::deserialize( io, props.hardware_supports_lesc_pairing );
+    rpc::deserialize( io, props.hardware_supports_legacy_pairing );
+    rpc::deserialize( io, props.hardware_supports_2mbit );
+    rpc::deserialize( io, props.hardware_supports_synchronized_user_timer );
+    rpc::deserialize( io, props.radio_max_supported_payload_length );
+    rpc::deserialize( io, props.sleep_time_accuracy_ppm );
+}
+
 #endif

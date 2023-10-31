@@ -1,11 +1,15 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_session.hpp>
 
-#include "rpc_declaration.hpp"
 #include "nrf_uart_stream.hpp"
 #include "serialize.hpp"
 #include "radio.hpp"
 #include "radio_callbacks.hpp"
+
+using scheduled_radio = bluetoe::link_layer::scheduled_radio2<
+    bluetoe::link_layer::example_callbacks >;
+
+#include "rpc_declaration.hpp"
 
 auto protocol = rpc::protocol(
     tester_calling_iut_rpc_t(), iut_calling_tester_rpc_t() );
@@ -49,6 +53,9 @@ TEST_CASE( "advertising" )
     const read_buffer  receive_buffer = { nullptr, 0 };
     const delta_time   receive_timeout = delta_time::seconds( 5 );
 
+    const auto properties = protocol.call< &scheduled_radio::properties >( io );
+
+
     dut_callbacks callbacks;
     protocol.register_implementation< bluetoe::link_layer::example_callbacks >( callbacks );
 
@@ -58,8 +65,6 @@ TEST_CASE( "advertising" )
         const auto now = protocol.call< &scheduled_radio::time_now >( io );
         const auto t1  = now + delta_time::seconds( 1 );
         const auto t2  = t1  + test_time;
-
-        const std::uint32_t accuracy_ppm = protocol.call< &scheduled_radio::dut_time_accuracy_ppm >( io );
 
         protocol.call< &scheduled_radio::set_local_address >( io, local_address );
         protocol.call< &scheduled_radio::set_access_address_and_crc_init >( io, access_address, crc_init );
@@ -80,8 +85,8 @@ TEST_CASE( "advertising" )
             REQUIRE( actual_t2 );
 
             const auto distance = *actual_t2 - *actual_t1;
-            CHECK( distance >= test_time - test_time.ppm( accuracy_ppm ) );
-            CHECK( distance <= test_time + test_time.ppm( accuracy_ppm ) );
+            CHECK( distance >= test_time - test_time.ppm( properties.sleep_time_accuracy_ppm ) );
+            CHECK( distance <= test_time + test_time.ppm( properties.sleep_time_accuracy_ppm ) );
         }
 
         SECTION( "Channel 38" )
@@ -99,8 +104,8 @@ TEST_CASE( "advertising" )
             REQUIRE( actual_t2 );
 
             const auto distance = *actual_t2 - *actual_t1;
-            CHECK( distance >= test_time - test_time.ppm( accuracy_ppm ) );
-            CHECK( distance <= test_time + test_time.ppm( accuracy_ppm ) );
+            CHECK( distance >= test_time - test_time.ppm( properties.sleep_time_accuracy_ppm ) );
+            CHECK( distance <= test_time + test_time.ppm( properties.sleep_time_accuracy_ppm ) );
         }
 
         SECTION( "Channel 39" )
@@ -118,8 +123,8 @@ TEST_CASE( "advertising" )
             REQUIRE( actual_t2 );
 
             const auto distance = *actual_t2 - *actual_t1;
-            CHECK( distance >= test_time - test_time.ppm( accuracy_ppm ) );
-            CHECK( distance <= test_time + test_time.ppm( accuracy_ppm ) );
+            CHECK( distance >= test_time - test_time.ppm( properties.sleep_time_accuracy_ppm ) );
+            CHECK( distance <= test_time + test_time.ppm( properties.sleep_time_accuracy_ppm ) );
         }
     }
 }
