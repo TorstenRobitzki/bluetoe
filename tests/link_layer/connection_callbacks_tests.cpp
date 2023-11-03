@@ -740,3 +740,28 @@ BOOST_FIXTURE_TEST_CASE( phy_update_test_III, link_layer_only_phy_updated_callba
     BOOST_CHECK_EQUAL( only_phy_updated_callback.transmit_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
     BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
 }
+
+BOOST_FIXTURE_TEST_CASE( multiple_events, link_layer_only_connect_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_control_pdu(
+        {
+            0x0c, 0x08, 0x22, 0x33, 0xbb, 0xaa
+        }
+    );
+    ll_empty_pdus( 1 );
+
+    run( 4 );
+
+    const auto reported_details = only_connect_callback.reported_details;
+
+    static const std::uint8_t map_data[] = { 0xff, 0xff, 0xff, 0xff, 0xff };
+    bluetoe::link_layer::channel_map channels;
+    channels.reset( &map_data[ 0 ], 10 );
+
+    BOOST_CHECK( equal( reported_details.channels(), channels ) );
+    BOOST_CHECK_EQUAL( reported_details.interval(), 0x18 );
+    BOOST_CHECK_EQUAL( reported_details.latency(), 0 );
+    BOOST_CHECK_EQUAL( reported_details.timeout(), 72 );
+    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), unsigned{ 50 + 100 } );
+}
