@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_RADIO_PROPERTIES_HPP
 
 #include <cstdint>
+#include <iosfwd>
 
 namespace bluetoe {
 namespace link_layer {
@@ -39,6 +40,12 @@ namespace link_layer {
     {
     }
 
+    /**
+     * @brief print the given properties in a human readable manner
+     *
+     * @relates radio_properties
+     */
+    std::ostream& operator<<( std::ostream& out, const radio_properties& props );
 }
 }
 #endif

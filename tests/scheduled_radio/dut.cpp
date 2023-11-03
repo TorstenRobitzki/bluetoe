@@ -12,7 +12,7 @@ using scheduled_radio = bluetoe::nrf52_radio< true >::template radio_t< bluetoe:
 auto protocol = rpc::protocol(
     iut_calling_tester_rpc_t(), tester_calling_iut_rpc_t() );
 
-using stream_t = nrf_uart_stream< 1, 2, 3, 4 >;
+using stream_t = nrf_uart_stream< 29, 28, 31, 30 >;
 
 stream_t io;
 

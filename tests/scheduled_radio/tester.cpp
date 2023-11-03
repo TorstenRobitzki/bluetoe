@@ -55,6 +55,7 @@ TEST_CASE( "advertising" )
 
     const auto properties = protocol.call< &scheduled_radio::properties >( io );
 
+    INFO( "DUT Properties: " << properties );
 
     dut_callbacks callbacks;
     protocol.register_implementation< bluetoe::link_layer::example_callbacks >( callbacks );

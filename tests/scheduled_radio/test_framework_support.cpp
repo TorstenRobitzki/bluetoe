@@ -25,7 +25,7 @@ class uart_stream_buf : public std::basic_streambuf< char >
 {
 public:
     uart_stream_buf()
-        : uarte_( *NRF_UARTE1 )
+        : uarte_( *NRF_UARTE0 )
     {
         NRF_P0->OUTSET = 1 << TxPin;
 
