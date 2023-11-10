@@ -286,6 +286,8 @@ namespace nrf52_details
         override_correction< NRF_FICR_Type >( NRF_FICR, nrf_radio );
 
         nrf_radio->MODE  = RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos;
+        nrf_radio->MODECNF0    =
+            ( RADIO_MODECNF0_DTX_Center << RADIO_MODECNF0_DTX_Pos );
 
         nrf_radio->PCNF0 =
             ( 1 << RADIO_PCNF0_S0LEN_Pos ) |
@@ -428,11 +430,19 @@ namespace nrf52_details
         nrf_radio->INTENCLR    = 0xffffffff;
     }
 
+    static void config_phy( bool transmit_2mbit )
+    {
+        nrf_radio->MODE        =
+            ( transmit_2mbit ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+
+        nrf_radio->PCNF0 = ( nrf_radio->PCNF0 & ~RADIO_PCNF0_PLEN_Msk )
+            | ( ( transmit_2mbit ? RADIO_PCNF0_PLEN_16bit : RADIO_PCNF0_PLEN_8bit ) << RADIO_PCNF0_PLEN_Pos );
+    }
+
     void radio_hardware_without_crypto_support::configure_transmit_train(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
-        nrf_radio->MODE        =
-            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+        config_phy( transmit_2mbit_ );
 
         nrf_radio->SHORTS      =
             RADIO_SHORTS_READY_START_Msk
@@ -456,13 +466,6 @@ namespace nrf52_details
     {
         assert( transmit_data.buffer );
 
-        nrf_radio->MODE        =
-            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
-
-        nrf_radio->SHORTS =
-            RADIO_SHORTS_READY_START_Msk
-          | RADIO_SHORTS_END_DISABLE_Msk;
-
         nrf_ppi->CHENCLR  = all_preprogramed_ppi_channels_mask;
 
         nrf_radio->PACKETPTR   = reinterpret_cast< std::uint32_t >( transmit_data.buffer );
@@ -472,8 +475,7 @@ namespace nrf52_details
     void radio_hardware_without_crypto_support::configure_receive_train(
         const bluetoe::link_layer::read_buffer& receive_buffer )
     {
-        nrf_radio->MODE        =
-            ( receive_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+        config_phy( receive_2mbit_ );
 
         nrf_radio->SHORTS      =
             RADIO_SHORTS_READY_START_Msk
@@ -867,8 +869,7 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_transmit_train(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
-        nrf_radio->MODE        =
-            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+        config_phy( transmit_2mbit_ );
 
         nrf_radio->SHORTS      =
             RADIO_SHORTS_READY_START_Msk
@@ -892,14 +893,7 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_final_transmit(
         const bluetoe::link_layer::write_buffer&    transmit_data )
     {
-        nrf_radio->MODE        =
-            ( transmit_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
-
         nrf_ppi->CHENCLR        = all_preprogramed_ppi_channels_mask;
-
-        nrf_radio->SHORTS =
-            RADIO_SHORTS_READY_START_Msk
-          | RADIO_SHORTS_END_DISABLE_Msk;
 
         // only encrypt none empty PDUs
         if ( transmit_encrypted_ && transmit_data.buffer[ 1 ] != 0 )
@@ -938,8 +932,7 @@ namespace nrf52_details
     void radio_hardware_with_crypto_support::configure_receive_train(
         const bluetoe::link_layer::read_buffer&     receive_buffer )
     {
-        nrf_radio->MODE        =
-            ( receive_2mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+        config_phy( receive_2mbit_ );
 
         if ( receive_encrypted_ )
         {
