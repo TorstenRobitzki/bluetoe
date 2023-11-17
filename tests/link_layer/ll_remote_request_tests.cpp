@@ -308,3 +308,36 @@ BOOST_FIXTURE_TEST_CASE( Initiating_Connection_Parameter_Request__Timeout, fixtu
     BOOST_CHECK( callbacks.connection_closed );
     BOOST_CHECK_EQUAL( callbacks.closed_reason, 0x22 );
 }
+
+BOOST_FIXTURE_TEST_CASE( Initiating_Connection_Parameter_Request__Reject_No_Timeout, fixture )
+{
+    bool tested = false;
+
+    ll_empty_pdus( 1 );
+    ll_function_call( [this](){
+        BOOST_CHECK( initiating_connection_parameter_request( 6, 6, 0, 300 ) );
+        BOOST_CHECK( !initiating_connection_parameter_request( 6, 6, 0, 300 ) );
+    });
+    ll_empty_pdus( 4 );
+
+    ll_control_pdu(
+        {
+            0x11,                   // LL_REJECT_EXT_IND
+            0x0F,                   // LL_CONNECTION_PARAM_REQ
+            0x06                    // Error Code
+        }
+    );
+
+    // connection interval is 30ms / timeout 4000ms = 1333,3
+    ll_empty_pdus( 1340 );
+    ll_function_call( [&](){
+        tested = true;
+        BOOST_CHECK( !callbacks.connection_closed );
+    });
+    ll_empty_pdus( 3 );
+
+    run(1500);
+
+    // make sure, the important test above is part of the simulation
+    BOOST_CHECK( tested );
+}

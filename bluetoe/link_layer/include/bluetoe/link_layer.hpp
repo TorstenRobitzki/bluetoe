@@ -761,7 +761,7 @@ namespace link_layer {
         static constexpr std::uint8_t   LL_REJECT_IND               = 0x0D;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_REQ     = 0x0F;
         static constexpr std::uint8_t   LL_CONNECTION_PARAM_RSP     = 0x10;
-        static constexpr std::uint8_t   LL_REJECT_IND_EXT           = 0x11;
+        static constexpr std::uint8_t   LL_REJECT_EXT_IND           = 0x11;
         static constexpr std::uint8_t   LL_PING_REQ                 = 0x12;
         static constexpr std::uint8_t   LL_PING_RSP                 = 0x13;
         static constexpr std::uint8_t   LL_PHY_REQ                  = 0x16;
@@ -1330,7 +1330,7 @@ namespace link_layer {
         if ( used_features_ & link_layer_feature::extended_reject_indication )
         {
             fill< layout_t >( output, {
-                ll_control_pdu_code, 3, LL_REJECT_IND_EXT, opcode, error_code } );
+                ll_control_pdu_code, 3, LL_REJECT_EXT_IND, opcode, error_code } );
         }
         else
         {
@@ -1620,12 +1620,14 @@ namespace link_layer {
 
                 this->remote_features_received( &body[ 1 ], connection_data_, static_cast< radio_t& >( *this ) );
             }
-            else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_IND_EXT && size == 3 ) )
+            else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_EXT_IND && size == 3 ) )
             {
-                bool opcode_contains_request = opcode == LL_UNKNOWN_RSP || opcode == LL_REJECT_IND_EXT;
+                bool opcode_contains_request = opcode == LL_UNKNOWN_RSP || opcode == LL_REJECT_EXT_IND;
 
                 if ( !opcode_contains_request || ( opcode_contains_request && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
                 {
+                    procedure_timeout_ = delta_time();
+
                     if ( connection_parameters_request_running_ && connection_parameters_request_use_signaling_channel_ )
                     {
                         connection_parameters_request_use_signaling_channel_ = false;
