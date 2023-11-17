@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_CONNECTION_CALLBACKS_HPP
 
 #include <bluetoe/meta_types.hpp>
+#include <bluetoe/ring.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -73,12 +74,6 @@ namespace link_layer {
             details::connection_callbacks_meta_type,
             details::valid_link_layer_option_meta_type {};
 
-        connection_callbacks()
-            : event_type_( none )
-            , connection_( nullptr )
-        {
-        }
-
         void connection_request( const connection_addresses& addresses )
         {
             addresses_  = addresses;
@@ -90,9 +85,8 @@ namespace link_layer {
             Connection&                 connection,
             Radio&                      r )
         {
-            event_type_ = requested;
-            connection_ = &connection;
-            details_    = details;
+            const event_data data( requested, &connection, details );
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -105,9 +99,8 @@ namespace link_layer {
             Connection&                 connection,
             Radio&                      r )
         {
-            event_type_ = established;
-            connection_ = &connection;
-            details_    = details;
+            const event_data data( established, &connection, details );
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -115,8 +108,8 @@ namespace link_layer {
         template < class Connection, class Radio >
         void connection_attempt_timeout( Connection& connection, Radio& r )
         {
-            event_type_ = attempt_timeout;
-            connection_ = &connection;
+            const event_data data( attempt_timeout, &connection );
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -124,9 +117,8 @@ namespace link_layer {
         template < class Connection, class Radio >
         void connection_changed( const bluetoe::link_layer::connection_details& details, Connection& connection, Radio& r )
         {
-            event_type_ = changed;
-            connection_ = &connection;
-            details_    = details;
+            const event_data data = { changed, &connection, details };
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -134,9 +126,9 @@ namespace link_layer {
         template < class Connection, class Radio >
         void connection_closed( std::uint8_t reason, Connection& connection, Radio& r )
         {
-            event_type_ = closed;
-            connection_ = &connection;
-            raw_details_[ 0 ] = reason;
+            event_data data = { closed, &connection };
+            data.raw_details_[ 0 ] = reason;
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -144,9 +136,9 @@ namespace link_layer {
         template < class Connection, class Radio >
         void procedure_rejected( std::uint8_t error_code, Connection& connection, Radio& r )
         {
-            event_type_ = rejected;
-            connection_ = &connection;
-            raw_details_[ 0 ] = error_code;
+            event_data data = { rejected, &connection };
+            data.raw_details_[ 0 ] = error_code;
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -154,9 +146,9 @@ namespace link_layer {
         template < class Connection, class Radio >
         void procedure_unknown( std::uint8_t error_code, Connection& connection, Radio& r )
         {
-            event_type_ = unknown;
-            connection_ = &connection;
-            raw_details_[ 0 ] = error_code;
+            event_data data = { unknown, &connection };
+            data.raw_details_[ 0 ] = error_code;
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -164,9 +156,9 @@ namespace link_layer {
         template < class Connection, class Radio >
         void version_indication_received( const std::uint8_t* details, Connection& connection, Radio& r )
         {
-            event_type_ = version;
-            connection_ = &connection;
-            std::copy( details, details + version_ind_size, &raw_details_[ 0 ] );
+            event_data data = { version, &connection };
+            std::copy( details, details + version_ind_size, &data.raw_details_[ 0 ] );
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -174,9 +166,9 @@ namespace link_layer {
         template < class Connection, class Radio >
         void remote_features_received( const std::uint8_t rf[ 8 ], Connection& connection, Radio& r )
         {
-            event_type_ = remote_features;
-            connection_ = &connection;
-            std::copy( rf, rf + feature_field_size, &raw_details_[ 0 ] );
+            event_data data = { remote_features, &connection };
+            std::copy( rf, rf + feature_field_size, &data.raw_details_[ 0 ] );
+            events_.try_push( data );
 
             r.wake_up();
         }
@@ -184,63 +176,71 @@ namespace link_layer {
         template < class Connection, class Radio >
         void phy_update( std::uint8_t phy_c_to_p, std::uint8_t phy_p_to_c, Connection& connection, Radio& r )
         {
-            event_type_ = update_phy;
-            connection_ = &connection;
-            raw_details_[ 0 ] = phy_c_to_p;
-            raw_details_[ 1 ] = phy_p_to_c;
+            event_data data = { update_phy, &connection };
+            data.raw_details_[ 0 ] = phy_c_to_p;
+            data.raw_details_[ 1 ] = phy_p_to_c;
+            events_.try_push( data );
 
             r.wake_up();
         }
 
         template < class LinkLayer >
         void handle_connection_events() {
-            if ( event_type_ == requested )
-            {
-                call_ll_connection_requested< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == attempt_timeout )
-            {
-                call_ll_connection_attempt_timeout< T >( Obj, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == established )
-            {
-                call_ll_connection_established< T >( Obj, details_, addresses_, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == changed )
-            {
-                call_ll_connection_changed< T >( Obj, details_, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == closed )
-            {
-                call_ll_connection_closed< T >( Obj, raw_details_[ 0 ], connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == version )
-            {
-                call_ll_version< T >( Obj, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == rejected )
-            {
-                call_ll_rejected< T >( Obj, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == unknown )
-            {
-                call_ll_unknown< T >( Obj, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == remote_features )
-            {
-                call_ll_remote_features< T >( Obj, connection_data< LinkLayer >() );
-            }
-            else if ( event_type_ == update_phy )
-            {
-                call_ll_phy_updated< T >( Obj, connection_data< LinkLayer >() );
-            }
+            event_data data;
 
-            event_type_ = none;
-            connection_ = nullptr;
+            while ( events_.try_pop( data ) )
+            {
+                if ( data.event_type_ == requested )
+                {
+                    call_ll_connection_requested< T >( Obj, data.details_, addresses_, connection_data< LinkLayer >( data ) );
+                }
+                else if ( data.event_type_ == attempt_timeout )
+                {
+                    call_ll_connection_attempt_timeout< T >( Obj, connection_data< LinkLayer >( data ) );
+                }
+                else if ( data.event_type_ == established )
+                {
+                    call_ll_connection_established< T >( Obj, data.details_, addresses_, connection_data< LinkLayer >( data ) );
+                }
+                else if ( data.event_type_ == changed )
+                {
+                    call_ll_connection_changed< T >( Obj, data.details_, connection_data< LinkLayer >( data ) );
+                }
+                else if ( data.event_type_ == closed )
+                {
+                    call_ll_connection_closed< T >( Obj, data.raw_details_[ 0 ], connection_data< LinkLayer >( data ) );
+                }
+                else if ( data.event_type_ == version )
+                {
+                    call_ll_version< T >( Obj,
+                        connection_data< LinkLayer >( data ),
+                        data.raw_details_[ 0 ],
+                        bluetoe::details::read_16bit( &data.raw_details_[ 1 ] ),
+                        bluetoe::details::read_16bit( &data.raw_details_[ 3 ] ) );
+                }
+                else if ( data.event_type_ == rejected )
+                {
+                    call_ll_rejected< T >( Obj, connection_data< LinkLayer >( data ), data.raw_details_[ 0 ] );
+                }
+                else if ( data.event_type_ == unknown )
+                {
+                    call_ll_unknown< T >( Obj, connection_data< LinkLayer >( data ), data.raw_details_[ 0 ] );
+                }
+                else if ( data.event_type_ == remote_features )
+                {
+                    call_ll_remote_features< T >( Obj, connection_data< LinkLayer >( data ), data.raw_details_ );
+                }
+                else if ( data.event_type_ == update_phy )
+                {
+                    call_ll_phy_updated< T >( Obj, connection_data< LinkLayer >( data ),
+                        static_cast< bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t >( data.raw_details_[ 0 ] ),
+                        static_cast< bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t >( data.raw_details_[ 1 ] ) );
+                }
+            }
         }
 
     private:
-        enum {
+        enum event_type_t {
             none,
             requested,
             attempt_timeout,
@@ -252,22 +252,34 @@ namespace link_layer {
             unknown,
             remote_features,
             update_phy
-        } event_type_;
-
-        void*                   connection_;
-        connection_details      details_;
-        connection_addresses    addresses_;
+        };
 
         static constexpr std::size_t version_ind_size = 5u;
         static constexpr std::size_t feature_field_size = 8u;
+        static constexpr std::size_t max_events = 4u;
 
-        std::uint8_t raw_details_[ feature_field_size ];
+        struct event_data {
+            event_type_t            event_type_;
+            void*                   connection_;
+            connection_details      details_;
+            std::uint8_t raw_details_[ feature_field_size ];
+
+            event_data( event_type_t ev, void* con, connection_details d = connection_details() )
+                : event_type_( ev )
+                , connection_( con )
+                , details_( d )
+            {}
+
+            event_data() {}
+        };
+
+        connection_addresses addresses_;
+        bluetoe::details::ring< max_events, event_data > events_;
 
         template < typename LinkLayer >
-        typename LinkLayer::connection_data_t& connection_data()
+        typename LinkLayer::connection_data_t& connection_data( const event_data& d )
         {
-            assert( connection_ );
-            return *static_cast< typename LinkLayer::connection_data_t* >( connection_ );
+            return *static_cast< typename LinkLayer::connection_data_t* >( d.connection_ );
         }
 
         template < typename TT, typename Connection >
@@ -324,58 +336,60 @@ namespace link_layer {
         }
 
         template < typename TT, typename Connection >
-        auto call_ll_version( TT& obj, Connection& connection )
+        auto call_ll_version( TT& obj, Connection& connection, std::uint8_t version, std::uint16_t company, std::uint16_t subversion )
             -> decltype(&TT::template ll_version< Connection >)
         {
             obj.ll_version(
-                raw_details_[ 0 ],
-                bluetoe::details::read_16bit( &raw_details_[ 1 ] ),
-                bluetoe::details::read_16bit( &raw_details_[ 3 ] ),
+                version,
+                company,
+                subversion,
                 connection );
 
             return nullptr;
         }
 
         template < typename TT, typename Connection >
-        auto call_ll_rejected( TT& obj, Connection& connection )
+        auto call_ll_rejected( TT& obj, Connection& connection, std::uint8_t error_code )
             -> decltype(&TT::template ll_rejected< Connection >)
         {
             obj.ll_rejected(
-                raw_details_[ 0 ],
+                error_code,
                 connection );
 
             return nullptr;
         }
 
         template < typename TT, typename Connection >
-        auto call_ll_unknown( TT& obj, Connection& connection )
+        auto call_ll_unknown( TT& obj, Connection& connection, std::uint8_t error_code )
             -> decltype(&TT::template ll_unknown< Connection >)
         {
             obj.ll_unknown(
-                raw_details_[ 0 ],
+                error_code,
                 connection );
 
             return nullptr;
         }
 
         template < typename TT, typename Connection >
-        auto call_ll_remote_features( TT& obj, Connection& connection )
+        auto call_ll_remote_features( TT& obj, Connection& connection, std::uint8_t remote_features[ 8 ] )
             -> decltype(&TT::template ll_remote_features< Connection >)
         {
             obj.ll_remote_features(
-                &raw_details_[ 0 ],
+                remote_features,
                 connection );
 
             return nullptr;
         }
 
         template < typename TT, typename Connection >
-        auto call_ll_phy_updated( TT& obj, Connection& connection )
+        auto call_ll_phy_updated( TT& obj, Connection& connection,
+            bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmit_encoding,
+            bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receive_encoding )
             -> decltype(&TT::template ll_phy_updated< Connection >)
         {
             obj.ll_phy_updated(
-                static_cast< bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t >( raw_details_[ 0 ] ),
-                static_cast< bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t >( raw_details_[ 1 ] ),
+                transmit_encoding,
+                receive_encoding,
                 connection );
 
             return nullptr;
