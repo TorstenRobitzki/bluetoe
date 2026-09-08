@@ -2,6 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <array>
+#include <cstdint>
 #include "aes.h"
 #include "hexdump.hpp"
 
