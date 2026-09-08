@@ -20,6 +20,9 @@ must be able to review and understand.
 - Never push, open pull requests, or create GitHub issues without being asked.
 - Do not run `git` commands that rewrite history or discard work (`reset --hard`, `checkout --`,
   `clean`, `push --force`, branch deletion).
+- One git step per command. Never chain checkout, stash, merge, commit and push into a single
+  shell command: a failure in the middle (e.g. a stash conflict) does not stop the rest, and
+  `git add` on a conflicted file silently commits the conflict markers. Check `git status` between steps.
 - Explain the "why" of a change in plain language, not only the diff.
 - Stay on C++11. Modernisation (C++14/17 features, simplifying the meta-programming) is a
   deliberate, separate project for a later session. Do not propose or sneak in newer language
@@ -73,7 +76,9 @@ that only works because a check fired first. Both configurations must pass.
 
 - Unit tests on Linux with GCC and Clang, each in Debug and Release, and on macOS in Debug.
   Linux is the strict platform: Apple's standard library includes more headers transitively,
-  so missing includes only show up there. The build keeps going after the first error
+  so missing includes only show up there. CI compiles with `-std=c++11` (no GNU extensions)
+  and `-Werror`; without the pin, CMake accepts the compiler's default standard, which is newer
+  than C++11 on every current compiler and would hide C++11 violations. The build keeps going after the first error
   (`ninja -k 0`) so one run lists every failing file.
 - The nRF52 examples are cross compiled with the same arm-none-eabi-gcc as `examples/docker/`.
   The Nordic SDK headers come from the public nrfx and CMSIS repositories, because Nordic's
