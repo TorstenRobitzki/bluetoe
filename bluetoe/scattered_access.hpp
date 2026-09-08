@@ -3,6 +3,7 @@
 
 #include <bluetoe/attribute.hpp>
 #include <algorithm>
+#include <iterator>
 
 namespace bluetoe {
 namespace details {

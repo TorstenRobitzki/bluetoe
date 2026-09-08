@@ -6,6 +6,7 @@
 #include <cassert>
 #include <array>
 #include <algorithm>
+#include <iterator>
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/address.hpp>

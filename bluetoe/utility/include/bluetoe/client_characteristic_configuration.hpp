@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <algorithm>
+#include <iterator>
 
 namespace bluetoe {
 namespace details {

@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdint>
 #include <algorithm>
+#include <iterator>
 #include <cstring>
 
 #include "uECC.h"
