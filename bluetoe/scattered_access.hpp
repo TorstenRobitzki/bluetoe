@@ -11,8 +11,9 @@ namespace details {
     template < int Size >
     std::uint8_t* copy( int offset, const std::uint8_t (&source)[ Size ], std::uint8_t* begin, std::uint8_t* end )
     {
-        offset = std::max( 0, offset );
-        const int source_size = std::max( 0, Size - offset );
+        // clamp the offset into [0, Size], so that begin( source ) + offset never points beyond one past the end
+        offset = std::min( std::max( 0, offset ), Size );
+        const int source_size = Size - offset;
         const int copy_size   = std::min( source_size, std::max< int >( 0, end - begin ) );
 
         std::copy( std::begin( source ) + offset, std::begin( source ) + offset + copy_size, begin );
