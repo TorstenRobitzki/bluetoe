@@ -50,7 +50,8 @@ jobs:
                   -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
 
             - name: Build
-              run: cmake --build build --parallel
+              # -k 0: keep going after a failure, so that one run reveals all files that fail to compile
+              run: cmake --build build --parallel -- -k 0
 
             - name: Test
               run: ctest --test-dir build --parallel 4 --output-on-failure
