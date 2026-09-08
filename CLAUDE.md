@@ -71,8 +71,8 @@ that only works because a check fired first. Both configurations must pass.
 
 - C++11 only. No exceptions, no RTTI, no dynamic allocation in library code. Firmware is built
   with `-fno-exceptions -fno-rtti -nostdlib`.
-- Indentation: 4 spaces (see `.editorconfig`). Braces on their own line. Spaces inside parentheses:
-  `foo( a, b )`, `if ( x )`.
+- Indentation: 4 spaces for every file type, including YAML, CMake and shell scripts
+  (see `.editorconfig`). Braces on their own line. Spaces inside parentheses: `foo( a, b )`, `if ( x )`.
 - Naming: `snake_case` for everything; private members end in an underscore (`receive_size_`);
   template parameters in `CamelCase`; implementation details live in `namespace details`.
 - Header guards `BLUETOE_<PATH>_HPP`. Nested namespaces written out (`namespace bluetoe { namespace link_layer {`).
