@@ -60,8 +60,9 @@ namespace bluetoe
         // the addition 31µs is to take the granularity of the sleep clock into account (32kHz)
         // a second 31µs is add to take the same granularity of the sleep clock into account when
         // it is used to calculate the current distance to the last anchor
+        // std::max() is not constexpr before C++14
         static constexpr std::uint32_t      setup_connection_event_limit_us =
-            50 + std::max( us_radio_rx_startup_time, us_radio_tx_startup_time ) + 31 + 31;
+            50 + ( us_radio_rx_startup_time > us_radio_tx_startup_time ? us_radio_rx_startup_time : us_radio_tx_startup_time ) + 31 + 31;
 
         static constexpr std::uint8_t       more_data_flag = 0x10;
         static constexpr std::size_t        encryption_mic_size = 4;

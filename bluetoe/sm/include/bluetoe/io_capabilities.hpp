@@ -5,6 +5,9 @@
 #include <bluetoe/ll_meta_types.hpp>
 #include <bluetoe/bits.hpp>
 
+#include <array>
+#include <cstdint>
+
 namespace bluetoe
 {
     namespace details {
