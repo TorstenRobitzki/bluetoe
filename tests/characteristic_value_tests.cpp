@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_SUITE( characteristic_value_access )
 
     BOOST_FIXTURE_TEST_CASE( can_write_zero_bytes_at_the_end, writable_value_char )
     {
-        std::uint8_t c;
+        std::uint8_t c = 0;
         auto write = bluetoe::details::attribute_access_arguments::write( &c, &c, 4,
             bluetoe::details::client_characteristic_configuration(),
             bluetoe::connection_security_attributes(),

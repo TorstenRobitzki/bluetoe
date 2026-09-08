@@ -411,6 +411,12 @@ namespace test {
     template < class Manager, class SecurityFunctions, std::size_t MTU = 27, typename ...Options >
     struct security_manager_base : Manager::template impl< security_manager_base< Manager, SecurityFunctions, MTU, Options... >, Options... >, SecurityFunctions
     {
+        using impl_t = typename Manager::template impl< security_manager_base< Manager, SecurityFunctions, MTU, Options... >, Options... >;
+
+        // The L2CAP layer guarantees every channel an output buffer of at least its minimum_channel_mtu_size;
+        // the fixture has to honor that contract too, even when a test asks for a smaller MTU.
+        static constexpr std::size_t buffer_size = MTU > impl_t::minimum_channel_mtu_size ? MTU : impl_t::minimum_channel_mtu_size;
+
         security_manager_base()
             : connection_data_()
         {
@@ -436,12 +442,12 @@ namespace test {
             std::vector< std::uint8_t > input,
             std::vector< std::uint8_t > expected_output )
         {
-            std::uint8_t buffer[ MTU ];
-            std::size_t  size = MTU;
+            std::uint8_t buffer[ buffer_size ];
+            std::size_t  size = buffer_size;
 
             this->l2cap_output( buffer, size, connection_data_ );
             BOOST_REQUIRE( size == 0 );
-            size = MTU;
+            size = buffer_size;
 
             this->l2cap_input( input.data(), input.size(), &buffer[ 0 ], size,
                 connection_data_ );
@@ -465,8 +471,8 @@ namespace test {
             std::initializer_list< std::uint8_t > input,
             std::initializer_list< std::uint8_t > expected_output )
         {
-            std::uint8_t buffer[ MTU ];
-            std::size_t  size = MTU;
+            std::uint8_t buffer[ buffer_size ];
+            std::size_t  size = buffer_size;
 
             this->l2cap_input( input.begin(), input.size(), &buffer[ 0 ], size, connection_data_ );
 
@@ -478,8 +484,8 @@ namespace test {
         void expected(
             std::initializer_list< std::uint8_t > expected_output )
         {
-            std::uint8_t buffer[ MTU ];
-            std::size_t  size = MTU;
+            std::uint8_t buffer[ buffer_size ];
+            std::size_t  size = buffer_size;
 
             this->l2cap_output( &buffer[ 0 ], size, connection_data_ );
 
