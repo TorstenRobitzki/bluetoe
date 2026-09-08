@@ -1,6 +1,5 @@
 #include <cassert>
 #include <algorithm>
-#include <array>
 #include <iterator>
 #include <bluetoe/security_tool_box.hpp>
 #include <bluetoe/nrf.hpp>

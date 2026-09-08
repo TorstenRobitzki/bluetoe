@@ -4,7 +4,6 @@
 #include <bluetoe/security_manager.hpp>
 
 #include <tuple>
-#include <array>
 #include <algorithm>
 
 namespace bluetoe
