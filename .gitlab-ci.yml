@@ -1,8 +1,0 @@
-before_script:
-    - apt-get update -qq
-    - c++ -v
-
-tests:
-    script:
-        - cd bluetoe
-        - mkdir build && cd build && cmake .. && make && ctest
