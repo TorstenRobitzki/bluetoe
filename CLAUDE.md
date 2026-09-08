@@ -60,12 +60,30 @@ that only works because a check fired first. Both configurations must pass.
   with `add_and_register_test(<name>)`. A new test file must be added there.
 - Tests are compiled with `-Wall -pedantic -Wextra -Wfatal-errors`. On Clang, AddressSanitizer is
   enabled for all build types (`tests/CMakeLists.txt`); on GCC there is currently no sanitizer.
-  Keep the build warning-free.
+  CI compiles C++ with `-Werror`, so every warning is a build failure there.
 - Run only the affected test executable while iterating, e.g. `./build/tests/link_layer/ll_connection_tests`;
   run the full `ctest` before declaring a change done.
 - `-DBLUETOE_EXCLUDE_SLOW_TESTS=ON` skips the long-running link layer tests.
 - Firmware examples need an ARM toolchain and `NRF5_SDK_ROOT`; see `examples/README.md` and
   `examples/docker/` for a reproducible container. Do not attempt to build them on the host.
+
+## Continuous integration
+
+`.github/workflows/tests.yml` runs on every push and pull request:
+
+- Unit tests on Linux with GCC and Clang, each in Debug and Release, and on macOS in Debug.
+  Linux is the strict platform: Apple's standard library includes more headers transitively,
+  so missing includes only show up there. The build keeps going after the first error
+  (`ninja -k 0`) so one run lists every failing file.
+- The nRF52 examples are cross compiled with the same arm-none-eabi-gcc as `examples/docker/`.
+  The Nordic SDK headers come from the public nrfx and CMSIS repositories, because Nordic's
+  SDK download rejects scripted access. Flash and RAM size of every example are recorded in
+  the job summary (`.github/scripts/report_sizes.sh`), uploaded as artifact `example-sizes`,
+  and compared with the last successful run on the base branch
+  (`.github/scripts/compare_sizes.sh`); growth above 256 bytes raises a warning annotation.
+
+There is no Linux toolchain on the development machine. To diagnose a Linux failure, read the
+job log: `gh run view <run id> --log` or `gh api repos/TorstenRobitzki/bluetoe/actions/jobs/<job id>/logs`.
 
 ## Code conventions
 
