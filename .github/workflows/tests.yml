@@ -113,8 +113,34 @@ jobs:
                   .github/scripts/report_sizes.sh "$HOME/toolchain/gcc-arm-none-eabi-${ARM_GCC_VERSION}/bin/arm-none-eabi-size" build_examples sizes
                   cat sizes/sizes.md >> "$GITHUB_STEP_SUMMARY"
 
+            # On every branch but master, the sizes are compared with the sizes recorded by the last
+            # successful run on the base branch (the pull request's target branch, or master).
+            - name: Download baseline sizes
+              if: github.ref != 'refs/heads/master'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  BASE_BRANCH: ${{ github.base_ref || 'master' }}
+              run: |
+                  run_id=$( gh run list --repo "$GITHUB_REPOSITORY" --workflow tests.yml --branch "$BASE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' )
+                  if [ -z "$run_id" ]; then
+                      echo "::notice::No successful run on $BASE_BRANCH yet, skipping the size comparison"
+                      exit 0
+                  fi
+                  if ! gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name example-sizes --dir baseline; then
+                      echo "::notice::Run $run_id on $BASE_BRANCH has no size report (expired?), skipping the size comparison"
+                      exit 0
+                  fi
+                  echo "BASELINE_RUN_ID=$run_id" >> "$GITHUB_ENV"
+
+            - name: Compare sizes with baseline
+              if: env.BASELINE_RUN_ID != ''
+              run: |
+                  echo "Baseline: run ${BASELINE_RUN_ID} on ${{ github.base_ref || 'master' }}"
+                  .github/scripts/compare_sizes.sh baseline/sizes.csv sizes/sizes.csv sizes/comparison.md
+                  cat sizes/comparison.md >> "$GITHUB_STEP_SUMMARY"
+
             - name: Upload size report
               uses: actions/upload-artifact@v4
               with:
-                  name: example-sizes-${{ github.sha }}
+                  name: example-sizes
                   path: sizes/
