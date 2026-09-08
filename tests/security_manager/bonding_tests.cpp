@@ -13,15 +13,16 @@ struct data_base_t
     {
         creating_mac = mac;
 
+        // aggregate initialization in declaration order: longterm_key, rand, ediv
         return bluetoe::details::longterm_key_t{
-            .longterm_key = {
+            { {
                 0x01, 0x02, 0x03, 0x04,
                 0x11, 0x12, 0x13, 0x14,
                 0x21, 0x22, 0x23, 0x24,
                 0x31, 0x32, 0x33, 0x34
-            },
-            .rand         = 0x12345678aabbccddu,
-            .ediv         = 0x1122u
+            } },
+            0x12345678aabbccddu,
+            0x1122u
         };
     }
 
