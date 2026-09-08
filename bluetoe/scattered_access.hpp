@@ -11,10 +11,13 @@ namespace details {
     template < int Size >
     std::uint8_t* copy( int offset, const std::uint8_t (&source)[ Size ], std::uint8_t* begin, std::uint8_t* end )
     {
-        // clamp the offset into [0, Size], so that begin( source ) + offset never points beyond one past the end
-        offset = std::min( std::max( 0, offset ), Size );
-        const int source_size = Size - offset;
-        const int copy_size   = std::min( source_size, std::max< int >( 0, end - begin ) );
+        // Nothing to copy, if the offset lies behind the source, or if the output buffer is full. Returning
+        // early also guarantees, that begin( source ) + offset stays inside the array.
+        if ( offset >= Size || begin >= end )
+            return begin;
+
+        offset = std::max( 0, offset );
+        const int copy_size = std::min( Size - offset, static_cast< int >( end - begin ) );
 
         std::copy( std::begin( source ) + offset, std::begin( source ) + offset + copy_size, begin );
 

@@ -67,6 +67,29 @@ that only works because a check fired first. Both configurations must pass.
 - Firmware examples need an ARM toolchain and `NRF5_SDK_ROOT`; see `examples/README.md` and
   `examples/docker/` for a reproducible container. Do not attempt to build them on the host.
 
+<<<<<<< Updated upstream
+=======
+## Continuous integration
+
+`.github/workflows/tests.yml` runs on every push and pull request:
+
+- Unit tests on Linux with GCC and Clang, each in Debug and Release, and on macOS in Debug.
+  Linux is the strict platform: Apple's standard library includes more headers transitively,
+  so missing includes only show up there. CI compiles with `-std=c++11` (no GNU extensions)
+  and `-Werror`; without the pin, CMake accepts the compiler's default standard, which is newer
+  than C++11 on every current compiler and would hide C++11 violations. The build keeps going after the first error
+  (`ninja -k 0`) so one run lists every failing file.
+- The nRF52 examples are cross compiled with the same arm-none-eabi-gcc as `examples/docker/`.
+  The Nordic SDK headers come from the public nrfx and CMSIS repositories, because Nordic's
+  SDK download rejects scripted access. Flash and RAM size of every example are recorded in
+  the job summary (`.github/scripts/report_sizes.sh`), uploaded as artifact `example-sizes`,
+  and compared with the last successful run on the base branch
+  (`.github/scripts/compare_sizes.sh`); growth above 256 bytes raises a warning annotation.
+
+There is no Linux toolchain on the development machine. To diagnose a Linux failure, read the
+job log: `gh run view <run id> --log` or `gh api repos/TorstenRobitzki/bluetoe/actions/jobs/<job id>/logs`.
+
+>>>>>>> Stashed changes
 ## Code conventions
 
 - C++11 only. No exceptions, no RTTI, no dynamic allocation in library code. Firmware is built

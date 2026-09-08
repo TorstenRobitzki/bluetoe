@@ -5,6 +5,7 @@
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 #include <bluetoe/nrf.hpp>
 #include <cstdint>
+#include <array>
 
 extern "C" void RADIO_IRQHandler(void);
 extern "C" void TIMER0_IRQHandler(void);

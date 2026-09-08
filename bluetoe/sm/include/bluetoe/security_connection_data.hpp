@@ -1,6 +1,9 @@
 #ifndef BLUETOE_SM_SECURITY_CONNECTION_DATA_HPP
 #define BLUETOE_SM_SECURITY_CONNECTION_DATA_HPP
 
+#include <array>
+#include <cstdint>
+
 namespace bluetoe {
 
     namespace details {
