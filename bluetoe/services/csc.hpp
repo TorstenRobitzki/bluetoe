@@ -7,6 +7,9 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/meta_types.hpp>
 
+#include <algorithm>
+#include <iterator>
+
 namespace bluetoe {
 
     namespace csc {

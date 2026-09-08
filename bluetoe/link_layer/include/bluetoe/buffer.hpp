@@ -6,6 +6,7 @@
 #include <cassert>
 #include <initializer_list>
 #include <algorithm>
+#include <iterator>
 
 namespace bluetoe {
 namespace link_layer {
