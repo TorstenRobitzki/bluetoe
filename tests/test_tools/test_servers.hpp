@@ -142,6 +142,7 @@ namespace test {
         void expected_output( const bluetoe::details::notification_data& org_value, Iter begin, Iter end, Connection& con )
         {
             assert( org_value.valid() );
+            static_cast< void >( org_value ); // unused in release builds
 
             const std::vector< std::uint8_t > values( begin, end );
             std::uint8_t buffer[ ResponseBufferSize ];
