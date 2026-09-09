@@ -101,6 +101,9 @@ job log: `gh run view <run id> --log` or `gh api repos/TorstenRobitzki/bluetoe/a
 - Header guards `BLUETOE_<PATH>_HPP`. Nested namespaces written out (`namespace bluetoe { namespace link_layer {`).
 - Public API is documented with Doxygen (`@brief`, `@code` examples, `@sa`). Internals are hidden
   with `/** @cond HIDDEN_SYMBOLS */`.
+- Comments state intent, a protocol requirement, a hardware quirk or the reason for a workaround.
+  They do not explain C++ semantics and they do not restate what the code says. Assume a reader
+  who reaches for a language reference when they need one.
 - Configuration is expressed as option types carrying a `meta_type` tag, resolved with
   `details::find_by_meta_type` and friends (`bluetoe/utility/include/bluetoe/meta_tools.hpp`).
   New options must follow this pattern and be rejected by the existing `static_assert` catch-alls
