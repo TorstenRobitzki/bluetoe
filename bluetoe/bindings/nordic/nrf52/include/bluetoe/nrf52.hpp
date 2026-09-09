@@ -527,13 +527,13 @@ namespace bluetoe
 
                 if ( wake_up_ )
                 {
-                    --wake_up_;
+                    __atomic_fetch_sub( &wake_up_, 1, __ATOMIC_RELAXED );
                 }
             }
 
             void wake_up()
             {
-                ++wake_up_;
+                __atomic_fetch_add( &wake_up_, 1, __ATOMIC_RELAXED );
             }
 
             void request_event_cancelation()
