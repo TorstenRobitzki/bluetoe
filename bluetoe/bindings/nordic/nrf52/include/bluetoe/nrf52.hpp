@@ -8,6 +8,8 @@
 #include <bluetoe/security_tool_box.hpp>
 #include <bluetoe/connection_events.hpp>
 
+#include <atomic>
+
 /**
  * @file nrf52.hpp
  *
@@ -782,7 +784,11 @@ namespace bluetoe
             volatile bool evt_timeout_;
             volatile bool end_evt_;
             volatile bool request_event_cancelation_;
-            volatile int  wake_up_;
+
+            // Unlike the flags above, which are set in one context and cleared in the other,
+            // this counter is incremented by wake_up() and decremented by run(). A volatile
+            // read-modify-write is not atomic, so an increment from an interrupt could be lost.
+            std::atomic< int > wake_up_{ 0 };
 
             enum class state {
                 idle,
