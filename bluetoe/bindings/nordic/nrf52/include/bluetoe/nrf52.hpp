@@ -241,7 +241,7 @@ namespace bluetoe
             // if between setting up a user timer and calling the corresponding callback,
             // the anchor moved, inform the callback, so that the callback can schedule
             // the next call to the new anchor
-            volatile static bool user_timer_anchor_moved_;
+            static std::atomic< bool > user_timer_anchor_moved_;
         };
 
         /**
@@ -306,8 +306,8 @@ namespace bluetoe
             static bool resolving_address_invalid();
 
         private:
-            static volatile bool    receive_encrypted_;
-            static volatile bool    transmit_encrypted_;
+            static std::atomic< bool >  receive_encrypted_;
+            static std::atomic< bool >  transmit_encrypted_;
             static std::uint8_t*    encrypted_area_;
             static counter          receive_counter_;
             static counter          transmit_counter_;
@@ -779,11 +779,11 @@ namespace bluetoe
                 return static_cast< const CallBacks* >( this )->is_scan_request_in_filter( scanner );
             }
 
-            volatile bool adv_timeout_;
-            volatile bool adv_received_;
-            volatile bool evt_timeout_;
-            volatile bool end_evt_;
-            volatile bool request_event_cancelation_;
+            std::atomic< bool > adv_timeout_{ false };
+            std::atomic< bool > adv_received_{ false };
+            std::atomic< bool > evt_timeout_{ false };
+            std::atomic< bool > end_evt_{ false };
+            std::atomic< bool > request_event_cancelation_{ false };
             std::atomic< int > wake_up_{ 0 };
 
             enum class state {

@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <algorithm>
+#include <atomic>
 
 namespace bluetoe
 {
@@ -811,7 +812,7 @@ namespace nrf52_details
     bool                   radio_hardware_without_crypto_support::transmit_2mbit_;
     volatile int           radio_hardware_without_crypto_support::hf_connection_event_anchor_;
     volatile std::uint32_t radio_hardware_without_crypto_support::lf_connection_event_anchor_;
-    volatile bool          radio_hardware_without_crypto_support::user_timer_anchor_moved_;
+    std::atomic< bool >    radio_hardware_without_crypto_support::user_timer_anchor_moved_{ false };
 
     //////////////////////////////////////////////
     // class radio_hardware_with_crypto_support
@@ -1123,8 +1124,8 @@ namespace nrf52_details
         return false;
     }
 
-    volatile bool radio_hardware_with_crypto_support::receive_encrypted_  = false;
-    volatile bool radio_hardware_with_crypto_support::transmit_encrypted_ = false;
+    std::atomic< bool > radio_hardware_with_crypto_support::receive_encrypted_{ false };
+    std::atomic< bool > radio_hardware_with_crypto_support::transmit_encrypted_{ false };
     std::uint8_t* radio_hardware_with_crypto_support::encrypted_area_;
     counter radio_hardware_with_crypto_support::transmit_counter_;
     counter radio_hardware_with_crypto_support::receive_counter_;
