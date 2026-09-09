@@ -189,17 +189,34 @@ a change of implementation rather than of contract.
 
 ## 12. The comparison window of `abs_time`
 
-`abs_time` values form a ring, and the comparison operators are only meaningful when the two values
-lie within `max_distance` of each other. That precondition should be stated in the header and
-asserted in debug builds, because a caller comparing a deadline against `time_now()` across a
-larger gap gets a silently inverted answer.
+`abs_time` values form a ring, so the comparison operators do not answer a general question about
+ordering. What they answer is a question about proximity: given a time a caller wants to schedule
+an action for, is that time already in the past, or so close to now that the hardware cannot be set
+up in time?
 
-The implemented value of 16.78 seconds is correct, for a reason the design considerations document
-does not give. The core specification caps the supervision timeout at 32 seconds and requires it to
-exceed twice the latency times the interval, so the largest legal gap between two connection events
-a peripheral must handle is just under 16 seconds. The document's figure of 2000 seconds, from a
-four second interval and a latency of 500, ignores that constraint and would suggest a far larger
-window than is needed.
+Beyond `max_distance` the answer is definitively "neither", which is the correct and safe answer to
+that question. A time that far away is certainly not in the near past and certainly not imminent.
+So the operators are not fragile outside the window; they are simply reporting "far", and comparing
+values that are far apart is legitimate use rather than a precondition violation. That is worth
+stating in the header, because an operator called `<` invites a reader to expect an ordering, and
+because it rules out asserting on the distance, which would fire on correct code.
+
+The design considerations document already gives this principle in section 3.1.1: a time computed
+by the link layer can land in the past only by the few milliseconds that interrupts and the
+calculation itself cost, and never near the maximum waiting time, so near past and far future are
+distinguishable. What it does not do is connect that principle to a value.
+
+The constant has to sit between two bounds. It must be far larger than those few milliseconds of
+jitter, which is easy. And it must be at least as large as the greatest distance at which a caller
+still needs a truthful answer for a time that really is ahead of now, because beyond the window
+such a time reads as "far" rather than "in the future". The core specification caps the supervision
+timeout at 32 seconds and requires it to exceed twice the latency times the interval, so the
+largest legal gap between two connection events a peripheral must handle is just under 16 seconds.
+The implemented 16.777216 seconds covers that with about five percent to spare, which is a tighter
+fit than it looks and worth recording next to the constant.
+
+The 2000 second figure in the document sizes the representation rather than the window. Both are
+sound, but they answer different questions and should not be conflated.
 
 ## 13. This work is not restricted to C++11
 
