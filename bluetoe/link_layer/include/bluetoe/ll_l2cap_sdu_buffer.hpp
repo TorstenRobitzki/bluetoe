@@ -243,7 +243,7 @@ namespace link_layer {
     {
         const std::size_t copy_size = std::min< std::size_t >( receive_size_, end - begin );
 
-        std::copy( begin, end, &receive_buffer_[ receive_buffer_used_ ] );
+        std::copy( begin, begin + copy_size, &receive_buffer_[ receive_buffer_used_ ] );
         receive_buffer_used_ += copy_size;
         receive_size_ -= copy_size;
     }
