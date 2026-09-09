@@ -133,8 +133,11 @@ public:
             pdu.data(), pdu.size(), connection_data_ );
     }
 
-    void add_buffer( std::size_t size )
+    // provides room for one L2CAP PDU with the given payload size
+    void add_buffer( std::size_t payload_size )
     {
+        const std::size_t size = payload_size + bluetoe::details::l2cap_layer_header_size;
+
         BOOST_REQUIRE( current_buffer_used_ <= current_buffer_used_ + size );
 
         buffers_.push_back( { size, &overall_buffer_[ current_buffer_used_ ] } );
@@ -151,7 +154,7 @@ public:
 
         const auto buf = buffers_.front();
 
-        if ( buf.first < size )
+        if ( buf.first < size + bluetoe::details::l2cap_layer_header_size )
             return { 0, nullptr };
 
         buffers_.erase( buffers_.begin() );
