@@ -6,6 +6,7 @@
 #include "test_layout.hpp"
 
 #include <initializer_list>
+#include <vector>
 
 using namespace boost::test_tools;
 
@@ -67,6 +68,11 @@ namespace {
             received_pdus_.push_back( pdu_t{ incomming_pdu.begin(), incomming_pdu.end() } );
         }
 
+        void add_received_pdu( const std::vector< std::uint8_t >& incomming_pdu )
+        {
+            received_pdus_.push_back( incomming_pdu );
+        }
+
         bool receive_buffer_empty() const
         {
             return received_pdus_.empty();
@@ -113,7 +119,9 @@ namespace {
         std::vector< pdu_t > received_data_pdus_;
     };
 
-    class buffer_under_test : public bluetoe::link_layer::ll_l2cap_sdu_buffer< radio_mock_t, radio_mock_t, 100 >
+    static constexpr std::size_t mtu_size = 100;
+
+    class buffer_under_test : public bluetoe::link_layer::ll_l2cap_sdu_buffer< radio_mock_t, radio_mock_t, mtu_size >
     {
     public:
         void expect_next_received( std::initializer_list< std::uint8_t > expected )
@@ -359,6 +367,95 @@ BOOST_AUTO_TEST_SUITE( receive_buffer_for_mtu_size_larger_than_23_bytes )
 
         expect_next_received( {} );
 
+    }
+
+    /*
+     * Fixture to receive an SDU that uses the maximum MTU size. The receive buffer is
+     * dimensioned to hold exactly such an SDU, including the L2CAP header and the link
+     * layer header of the first fragment.
+     */
+    struct maximum_sized_sdu : buffer_under_test
+    {
+        static constexpr std::size_t ll_header_size    = 3;     // header + layout overhead
+        static constexpr std::size_t l2cap_header_size = 4;
+
+        // start fragment, announcing an SDU of mtu_size bytes and containing the first
+        // data_size bytes of that SDU
+        void add_start_fragment( std::size_t data_size, std::uint8_t fill )
+        {
+            std::vector< std::uint8_t > pdu = {
+                0x02, static_cast< std::uint8_t >( l2cap_header_size + data_size ), 0xaa,
+                static_cast< std::uint8_t >( mtu_size ), 0x00,  // L2CAP length
+                0x04, 0x00                                      // channel id
+            };
+
+            pdu.insert( pdu.end(), data_size, fill );
+            add_received_pdu( pdu );
+        }
+
+        void add_continuation_fragment( std::size_t data_size, std::uint8_t fill )
+        {
+            std::vector< std::uint8_t > pdu = {
+                0x01, static_cast< std::uint8_t >( data_size ), 0xaa
+            };
+
+            pdu.insert( pdu.end(), data_size, fill );
+            add_received_pdu( pdu );
+        }
+    };
+
+    /*
+     * A peer that announces an SDU and then sends more data than announced, must not be
+     * able to have that data written beyond the end of the receive buffer (#137).
+     */
+    BOOST_FIXTURE_TEST_CASE( continuation_fragment_larger_than_the_rest_of_the_sdu, maximum_sized_sdu )
+    {
+        // 23 + 27 + 27 + 20 == 97 out of the announced 100 bytes
+        add_start_fragment( 23, 0x01 );
+        add_continuation_fragment( 27, 0x02 );
+        add_continuation_fragment( 27, 0x03 );
+        add_continuation_fragment( 20, 0x04 );
+
+        // 3 bytes are missing, but the peer sends a full sized fragment
+        add_continuation_fragment( 27, 0xff );
+
+        std::vector< std::uint8_t > expected = {
+            0x02, 0x1b, 0xaa,   // link layer header of the first fragment
+            0x64, 0x00,         // L2CAP length: 100
+            0x04, 0x00          // channel id
+        };
+
+        expected.insert( expected.end(), 23, 0x01 );
+        expected.insert( expected.end(), 27, 0x02 );
+        expected.insert( expected.end(), 27, 0x03 );
+        expected.insert( expected.end(), 20, 0x04 );
+        expected.insert( expected.end(),  3, 0xff );    // only the 3 announced bytes are used
+
+        const auto received = next_ll_l2cap_received();
+
+        BOOST_REQUIRE_EQUAL( received.size, expected.size() );
+        BOOST_CHECK_EQUAL_COLLECTIONS(
+            received.buffer, received.buffer + received.size,
+            expected.begin(), expected.end() );
+    }
+
+    BOOST_FIXTURE_TEST_CASE( receiving_after_a_too_large_continuation_fragment, maximum_sized_sdu )
+    {
+        add_start_fragment( 23, 0x01 );
+        add_continuation_fragment( 27, 0x02 );
+        add_continuation_fragment( 27, 0x03 );
+        add_continuation_fragment( 20, 0x04 );
+        add_continuation_fragment( 27, 0xff );
+
+        // a link layer control PDU, following the malformed SDU
+        add_received_pdu( { 0x03, 0x03, 0xaa, 0x01, 0x02, 0x03 } );
+
+        const std::size_t sdu_size = ll_header_size + l2cap_header_size + mtu_size;
+
+        BOOST_REQUIRE_EQUAL( next_ll_l2cap_received().size, sdu_size );
+        free_ll_l2cap_received();
+
+        expect_next_received( { 0x03, 0x03, 0xaa, 0x01, 0x02, 0x03 } );
     }
 BOOST_AUTO_TEST_SUITE_END()
 
