@@ -18,15 +18,18 @@ behaviour that must be real time is pre-armed rather than decided: respond to a 
 T_IFS, transmit at a given absolute time, timestamp an arrival. Arranging a scenario, triggering it
 and asserting over collected timestamps has no timing requirement at all.
 
-The decisive reason is that host side tests can be written against an abstraction satisfied either
-by the simulated radio or by real hardware, so the same test file runs in continuous integration
-against the mock and on the bench against a device. Issues #84 and #134 exist because the mock and
-the nRF52 disagree and nothing notices. A shared suite turns that divergence into a test failure.
+Tests are then written with the Boost.Test already used throughout the project, no embedded test
+framework is needed (the evaluated ones cost between 600 and 750 kilobytes and drove the external
+QSPI flash and the linker script restructuring), and a failing test rebuilds in seconds instead of
+being flashed.
 
-Secondary benefits: tests are written with the Boost.Test already used throughout the project, no
-embedded test framework is needed (the evaluated ones cost between 600 and 750 kilobytes and drove
-the external QSPI flash and the linker script restructuring), and a failing test rebuilds in
-seconds instead of being flashed.
+The simulated radio in the existing host tests is not a subject of these tests. It is a fixture for
+testing the link layer, and the tests described here will look very different from the ones that
+use it. What the two can share is the specification: once every function of the interface states
+its observable effect and its tolerance, by decision 10, any implementation can be held to that
+contract, the simulated radio included. Issues #84 and #134 exist because the fixture and the nRF52
+disagree and nothing notices. This setup does not fix that on its own; what it can eventually
+provide is the ground truth to correct the fixture against.
 
 **Rejected:** running the tests on the tester, which was the earlier direction. The analogy with
 commercial protocol testers does not carry: what forces logic into those is a live protocol state
@@ -183,6 +186,25 @@ exceed twice the latency times the interval, so the largest legal gap between tw
 a peripheral must handle is just under 16 seconds. The document's figure of 2000 seconds, from a
 four second interval and a latency of 500, ignores that constraint and would suggest a far larger
 window than is needed.
+
+## 13. This work is not restricted to C++11
+
+The rest of Bluetoe is C++11 and stays that way. Everything belonging to this work may use whatever
+standard helps, and the parts that already do, such as the concepts in the remote call layer, are
+not a problem to be removed.
+
+The scope of that is everything under this banner: the new radio interface, `abs_time`, the rig,
+the tester and the host side tooling. It does not extend to the existing link layer, the GATT
+layer, or the current radio bindings, which keep their existing constraint until something
+deliberately changes it.
+
+Two consequences to keep in mind. `abs_time.cpp` and `radio_properties.cpp` are currently compiled
+into `bluetoe_linklayer`, which the existing link layer, both Nordic bindings and most of the host
+tests link against. Raising the standard on that target raises it for all of them, so these sources
+belong in a target of their own before they start using anything newer. And the continuous
+integration build pins the whole configuration to strict C++11 precisely to catch violations in the
+existing library, so whatever target holds this work has to set its own standard rather than
+inherit that pin.
 
 ## Open questions
 
