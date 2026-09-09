@@ -84,10 +84,13 @@ namespace details {
      *
      * LinkLayer derives from l2cap<> and provides following functions:
      *
-     * - std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t )
+     * - std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t payload_size )
      *
      *   This function is used to allocate outgoing capacity. If the function can not provide
-     *   the requested size, it has to provide { 0, nullptr }.
+     *   the requested size, it has to provide { 0, nullptr }. Otherwise, the returned buffer
+     *   has to be large enough to take an L2CAP PDU with a payload of the requested size, so
+     *   that a returned size that is not zero is all the l2cap layer has to check. How much
+     *   room the link layer requires for its own purpose, is not visible to the l2cap layer.
      *
      * - void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > )
      *
@@ -233,6 +236,7 @@ namespace details {
             return false;
 
         assert( output.second );
+        assert( output.first >= maximum_mtu_size + l2cap_layer_header_size );
 
         l2cap_input_handler< ConnectionDetails > handler(
             this, channel_id, input + l2cap_layer_header_size, in_size - l2cap_layer_header_size,
@@ -268,6 +272,7 @@ namespace details {
             return false;
 
         assert( output.second );
+        assert( output.first >= maximum_mtu_size + l2cap_layer_header_size );
 
         l2cap_output_handler< ConnectionDetails > handler(
             this, output.second + l2cap_layer_header_size, output.first - l2cap_layer_header_size, connection );
