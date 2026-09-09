@@ -158,14 +158,28 @@ definitions follow from the specification instead of being invented separately a
 ## 11. Order of work
 
 1. The interface specification, including decision 10.
-2. A first implementation on the nRF52. An adapter over the existing radio is acceptable.
-3. The rig and the tests.
+2. A narrow but real implementation on the nRF52: `time_now()`, scheduling an advertising event,
+   and the callbacks that event produces.
+3. The rig and the tests, broadened together with the implementation.
 4. The link layer.
 5. The additional CPU context for link layer processing.
 
-An implementation comes before the rig because nothing yet demonstrates that the interface is
+Something implemented comes before the rig because nothing yet demonstrates that the interface is
 implementable with the timing it promises, and building a rig against an unimplemented interface
-risks baking in assumptions the hardware will not honour.
+risks baking in assumptions the hardware will not honour. It does not have to be the whole radio.
+Absolute scheduling of one advertising event, with the time reported back from the hardware
+capture, exercises the claim the whole design rests on, and it is a small part of the work.
+
+**Not an adapter over the existing radio.** The obvious shortcut is to wrap the current
+implementation, and it does not work. The new interface exists to report when things happened,
+taken from the hardware capture, and the existing implementation neither exposes a clock nor
+carries a time on its callbacks. An adapter could only read a clock in software after the fact,
+which is exactly the error the redesign removes, so it would produce timings that look plausible
+and mean nothing. Reaching into the timer hardware to do better stops being an adapter.
+
+Writing it from scratch also measures a claim the design considerations document makes, that the
+new interface should lower the complexity of a radio implementation. An adapter would say nothing
+about that; a fresh implementation says it directly.
 
 The additional CPU context is built last but designed now. Even while everything runs in one
 context, the specification should name the context each callback is invoked from, name the mutual
