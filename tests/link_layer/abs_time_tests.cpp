@@ -8,7 +8,6 @@ BOOST_AUTO_TEST_CASE( default_ctor )
     const bluetoe::link_layer::abs_time time;
 
     BOOST_CHECK_EQUAL( time.data(), 0 );
-    BOOST_CHECK_EQUAL( time, bluetoe::link_layer::abs_time( 0 ) );
 }
 
 BOOST_AUTO_TEST_CASE( rep_ctor )
@@ -38,18 +37,23 @@ BOOST_AUTO_TEST_CASE( substracting_delta )
     BOOST_CHECK_EQUAL( t.data(), 2000 );
 }
 
-BOOST_AUTO_TEST_CASE( less_than_simple )
+BOOST_AUTO_TEST_CASE( in_near_past_simple )
 {
-    bluetoe::link_layer::abs_time t1( 0 );
-    bluetoe::link_layer::abs_time t2( 1 );
-    bluetoe::link_layer::abs_time t3( 1 );
+    const bluetoe::link_layer::abs_time t1( 0 );
+    const bluetoe::link_layer::abs_time t2( 1 );
 
-    BOOST_CHECK_LT( t1, t2 );
-    BOOST_CHECK( !(t2 < t1) );
-    BOOST_CHECK( !(t2 < t3) );
+    BOOST_CHECK( t1.is_in_near_past( t2 ) );
+    BOOST_CHECK( !t2.is_in_near_past( t1 ) );
 }
 
-BOOST_AUTO_TEST_CASE( less_than_overflow )
+BOOST_AUTO_TEST_CASE( a_time_is_not_in_its_own_near_past )
+{
+    const bluetoe::link_layer::abs_time t( 424242 );
+
+    BOOST_CHECK( !t.is_in_near_past( t ) );
+}
+
+BOOST_AUTO_TEST_CASE( in_near_past_over_the_whole_ring )
 {
     for ( const auto t : std::initializer_list< bluetoe::link_layer::abs_time >{
         bluetoe::link_layer::abs_time( 0 ),
@@ -59,69 +63,34 @@ BOOST_AUTO_TEST_CASE( less_than_overflow )
         bluetoe::link_layer::abs_time( 0x10000000 )
     } )
     {
-        const auto t2 = t + bluetoe::link_layer::delta_time( bluetoe::link_layer::abs_time::max_distance - 1 );
-        const auto t3 = t + bluetoe::link_layer::delta_time( bluetoe::link_layer::abs_time::max_distance + 1 );
-        const auto t4 = t + bluetoe::link_layer::delta_time( 1 );
-        BOOST_CHECK_LT( t, t2 );
-        BOOST_CHECK_LT( t, t4 );
-        BOOST_CHECK(!( t2 < t ));
-        BOOST_CHECK(!( t < t ));
-        BOOST_CHECK(!( t2 < t2 ));
-        BOOST_CHECK( !(t < t3) );
-        BOOST_CHECK(!( t3 < t3 ));
+        const auto just_after   = t + bluetoe::link_layer::delta_time( 1 );
+        const auto within       = t + bluetoe::link_layer::delta_time( bluetoe::link_layer::abs_time::max_distance - 1 );
+        const auto beyond       = t + bluetoe::link_layer::delta_time( bluetoe::link_layer::abs_time::max_distance + 1 );
+
+        BOOST_CHECK( t.is_in_near_past( just_after ) );
+        BOOST_CHECK( t.is_in_near_past( within ) );
+
+        // beyond the window the answer is "neither just gone nor imminent"
+        BOOST_CHECK( !t.is_in_near_past( beyond ) );
+
+        BOOST_CHECK( !within.is_in_near_past( t ) );
+        BOOST_CHECK( !t.is_in_near_past( t ) );
+        BOOST_CHECK( !within.is_in_near_past( within ) );
     }
 }
 
-BOOST_AUTO_TEST_CASE( less_equal )
+/*
+ * A reference far away in either direction answers false. That is ordinary use and not a
+ * violated precondition: such a time is neither just gone nor about to happen.
+ */
+BOOST_AUTO_TEST_CASE( a_far_away_reference_is_not_near )
 {
-    bluetoe::link_layer::abs_time t1( 0xFFFFFFFF );
-    bluetoe::link_layer::abs_time t2( 0xFFFFFFFF );
-    bluetoe::link_layer::abs_time t3( 0 );
+    const bluetoe::link_layer::abs_time now( 0x40000000 );
+    const auto far_ahead  = now + bluetoe::link_layer::delta_time( 10 * bluetoe::link_layer::abs_time::max_distance );
+    const auto far_behind = now - bluetoe::link_layer::delta_time( 10 * bluetoe::link_layer::abs_time::max_distance );
 
-    BOOST_CHECK_LE( t1, t2 );
-    BOOST_CHECK_LE( t2, t1 );
-    BOOST_CHECK_LE( t1, t3 );
-    BOOST_CHECK( !( t3 <= t1 ) );
-}
-
-BOOST_AUTO_TEST_CASE( greater_than )
-{
-    bluetoe::link_layer::abs_time t1( 5 );
-    bluetoe::link_layer::abs_time t2( 10 );
-    bluetoe::link_layer::abs_time t3( 10 );
-    bluetoe::link_layer::abs_time t4( 0xFFFFFFFF );
-
-    BOOST_CHECK_GT( t2, t1 );
-    BOOST_CHECK( !( t1 > t2 ) );
-    BOOST_CHECK( !( t2 > t3 ) );
-
-    BOOST_CHECK_GT( t1, t4 );
-}
-
-BOOST_AUTO_TEST_CASE( greater_than_equal )
-{
-    bluetoe::link_layer::abs_time t1( 5 );
-    bluetoe::link_layer::abs_time t2( 10 );
-    bluetoe::link_layer::abs_time t3( 10 );
-    bluetoe::link_layer::abs_time t4( 0xFFFFFFFF );
-
-    BOOST_CHECK_GE( t2, t1 );
-    BOOST_CHECK_GE( t2, t3 );
-    BOOST_CHECK( !( t1 >= t2 ) );
-
-    BOOST_CHECK_GE( t1, t4 );
-}
-
-BOOST_AUTO_TEST_CASE( equal )
-{
-    bluetoe::link_layer::abs_time t1( 5 );
-    bluetoe::link_layer::abs_time t2( 10 );
-    bluetoe::link_layer::abs_time t3( 10 );
-    bluetoe::link_layer::abs_time t4( 0xFFFFFFFF );
-
-    BOOST_CHECK( !( t1 == t2 ) );
-    BOOST_CHECK_EQUAL( t2, t3 );
-    BOOST_CHECK( !( t1 == t4 ) );
+    BOOST_CHECK( !now.is_in_near_past( far_ahead ) );
+    BOOST_CHECK( !now.is_in_near_past( far_behind ) );
 }
 
 BOOST_AUTO_TEST_CASE( print )
@@ -145,15 +114,15 @@ BOOST_AUTO_TEST_CASE( addition )
     bluetoe::link_layer::delta_time d1( 6 );
     bluetoe::link_layer::delta_time d2( 0 );
 
-    BOOST_CHECK_EQUAL( t1 + d1, bluetoe::link_layer::abs_time( 11 ) );
-    BOOST_CHECK_EQUAL( d1 + t1, bluetoe::link_layer::abs_time( 11 ) );
-    BOOST_CHECK_EQUAL( t2 + d1, bluetoe::link_layer::abs_time( 5 ) );
-    BOOST_CHECK_EQUAL( d1 + t2, bluetoe::link_layer::abs_time( 5 ) );
+    BOOST_CHECK_EQUAL( ( t1 + d1 ).data(), 11u );
+    BOOST_CHECK_EQUAL( ( d1 + t1 ).data(), 11u );
+    BOOST_CHECK_EQUAL( ( t2 + d1 ).data(), 5u );
+    BOOST_CHECK_EQUAL( ( d1 + t2 ).data(), 5u );
 
-    BOOST_CHECK_EQUAL( t1 + d2, t1 );
-    BOOST_CHECK_EQUAL( d2 + t1, t1 );
-    BOOST_CHECK_EQUAL( t2 + d2, t2 );
-    BOOST_CHECK_EQUAL( d2 + t2, t2 );
+    BOOST_CHECK_EQUAL( ( t1 + d2 ).data(), t1.data() );
+    BOOST_CHECK_EQUAL( ( d2 + t1 ).data(), t1.data() );
+    BOOST_CHECK_EQUAL( ( t2 + d2 ).data(), t2.data() );
+    BOOST_CHECK_EQUAL( ( d2 + t2 ).data(), t2.data() );
 }
 
 BOOST_AUTO_TEST_CASE( substraction )
@@ -172,8 +141,8 @@ BOOST_AUTO_TEST_CASE( substraction_delta )
     bluetoe::link_layer::delta_time d1( 6 );
     bluetoe::link_layer::delta_time d2( 0 );
 
-    BOOST_CHECK_EQUAL( t1 - d1, t2 );
-    BOOST_CHECK_EQUAL( t2 - d1, bluetoe::link_layer::abs_time( 0xFFFFFFF9 ) );
-    BOOST_CHECK_EQUAL( t1 - d2, t1 );
-    BOOST_CHECK_EQUAL( t2 - d2, t2 );
+    BOOST_CHECK_EQUAL( ( t1 - d1 ).data(), t2.data() );
+    BOOST_CHECK_EQUAL( ( t2 - d1 ).data(), 0xFFFFFFF9 );
+    BOOST_CHECK_EQUAL( ( t1 - d2 ).data(), t1.data() );
+    BOOST_CHECK_EQUAL( ( t2 - d2 ).data(), t2.data() );
 }

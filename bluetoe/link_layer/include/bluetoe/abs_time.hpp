@@ -52,36 +52,38 @@ namespace link_layer {
          */
         explicit abs_time( representation_type time_us ) : rep_( time_us ) {}
 
-        bool operator<( abs_time rhs ) const
+        /**
+         * @brief is this point in time behind reference by less than max_distance?
+         *
+         * The question a caller asks with this is whether a time it wants to schedule
+         * something for has already gone by, or has come so close that there is no longer
+         * enough time to act on it. The caller adds whatever margin it needs to act to the
+         * reference it passes, so a radio would ask:
+         *
+         * @code
+         * if ( when.is_in_near_past( time_now() + hardware_setup_time ) )
+         *     return false;
+         * @endcode
+         *
+         * abs_time values lie on a ring, so this is deliberately not an ordering. For a
+         * reference further away than max_distance in either direction the answer is false,
+         * which is the right answer to the question asked: such a time is neither just gone
+         * nor imminent. Passing values that are far apart is therefore ordinary use and not
+         * an error.
+         *
+         * That the answer is trustworthy rests on how far into the past a time can plausibly
+         * be. A time computed by the link layer lands in the past only by the interrupts and
+         * the arithmetic that happened since it was computed, which is milliseconds, and
+         * never by anything approaching max_distance. A time that really is ahead has to lie
+         * within max_distance to be recognised as such, which is what sizes the constant.
+         *
+         * A time is not in the near past of itself.
+         */
+        bool is_in_near_past( abs_time reference ) const
         {
-            return rhs.rep_ > rep_
-                ? ( rhs.rep_ - rep_ ) < max_distance
-                : ( ~rep_ + rhs.rep_ ) < max_distance;
-        }
-
-        bool operator<=( abs_time rhs ) const
-        {
-            return *this < rhs || *this == rhs;
-        }
-
-        bool operator>( abs_time rhs ) const
-        {
-            return !( *this <= rhs );
-        }
-
-        bool operator>=( abs_time rhs ) const
-        {
-            return !( *this < rhs );
-        }
-
-        bool operator==( abs_time rhs ) const
-        {
-            return rep_ == rhs.rep_;
-        }
-
-        bool operator!=( abs_time rhs ) const
-        {
-            return rep_ != rhs.rep_;
+            return reference.rep_ > rep_
+                ? ( reference.rep_ - rep_ ) < max_distance
+                : ( ~rep_ + reference.rep_ ) < max_distance;
         }
 
         abs_time& operator-=( delta_time rhs )
@@ -139,6 +141,17 @@ namespace link_layer {
         return lhs;
     }
 
+    /**
+     * @brief the time from rhs to lhs
+     *
+     * @pre lhs is not behind rhs. delta_time counts microseconds without a sign, so a
+     *      difference taken the wrong way round is not negative but close to the 71 minutes
+     *      the representation spans, which no caller is likely to notice.
+     *
+     * A link layer that follows several connections will want to ask which of them is due
+     * next, by taking each distance from the current time and picking the smallest. Whether
+     * that is better served by a signed delta_time is left to that work.
+     */
     inline delta_time operator-(abs_time lhs, abs_time rhs)
     {
         return delta_time( lhs.data() - rhs.data() );
