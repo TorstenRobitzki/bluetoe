@@ -847,12 +847,16 @@ namespace nrf51_details {
 
         if ( wake_up_ )
         {
+            lock_guard lock;
+
             --wake_up_;
         }
     }
 
     void scheduled_radio_base::wake_up()
     {
+        lock_guard lock;
+
         ++wake_up_;
     }
 
