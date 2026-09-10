@@ -13,3 +13,4 @@ endfunction()
 
 add_scheduled_radio_test(concept_tests)
 add_scheduled_radio_test(rig_ring_buffer_tests)
+add_scheduled_radio_test(rig_serialize_tests)

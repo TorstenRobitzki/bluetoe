@@ -100,18 +100,35 @@ establish time without ever exercising the times the interface hands out.
 
 ## 6. Half duplex, with the host always initiating
 
-The device under test never speaks unsolicited. A call that has a result becomes a call followed by
-polling for that result. Callbacks are queued and collected by polling.
+The device under test never speaks unsolicited. Every request is answered by exactly one response,
+which may take as long as the call takes. Callbacks are queued and collected by polling, and the
+host polls state, `program_finished()` and the collections, never the result of a call.
 
 This buys the property that matters most: the device under test never waits on the host. Its main
-loop becomes "answer a pending request, otherwise call `run()`", with no blocking read anywhere, so
-it can never be parked in a receive while a radio event needs servicing. That failure mode would
-quietly invalidate the timing results the rig exists to produce.
+loop becomes "answer a complete request if one is buffered, otherwise call `run()`", with no
+blocking read anywhere, so it can never be parked in a receive while a radio event needs servicing.
+That failure mode would quietly invalidate the timing results the rig exists to produce.
 
 It also removes any question of both ends transmitting at once, lets one implementation serve both
 endpoints, and keeps the rig contract portable to transports that are genuinely half duplex. Since
 all timing information travels in the payload rather than in the arrival of a message, polling
 costs bench time and nothing else.
+
+**Amended.** The first form of this decision said that a call with a result becomes a call followed
+by polling for that result. That prescribed a protocol shape in the name of a property the frames of
+decision 16 already provide, and the one long call there is shows the shape buys nothing. `p256()`
+takes hundreds of milliseconds in the rig's application context, and for that time neither the link
+nor `run()` is serviced whatever the protocol, because they live in the same loop; an "accepted"
+response followed by polls does not shorten that, it only sits the first poll in the receive buffer
+until the computation ends, and doubles every call for it. The delay to `run()` is not a rig
+artefact either: it is what a single context radio does when the security manager computes a key
+during a connection, and a radio with its own link layer context is what keeps the events on time
+meanwhile. A test of that property issues the call, lets it take its time, and checks that the
+events kept their interval, which needs the single response form. A dead device is still detected,
+by the host's timeout on the response.
+
+**Rejected:** the two phase form, for the reason above. If a computation ever moves into a context
+of its own, the state polling pattern of decision 14 covers it: start it, poll a status function.
 
 ## 7. The callback queue must make loss detectable
 
@@ -507,6 +524,30 @@ One consequence for the shape of the interface. It was a class template
 concept is over a type, so the interface becomes `scheduled_radio< Radio >`, and how an
 implementation receives its callbacks and its options is the implementation's business, not the
 interface's.
+
+## 19. The wire carries the rig's interface, not the radio's
+
+What is serialised between the host and the device under test are calls to the rig: its own
+functions, the program actions, and one wrapper per toolbox function. The radio's interface is
+never on the wire.
+
+The reason is the pointer arguments of the toolbox. `f4()` takes `const std::uint8_t*` for the two
+public key coordinates, and stays that way because a coordinate is a part of a larger key and an
+array parameter would force a copy on every call. A serialiser cannot size a pointer from the
+signature. Rather than teach it sizes per function, the rig's wrapper takes `std::array` parameters,
+which carry their size, and forwards to the radio with `.data()`. The same move settles the other
+awkward cases without a mechanism: a program action is a rig function whose time parameter is a
+`delta_time` by declaration, and the buffers of an advertising event are rig functions taking bytes
+the rig copies into its own storage. Every serialised function is then an ordinary C++ function
+whose parameters the serialiser understands from the signature alone, and the mapping in
+`dut_rig.hpp` is code rather than convention.
+
+The serialiser itself is type driven: fixed width integers little endian, arrays and tuples element
+by element, `abs_time` and `delta_time` as their microseconds, a variable length byte sequence with
+a length prefix. Deserialising from a truncated frame fails rather than reads past the end, and
+serialising into a full buffer fails rather than truncates, both reported as a result rather than
+thrown, because the device has no exceptions and a malformed request is a link error the host
+should see, not a crash.
 
 ## Open questions
 
