@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "rig/ring_buffer.hpp"
-#include "serial_port.hpp"
+#include "link/ring_buffer.hpp"
+#include "link/serial_port.hpp"
 
 #include <cstdint>
 #include <deque>

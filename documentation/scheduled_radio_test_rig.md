@@ -378,7 +378,7 @@ which is the same on every platform; and a serial port, which is written once pe
 rig is everything that is not the radio and not the port: framing, the request and response
 protocol, the program interpreter, the records, the session token.
 
-The port's contract is event driven and stated in `tests/scheduled_radio/serial_port.hpp`. The
+The port's contract is event driven and stated in `tests/scheduled_radio/link/serial_port.hpp`. The
 port is constructed on two ring buffers the rig owns, pushes what it receives into one and pops
 what it transmits from the other, both from a context below the radio's priority. It owns no
 buffer and makes no decision, so on most parts it is a UART setup and an interrupt handler with

@@ -15,7 +15,7 @@
 
 #include <bluetoe/link_layer/scheduled_radio2.hpp>
 
-#include "serial_port.hpp"
+#include "link/serial_port.hpp"
 
 namespace {
 
