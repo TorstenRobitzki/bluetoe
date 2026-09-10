@@ -27,6 +27,10 @@ must be able to review and understand.
 - Stay on C++11. Modernisation (C++14/17 features, simplifying the meta-programming) is a
   deliberate, separate project for a later session. Do not propose or sneak in newer language
   features as part of unrelated changes.
+- The exception is the scheduled radio 2 work: the new radio interface, `abs_time`, the test rig,
+  the tester and their host side tooling may use any standard that helps. It does not extend to the
+  existing link layer, the GATT layer or the current bindings. See
+  `documentation/scheduled_radio_test_rig.md`.
 
 ## Layout
 

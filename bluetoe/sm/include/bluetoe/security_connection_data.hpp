@@ -1,6 +1,9 @@
 #ifndef BLUETOE_SM_SECURITY_CONNECTION_DATA_HPP
 #define BLUETOE_SM_SECURITY_CONNECTION_DATA_HPP
 
+#include <bluetoe/io_capabilities.hpp>
+#include <bluetoe/pairing_status.hpp>
+
 #include <array>
 #include <cstdint>
 
