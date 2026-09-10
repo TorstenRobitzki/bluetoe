@@ -12,3 +12,4 @@ function(add_scheduled_radio_test test_runner)
 endfunction()
 
 add_scheduled_radio_test(concept_tests)
+add_scheduled_radio_test(rig_ring_buffer_tests)
