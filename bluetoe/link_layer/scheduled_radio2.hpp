@@ -32,8 +32,13 @@ struct example_callbacks
      * The scheduled_radio2 shall call this function exactly once.
      * The link_layer shall not call any of the scheduling functions
      * before the radio_ready() callback was called.
+     *
+     * Carries no time. Nothing has happened on the radio yet, and the
+     * link layer's first action is scheduled_radio2::start_advertising(),
+     * which needs none. An implementation is therefore not required to
+     * run a clock before the radio is used.
      */
-    void radio_ready( abs_time now );
+    void radio_ready();
 
     /**
      * @brief will be called from the scheduled_radio2, if the
@@ -68,26 +73,11 @@ struct example_callbacks
     void connection_end_event( abs_time when, connection_event_events evts );
 
     /**
-     * @brief call back that will be called, if a connection event was canceled
-     *
-     * @param now The current time.
-     *
-     * @sa scheduled_radio2::cancel_radio_event()
-     */
-    void connection_event_canceled( abs_time now );
-
-    /**
      * @brief call back that will be called on an expired user timer.
      *
      * @param when point in time, the timer was scheduled.
      */
     void user_timer( abs_time when );
-
-    /**
-     * @brief call back that will be called, if a connection event was canceled
-     * @sa scheduled_radio2::()
-     */
-    void user_timer_canceled();
 
     /**
      * @brief type to retrieve outgoing PDUs from and to store incomming PDUs to.
@@ -103,23 +93,6 @@ struct example_callbacks
      * the current connection (if multiple connections are supported).
      */
     link_layer_pdu_buffer_t& link_layer_pdu_buffer();
-};
-
-/**
- * @brief this type describes the required time functions of the
- *        scheduled radio.
- *
- * The time system is self referencing by providing the time_now() function
- * as a denotion of the current time, that can be used as a reference for
- * other, scheduled, radio and timer activities.
- */
-class radio_time
-{
-public:
-    /**
-     * @brief returns the current time
-     */
-    static abs_time time_now();
 };
 
 /**
@@ -204,10 +177,23 @@ class pairing_security_toolbox
  * This is the documentation of requirements to a peripheral abstraction
  * that can be used by a peripheral based link layer implementation.
  *
+ * @section time Time
  *
+ * The interface has no function that returns the current time. Every abs_time
+ * an implementation hands out is the time of something that happened on the
+ * radio, given to the callback that reports it, and every time a caller passes
+ * in is derived from one of those. A radio that is idle may have only its low
+ * frequency clock running, so a time it produced on demand would either be
+ * coarse or force the high frequency clock on; inside such a callback the radio
+ * has just produced a timestamp and is known to have a clock.
+ *
+ * The consequence for a caller is that a sequence of radio actions starts with
+ * an action that names no time, start_advertising(), and continues with actions
+ * whose times are relative to the callbacks the earlier ones produced. See
+ * documentation/scheduled_radio_test_rig.md, decision 15.
  */
 template < typename CallBacks, typename... Options >
-class scheduled_radio2 : public CallBacks, public radio_time, public pairing_security_toolbox
+class scheduled_radio2 : public CallBacks, public pairing_security_toolbox
 {
 public:
     /**@{
@@ -351,6 +337,27 @@ public:
      */
 
     /**
+     * @brief begin a sequence of advertising events with one as soon as possible
+     *
+     * Schedules exactly one advertising event, like schedule_advertising_event(), with
+     * the transmission placed at the earliest time the implementation can manage. It
+     * does not keep advertising: the caller continues the sequence by scheduling the
+     * next event from the callback that ends this one, which carries the time to
+     * compute it from.
+     *
+     * This is how a sequence starts when the caller holds no usable time: the first
+     * event after radio_ready(), and every return to advertising after a connection
+     * ended or after advertising was switched on while the radio was idle.
+     *
+     * @return True, if the event was scheduled. False only if another action is pending.
+     */
+    bool start_advertising(
+        std::uint32_t                               channel,
+        const bluetoe::link_layer::write_buffer&    advertising_data,
+        const bluetoe::link_layer::write_buffer&    response_data,
+        const bluetoe::link_layer::read_buffer&     receive );
+
+    /**
      * @brief schedule an advertising event
      *
      * The function will return immediately. Depending on whether a response is received
@@ -389,7 +396,7 @@ public:
      * If the connection event toke place, CallBacks::connection_end_event() is called with the time,
      * the connection event started and some details about the connection event. If the connection event
      * timed out, CallBacks::connection_timeout() will be called with `end`. If the connection event
-     * is successfully canceled, CallBacks::connection_event_canceled() is called with the current time.
+     * was canceled by cancel_radio_event(), no callback is called.
      *
      * @pre CallBacks::link_layer_pdu_buffer() has to return a valid buffer for the handled connection.
      * @pre set_access_address_and_crc_init() has to be called with the value associated with the current connection.
@@ -406,7 +413,6 @@ public:
      *
      * @sa CallBacks::connection_end_event()
      * @sa CallBacks::connection_timeout()
-     * @sa CallBacks::connection_event_canceled()
      * @sa cancel_radio_event()
      */
     bool schedule_connection_event(
@@ -417,16 +423,17 @@ public:
     /**
      * @brief cancel a pending connection event
      *
-     * If there is a connection event pending and if this connection event can be canceled in time,
-     * the event is canceled and and CallBacks::connection_event_canceled() will be called at some time.
+     * The answer is definitive at the time of the call. If the function returns true, the
+     * event is canceled and none of its callbacks will be called. If it returns false, no
+     * event was pending or it was already too late to cancel it, and the event proceeds
+     * as if this function had not been called.
      *
-     * If no connection event is currently pending or if it is too late to cancel the currently scheduled
-     * connection event, the function will have no effect.
+     * An implementation has to decide this atomically against the start of the event, so
+     * that a caller can never see true and a callback for the same event.
      *
-     * @sa CallBacks::connection_event_canceled()
      * @sa schedule_connection_event()
      */
-    void cancel_radio_event();
+    bool cancel_radio_event();
 
     /**@}*/
 
@@ -454,8 +461,9 @@ public:
      * @brief Cancel the timer
      *
      * If the timer is currently scheduled, the function returns true and
-     * the user_timer_canceled() will be called. If the timer wasn't scheduled
-     * the function will return false.
+     * user_timer() will not be called for it. If the timer wasn't scheduled,
+     * or has already expired, the function returns false. As with
+     * cancel_radio_event(), the answer is definitive.
      *
      * @post the timer is not scheduled
      */

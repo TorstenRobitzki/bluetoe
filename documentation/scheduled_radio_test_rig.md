@@ -93,9 +93,9 @@ link served at low interrupt priority. The scheduled radio implementation keeps 
 every other hardware resource, as it does today.
 
 The obvious reason is that the rig must not perturb what it measures. The better reason is that
-denying the rig a timebase forces every test to obtain time through `time_now()` and the timestamps
-carried by the callbacks, which are exactly the contract under test. A rig with its own clock would
-let tests establish time without ever exercising the interface's time functions.
+denying the rig a timebase forces every test to obtain time through the timestamps carried by the
+callbacks, which are exactly the contract under test. A rig with its own clock would let tests
+establish time without ever exercising the times the interface hands out.
 
 ## 6. Half duplex, with the host always initiating
 
@@ -158,8 +158,9 @@ definitions follow from the specification instead of being invented separately a
 ## 11. Order of work
 
 1. The interface specification, including decision 10.
-2. A narrow but real implementation on the nRF52: `time_now()`, scheduling an advertising event,
-   and the callbacks that event produces.
+2. A narrow but real implementation on the nRF52: `radio_ready()`, `start_advertising()`, an
+   advertising event scheduled relative to the callback that ends it, and the callbacks these
+   events produce.
 3. The rig and the tests, broadened together with the implementation.
 4. The link layer.
 5. The additional CPU context for link layer processing.
@@ -236,6 +237,45 @@ belong in a target of their own before they start using anything newer. And the 
 integration build pins the whole configuration to strict C++11 precisely to catch violations in the
 existing library, so whatever target holds this work has to set its own standard rather than
 inherit that pin.
+
+## 15. The interface has no function that returns the current time
+
+`scheduled_radio2` had a `time_now()`. It is removed. Every `abs_time` the implementation hands
+out is the time of something that happened on the radio, given to the callback that reports it,
+and every time a caller passes in is derived from one of those: each from the callback that ended
+the previous action.
+
+For the same reason `radio_ready()` carries no time. Nothing has happened on the radio when it is
+called, and the caller's first action needs no time, so a timestamp there would only oblige an
+implementation to run a clock before the radio was ever used.
+
+The reason is what the hardware can honestly promise. Between radio events a low power
+implementation runs only its low frequency clock; the high frequency clock, which is what the
+microsecond resolution of `abs_time` comes from, is started for an event and stopped afterwards. A
+`time_now()` called in between would either return a coarse value dressed up in a fine
+representation, or force the high frequency clock to run for the benefit of a query, which is a
+power cost the link layer never asked for and the interface cannot see. Inside a callback neither
+problem exists: the radio has just produced a timestamp, so it demonstrably has a clock.
+
+What replaces it is `start_advertising()`, which names no time and schedules one advertising
+event as soon as possible. It is deliberately not an overload of `schedule_advertising_event()`,
+because its contract differs: it cannot be too late. A sequence of radio actions starts with it,
+and continues with timed actions relative to the callbacks the earlier ones produced; the name
+says where the sequence begins, not that the radio keeps advertising on its own. The places where a caller holds
+no usable time are exactly the places where it does not want one: the first event after
+`radio_ready`, and every return to advertising after a connection ended or after advertising was
+switched on while the radio was idle. The first step of every test program is the same case.
+
+Two things confirmed that nothing else is lost. Decision 14 made every test express its times
+relative to callbacks, and none of them needed a free standing clock afterwards. And a link layer
+computes its times the same way, from the anchor a connection event reported or from the time a
+`CONNECT_IND` was received, both of which arrive as callback arguments. The scheduling functions
+still have to answer whether a requested time is already too close, which is what
+`abs_time::is_in_near_past()` is for; the implementation reads its own clock to do that, and that
+clock stays private to it.
+
+The instruments follow the same rule: neither the rig nor the tester offers a time function to the
+host, because under decision 14 the host has no use for one.
 
 ## Open questions
 

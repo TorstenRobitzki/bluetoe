@@ -58,10 +58,10 @@ namespace link_layer {
          * The question a caller asks with this is whether a time it wants to schedule
          * something for has already gone by, or has come so close that there is no longer
          * enough time to act on it. The caller adds whatever margin it needs to act to the
-         * reference it passes, so a radio would ask:
+         * reference it passes, so a radio implementation, reading its own clock, would ask:
          *
          * @code
-         * if ( when.is_in_near_past( time_now() + hardware_setup_time ) )
+         * if ( when.is_in_near_past( hardware_clock() + hardware_setup_time ) )
          *     return false;
          * @endcode
          *
