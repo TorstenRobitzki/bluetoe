@@ -275,11 +275,15 @@ namespace test_rig {
 
         bool write( const std::uint8_t* data, std::size_t size )
         {
-            if ( size > capacity_ - size_ )
+            // the copy length is derived from the room left, so that a compiler can see the
+            // copy stays inside the buffer even where it cannot follow the early return
+            const std::size_t count = std::min( size, capacity_ - size_ );
+
+            if ( count != size )
                 return false;
 
-            std::copy( data, data + size, buffer_ + size_ );
-            size_ += size;
+            std::copy( data, data + count, buffer_ + size_ );
+            size_ += count;
 
             return true;
         }
@@ -312,11 +316,13 @@ namespace test_rig {
 
         bool read( std::uint8_t* data, std::size_t size )
         {
-            if ( size > size_ - position_ )
+            const std::size_t count = std::min( size, size_ - position_ );
+
+            if ( count != size )
                 return false;
 
-            std::copy( buffer_ + position_, buffer_ + position_ + size, data );
-            position_ += size;
+            std::copy( buffer_ + position_, buffer_ + position_ + count, data );
+            position_ += count;
 
             return true;
         }

@@ -35,7 +35,7 @@ namespace {
         T decode( const std::vector< std::uint8_t >& encoded )
         {
             buffer_source in( encoded.data(), encoded.size() );
-            T value;
+            T value{};
 
             BOOST_REQUIRE( deserialize( in, value ) );
             BOOST_CHECK_EQUAL( in.remaining(), 0u );
