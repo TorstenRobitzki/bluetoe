@@ -4,42 +4,46 @@ These are sketches, written to find out whether the three interfaces are enough 
 tests we want. Each one names the calls it needs. Where a test cannot be written with the
 interfaces as they stand, that is recorded at the end rather than papered over.
 
-The host drives both instruments. "DUT" is the device under test, "tester" the observing
-instrument.
+The host loads a program into each instrument, starts them, and asserts over what was recorded
+afterwards. "DUT" is the device under test, "tester" the observing instrument. The first two
+tests are written out in first_tests.cpp.
 
-## Relating the two time domains
+## Two time domains that are never related
 
-Every test that measures time starts by relating the clocks, because the two instruments count
-independently.
-
-1. Reset the DUT through the tester, and wait for its boot counter to change.
-2. Collect its callbacks and expect exactly one `radio_ready`.
-3. Arm the tester to receive on channel 37 for the next 50 ms.
-4. Read the DUT's `time_now()`, then schedule an advertising event 10 ms later.
-5. Collect the tester's received PDUs and expect one, matching the advertising data.
-
-The DUT's requested time and the tester's observed time are now known to denote the same
-instant, and everything afterwards can be expressed in either domain. The synchronisation is
-also the first measurement, since it shows the advertising data reaching the air at all.
+The instruments count time independently and nothing in the setup relates the two domains. A
+timed test does not need that: it has the DUT transmit twice, reads the two requested times
+from the DUT's executed calls and the two observed times from the tester, and compares the
+intervals. The same two events give the same interval in both domains, up to the placement
+error of the implementation and the drift of its clock over the interval.
 
 ## Timing of scheduled events
 
-**An advertising event is transmitted at the requested time.** Having related the domains,
-schedule a second event 20 ms after the first and check the tester sees the two transmissions
-20 ms apart. Comparing an interval rather than an instant keeps the check independent of how
-accurately the domains were related.
+**An advertising event is transmitted at the requested time.** The DUT program calls
+`start_advertising()` on start, then schedules two timed events, each an interval after the `adv_timeout`
+that ended the previous. The tester listens on the channel. Expect three PDUs, and the interval
+between the second and the third as observed to match the interval as requested, within the
+implementation's placement tolerance plus the drift over the interval. The first event has no
+requested time; it is the origin.
 
-**A scheduled event that is already in the past is refused.** Schedule an advertising event at
-`time_now()` minus a millisecond and expect `false`, with the tester observing nothing. The
-interesting part is the boundary: how late may a request be and still be accepted.
+**An advertising event goes to the requested channel only.** The DUT program transmits one PDU
+on channel 37 and then a different one on the channel the tester listens on. Expect exactly the
+second PDU. Listening on a channel that should stay silent, and only that, would also pass with
+a tester that hears nothing at all.
 
-**Two events cannot be scheduled at once.** Schedule an advertising event, then schedule
-another before the first has reported, and expect the second to be refused.
+**A scheduled event that is already in the past is refused.** The DUT program schedules an
+advertising event with a delta of zero, which is the callback's own time and therefore already
+gone by when the call is made; expect the recorded result to be `false` and the tester to
+observe nothing. The interesting part is the boundary: how close to the callback's time may a
+request be and still be accepted. That is the implementation's minimum lead time, and sweeping
+the delta down from a comfortable value measures it.
+
+**Two events cannot be scheduled at once.** A step that schedules an advertising event and then
+another one in the same step; expect the second recorded result to be `false`.
 
 ## Receiving
 
-**A response within the window is reported.** Arm the tester to answer the next PDU it receives
-after one inter frame space, then have the DUT schedule an advertising event. Expect an
+**A response within the window is reported.** The tester program answers the next PDU it
+receives after one inter frame space; the DUT program schedules an advertising event. Expect an
 `adv_received` callback carrying the bytes the tester sent.
 
 **No response produces a timeout.** The same, with the tester only listening. Expect
@@ -52,13 +56,17 @@ reason the delay is a parameter of `respond_to_next` rather than fixed.
 
 ## Connection events
 
-**A connection event receives and transmits.** Set the access address and CRC init on both
-sides, have the DUT schedule a connection event, and have the tester transmit a data PDU inside
-the window. Expect the tester to observe the DUT's response and the DUT to report a
-`connection_end_event`.
+**A connection event receives and transmits.** Both programs set the access address and CRC
+init; the DUT schedules a connection event, the tester transmits a data PDU inside the window.
+Expect the tester to observe the DUT's response and the DUT to report a `connection_end_event`.
+Where inside the window the tester transmits has to be counted from something the tester saw,
+so the DUT program transmits an advertising PDU first and the tester program places its data
+PDU relative to the moment it received that. That is an operation the tester does not have yet.
 
-**A cancelled connection event does not go on air.** Schedule an event far enough ahead, cancel
-it, and expect a `connection_event_canceled` callback and nothing observed by the tester.
+**A cancelled connection event does not go on air.** Schedule an event far enough ahead and
+cancel it in the same step. Expect the recorded result of the cancel to be `true`, no
+`connection_end_event` or `connection_timeout` afterwards, and nothing observed by the tester.
+The cancel's answer is definitive, so the absence of the callbacks is part of what is asserted.
 
 ## Housekeeping
 
@@ -87,4 +95,13 @@ against connection events.
 **Tolerances have nowhere to come from.** Several tests above say "at the requested time" without
 saying how close that has to be. Until each function states its observable effect and the
 tolerance it promises, every one of these tests has a number in it that someone chose while
-writing the test rather than while designing the interface.
+writing the test rather than while designing the interface. The first test shows what can be
+derived and what cannot: the drift over an interval follows from `sleep_time_accuracy_ppm`,
+which the interface already has, and the placement tolerance and the minimum lead time are what
+the implementation still has to state.
+
+**The tester can only count from a PDU it received.** Every test that only observes gets by
+without any origin on the tester. A test in which the tester has to hit a window the DUT opened
+cannot, because the window is expressed in the DUT's domain and the tester has no clock origin
+of its own that a test could use. The tester needs an operation whose time is relative to a PDU
+it received, so that the DUT can mark the origin on air and the tester can count from there.
