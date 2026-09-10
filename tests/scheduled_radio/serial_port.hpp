@@ -5,7 +5,8 @@
  * @file serial_port.hpp
  *
  * Requirements of the one platform dependent part of an instrument: the serial port the
- * rig talks to the host through. See documentation/scheduled_radio_test_rig.md, decision 16.
+ * rig talks to the host through, as C++20 concepts. See
+ * documentation/scheduled_radio_test_rig.md, decision 16.
  *
  * An instrument has three parts. The scheduled radio implementation, which is the subject.
  * The rig, which is the same on every platform: framing, the request and response protocol,
@@ -38,6 +39,7 @@
  * reset input actually reset the device (on the nRF52, PSELRESET in the UICR).
  */
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 
@@ -54,62 +56,60 @@ namespace test_rig {
      * room, or added more data, since the answer was computed, but never less. That is
      * what lets each side act on the answer without any further synchronisation.
      */
-    class byte_ring_buffer
+    template < typename T >
+    concept byte_ring_buffer = requires (
+        T                       buffer,
+        const T                 const_buffer,
+        const std::uint8_t*     in,
+        std::uint8_t*           out,
+        std::size_t             size )
     {
-    public:
-        /**
-         * @brief number of bytes that can be pushed right now, at least
+        /*
+         * Number of bytes that can be pushed right now, at least.
          */
-        std::size_t free() const;
+        { const_buffer.free() } -> std::same_as< std::size_t >;
 
-        /**
-         * @brief append bytes
-         *
-         * @pre size <= free()
+        /*
+         * Appends `size` bytes; `size` does not exceed free().
          */
-        void push( const std::uint8_t* data, std::size_t size );
+        buffer.push( in, size );
 
-        /**
-         * @brief number of bytes that can be popped right now, at least
+        /*
+         * Number of bytes that can be popped right now, at least.
          */
-        std::size_t available() const;
+        { const_buffer.available() } -> std::same_as< std::size_t >;
 
-        /**
-         * @brief remove the oldest bytes
-         *
-         * @pre size <= available()
+        /*
+         * Removes the oldest `size` bytes; `size` does not exceed available().
          */
-        void pop( std::uint8_t* out, std::size_t size );
+        buffer.pop( out, size );
     };
 
     /**
      * @brief what a platform has to provide
+     *
+     * A port is constructed on the rig's two buffers, `receive` and `transmit`, both of
+     * which outlive it. It pushes into the first and pops from the second.
      */
-    class serial_port
+    template < typename T, typename Buffer >
+    concept serial_port =
+           byte_ring_buffer< Buffer >
+        && std::constructible_from< T, Buffer&, Buffer& >
+        && requires ( T port )
     {
-    public:
-        /**
-         * @brief bind the port to the rig's buffers
-         *
-         * The port pushes into `receive` and pops from `transmit`. Both outlive the port.
+        /*
+         * Configures the port and begins. From here on everything that arrives is pushed
+         * into the receive buffer, with the host held off while free() is smaller than
+         * what would arrive, and whenever the port can send it pops from the transmit
+         * buffer until available() is zero.
          */
-        serial_port( byte_ring_buffer& receive, byte_ring_buffer& transmit );
+        port.start();
 
-        /**
-         * @brief configure the port and begin
-         *
-         * From here on everything that arrives is pushed into the receive buffer, with the
-         * host held off while free() is smaller than what would arrive, and whenever the
-         * port can send it pops from the transmit buffer until available() is zero.
+        /*
+         * The rig pushed into the transmit buffer while the port was idle; the port
+         * resumes popping. No effect if the port is transmitting already.
          */
-        void start();
-
-        /**
-         * @brief the rig pushed into the transmit buffer while the port was idle
-         *
-         * The port resumes popping. No effect if the port is transmitting already.
-         */
-        void transmit_pending();
+        port.transmit_pending();
     };
 }
 }

@@ -475,6 +475,39 @@ advertising while idle, which the rule above covers.
 is held. It would work, but it makes the caller responsible for a collision that only the radio
 can see, and it lets the lock's purpose blur from "the link layer's state" into "anything".
 
+## 18. The C++ interfaces are concepts; the wire contracts stay prose
+
+`scheduled_radio2.hpp` and `serial_port.hpp` state their requirements as C++20 concepts:
+`scheduled_radio_callbacks`, `lesc_pairing_toolbox`, `scheduled_radio_features`, `scheduled_radio`,
+`byte_ring_buffer` and `serial_port`. The instrument contracts in `instrument.hpp`, `dut_rig.hpp`
+and `tester.hpp` stay as they are.
+
+The distinction is whether anything is generic over the type. A radio has several implementations,
+the nRF52, the simulated radio, the next port, and two generic consumers, the link layer and the
+rig. A serial port has one implementation per platform and one consumer. For those a class
+declaration used as documentation is checked by nobody until a link layer is instantiated against
+a port and the compiler reports a missing member somewhere inside the link layer's code; a concept
+checks at the point of use and names the missing requirement. The conditional parts fit as well:
+the toolbox is required only where `hardware_supports_lesc_pairing` is true, which a concept
+states directly and a class declaration could only say in a comment. The instruments, by
+contrast, exist once each and are reached over a link; nothing is generic over them as C++ types,
+and their requirements, the token in every response, the sequence numbers, are wire behaviour that
+no concept can express.
+
+A concept checks syntax. Everything decision 10 and decision 17 ask for, the observable effect,
+the tolerance, the context, is semantics and stays as prose next to each requirement, which is
+what the rig checks. What changes is that the two headers now have to compile: a concept that
+does not is worthless. `tests/scheduled_radio/concept_tests.cpp` instantiates each concept
+against a model, the smallest type that satisfies it, and against a model with one requirement
+removed, so that a concept nobody can satisfy and a concept that checks nothing are both found at
+compile time. The test target sets C++20 itself, as decision 13 requires.
+
+One consequence for the shape of the interface. It was a class template
+`scheduled_radio2< CallBacks, Options... >` with the callbacks and the toolbox as base classes. A
+concept is over a type, so the interface becomes `scheduled_radio< Radio >`, and how an
+implementation receives its callbacks and its options is the implementation's business, not the
+interface's.
+
 ## Open questions
 
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so

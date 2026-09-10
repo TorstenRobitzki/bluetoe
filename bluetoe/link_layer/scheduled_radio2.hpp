@@ -1,585 +1,428 @@
 #ifndef BLUETOE_LINK_LAYER_SCHEDULED_RADIO2_HPP
 #define BLUETOE_LINK_LAYER_SCHEDULED_RADIO2_HPP
 
-#include <cstdint>
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/address.hpp>
-#include <bluetoe/ll_data_pdu_buffer.hpp>
 #include <bluetoe/connection_events.hpp>
 #include <bluetoe/security_connection_data.hpp>
 #include <bluetoe/phy_encodings.hpp>
 #include <bluetoe/abs_time.hpp>
 
-namespace bluetoe {
-namespace link_layer {
+#include <concepts>
+#include <cstdint>
+#include <type_traits>
+#include <utility>
 
 /**
- * @brief this class declaration shall define the requirements of the
- *        scheduled_radio2 callbacks
+ * @file scheduled_radio2.hpp
  *
- * Context: link layer, for every callback except link_layer_pdu_buffer(),
- * which is called from the radio context and has to return immediately.
- * The white list check that schedule_advertising_event() refers to is
- * the second radio context callback; it is not declared here yet. See
- * the section on contexts of scheduled_radio2.
- */
-struct example_callbacks
-{
-    /**
-     * @brief will be called by the radio, when it is ready to operate
-     *
-     * The implemented delay can be used to wait without polling for
-     * PLLs to ramp up, for collecting entrophy, etc.
-     *
-     * The scheduled_radio2 shall call this function exactly once.
-     * The link_layer shall not call any of the scheduling functions
-     * before the radio_ready() callback was called.
-     *
-     * Carries no time. Nothing has happened on the radio yet, and the
-     * link layer's first action is scheduled_radio2::start_advertising(),
-     * which needs none. An implementation is therefore not required to
-     * run a clock before the radio is used.
-     */
-    void radio_ready();
-
-    /**
-     * @brief will be called from the scheduled_radio2, if the
-     *        scheduled_radio2::schedule_advertisment() received a response.
-     *
-     * @param when the point in time, where the first bit of the advertisment
-     *             response was received.
-     * @param response filled buffer. This buffer was passed priviously to
-     *                 scheduled_radio2::schedule_advertisment().
-     *
-     * @sa scheduled_radio2::schedule_advertisment()
-     */
-    void adv_received( abs_time when, const read_buffer& response );
-
-    /**
-     * @brief call back that will be called when the central does not respond to an advertising PDU
-     *
-     * @sa scheduled_radio2::schedule_advertisment()
-     */
-    void adv_timeout( abs_time now );
-
-    /**
-     * @brief call back that will be called when connect event times out
-     * @sa scheduled_radio2::schedule_connection_event
-     */
-    void connection_timeout( abs_time now );
-
-    /**
-     * @brief call back that will be called after a connect event was closed.
-     * @sa scheduled_radio2::schedule_connection_event
-     */
-    void connection_end_event( abs_time when, connection_event_events evts );
-
-    /**
-     * @brief call back that will be called on an expired user timer.
-     *
-     * @param when point in time, the timer was scheduled.
-     */
-    void user_timer( abs_time when );
-
-    /**
-     * @brief type to retrieve outgoing PDUs from and to store incomming PDUs to.
-     */
-    struct link_layer_pdu_buffer_t {};
-
-    /**
-     * @brief function to provide access to a PDU buffer to the radio
-     *
-     * This function is used by the radio to get access to the PDU buffer of the current
-     * connection. This function must be called only when a connection event was scheduled
-     * and the implementation has to make sure, that the function returns the buffer for
-     * the current connection (if multiple connections are supported).
-     *
-     * Context: radio. Called between two PDUs of a connection event, with the inter frame
-     * space to spare, so it returns at once and touches nothing but the buffer. The buffer
-     * it returns is read and written from the radio context while the link layer fills
-     * and drains it from the link layer context, which the buffer has to be built for.
-     */
-    link_layer_pdu_buffer_t& link_layer_pdu_buffer();
-};
-
-/**
- * @brief Set up functions required by the Security Manager to implement
- *        pairing.
+ * Requirements of a scheduled radio, the abstraction of a radio hardware combined with a
+ * timer that a peripheral link layer is built on, stated as C++20 concepts. A link layer
+ * is a template over a type satisfying scheduled_radio; an implementation is checked
+ * against the concept at the point of use.
  *
- * Context: any, and reentrant. These are pure computations on their arguments,
- * and long ones: a point multiplication takes hundreds of milliseconds on a
- * small core. Where the security manager runs them is its decision.
- */
-class pairing_security_toolbox
-{
-   /**@{
-    * @name LE Secure Connections Pairing
-    *
-    * This set of function needs to be supported, if scheduled_radio2::hardware_supports_lesc_pairing
-    * is true. Otherwise, the function should not even be declared, nor defined.
-    */
-// TODO CHeck
-    /**
-     * @brief generate public private key pair for DH
-     */
-    std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys();
-
-    /**
-     * @brief random nonce required for LESC pairing
-     */
-    bluetoe::details::uint128_t select_random_nonce();
-
-    /**
-     * @brief p256() security toolbox function, as specified in the core spec
-     */
-    bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t* private_key, const std::uint8_t* public_key );
-
-    /**
-     * @brief f4() security toolbox function, as specified in the core spec
-     */
-    bluetoe::details::uint128_t f4( const std::uint8_t* u, const std::uint8_t* v, const std::array< std::uint8_t, 16 >& k, std::uint8_t z );
-
-    /**
-     * @brief f5() security toolbox function, as specified in the core spec
-     */
-    std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
-        const bluetoe::details::ecdh_shared_secret_t dh_key,
-        const bluetoe::details::uint128_t& nonce_central,
-        const bluetoe::details::uint128_t& nonce_periperal,
-        const bluetoe::link_layer::device_address& addr_controller,
-        const bluetoe::link_layer::device_address& addr_peripheral );
-
-    /**
-     * @brief f6() security toolbox function, as specified in the core spec
-     */
-    bluetoe::details::uint128_t f6(
-        const bluetoe::details::uint128_t& key,
-        const bluetoe::details::uint128_t& n1,
-        const bluetoe::details::uint128_t& n2,
-        const bluetoe::details::uint128_t& r,
-        const bluetoe::details::io_capabilities_t& io_caps,
-        const bluetoe::link_layer::device_address& addr_controller,
-        const bluetoe::link_layer::device_address& addr_peripheral );
-
-    /**
-     * @brief g2() security toolbox function, as specified in the core spec
-     */
-    std::uint32_t g2(
-        const std::uint8_t*                 u,
-        const std::uint8_t*                 v,
-        const bluetoe::details::uint128_t&  x,
-        const bluetoe::details::uint128_t&  y );
-
-   /**@}*/
-
-   /**@{
-    * @name Legacy Pairing
-    *
-    * This set of function needs to be supported, if scheduled_radio2::hardware_supports_legacy_pairing
-    * is true. Otherwise, the function should not even be declared, nor defined.
-    */
-   /**@}*/
-    // TODO
-};
-
-/**
- * @brief abstraction of a radio hardware combined with a timer
- *
- * This is the documentation of requirements to a peripheral abstraction
- * that can be used by a peripheral based link layer implementation.
+ * A concept checks syntax: that the functions exist with these signatures and these
+ * results. Everything else this interface promises, what appears on air, at what time,
+ * within what tolerance, and from which context, is stated in the comments next to each
+ * requirement, and is what the test rig in tests/scheduled_radio/ checks. See
+ * documentation/scheduled_radio_test_rig.md for the reasoning behind the decisions.
  *
  * @section time Time
  *
- * The interface has no function that returns the current time. Every abs_time
- * an implementation hands out is the time of something that happened on the
- * radio, given to the callback that reports it, and every time a caller passes
- * in is derived from one of those. A radio that is idle may have only its low
- * frequency clock running, so a time it produced on demand would either be
- * coarse or force the high frequency clock on; inside such a callback the radio
- * has just produced a timestamp and is known to have a clock.
+ * The interface has no function that returns the current time. Every abs_time an
+ * implementation hands out is the time of something that happened on the radio, given
+ * to the callback that reports it, and every time a caller passes in is derived from one
+ * of those. A radio that is idle may have only its low frequency clock running, so a
+ * time it produced on demand would either be coarse or force the high frequency clock
+ * on; inside such a callback the radio has just produced a timestamp and is known to
+ * have a clock.
  *
- * The consequence for a caller is that a sequence of radio actions starts with
- * an action that names no time, start_advertising(), and continues with actions
- * whose times are relative to the callbacks the earlier ones produced. See
- * documentation/scheduled_radio_test_rig.md, decision 15.
+ * The consequence for a caller is that a sequence of radio actions starts with an action
+ * that names no time, start_advertising(), and continues with actions whose times are
+ * relative to the callbacks the earlier ones produced. Decision 15.
  *
  * @section contexts Contexts
  *
  * Three contexts exist, named by who lives in them. The radio context is the
- * implementation's own interrupt context. The link layer context is where the
- * callbacks are delivered and where the scheduling functions are called from.
- * The application context is where run() executes and where the GATT layer
- * delivers its callbacks. Every function and callback of this interface states
- * which of them it belongs to: application, link layer, radio, or any.
+ * implementation's own interrupt context. The link layer context is where the callbacks
+ * are delivered and where the scheduling functions are called from. The application
+ * context is where run() executes and where the GATT layer delivers its callbacks. Every
+ * function and callback states which of them it belongs to: application, link layer,
+ * radio, or any.
  *
- * A radio that does not support hardware_supports_link_layer_context delivers
- * the callbacks from inside run(), so the link layer context and the application
- * context are the same. A radio that does provides the link layer context itself,
- * as an interrupt below the radio's priority, and the callbacks arrive from there
- * while run() only sleeps. The contract is the same in both cases; what changes
- * is whether two of the three names denote one context.
+ * A radio without hardware_supports_link_layer_context delivers the callbacks from inside
+ * run(), so the link layer context and the application context are the same. A radio
+ * with it provides the link layer context itself, as an interrupt below the radio's
+ * priority, and the callbacks arrive from there while run() only sleeps. The contract is
+ * the same in both cases; what changes is whether two of the three names denote one
+ * context.
  *
- * The link layer's own state shared between its two contexts, data on its way
- * from the application to the PDU buffer and received data on its way up, is
- * protected with lock_guard. The radio's state is never the caller's concern:
- * every scheduling function is called from one context only, except
- * start_advertising(), which the radio makes safe itself.
- *
- * See documentation/scheduled_radio_test_rig.md, decision 17.
+ * The link layer's own state shared between its two contexts, data on its way from the
+ * application to the PDU buffer and received data on its way up, is protected with
+ * lock_guard. The radio's state is never the caller's concern: every scheduling function
+ * is called from one context only, except start_advertising(), which the radio makes safe
+ * itself. Decision 17.
  */
-template < typename CallBacks, typename... Options >
-class scheduled_radio2 : public CallBacks, public pairing_security_toolbox
-{
-public:
-    /**@{
-     * @name Features
-     *
-     * Constants that describe the existance of supported features.
-     */
+
+namespace bluetoe {
+namespace link_layer {
 
     /**
-     * @brief indication of support for link encryption
+     * @brief the callbacks a scheduled radio delivers to its link layer
      *
-     * If that constant is true, the radio support the encryption of a
-     * link. If the radio supports pairing, it should also support
-     * encryption.
+     * Context: link layer, for every callback except link_layer_pdu_buffer(), which is
+     * called from the radio context and has to return immediately. The white list check
+     * that schedule_advertising_event() refers to is the second radio context callback;
+     * it is not required here yet.
      */
-    static constexpr bool hardware_supports_encryption = true;
+    template < typename T >
+    concept scheduled_radio_callbacks = requires (
+        T                               callbacks,
+        abs_time                        when,
+        const read_buffer&              received,
+        connection_event_events         events )
+    {
+        /*
+         * Called exactly once, when the radio is ready to operate; the delay before it
+         * lets the implementation wait for PLLs to settle or entropy to be collected
+         * without polling. No scheduling function is called before it.
+         *
+         * Carries no time. Nothing has happened on the radio yet, and the link layer's
+         * first action is start_advertising(), which needs none, so an implementation
+         * is not required to run a clock before the radio is used.
+         */
+        callbacks.radio_ready();
 
-    /**
-     * @brief indicates the support for LESC pairing
-     *
-     * If that constant is true, the radio supports LE secure pairing
-     * and thus have to implement the corresponding functions described
-     * in pairing_security_toolbox.
-     */
-    static constexpr bool hardware_supports_lesc_pairing = true;
+        /*
+         * An advertising event received a response. `when` is the time the first bit of
+         * the response was on air; `received` is the buffer passed to the scheduling
+         * function, filled.
+         */
+        callbacks.adv_received( when, received );
 
-    /**
-     * @brief indicates the support for legacy pairing
-     */
-    static constexpr bool hardware_supports_legacy_pairing = true;
+        /*
+         * An advertising event received no response within its window.
+         */
+        callbacks.adv_timeout( when );
 
-    /**
-     * @brief indication support for pairing
-     */
-    static constexpr bool hardware_supports_pairing = hardware_supports_lesc_pairing || hardware_supports_legacy_pairing;
+        /*
+         * A connection event received nothing between its start and end times.
+         */
+        callbacks.connection_timeout( when );
 
-    /**
-     * @brief indicates support for 2Mbit
-     *
-     * If that constant is true, the radio support the 2Mbit PHY.
-     */
-    static constexpr bool hardware_supports_2mbit = true;
+        /*
+         * A connection event took place. `when` is the time the event started, that is
+         * the anchor the next event is computed from.
+         */
+        callbacks.connection_end_event( when, events );
 
-    /**
-     * @brief indicates support for schedule_synchronized_user_timer()
-     *
-     * @sa scheduled_radio2::
-     */
-    static constexpr bool hardware_supports_synchronized_user_timer = true;
+        /*
+         * The timer scheduled with schedule_timer() expired. `when` is the time it was
+         * scheduled for, which may differ from the time it is delivered at.
+         */
+        callbacks.user_timer( when );
 
-    /**
-     * @brief indicates that the radio can provide a link layer context of its own
-     *
-     * If true, the link layer may ask for the callbacks to be delivered from a
-     * context the radio provides, below the radio's priority and above the
-     * application's, instead of from run(). Asking for it is a compile time
-     * option of the link layer; asking a radio that does not support it is
-     * rejected by a static_assert.
-     */
-    static constexpr bool hardware_supports_link_layer_context = true;
-
-    /**@}*/
-
-    /**@{
-     * @name Execution Context Functions
-     *
-     * What the application context needs from the radio: a place to sleep, a way
-     * to be woken, and a lock against the link layer context.
-     */
-
-    /**
-     * @brief sleep until there is something for the application context to do
-     *
-     * A call to wake_up() since the last return guarantees that run() returns. The
-     * reverse does not hold: run() may return for reasons of its own that are not
-     * specified, so a caller does not conclude from a return that wake_up() was
-     * called, and keeps its state where the return finds it. In a radio without a
-     * link layer context of its own, run() is also where the callbacks are delivered,
-     * before it returns or sleeps again. Each layer above forwards to the one below
-     * and does its own application context work when the call comes back, so that
-     * an application loops over the topmost run() regardless of how many contexts
-     * the radio has.
-     *
-     * Context: application.
-     */
-    void run();
-
-    /**
-     * @brief make run() return
-     *
-     * The link layer context calls it after receiving something the application has
-     * to process; an interrupt of the application calls it to get the main loop going.
-     * It is the guaranteed way to make run() return, not the only one.
-     *
-     * Context: any, including interrupts.
-     */
-    void wake_up();
-
-    /**
-     * @brief excludes the link layer context while an instance is alive
-     *
-     * For the link layer's own state shared between its two contexts. Held briefly,
-     * from the application context. In a radio without a link layer context of its
-     * own this does nothing.
-     *
-     * Context: application.
-     */
-    class lock_guard;
-
-    /**@}*/
-
-    /**@{
-     * @name Attributes
-     *
-     * Basic attributes of a radio implementation that might differ between implementations.
-     */
-
-    /**
-     * @brief a number of bytes that are additional required by the hardware to handle an over the air package/PDU.
-     *
-     * This number includes every byte that have to stored in a package to meet the requirments of the hardware,
-     * that is not part of the received / transmitted PDU (CRC, preamble etc.).
-     */
-    static constexpr std::size_t radio_package_overhead = 0;
-
-
-    /**
-     * @brief maximum length of a radio package payload supported by the radio
-     */
-    static constexpr std::uint32_t radio_max_supported_payload_length = 255u;
-
-    /**
-     * @brief minimum accuracy of the sleep clock
-     */
-    static constexpr std::uint32_t sleep_time_accuracy_ppm = 20u;
-
-    /**@}*/
-
-    /**@{
-     * @name Radio Setup Functions
-     *
-     * Functions that configure the radio for the next operation. The API is designed,
-     * so that for single connection link layers this functions can be called when the
-     * parameters in question are changed. For a link layer that supports multiple
-     * connections, the link layer probably have to call this setup functions every
-     * time it is going to schedule an action.
-     *
-     * Context: link layer.
-     */
-
-    /**
-     * @brief set the access address initial CRC value for transmitted and received PDU
-     *
-     * The values should be changed, when there is no outstanding scheduled transmission or receiving.
-     * The values will be applied with the next call to schedule_advertisment() or schedule_connection_event().
-     */
-    void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
-
-    /**
-     * @brief Counter used for CCM
-     *
-     * Type to store the CCM receive and transmit counters. Only public requirement is a
-     * default c'tor, copy and assignment.
-     */
-    struct ccm_counter_t {
-        // set to zero
-        ccm_counter_t();
+        /*
+         * The PDU buffer of the current connection, from which the radio takes outgoing
+         * PDUs and into which it stores received ones during a connection event.
+         *
+         * Context: radio. Called between two PDUs of a connection event, with the inter
+         * frame space to spare, so it returns at once and touches nothing but the buffer.
+         * The buffer is read and written from the radio context while the link layer
+         * fills and drains it from the link layer context, which it has to be built for.
+         */
+        requires std::is_lvalue_reference_v< decltype( callbacks.link_layer_pdu_buffer() ) >;
     };
 
     /**
-     * @brief set the packet counters for receiving and transmitting
+     * @brief the functions the security manager needs for LE Secure Connections pairing
      *
-     * This counters are required as part of the CCM nonce and will be changed, if data
-     * was exchanged in a subsequent connection event.
+     * Required of a scheduled_radio whose hardware_supports_lesc_pairing is true. Every
+     * function is the one of the Core Specification of the same name.
+     *
+     * Context: any, and reentrant. These are pure computations on their arguments, and
+     * long ones: a point multiplication takes hundreds of milliseconds on a small core.
+     * Where the security manager runs them is its decision.
+     *
+     * The pointer arguments denote values whose size the specification fixes: u and v are
+     * the 32 byte x coordinates of the two public keys, a private key is 32 bytes and a
+     * public key 64. They stay pointers because a coordinate is a part of a larger key,
+     * and an array parameter would force a copy on every call.
      */
-    void set_ccm_counter( ccm_counter_t& receive_counter, ccm_counter_t& transmit_counter );
+    template < typename T >
+    concept lesc_pairing_toolbox = requires (
+        T                                           toolbox,
+        const std::uint8_t*                         bytes,
+        const bluetoe::details::uint128_t&                   value,
+        std::uint8_t                                z,
+        const bluetoe::details::ecdh_shared_secret_t&        dh_key,
+        const bluetoe::details::io_capabilities_t&           io_caps,
+        const device_address&                       address )
+    {
+        { toolbox.generate_keys() }
+            -> std::same_as< std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > >;
+
+        { toolbox.select_random_nonce() }
+            -> std::same_as< bluetoe::details::uint128_t >;
+
+        { toolbox.p256( bytes, bytes ) }
+            -> std::same_as< bluetoe::details::ecdh_shared_secret_t >;
+
+        { toolbox.f4( bytes, bytes, value, z ) }
+            -> std::same_as< bluetoe::details::uint128_t >;
+
+        { toolbox.f5( dh_key, value, value, address, address ) }
+            -> std::same_as< std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > >;
+
+        { toolbox.f6( value, value, value, value, io_caps, address, address ) }
+            -> std::same_as< bluetoe::details::uint128_t >;
+
+        { toolbox.g2( bytes, bytes, value, value ) }
+            -> std::same_as< std::uint32_t >;
+    };
 
     /**
-     * @brief set the phy to use for the next connection event
+     * @brief the constants that describe what a scheduled radio supports
+     *
+     * Context: any.
      */
-    void set_phy(
-        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding,
-        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmiting_c_encoding );
+    template < typename T >
+    concept scheduled_radio_features = requires
+    {
+        /*
+         * Support for link encryption. A radio that supports pairing should also
+         * support encryption.
+         */
+        { T::hardware_supports_encryption } -> std::convertible_to< bool >;
+
+        /*
+         * Support for LE Secure Connections pairing. If true, the radio satisfies
+         * lesc_pairing_toolbox.
+         */
+        { T::hardware_supports_lesc_pairing } -> std::convertible_to< bool >;
+
+        /*
+         * Support for legacy pairing. The functions this requires are not stated yet.
+         */
+        { T::hardware_supports_legacy_pairing } -> std::convertible_to< bool >;
+
+        /*
+         * Support for the 2 Mbit PHY.
+         */
+        { T::hardware_supports_2mbit } -> std::convertible_to< bool >;
+
+        /*
+         * Support for the user timer being synchronised with connection events.
+         */
+        { T::hardware_supports_synchronized_user_timer } -> std::convertible_to< bool >;
+
+        /*
+         * The radio can provide a link layer context of its own. If true, the link layer
+         * may ask for the callbacks to be delivered from a context the radio provides,
+         * below the radio's priority and above the application's, instead of from run().
+         * Asking for it is a compile time option of the link layer; asking a radio that
+         * does not support it is rejected by a static_assert.
+         */
+        { T::hardware_supports_link_layer_context } -> std::convertible_to< bool >;
+
+        /*
+         * Bytes the hardware needs in a package in addition to the PDU: preamble, CRC
+         * and whatever else it stores alongside.
+         */
+        { T::radio_package_overhead } -> std::convertible_to< std::size_t >;
+
+        /*
+         * Largest payload the radio can transmit or receive in one package.
+         */
+        { T::radio_max_supported_payload_length } -> std::convertible_to< std::uint32_t >;
+
+        /*
+         * Accuracy of the sleep clock, in parts per million. A test derives the drift it
+         * tolerates over an interval from this.
+         */
+        { T::sleep_time_accuracy_ppm } -> std::convertible_to< std::uint32_t >;
+    };
 
     /**
-     * @brief set the local address for advertising
+     * @brief a radio hardware combined with a timer, as a peripheral link layer needs it
+     *
+     * Every function is annotated with the context it is called from; see the file
+     * comment. Every scheduling function is associated with one or more callbacks: once
+     * it was called, an action is pending on the radio until one of them is delivered,
+     * and as long as an action is pending no other scheduling function is called.
      */
-    void set_local_address( const bluetoe::link_layer::device_address& );
+    template < typename T >
+    concept scheduled_radio =
+           scheduled_radio_features< T >
+        && ( !T::hardware_supports_lesc_pairing || lesc_pairing_toolbox< T > )
+        && requires (
+            T                                       radio,
+            std::uint32_t                           value,
+            abs_time                                when,
+            const write_buffer&                     transmit,
+            const read_buffer&                      receive,
+            phy_ll_encoding::phy_ll_encoding_t      phy,
+            const device_address&                   address,
+            typename T::ccm_counter_t&              counter )
+    {
+        /*
+         * Execution context.
+         *
+         * run() sleeps until there is something for the application context to do, then
+         * returns. A call to wake_up() since the last return guarantees that it returns;
+         * the reverse does not hold, run() may return for reasons of its own that are not
+         * specified, so a caller does not conclude from a return that wake_up() was
+         * called. In a radio without a link layer context of its own, run() is also where
+         * the callbacks are delivered, before it returns or sleeps again. Each layer above
+         * forwards to the one below and does its own application context work when the
+         * call comes back, so that an application loops over the topmost run() regardless
+         * of how many contexts the radio has.
+         *
+         * Context: application.
+         */
+        radio.run();
 
-    /**@}*/
+        /*
+         * Makes run() return. The link layer context calls it after receiving something
+         * the application has to process; an interrupt of the application calls it to get
+         * the main loop going. It is the guaranteed way to make run() return, not the
+         * only one.
+         *
+         * Context: any, including interrupts.
+         */
+        radio.wake_up();
 
-    /**@{
-     * @name Scheduling Radio Functions
-     *
-     * Functions that schedule a radio action on the scheduled_radio2.
-     * Every of this function is associated with one or more callback functions.
-     * If one of this functions is called, there is an action pending on the radio,
-     * until one of the corresponding callbacks is called.
-     *
-     * As long as there is a pending radio action on the radio, no other scheduling
-     * function shall be called.
-     *
-     * Context: link layer, except start_advertising().
-     */
+        /*
+         * Excludes the link layer context while an instance is alive. For the link
+         * layer's own state shared between its two contexts; held briefly, from the
+         * application context. In a radio without a link layer context of its own this
+         * does nothing.
+         *
+         * Context: application.
+         */
+        typename T::lock_guard;
+        requires std::default_initializable< typename T::lock_guard >;
 
-    /**
-     * @brief begin a sequence of advertising events with one as soon as possible
-     *
-     * Schedules exactly one advertising event, like schedule_advertising_event(), with
-     * the transmission placed at the earliest time the implementation can manage. It
-     * does not keep advertising: the caller continues the sequence by scheduling the
-     * next event from the callback that ends this one, which carries the time to
-     * compute it from.
-     *
-     * This is how a sequence starts when the caller holds no usable time: the first
-     * event after radio_ready(), and every return to advertising after a connection
-     * ended or after advertising was switched on while the radio was idle.
-     *
-     * Context: application or link layer. Switching advertising on happens in the
-     * application context while the radio is idle, and it is the radio's job to make
-     * that safe against a callback in flight, not the caller's.
-     *
-     * @return True, if the event was scheduled. False only if another action is pending.
-     */
-    bool start_advertising(
-        std::uint32_t                               channel,
-        const bluetoe::link_layer::write_buffer&    advertising_data,
-        const bluetoe::link_layer::write_buffer&    response_data,
-        const bluetoe::link_layer::read_buffer&     receive );
+        /*
+         * Setup. These configure the radio for the next action and are applied by the
+         * next scheduling call; a single connection link layer calls them when a value
+         * changes, a link layer with several connections before every action.
+         *
+         * Context: link layer.
+         */
 
-    /**
-     * @brief schedule an advertising event
-     *
-     * The function will return immediately. Depending on whether a response is received
-     * or the receiving times out, CallBack::adv_received() or CallBack::adv_timeout()
-     * is called.
-     *
-     * White list filtering is applied by calling CallBack::is_scan_request_in_filter().
-     *
-     * This function is intended to be used for sending advertising PDUs.
-     *
-     * @param channel Channel to transmit and to receive on.
-     * @param when Point in time, when the first bit of data should be started to be transmitted.
-     * @param advertising_data The advertising data to be send out.
-     * @param response_data The response data used to reply to a scan request, in case the request was in the white list.
-     * @param receive Buffer where the radio will copy the received data, before calling Callback::adv_receive().
-     *        This buffer have to have at least room for two bytes.
-     *
-     * @return True, if it was possible to schedule the advertisment. If the function returns false, it
-     *         was already to late to schedule the event.
-     */
-    bool schedule_advertising_event(
-        std::uint32_t                               channel,
-        abs_time                                    when,
-        const bluetoe::link_layer::write_buffer&    advertising_data,
-        const bluetoe::link_layer::write_buffer&    response_data,
-        const bluetoe::link_layer::read_buffer&     receive );
+        /*
+         * The access address and CRC initial value for transmitted and received PDUs.
+         * Changed only while no action is pending.
+         */
+        radio.set_access_address_and_crc_init( value, value );
 
-    /**
-     * @brief schedule a connection event
-     *
-     * The function will return immediately. The function handles a connection event by receiving
-     * PDUs and responding with pending PDUs. The function will retriev the outgoing PDUs by a call
-     * to CallBacks::link_layer_pdu_buffer() and will post received PDUs by a call to the very same
-     * function.
-     *
-     * If the connection event toke place, CallBacks::connection_end_event() is called with the time,
-     * the connection event started and some details about the connection event. If the connection event
-     * timed out, CallBacks::connection_timeout() will be called with `end`. If the connection event
-     * was canceled by cancel_radio_event(), no callback is called.
-     *
-     * @pre CallBacks::link_layer_pdu_buffer() has to return a valid buffer for the handled connection.
-     * @pre set_access_address_and_crc_init() has to be called with the value associated with the current connection.
-     * @pre set_ccm_counter() has to be called if connection is in a encrypted connection to set the counters for
-     *                        transmission and reception
-     * @pre set_phy() has to be called if connections with different phys are supported
-     *
-     * @param channel Channel to transmit and to receive on.
-     * @param start   Point in time, when the radio start waiting for incomming PDUs.
-     * @param end     Point in time, where the radio is turned of and the event considered to be timed out, if no PDU is
-     *                received.
-     * @return True, if it was possible to schedule the connection event. If the function returns false, it
-     *         was already to late to schedule the event.
-     *
-     * @sa CallBacks::connection_end_event()
-     * @sa CallBacks::connection_timeout()
-     * @sa cancel_radio_event()
-     */
-    bool schedule_connection_event(
-        std::uint32_t       channel,
-        abs_time            start,
-        abs_time            end );
+        /*
+         * The CCM counters for receiving and transmitting, part of the nonce, changed
+         * by the radio when data was exchanged. The type is the implementation's; its
+         * only public requirements are default construction, copy and assignment, and
+         * a default constructed counter is zero.
+         */
+        typename T::ccm_counter_t;
+        requires std::default_initializable< typename T::ccm_counter_t >;
+        requires std::copyable< typename T::ccm_counter_t >;
+        radio.set_ccm_counter( counter, counter );
 
-    /**
-     * @brief cancel a pending connection event
-     *
-     * The answer is definitive at the time of the call. If the function returns true, the
-     * event is canceled and none of its callbacks will be called. If it returns false, no
-     * event was pending or it was already too late to cancel it, and the event proceeds
-     * as if this function had not been called.
-     *
-     * An implementation has to decide this atomically against the start of the event, so
-     * that a caller can never see true and a callback for the same event.
-     *
-     * @sa schedule_connection_event()
-     */
-    bool cancel_radio_event();
+        /*
+         * The PHY for the next connection event, receiving and transmitting.
+         */
+        radio.set_phy( phy, phy );
 
-    /**@}*/
+        /*
+         * The local address used for advertising.
+         */
+        radio.set_local_address( address );
 
-    /**@{
-     * @name Timer Functions
-     *
-     * At any time, there is at maximum one timer scheduled.
-     *
-     * Context: link layer.
-     */
+        /*
+         * Scheduling.
+         *
+         * Context: link layer, except start_advertising().
+         */
 
-    /**
-     * @brief Schedule the timer
-     *
-     * If the given point in time (when) is reached, the callback function
-     * user_timer() will be called with the scheduled time (which could be
-     * different from the actual time). If `when` is already in the past, when
-     * the function is called, the function will return false and no timer is
-     * scheduled. If the function returns true, the timer is scheduled and the
-     * callback will be called (unless the timer is canceled later).
-     *
-     * Once the callback fuis called, there is no timer scheduled anymore.
-     */
-    bool schedule_timer( abs_time when );
+        /*
+         * Begins a sequence of advertising events with one as soon as possible.
+         * Schedules exactly one advertising event, like schedule_advertising_event(),
+         * with the transmission placed at the earliest time the implementation can
+         * manage. It does not keep advertising: the caller continues the sequence by
+         * scheduling the next event from the callback that ends this one, which carries
+         * the time to compute it from.
+         *
+         * This is how a sequence starts when the caller holds no usable time: the first
+         * event after radio_ready(), and every return to advertising after a connection
+         * ended or after advertising was switched on while the radio was idle.
+         *
+         * Context: application or link layer. Switching advertising on happens in the
+         * application context while the radio is idle, and it is the radio's job to make
+         * that safe against a callback in flight, not the caller's.
+         *
+         * Returns true if the event was scheduled, false only if another action is
+         * pending.
+         */
+        { radio.start_advertising( value, transmit, transmit, receive ) } -> std::same_as< bool >;
 
-    /**
-     * @brief Cancel the timer
-     *
-     * If the timer is currently scheduled, the function returns true and
-     * user_timer() will not be called for it. If the timer wasn't scheduled,
-     * or has already expired, the function returns false. As with
-     * cancel_radio_event(), the answer is definitive.
-     *
-     * @post the timer is not scheduled
-     */
-    bool cancel_timer();
+        /*
+         * Schedules one advertising event: transmit `transmit` on `channel` so that its
+         * first bit is on air at `when`, then listen for a response. A response within
+         * the window is delivered with adv_received() in `receive`, which has room for at
+         * least two bytes; none is delivered with adv_timeout(). A scan request that
+         * passes the white list is answered with the second buffer.
+         *
+         * Returns true if the event was scheduled, false if `when` was already too close
+         * or gone by.
+         */
+        { radio.schedule_advertising_event( value, when, transmit, transmit, receive ) } -> std::same_as< bool >;
 
-    /**@}*/
+        /*
+         * Schedules one connection event: listen on `channel` from `start`, receive PDUs
+         * and answer them with pending ones from the buffer that link_layer_pdu_buffer()
+         * returns, until the event closes or `end` is reached without any reception. The
+         * event is reported with connection_end_event() carrying its start time, or with
+         * connection_timeout() carrying `end`. If it was cancelled, nothing is reported.
+         *
+         * The access address, the CCM counters if the connection is encrypted, and the
+         * PHY have been set for this connection, and link_layer_pdu_buffer() returns its
+         * buffer.
+         *
+         * Returns true if the event was scheduled, false if `start` was already too
+         * close or gone by.
+         */
+        { radio.schedule_connection_event( value, when, when ) } -> std::same_as< bool >;
 
-};
+        /*
+         * Cancels the pending connection event. The answer is definitive at the time of
+         * the call: true, and none of the event's callbacks will be called; false, no
+         * event was pending or it was too late, and the event proceeds as if this had
+         * not been called. An implementation decides this atomically against the start
+         * of the event, so that a caller never sees true and a callback for the same
+         * event.
+         */
+        { radio.cancel_radio_event() } -> std::same_as< bool >;
 
+        /*
+         * Timer. At most one is scheduled at any time.
+         *
+         * Context: link layer.
+         */
 
+        /*
+         * Schedules user_timer() for `when`, carrying `when`. Returns false, and
+         * schedules nothing, if `when` is already gone by. Once delivered, no timer is
+         * scheduled.
+         */
+        { radio.schedule_timer( when ) } -> std::same_as< bool >;
+
+        /*
+         * Cancels the timer. True, and user_timer() will not be called for it; false if
+         * none was scheduled or it already expired. Definitive, like cancel_radio_event().
+         */
+        { radio.cancel_timer() } -> std::same_as< bool >;
+    };
 }
 }
 
 #endif
-
