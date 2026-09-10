@@ -324,6 +324,50 @@ clock stays private to it.
 The instruments follow the same rule: neither the rig nor the tester offers a time function to the
 host, because under decision 14 the host has no use for one.
 
+## 16. An instrument is three parts, and the platform dependent one is a byte port
+
+An instrument consists of the scheduled radio implementation, which is the subject; the rig,
+which is the same on every platform; and a serial port, which is written once per platform. The
+rig is everything that is not the radio and not the port: framing, the request and response
+protocol, the program interpreter, the records, the boot counter logic.
+
+The port's contract is event driven and stated in `tests/scheduled_radio/serial_port.hpp`. The
+port is constructed on two ring buffers the rig owns, pushes what it receives into one and pops
+what it transmits from the other, both from a context below the radio's priority. It owns no
+buffer and makes no decision, so on most parts it is a UART setup and an interrupt handler with
+two branches.
+
+The link does not lose data, because nothing forces it to. Each ring buffer answers how much it
+can take and how much it holds, as lower bounds that stay true without further synchronisation
+between the two contexts, and the port uses the first answer to hold the host off: USB CDC by not
+acknowledging, a UART with flow control by deasserting RTS. A port with no means of back pressure
+is covered by the protocol itself, since a request never exceeds the receive buffer and the host
+never sends the next before it has the answer. Designing for loss would have added a counter, a
+checksum failure and a host side interpretation of both, to handle a case that does not have to
+exist.
+
+What is genuinely platform dependent turns out to be small: the UART, the two moments "a byte
+arrived" and "a byte can be sent", their interrupt priority, a word of RAM that survives a
+hardware reset for the boot counter, and whatever makes the reset input work. Everything else
+exists once.
+
+The split buys more than tidiness. The rig compiles on the host against a fake port and the
+simulated radio, so the program interpreter, the framing, the sequence numbers and the loss
+detection can be unit tested with the tooling already in `tests/` before anything is flashed. A
+bug in the rig presents as a bug in the radio, which makes the rig the part that most needs to be
+testable on its own. The tester shares the rig's link code, so this also answers part of the open
+question on validating the tester.
+
+Two things the split settles as requirements of the rig rather than of a port: framing is length
+prefixed with a checksum, decided once; and the rig's main loop is "if a complete request is
+buffered, answer it; then call `run()`", where answering never waits for the port. A response that
+does not fit into the transmit buffer waits for the next iteration.
+
+**Rejected:** a polled `read()`/`write()` pair. It looks simpler still, but it makes every port
+responsible for buffering whatever arrives between two polls, so the buffer is written once per
+platform, and whether bytes are lost depends on how long `run()` takes on that platform, which
+is exactly the variability the rig should not have.
+
 ## Open questions
 
 - Whether the interface needs an equivalent of `run()`, and from which context callbacks are
