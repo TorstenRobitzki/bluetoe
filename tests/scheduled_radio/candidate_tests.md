@@ -76,6 +76,38 @@ cancel it in the same step. Expect the recorded result of the cancel to be `true
 `connection_end_event` or `connection_timeout` afterwards, and nothing observed by the tester.
 The cancel's answer is definitive, so the absence of the callbacks is part of what is asserted.
 
+## The pairing toolbox
+
+The functions of `pairing_security_toolbox` have no effect on air and no time in them. They are
+called through the rig with their arguments, their results come back in the response, and the host
+asserts. No tester, no program, no reset. Written out in toolbox_tests.cpp.
+
+**The specification's vectors.** `f4`, `f5`, `f6`, `g2` and `p256` each have a worked example in
+the Core Specification, and `tests/security_manager/test_sm_tests.cpp` already runs them against
+the software toolbox. The same inputs go to the DUT, and the same expected outputs are checked.
+For `p256` the example gives both key pairs and the shared secret, so it is checked from both
+sides.
+
+**Key agreement with an independent implementation.** `generate_keys()` has no expected value,
+and a vector can only show that `p256` multiplies correctly with a key it was handed. The
+property that matters is that a key pair the DUT generated works: the host generates a pair with
+its software toolbox, the DUT generates one, each side computes `p256` from its own private key
+and the other's public key, and the two secrets have to be equal. The host also checks that the
+DUT's public key lies on the curve, which a hardware port that returns the coordinates in the
+wrong byte order fails immediately.
+
+**The nonce.** `select_random_nonce()` is checked for the two things a handful of samples can
+show: not zero, and not the same twice. Anything statistical on that few samples proves nothing
+and is not attempted.
+
+**Duration is reported, not asserted.** The DUT has no clock and the host's round trip includes
+polling, so how long `p256` takes is printed for information, which is enough to notice a port
+that takes seconds where another takes tens of milliseconds.
+
+**Only if supported.** Every one of these is decorated with a `precondition` on
+`hardware_supports_lesc_pairing`; the legacy functions, once the interface declares them, on
+`hardware_supports_legacy_pairing`.
+
 ## Housekeeping
 
 **`radio_ready` is reported once.** After a reset, exactly one; on any later collection, none.

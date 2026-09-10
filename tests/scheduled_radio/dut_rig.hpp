@@ -41,6 +41,11 @@
  *
  * - Parameters are those of the interface, with abs_time replaced by a delta_time that is
  *   added to the time of the triggering callback.
+ * - Where the interface takes a pointer to the first byte of a value, the size of that value
+ *   is fixed by the specification and the rig knows it: the u and v of f4() and g2() are the
+ *   32 byte coordinates of a public key, the keys of p256() are 32 and 64 bytes. The interface
+ *   keeps the pointers, since a coordinate is a part of a larger key and an array parameter
+ *   would force a copy on every call.
  * - Where the interface takes a buffer of data to transmit, the host supplies the bytes
  *   and the rig owns the memory they are copied into.
  * - Where the interface takes a buffer to receive into, the rig provides it. Its contents

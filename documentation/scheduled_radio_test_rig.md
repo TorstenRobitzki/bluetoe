@@ -177,18 +177,30 @@ definitions follow from the specification instead of being invented separately a
 ## 11. Order of work
 
 1. The interface specification, including decision 10.
-2. A narrow but real implementation on the nRF52: `radio_ready()`, `start_advertising()`, an
-   advertising event scheduled relative to the callback that ends it, and the callbacks these
-   events produce.
-3. The rig and the tests, broadened together with the implementation.
-4. The link layer.
-5. The additional CPU context for link layer processing.
+2. The rig and the serial port on the nRF52, with the tests of the pairing toolbox. These need no
+   tester and nothing on air.
+3. A narrow but real radio on the nRF52: `radio_ready()`, `start_advertising()`, an advertising
+   event scheduled relative to the callback that ends it, and the callbacks these events
+   produce; together with the tester and its validation, which is a precondition of the first
+   timing assertion and of nothing before it.
+4. The tests, broadened together with the implementation.
+5. The link layer.
+6. The link layer context of decision 17.
 
-Something implemented comes before the rig because nothing yet demonstrates that the interface is
-implementable with the timing it promises, and building a rig against an unimplemented interface
+The toolbox comes first because its functions are the simplest remote calls the interface has,
+arguments in and a result out, with no time, no callback, no program and no tester, and because
+their correct answers are known: the Core Specification's test vectors already run against the
+software toolbox in `tests/security_manager/`. Every piece of the rig, the link, the framing, the
+session token, the serialisation of every argument type, and the call-then-poll pattern of decision
+6 on a computation that takes long enough to need it, gets its first exercise on a function whose
+result can be checked, before anything with timing is attempted.
+
+The radio comes before the timing tests because nothing yet demonstrates that the interface is
+implementable with the timing it promises, and writing those tests against an unimplemented radio
 risks baking in assumptions the hardware will not honour. It does not have to be the whole radio.
-Absolute scheduling of one advertising event, with the time reported back from the hardware
-capture, exercises the claim the whole design rests on, and it is a small part of the work.
+Scheduling one advertising event relative to a callback, with the time reported back from the
+hardware capture, exercises the claim the whole design rests on, and it is a small part of the
+work.
 
 **Not an adapter over the existing radio.** The obvious shortcut is to wrap the current
 implementation, and it does not work. The new interface exists to report when things happened,
@@ -467,4 +479,5 @@ can see, and it lets the lock's purpose blur from "the link layer's state" into 
 
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
   an error there presents as a fault in the device under test. Checking it against a known good
-  device or against a sniffer is a prerequisite for the rig rather than an afterthought.
+  device or against a sniffer has to happen before the first timing assertion is believed; decision
+  11 places it there, and defers the how.
