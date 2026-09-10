@@ -9,7 +9,7 @@
  *
  * An instrument has three parts. The scheduled radio implementation, which is the subject.
  * The rig, which is the same on every platform: framing, the request and response protocol,
- * the program interpreter, the records, the boot counter. And this port, which is written
+ * the program interpreter, the records, the session token. And this port, which is written
  * once per platform and is meant to be as small as a UART setup and an interrupt handler
  * with two branches.
  *
@@ -34,8 +34,7 @@
  *
  * @section platform What else is platform dependent
  *
- * Two things outside this file, both trivial and both the port's business: a word of RAM
- * that survives a hardware reset, for the boot counter, and whatever wiring makes the
+ * One thing outside this file, the port's business as well: whatever wiring makes the
  * reset input actually reset the device (on the nRF52, PSELRESET in the UICR).
  */
 

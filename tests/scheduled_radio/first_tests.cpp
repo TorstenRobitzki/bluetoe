@@ -3,7 +3,8 @@
  *
  * The first two tests of a scheduled radio implementation, written against the instruments
  * described in dut_rig.hpp and tester.hpp. They assume a rig_fixture that holds a `dut` and
- * a `tester`, whose constructor resets the device under test and waits for radio_ready,
+ * a `tester`, whose constructor resets the device under test, proves the reset by the
+ * session token, sets a new one and waits for radio_ready,
  * whose run() starts the tester, then the device, and waits until both programs report
  * finished, and whose collection functions return vectors. Errors of the links throw;
  * nothing in here checks for them.

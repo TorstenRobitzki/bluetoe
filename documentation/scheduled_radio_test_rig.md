@@ -119,27 +119,42 @@ Callbacks occur while the host is not listening, so they are queued with their t
 queue can overflow.
 
 A silently dropped callback would corrupt a test in the most misleading way available, by turning
-"the radio did not call me" into a passing negative assertion. The queue therefore carries either a
-sequence number the host checks for gaps or an overflow flag that latches until read.
+"the radio did not call me" into a passing negative assertion. Every record therefore carries a
+sequence number, and the host treats a gap as a void test. A separate overflow flag was considered
+and dropped: it would be a second way of saying what the numbers already say.
 
 The depth is not part of the contract. Under decision 14 the host collects once, after a program
 finished, so the depth bounds the length of a program and nothing else; a program that outgrows it
 shows up as a gap, and the remedy is a larger array. The host never needs to know the number.
 
-## 8. A boot counter in every response
+## 8. A session token in every response
 
-Every response carries a counter that increments on each reset of the device under test.
+The host gives an instrument a random, non-zero token, and every response from then on echoes it.
+The variable holding the token is zeroed at startup like any other, so a restart, however caused,
+reads back as zero.
 
-Under decision 6 the device may not announce itself after booting. A counter checked on every
-exchange is better than an announcement would have been: it cannot collide, it is checked
-continuously rather than only when a reset was expected, and it detects a restart that happened in
-the middle of a sequence, which is the failure mode that occurs while bringing up a new radio.
+Under decision 6 the instrument may not announce itself after booting, and a value checked on every
+exchange is better than an announcement would have been: it is checked continuously rather than
+only when a reset was expected, and it detects a restart that happened in the middle of a
+sequence, which is the failure mode that occurs while bringing up a new radio. A stale instrument
+from an earlier run cannot know the token either.
+
+The earlier form of this decision was a boot counter that increments on every reset. The token is
+better on two counts. A counter has to survive a hardware reset, so it needs a word of RAM in a
+section the startup code does not clear, which is toolchain and part specific and fails silently;
+the token needs the opposite, a variable that is cleared, which every platform does unasked. And
+the token proves that the reset line works: the host sets a token, resets, and requires zero. A
+counter that does not increment looks the same as a counter that was never implemented.
+
+The fixture therefore reads: set a token, reset through the tester, poll until the device answers
+and require the token to be zero, set a new token, wait for `radio_ready`. The tester gets the
+same treatment, since it can crash too.
 
 ## 9. The rig contract is a separate artefact from the radio interface
 
 The rig has its own small contract, stated independently of any particular hardware: a hardware
 reset input with a bounded worst case time to ready, a serial link with defined framing, an
-identity and version report, and the boot counter of decision 8.
+identity and version report, and the session token of decision 8.
 
 How a given part satisfies that contract is the port's business. On the nRF52 the reset pin only
 acts as one if `PSELRESET` is programmed in the UICR, which is a one-time configuration that is
@@ -333,7 +348,7 @@ host, because under decision 14 the host has no use for one.
 An instrument consists of the scheduled radio implementation, which is the subject; the rig,
 which is the same on every platform; and a serial port, which is written once per platform. The
 rig is everything that is not the radio and not the port: framing, the request and response
-protocol, the program interpreter, the records, the boot counter logic.
+protocol, the program interpreter, the records, the session token.
 
 The port's contract is event driven and stated in `tests/scheduled_radio/serial_port.hpp`. The
 port is constructed on two ring buffers the rig owns, pushes what it receives into one and pops
@@ -351,9 +366,8 @@ checksum failure and a host side interpretation of both, to handle a case that d
 exist.
 
 What is genuinely platform dependent turns out to be small: the UART, the two moments "a byte
-arrived" and "a byte can be sent", their interrupt priority, a word of RAM that survives a
-hardware reset for the boot counter, and whatever makes the reset input work. Everything else
-exists once.
+arrived" and "a byte can be sent", their interrupt priority, and whatever makes the reset input
+work. Everything else exists once.
 
 The split buys more than tidiness. The rig compiles on the host against a fake port and the
 simulated radio, so the program interpreter, the framing, the sequence numbers and the loss

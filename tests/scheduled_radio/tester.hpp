@@ -165,8 +165,9 @@ namespace test_rig {
         /**
          * @brief hold the reset input of the device under test asserted, then release it
          *
-         * The tester owns the pin; the host decides when it is used. The host waits for the
-         * boot counter of the device under test to change rather than for a fixed time.
+         * The tester owns the pin; the host decides when it is used. The host does not wait
+         * a fixed time afterwards: it polls until the device answers and requires the session
+         * token it set before the reset to read zero.
          */
         void reset_device_under_test();
     };

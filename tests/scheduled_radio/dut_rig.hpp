@@ -58,8 +58,8 @@
  * The rig does not reset itself on request. Reset is a hardware input driven by the tester,
  * because the interesting case is a device that stopped answering. How a given part is wired
  * so that the input actually resets it is that port's business; the requirement is that the
- * device restarts, its state is the state after power on, and it reports a boot counter one
- * higher than before.
+ * device restarts, its state is the state after power on, and the session token it was given
+ * before reads back as zero.
  *
  * The reset has to be a reset of the hardware and not a restart of the software, because
  * what the implementation does before it reports itself ready is part of what is measured.

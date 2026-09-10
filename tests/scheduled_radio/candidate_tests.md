@@ -81,7 +81,11 @@ The cancel's answer is definitive, so the absence of the callbacks is part of wh
 **`radio_ready` is reported once.** After a reset, exactly one; on any later collection, none.
 
 **Callback loss is detectable.** Provoke more callbacks than the queue holds without collecting,
-then collect and expect either a gap in the sequence numbers or a non-zero `lost_events`.
+then collect and expect a gap in the sequence numbers.
+
+**The reset line works.** Set a session token, reset the DUT through the tester, and require the
+token to read zero once the DUT answers again. This runs at the start of every test, so a reset
+line that quietly stopped working fails the first test rather than corrupting all of them.
 
 ## Optional features and dependent tests
 

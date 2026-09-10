@@ -36,16 +36,19 @@
  *
  * @section boot Detecting a restart
  *
- * Every response carries boot_counter(). The host compares it with the value it saw last;
- * any increment means the instrument restarted since the previous exchange, whether the
- * host asked for that or the instrument crashed. Results that span a restart are void.
+ * The host gives the instrument a random, non-zero token with set_session_token(), and every
+ * response from then on carries it. The variable holding it is zeroed at startup, so a
+ * restart since the token was set, whether the host asked for it or the instrument crashed,
+ * reads back as zero. Results that span a restart are void.
+ *
+ * The same mechanism proves that a reset worked: set a token, reset, require zero.
  *
  * @section queues Queues
  *
  * Anything an instrument observes while the host is not listening is queued together with
  * the time it happened. A queue that silently drops entries would turn "it did not happen"
  * into a passing assertion, so loss has to be detectable: every entry carries a sequence
- * number, and the host treats a gap as a failed test rather than as an absence of events.
+ * number, and the host treats a gap as a void test rather than as an absence of events.
  */
 
 #include <bluetoe/abs_time.hpp>
@@ -83,13 +86,13 @@ namespace test_rig {
         const char* build_identifier();
 
         /**
-         * @brief number of times this instrument started since it was flashed
+         * @brief the token every response carries from now on
          *
-         * Increments on every reset, however caused. Carried in every response.
+         * Zero after every start of the instrument, and never set to zero by the host.
          *
          * @sa instrument.hpp, section "Detecting a restart"
          */
-        std::uint32_t boot_counter();
+        void set_session_token( std::uint32_t token );
 
         /**
          * @brief whether the loaded program ran to its end
@@ -101,14 +104,6 @@ namespace test_rig {
          * decide. False as well when no program was loaded.
          */
         bool program_finished();
-
-        /**
-         * @brief sequence number of the oldest entry that was dropped, if any
-         *
-         * Zero if nothing was dropped since the last reset. Latches, so the host cannot
-         * miss it by polling at the wrong moment.
-         */
-        std::uint32_t lost_events();
     };
 }
 }
