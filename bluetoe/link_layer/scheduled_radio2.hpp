@@ -18,8 +18,11 @@ namespace link_layer {
  * @brief this class declaration shall define the requirements of the
  *        scheduled_radio2 callbacks
  *
- * All callbacks are expected to be called from the run() function of
- * the scheduled_radio2
+ * Context: link layer, for every callback except link_layer_pdu_buffer(),
+ * which is called from the radio context and has to return immediately.
+ * The white list check that schedule_advertising_event() refers to is
+ * the second radio context callback; it is not declared here yet. See
+ * the section on contexts of scheduled_radio2.
  */
 struct example_callbacks
 {
@@ -91,6 +94,11 @@ struct example_callbacks
      * connection. This function must be called only when a connection event was scheduled
      * and the implementation has to make sure, that the function returns the buffer for
      * the current connection (if multiple connections are supported).
+     *
+     * Context: radio. Called between two PDUs of a connection event, with the inter frame
+     * space to spare, so it returns at once and touches nothing but the buffer. The buffer
+     * it returns is read and written from the radio context while the link layer fills
+     * and drains it from the link layer context, which the buffer has to be built for.
      */
     link_layer_pdu_buffer_t& link_layer_pdu_buffer();
 };
@@ -98,6 +106,10 @@ struct example_callbacks
 /**
  * @brief Set up functions required by the Security Manager to implement
  *        pairing.
+ *
+ * Context: any, and reentrant. These are pure computations on their arguments,
+ * and long ones: a point multiplication takes hundreds of milliseconds on a
+ * small core. Where the security manager runs them is its decision.
  */
 class pairing_security_toolbox
 {
@@ -191,6 +203,30 @@ class pairing_security_toolbox
  * an action that names no time, start_advertising(), and continues with actions
  * whose times are relative to the callbacks the earlier ones produced. See
  * documentation/scheduled_radio_test_rig.md, decision 15.
+ *
+ * @section contexts Contexts
+ *
+ * Three contexts exist, named by who lives in them. The radio context is the
+ * implementation's own interrupt context. The link layer context is where the
+ * callbacks are delivered and where the scheduling functions are called from.
+ * The application context is where run() executes and where the GATT layer
+ * delivers its callbacks. Every function and callback of this interface states
+ * which of them it belongs to: application, link layer, radio, or any.
+ *
+ * A radio that does not support hardware_supports_link_layer_context delivers
+ * the callbacks from inside run(), so the link layer context and the application
+ * context are the same. A radio that does provides the link layer context itself,
+ * as an interrupt below the radio's priority, and the callbacks arrive from there
+ * while run() only sleeps. The contract is the same in both cases; what changes
+ * is whether two of the three names denote one context.
+ *
+ * The link layer's own state shared between its two contexts, data on its way
+ * from the application to the PDU buffer and received data on its way up, is
+ * protected with lock_guard. The radio's state is never the caller's concern:
+ * every scheduling function is called from one context only, except
+ * start_advertising(), which the radio makes safe itself.
+ *
+ * See documentation/scheduled_radio_test_rig.md, decision 17.
  */
 template < typename CallBacks, typename... Options >
 class scheduled_radio2 : public CallBacks, public pairing_security_toolbox
@@ -244,6 +280,65 @@ public:
      */
     static constexpr bool hardware_supports_synchronized_user_timer = true;
 
+    /**
+     * @brief indicates that the radio can provide a link layer context of its own
+     *
+     * If true, the link layer may ask for the callbacks to be delivered from a
+     * context the radio provides, below the radio's priority and above the
+     * application's, instead of from run(). Asking for it is a compile time
+     * option of the link layer; asking a radio that does not support it is
+     * rejected by a static_assert.
+     */
+    static constexpr bool hardware_supports_link_layer_context = true;
+
+    /**@}*/
+
+    /**@{
+     * @name Execution Context Functions
+     *
+     * What the application context needs from the radio: a place to sleep, a way
+     * to be woken, and a lock against the link layer context.
+     */
+
+    /**
+     * @brief sleep until there is something for the application context to do
+     *
+     * A call to wake_up() since the last return guarantees that run() returns. The
+     * reverse does not hold: run() may return for reasons of its own that are not
+     * specified, so a caller does not conclude from a return that wake_up() was
+     * called, and keeps its state where the return finds it. In a radio without a
+     * link layer context of its own, run() is also where the callbacks are delivered,
+     * before it returns or sleeps again. Each layer above forwards to the one below
+     * and does its own application context work when the call comes back, so that
+     * an application loops over the topmost run() regardless of how many contexts
+     * the radio has.
+     *
+     * Context: application.
+     */
+    void run();
+
+    /**
+     * @brief make run() return
+     *
+     * The link layer context calls it after receiving something the application has
+     * to process; an interrupt of the application calls it to get the main loop going.
+     * It is the guaranteed way to make run() return, not the only one.
+     *
+     * Context: any, including interrupts.
+     */
+    void wake_up();
+
+    /**
+     * @brief excludes the link layer context while an instance is alive
+     *
+     * For the link layer's own state shared between its two contexts. Held briefly,
+     * from the application context. In a radio without a link layer context of its
+     * own this does nothing.
+     *
+     * Context: application.
+     */
+    class lock_guard;
+
     /**@}*/
 
     /**@{
@@ -281,6 +376,8 @@ public:
      * parameters in question are changed. For a link layer that supports multiple
      * connections, the link layer probably have to call this setup functions every
      * time it is going to schedule an action.
+     *
+     * Context: link layer.
      */
 
     /**
@@ -334,6 +431,8 @@ public:
      *
      * As long as there is a pending radio action on the radio, no other scheduling
      * function shall be called.
+     *
+     * Context: link layer, except start_advertising().
      */
 
     /**
@@ -348,6 +447,10 @@ public:
      * This is how a sequence starts when the caller holds no usable time: the first
      * event after radio_ready(), and every return to advertising after a connection
      * ended or after advertising was switched on while the radio was idle.
+     *
+     * Context: application or link layer. Switching advertising on happens in the
+     * application context while the radio is idle, and it is the radio's job to make
+     * that safe against a callback in flight, not the caller's.
      *
      * @return True, if the event was scheduled. False only if another action is pending.
      */
@@ -441,6 +544,8 @@ public:
      * @name Timer Functions
      *
      * At any time, there is at maximum one timer scheduled.
+     *
+     * Context: link layer.
      */
 
     /**
@@ -503,6 +608,8 @@ public:
 
     /**
      * @brief static radio properties as runtime information
+     *
+     * Context: any.
      */
     bluetoe::link_layer::radio_properties properties() const;
 

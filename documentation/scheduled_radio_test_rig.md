@@ -202,10 +202,9 @@ new interface should lower the complexity of a radio implementation. An adapter 
 about that; a fresh implementation says it directly.
 
 The additional CPU context is built last but designed now. Even while everything runs in one
-context, the specification should name the context each callback is invoked from, name the mutual
-exclusion primitive the radio must provide, and settle what replaces `run()`, which the callbacks
-currently refer to but which the interface does not declare. Naming those now makes the later split
-a change of implementation rather than of contract.
+context, the specification names the context each function and callback belongs to, the mutual
+exclusion primitive the radio provides, and what `run()` means. Naming those now makes the later
+split a change of implementation rather than of contract. Decision 17 does this.
 
 ## 12. The comparison window of `abs_time`
 
@@ -386,10 +385,86 @@ responsible for buffering whatever arrives between two polls, so the buffer is w
 platform, and whether bytes are lost depends on how long `run()` takes on that platform, which
 is exactly the variability the rig should not have.
 
+## 17. Three contexts, and one meaning of `run()`
+
+Three contexts exist, named by who lives in them. The *radio context* is the implementation's own
+interrupt context. The *link layer context* is where the radio delivers its callbacks and where the
+scheduling functions are called from. The *application context* is where `run()` executes and
+where the GATT layer delivers its callbacks. A radio without a context of its own delivers the
+callbacks from inside `run()`, so the last two are the same; a radio that advertises
+`hardware_supports_link_layer_context` provides the link layer context itself, as an interrupt
+below the radio's priority and above the application's. The contract is identical in both cases.
+
+`run()` has one meaning everywhere: sleep until there is something for the application context to
+do, then return. `wake_up()`, callable from any context including interrupts, guarantees that it
+returns: the link layer context calls it after receiving something the application has to process,
+an interrupt of the application calls it to get the main loop going. The guarantee runs one way
+only. `run()` may also return for reasons of its own that the contract does not enumerate, so a
+caller never concludes from a return that `wake_up()` was called; it looks at its state, finds
+nothing to do, and calls `run()` again. Each layer's `run()` forwards
+to the one below and does its own application context work when the call comes back; the link
+layer's does the L2CAP and ATT processing and delivers the GATT callbacks. An application loops
+over the topmost `run()` and never learns how many contexts the radio has. The call chain defines
+the context, not who is at its top.
+
+Every function and callback of the interface belongs to one of four words:
+
+| | context |
+|---|---|
+| `run()` | application |
+| `wake_up()` | any, including interrupts |
+| `lock_guard` | application |
+| `start_advertising()` | application or link layer; the radio makes it safe |
+| `set_*`, `schedule_*`, `cancel_*` | link layer |
+| `properties()`, the constants | any |
+| the pairing toolbox | any, reentrant |
+| the six callbacks | link layer |
+| `link_layer_pdu_buffer()`, the white list check | radio; return immediately |
+
+The rule that keeps this small is that the radio's state is touched from one context only. Every
+scheduling call is made from the link layer context, so the interface needs no mutual exclusion
+for its own sake. The one exception is `start_advertising()`: switching advertising on happens in
+the application context while the radio is idle, and rather than make the caller prove that
+nothing is in flight, the radio is made responsible for that, since only it can see.
+
+`lock_guard` exists for the link layer, not for the radio. It excludes the link layer context and
+protects the state the link layer shares between its two halves: data on its way from the
+application to the PDU buffer, and received data on its way up. How the link layer splits its work
+across the line, and in particular where L2CAP reassembly happens, is step 4 of decision 11 and not
+the radio's concern; the radio provides the lock and `wake_up()`, and the PDU buffer is the
+structure already built to be written from one side and read by the radio.
+
+Two callbacks are not in the link layer context and the interface says so loudly.
+`link_layer_pdu_buffer()` is called between the PDUs of a connection event, with the inter frame
+space to spare, so it runs in the radio context and returns at once; the buffer it returns is used
+from the radio context while the link layer fills and drains it from the link layer context. The
+white list check during an advertising event is the same case. It is referred to in the
+documentation of `schedule_advertising_event()` but not declared among the callbacks, which is a
+gap to close, not part of this decision.
+
+The pairing toolbox belongs to neither side. Its functions are pure computations on their
+arguments and long, hundreds of milliseconds for a point multiplication on a small core. Running
+them in a context that preempts the application would stall it for that long, so their contract is
+"any context, reentrant", and where the security manager does its slow work is deferred to the
+link layer.
+
+For the rig, a program step runs in the link layer context, exactly where the link layer's
+equivalent would, and the record queue is written there and collected from the application
+context, single producer and single consumer like the byte buffers of decision 16.
+
+**Rejected:** a `request_callback()` primitive by which the application context asks for one
+invocation of a callback in the link layer context, so that it can schedule from there. It looked
+necessary until the cases were listed: a notification, an `LL_TERMINATE_IND`, a parameter update
+request all reach the air through the PDU buffer and the connection event that is already
+scheduled, with no scheduling call at all. The only application context need is starting
+advertising while idle, which the rule above covers.
+
+**Rejected:** allowing the scheduling functions from the application context while a `lock_guard`
+is held. It would work, but it makes the caller responsible for a collision that only the radio
+can see, and it lets the lock's purpose blur from "the link layer's state" into "anything".
+
 ## Open questions
 
-- Whether the interface needs an equivalent of `run()`, and from which context callbacks are
-  delivered. This is entangled with decision 11.
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
   an error there presents as a fault in the device under test. Checking it against a known good
   device or against a sniffer is a prerequisite for the rig rather than an afterthought.

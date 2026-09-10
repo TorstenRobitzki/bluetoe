@@ -53,6 +53,11 @@
  * and its other arguments, and every call a step made, with the resolved time argument and
  * the return value. The host collects both after the program finished.
  *
+ * A step runs in the link layer context, as the link layer's equivalent would. The records
+ * are written there and collected from the application context, so the queue is single
+ * producer, single consumer, like the byte buffers of the serial port. With a radio that
+ * has no link layer context of its own the two contexts are the same and nothing changes.
+ *
  * @section reset Reset
  *
  * The rig does not reset itself on request. Reset is a hardware input driven by the tester,
