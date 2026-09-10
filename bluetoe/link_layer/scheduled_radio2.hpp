@@ -9,7 +9,6 @@
 #include <bluetoe/security_connection_data.hpp>
 #include <bluetoe/phy_encodings.hpp>
 #include <bluetoe/abs_time.hpp>
-#include <bluetoe/radio_properties.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -576,44 +575,6 @@ public:
 
     /**@}*/
 
-    /**@{
-     * @name Test Functions
-     *
-     * Functions that are purely used when testing the scheduled radio implementation.
-     */
-
-    /**
-     * @brief message used by the tester to display a message
-     *
-     * The message should be simply ignored by an implementation. As the traffic between
-     * DUT and tester will be logged, the message will appear there.
-     */
-    void log_tester_message( const char* message );
-
-    /**
-     * @brief log message from the DUT
-     *
-     * This function will be called periodically by the tester to allow the DUT to show
-     * log messages. If the return value is not nullptr, the tester will call the function
-     * again. Do not return strings that contain `\n`.
-     */
-    const char* log_get_dut_message();
-
-    /**
-     * @brief reset the device
-     *
-     * Allow the tester to reset the DUT.
-     */
-    void reset_dut();
-
-    /**
-     * @brief static radio properties as runtime information
-     *
-     * Context: any.
-     */
-    bluetoe::link_layer::radio_properties properties() const;
-
-    /**@}*/
 };
 
 

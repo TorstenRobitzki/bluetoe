@@ -122,7 +122,7 @@ line that quietly stopped working fails the first test rather than corrupting al
 ## Optional features and dependent tests
 
 Parts of the interface are optional, such as the 2 Mbit PHY, encryption and the synchronised
-user timer, and `properties()` reports which of them an implementation has. A test of an
+user timer, and the rig's `properties()` reports which of them an implementation has. A test of an
 optional feature must not run its body conditionally, because a body that never ran is reported
 as a pass. Boost.Test has the right tool: the `precondition` decorator skips a test at run time
 when a predicate returns false, and the run reports it as skipped, separately from passed and

@@ -428,7 +428,7 @@ Every function and callback of the interface belongs to one of four words:
 | `lock_guard` | application |
 | `start_advertising()` | application or link layer; the radio makes it safe |
 | `set_*`, `schedule_*`, `cancel_*` | link layer |
-| `properties()`, the constants | any |
+| the constants | any |
 | the pairing toolbox | any, reentrant |
 | the six callbacks | link layer |
 | `link_layer_pdu_buffer()`, the white list check | radio; return immediately |

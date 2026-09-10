@@ -78,6 +78,7 @@
 #include <bluetoe/abs_time.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/connection_events.hpp>
+#include <bluetoe/radio_properties.hpp>
 
 #include <cstdint>
 
@@ -231,6 +232,15 @@ namespace test_rig {
     class dut_rig
     {
     public:
+        /**
+         * @brief the feature constants of the implementation, as a value
+         *
+         * The interface states its features as compile time constants. The rig reads them
+         * and hands them over, so that the host can decide which tests apply before any of
+         * them runs.
+         */
+        link_layer::radio_properties properties();
+
         /**
          * @brief load a program, replacing any earlier one
          *
