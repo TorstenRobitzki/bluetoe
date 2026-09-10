@@ -17,15 +17,31 @@
  *
  * @section clock The clock
  *
- * time_now() is the measurement reference for the whole setup. Its accuracy has to be good
- * enough that the error of the tester is negligible against the error being measured, which
- * is why the board carries a better oscillator than the part it is measuring.
+ * The timestamps the tester records are the measurement reference for the whole setup.
+ * Their accuracy has to be good enough that the error of the tester is negligible against
+ * the error being measured, which is why the board carries a better oscillator than the
+ * part it is measuring. The clock is not exposed as a function: every time the host sees
+ * is attached to something that was observed.
  *
  * How the tester itself is shown to be accurate is not answered here and has to be settled
  * before any measurement it produces can be believed.
+ *
+ * @section programs Programs
+ *
+ * The tester executes a program of its operations, loaded by the host and started with
+ * start(). Operations run one after the other, each for the duration it names, the first
+ * one from the moment the program was started. The program is finished when its last
+ * operation ended.
+ *
+ * No operation is placed at a point in time. The tester has no origin that means anything
+ * to a test, and the origin of the device under test only becomes visible to the tester
+ * when a PDU arrives. An operation that has to transmit at a particular moment, such as
+ * hitting a receive window the device opened, will therefore be expressed relative to a
+ * received PDU. That operation does not exist yet.
  */
 
 #include <bluetoe/abs_time.hpp>
+#include <bluetoe/delta_time.hpp>
 #include <bluetoe/phy_encodings.hpp>
 
 #include <cstdint>
@@ -63,72 +79,68 @@ namespace test_rig {
     };
 
     /**
+     * @{
+     * @name Program vocabulary
+     *
+     * Each operation runs for the duration it names, from the moment the previous one
+     * ended.
+     */
+    struct operation;
+
+    /**
+     * @brief listen on one channel for a given duration
+     *
+     * Every PDU received in that window is queued with the time its first bit was on
+     * air, and collected by the host afterwards.
+     */
+    operation receive(
+        std::uint32_t                           channel,
+        link_layer::phy_ll_encoding::phy_ll_encoding_t phy,
+        link_layer::delta_time                  listen_window );
+
+    /**
+     * @brief listen, and answer the first PDU received
+     *
+     * The response is transmitted `delay` after the end of the received PDU. This is the
+     * only decision the tester makes on its own, and it is here because the deadline
+     * cannot be met from the host.
+     *
+     * The received PDU is queued as usual, so a test can assert on what triggered the
+     * response as well as on what the response caused.
+     *
+     * @param delay time between the end of the received PDU and the first bit of the
+     *              response. Deliberately a parameter rather than fixed at the inter
+     *              frame space, so that a test can answer early or late and find the
+     *              edges of the receive window of the device under test.
+     */
+    operation respond_to_next(
+        std::uint32_t                           channel,
+        link_layer::phy_ll_encoding::phy_ll_encoding_t phy,
+        link_layer::delta_time                  listen_window,
+        link_layer::delta_time                  delay,
+        const std::uint8_t*                     response,
+        std::size_t                             response_size );
+    /** @} */
+
+    /**
      * @brief requirements of the tester
      */
     class tester
     {
     public:
         /**
-         * @brief listen on one channel between two points in time
-         *
-         * Every PDU received in that window is queued with the time its first bit was on
-         * air, and collected by the host afterwards. The window is given in the tester's
-         * own time domain.
-         *
-         * Listening is what relates the two time domains: the host has the device under
-         * test transmit at a time it reports, and reads back the time the tester saw it.
-         *
-         * @return false if `from` is already in the past.
+         * @brief load a program, replacing any earlier one
          */
-        bool receive(
-            std::uint32_t                           channel,
-            link_layer::phy_ll_encoding::phy_ll_encoding_t phy,
-            link_layer::abs_time                    from,
-            link_layer::abs_time                    to );
+        template < typename... Operations >
+        void program( Operations... operations );
 
         /**
-         * @brief transmit at a given point in time
-         *
-         * Used to probe the receive window of the device under test: transmit at a time
-         * where the device should be listening, and see whether it reports the reception.
-         *
-         * @return false if `when` is already in the past.
+         * @brief start the loaded program with its first operation
          */
-        bool transmit(
-            std::uint32_t                           channel,
-            link_layer::phy_ll_encoding::phy_ll_encoding_t phy,
-            link_layer::abs_time                    when,
-            const std::uint8_t*                     data,
-            std::size_t                             size );
+        void start();
 
         /**
-         * @brief listen, and answer the first PDU received
-         *
-         * The response is transmitted exactly one inter frame space after the end of the
-         * received PDU. This is the only decision the tester makes on its own, and it is
-         * here because the deadline cannot be met from the host.
-         *
-         * The received PDU is queued as usual, so a test can assert on what triggered the
-         * response as well as on what the response caused.
-         *
-         * @param delay time between the end of the received PDU and the first bit of the
-         *              response. Deliberately a parameter rather than fixed at the inter
-         *              frame space, so that a test can answer early or late and find the
-         *              edges of the receive window of the device under test.
-         *
-         * @return false if `from` is already in the past.
-         */
-        bool respond_to_next(
-            std::uint32_t                           channel,
-            link_layer::phy_ll_encoding::phy_ll_encoding_t phy,
-            link_layer::abs_time                    from,
-            link_layer::abs_time                    to,
-            link_layer::delta_time                  delay,
-            const std::uint8_t*                     response,
-            std::size_t                             response_size );
-
-        /**
-         * @brief stop whatever was scheduled by receive(), transmit() or respond_to_next()
+         * @brief stop the running program
          *
          * A test that has what it needs does not wait for the window it asked for to end.
          */

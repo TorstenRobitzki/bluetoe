@@ -65,11 +65,12 @@ asserted from software would measure the device's belief about its own timing, w
 never promises.
 
 Instead the air is the shared observable. The device under test schedules a transmission at a time
-of its own choosing and reports that `abs_time` in its reply; the tester timestamps the arrival with
-its accurate clock. That single exchange relates the two time domains, and the synchronisation is
-itself a measurement of the property under test. Where drift matters, roughly five microseconds per
-hundred milliseconds at the worst clock error the specification permits, a test re-synchronises by
-transmitting again.
+of its own choosing and records that `abs_time`; the tester timestamps the arrival with its accurate
+clock. Two such transmissions give the same interval in both domains, once as requested and once as
+observed, and comparing the two is the measurement. The domains never have to be related to each
+other for that. Where drift matters, roughly five microseconds per hundred milliseconds at the worst
+clock error the specification permits, it enters the tolerance of the interval rather than a
+synchronisation.
 
 ## 4. A reset line from the tester to the device under test is kept
 
@@ -238,6 +239,52 @@ integration build pins the whole configuration to strict C++11 precisely to catc
 existing library, so whatever target holds this work has to set its own standard rather than
 inherit that pin.
 
+## 14. A test is a program on each instrument, started together and collected afterwards
+
+The host does not drive the instruments call by call while a test runs. It loads a program into
+each, a sequence of steps the instrument executes on its own, starts both, waits until they report
+that they finished, and then collects what was recorded on either side and asserts over it.
+
+On the device under test a step is "on this callback, make these calls", with every time expressed
+relative to the time that callback carried. The rig executes the step inside the callback, and
+records the callback, the calls it made with their resolved arguments, and their return values. On
+the tester a step is one of its operations, run for a stated duration from the moment the previous
+one ended. Nothing on the tester is placed at a point in time: the tester has no origin that means
+anything to a test, and the origin of the device under test only becomes visible to it when a PDU
+arrives, so an operation that has to transmit at a particular moment will be expressed relative to
+a received PDU.
+
+The order in which the host does this is fixed: reset the device under test, wait until it reports
+`radio_ready`, load the tester's program, load the device's program, start the tester, start the
+device. Readiness is verified before anything is loaded, so a device that does not boot is reported
+as that rather than as an empty result, and the two programs start one round trip apart rather
+than one boot apart. That is what allows the tester's listen durations to be computed from the
+program they accompany instead of being sized for a boot, which would have to be padded and would
+be paid on every test.
+
+The first step of a device program runs on `start`, when no time exists yet on the device. It
+therefore begins with `start_advertising()` of decision 15, whose callback carries the time every
+later step is computed from. Every test starts with the device transmitting, and the
+first transmission is the origin for both sides.
+
+The first version of the test sketches drove the device under test from the host, one call at a
+time, and every timed test had to begin by reading the device's clock, sending it back a time far
+enough ahead to survive two serial round trips and a polling loop, and hoping. The margin that made
+that work was a property of the serial link and the host, not of the radio, and yet it sat in every
+test as a number. Worse, an interval between two events had to be assembled from a time the device
+reported, a time the host computed, and the latency in between.
+
+With programs, the only time that ever crosses the link is a recorded one. The device under test
+reacts to a callback in microseconds, so a step can ask for something a few milliseconds ahead and
+the margin that remains is the implementation's own minimum lead time, which is a property decision
+10 asks it to state and which a test can measure. The tests also read as what they are: what each
+side does, then what was expected to come out.
+
+**Rejected:** compiling each test's device side into the firmware and selecting it by number. It
+keeps the timing just as well, but it moves half of every test onto the device, which is the
+arrangement decision 1 argued against. A table of steps is small enough that the rig can interpret
+it, and the vocabulary of steps is the interface itself.
+
 ## 15. The interface has no function that returns the current time
 
 `scheduled_radio2` had a `time_now()`. It is removed. Every `abs_time` the implementation hands
@@ -282,6 +329,9 @@ host, because under decision 14 the host has no use for one.
 - Whether the interface needs an equivalent of `run()`, and from which context callbacks are
   delivered. This is entangled with decision 11.
 - The depth of the callback queue, and what the host does when it detects loss.
+- The minimum lead time: how close to a callback's time an implementation still accepts a request.
+  Under decision 15 this is the only margin a test has to know about the device under test, and it
+  is a number the implementation has to state.
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
   an error there presents as a fault in the device under test. Checking it against a known good
   device or against a sniffer is a prerequisite for the rig rather than an afterthought.

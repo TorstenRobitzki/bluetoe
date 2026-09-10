@@ -25,6 +25,15 @@
  * reports is a value in a payload, so the latency and the jitter of the link do not enter
  * into any measurement.
  *
+ * @section programs Programs
+ *
+ * The host does not drive an instrument step by step. It loads a program, a sequence of
+ * steps the instrument executes on its own, starts it, and collects what happened after
+ * the program finished. Every time inside a program is relative to a time the instrument
+ * has when it executes the step, never to a time the host held. Neither instrument
+ * therefore offers a function that returns the current time, and the host never handles
+ * one. See documentation/scheduled_radio_test_rig.md, decisions 14 and 15.
+ *
  * @section boot Detecting a restart
  *
  * Every response carries boot_counter(). The host compares it with the value it saw last;
@@ -83,18 +92,15 @@ namespace test_rig {
         std::uint32_t boot_counter();
 
         /**
-         * @brief the instrument's own notion of time
+         * @brief whether the loaded program ran to its end
          *
-         * The two instruments have unrelated time domains. They are related by observing
-         * one event in both, which the host does by having the device under test transmit
-         * at a time it reports, and the tester timestamp its arrival.
-         *
-         * For the tester this clock is the measurement reference and is expected to be far
-         * more accurate than the device under test. For a device under test this is the
-         * clock of the scheduled radio implementation itself, which is one of the things
-         * being measured.
+         * True once every step has run and nothing the program started is still pending,
+         * so that the host can stop the other instrument without cutting anything off.
+         * A program that is still waiting for something is not an error of the link, it
+         * is behaviour of the instrument, so the host reads it here and lets the test
+         * decide. False as well when no program was loaded.
          */
-        link_layer::abs_time time_now();
+        bool program_finished();
 
         /**
          * @brief sequence number of the oldest entry that was dropped, if any
