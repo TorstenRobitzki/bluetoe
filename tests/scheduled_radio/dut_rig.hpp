@@ -249,14 +249,6 @@ namespace test_rig {
          * Same semantics as collect_callbacks().
          */
         std::size_t collect_executed_calls( executed_call* out, std::size_t max_count );
-
-        /**
-         * @brief how many records the rig can hold between two collections
-         *
-         * Callbacks and executed calls share this capacity. It bounds the length of a
-         * program, and it is part of what an implementation of this rig has to state.
-         */
-        std::size_t record_queue_size();
     };
 }
 }

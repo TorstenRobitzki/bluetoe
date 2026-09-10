@@ -120,8 +120,11 @@ queue can overflow.
 
 A silently dropped callback would corrupt a test in the most misleading way available, by turning
 "the radio did not call me" into a passing negative assertion. The queue therefore carries either a
-sequence number the host checks for gaps or an overflow flag that latches until read. The depth is
-a deliberate parameter, since it sets how long a test may run between polls.
+sequence number the host checks for gaps or an overflow flag that latches until read.
+
+The depth is not part of the contract. Under decision 14 the host collects once, after a program
+finished, so the depth bounds the length of a program and nothing else; a program that outgrows it
+shows up as a gap, and the remedy is a larger array. The host never needs to know the number.
 
 ## 8. A boot counter in every response
 
@@ -276,9 +279,10 @@ reported, a time the host computed, and the latency in between.
 
 With programs, the only time that ever crosses the link is a recorded one. The device under test
 reacts to a callback in microseconds, so a step can ask for something a few milliseconds ahead and
-the margin that remains is the implementation's own minimum lead time, which is a property decision
-10 asks it to state and which a test can measure. The tests also read as what they are: what each
-side does, then what was expected to come out.
+the margin that remains is the implementation's own. That margin is not a number to state: a test
+that runs connection events at the shortest interval the specification allows shows it is small
+enough, which is the only thing anyone needs to know about it. The tests also read as what they
+are: what each side does, then what was expected to come out.
 
 **Rejected:** compiling each test's device side into the firmware and selecting it by number. It
 keeps the timing just as well, but it moves half of every test onto the device, which is the
@@ -372,10 +376,6 @@ is exactly the variability the rig should not have.
 
 - Whether the interface needs an equivalent of `run()`, and from which context callbacks are
   delivered. This is entangled with decision 11.
-- The depth of the callback queue, and what the host does when it detects loss.
-- The minimum lead time: how close to a callback's time an implementation still accepts a request.
-  Under decision 15 this is the only margin a test has to know about the device under test, and it
-  is a number the implementation has to state.
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
   an error there presents as a fault in the device under test. Checking it against a known good
   device or against a sniffer is a prerequisite for the rig rather than an afterthought.

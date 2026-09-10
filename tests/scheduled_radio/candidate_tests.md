@@ -33,9 +33,17 @@ a tester that hears nothing at all.
 **A scheduled event that is already in the past is refused.** The DUT program schedules an
 advertising event with a delta of zero, which is the callback's own time and therefore already
 gone by when the call is made; expect the recorded result to be `false` and the tester to
-observe nothing. The interesting part is the boundary: how close to the callback's time may a
-request be and still be accepted. That is the implementation's minimum lead time, and sweeping
-the delta down from a comfortable value measures it.
+observe nothing. Where exactly the boundary lies is not measured, see the next test.
+
+**Connection events at the shortest interval.** The DUT program starts with an advertising
+event as the origin, schedules a connection event after it, and on every `connection_timeout`
+schedules the next one 7.5 ms after the start of the previous, a few hundred times. Expect every
+recorded result to be `true` and the recorded start times to be 7.5 ms apart. This is what shows
+that an implementation accepts requests close enough to the callback for a link layer to hold
+the shortest connection interval the specification allows, which is the only thing that has to
+be known about how close is close enough. Once the tester can transmit relative to a PDU it
+received, the same program with the tester answering in every window turns the consistency check
+on the DUT's own times into a measurement on air.
 
 **Two events cannot be scheduled at once.** A step that schedules an advertising event and then
 another one in the same step; expect the second recorded result to be `false`.
@@ -124,8 +132,8 @@ saying how close that has to be. Until each function states its observable effec
 tolerance it promises, every one of these tests has a number in it that someone chose while
 writing the test rather than while designing the interface. The first test shows what can be
 derived and what cannot: the drift over an interval follows from `sleep_time_accuracy_ppm`,
-which the interface already has, and the placement tolerance and the minimum lead time are what
-the implementation still has to state.
+which the interface already has, and the placement tolerance is what the implementation still
+has to state.
 
 **The tester can only count from a PDU it received.** Every test that only observes gets by
 without any origin on the tester. A test in which the tester has to hit a window the DUT opened
