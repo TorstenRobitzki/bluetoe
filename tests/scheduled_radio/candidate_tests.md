@@ -75,6 +75,33 @@ The cancel's answer is definitive, so the absence of the callbacks is part of wh
 **Callback loss is detectable.** Provoke more callbacks than the queue holds without collecting,
 then collect and expect either a gap in the sequence numbers or a non-zero `lost_events`.
 
+## Optional features and dependent tests
+
+Parts of the interface are optional, such as the 2 Mbit PHY, encryption and the synchronised
+user timer, and `properties()` reports which of them an implementation has. A test of an
+optional feature must not run its body conditionally, because a body that never ran is reported
+as a pass. Boost.Test has the right tool: the `precondition` decorator skips a test at run time
+when a predicate returns false, and the run reports it as skipped, separately from passed and
+failed. The predicate asks the DUT:
+
+```cpp
+BOOST_FIXTURE_TEST_CASE( advertising_on_the_2mbit_phy, rig_fixture,
+    *boost::unit_test::precondition( dut_supports{ &radio_properties::hardware_supports_2mbit } ) )
+```
+
+Decorating a `BOOST_AUTO_TEST_SUITE` the same way skips every test in it, which is the natural
+shape for the tests of one optional feature.
+
+The `depends_on( "name" )` decorator skips a test when the named one failed. Almost every timing
+test presupposes that the DUT reaches the air at all; with the dependency stated, a DUT that
+never transmits produces one failure and a list of skipped tests, instead of one failure per
+test, each after its own host timeout, hiding the cause among its consequences.
+
+The predicates run before the fixture of a test is constructed, so the links to the instruments
+cannot be opened by `rig_fixture`. They are opened once per run by a global fixture
+(`BOOST_TEST_GLOBAL_FIXTURE`), which also checks the protocol versions once; `rig_fixture` only
+does the per-test reset.
+
 ## What writing these tests revealed
 
 **The connection event tests cannot be written yet.** In the interface the implementation asks
