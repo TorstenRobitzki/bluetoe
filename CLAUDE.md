@@ -42,6 +42,8 @@ must be able to review and understand.
 - `bluetoe/bindings/nordic/` – nRF51/nRF52 radio bindings, vendored micro-ecc
 - `bluetoe/hci/` – HCI-based link layer (currently a stub)
 - `tests/` – Boost.Test unit and protocol tests, host-only, with a simulated radio in `tests/test_tools/`
+- `platforms/` – what every firmware is built on: the ARM toolchain file, per-binding startup code,
+  linker scripts and flash commands, the C++ runtime, `assert()`, the build container
 - `examples/` – nRF52 firmware examples, cross-compiled with arm-none-eabi-gcc
 - `documentation/` – Doxygen input; API docs are published at https://torstenrobitzki.github.io/bluetoe/
 
@@ -71,8 +73,8 @@ that only works because a check fired first. Both configurations must pass.
 - Run only the affected test executable while iterating, e.g. `./build/tests/link_layer/ll_connection_tests`;
   run the full `ctest` before declaring a change done.
 - `-DBLUETOE_EXCLUDE_SLOW_TESTS=ON` skips the long-running link layer tests.
-- Firmware examples need an ARM toolchain and `NRF5_SDK_ROOT`; see `examples/README.md` and
-  `examples/docker/` for a reproducible container. Do not attempt to build them on the host.
+- Firmware examples need an ARM toolchain and `NRF5_SDK_ROOT`; see `platforms/README.md` and
+  `platforms/docker/` for a reproducible container. Do not attempt to build them on the host.
 
 ## Continuous integration
 
@@ -84,7 +86,7 @@ that only works because a check fired first. Both configurations must pass.
   and `-Werror`; without the pin, CMake accepts the compiler's default standard, which is newer
   than C++11 on every current compiler and would hide C++11 violations. The build keeps going after the first error
   (`ninja -k 0`) so one run lists every failing file.
-- The nRF52 examples are cross compiled with the same arm-none-eabi-gcc as `examples/docker/`.
+- The nRF52 examples are cross compiled with the same arm-none-eabi-gcc as `platforms/docker/`.
   The Nordic SDK headers come from the public nrfx and CMSIS repositories, because Nordic's
   SDK download rejects scripted access. Flash and RAM size of every example are recorded in
   the job summary (`.github/scripts/report_sizes.sh`), uploaded as artifact `example-sizes`,

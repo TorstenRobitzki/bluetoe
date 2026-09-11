@@ -33,34 +33,40 @@ if(CMAKE_CROSSCOMPILING)
             ${CMAKE_CURRENT_SOURCE_DIR}/nrf51_xxaa.ld
             )
 
+    # The function is called from the firmware's directory, so the script's path is recorded
+    # here, where it is known.
+    set_property(GLOBAL PROPERTY BLUETOE_LINKER_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/linker_script.ld)
+
     function(add_linker_script target)
-        # As the function gets called from expamples/CMakeLists.txt CMAKE_CURRENT_LIST_DIR and CMAKE_CURRENT_SOURCE_DIR
-        # is expamples/
+        get_property(script GLOBAL PROPERTY BLUETOE_LINKER_SCRIPT)
+
         set_property(
             TARGET ${target}
             APPEND
             PROPERTY
-                INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/nrf51_toolchain_support/linker_script.ld)
+                INTERFACE_LINK_DEPENDS ${script})
 
         target_link_options(${target}
-            PRIVATE -T ${CMAKE_CURRENT_BINARY_DIR}/nrf51_toolchain_support/linker_script.ld)
+            PRIVATE -T ${script})
 
         add_dependencies(${target} linker_script)
     endfunction()
 
     if (DEFINED BLUETOE_JLINK)
         message( WARNING "nrfjprog ${BLUETOE_JLINK} selected")
-        set(SELECT_JLINK_DEVICE --snr ${BLUETOE_JLINK} PARENT_SCOPE)
+        set_property(GLOBAL PROPERTY BLUETOE_SELECT_JLINK_DEVICE --snr ${BLUETOE_JLINK})
     endif()
 
     function(define_flash_command target)
+        get_property(select_jlink_device GLOBAL PROPERTY BLUETOE_SELECT_JLINK_DEVICE)
+
         add_custom_target(${target}.flash
-            COMMAND nrfjprog --chiperase --family NRF51 ${SELECT_JLINK_DEVICE} --program ${target}.hex --verify --reset
+            COMMAND nrfjprog --chiperase --family NRF51 ${select_jlink_device} --program ${target}.hex --verify --reset
             VERBATIM
             )
         add_dependencies(${target}.flash ${target}.artifacts)
     endfunction()
 
 else()
-    message(FATAL_ERROR "Please set CMAKE_TOOLCHAIN_FILE to one of the tool-chain files in examples/cmake!")
+    message(FATAL_ERROR "Please set CMAKE_TOOLCHAIN_FILE to one of the tool-chain files in platforms/cmake!")
 endif()
