@@ -20,3 +20,6 @@ add_scheduled_radio_test(instrument_dut_rig_tests)
 add_scheduled_radio_test(instrument_toolbox_tests)
 target_include_directories(instrument_toolbox_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_link_libraries(instrument_toolbox_tests PRIVATE test::tools)
+
+add_scheduled_radio_test(host_transport_tests)
+target_link_libraries(host_transport_tests PRIVATE scheduled_radio::host)

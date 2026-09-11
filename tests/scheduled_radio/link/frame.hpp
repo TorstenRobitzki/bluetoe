@@ -39,6 +39,11 @@ namespace test_rig {
      */
     constexpr std::size_t frame_overhead = 4;
 
+    /**
+     * @brief the payload bound the rig and the host agree on unless told otherwise
+     */
+    constexpr std::size_t default_max_payload = 256;
+
     enum class receive_result
     {
         /**
@@ -108,6 +113,17 @@ namespace test_rig {
             length_.reset();
 
             return receive_result::frame;
+        }
+
+        /**
+         * @brief forget a partial frame and everything the buffer holds
+         *
+         * For a receiver that gave up waiting for a frame and does not want the remains
+         * of it in front of the next one.
+         */
+        void reset()
+        {
+            discard();
         }
 
         /**

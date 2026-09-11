@@ -129,7 +129,7 @@ namespace test_rig {
     template <
         template < typename CallBacks > class Radio,
         template < typename Buffer, typename Wake > class Port,
-        std::size_t MaxPayload = 256 >
+        std::size_t MaxPayload = default_max_payload >
     class dut_rig : public Radio< dut_rig< Radio, Port, MaxPayload > >
     {
     public:

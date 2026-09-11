@@ -2,4 +2,5 @@
 # decision 13). Its targets set their own standard rather than inheriting the C++11 pin the
 # continuous integration build applies to the rest of the library.
 add_subdirectory(link)
+add_subdirectory(host)
 add_subdirectory(tests)
