@@ -520,7 +520,7 @@ no concept can express.
 A concept checks syntax. Everything decision 10 and decision 17 ask for, the observable effect,
 the tolerance, the context, is semantics and stays as prose next to each requirement, which is
 what the rig checks. What changes is that the two headers now have to compile: a concept that
-does not is worthless. `tests/scheduled_radio/concept_tests.cpp` instantiates each concept
+does not is worthless. `tests/scheduled_radio/self_tests/concept_tests.cpp` instantiates each concept
 against a model, the smallest type that satisfies it, and against a model with one requirement
 removed, so that a concept nobody can satisfy and a concept that checks nothing are both found at
 compile time. The test target sets C++20 itself, as decision 13 requires.
@@ -606,6 +606,24 @@ The dummy radio claims every feature, so that every wrapper the rig has is in th
 through virtual functions, so that the host could name it directly. It works, but it splits the
 rig into a part that holds the state and a part that reaches the radio, with an indirection whose
 only purpose is to let the host spell a type it never has an object of.
+
+## 21. Two kinds of tests, in two directories
+
+The tests under `tests/scheduled_radio/self_tests/` are the instruments testing themselves: the
+concepts, the link, the protocol, the rig, the host's transport, with dummies and sockets in place
+of hardware. They run on every platform and every CI job, and `ctest` runs them like any other
+unit test. The tests under `tests/scheduled_radio/radio_tests/` are the purpose of the work: they
+test a scheduled radio implementation through the instruments, need a device under test and a
+tester on two serial ports, and run on demand against the device the command line names. `ctest`
+does not run them.
+
+The two have different readers as well as different runners. An implementer of a radio runs the
+second kind against their implementation and never needs the first; a change to the rig is proven
+by the first kind before it can touch the second. "Self test" is what a test instrument calls
+testing itself, which is exactly what the first kind is.
+
+The sketches `first_tests.cpp` and `toolbox_tests.cpp` become the first files of `radio_tests/`
+when they turn into real tests; until then they stay where they are, as sketches.
 
 ## Open questions
 
