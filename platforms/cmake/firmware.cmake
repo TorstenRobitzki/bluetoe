@@ -34,7 +34,7 @@ add_link_options(-g)
 
 # Standard libraries
 add_compile_options(-nostdlib)
-add_link_options(--sysroot=/usr/local/arm/arm-none-eabi -lm -lstdc++ -lsupc++ -nostdlib --specs=nano.specs -static)
+add_link_options(-lm -lstdc++ -lsupc++ -nostdlib --specs=nano.specs -static)
 
 # the platform support: assert(), the C++ runtime, the binding's toolchain, startup and linker script
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/.. ${CMAKE_BINARY_DIR}/platforms)
