@@ -14,8 +14,10 @@
  * list the wire is keyed on, which is why no function of the list carries a type of the
  * radio.
  *
- * This is the first slice: the instrument functions, the session token and the main loop.
- * The toolbox wrappers, the program interpreter and the records follow.
+ * The function list is the instrument functions and the pairing toolbox, the same on
+ * every device. On a radio without a toolbox the toolbox opcodes are answered with
+ * status::unsupported_function, and the host reads properties() before it asks. The
+ * program interpreter and the records follow.
  */
 
 #include "instrument/dispatcher.hpp"
@@ -35,6 +37,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 
 namespace bluetoe {
 namespace test_rig {
@@ -42,9 +45,69 @@ namespace test_rig {
     /**
      * @brief version of the wire protocol of the device under test
      *
-     * Changes whenever dut_rig::functions changes.
+     * Counts the function lists a firmware was built with: changes whenever
+     * dut_rig::functions changes after a device was flashed with the current one.
      */
     constexpr std::uint16_t dut_protocol_version = 1;
+
+    namespace details {
+
+        /*
+         * The toolbox as the wire sees it, for a rig around a radio that has none. The
+         * list names these functions at the toolbox's positions, so that it is the same
+         * as on a device with a toolbox; no object of the rig's dispatcher is of this
+         * class, so the dispatcher answers status::unsupported_function and never calls
+         * them. The bodies exist only because a member pointer needs a definition.
+         */
+        class no_toolbox
+        {
+        public:
+            using coordinate_t = std::array< std::uint8_t, 32 >;
+
+            std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys()
+            {
+                return {};
+            }
+
+            bluetoe::details::uint128_t select_random_nonce()
+            {
+                return {};
+            }
+
+            bluetoe::details::ecdh_shared_secret_t p256(
+                const bluetoe::details::ecdh_private_key_t&, const bluetoe::details::ecdh_public_key_t& )
+            {
+                return {};
+            }
+
+            bluetoe::details::uint128_t f4(
+                const coordinate_t&, const coordinate_t&, const bluetoe::details::uint128_t&, std::uint8_t )
+            {
+                return {};
+            }
+
+            std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
+                const bluetoe::details::ecdh_shared_secret_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
+                const link_layer::device_address&, const link_layer::device_address& )
+            {
+                return {};
+            }
+
+            bluetoe::details::uint128_t f6(
+                const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
+                const bluetoe::details::uint128_t&, const bluetoe::details::io_capabilities_t&,
+                const link_layer::device_address&, const link_layer::device_address& )
+            {
+                return {};
+            }
+
+            std::uint32_t g2(
+                const coordinate_t&, const coordinate_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
+            {
+                return 0;
+            }
+        };
+    }
 
     /**
      * @brief the rig around a scheduled radio implementation
@@ -70,6 +133,18 @@ namespace test_rig {
     class dut_rig : public Radio< dut_rig< Radio, Port, MaxPayload > >
     {
     public:
+        using radio_t = Radio< dut_rig >;
+
+        /**
+         * @brief whose toolbox functions the list names
+         *
+         * The radio's, if it has a toolbox; the rig's wrappers stand in for the three
+         * with pointer parameters. Without a toolbox, those of details::no_toolbox, which
+         * the dispatcher answers with status::unsupported_function.
+         */
+        using toolbox_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, radio_t, details::no_toolbox >;
+        using wrapped_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, dut_rig, details::no_toolbox >;
+
         /**
          * @brief bytes of a name on the wire; longer names are truncated
          */
@@ -183,16 +258,58 @@ namespace test_rig {
         }
         /** @} */
 
+        /**
+         * @name Pairing toolbox
+         *
+         * The functions of lesc_pairing_toolbox that take a pointer, with the array the
+         * pointer denotes as the parameter (decision 19). The other four are the radio's
+         * own members, reached as toolbox_t. Only instantiated if the radio has a
+         * toolbox, since only then does the list name them.
+         * @{
+         */
+
+        /**
+         * @brief the x coordinate of a public key, the u and v of f4() and g2()
+         */
+        using coordinate_t = std::array< std::uint8_t, 32 >;
+
+        bluetoe::details::ecdh_shared_secret_t p256(
+            const bluetoe::details::ecdh_private_key_t& private_key,
+            const bluetoe::details::ecdh_public_key_t&  public_key )
+        {
+            return radio_t::p256( private_key.data(), public_key.data() );
+        }
+
+        bluetoe::details::uint128_t f4(
+            const coordinate_t& u, const coordinate_t& v, const bluetoe::details::uint128_t& x, std::uint8_t z )
+        {
+            return radio_t::f4( u.data(), v.data(), x, z );
+        }
+
+        std::uint32_t g2(
+            const coordinate_t& u, const coordinate_t& v,
+            const bluetoe::details::uint128_t& x, const bluetoe::details::uint128_t& y )
+        {
+            return radio_t::g2( u.data(), v.data(), x, y );
+        }
+        /** @} */
+
         using functions = function_list<
             &dut_rig::protocol_version,
             &dut_rig::implementation_name,
             &dut_rig::build_identifier,
             &dut_rig::set_session_token,
             &dut_rig::program_finished,
-            &dut_rig::properties >;
+            &dut_rig::properties,
+            &toolbox_t::generate_keys,
+            &toolbox_t::select_random_nonce,
+            &wrapped_t::p256,
+            &wrapped_t::f4,
+            &toolbox_t::f5,
+            &toolbox_t::f6,
+            &wrapped_t::g2 >;
 
     private:
-        using radio_t  = Radio< dut_rig >;
         using buffer_t = ring_buffer< std::uint8_t, MaxPayload + frame_overhead >;
         using port_t   = Port< buffer_t, radio_t >;
 

@@ -15,3 +15,8 @@ add_scheduled_radio_test(link_frame_tests)
 add_scheduled_radio_test(instrument_dispatcher_tests)
 add_scheduled_radio_test(host_proxy_tests)
 add_scheduled_radio_test(instrument_dut_rig_tests)
+
+# the toolbox test runs the software toolbox of the security manager tests behind the rig
+add_scheduled_radio_test(instrument_toolbox_tests)
+target_include_directories(instrument_toolbox_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+target_link_libraries(instrument_toolbox_tests PRIVATE test::tools)

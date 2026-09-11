@@ -112,6 +112,16 @@ BOOST_FIXTURE_TEST_CASE( a_byte_sequence_carries_its_length, round_trip )
     check( empty, { 0x00, 0x00 } );
 }
 
+BOOST_FIXTURE_TEST_CASE( a_device_address_is_its_kind_and_its_bytes, round_trip )
+{
+    using bluetoe::link_layer::device_address;
+
+    const std::uint8_t bytes[] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
+
+    check( device_address( bytes, false ), { 0x00, 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 } );
+    check( device_address( bytes, true ),  { 0x01, 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 } );
+}
+
 BOOST_AUTO_TEST_CASE( a_byte_sequence_longer_than_its_bound_is_rejected )
 {
     const std::uint8_t encoded[] = { 0x03, 0x00, 0xaa, 0xbb, 0xcc };

@@ -571,6 +571,19 @@ serialising into a full buffer fails rather than truncates, both reported as a r
 thrown, because the device has no exceptions and a malformed request is a link error the host
 should see, not a crash.
 
+**Amended.** Only the toolbox functions with pointer parameters, `p256()`, `f4()` and `g2()`, are
+wrapped. The rig is the radio's callbacks type and derives from the radio, so the other four are in
+the list as the radio's own members; a member pointer to an inherited function is a pointer to a
+member of the base that declares it, and the dispatcher finds the object for it by base class.
+
+The list is the same on both sides of the link whatever the device is, because a list that
+depended on the device's features would have to be agreed anew for every device the tests are
+pointed at. A radio without a toolbox does not shorten it: the rig names, at the toolbox's
+positions, the functions of a class with the wire signatures that none of its dispatcher's objects
+is, and the dispatcher answers those opcodes with `unsupported_function` without looking at the
+arguments. The host reads `properties()` before it asks. Zeros from a dummy were rejected, since a
+zero is a result and a missing feature is not.
+
 ## 20. The host names the rig's function list by instantiating the rig with dummies
 
 The wire is keyed on member function pointers (decision 19, `link/function_list.hpp`): the

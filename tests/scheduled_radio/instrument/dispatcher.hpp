@@ -10,6 +10,11 @@
  * It answers an unknown opcode or arguments that do not deserialise, or that leave
  * bytes over, with a status instead of a result, and the host turns that into a
  * link error.
+ *
+ * A function of the list whose class is neither one of the dispatcher's objects nor a
+ * base of one is not implemented on this instrument, and its opcode is answered with
+ * status::unsupported_function. This is how the list stays the same on every instrument
+ * while a feature is absent on some.
  */
 
 #include "link/function_list.hpp"
@@ -26,10 +31,31 @@
 namespace bluetoe {
 namespace test_rig {
 
+    namespace details {
+
+        /*
+         * The first of Objects that is Object or derives from it. A function inherited
+         * from a base class is a member of that base, and the object it is called on is
+         * the derived one.
+         */
+        template < typename Object, typename... Objects >
+        constexpr std::size_t object_index()
+        {
+            constexpr bool matches[] = { std::is_base_of_v< Object, Objects >..., false };
+
+            for ( std::size_t i = 0; i != sizeof...( Objects ); ++i )
+                if ( matches[ i ] )
+                    return i;
+
+            return sizeof...( Objects );
+        }
+    }
+
     /**
      * @brief executes requests against the objects the functions of the list belong to
      *
-     * Every class a function of the list belongs to appears exactly once among Objects.
+     * A class a function of the list belongs to is, or is a base of, at most one of
+     * Objects; a function without an object is unsupported on this instrument.
      */
     template < typename List, typename... Objects >
     class dispatcher;
@@ -85,24 +111,33 @@ namespace test_rig {
         {
             using traits = member_function_traits< decltype( F ) >;
 
-            typename traits::arguments arguments;
+            constexpr std::size_t index = details::object_index< typename traits::object, Objects... >();
 
-            if ( !deserialize( in, arguments ) || in.remaining() != 0 )
-                return serialize( response, status::malformed_arguments );
-
-            typename traits::object& object = *std::get< typename traits::object* >( objects_ );
-
-            if constexpr ( std::is_void_v< typename traits::result > )
+            if constexpr ( index == sizeof...( Objects ) )
             {
-                std::apply( [ & ]( const auto&... args ) { ( object.*F )( args... ); }, arguments );
-
-                return serialize( response, status::ok );
+                return serialize( response, status::unsupported_function );
             }
             else
             {
-                const auto result = std::apply( [ & ]( const auto&... args ) { return ( object.*F )( args... ); }, arguments );
+                typename traits::arguments arguments;
 
-                return serialize( response, status::ok ) && serialize( response, result );
+                if ( !deserialize( in, arguments ) || in.remaining() != 0 )
+                    return serialize( response, status::malformed_arguments );
+
+                typename traits::object& object = *std::get< index >( objects_ );
+
+                if constexpr ( std::is_void_v< typename traits::result > )
+                {
+                    std::apply( [ & ]( const auto&... args ) { ( object.*F )( args... ); }, arguments );
+
+                    return serialize( response, status::ok );
+                }
+                else
+                {
+                    const auto result = std::apply( [ & ]( const auto&... args ) { return ( object.*F )( args... ); }, arguments );
+
+                    return serialize( response, status::ok ) && serialize( response, result );
+                }
             }
         }
 

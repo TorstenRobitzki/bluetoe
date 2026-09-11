@@ -167,6 +167,48 @@ BOOST_FIXTURE_TEST_CASE( an_empty_request_is_malformed, fixture )
         boost::test_tools::per_element() );
 }
 
+/*
+ * A function inherited from a base class is a member of the base; the dispatcher finds
+ * the derived object for it.
+ */
+BOOST_AUTO_TEST_CASE( a_function_of_a_base_class_is_called_on_the_derived_object )
+{
+    struct derived_counter : counter
+    {
+        int unrelated = 0;
+    };
+
+    derived_counter                                                     object;
+    dispatcher< function_list< &counter::increment >, derived_counter > dispatch( object );
+
+    std::array< std::uint8_t, 8 > storage = {};
+    buffer_sink                   out( storage );
+
+    const std::uint8_t request[] = { 0x00 };
+
+    BOOST_REQUIRE( dispatch.dispatch( request, 0, out ) );
+    BOOST_CHECK_EQUAL( object.count, 1 );
+}
+
+/*
+ * A function whose class none of the objects has is unsupported on this instrument;
+ * its arguments are not even looked at.
+ */
+BOOST_AUTO_TEST_CASE( a_function_without_an_object_is_reported_as_unsupported )
+{
+    counter                                                                     object;
+    dispatcher< function_list< &counter::increment, &calculator::add >, counter > dispatch( object );
+
+    std::array< std::uint8_t, 8 > storage = {};
+    buffer_sink                   out( storage );
+
+    const std::uint8_t request[] = { 0x01, 0xff };
+
+    BOOST_REQUIRE( dispatch.dispatch( request, 0x11223344, out ) );
+    BOOST_TEST( ( std::vector< std::uint8_t >( storage.begin(), storage.begin() + out.size() ) )
+        == std::vector< std::uint8_t >( { 0x44, 0x33, 0x22, 0x11, 0x03 } ), boost::test_tools::per_element() );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_response_that_does_not_fit_is_reported, fixture )
 {
     std::array< std::uint8_t, 5 > small = {};

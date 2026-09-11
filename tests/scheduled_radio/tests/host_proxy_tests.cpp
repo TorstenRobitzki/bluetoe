@@ -170,6 +170,9 @@ BOOST_FIXTURE_TEST_CASE( a_status_other_than_ok_is_a_link_error, canned )
 
     answer( { 0x44, 0x33, 0x22, 0x11, 0x02 } );
     BOOST_CHECK_THROW( remote.call< &instrument::store >( 0x2a ), link_error );
+
+    answer( { 0x44, 0x33, 0x22, 0x11, 0x03 } );
+    BOOST_CHECK_THROW( remote.call< &instrument::store >( 0x2a ), link_error );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_response_of_the_wrong_length_is_a_link_error, canned )

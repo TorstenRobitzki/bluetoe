@@ -169,6 +169,71 @@ namespace {
     static_assert( dut_functions::size == rig_t::functions::size );
 
     /*
+     * A radio without a toolbox, written from the concept's minimum rather than derived
+     * from the dummy, so that the toolbox functions do not exist at all: the rig's list
+     * is the same as with any other radio, and nothing may try to call them.
+     */
+    template < typename CallBacks >
+    class radio_without_toolbox
+    {
+    public:
+        static constexpr bool           hardware_supports_encryption                = false;
+        static constexpr bool           hardware_supports_lesc_pairing              = false;
+        static constexpr bool           hardware_supports_legacy_pairing            = false;
+        static constexpr bool           hardware_supports_2mbit                     = false;
+        static constexpr bool           hardware_supports_synchronized_user_timer   = false;
+        static constexpr bool           hardware_supports_link_layer_context        = false;
+        static constexpr std::size_t    radio_package_overhead                      = 0;
+        static constexpr std::uint32_t  radio_max_supported_payload_length          = 27;
+        static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 500;
+
+        struct ccm_counter_t {};
+        struct lock_guard {};
+
+        void run() {}
+        void wake_up() {}
+
+        void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
+        void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
+        void set_phy( bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t, bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
+        void set_local_address( const bluetoe::link_layer::device_address& ) {}
+
+        bool start_advertising( std::uint32_t, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::read_buffer& )
+        {
+            return false;
+        }
+
+        bool schedule_advertising_event( std::uint32_t, bluetoe::link_layer::abs_time, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::read_buffer& )
+        {
+            return false;
+        }
+
+        bool schedule_connection_event( std::uint32_t, bluetoe::link_layer::abs_time, bluetoe::link_layer::abs_time )
+        {
+            return false;
+        }
+
+        bool cancel_radio_event()
+        {
+            return false;
+        }
+
+        bool schedule_timer( bluetoe::link_layer::abs_time )
+        {
+            return false;
+        }
+
+        bool cancel_timer()
+        {
+            return false;
+        }
+    };
+
+    using rig_without_toolbox = dut_rig< radio_without_toolbox, observed_port >;
+
+    static_assert( rig_without_toolbox::functions::size == rig_t::functions::size );
+
+    /*
      * The host end of the observed port: a request goes as a frame into the rig's receive
      * buffer, the rig runs one iteration, and the response frame is taken out of its
      * transmit buffer.
@@ -300,6 +365,44 @@ BOOST_FIXTURE_TEST_CASE( a_response_that_does_not_fit_waits_for_room, fixture )
     BOOST_CHECK( transport.receiver.receive() == receive_result::frame );
     BOOST_TEST( transport.receiver.payload() == std::vector< std::uint8_t >( { 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 } ),
         boost::test_tools::per_element() );
+}
+
+/*
+ * The list is the same on both sides whatever the device is: a device without a toolbox
+ * answers the toolbox opcodes with unsupported_function, which the proxy reports as a
+ * link error, and the host reads properties() before it asks.
+ */
+BOOST_AUTO_TEST_CASE( a_device_without_a_toolbox_reports_the_toolbox_functions_as_unsupported )
+{
+    struct transport
+    {
+        rig_without_toolbox                     rig{ "no toolbox", "unit test build" };
+        observed_port_base&                     port = *observed_port_base::instance;
+        frame_sender< erased_buffer >           sender{ port.receive() };
+        frame_receiver< 256, erased_buffer >    receiver{ port.transmit() };
+
+        std::vector< std::uint8_t > transact( std::span< const std::uint8_t > request )
+        {
+            BOOST_REQUIRE( sender.send( request ) );
+            rig.run();
+            BOOST_REQUIRE( receiver.receive() == receive_result::frame );
+
+            return { receiver.payload().begin(), receiver.payload().end() };
+        }
+    };
+
+    transport                                   to_device;
+    proxy< rig_t::functions, transport >        remote( to_device );
+    const bluetoe::link_layer::device_address   addr;
+
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::protocol_version >(), dut_protocol_version );
+    BOOST_CHECK( !remote.call< &rig_t::properties >().hardware_supports_lesc_pairing );
+
+    const rig_t::coordinate_t           zeros32 = {};
+    const bluetoe::details::uint128_t   zeros16 = {};
+
+    BOOST_CHECK_THROW( remote.call< &rig_t::f4 >( zeros32, zeros32, zeros16, 0 ), link_error );
+    BOOST_CHECK_THROW( remote.call< &rig_t::toolbox_t::f5 >( zeros32, zeros16, zeros16, addr, addr ), link_error );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_corrupt_frame_is_dropped_without_an_answer, fixture )

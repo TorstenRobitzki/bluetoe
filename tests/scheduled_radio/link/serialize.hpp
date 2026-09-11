@@ -19,6 +19,7 @@
  */
 
 #include <bluetoe/abs_time.hpp>
+#include <bluetoe/address.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/radio_properties.hpp>
 
@@ -252,6 +253,35 @@ namespace test_rig {
     bool deserialize( Source& in, std::pair< A, B >& value )
     {
         return deserialize( in, value.first ) && deserialize( in, value.second );
+    }
+
+    /*
+     * A device address: whether it is random, then its six bytes in the order the
+     * address stores them.
+     */
+    constexpr std::size_t device_address_size = 6;
+
+    template < sink Sink >
+    bool serialize( Sink& out, const link_layer::device_address& value )
+    {
+        assert( static_cast< std::size_t >( value.end() - value.begin() ) == device_address_size );
+
+        return serialize( out, value.is_random() )
+            && out.write( &*value.begin(), device_address_size );
+    }
+
+    template < source Source >
+    bool deserialize( Source& in, link_layer::device_address& value )
+    {
+        bool         is_random = false;
+        std::uint8_t bytes[ device_address_size ];
+
+        if ( !deserialize( in, is_random ) || !in.read( bytes, sizeof( bytes ) ) )
+            return false;
+
+        value = link_layer::device_address( bytes, is_random );
+
+        return true;
     }
 
     /*
