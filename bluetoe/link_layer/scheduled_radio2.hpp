@@ -17,9 +17,10 @@
  * @file scheduled_radio2.hpp
  *
  * Requirements of a scheduled radio, the abstraction of a radio hardware combined with a
- * timer that a peripheral link layer is built on, stated as C++20 concepts. A link layer
- * is a template over a type satisfying scheduled_radio; an implementation is checked
- * against the concept at the point of use.
+ * timer that a peripheral link layer is built on, stated as C++20 concepts. A scheduled
+ * radio is a template over the type it delivers its callbacks to, and the concept is over
+ * that template together with that type: scheduled_radio< Radio, CallBacks >. A link
+ * layer is a template over a radio template, and checks the pair where both are complete.
  *
  * A concept checks syntax: that the functions exist with these signatures and these
  * results. Everything else this interface promises, what appears on air, at what time,
@@ -68,19 +69,17 @@ namespace bluetoe {
 namespace link_layer {
 
     /**
-     * @brief the callbacks a scheduled radio delivers to its link layer
+     * @brief the callbacks of advertising and of the timer
      *
-     * Context: link layer, for every callback except link_layer_pdu_buffer(), which is
-     * called from the radio context and has to return immediately. The white list check
-     * that schedule_advertising_event() refers to is the second radio context callback;
-     * it is not required here yet.
+     * What every type a scheduled radio delivers to provides. Context: link layer. The
+     * white list check that schedule_advertising_event() refers to is a radio context
+     * callback of advertising; it is not required here yet.
      */
     template < typename T >
     concept scheduled_radio_callbacks = requires (
         T                               callbacks,
         abs_time                        when,
-        const read_buffer&              received,
-        connection_event_events         events )
+        const read_buffer&              received )
     {
         /*
          * Called exactly once, when the radio is ready to operate; the delay before it
@@ -106,6 +105,27 @@ namespace link_layer {
         callbacks.adv_timeout( when );
 
         /*
+         * The timer scheduled with schedule_timer() expired. `when` is the time it was
+         * scheduled for, which may differ from the time it is delivered at.
+         */
+        callbacks.user_timer( when );
+    };
+
+    /**
+     * @brief the callbacks of connection events
+     *
+     * Required, in addition to scheduled_radio_callbacks, of a type that schedules
+     * connection events; a link layer checks it where it does. Context: link layer, except
+     * link_layer_pdu_buffer(), which is called from the radio context and has to return
+     * immediately.
+     */
+    template < typename T >
+    concept scheduled_radio_connection_callbacks = requires (
+        T                               callbacks,
+        abs_time                        when,
+        connection_event_events         events )
+    {
+        /*
          * A connection event received nothing between its start and end times.
          */
         callbacks.connection_timeout( when );
@@ -115,12 +135,6 @@ namespace link_layer {
          * the anchor the next event is computed from.
          */
         callbacks.connection_end_event( when, events );
-
-        /*
-         * The timer scheduled with schedule_timer() expired. `when` is the time it was
-         * scheduled for, which may differ from the time it is delivered at.
-         */
-        callbacks.user_timer( when );
 
         /*
          * The PDU buffer of the current connection, from which the radio takes outgoing
@@ -244,26 +258,35 @@ namespace link_layer {
     };
 
     /**
-     * @brief a radio hardware combined with a timer, as a peripheral link layer needs it
+     * @brief a radio hardware combined with a timer, as a link layer needs it
+     *
+     * A schedule radio is a template over the type it delivers its callbacks to, so that it can
+     * call them without indirection, and reaches that type through the base class
+     * relation. The concept checks the pair: CallBacks provides what the radio delivers,
+     * and Radio, instantiated with it, provides everything below. Neither side can check
+     * the other in its own declaration, since the radio sees its parameter incomplete
+     * when it is instantiated as a base class, and the callbacks type cannot name itself
+     * in a constraint; the consumer that owns the pair checks it.
      *
      * Every function is annotated with the context it is called from; see the file
      * comment. Every scheduling function is associated with one or more callbacks: once
      * it was called, an action is pending on the radio until one of them is delivered,
      * and as long as an action is pending no other scheduling function is called.
      */
-    template < typename T >
+    template < template < typename > class Radio, typename CallBacks >
     concept scheduled_radio =
-           scheduled_radio_features< T >
-        && ( !T::hardware_supports_lesc_pairing || lesc_pairing_toolbox< T > )
+           scheduled_radio_callbacks< CallBacks >
+        && scheduled_radio_features< Radio< CallBacks > >
+        && ( !Radio< CallBacks >::hardware_supports_lesc_pairing || lesc_pairing_toolbox< Radio< CallBacks > > )
         && requires (
-            T                                       radio,
+            Radio< CallBacks >                      radio,
             std::uint32_t                           value,
             abs_time                                when,
             const write_buffer&                     transmit,
             const read_buffer&                      receive,
             phy_ll_encoding::phy_ll_encoding_t      phy,
             const device_address&                   address,
-            typename T::ccm_counter_t&              counter )
+            typename Radio< CallBacks >::ccm_counter_t& counter )
     {
         /*
          * Execution context.
@@ -300,8 +323,8 @@ namespace link_layer {
          *
          * Context: application.
          */
-        typename T::lock_guard;
-        requires std::default_initializable< typename T::lock_guard >;
+        typename Radio< CallBacks >::lock_guard;
+        requires std::default_initializable< typename Radio< CallBacks >::lock_guard >;
 
         /*
          * Setup. These configure the radio for the next action and are applied by the
@@ -323,9 +346,9 @@ namespace link_layer {
          * only public requirements are default construction, copy and assignment, and
          * a default constructed counter is zero.
          */
-        typename T::ccm_counter_t;
-        requires std::default_initializable< typename T::ccm_counter_t >;
-        requires std::copyable< typename T::ccm_counter_t >;
+        typename Radio< CallBacks >::ccm_counter_t;
+        requires std::default_initializable< typename Radio< CallBacks >::ccm_counter_t >;
+        requires std::copyable< typename Radio< CallBacks >::ccm_counter_t >;
         radio.set_ccm_counter( counter, counter );
 
         /*

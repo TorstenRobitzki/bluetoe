@@ -525,6 +525,22 @@ concept is over a type, so the interface becomes `scheduled_radio< Radio >`, and
 implementation receives its callbacks and its options is the implementation's business, not the
 interface's.
 
+**Amended.** `scheduled_radio` is a concept of a template and a type, `scheduled_radio< Radio,
+CallBacks >`, not of a type. A radio is a template over the type it delivers its callbacks to,
+because that is the only way it can call them without indirection, and it reaches that type through
+the base class relation, as the bindings do today. A concept over the instantiated type alone hid
+that, and it left the callbacks type unchecked: neither side of the pair can check the other in its
+own declaration, since the radio sees its parameter incomplete when it is instantiated as a base
+class, and the callbacks type cannot name itself in a constraint. The consumer that owns the pair
+checks both at once; the rig and the link layer, which both pass themselves, do so in a member
+function.
+
+In the same step `scheduled_radio_callbacks` is split: the callbacks of advertising and of the
+timer, which every callbacks type provides, and `scheduled_radio_connection_callbacks`, required of a
+type that schedules connection events. The rig's link layer half satisfies the first before it
+implements connections, and the concept tracks what exists instead of demanding a placeholder PDU
+buffer.
+
 ## 19. The wire carries the rig's interface, not the radio's
 
 What is serialised between the host and the device under test are calls to the rig: its own

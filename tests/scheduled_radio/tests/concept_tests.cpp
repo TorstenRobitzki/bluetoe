@@ -24,21 +24,32 @@ namespace {
 
     struct model_callbacks
     {
-        struct pdu_buffer {};
-
         void radio_ready() {}
         void adv_received( abs_time, const read_buffer& ) {}
         void adv_timeout( abs_time ) {}
+        void user_timer( abs_time ) {}
+    };
+
+    struct callbacks_without_the_timer
+    {
+        void radio_ready() {}
+        void adv_received( abs_time, const read_buffer& ) {}
+        void adv_timeout( abs_time ) {}
+    };
+
+    struct model_connection_callbacks : model_callbacks
+    {
+        struct pdu_buffer {};
+
         void connection_timeout( abs_time ) {}
         void connection_end_event( abs_time, connection_event_events ) {}
-        void user_timer( abs_time ) {}
 
         pdu_buffer& link_layer_pdu_buffer() { return buffer_; }
 
         pdu_buffer buffer_;
     };
 
-    struct callbacks_returning_the_buffer_by_value : model_callbacks
+    struct callbacks_returning_the_buffer_by_value : model_connection_callbacks
     {
         pdu_buffer link_layer_pdu_buffer() { return {}; }
     };
@@ -73,8 +84,10 @@ namespace {
 
     /*
      * Everything scheduled_radio asks for except the toolbox, so that the toolbox can be
-     * added or left out.
+     * added or left out. A radio is a template over its callbacks type; the models never
+     * call them.
      */
+    template < typename CallBacks >
     struct model_radio_base : model_features
     {
         struct ccm_counter_t {};
@@ -94,21 +107,26 @@ namespace {
         bool cancel_timer() { return true; }
     };
 
-    struct model_radio : model_radio_base, model_toolbox {};
+    template < typename CallBacks >
+    struct model_radio : model_radio_base< CallBacks >, model_toolbox {};
 
-    struct radio_without_lesc_pairing : model_radio_base
+    template < typename CallBacks >
+    struct radio_without_lesc_pairing : model_radio_base< CallBacks >
     {
         static constexpr bool hardware_supports_lesc_pairing = false;
     };
 
-    struct radio_claiming_lesc_pairing_without_the_toolbox : model_radio_base {};
+    template < typename CallBacks >
+    struct radio_claiming_lesc_pairing_without_the_toolbox : model_radio_base< CallBacks > {};
 
-    struct radio_with_a_void_cancel : model_radio
+    template < typename CallBacks >
+    struct radio_with_a_void_cancel : model_radio< CallBacks >
     {
         void cancel_radio_event() {}
     };
 
-    struct radio_without_a_lock : model_radio
+    template < typename CallBacks >
+    struct radio_without_a_lock : model_radio< CallBacks >
     {
         using lock_guard = void;
     };
@@ -143,19 +161,25 @@ namespace {
     using bluetoe::test_rig::serial_port;
 
     static_assert( scheduled_radio_callbacks< model_callbacks > );
-    static_assert( !scheduled_radio_callbacks< callbacks_returning_the_buffer_by_value > );
+    static_assert( !scheduled_radio_callbacks< callbacks_without_the_timer > );
+
+    static_assert( scheduled_radio_connection_callbacks< model_connection_callbacks > );
+    static_assert( !scheduled_radio_connection_callbacks< model_callbacks > );
+    static_assert( !scheduled_radio_connection_callbacks< callbacks_returning_the_buffer_by_value > );
 
     static_assert( lesc_pairing_toolbox< model_toolbox > );
-    static_assert( !lesc_pairing_toolbox< model_radio_base > );
+    static_assert( !lesc_pairing_toolbox< model_radio_base< model_callbacks > > );
 
     static_assert( scheduled_radio_features< model_features > );
     static_assert( !scheduled_radio_features< model_toolbox > );
 
-    static_assert( scheduled_radio< model_radio > );
-    static_assert( scheduled_radio< radio_without_lesc_pairing > );
-    static_assert( !scheduled_radio< radio_claiming_lesc_pairing_without_the_toolbox > );
-    static_assert( !scheduled_radio< radio_with_a_void_cancel > );
-    static_assert( !scheduled_radio< radio_without_a_lock > );
+    static_assert( scheduled_radio< model_radio, model_callbacks > );
+    static_assert( scheduled_radio< model_radio, model_connection_callbacks > );
+    static_assert( scheduled_radio< radio_without_lesc_pairing, model_callbacks > );
+    static_assert( !scheduled_radio< radio_claiming_lesc_pairing_without_the_toolbox, model_callbacks > );
+    static_assert( !scheduled_radio< radio_with_a_void_cancel, model_callbacks > );
+    static_assert( !scheduled_radio< radio_without_a_lock, model_callbacks > );
+    static_assert( !scheduled_radio< model_radio, callbacks_without_the_timer > );
 
     static_assert( byte_ring_buffer< model_buffer > );
     static_assert( !byte_ring_buffer< buffer_with_a_non_const_free > );
@@ -170,5 +194,5 @@ namespace {
  */
 BOOST_AUTO_TEST_CASE( the_concepts_are_satisfiable_and_selective )
 {
-    BOOST_CHECK( scheduled_radio< model_radio > );
+    BOOST_CHECK( ( scheduled_radio< model_radio, model_callbacks > ) );
 }
