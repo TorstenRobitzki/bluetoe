@@ -414,6 +414,12 @@ responsible for buffering whatever arrives between two polls, so the buffer is w
 platform, and whether bytes are lost depends on how long `run()` takes on that platform, which
 is exactly the variability the rig should not have.
 
+**Amended.** The port is constructed on a third thing, a reference to an object with `wake_up()`,
+and calls it after it pushed received bytes. The rig's main loop sleeps in the radio's `run()`, and
+decision 17 makes `wake_up()` the only guaranteed way to make that return; the port is the
+"interrupt of the application" that decision speaks of. Without this a request could sit in the
+receive buffer until the radio returned for a reason of its own. The rig passes the radio.
+
 ## 17. Three contexts, and one meaning of `run()`
 
 Three contexts exist, named by who lives in them. The *radio context* is the implementation's own

@@ -144,9 +144,21 @@ namespace {
         std::size_t free() { return 0; }
     };
 
+    struct model_wake
+    {
+        void wake_up() {}
+    };
+
     struct model_port
     {
-        model_port( model_buffer&, model_buffer& ) {}
+        model_port( model_buffer&, model_buffer&, model_wake& ) {}
+        void start() {}
+        void transmit_pending() {}
+    };
+
+    struct port_without_a_wake_target
+    {
+        port_without_a_wake_target( model_buffer&, model_buffer& ) {}
         void start() {}
         void transmit_pending() {}
     };
@@ -158,6 +170,7 @@ namespace {
     };
 
     using bluetoe::test_rig::byte_ring_buffer;
+    using bluetoe::test_rig::wake_up_target;
     using bluetoe::test_rig::serial_port;
 
     static_assert( scheduled_radio_callbacks< model_callbacks > );
@@ -184,8 +197,12 @@ namespace {
     static_assert( byte_ring_buffer< model_buffer > );
     static_assert( !byte_ring_buffer< buffer_with_a_non_const_free > );
 
-    static_assert( serial_port< model_port, model_buffer > );
-    static_assert( !serial_port< port_without_a_buffer_constructor, model_buffer > );
+    static_assert( wake_up_target< model_wake > );
+    static_assert( !wake_up_target< model_buffer > );
+
+    static_assert( serial_port< model_port, model_buffer, model_wake > );
+    static_assert( !serial_port< port_without_a_buffer_constructor, model_buffer, model_wake > );
+    static_assert( !serial_port< port_without_a_wake_target, model_buffer, model_wake > );
 }
 
 /*

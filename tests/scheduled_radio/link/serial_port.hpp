@@ -31,6 +31,11 @@
  * radio uses. This is the one rule the port has to honour, and it is the port's business
  * how; on a part with prioritised interrupts it is the priority of the UART interrupt.
  *
+ * The port is also what wakes the rig. The rig's main loop sleeps in the radio's run(),
+ * and wake_up() is the guaranteed way to make that return (decision 17); the port is the
+ * interrupt of the application that decision speaks of. It is therefore constructed on a
+ * third thing, the object to wake, and calls wake_up() on it after it pushed what arrived.
+ *
  * The same port serves the tester, whose link is the same code.
  *
  * @section platform What else is platform dependent
@@ -86,22 +91,35 @@ namespace test_rig {
     };
 
     /**
+     * @brief what the port wakes after it received something
+     *
+     * The rig passes the radio, whose wake_up() is callable from any context.
+     */
+    template < typename T >
+    concept wake_up_target = requires ( T target )
+    {
+        target.wake_up();
+    };
+
+    /**
      * @brief what a platform has to provide
      *
-     * A port is constructed on the rig's two buffers, `receive` and `transmit`, both of
-     * which outlive it. It pushes into the first and pops from the second.
+     * A port is constructed on the rig's two buffers, `receive` and `transmit`, and on the
+     * object it wakes, all of which outlive it. It pushes into the first buffer and pops
+     * from the second.
      */
-    template < typename T, typename Buffer >
+    template < typename T, typename Buffer, typename Wake >
     concept serial_port =
            byte_ring_buffer< Buffer >
-        && std::constructible_from< T, Buffer&, Buffer& >
+        && wake_up_target< Wake >
+        && std::constructible_from< T, Buffer&, Buffer&, Wake& >
         && requires ( T port )
     {
         /*
          * Configures the port and begins. From here on everything that arrives is pushed
          * into the receive buffer, with the host held off while free() is smaller than
-         * what would arrive, and whenever the port can send it pops from the transmit
-         * buffer until available() is zero.
+         * what would arrive, followed by wake_up() on the object to wake; and whenever the
+         * port can send it pops from the transmit buffer until available() is zero.
          */
         port.start();
 
