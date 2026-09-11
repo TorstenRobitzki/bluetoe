@@ -41,8 +41,13 @@ namespace test_rig {
         static_assert( sizeof...( Functions ) > 0, "a dispatcher needs at least one function" );
         static_assert( sizeof...( Functions ) <= 256, "an opcode is one byte" );
 
+        /*
+         * Pointers rather than references, so that an object may hold its dispatcher as a
+         * member: a tuple of references to a still incomplete class trips the tuple's
+         * assignability checks, a tuple of pointers does not.
+         */
         explicit dispatcher( Objects&... objects )
-            : objects_( objects... ) {}
+            : objects_( &objects... ) {}
 
         /**
          * @brief execute one request and write the response
@@ -85,7 +90,7 @@ namespace test_rig {
             if ( !deserialize( in, arguments ) || in.remaining() != 0 )
                 return serialize( response, status::malformed_arguments );
 
-            typename traits::object& object = std::get< typename traits::object& >( objects_ );
+            typename traits::object& object = *std::get< typename traits::object* >( objects_ );
 
             if constexpr ( std::is_void_v< typename traits::result > )
             {
@@ -101,7 +106,7 @@ namespace test_rig {
             }
         }
 
-        std::tuple< Objects&... > objects_;
+        std::tuple< Objects*... > objects_;
     };
 }
 }

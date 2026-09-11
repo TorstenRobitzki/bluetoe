@@ -20,6 +20,7 @@
 
 #include <bluetoe/abs_time.hpp>
 #include <bluetoe/delta_time.hpp>
+#include <bluetoe/radio_properties.hpp>
 
 #include <algorithm>
 #include <array>
@@ -251,6 +252,37 @@ namespace test_rig {
     bool deserialize( Source& in, std::pair< A, B >& value )
     {
         return deserialize( in, value.first ) && deserialize( in, value.second );
+    }
+
+    /*
+     * The properties of a radio, field by field in declaration order.
+     */
+    template < sink Sink >
+    bool serialize( Sink& out, const link_layer::radio_properties& value )
+    {
+        return serialize( out, std::tie(
+            value.hardware_supports_encryption,
+            value.hardware_supports_lesc_pairing,
+            value.hardware_supports_legacy_pairing,
+            value.hardware_supports_2mbit,
+            value.hardware_supports_synchronized_user_timer,
+            value.radio_max_supported_payload_length,
+            value.sleep_time_accuracy_ppm ) );
+    }
+
+    template < source Source >
+    bool deserialize( Source& in, link_layer::radio_properties& value )
+    {
+        auto fields = std::tie(
+            value.hardware_supports_encryption,
+            value.hardware_supports_lesc_pairing,
+            value.hardware_supports_legacy_pairing,
+            value.hardware_supports_2mbit,
+            value.hardware_supports_synchronized_user_timer,
+            value.radio_max_supported_payload_length,
+            value.sleep_time_accuracy_ppm );
+
+        return deserialize( in, fields );
     }
 
     template < sink Sink >

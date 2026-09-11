@@ -90,6 +90,10 @@ namespace test_rig {
          *
          * Zero after every start of the instrument, and never set to zero by the host.
          *
+         * The response to this call still carries the token that was in effect when the
+         * request arrived. This is what proves a reset: a host that expects zero after a
+         * reset is answered with the old token by an instrument that did not restart.
+         *
          * @sa instrument.hpp, section "Detecting a restart"
          */
         void set_session_token( std::uint32_t token );

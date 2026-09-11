@@ -571,6 +571,29 @@ serialising into a full buffer fails rather than truncates, both reported as a r
 thrown, because the device has no exceptions and a malformed request is a link error the host
 should see, not a crash.
 
+## 20. The host names the rig's function list by instantiating the rig with dummies
+
+The wire is keyed on member function pointers (decision 19, `link/function_list.hpp`): the
+dispatcher on the device and the proxy on the host have to agree on one `function_list`, and that
+list is made of pointers to members of the rig, which is a template over the radio and the port.
+The host cannot name the device's instantiation, and does not have to. It instantiates the same
+template with a dummy radio and a dummy port (`host/dut_functions.hpp`) and takes the list from that.
+An opcode is a position in the list, and the arguments and results are taken from the signatures;
+neither mentions the radio, so both instantiations produce the same wire.
+
+Two consequences. No function in the list may carry a type of the radio: whatever the radio
+defines, such as `ccm_counter_t`, is translated by the rig's wrapper before it reaches the wire,
+which is the rule decision 19 already made for pointers. And the rig compiles on the host, which
+is what decision 16 asked for so that the rig can be unit tested; the unit tests instantiate it
+with instrumented versions of the two dummies.
+
+The dummy radio claims every feature, so that every wrapper the rig has is in the host's list.
+
+**Rejected:** a non-template interface class for the wire-facing functions, implemented by the rig
+through virtual functions, so that the host could name it directly. It works, but it splits the
+rig into a part that holds the state and a part that reaches the radio, with an indirection whose
+only purpose is to let the host spell a type it never has an object of.
+
 ## Open questions
 
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
