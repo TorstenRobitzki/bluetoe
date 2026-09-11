@@ -64,7 +64,7 @@ jobs:
         name: nRF52 examples, code size
         runs-on: ubuntu-latest
         env:
-            # Same compiler version as examples/docker/Dockerfile
+            # Same compiler version as platforms/docker/Dockerfile
             ARM_GCC_VERSION: 10.3-2021.10
             # The examples only need the nrfx MDK headers and the CMSIS core headers from the Nordic SDK.
             # Nordic's SDK download does not allow automated downloads, so the same headers are taken
