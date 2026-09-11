@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -66,6 +67,25 @@ namespace test_rig {
     {
         std::array< std::uint8_t, MaxSize > data = {};
         std::size_t                         size = 0;
+
+        bytes() = default;
+
+        /**
+         * @brief the bytes of a contiguous range, which has to fit
+         *
+         * This is how a host side argument, an array or a span, becomes the parameter type
+         * of a device function.
+         */
+        template < typename Range >
+            requires std::constructible_from< std::span< const std::uint8_t >, const Range& >
+        bytes( const Range& range )
+        {
+            const std::span< const std::uint8_t > source( range );
+            assert( source.size() <= MaxSize );
+
+            std::copy( source.begin(), source.end(), data.begin() );
+            size = source.size();
+        }
 
         std::span< const std::uint8_t > span() const
         {

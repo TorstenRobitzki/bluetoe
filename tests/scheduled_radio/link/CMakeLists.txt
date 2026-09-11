@@ -1,5 +1,6 @@
 add_library(scheduled_radio_link STATIC
     crc16.cpp
+    status.cpp
 )
 
 add_library(scheduled_radio::link ALIAS scheduled_radio_link)
