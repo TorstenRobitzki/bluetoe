@@ -7,14 +7,14 @@ CONTAINER_IMAGE ?= bluetoe_alpine
 # Mount point where the quark-derived project will exist within the container
 CONTAINER_TARGET := /work
 
-COMMAND ?= mkdir -p ../build && cd ../build && cmake -GNinja -DARM_GCC_TOOL_PATH=/usr/local/gcc-arm-none-eabi-10.3-2021.10/ -DNRF5_SDK_ROOT=/opt/nrf5_sdk/ -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake .. && ninja
+COMMAND ?= cmake -S $(CONTAINER_TARGET)/examples -B $(CONTAINER_TARGET)/examples/build -GNinja -DBLUETOE_BOARD=PCA10040 -DARM_GCC_TOOL_PATH=/usr/local/gcc-arm-none-eabi-10.3-2021.10/ -DNRF5_SDK_ROOT=/opt/nrf5_sdk/ && ninja -C $(CONTAINER_TARGET)/examples/build
 
 .PHONY: all
 all: container-build
 
 .PHONY: clean
 clean:
-	rm -rf ../build
+	rm -rf ../../examples/build
 
 .PHONY: container-build-image
 container-build-image:
@@ -52,7 +52,7 @@ container-build: container-build-image
 	$(CONTAINER_ENGINE) run --rm -ti \
 	--user=$(shell id -u):$(shell id -g) \
 	--mount type="bind,src=$(PWD)/../..,target=$(CONTAINER_TARGET)" \
-	--workdir="$(CONTAINER_TARGET)/examples/docker" \
+	--workdir="$(CONTAINER_TARGET)/platforms/docker" \
 	$(CONTAINER_IMAGE) sh -c "$(COMMAND)"
 
 .PHONY: container-delete
