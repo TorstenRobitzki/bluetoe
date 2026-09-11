@@ -3,7 +3,5 @@
 # continuous integration build applies to the rest of the library.
 add_subdirectory(link)
 add_subdirectory(host)
-
-# The instruments testing themselves; the tests of a scheduled radio implementation live in
-# radio_tests/ and are not run by ctest (decision 21).
 add_subdirectory(self_tests)
+add_subdirectory(radio_tests)

@@ -622,8 +622,10 @@ second kind against their implementation and never needs the first; a change to 
 by the first kind before it can touch the second. "Self test" is what a test instrument calls
 testing itself, which is exactly what the first kind is.
 
-The sketches `first_tests.cpp` and `toolbox_tests.cpp` become the first files of `radio_tests/`
-when they turn into real tests; until then they stay where they are, as sketches.
+The sketch `toolbox_tests.cpp` became the first file of `radio_tests/`; `first_tests.cpp` follows
+when it turns into a real test, and stays where it is as a sketch until then. The device under
+test is named by the environment variable `BLUETOE_DUT`, so that one build of the tests runs
+against any device and the only thing that changes between two devices is the port.
 
 ## Open questions
 

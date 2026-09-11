@@ -19,7 +19,12 @@
 namespace bluetoe {
 namespace test_rig {
 
-    using dut_functions = dut_rig< dummy_radio, dummy_port >::functions;
+    /**
+     * @brief the device under test, as the host spells its functions: &dut::f4
+     */
+    using dut = dut_rig< dummy_radio, dummy_port >;
+
+    using dut_functions = dut::functions;
 }
 }
 

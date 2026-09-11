@@ -80,7 +80,7 @@ The cancel's answer is definitive, so the absence of the callbacks is part of wh
 
 The functions of `pairing_security_toolbox` have no effect on air and no time in them. They are
 called through the rig with their arguments, their results come back in the response, and the host
-asserts. No tester, no program, no reset. Written out in toolbox_tests.cpp.
+asserts. No tester, no program, no reset. Written out in radio_tests/toolbox_tests.cpp.
 
 **The specification's vectors.** `f4`, `f5`, `f6`, `g2` and `p256` each have a worked example in
 the Core Specification, and `tests/security_manager/test_sm_tests.cpp` already runs them against
