@@ -627,6 +627,50 @@ when it turns into a real test, and stays where it is as a sketch until then. Th
 test is named by the environment variable `BLUETOE_DUT`, so that one build of the tests runs
 against any device and the only thing that changes between two devices is the port.
 
+## 22. A DUT rig is one platform times one radio configuration
+
+A device under test is a firmware, and there will be several: for every platform a scheduled radio
+implementation exists on, and for every configuration of that implementation worth testing on its
+own, such as a radio with and without its own link layer context. What such a firmware needs splits
+into what belongs to the platform and what belongs to the rig. The platform provides the toolchain,
+CPU flags, startup code, linker script and C++ runtime, the serial port implementation, and the way
+to flash. The rig provides which radio implementation with which options, and the names it reports
+to the host. Nothing else differs between two rigs on the same platform.
+
+The firmwares live in `tests/scheduled_radio/dut_rigs/`, a firmware project of its own on
+`platforms/`, next to `examples/`, the other such project. Per platform there is a subdirectory with
+the serial port and one `.cpp` file per rig; the file is `instrument/template_dut_rig.cpp` with the
+radio and the names filled in, twenty lines. The radio is bound with an alias template,
+`template < typename CallBacks > using radio = nrf52_radio2< CallBacks, options... >;`, so that a
+second configuration of the same radio is a second file with a different alias. A rig's target is
+named after its file, `nrf52_dut` and later `nrf52_dut_<configuration>`, and gets the `.artifacts`
+and `.flash` targets every firmware has. The tester's firmwares get a sibling `tester_rigs/` on the
+same pattern.
+
+The build identifier a rig reports is `git describe --always --dirty` at configure time, handed to
+the compile as `DUT_BUILD_IDENTIFIER`: the nearest tag and the commit, with `-dirty` when the tree
+had uncommitted changes, so that a test log names the exact source of the firmware it talked to. It
+is stale between a commit and the next configure, which a rig, flashed after `cmake` and `ninja`,
+does not suffer from in practice; regenerating it on every build is machinery for later.
+
+The first rig, `nrf52_dut`, runs on the nRF52 development kits, whose UART is routed to the J-Link's
+virtual COM port, so the same probe flashes the rig and connects the host. The port is built on the
+legacy `UART0`, one byte per interrupt, which is the port contract of decision 16 word for word, with
+RTS/CTS for the back pressure it asks for; the DMA based `UARTE` would need chunked buffers for no
+gain at these data rates, and is left for the nRF52820, which has no `UART0`. Its radio is the nRF52
+scheduled radio of step 3 in its first slice: the security toolbox, `run()` as wait for event,
+`wake_up()`, and every scheduling function present but declining, so that the concept is satisfied
+and the toolbox tests of decision 11 step 2 run over a real link before any radio code exists.
+Configurations of the radio appear as rigs when the radio has options.
+
+**Rejected:** building the rigs from the examples project. It had everything a rig needs, but the two
+have different lifecycles, a rig build would always build the examples as well, and "example" would
+come to mean two things; moving the platform support into `platforms/` (PR #150) made it unnecessary.
+
+**Rejected:** one shared `main.cpp` per platform with a per-rig header selected by include path. It
+saves the twenty lines per rig at the cost of an indirection that hides which radio a firmware runs;
+a rig file that names its radio is what the template is for.
+
 ## Open questions
 
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
