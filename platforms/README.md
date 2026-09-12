@@ -1,8 +1,15 @@
 # Platform support for Bluetoe firmware
 
-Everything a firmware is built on, shared by the examples and by the test rigs of the scheduled
-radio: the cross toolchain, the per-binding startup code, linker scripts and flash commands, the
-C++ runtime that replaces newlib's, `assert()`, and a container with the toolchain and the SDK.
+Bluetoe itself needs no platform support beyond the platform's SDK headers. No startup or toolchain
+files are required by the library; the project that consumes it as a library provides them.
+
+Bluetoe ships two projects that have to build runnable firmware binaries: the examples, which
+consume Bluetoe as a library, and the test rigs of the scheduled radio, the abstraction of the radio
+hardware that a link layer can be built on. This directory is what they share.
+
+It is everything a firmware is built on: the cross toolchain, the per-binding startup code, linker
+scripts and flash commands, the C++ runtime that replaces newlib's, `assert()`, and a container with
+the toolchain and the SDK.
 
 ## Required tools and libraries
 
