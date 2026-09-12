@@ -55,11 +55,6 @@ namespace nrf52 {
             instance_ = this;
         }
 
-        uart_base::~uart_base()
-        {
-            instance_ = nullptr;
-        }
-
         void uart_base::start()
         {
             configure_output( pin_txd );

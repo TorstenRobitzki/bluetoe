@@ -673,6 +673,9 @@ a rig file that names its radio is what the template is for.
 
 ## Open questions
 
+- `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the
+  old radio is still there. Once the old implementation is removed, the header is renamed to
+  `scheduled_radio.hpp` and the old one deleted.
 - How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
   an error there presents as a fault in the device under test. Checking it against a known good
   device or against a sniffer has to happen before the first timing assertion is believed; decision

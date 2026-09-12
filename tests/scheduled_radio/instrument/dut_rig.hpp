@@ -27,7 +27,7 @@
 #include "link/serial_port.hpp"
 #include "link/serialize.hpp"
 
-#include <bluetoe/link_layer/scheduled_radio2.hpp>
+#include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/radio_properties.hpp>
 
 #include <algorithm>

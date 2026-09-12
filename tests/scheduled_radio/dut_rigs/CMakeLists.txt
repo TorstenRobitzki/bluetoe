@@ -9,6 +9,12 @@ project(bluetoe_dut_rigs CXX C)
 
 include(${CMAKE_CURRENT_LIST_DIR}/../../../platforms/cmake/firmware.cmake)
 
+# A pointer to an inline member function is hidden under -fvisibility-inlines-hidden, and so is
+# a template over such pointers, the rig's function list; GCC then warns that the rig has greater
+# visibility than its dispatcher. Visibility means nothing in a static firmware, so everything is
+# hidden alike.
+add_compile_options(-fvisibility=hidden)
+
 # The build identifier a rig reports to the host: the source state it was built from. Taken at
 # configure time, so it is stale between a commit and the next configure.
 execute_process(

@@ -48,8 +48,11 @@ namespace nrf52 {
             static void interrupt_handler();
 
         protected:
+            /*
+             * No destructor: a firmware never destroys its port, and a destructor would make
+             * the rig non-trivially destructible, which asks the runtime to register it.
+             */
             uart_base();
-            ~uart_base();
 
             virtual bool has_room() const = 0;
             virtual void push_received( std::uint8_t byte ) = 0;

@@ -46,9 +46,10 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_BINARY_DIR}/bluetoe)
 target_link_libraries(bluetoe_iface INTERFACE assert::arm)
 
 # A firmware: an executable from the given sources with the runtime, the startup code, the
-# linker script and the binding; <target>.artifacts produces hex, bin and listing and prints the
-# size, <target>.flash programs it if BLUETOE_JLINK is set.
-function(add_bluetoe_firmware target_name)
+# linker script and the given binding target, such as bluetoe::bindings::${BINDING};
+# <target>.artifacts produces hex, bin and listing and prints the size, <target>.flash programs
+# it if BLUETOE_JLINK is set.
+function(add_bluetoe_firmware target_name binding)
     add_executable(${target_name} ${ARGN})
     set_target_properties(${target_name}
         PROPERTIES
@@ -63,7 +64,7 @@ function(add_bluetoe_firmware target_name)
             runtime::gcc
             toolchain::${BINDING}
             startup::${BINDING}
-            bluetoe::bindings::${BINDING}
+            ${binding}
     )
 
     add_custom_target(${target_name}.artifacts ALL

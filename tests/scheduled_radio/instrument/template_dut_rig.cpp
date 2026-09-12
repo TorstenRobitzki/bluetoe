@@ -25,7 +25,7 @@ namespace template_platform {
      * The implementation under test. A scheduled radio is a template over the type that
      * receives its callbacks, and reaches that type through the base class relation, as
      * the nRF52 binding does; the rig passes itself. What the class has to provide is
-     * stated by scheduled_radio in bluetoe/link_layer/scheduled_radio2.hpp, and the rig
+     * stated by scheduled_radio in bluetoe/scheduled_radio2.hpp, and the rig
      * checks it as scheduled_radio< template_radio, rig_t >.
      *
      * An implementation with options binds them here:
@@ -49,18 +49,18 @@ namespace template_platform {
     };
 
     using rig_t = bluetoe::test_rig::dut_rig< template_radio, template_uart >;
-}
 
-using template_platform::rig_t;
+    /*
+     * Constructed at startup by the runtime, before main(), so that the session token reads
+     * as zero after every reset (instrument.hpp, "Detecting a restart"). A namespace scope
+     * object rather than a static in main(): the latter needs the runtime's guards and
+     * destructor registration, which a firmware without a C++ runtime does not have.
+     */
+    rig_t rig( "template radio on no hardware", DUT_BUILD_IDENTIFIER );
+}
 
 int main()
 {
-    /*
-     * The rig is constructed once, at startup, so that its session token reads as zero
-     * after every reset (instrument.hpp, "Detecting a restart").
-     */
-    static rig_t rig( "template radio on no hardware", DUT_BUILD_IDENTIFIER );
-
     for ( ;; )
-        rig.run();
+        template_platform::rig.run();
 }

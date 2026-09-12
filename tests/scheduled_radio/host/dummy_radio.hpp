@@ -10,7 +10,7 @@
  * version to observe the rig.
  */
 
-#include <bluetoe/link_layer/scheduled_radio2.hpp>
+#include <bluetoe/scheduled_radio2.hpp>
 
 #include <cstddef>
 #include <cstdint>

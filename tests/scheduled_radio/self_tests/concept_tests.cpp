@@ -13,7 +13,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include <bluetoe/link_layer/scheduled_radio2.hpp>
+#include <bluetoe/scheduled_radio2.hpp>
 
 #include "link/serial_port.hpp"
 
