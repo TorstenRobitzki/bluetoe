@@ -14,12 +14,27 @@ if(CMAKE_CROSSCOMPILING)
     target_compile_definitions(toolchain_nrf52 INTERFACE NRF52820_XXAA)
     target_compile_definitions(toolchain_nrf52 INTERFACE $<$<CONFIG:Debug>:BLUETOE_NRF52_RADIO_DEBUG>)
 
+    # The reset pin of the part, for the UICR words in pin_reset.c
+    set(reset_pin_mapping
+        NRF52840 18
+        NRF52833 18
+        NRF52820 18
+        NRF52832 21
+        NRF52811 21
+        NRF52810 21
+        NRF52805 21)
+    map_lookup(reset_pin reset_pin_mapping ${BLUETOE_BINDING})
+
+    # An object library rather than an archive: the linker takes from an archive only what
+    # resolves a reference, and nothing references the UICR words.
     enable_language(ASM)
-    add_library(startup_nrf52 STATIC
+    add_library(startup_nrf52 OBJECT
             gcc_startup_nrf52.s
             system_nrf52.c
+            pin_reset.c
             )
     target_link_libraries(startup_nrf52 PRIVATE toolchain::nrf52)
+    target_compile_definitions(startup_nrf52 PRIVATE BLUETOE_RESET_PIN=${reset_pin})
     add_library(startup::nrf52 ALIAS startup_nrf52)
 
     set_source_files_properties(
