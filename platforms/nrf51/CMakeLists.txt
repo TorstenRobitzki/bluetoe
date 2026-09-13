@@ -53,15 +53,15 @@ if(CMAKE_CROSSCOMPILING)
     endfunction()
 
     if (DEFINED BLUETOE_JLINK)
-        message( WARNING "nrfjprog ${BLUETOE_JLINK} selected")
-        set_property(GLOBAL PROPERTY BLUETOE_SELECT_JLINK_DEVICE --snr ${BLUETOE_JLINK})
+        message( WARNING "J-Link ${BLUETOE_JLINK} selected")
+        set_property(GLOBAL PROPERTY BLUETOE_SELECT_JLINK_DEVICE --serial-number ${BLUETOE_JLINK})
     endif()
 
     function(define_flash_command target)
         get_property(select_jlink_device GLOBAL PROPERTY BLUETOE_SELECT_JLINK_DEVICE)
 
         add_custom_target(${target}.flash
-            COMMAND nrfjprog --chiperase --family NRF51 ${select_jlink_device} --program ${target}.hex --verify --reset
+            COMMAND nrfutil device program --firmware ${target}.hex ${select_jlink_device} --options chip_erase_mode=ERASE_ALL,verify=VERIFY_READ,reset=RESET_SYSTEM
             VERBATIM
             )
         add_dependencies(${target}.flash ${target}.artifacts)
