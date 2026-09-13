@@ -20,8 +20,10 @@ instruments against a real device and live in `../radio_tests/`. See
 | `instrument_dispatcher_tests.cpp` | the device's side of the protocol: opcodes, arguments, results, the status of a request it cannot serve |
 | `host_proxy_tests.cpp` | the host's side of the protocol, and one call through proxy, frames, buffers and dispatcher |
 | `instrument_dut_rig_tests.cpp` | the rig around a scheduled radio: its main loop, the session token, the instrument functions, a radio without a toolbox |
+| `instrument_tester_rig_tests.cpp` | the tester's rig: its main loop, the session token, the reset of the device under test |
 | `instrument_toolbox_tests.cpp` | the pairing toolbox through the wire, against the software toolbox of the security manager tests, with the Core Specification's vectors |
 | `host_transport_tests.cpp` | the host's transport over a stream: a call, a timeout, a corrupt response, a late response |
+| `observed_port.hpp` | the instrumented port both rig tests play the host end of |
 
 A test file is named `<folder>_<subject>_tests.cpp` after the folder of the code it tests, and each
 is its own executable, registered in `CMakeLists.txt` with `add_scheduled_radio_test()`.
