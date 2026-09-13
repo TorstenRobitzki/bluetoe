@@ -1,15 +1,15 @@
-#ifndef BLUETOE_TESTS_SCHEDULED_RADIO_DUT_RIGS_NRF52_UART_HPP
-#define BLUETOE_TESTS_SCHEDULED_RADIO_DUT_RIGS_NRF52_UART_HPP
+#ifndef BLUETOE_TESTS_SCHEDULED_RADIO_NRF52_UART_HPP
+#define BLUETOE_TESTS_SCHEDULED_RADIO_NRF52_UART_HPP
 
 /**
  * @file uart.hpp
  *
- * The serial port of the nRF52 rigs, as link/serial_port.hpp requires it: the UART in its
- * legacy mode, one byte per interrupt in both directions, with hardware flow control. On the
- * development kits the pins are the ones routed to the J-Link's virtual COM port, so the
- * probe that flashes a rig is also the host's serial device.
+ * The serial port of both instruments on the nRF52, as link/serial_port.hpp requires it: the
+ * UART in its legacy mode, one byte per interrupt in both directions, with hardware flow
+ * control. On the development kits the pins are the ones routed to the J-Link's virtual COM
+ * port, so the probe that flashes a rig is also the host's serial device.
  *
- * The port is a template over the rig's buffer type and the type it wakes. The interrupt
+ * The port is a template over the instrument's buffer type and the type it wakes. The interrupt
  * handler cannot be, so the part that touches the hardware is a base class the handler
  * reaches through a pointer to the one instance, and the template supplies what needs the
  * types: room in the receive buffer, the next byte to transmit, the wake-up.

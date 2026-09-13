@@ -6,8 +6,8 @@
  * with the two types and the names filled in (decision 22).
  */
 
-#include "dut_rigs/nrf52/uart.hpp"
 #include "instrument/dut_rig.hpp"
+#include "nrf52/uart.hpp"
 
 #include <bluetoe/radio.hpp>
 

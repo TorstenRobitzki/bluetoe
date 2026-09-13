@@ -33,4 +33,7 @@ message("DUT_BUILD_IDENTIFIER: ${DUT_BUILD_IDENTIFIER}")
 # the code the rigs share with the host: frames, serialisation, the protocol
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../link ${CMAKE_BINARY_DIR}/link)
 
+# the serial port of the instruments on this binding, shared with the tester
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../${BINDING} ${CMAKE_BINARY_DIR}/port)
+
 add_subdirectory(${BINDING})

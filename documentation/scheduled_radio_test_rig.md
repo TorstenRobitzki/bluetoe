@@ -639,13 +639,13 @@ to the host. Nothing else differs between two rigs on the same platform.
 
 The firmwares live in `tests/scheduled_radio/dut_rigs/`, a firmware project of its own on
 `platforms/`, next to `examples/`, the other such project. Per platform there is a subdirectory with
-the serial port and one `.cpp` file per rig; the file is `dut_rigs/template_dut_rig.cpp` with the
-radio and the names filled in, twenty lines. The radio is bound with an alias template,
+one `.cpp` file per rig, twenty lines. Every such file is a copy of `dut_rigs/template_dut_rig.cpp`,
+which is not a rig itself and is not built, with the radio and the names filled in; a new rig starts
+from that template. The radio is bound with an alias template,
 `template < typename CallBacks > using radio = nrf52_radio2< CallBacks, options... >;`, so that a
 second configuration of the same radio is a second file with a different alias. A rig's target is
 named after its file, `nrf52_dut` and later `nrf52_dut_<configuration>`, and gets the `.artifacts`
-and `.flash` targets every firmware has. The tester's firmwares get a sibling `tester_rigs/` on the
-same pattern.
+and `.flash` targets every firmware has. The tester is not one of these, see decision 23.
 
 The build identifier a rig reports is `git describe --always --dirty` at configure time, handed to
 the compile as `DUT_BUILD_IDENTIFIER`: the nearest tag and the commit, with `-dirty` when the tree
@@ -670,6 +670,28 @@ come to mean two things; moving the platform support into `platforms/` (PR #150)
 **Rejected:** one shared `main.cpp` per platform with a per-rig header selected by include path. It
 saves the twenty lines per rig at the cost of an indirection that hides which radio a firmware runs;
 a rig file that names its radio is what the template is for.
+
+## 23. The tester is one firmware on one platform
+
+A device under test is a family of firmwares: one per platform a scheduled radio implementation
+exists on, times the configurations of that implementation, every one of them built on the concrete
+radio binding of the library it tests. The tester is the opposite. It is one firmware for one board,
+today an nRF52 development kit next to the device under test, and it does not use Bluetoe: it will
+need a radio too, but it uses it in a way no scheduled radio does, and nothing of the link layer.
+What the two have in common is the wire protocol, and the types that protocol carries are all the
+tester takes from the library.
+
+So the tester is not a rig project parametrised by platform. It lives in
+`tests/scheduled_radio/tester/`, a flat firmware project on `platforms/` for the toolchain, the
+startup code and the flash target, with its board preset, the tester's file, and the code the board
+needs for the reset line of decision 4 and for idling. It shares with the devices under test the
+link code and the nRF52 serial port, which is the same code on both boards and lives in
+`tests/scheduled_radio/nrf52/`, and nothing else; reuse where something is genuinely the same, no
+shared shape where it is not.
+
+**Rejected:** a `tester_rigs/` project on the pattern of `dut_rigs/`, with the CMake both had in
+common factored into a shared file, which is what the first cut did. It framed the tester as a
+family it is not, and coupled the two projects' builds in exchange for a dozen lines.
 
 ## Open questions
 

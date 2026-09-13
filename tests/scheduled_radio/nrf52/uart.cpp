@@ -1,4 +1,4 @@
-#include "dut_rigs/nrf52/uart.hpp"
+#include "nrf52/uart.hpp"
 
 #include <nrf.h>
 

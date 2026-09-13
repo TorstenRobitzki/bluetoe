@@ -13,7 +13,7 @@ Nordic SDK headers and the board variables, is described in `platforms/README.md
 For the nRF52840-DK, PCA10056, with the J-Link's serial number for flashing:
 
 ```bash
-cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -G Ninja -DBLUETOE_BOARD=PCA10056 -DBLUETOE_JLINK=683004602 -DNRF5_SDK_ROOT=/path/to/nrf5_sdk
+cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -G Ninja -DBLUETOE_BOARD=PCA10056 -DBLUETOE_JLINK=<serial number> -DNRF5_SDK_ROOT=/path/to/nrf5_sdk
 ```
 
 ```bash
@@ -29,7 +29,7 @@ The development kit's UART is routed to the J-Link's virtual COM port, so the pr
 the rig is also the host's serial device:
 
 ```bash
-BLUETOE_DUT=/dev/tty.usbmodem0006830046021 ctest --test-dir build -L radio --output-on-failure
+BLUETOE_DUT=/dev/tty.usbmodem<serial number>1 ctest --test-dir build -L radio --output-on-failure
 ```
 
 See `../radio_tests/README.md`.
@@ -38,5 +38,5 @@ See `../radio_tests/README.md`.
 
 | directory | contents |
 |---|---|
-| `nrf52/uart.hpp`, `uart.cpp` | the serial port of the nRF52 rigs: the UART in legacy mode, one byte per interrupt, hardware flow control, on the development kits' pins |
-| `nrf52/<rig>.cpp` | one file per rig, `dut_rigs/template_dut_rig.cpp` with the radio and the names filled in |
+| `nrf52/<rig>.cpp` | one file per rig, `template_dut_rig.cpp` with the radio and the names filled in |
+| `../nrf52/uart.hpp`, `uart.cpp` | the serial port of the nRF52 rigs, shared with the tester: the UART in legacy mode, one byte per interrupt, hardware flow control, on the development kits' pins |
