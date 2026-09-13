@@ -93,7 +93,8 @@ namespace test_rig {
     /**
      * @brief what the port wakes after it received something
      *
-     * The rig passes the radio, whose wake_up() is callable from any context.
+     * An instrument passes itself; the rig's wake_up() is the radio's, which is callable
+     * from any context.
      */
     template < typename T >
     concept wake_up_target = requires ( T target )

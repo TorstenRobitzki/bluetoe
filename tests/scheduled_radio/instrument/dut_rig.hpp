@@ -6,7 +6,8 @@
  *
  * The platform independent half of a device under test: everything the contract in
  * tests/scheduled_radio/dut_rig.hpp asks for that is neither the radio nor the serial
- * port. See documentation/scheduled_radio_test_rig.md, decisions 16, 17 and 20.
+ * port, on top of what instrument/instrument.hpp provides to both instruments. See
+ * documentation/scheduled_radio_test_rig.md, decisions 16, 17 and 20.
  *
  * The rig is a template over the scheduled radio implementation and over the platform's
  * serial port; instrument/template_dut_rig.cpp shows how a platform binds the two. The
@@ -20,22 +21,16 @@
  * program interpreter and the records follow.
  */
 
-#include "instrument/dispatcher.hpp"
+#include "instrument/instrument.hpp"
 #include "link/frame.hpp"
 #include "link/function_list.hpp"
-#include "link/ring_buffer.hpp"
-#include "link/serial_port.hpp"
-#include "link/serialize.hpp"
 
 #include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/radio_properties.hpp>
 
-#include <algorithm>
 #include <array>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string_view>
 #include <type_traits>
 
@@ -117,23 +112,23 @@ namespace test_rig {
      * and passes that. The rig is that type: it derives from the radio and passes itself,
      * as the link layer does, and it receives the callbacks in the link layer context of
      * decision 17. Port is the platform's serial port, a template over the buffer type
-     * and the type it wakes, which is the radio. MaxPayload bounds a request and a
-     * response, and thereby the buffers.
+     * and the type it wakes, which is the rig, whose wake_up() is the radio's. MaxPayload
+     * bounds a request and a response, and thereby the buffers.
      *
-     * The concepts are checked in the constructor rather than in the declaration, because
+     * The concept is checked in the constructor rather than in the declaration, because
      * a class cannot name itself in its own constraint.
-     *
-     * The rig is constructed at startup, so that the session token reads as zero after
-     * every restart.
      */
     template <
         template < typename CallBacks > class Radio,
         template < typename Buffer, typename Wake > class Port,
         std::size_t MaxPayload = default_max_payload >
-    class dut_rig : public Radio< dut_rig< Radio, Port, MaxPayload > >
+    class dut_rig
+        : public Radio< dut_rig< Radio, Port, MaxPayload > >
+        , public instrument< dut_rig< Radio, Port, MaxPayload >, Port, MaxPayload >
     {
     public:
-        using radio_t = Radio< dut_rig >;
+        using radio_t      = Radio< dut_rig >;
+        using instrument_t = instrument< dut_rig, Port, MaxPayload >;
 
         /**
          * @brief whose toolbox functions the list names
@@ -145,53 +140,20 @@ namespace test_rig {
         using toolbox_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, radio_t, details::no_toolbox >;
         using wrapped_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, dut_rig, details::no_toolbox >;
 
-        /**
-         * @brief bytes of a name on the wire; longer names are truncated
-         */
-        static constexpr std::size_t name_size = 32;
-
         dut_rig( std::string_view implementation_name, std::string_view build_identifier )
-            : implementation_name_( name( implementation_name ) )
-            , build_identifier_( name( build_identifier ) )
-            , session_token_( 0 )
-            , port_( receive_, transmit_, *this )
-            , receiver_( receive_ )
-            , sender_( transmit_ )
-            , dispatcher_( *this )
-            , response_()
+            : instrument_t( implementation_name, build_identifier )
         {
             static_assert( link_layer::scheduled_radio< Radio, dut_rig > );
-            static_assert( serial_port< port_t, buffer_t, radio_t > );
 
-            port_.start();
+            instrument_t::start();
         }
 
         /**
          * @brief one iteration of the main loop: answer a buffered request, then let the radio run
-         *
-         * Answering never waits for the port. A response that does not fit into the
-         * transmit buffer is kept and handed over on a later iteration, before the next
-         * request is read; the host does not send one before it has the answer anyway
-         * (decision 6). A corrupt frame is dropped without an answer, and the host times out.
          */
         void run()
         {
-            if ( !pending_ && receiver_.receive() == receive_result::frame )
-            {
-                buffer_sink out( response_ );
-
-                if ( !dispatcher_.dispatch( receiver_.payload(), session_token_, out ) )
-                    assert( !"response_ is smaller than a response of the function list" );
-
-                pending_ = out.size();
-            }
-
-            if ( pending_ && sender_.send( { response_.data(), *pending_ } ) )
-            {
-                pending_.reset();
-                port_.transmit_pending();
-            }
-
+            instrument_t::serve();
             radio_t::run();
         }
 
@@ -212,34 +174,13 @@ namespace test_rig {
         /**
          * @name Instrument functions
          *
-         * The functions of instrument.hpp and dut_rig.hpp, in the order of the list.
+         * The functions of instrument.hpp and dut_rig.hpp that are the rig's own; the
+         * names and the session token are the instrument's.
          * @{
          */
         std::uint16_t protocol_version() const
         {
             return dut_protocol_version;
-        }
-
-        bytes< name_size > implementation_name() const
-        {
-            return implementation_name_;
-        }
-
-        bytes< name_size > build_identifier() const
-        {
-            return build_identifier_;
-        }
-
-        /**
-         * @brief the token every response carries from now on
-         *
-         * The response to this call still carries the token that was in effect when the
-         * request arrived: zero on a freshly started instrument, which is what proves a
-         * reset to the host.
-         */
-        void set_session_token( std::uint32_t token )
-        {
-            session_token_ = token;
         }
 
         /**
@@ -308,34 +249,6 @@ namespace test_rig {
             &toolbox_t::f5,
             &toolbox_t::f6,
             &wrapped_t::g2 >;
-
-    private:
-        using buffer_t = ring_buffer< std::uint8_t, MaxPayload + frame_overhead >;
-        using port_t   = Port< buffer_t, radio_t >;
-
-        static bytes< name_size > name( std::string_view text )
-        {
-            bytes< name_size > result;
-
-            result.size = std::min( text.size(), name_size );
-            std::copy_n( text.begin(), result.size, result.data.begin() );
-
-            return result;
-        }
-
-        bytes< name_size >                          implementation_name_;
-        bytes< name_size >                          build_identifier_;
-        std::uint32_t                               session_token_;
-
-        buffer_t                                    receive_;
-        buffer_t                                    transmit_;
-        port_t                                      port_;
-        frame_receiver< MaxPayload, buffer_t >      receiver_;
-        frame_sender< buffer_t >                    sender_;
-        dispatcher< functions, dut_rig >            dispatcher_;
-
-        std::array< std::uint8_t, MaxPayload >      response_;
-        std::optional< std::size_t >                pending_;
     };
 }
 }

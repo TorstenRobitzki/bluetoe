@@ -40,8 +40,8 @@ namespace template_platform {
 
     /*
      * The platform's serial port, constructed by the rig on its two buffers and on the
-     * radio, which it wakes after it received something. What the class has to provide is
-     * stated by serial_port in link/serial_port.hpp.
+     * rig itself, which it wakes after it received something. What the class has to
+     * provide is stated by serial_port in link/serial_port.hpp.
      */
     template < typename Buffer, typename Wake >
     class template_uart

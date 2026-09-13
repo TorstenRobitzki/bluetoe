@@ -115,7 +115,7 @@ namespace {
     struct rig_transport
     {
         rig_t                                   rig{ "software toolbox on the host", "unit test build" };
-        observed_port< buffer_t, rig_t::radio_t >& port = *observed_port< buffer_t, rig_t::radio_t >::instance;
+        observed_port< buffer_t, rig_t >&       port = *observed_port< buffer_t, rig_t >::instance;
         frame_sender< buffer_t >                sender{ port.receive };
         frame_receiver< 256, buffer_t >         receiver{ port.transmit };
 
