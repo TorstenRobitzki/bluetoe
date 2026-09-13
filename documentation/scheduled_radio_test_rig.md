@@ -639,7 +639,7 @@ to the host. Nothing else differs between two rigs on the same platform.
 
 The firmwares live in `tests/scheduled_radio/dut_rigs/`, a firmware project of its own on
 `platforms/`, next to `examples/`, the other such project. Per platform there is a subdirectory with
-the serial port and one `.cpp` file per rig; the file is `instrument/template_dut_rig.cpp` with the
+the serial port and one `.cpp` file per rig; the file is `dut_rigs/template_dut_rig.cpp` with the
 radio and the names filled in, twenty lines. The radio is bound with an alias template,
 `template < typename CallBacks > using radio = nrf52_radio2< CallBacks, options... >;`, so that a
 second configuration of the same radio is a second file with a different alias. A rig's target is

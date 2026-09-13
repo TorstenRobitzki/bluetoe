@@ -39,4 +39,4 @@ See `../radio_tests/README.md`.
 | directory | contents |
 |---|---|
 | `nrf52/uart.hpp`, `uart.cpp` | the serial port of the nRF52 rigs: the UART in legacy mode, one byte per interrupt, hardware flow control, on the development kits' pins |
-| `nrf52/<rig>.cpp` | one file per rig, `instrument/template_dut_rig.cpp` with the radio and the names filled in |
+| `nrf52/<rig>.cpp` | one file per rig, `dut_rigs/template_dut_rig.cpp` with the radio and the names filled in |

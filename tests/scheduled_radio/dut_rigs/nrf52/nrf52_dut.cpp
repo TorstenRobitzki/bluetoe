@@ -2,7 +2,7 @@
  * @file nrf52_dut.cpp
  *
  * The device under test on the nRF52 development kits: the rig around the platform's
- * scheduled radio without options, over the UART. This is instrument/template_dut_rig.cpp
+ * scheduled radio without options, over the UART. This is dut_rigs/template_dut_rig.cpp
  * with the two types and the names filled in (decision 22).
  */
 

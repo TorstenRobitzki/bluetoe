@@ -10,7 +10,7 @@
  * documentation/scheduled_radio_test_rig.md, decisions 16, 17 and 20.
  *
  * The rig is a template over the scheduled radio implementation and over the platform's
- * serial port; instrument/template_dut_rig.cpp shows how a platform binds the two. The
+ * serial port; dut_rigs/template_dut_rig.cpp shows how a platform binds the two. The
  * host instantiates the same template with dummies (host/dut_functions.hpp) to obtain the function
  * list the wire is keyed on, which is why no function of the list carries a type of the
  * radio.
