@@ -9,14 +9,17 @@
  */
 
 #include "host/errors.hpp"
+#include "link/frame.hpp"
 #include "link/function_list.hpp"
 #include "link/serialize.hpp"
 #include "link/status.hpp"
 
+#include <array>
+#include <cassert>
 #include <concepts>
 #include <cstdint>
 #include <span>
-#include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -40,26 +43,6 @@ namespace test_rig {
      * Zero is what an instrument answers with after a restart, see expect_token().
      */
     std::uint32_t random_session_token();
-
-    /**
-     * @brief a sink that grows
-     */
-    class vector_sink
-    {
-    public:
-        explicit vector_sink( std::vector< std::uint8_t >& storage )
-            : storage_( storage ) {}
-
-        bool write( const std::uint8_t* data, std::size_t size )
-        {
-            storage_.insert( storage_.end(), data, data + size );
-
-            return true;
-        }
-
-    private:
-        std::vector< std::uint8_t >& storage_;
-    };
 
     /**
      * @brief calls the functions of a list on the instrument at the other end of a transport
@@ -112,13 +95,17 @@ namespace test_rig {
             constexpr std::size_t opcode = opcode_of< F, list >::value;
             static_assert( opcode < list::size, "the function is not in the list" );
 
-            std::vector< std::uint8_t > request;
-            vector_sink                 out( request );
+            // a request is bounded like a response, by what fits into one frame
+            std::array< std::uint8_t, default_max_payload > request;
+            buffer_sink                                     out( request );
 
-            serialize( out, static_cast< std::uint8_t >( opcode ) );
-            serialize( out, typename traits::arguments( std::forward< Args >( args )... ) );
+            if ( !serialize( out, static_cast< std::uint8_t >( opcode ) )
+              || !serialize( out, typename traits::arguments( std::forward< Args >( args )... ) ) )
+            {
+                assert( !"the arguments of the call do not fit into a request" );
+            }
 
-            const std::vector< std::uint8_t > response = transport_.transact( request );
+            const std::vector< std::uint8_t > response = transport_.transact( { request.data(), out.size() } );
 
             buffer_source in( response );
             std::uint32_t token;

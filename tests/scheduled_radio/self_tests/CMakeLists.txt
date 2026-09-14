@@ -2,7 +2,7 @@ function(add_scheduled_radio_test test_runner)
     add_executable(${test_runner} ${test_runner}.cpp)
 
     target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
-    target_link_libraries(${test_runner} PRIVATE bluetoe::iface bluetoe::sm bluetoe::utility scheduled_radio::link)
+    target_link_libraries(${test_runner} PRIVATE bluetoe::iface bluetoe::sm bluetoe::utility scheduled_radio::link scheduled_radio::host)
     set_target_properties(${test_runner} PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
 
     add_test(${test_runner} ./${test_runner})
@@ -23,4 +23,3 @@ target_include_directories(instrument_toolbox_tests PRIVATE ${CMAKE_SOURCE_DIR}/
 target_link_libraries(instrument_toolbox_tests PRIVATE test::tools)
 
 add_scheduled_radio_test(host_transport_tests)
-target_link_libraries(host_transport_tests PRIVATE scheduled_radio::host)
