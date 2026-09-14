@@ -54,6 +54,9 @@ namespace test_rig {
 
         implementation_name_ = as_text( remote_.call< &tester::implementation_name >() );
         build_identifier_    = as_text( remote_.call< &tester::build_identifier >() );
+
+        if ( const auto limit = tester_rssi_limit() )
+            remote_.call< &tester::set_rssi_limit >( *limit );
     }
 
     namespace {

@@ -270,6 +270,28 @@ BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_queued_with_its_time_and_bytes, fixtu
     BOOST_CHECK( received[ 0 ].data == pdu( adv_ind ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( a_pdu_weaker_than_the_rssi_limit_is_dropped_not_lost, fixture )
+{
+    // keep only signals of -40 dBm or stronger (rssi 40 or less)
+    remote.call< &rig_t::set_rssi_limit >( 40 );
+
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true, 17 );   // strong, kept
+    platform.push_received( at( 2ms ), adv_ind, true, 65 );   // weak, dropped
+    platform.push_received( at( 3ms ), adv_ind, true, 40 );   // exactly at the limit, kept
+    rig.run();
+
+    const received_batch batch = remote.call< &rig_t::collect_received >();
+
+    // the two strong PDUs are kept; the weak one is not counted as produced either
+    BOOST_REQUIRE_EQUAL( batch.count, 2u );
+    BOOST_CHECK_EQUAL( batch.produced, 2u );
+    BOOST_CHECK_EQUAL( batch.received[ 0 ].rssi, 17 );
+    BOOST_CHECK_EQUAL( batch.received[ 1 ].rssi, 40 );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )
 {
     remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );

@@ -8,6 +8,7 @@
  */
 
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -32,6 +33,17 @@ namespace test_rig {
      * The default covers a point multiplication on a small core.
      */
     std::chrono::milliseconds request_timeout();
+
+    /**
+     * @brief BLUETOE_TESTER_MIN_RSSI, the weakest signal the tester keeps, in dBm
+     *
+     * A negative number of decibels, for example -40. Returned as the tester's limit, a
+     * count of decibels below a milliwatt; nothing, and the tester keeps every PDU, if the
+     * variable is not set.
+     *
+     * @throws rig_error the variable is set to something outside a receiver's range
+     */
+    std::optional< std::uint8_t > tester_rssi_limit();
 }
 }
 

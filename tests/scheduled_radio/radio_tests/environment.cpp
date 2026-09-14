@@ -2,6 +2,7 @@
 
 #include "host/errors.hpp"
 
+#include <cstdint>
 #include <cstdlib>
 
 namespace bluetoe {
@@ -40,6 +41,24 @@ namespace test_rig {
         const auto value = variable( "BLUETOE_DUT_TIMEOUT_MS" );
 
         return std::chrono::milliseconds( value ? std::stoi( *value ) : 2000 );
+    }
+
+    std::optional< std::uint8_t > tester_rssi_limit()
+    {
+        std::optional< std::uint8_t > limit;
+
+        if ( const auto value = variable( "BLUETOE_TESTER_MIN_RSSI" ) )
+        {
+            // the variable is a signal strength in dBm, negative; the limit is its magnitude
+            const int dbm = std::stoi( *value );
+
+            if ( dbm > 0 || dbm < -127 )
+                throw rig_error( "BLUETOE_TESTER_MIN_RSSI is out of a receiver's range: " + *value + " dBm" );
+
+            limit = -dbm;
+        }
+
+        return limit;
     }
 }
 }

@@ -24,6 +24,11 @@ BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --t
 Without `BLUETOE_TESTER` the tests that need the tester are skipped and reported as such; with it,
 every run begins with a reset of the device through the tester.
 
+`BLUETOE_TESTER_MIN_RSSI` is the weakest signal the tester keeps, in dBm, for example `-40`. With the
+two boards coupled by a coaxial cable the device arrives tens of dB above the air leaking in, so a
+limit between the two drops the air and the tester hears only the device; the reported RSSI of a
+capture shows where the limit belongs. Left unset, the tester keeps every PDU.
+
 `BLUETOE_DUT_TIMEOUT_MS` bounds one request to either instrument, by default 2000 ms; a toolbox call
 is answered from inside the device's dispatcher, so it has to cover a point multiplication on the
 device.

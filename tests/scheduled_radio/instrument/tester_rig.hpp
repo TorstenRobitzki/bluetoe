@@ -51,6 +51,11 @@ namespace test_rig {
     constexpr std::size_t received_queue_size = 32;
 
     /**
+     * @brief the rssi limit that accepts every PDU, however weak
+     */
+    constexpr std::uint8_t accept_any_rssi = 0xff;
+
+    /**
      * @brief what the tester's radio reports to the program interpreter
      *
      * A received PDU, with the time its first bit was on air in the tester's ticks, or
@@ -207,6 +212,19 @@ namespace test_rig {
         }
 
         /**
+         * @brief drops a received PDU weaker than `limit` decibels below a milliwatt
+         *
+         * A PDU below the limit is not queued and does not count as one produced, because
+         * it was rejected on purpose, not lost. The default limit accepts every PDU; a test
+         * that observes over a cable sets it above the air leaking in, so the tester keeps
+         * only the device under test. See documentation/scheduled_radio_test_rig.md.
+         */
+        void set_rssi_limit( std::uint8_t limit )
+        {
+            rssi_limit_ = limit;
+        }
+
+        /**
          * @brief appends an operation to the program
          *
          * The tester is not reset between tests, so the first operation added after a
@@ -296,6 +314,7 @@ namespace test_rig {
             &tester_rig::set_session_token,
             &tester_rig::reset_device_under_test,
             &tester_rig::set_access_address_and_crc_init,
+            &tester_rig::set_rssi_limit,
             &tester_rig::add_operation,
             &tester_rig::start_program,
             &tester_rig::program_finished,
@@ -308,6 +327,9 @@ namespace test_rig {
             {
                 if ( next->kind == tester_event::received )
                 {
+                    if ( next->rssi > rssi_limit_ )
+                        continue;
+
                     received_pdu entry;
                     entry.when   = next->when;
                     entry.crc_ok = next->crc_ok;
@@ -357,6 +379,7 @@ namespace test_rig {
         }
 
         Platform                                        platform_;
+        std::uint8_t                                    rssi_limit_         = accept_any_rssi;
 
         std::array< operation, max_operations >         operations_;
         std::uint8_t                                    operation_count_    = 0;
