@@ -10,6 +10,11 @@
  * tester's unit tests derive an instrumented version to observe the tester.
  */
 
+#include "instrument/tester_rig.hpp"
+
+#include <cstdint>
+#include <optional>
+
 namespace bluetoe {
 namespace test_rig {
 
@@ -24,6 +29,13 @@ namespace test_rig {
         void reset_device_under_test() {}
         void run() {}
         void wake_up() {}
+        void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
+        void receive( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ) {}
+
+        std::optional< tester_happened > next_event()
+        {
+            return std::nullopt;
+        }
     };
 }
 }

@@ -21,6 +21,7 @@ instruments against a real device and live in `../radio_tests/`. See
 | `host_proxy_tests.cpp` | the host's side of the protocol, and one call through proxy, frames, buffers and dispatcher |
 | `instrument_dut_rig_tests.cpp` | the rig around a scheduled radio: its main loop, the session token, the instrument functions, a radio without a toolbox |
 | `instrument_tester_rig_tests.cpp` | the tester's rig: its main loop, the session token, the reset of the device under test |
+| `instrument_tester_program_tests.cpp` | the tester as program interpreter: operations run in sequence, the window advances, the received PDUs and their loss |
 | `instrument_program_tests.cpp` | the rig as program interpreter: steps on callbacks, times relative to the callback, when a program is finished, the records and their loss |
 | `instrument_toolbox_tests.cpp` | the pairing toolbox through the wire, against the software toolbox of the security manager tests, with the Core Specification's vectors |
 | `host_transport_tests.cpp` | the host's transport over a stream: a call, a timeout, a corrupt response, a late response |

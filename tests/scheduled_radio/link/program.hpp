@@ -14,6 +14,7 @@
  * to drop some.
  */
 
+#include "link/pdu.hpp"
 #include "link/serialize.hpp"
 
 #include <bluetoe/abs_time.hpp>
@@ -26,13 +27,6 @@
 
 namespace bluetoe {
 namespace test_rig {
-
-    /**
-     * @brief a legacy advertising PDU: two bytes of header and up to 37 of payload
-     */
-    constexpr std::size_t max_advertising_pdu_size = 39;
-
-    using pdu = bytes< max_advertising_pdu_size >;
 
     /**
      * @brief the callbacks a step can wait for, and the two that are only recorded

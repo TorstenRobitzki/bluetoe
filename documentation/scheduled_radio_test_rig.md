@@ -703,6 +703,32 @@ shared shape where it is not.
 common factored into a shared file, which is what the first cut did. It framed the tester as a
 family it is not, and coupled the two projects' builds in exchange for a dozen lines.
 
+## 24. The tester keeps time in its own ticks, not the device's microseconds
+
+The device under test reports `abs_time`, which the interface fixes at microseconds. The tester
+does not use it. Its timestamps are the measurement reference for the whole setup, so they are taken
+at the finest resolution the hardware offers, the 62.5 nanosecond tick of the nRF52 timer at its
+peripheral clock, and a `received_pdu` carries a 64 bit count of those ticks rather than an
+`abs_time`. The count is 64 bit so that it never wraps within a run and the host takes plain
+differences; the device stays at 32 bit microseconds, which is the resolution at which it is asked
+to place a transmission, not the resolution at which the error is observed.
+
+That the two instruments now differ in unit as well as in origin is the honest form of decision 3:
+they never shared a clock, and a shared unit would have implied one. The conversion lives on the
+host, in the radio test, which turns a tick interval into a time through the tester's nominal rate
+and compares it with the device's requested interval; neither `abs_time` nor `delta_time` enters,
+because both are microsecond grained and would round away what the fine tick bought.
+
+What makes the fine resolution worth taking is the oscillator. A stock development kit crystal is
+tens of parts per million, no better than the device it measures, so the tester would be as
+uncertain as its subject. The tester's board is therefore reworked to drive its high frequency clock
+from a temperature compensated oscillator accurate to 50 parts per billion; over a hundred
+millisecond interval that is five nanoseconds of error against the device's four microseconds of
+drift, so the tester stops contributing to the measurement and becomes the reference it has to be.
+This is the accuracy being bought rather than proven, which decision 11 places before the first
+timing assertion; the tester's code runs on the stock crystal meanwhile, only less accurately, so
+it is built and the tests are written before the oscillator is swapped.
+
 ## Open questions
 
 - `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the

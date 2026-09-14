@@ -62,5 +62,19 @@ namespace test_rig {
     {
         __SEV();
     }
+
+    // the receiver comes with the next commit; these keep the firmware building
+    void platform::set_access_address_and_crc_init( std::uint32_t, std::uint32_t )
+    {
+    }
+
+    void platform::receive( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t )
+    {
+    }
+
+    std::optional< tester_happened > platform::next_event()
+    {
+        return std::nullopt;
+    }
 }
 }

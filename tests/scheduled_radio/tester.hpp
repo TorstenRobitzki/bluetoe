@@ -50,33 +50,15 @@ namespace bluetoe {
 namespace test_rig {
 
     /**
-     * @brief one PDU the tester received, with the time it arrived
+     * @brief one PDU the tester received, with the time its first bit was on air
+     *
+     * The wire form is link/tester_program.hpp; this sketch names the fields. `when` is a
+     * count of the tester's clock ticks, its own time domain and the reference for the
+     * setup (decision 24), unrelated to the device's microseconds. Loss is detected by the
+     * count a batch carries, not a number per PDU (decision 7). `crc_ok` is false for a PDU
+     * received with a CRC error, which is still reported, because a test may assert that the
+     * device under test transmitted something wrong.
      */
-    struct received_pdu
-    {
-        /**
-         * @brief increases by one per received PDU, so that loss is detectable
-         */
-        std::uint32_t           sequence_number;
-
-        /**
-         * @brief the time the first bit of the PDU was on air
-         *
-         * In the tester's time domain, which is the reference for the setup.
-         */
-        link_layer::abs_time    when;
-
-        const std::uint8_t*     data;
-        std::size_t             size;
-
-        /**
-         * @brief false if the PDU was received with a CRC error
-         *
-         * A malformed PDU is still reported, because a test may be asserting that the
-         * device under test transmits something wrong.
-         */
-        bool                    crc_ok;
-    };
 
     /**
      * @{
