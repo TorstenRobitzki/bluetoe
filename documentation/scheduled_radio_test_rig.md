@@ -738,12 +738,15 @@ it is built and the tests are written before the oscillator is swapped.
   an error there presents as a fault in the device under test. Checking it against a known good
   device or against a sniffer has to happen before the first timing assertion is believed; decision
   11 places it there, and defers the how.
-- Ruling out the air. The first timing tests run with both boards on their antennas, so the tester
-  hears every advertiser on the channel and the device's own advertising window occasionally catches
-  one, which stalls that run. The tests tell the device's PDUs from the air's by content and tolerate
-  a missed one, and a stalled run is repeated, which is enough to make progress. But a professional
-  test that asserts a PDU did *not* appear cannot be trusted while the air is open. The two boards
-  are to be coupled by coaxial cable with their antennas switched out (the MM8130 connector of the
-  PCA10056 breaks the antenna when a plug that actuates its switch is fully seated); that is a bench
-  setup, and it is a precondition of the tests that assert absence, not of the tests that measure an
-  interval.
+- Ruling out the air, by isolation, not by weakening the tests. The first timing tests run with both
+  boards on their antennas, so the tester hears every advertiser on the channel, and the device's own
+  advertising window occasionally catches one and reports `adv_received` where the program awaited
+  `adv_timeout`, stalling that run. The tests tell the device's PDUs from the air's by content and
+  tolerate a missed one, and a stalled run is repeated, which is enough to make progress. It is
+  deliberately not fixed by letting a program step advance on either callback: a test that ignores a
+  stray reception cannot tell it from a real one, nor later check scan-request handling. The fix is to
+  remove the strays, by coupling the two boards inside one shield so only the USB cables cross the
+  wall (ferrite-choked and shield-bonded), with the antennas switched out; the device at 0 dBm over
+  the cable then sits far above whatever leaks past the USB, which the tester's RSSI limit rejects.
+  That is a bench setup, and it is a precondition of the tests that assert a PDU did *not* appear, not
+  of the tests that measure an interval.
