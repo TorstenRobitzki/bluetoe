@@ -235,6 +235,14 @@ namespace test_rig {
 
             cursor_  = 0;
             started_ = true;
+
+            // a program's received PDUs are numbered from zero; unlike the device under
+            // test the tester is not reset between tests, so start clears the queue
+            head_      = 0;
+            queued_    = 0;
+            produced_  = 0;
+            collected_ = 0;
+
             begin( operations_[ 0 ] );
 
             return true;
