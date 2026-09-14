@@ -83,11 +83,17 @@ namespace test_rig {
      *
      * `crc_ok` is false for a PDU received with a CRC error, which is still reported,
      * because a test may assert that the device under test transmitted something wrong.
+     *
+     * `rssi` is the received signal strength, as a positive count of decibels below one
+     * milliwatt (the nRF52 RSSISAMPLE), so a smaller number is a stronger signal. It lets a
+     * test tell the device, strong over a cable, from the air leaking in weakly, and it is
+     * how the threshold for that is found.
      */
     struct received_pdu
     {
         tester_time             when;
         bool                    crc_ok  = false;
+        std::uint8_t            rssi    = 0;
         pdu                     data;
     };
 
@@ -137,13 +143,13 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const received_pdu& value )
     {
-        return serialize( out, std::tie( value.when, value.crc_ok, value.data ) );
+        return serialize( out, std::tie( value.when, value.crc_ok, value.rssi, value.data ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, received_pdu& value )
     {
-        auto fields = std::tie( value.when, value.crc_ok, value.data );
+        auto fields = std::tie( value.when, value.crc_ok, value.rssi, value.data );
 
         return deserialize( in, fields );
     }

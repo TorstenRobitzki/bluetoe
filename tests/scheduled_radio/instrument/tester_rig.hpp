@@ -70,6 +70,7 @@ namespace test_rig {
         tester_time     when;
         pdu             data;
         bool            crc_ok;
+        std::uint8_t    rssi;
     };
 
     /**
@@ -310,6 +311,7 @@ namespace test_rig {
                     received_pdu entry;
                     entry.when   = next->when;
                     entry.crc_ok = next->crc_ok;
+                    entry.rssi   = next->rssi;
                     entry.data   = next->data;
 
                     enqueue( entry );

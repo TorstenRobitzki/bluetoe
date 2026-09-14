@@ -57,7 +57,9 @@ namespace test_rig {
      * setup (decision 24), unrelated to the device's microseconds. Loss is detected by the
      * count a batch carries, not a number per PDU (decision 7). `crc_ok` is false for a PDU
      * received with a CRC error, which is still reported, because a test may assert that the
-     * device under test transmitted something wrong.
+     * device under test transmitted something wrong. `rssi` is the received signal strength,
+     * decibels below a milliwatt as a positive number, which tells the device, strong over a
+     * cable, from the air leaking in weakly.
      */
 
     /**

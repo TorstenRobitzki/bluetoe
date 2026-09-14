@@ -206,8 +206,8 @@ namespace test_rig {
         NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
         NRF_RADIO->PACKETPTR    = reinterpret_cast< std::uint32_t >( receive_buffer_ );
 
-        // start receiving as soon as the receiver is ready, and stay in RXIDLE after a packet
-        NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk;
+        // start receiving when ready, sample RSSI at the address match, stay in RXIDLE after a packet
+        NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
 
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_END       = 0;
@@ -236,6 +236,7 @@ namespace test_rig {
         event.when   = tester_time{ first_bit };
         event.data   = pdu( std::span< const std::uint8_t >( receive_buffer_, size ) );
         event.crc_ok = crc_ok;
+        event.rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE );
 
         enqueue( event );
 

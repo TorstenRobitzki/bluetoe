@@ -66,13 +66,14 @@ namespace {
             return result;
         }
 
-        void push_received( tester_time when, std::span< const std::uint8_t > bytes, bool crc_ok )
+        void push_received( tester_time when, std::span< const std::uint8_t > bytes, bool crc_ok, std::uint8_t rssi = 60 )
         {
             tester_happened e;
             e.kind   = tester_event::received;
             e.when   = when;
             e.data   = pdu( bytes );
             e.crc_ok = crc_ok;
+            e.rssi   = rssi;
 
             events.push_back( e );
         }
@@ -257,7 +258,7 @@ BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_queued_with_its_time_and_bytes, fixtu
     remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
-    platform.push_received( at( 12345us ), adv_ind, true );
+    platform.push_received( at( 12345us ), adv_ind, true, 42 );
     rig.run();
 
     const auto received = collect_all();
@@ -265,6 +266,7 @@ BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_queued_with_its_time_and_bytes, fixtu
     BOOST_REQUIRE_EQUAL( received.size(), 1u );
     BOOST_CHECK( time_of( received[ 0 ].when ) == 12345us );
     BOOST_CHECK( received[ 0 ].crc_ok );
+    BOOST_CHECK_EQUAL( received[ 0 ].rssi, 42 );
     BOOST_CHECK( received[ 0 ].data == pdu( adv_ind ) );
 }
 
