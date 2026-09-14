@@ -15,8 +15,18 @@ any device and the only thing that changes is the port:
 BLUETOE_DUT=/dev/tty.usbmodem1234 ctest --test-dir build -L radio --output-on-failure
 ```
 
-`BLUETOE_DUT_TIMEOUT_MS` bounds one request, by default 2000 ms; a toolbox call is answered from
-inside the device's dispatcher, so it has to cover a point multiplication on the device.
+The tester, once it is wired to the device (see `../tester/README.md`), is named the same way:
+
+```bash
+BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --test-dir build -L radio --output-on-failure
+```
+
+Without `BLUETOE_TESTER` the tests that need the tester are skipped and reported as such; with it,
+every run begins with a reset of the device through the tester.
+
+`BLUETOE_DUT_TIMEOUT_MS` bounds one request to either instrument, by default 2000 ms; a toolbox call
+is answered from inside the device's dispatcher, so it has to cover a point multiplication on the
+device.
 
 Without a device, run everything else with `ctest -LE radio`, as the CI does.
 
@@ -24,8 +34,12 @@ Without a device, run everything else with `ctest -LE radio`, as the CI does.
 
 | file | subject |
 |---|---|
-| `dut.hpp`, `dut.cpp` | the connection every test uses: opened once per run by a global fixture, protocol version checked, a fresh session token set, the properties read; `dut_fixture` and the `dut_supports` predicate for `precondition` |
+| `dut.hpp`, `dut.cpp` | the connection every test uses: opened once per run by a global fixture, protocol version checked, a fresh session token set, the properties read; the restart of the device through the tester; `dut_fixture` and the `dut_supports` predicate for `precondition` |
+| `tester.hpp`, `tester.cpp` | the connection to the tester, opened by the same fixture when `BLUETOE_TESTER` is set; `the_tester()` and the `tester_present` predicate |
+| `environment.hpp`, `environment.cpp` | the environment variables the tests are configured by, one function each |
 | `toolbox_tests.cpp` | the pairing toolbox with the Core Specification's vectors, and a key agreement with the software toolbox of the security manager tests; skipped on a device without a toolbox |
+| `reset_tests.cpp` | the reset line: the device answers with a zero session token after the tester pulled it; skipped without a tester |
 
 A test that needs a feature the device may lack is decorated with a `precondition` on
-`dut_supports`, so that it is skipped and reported as such rather than failed.
+`dut_supports`, one that needs the tester with a `precondition` on `tester_present`, so that it is
+skipped and reported as such rather than failed.

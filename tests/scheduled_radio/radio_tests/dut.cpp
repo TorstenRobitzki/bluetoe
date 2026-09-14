@@ -2,13 +2,11 @@
 
 #include "host/errors.hpp"
 #include "instrument/dut_rig.hpp"
+#include "radio_tests/environment.hpp"
 
 #include <boost/test/unit_test.hpp>
 
-#include <chrono>
-#include <cstdlib>
 #include <optional>
-#include <random>
 #include <string>
 
 namespace bluetoe {
@@ -16,30 +14,11 @@ namespace test_rig {
 
     namespace {
 
-        std::string required_environment( const char* name )
-        {
-            const char* value = std::getenv( name );
-
-            if ( !value || !*value )
-                throw rig_error( std::string( name ) + " is not set; it names the serial device of the device under test" );
-
-            return value;
-        }
-
-        std::chrono::milliseconds timeout_from_environment()
-        {
-            const char* value = std::getenv( "BLUETOE_DUT_TIMEOUT_MS" );
-
-            return std::chrono::milliseconds( value && *value ? std::atoi( value ) : 2000 );
-        }
-
-        std::uint32_t random_session_token()
-        {
-            std::random_device                              entropy;
-            std::uniform_int_distribution< std::uint32_t >  non_zero( 1 );
-
-            return non_zero( entropy );
-        }
+        /*
+         * Requests the device may not answer while it boots after a reset; each one costs
+         * the timeout, so this bounds the wait for a device that does not come back.
+         */
+        constexpr int requests_after_reset = 3;
 
         std::string as_text( const bytes< dut::name_size >& name )
         {
@@ -48,7 +27,7 @@ namespace test_rig {
     }
 
     dut_connection::dut_connection()
-        : transport_( required_environment( "BLUETOE_DUT" ), timeout_from_environment() )
+        : transport_( dut_device(), request_timeout() )
         , remote_( transport_ )
     {
         std::uint16_t version = 0;
@@ -76,13 +55,54 @@ namespace test_rig {
         properties_          = remote_.call< &dut::properties >();
     }
 
+    /*
+     * The poll after the reset is the request that sets the new token: its response carries
+     * the token in effect before, which is zero after a reset and the old one if the device
+     * never reset. A request the device missed while booting times out and is repeated; a
+     * response that got lost the same way shows as the new token coming back, since the
+     * repetition then reads what the first request set.
+     */
+    void dut_connection::restart( tester_connection& tester )
+    {
+        tester.call< &test_rig::tester::reset_device_under_test >();
+
+        const std::uint32_t token = random_session_token();
+
+        for ( int request = 0; request != requests_after_reset; ++request )
+        {
+            try
+            {
+                remote_.call< &dut::set_session_token >( token );
+
+                throw rig_error( "the device answered with the session token from before the reset; it did not reset" );
+            }
+            catch ( const instrument_restarted& previous )
+            {
+                if ( previous.received != 0 && previous.received != token )
+                    throw rig_error( "the device answered with a foreign session token after the reset" );
+
+                remote_.expect_token( token );
+
+                return;
+            }
+            catch ( const link_error& )
+            {
+                // booting, or the request was lost in the reset; ask again
+            }
+        }
+
+        throw rig_error( "the device did not answer after the reset" );
+    }
+
     namespace {
 
         std::optional< dut_connection > connection;
 
         /*
-         * Opens the connection before the first test and closes it after the last; an
-         * error here ends the run with its message instead of failing every test.
+         * Opens the connections before the first test and closes them after the last; an
+         * error here ends the run with its message instead of failing every test. With a
+         * tester, the device is reset through it first, so that the run starts from a
+         * known state.
          */
         struct open_the_dut
         {
@@ -92,10 +112,25 @@ namespace test_rig {
 
                 BOOST_TEST_MESSAGE( "device under test: " << connection->implementation_name()
                     << ", build " << connection->build_identifier() );
+
+                connect_tester_if_named();
+
+                if ( tester_connected() )
+                {
+                    BOOST_TEST_MESSAGE( "tester: " << the_tester().implementation_name()
+                        << ", build " << the_tester().build_identifier() );
+
+                    connection->restart( the_tester() );
+                }
+                else
+                {
+                    BOOST_TEST_MESSAGE( "no tester; BLUETOE_TESTER is not set" );
+                }
             }
 
             ~open_the_dut()
             {
+                disconnect_tester();
                 connection.reset();
             }
         };

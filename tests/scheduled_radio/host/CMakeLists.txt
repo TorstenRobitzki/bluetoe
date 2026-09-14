@@ -2,6 +2,7 @@ find_package(Boost REQUIRED)
 find_package(Threads REQUIRED)
 
 add_library(scheduled_radio_host STATIC
+    proxy.cpp
     serial_transport.cpp
 )
 

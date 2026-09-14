@@ -35,6 +35,13 @@ namespace test_rig {
     };
 
     /**
+     * @brief a session token to give an instrument: random, and not zero
+     *
+     * Zero is what an instrument answers with after a restart, see expect_token().
+     */
+    std::uint32_t random_session_token();
+
+    /**
      * @brief a sink that grows
      */
     class vector_sink

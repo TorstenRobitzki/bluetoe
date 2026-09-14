@@ -12,11 +12,16 @@
  *
  * BLUETOE_DUT_TIMEOUT_MS bounds one request; the default covers a point multiplication on
  * a small core.
+ *
+ * The same fixture opens the tester of tester.hpp if BLUETOE_TESTER names one, and then
+ * restarts the device through it, so that a run with a tester begins from a reset
+ * (decision 4).
  */
 
 #include "host/dut_functions.hpp"
 #include "host/proxy.hpp"
 #include "host/serial_transport.hpp"
+#include "radio_tests/tester.hpp"
 
 #include <bluetoe/radio_properties.hpp>
 
@@ -48,6 +53,19 @@ namespace test_rig {
         {
             return remote_.call< F >( std::forward< Args >( args )... );
         }
+
+        /**
+         * @brief resets the device through the tester and waits until it is back
+         *
+         * Decision 8's fixture: the device carries this connection's session token, the
+         * tester pulls its reset line, the connection polls until the device answers and
+         * requires that answer to carry a zero token, then sets a new one. Waiting for
+         * radio_ready() follows once the rig records callbacks.
+         *
+         * @throws rig_error the device did not answer within a few requests, or answered
+         *                   with the old token, that is it never reset
+         */
+        void restart( tester_connection& tester );
 
         const link_layer::radio_properties& properties() const
         {

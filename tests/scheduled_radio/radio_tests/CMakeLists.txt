@@ -4,7 +4,7 @@ find_package(Boost REQUIRED)
 # ctest from running it unless asked for: `ctest -L radio` runs the radio tests only, the CI
 # runs `ctest -LE radio` (decision 21).
 function(add_radio_test test_runner)
-    add_executable(${test_runner} ${test_runner}.cpp dut.cpp)
+    add_executable(${test_runner} ${test_runner}.cpp dut.cpp tester.cpp environment.cpp)
 
     target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
     target_include_directories(${test_runner} PRIVATE ${CMAKE_SOURCE_DIR}/tests)
@@ -16,3 +16,4 @@ function(add_radio_test test_runner)
 endfunction()
 
 add_radio_test(toolbox_tests)
+add_radio_test(reset_tests)
