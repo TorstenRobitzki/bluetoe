@@ -11,11 +11,12 @@ the J-Link's serial number and the SDK are needed to configure it.
 
 ## Wiring
 
-Two wires between the two development kits: the tester's P0.03 to the RESET pin of the device
-under test's kit, and ground to ground. Both kits hang off the same host's USB, which joins the
-grounds already, but a ground wire beside the signal is what gives the reset edge a clean return
-path. The reset line is driven open drain, so it can share the net with the kit's own reset button
-and probe.
+Two wires between the two development kits: the tester's P0.03 to P0.18 of the device under
+test's kit, which is the nRF52840's reset pin and the net its RESET button and probe use, and
+ground to ground. Both kits hang off the same host's USB, which joins the grounds already, so the
+reset works without the second wire, but a ground wire beside the signal gives the reset edge a
+clean return path. The reset line is driven open drain, so it can share the net with the kit's own
+reset circuitry.
 
 ## Building and flashing
 
