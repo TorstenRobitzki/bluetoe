@@ -7,9 +7,29 @@
  * The scheduled radio of the nRF52, as bluetoe/scheduled_radio2.hpp requires it. Consumers
  * name it through <bluetoe/radio.hpp>.
  *
- * This is the first slice, decision 22 of documentation/scheduled_radio_test_rig.md: the
- * security toolbox, run() and wake_up(), and the feature constants; every scheduling
- * function is present and declines. The radio and the timer come with step 3 of decision 11.
+ * This is the advertising slice of decision 11, step 3: the time base, radio_ready(),
+ * start_advertising() and schedule_advertising_event() with their receive window,
+ * the timer, and the callbacks, delivered from run(). Connection events, encryption and
+ * PHY changes are present and decline; the scan response is accepted and not yet sent.
+ * See documentation/scheduled_radio_test_rig.md.
+ *
+ * @section timebase The time base
+ *
+ * abs_time is a 32 bit timer running at one microsecond from the 16 MHz peripheral
+ * clock, and the high frequency crystal is started once and stays on: a test rig has no
+ * power budget, and the sleep clock with its calibration and the handover between the
+ * two clocks is a later slice with tests of its own. A second timer, started in the same
+ * cycle as the first through a PPI fork, holds the user timer's compare, since the first
+ * one's four registers are taken by the radio.
+ *
+ * @section events What the radio reports and when
+ *
+ * An advertising event transmits with its first bit on air at the requested time, then
+ * opens the receiver for the inter frame space plus the longest legacy response. A PDU
+ * with a valid CRC is reported with adv_received(), carrying the time its first bit was
+ * on air, computed back from the end of the packet; anything else, including a PDU with a
+ * bad CRC, is reported with adv_timeout(), carrying the time the event's own transmission
+ * began, so that a caller can chain intervals from it without knowing the window.
  */
 
 #include <bluetoe/security_tool_box.hpp>
@@ -21,36 +41,117 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace bluetoe
 {
     namespace nrf52_details
     {
         /**
-         * @brief what does not depend on the callbacks type: the execution context, and
-         *        the setup the toolbox needs
+         * @brief what does not depend on the callbacks type: the hardware and its state
+         *
+         * The interrupts write what happened into one slot per kind of event, and the
+         * template's run() takes it from there and delivers it; the concepts' rule that
+         * no second action of a kind is scheduled while one is pending is what makes one
+         * slot enough.
          */
         class radio_base
         {
+        public:
+            /**
+             * @brief for the interrupt handlers only
+             */
+            static void radio_interrupt();
+            static void timer_interrupt();
+
         protected:
             /**
-             * @brief starts the random number generator the toolbox draws from
+             * @brief starts the crystal, the timers and the random number generator, and
+             *        configures the radio for legacy advertising
              */
             radio_base();
 
             /**
-             * @brief sleeps until something happened, then returns
+             * @brief sleeps until an interrupt happened or wake_up() was called
              *
              * Wait-for-event returns on an interrupt and on wake_up(); the event register
              * latches a wake_up() that came before the sleep, which is what makes the
              * guarantee of decision 17 hold.
              */
-            void run();
+            void sleep();
 
             /**
              * @brief makes run() return, from any context
              */
             void wake_up();
+
+            void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
+
+            bool start_advertising(
+                std::uint32_t                       channel,
+                const link_layer::write_buffer&     transmit,
+                const link_layer::write_buffer&     response,
+                const link_layer::read_buffer&      receive );
+
+            bool schedule_advertising_event(
+                std::uint32_t                       channel,
+                link_layer::abs_time                when,
+                const link_layer::write_buffer&     transmit,
+                const link_layer::write_buffer&     response,
+                const link_layer::read_buffer&      receive );
+
+            bool cancel_radio_event();
+            bool schedule_timer( link_layer::abs_time when );
+            bool cancel_timer();
+
+            enum class event
+            {
+                radio_ready,
+                adv_received,
+                adv_timeout,
+                user_timer
+            };
+
+            struct happened
+            {
+                event                   kind;
+                link_layer::abs_time    when;
+                link_layer::read_buffer received;
+            };
+
+            /**
+             * @brief the oldest thing to deliver, and it is forgotten
+             */
+            std::optional< happened > next_event();
+
+        private:
+            enum class state
+            {
+                idle,
+                transmitting,
+                receiving
+            };
+
+            link_layer::abs_time now() const;
+            bool schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::read_buffer& receive );
+            void on_radio_disabled();
+            void on_timer_expired();
+
+            volatile state              state_;
+            link_layer::read_buffer     receive_;
+            link_layer::abs_time        transmit_time_;
+
+            volatile bool               ready_pending_;
+            volatile bool               radio_event_pending_;
+            event                       radio_event_;
+            link_layer::abs_time        radio_event_time_;
+            std::size_t                 received_size_;
+
+            volatile bool               timer_scheduled_;
+            link_layer::abs_time        timer_when_;
+            volatile bool               timer_event_pending_;
+
+            static radio_base*          instance_;
         };
 
         /**
@@ -81,7 +182,8 @@ namespace bluetoe
             static constexpr std::uint32_t  radio_max_supported_payload_length          = 255;
 
             /**
-             * @brief the 32.768 kHz crystal of the development kits
+             * @brief the 32 MHz crystal of the development kits, which is the only clock
+             *        this slice runs on
              */
             static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 20;
 
@@ -95,47 +197,59 @@ namespace bluetoe
              */
             struct lock_guard {};
 
-            using radio_base::run;
+            /**
+             * @brief delivers what happened, then sleeps until the next thing happens
+             *
+             * radio_ready() is delivered on the first call. An interrupt between the last
+             * delivery and the sleep sets the event register, so the sleep ends at once
+             * and the next call delivers what it left.
+             */
+            void run()
+            {
+                for ( std::optional< happened > next = radio_base::next_event(); next; next = radio_base::next_event() )
+                {
+                    CallBacks& callbacks = static_cast< CallBacks& >( *this );
+
+                    switch ( next->kind )
+                    {
+                    case event::radio_ready:
+                        callbacks.radio_ready();
+                        break;
+                    case event::adv_received:
+                        callbacks.adv_received( next->when, next->received );
+                        break;
+                    case event::adv_timeout:
+                        callbacks.adv_timeout( next->when );
+                        break;
+                    case event::user_timer:
+                        callbacks.user_timer( next->when );
+                        break;
+                    }
+                }
+
+                radio_base::sleep();
+            }
+
             using radio_base::wake_up;
+            using radio_base::set_access_address_and_crc_init;
+            using radio_base::start_advertising;
+            using radio_base::schedule_advertising_event;
+            using radio_base::cancel_radio_event;
+            using radio_base::schedule_timer;
+            using radio_base::cancel_timer;
 
             /**
-             * @name Setup and scheduling, not implemented yet
+             * @name Not implemented in this slice
              *
-             * Present so that the class satisfies the concept and the toolbox can be tested
-             * over the link; every scheduling function declines.
+             * Present so that the class satisfies the concept; the scheduling function
+             * declines.
              * @{
              */
-            void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
             void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
             void set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
             void set_local_address( const link_layer::device_address& ) {}
 
-            bool start_advertising( std::uint32_t, const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
-            {
-                return false;
-            }
-
-            bool schedule_advertising_event( std::uint32_t, link_layer::abs_time, const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
-            {
-                return false;
-            }
-
             bool schedule_connection_event( std::uint32_t, link_layer::abs_time, link_layer::abs_time )
-            {
-                return false;
-            }
-
-            bool cancel_radio_event()
-            {
-                return false;
-            }
-
-            bool schedule_timer( link_layer::abs_time )
-            {
-                return false;
-            }
-
-            bool cancel_timer()
             {
                 return false;
             }

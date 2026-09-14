@@ -666,10 +666,12 @@ virtual COM port, so the same probe flashes the rig and connects the host. The p
 legacy `UART0`, one byte per interrupt, which is the port contract of decision 16 word for word, with
 RTS/CTS for the back pressure it asks for; the DMA based `UARTE` would need chunked buffers for no
 gain at these data rates, and is left for the nRF52820, which has no `UART0`. Its radio is the nRF52
-scheduled radio of step 3 in its first slice: the security toolbox, `run()` as wait for event,
-`wake_up()`, and every scheduling function present but declining, so that the concept is satisfied
-and the toolbox tests of decision 11 step 2 run over a real link before any radio code exists.
-Configurations of the radio appear as rigs when the radio has options.
+scheduled radio of step 3, which began as the security toolbox alone, with `run()` as wait for event,
+`wake_up()`, and every scheduling function present but declining, so that the toolbox tests of
+decision 11 step 2 ran over a real link before any radio code existed; the advertising slice
+followed, with the time base on the high frequency crystal kept running throughout, since a test
+rig has no power budget and the sleep clock is a later slice with tests of its own. Configurations
+of the radio appear as rigs when the radio has options.
 
 **Rejected:** building the rigs from the examples project. It had everything a rig needs, but the two
 have different lifecycles, a rig build would always build the examples as well, and "example" would
