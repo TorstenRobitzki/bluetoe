@@ -235,6 +235,23 @@ BOOST_FIXTURE_TEST_CASE( starting_a_running_program_again_is_refused, fixture )
     BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
 }
 
+BOOST_FIXTURE_TEST_CASE( a_new_program_can_be_built_after_the_last_one_ended, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+    platform.push_window_ended();
+    rig.run();
+    BOOST_REQUIRE( remote.call< &rig_t::program_finished >() );
+
+    // adding an operation now empties the finished program and begins a new one
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 50 ) ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 38u );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_queued_with_its_time_and_bytes, fixture )
 {
     remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );

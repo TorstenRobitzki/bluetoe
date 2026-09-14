@@ -39,7 +39,18 @@ Without a device, run everything else with `ctest -LE radio`, as the CI does.
 | `environment.hpp`, `environment.cpp` | the environment variables the tests are configured by, one function each |
 | `toolbox_tests.cpp` | the pairing toolbox with the Core Specification's vectors, and a key agreement with the software toolbox of the security manager tests; skipped on a device without a toolbox |
 | `reset_tests.cpp` | the reset line: the device answers with a zero session token after the tester pulled it; skipped without a tester |
+| `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; the program builders |
+| `first_tests.cpp` | the first timing tests over the air: an advertising event is transmitted at the requested interval, and on the requested channel; skipped without a tester |
 
 A test that needs a feature the device may lack is decorated with a `precondition` on
 `dut_supports`, one that needs the tester with a `precondition` on `tester_present`, so that it is
 skipped and reported as such rather than failed.
+
+## Over the air, for now
+
+The timing tests run with both boards on their antennas, so the tester hears every advertiser on
+the channel and the device's advertising window occasionally catches one. The tests tell the
+device's PDUs from the air's by content and tolerate a missed one, but a stray reception on the
+device stalls that run, so a run may fail and is simply repeated. Ruling that out, and being able to
+assert that a PDU did *not* appear, needs the two boards coupled by cable with their antennas
+switched out; that is a bench change, not a code change.

@@ -208,11 +208,19 @@ namespace test_rig {
         /**
          * @brief appends an operation to the program
          *
-         * There is no way to remove one: the tester is reset before every test, and the
-         * reset is what empties the program. Refused if the program is full.
+         * The tester is not reset between tests, so the first operation added after a
+         * program ran to its end empties that program and begins a new one. Refused if
+         * the program is full.
          */
         bool add_operation( const operation& next )
         {
+            if ( program_finished() )
+            {
+                operation_count_ = 0;
+                cursor_          = 0;
+                started_         = false;
+            }
+
             if ( operation_count_ == max_operations )
                 return false;
 

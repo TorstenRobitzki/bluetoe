@@ -17,3 +17,4 @@ endfunction()
 
 add_radio_test(toolbox_tests)
 add_radio_test(reset_tests)
+add_radio_test(first_tests)

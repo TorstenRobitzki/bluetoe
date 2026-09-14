@@ -6,7 +6,7 @@ interfaces as they stand, that is recorded at the end rather than papered over.
 
 The host loads a program into each instrument, starts them, and asserts over what was recorded
 afterwards. "DUT" is the device under test, "tester" the observing instrument. The first two
-tests are written out in first_tests.cpp.
+tests are written out in radio_tests/first_tests.cpp.
 
 ## Two time domains that are never related
 
