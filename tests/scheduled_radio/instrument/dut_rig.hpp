@@ -15,20 +15,27 @@
  * list the wire is keyed on, which is why no function of the list carries a type of the
  * radio.
  *
- * The function list is the instrument functions and the pairing toolbox, the same on
- * every device. On a radio without a toolbox the toolbox opcodes are answered with
- * status::unsupported_function, and the host reads properties() before it asks. The
- * program interpreter and the records follow.
+ * The function list is the instrument functions, the program and its records, and the
+ * pairing toolbox, the same on every device. On a radio without a toolbox the toolbox
+ * opcodes are answered with status::unsupported_function, and the host reads properties()
+ * before it asks.
+ *
+ * The rig is the program interpreter of decision 14: a step waits for the callback it
+ * names and runs inside it, and everything the radio reports or the rig calls is recorded
+ * in one queue, in the order it happened.
  */
 
 #include "instrument/instrument.hpp"
 #include "link/frame.hpp"
 #include "link/function_list.hpp"
+#include "link/program.hpp"
 
 #include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/radio_properties.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
@@ -44,6 +51,14 @@ namespace test_rig {
      * dut_rig::functions changes after a device was flashed with the current one.
      */
     constexpr std::uint16_t dut_protocol_version = 1;
+
+    /**
+     * @brief records the rig keeps until the host collects them
+     *
+     * A program's worth: a callback and a call or two per step, a few steps, and room
+     * for what a test provokes on purpose to see the queue overflow.
+     */
+    constexpr std::size_t record_queue_size = 32;
 
     namespace details {
 
@@ -160,15 +175,34 @@ namespace test_rig {
         /**
          * @name Callbacks of the radio
          *
-         * Received and dropped until the program interpreter and the records arrive with
-         * decision 11, step 3. The callbacks of connection events come with the connection
-         * events.
+         * Each is recorded and then runs the step that waits for it, if the next step
+         * does. The callbacks of connection events come with the connection events.
          * @{
          */
-        void radio_ready() {}
-        void adv_received( link_layer::abs_time, const link_layer::read_buffer& ) {}
-        void adv_timeout( link_layer::abs_time ) {}
-        void user_timer( link_layer::abs_time ) {}
+        void radio_ready()
+        {
+            on_callback( callback_kind::radio_ready, link_layer::abs_time(), {} );
+        }
+
+        void adv_received( link_layer::abs_time when, const link_layer::read_buffer& received )
+        {
+            radio_event_pending_ = false;
+
+            assert( received.size <= max_advertising_pdu_size );
+            on_callback( callback_kind::adv_received, when, pdu( std::span< const std::uint8_t >( received.buffer, received.size ) ) );
+        }
+
+        void adv_timeout( link_layer::abs_time when )
+        {
+            radio_event_pending_ = false;
+            on_callback( callback_kind::adv_timeout, when, {} );
+        }
+
+        void user_timer( link_layer::abs_time when )
+        {
+            timer_pending_ = false;
+            on_callback( callback_kind::user_timer, when, {} );
+        }
         /** @} */
 
         /**
@@ -184,18 +218,93 @@ namespace test_rig {
         }
 
         /**
-         * @brief whether the loaded program ran to its end
+         * @brief whether the started program ran to its end
          *
-         * No program can be loaded yet, and instrument.hpp asks for false in that case.
+         * True once the last step ran and the radio reported the end of whatever that
+         * step scheduled, so that nothing is still going to happen on air; false before
+         * a program was started.
          */
         bool program_finished() const
         {
-            return false;
+            return running_ && cursor_ == step_count_ && !radio_event_pending_ && !timer_pending_;
         }
 
         link_layer::radio_properties properties() const
         {
             return link_layer::radio_properties( static_cast< const radio_t& >( *this ) );
+        }
+        /** @} */
+
+        /**
+         * @name Program and records
+         * @{
+         */
+
+        /**
+         * @brief appends a step to the program
+         *
+         * There is no way to remove one: the device is reset before every test, and the
+         * reset is what empties the program. Refused, and not appended, if the program is
+         * full, if the step waits for a callback that cannot trigger one, or if a step on
+         * start makes a call that needs a time, since none exists then.
+         */
+        bool add_step( const step& next )
+        {
+            if ( step_count_ == max_steps || next.call_count > max_calls_per_step )
+                return false;
+
+            if ( next.on == callback_kind::radio_ready )
+                return false;
+
+            for ( std::size_t i = 0; i != next.call_count; ++i )
+            {
+                const call_kind kind = next.calls[ i ].kind;
+
+                if ( next.on == callback_kind::start
+                  && ( kind == call_kind::schedule_advertising_event || kind == call_kind::schedule_timer ) )
+                    return false;
+            }
+
+            steps_[ step_count_ ] = next;
+            ++step_count_;
+
+            return true;
+        }
+
+        /**
+         * @brief runs the program from its first step
+         *
+         * A first step that waits for start runs now, inside this call.
+         */
+        void start_program()
+        {
+            cursor_  = 0;
+            running_ = true;
+
+            run_step_if_waiting_for( callback_kind::start, link_layer::abs_time() );
+        }
+
+        /**
+         * @brief hands over the oldest records and forgets them
+         */
+        record_batch collect_records()
+        {
+            record_batch batch;
+
+            batch.first    = collected_;
+            batch.produced = produced_;
+
+            while ( batch.count != records_per_batch && queued_ != 0 )
+            {
+                batch.records[ batch.count ] = records_[ head_ ];
+
+                head_ = ( head_ + 1 ) % record_queue_size;
+                --queued_;
+                ++collected_;
+                ++batch.count;
+            }
+
+            return batch;
         }
         /** @} */
 
@@ -242,6 +351,9 @@ namespace test_rig {
             &dut_rig::set_session_token,
             &dut_rig::program_finished,
             &dut_rig::properties,
+            &dut_rig::add_step,
+            &dut_rig::start_program,
+            &dut_rig::collect_records,
             &toolbox_t::generate_keys,
             &toolbox_t::select_random_nonce,
             &wrapped_t::p256,
@@ -249,6 +361,105 @@ namespace test_rig {
             &toolbox_t::f5,
             &toolbox_t::f6,
             &wrapped_t::g2 >;
+
+    private:
+        void on_callback( callback_kind kind, link_layer::abs_time when, const pdu& data )
+        {
+            record entry;
+            entry.kind      = record_kind::callback;
+            entry.callback  = kind;
+            entry.when      = when;
+            entry.data      = data;
+            add_record( entry );
+
+            run_step_if_waiting_for( kind, when );
+        }
+
+        void run_step_if_waiting_for( callback_kind kind, link_layer::abs_time when )
+        {
+            if ( !running_ || cursor_ == step_count_ || steps_[ cursor_ ].on != kind )
+                return;
+
+            const step& current = steps_[ cursor_ ];
+            ++cursor_;
+
+            for ( std::size_t i = 0; i != current.call_count; ++i )
+                execute( current.calls[ i ], when );
+        }
+
+        /*
+         * The PDUs stay where the program keeps them, since the radio uses them until the
+         * event is over; the receive buffer is the rig's own.
+         */
+        void execute( const call& what, link_layer::abs_time when )
+        {
+            const link_layer::write_buffer transmit{ what.transmit.data.data(), what.transmit.size };
+            const link_layer::write_buffer response{ what.response.data.data(), what.response.size };
+            const link_layer::read_buffer  receive{ receive_.data(), receive_.size() };
+
+            record entry;
+            entry.kind      = record_kind::call;
+            entry.call      = what.kind;
+            entry.channel   = what.channel;
+
+            switch ( what.kind )
+            {
+            case call_kind::start_advertising:
+                entry.result = radio_t::start_advertising( what.channel, transmit, response, receive );
+                radio_event_pending_ = radio_event_pending_ || entry.result;
+                break;
+            case call_kind::schedule_advertising_event:
+                entry.when   = when + what.delay;
+                entry.result = radio_t::schedule_advertising_event( what.channel, entry.when, transmit, response, receive );
+                radio_event_pending_ = radio_event_pending_ || entry.result;
+                break;
+            case call_kind::schedule_timer:
+                entry.when   = when + what.delay;
+                entry.result = radio_t::schedule_timer( entry.when );
+                timer_pending_ = timer_pending_ || entry.result;
+                break;
+            case call_kind::cancel_radio_event:
+                entry.result = radio_t::cancel_radio_event();
+                radio_event_pending_ = radio_event_pending_ && !entry.result;
+                break;
+            case call_kind::cancel_timer:
+                entry.result = radio_t::cancel_timer();
+                timer_pending_ = timer_pending_ && !entry.result;
+                break;
+            }
+
+            add_record( entry );
+        }
+
+        /*
+         * A full queue drops the newest record and counts it anyway, so that the host
+         * sees the gap in the count rather than a rewritten history.
+         */
+        void add_record( const record& entry )
+        {
+            ++produced_;
+
+            if ( queued_ == record_queue_size )
+                return;
+
+            records_[ ( head_ + queued_ ) % record_queue_size ] = entry;
+            ++queued_;
+        }
+
+        std::array< step, max_steps >                   steps_;
+        std::uint8_t                                    step_count_             = 0;
+        std::uint8_t                                    cursor_                 = 0;
+        bool                                            running_                = false;
+        bool                                            radio_event_pending_    = false;
+        bool                                            timer_pending_          = false;
+
+        std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
+
+        std::array< record, record_queue_size >         records_;
+        std::size_t                                     head_                   = 0;
+        std::size_t                                     queued_                 = 0;
+        std::uint32_t                                   produced_               = 0;
+        std::uint32_t                                   collected_              = 0;
     };
 }
 }

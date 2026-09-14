@@ -144,6 +144,14 @@ The depth is not part of the contract. Under decision 14 the host collects once,
 finished, so the depth bounds the length of a program and nothing else; a program that outgrows it
 shows up as a gap, and the remedy is a larger array. The host never needs to know the number.
 
+**Amended.** The records carry no number each. What has to be detected is a loss between the rig
+and the host, not a gap inside the rig's own history, and a count does that: the rig counts every
+record it produces, whether it could keep it or not, and a batch of records names the index of its
+first record and that count. A record with an index below the count that never arrives was dropped,
+and the host voids the test. This is the same information with four bytes per batch instead of four
+per record, and the queue drops the newest record when full rather than the oldest, so that what
+the host receives is the beginning of what happened, up to the point where the rig ran out of room.
+
 ## 8. A session token in every response
 
 The host gives an instrument a random, non-zero token, and every response from then on echoes it.

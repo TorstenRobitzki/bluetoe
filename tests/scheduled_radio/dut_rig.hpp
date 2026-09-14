@@ -53,10 +53,13 @@
  *
  * @section records What is recorded
  *
- * Two things, sharing one sequence of numbers so that the host can reconstruct the order
- * in which they happened: every callback the implementation made, with the time it carried
- * and its other arguments, and every call a step made, with the resolved time argument and
- * the return value. The host collects both after the program finished.
+ * Two things, in one queue in the order they happened: every callback the implementation
+ * made, with the time it carried and its other arguments, and every call a step made, with
+ * the resolved time argument and the return value. The start of a program is the host's
+ * doing and is not a record. The host collects the queue in batches after the program
+ * finished; a batch names the index of its first record and how many records exist so far,
+ * so that a record the rig had to drop shows as a gap in the count rather than as history
+ * rewritten (decision 7).
  *
  * A step runs in the link layer context, as the link layer's equivalent would. The records
  * are written there and collected from the application context, so the queue is single
