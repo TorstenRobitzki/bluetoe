@@ -26,10 +26,12 @@
  *
  * An advertising event transmits with its first bit on air at the requested time, then
  * opens the receiver for the inter frame space plus the longest legacy response. A PDU
- * with a valid CRC is reported with adv_received(), carrying the time its first bit was
- * on air, computed back from the end of the packet; anything else, including a PDU with a
- * bad CRC, is reported with adv_timeout(), carrying the time the event's own transmission
- * began, so that a caller can chain intervals from it without knowing the window.
+ * with a valid CRC whose sender passes the acceptance filter (scheduled_radio2.hpp) is
+ * reported with adv_received(), carrying the time its first bit was on air, computed back
+ * from the end of the packet; anything else, a PDU with a bad CRC, a sender the filter
+ * rejects, or no PDU at all, is reported with adv_timeout(), carrying the time the event's
+ * own transmission began, so that a caller can chain intervals from it without knowing the
+ * window.
  */
 
 #include <bluetoe/security_tool_box.hpp>
@@ -87,6 +89,16 @@ namespace bluetoe
 
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
+            /**
+             * @brief registers the acceptance filter the template calls into
+             *
+             * The receive interrupt lives in this base, which has no callbacks type; the
+             * template that has it stores a thunk here that reaches the callbacks'
+             * is_in_acceptance_filter() (scheduled_radio2.hpp). A null thunk accepts every
+             * sender, which is what an empty filter set means.
+             */
+            void set_acceptance_filter( bool ( *filter )( radio_base*, const link_layer::device_address& ) );
+
             bool start_advertising(
                 std::uint32_t                       channel,
                 const link_layer::write_buffer&     transmit,
@@ -134,6 +146,7 @@ namespace bluetoe
 
             link_layer::abs_time now() const;
             bool schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::read_buffer& receive );
+            bool sender_in_acceptance_filter();
             void on_radio_disabled();
             void on_timer_expired();
 
@@ -150,6 +163,8 @@ namespace bluetoe
             volatile bool               timer_scheduled_;
             link_layer::abs_time        timer_when_;
             volatile bool               timer_event_pending_;
+
+            bool ( *acceptance_filter_ )( radio_base*, const link_layer::device_address& );
 
             static radio_base*          instance_;
         };
@@ -187,6 +202,12 @@ namespace bluetoe
              */
             static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 20;
 
+            /**
+             * @brief no acceptance filter hardware; the caller filters in software through
+             *        is_in_acceptance_filter() (scheduled_radio2.hpp)
+             */
+            static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
+
             struct ccm_counter_t
             {
                 std::uint64_t value = 0;
@@ -196,6 +217,17 @@ namespace bluetoe
              * @brief nothing to exclude: the callbacks are delivered from run()
              */
             struct lock_guard {};
+
+            /**
+             * @brief hands the base a thunk to the callbacks' acceptance filter
+             *
+             * The receive interrupt lives in radio_base, which does not know CallBacks;
+             * this gives it a way to reach is_in_acceptance_filter() (scheduled_radio2.hpp).
+             */
+            radio()
+            {
+                radio_base::set_acceptance_filter( &apply_acceptance_filter );
+            }
 
             /**
              * @brief delivers what happened, then sleeps until the next thing happens
@@ -254,6 +286,16 @@ namespace bluetoe
                 return false;
             }
             /** @} */
+
+        private:
+            /*
+             * The thunk the base calls to apply the acceptance filter, the one thing the
+             * receive interrupt needs from the callbacks type it cannot name itself.
+             */
+            static bool apply_acceptance_filter( radio_base* base, const link_layer::device_address& address )
+            {
+                return static_cast< CallBacks& >( static_cast< radio& >( *base ) ).is_in_acceptance_filter( address );
+            }
         };
     }
 }

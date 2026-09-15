@@ -62,6 +62,12 @@ namespace bluetoe
             constexpr std::uint32_t advertising_crc_init        = 0x555555;
 
             /*
+             * The TxAdd bit of an advertising channel PDU header: set when the sender's
+             * address, the first address field of the payload, is random.
+             */
+            constexpr std::uint8_t  tx_add_mask                 = 0x40;
+
+            /*
              * The Core Specification's channel to frequency mapping, in MHz above 2400.
              */
             std::uint32_t frequency_from_channel( std::uint32_t channel )
@@ -169,6 +175,7 @@ namespace bluetoe
             , timer_scheduled_( false )
             , timer_when_()
             , timer_event_pending_( false )
+            , acceptance_filter_( nullptr )
         {
             assert( instance_ == nullptr );
             instance_ = this;
@@ -220,6 +227,28 @@ namespace bluetoe
             NRF_RADIO->BASE0    = access_address << 8;
             NRF_RADIO->PREFIX0  = access_address >> 24;
             NRF_RADIO->CRCINIT  = crc_init;
+        }
+
+        void radio_base::set_acceptance_filter( bool ( *filter )( radio_base*, const link_layer::device_address& ) )
+        {
+            acceptance_filter_ = filter;
+        }
+
+        /*
+         * The acceptance filter of scheduled_radio2.hpp: the sender of an advertising
+         * channel PDU is its first address field, the six bytes after the two byte header,
+         * public or random by the header's TxAdd bit. With no thunk registered the caller
+         * has no filter, and every sender is accepted.
+         */
+        bool radio_base::sender_in_acceptance_filter()
+        {
+            if ( acceptance_filter_ == nullptr )
+                return true;
+
+            const bool is_random = receive_.buffer[ 0 ] & tx_add_mask;
+            const link_layer::device_address sender( &receive_.buffer[ 2 ], is_random );
+
+            return acceptance_filter_( this, sender );
         }
 
         bool radio_base::start_advertising(
@@ -415,7 +444,7 @@ namespace bluetoe
 
                 const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
 
-                if ( NRF_RADIO->EVENTS_END && crc_ok )
+                if ( NRF_RADIO->EVENTS_END && crc_ok && sender_in_acceptance_filter() )
                 {
                     const std::uint32_t payload_size = receive_.buffer[ 1 ];
 
