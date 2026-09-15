@@ -5,12 +5,11 @@
  * at the requested time, and on the requested channel. Both need the tester; they are
  * skipped without one. See documentation/scheduled_radio_test_rig.md.
  *
- * These run over the air, so the tester hears every advertiser on the channel and the
- * device's own advertising window occasionally catches one, which ends the program a run
- * short. The tests tell the device's PDUs from the air's by their content and tolerate a
- * missed one; a program the stray reception stalls fails that run, and the run is repeated.
- * Ruling that out for good needs the boards coupled by cable with their antennas switched
- * out, which is a bench setup, not a code change.
+ * These run over the air, but the acceptance filter on each side keeps the air off the
+ * record: the device answers only the tester, so a stray advertising in its window no longer
+ * stalls the program, and the tester reports only the device, so what it hears is the
+ * device's (scheduled_radio2.hpp). The two markers share the device's address and differ in
+ * one byte, so both pass the tester's filter and the channel test still tells them apart.
  */
 
 #define BOOST_TEST_MODULE
@@ -22,8 +21,10 @@
 
 #include <bluetoe/delta_time.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 using namespace bluetoe::test_rig;
@@ -42,9 +43,20 @@ namespace {
     // reworked oscillator lets it be tightened.
     constexpr long   tolerance_us = 50;
 
-    // a distinctive, non-empty payload, so the tester tells the device's PDUs from the air's
-    const std::uint8_t marker[]       = { 0x02, 0x06, 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 };
-    const std::uint8_t other_marker[] = { 0x02, 0x06, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb };
+    // an advertising PDU from the device: ADV_NONCONN_IND, the device's address (dut_address
+    // of rig_fixture.hpp, what the tester's acceptance filter keeps), then one byte of data.
+    // Both markers share the address, so both pass the filter; the last byte tells the two
+    // of the device's PDUs apart, which is what the channel test needs.
+    const std::uint8_t marker[]       = { 0x02, 0x07, 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0, 0x01 };
+    const std::uint8_t other_marker[] = { 0x02, 0x07, 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0, 0x02 };
+
+    // whether a received PDU carries exactly these bytes; the channel test tells the two
+    // markers apart by it, since both share the address the tester filters on
+    bool carries( const received_pdu& p, std::span< const std::uint8_t > bytes )
+    {
+        return p.data.size == bytes.size()
+            && std::equal( bytes.begin(), bytes.end(), p.data.data.begin() );
+    }
 }
 
 /*
@@ -65,7 +77,8 @@ BOOST_FIXTURE_TEST_CASE( advertising_is_transmitted_at_the_requested_time, rig_f
 
     run();
 
-    const auto seen = received_matching( marker );
+    // the tester's acceptance filter keeps only the device, so all it reports is the device's
+    const auto seen = tester_received();
 
     BOOST_TEST_MESSAGE( "tester received " << seen.size() << " of the device's advertisings" );
     BOOST_REQUIRE_GE( seen.size(), 2u );
@@ -98,10 +111,14 @@ BOOST_FIXTURE_TEST_CASE( advertising_is_transmitted_on_the_requested_channel, ri
 
     run();
 
-    const auto on_38 = received_matching( marker );
-    const auto stray = received_matching( other_marker );
+    const auto received = tester_received();
 
-    BOOST_CHECK_GE( on_38.size(), 1u );
+    const auto count_of = [ & ]( std::span< const std::uint8_t > bytes ) {
+        return std::count_if( received.begin(), received.end(),
+            [ & ]( const received_pdu& p ){ return carries( p, bytes ); } );
+    };
+
+    BOOST_CHECK_GE( count_of( marker ), 1 );
     // the channel-37 PDU must not appear on channel 38
-    BOOST_CHECK_EQUAL( stray.size(), 0u );
+    BOOST_CHECK_EQUAL( count_of( other_marker ), 0 );
 }

@@ -11,8 +11,9 @@
  *
  * The device and the tester count time on unrelated clocks (decision 3, 24), so a test
  * never compares a device time with a tester time. It compares an interval the device
- * requested with the same interval the tester observed, and it tells the device's PDUs from
- * the air's by their content, since the tester hears every advertiser on the channel.
+ * requested with the same interval the tester observed. The tester's acceptance filter,
+ * set to the device's address, keeps the air off the record, so what the tester reports is
+ * the device (scheduled_radio2.hpp).
  */
 
 #include "radio_tests/dut.hpp"
@@ -39,6 +40,16 @@
 
 namespace bluetoe {
 namespace test_rig {
+
+    /**
+     * @brief the address the device advertises from
+     *
+     * The device's advertising PDUs carry it as their AdvA, and the fixture puts it in the
+     * tester's acceptance filter, so the tester reports only the device's advertisings and
+     * not the air's (scheduled_radio2.hpp, Vol 6 Part B 4.3). A test's advertising PDUs
+     * begin with these six bytes.
+     */
+    const link_layer::device_address dut_address{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 }, false };
 
     /**
      * @brief the address the device answers, its one legitimate peer
@@ -125,6 +136,10 @@ namespace test_rig {
             // the device answers only the tester, so stray advertising in its receive
             // window is rejected instead of stalling the program (scheduled_radio2.hpp)
             BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( tester_address ) );
+
+            // the tester reports only the device's advertisings, not the air's, by the same
+            // filter on its side; it is not reset between tests, so this runs every test
+            BOOST_REQUIRE( observer.call< &tester::add_to_acceptance_filter >( dut_address ) );
         }
 
         void program_device( std::initializer_list< step > steps )
@@ -185,21 +200,6 @@ namespace test_rig {
                 if ( batch.count == 0 )
                     return result;
             }
-        }
-
-        /**
-         * @brief the received PDUs whose bytes are `content`, the device's among the air's
-         */
-        std::vector< received_pdu > received_matching( std::span< const std::uint8_t > content )
-        {
-            std::vector< received_pdu > result;
-
-            for ( const received_pdu& p : tester_received() )
-                if ( p.data.size == content.size()
-                  && std::equal( content.begin(), content.end(), p.data.data.begin() ) )
-                    result.push_back( p );
-
-            return result;
         }
     };
 }
