@@ -9,6 +9,7 @@
 #include "link/tester_program.hpp"
 #include "self_tests/observed_port.hpp"
 
+#include <bluetoe/address.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/phy_encodings.hpp>
 
@@ -128,7 +129,9 @@ namespace {
         }
     };
 
-    const std::uint8_t adv_ind[] = { 0x00, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0, 0x01, 0x06 };
+    const std::uint8_t adv_ind[]   = { 0x00, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0, 0x01, 0x06 };
+    // the same shape from another advertiser: the six address bytes after the header differ
+    const std::uint8_t other_adv[] = { 0x00, 0x08, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x01, 0x06 };
 
     operation recv( std::uint32_t channel, delta_time window )
     {
@@ -290,6 +293,39 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_weaker_than_the_rssi_limit_is_dropped_not_lost, f
     BOOST_CHECK_EQUAL( batch.produced, 2u );
     BOOST_CHECK_EQUAL( batch.received[ 0 ].rssi, 17 );
     BOOST_CHECK_EQUAL( batch.received[ 1 ].rssi, 40 );
+}
+
+BOOST_FIXTURE_TEST_CASE( an_empty_acceptance_filter_keeps_every_advertiser, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_received( at( 2ms ), other_adv, true );
+    rig.run();
+
+    BOOST_CHECK_EQUAL( collect_all().size(), 2u );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_pdu_from_outside_the_acceptance_filter_is_dropped_not_lost, fixture )
+{
+    // accept only the advertiser of adv_ind, its six address bytes public
+    const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
+
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true, 30 );     // the accepted advertiser, kept
+    platform.push_received( at( 2ms ), other_adv, true, 30 );   // another advertiser, dropped
+    rig.run();
+
+    const received_batch batch = remote.call< &rig_t::collect_received >();
+
+    // only the accepted advertiser is kept, and the other is not counted as produced
+    BOOST_REQUIRE_EQUAL( batch.count, 1u );
+    BOOST_CHECK_EQUAL( batch.produced, 1u );
+    BOOST_CHECK( batch.received[ 0 ].data == pdu( adv_ind ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )

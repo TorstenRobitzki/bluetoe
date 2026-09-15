@@ -25,6 +25,10 @@
 #include "link/function_list.hpp"
 #include "link/tester_program.hpp"
 
+#include <bluetoe/address.hpp>
+
+#include <algorithm>
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -143,6 +147,14 @@ namespace test_rig {
     public:
         using instrument_t = instrument< tester_rig, Port, MaxPayload >;
 
+        /**
+         * @brief advertiser addresses the tester's acceptance filter holds
+         *
+         * A test observes the device under test, and perhaps a second advertiser; more is
+         * not needed.
+         */
+        static constexpr std::size_t max_acceptance_filter_entries = 4;
+
         tester_rig( std::string_view implementation_name, std::string_view build_identifier )
             : instrument_t( implementation_name, build_identifier )
             , platform_()
@@ -222,6 +234,32 @@ namespace test_rig {
         void set_rssi_limit( std::uint8_t limit )
         {
             rssi_limit_ = limit;
+        }
+
+        /**
+         * @brief adds an advertiser address to the tester's acceptance filter
+         *
+         * With the set empty the tester reports every advertiser it hears; with an address
+         * in it the tester reports only the advertisers of the set, the scanner filter
+         * policy of Vol 6, Part B, 4.3, so that a test observes the device under test and
+         * not the air. True if the address was added or was already there, false if the set
+         * is full. The tester is not reset between tests and start_program() does not clear
+         * the set, so a test that relies on it adds its address before every run.
+         */
+        bool add_to_acceptance_filter( const link_layer::device_address& address )
+        {
+            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
+
+            if ( std::find( acceptance_filter_.begin(), end, address ) != end )
+                return true;
+
+            if ( acceptance_filter_count_ == max_acceptance_filter_entries )
+                return false;
+
+            acceptance_filter_[ acceptance_filter_count_ ] = address;
+            ++acceptance_filter_count_;
+
+            return true;
         }
 
         /**
@@ -315,6 +353,7 @@ namespace test_rig {
             &tester_rig::reset_device_under_test,
             &tester_rig::set_access_address_and_crc_init,
             &tester_rig::set_rssi_limit,
+            &tester_rig::add_to_acceptance_filter,
             &tester_rig::add_operation,
             &tester_rig::start_program,
             &tester_rig::program_finished,
@@ -327,7 +366,12 @@ namespace test_rig {
             {
                 if ( next->kind == tester_event::received )
                 {
+                    // a PDU dropped by a filter is not counted as one produced, since it
+                    // was rejected on purpose, not lost between the radio and the host
                     if ( next->rssi > rssi_limit_ )
+                        continue;
+
+                    if ( !in_acceptance_filter( next->data ) )
                         continue;
 
                     received_pdu entry;
@@ -343,6 +387,27 @@ namespace test_rig {
                     advance();
                 }
             }
+        }
+
+        /*
+         * The acceptance filter of Vol 6, Part B, 4.3, applied to what the tester hears:
+         * the advertiser is the first address field of an advertising channel PDU, the six
+         * bytes after the two byte header, public or random by the header's TxAdd bit. An
+         * empty set accepts every advertiser.
+         */
+        bool in_acceptance_filter( const pdu& data ) const
+        {
+            if ( acceptance_filter_count_ == 0 )
+                return true;
+
+            constexpr std::uint8_t tx_add_mask = 0x40;
+
+            const bool is_random = data.data[ 0 ] & tx_add_mask;
+            const link_layer::device_address advertiser( &data.data[ 2 ], is_random );
+
+            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
+
+            return std::find( acceptance_filter_.begin(), end, advertiser ) != end;
         }
 
         void advance()
@@ -380,6 +445,9 @@ namespace test_rig {
 
         Platform                                        platform_;
         std::uint8_t                                    rssi_limit_         = accept_any_rssi;
+
+        std::array< link_layer::device_address, max_acceptance_filter_entries >  acceptance_filter_;
+        std::size_t                                                             acceptance_filter_count_ = 0;
 
         std::array< operation, max_operations >         operations_;
         std::uint8_t                                    operation_count_    = 0;
