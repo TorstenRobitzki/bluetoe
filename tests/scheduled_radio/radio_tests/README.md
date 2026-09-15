@@ -24,10 +24,12 @@ BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --t
 Without `BLUETOE_TESTER` the tests that need the tester are skipped and reported as such; with it,
 every run begins with a reset of the device through the tester.
 
-`BLUETOE_TESTER_MIN_RSSI` is the weakest signal the tester keeps, in dBm, for example `-40`. With the
-two boards coupled by a coaxial cable the device arrives tens of dB above the air leaking in, so a
-limit between the two drops the air and the tester hears only the device; the reported RSSI of a
-capture shows where the limit belongs. Left unset, the tester keeps every PDU.
+`BLUETOE_TESTER_MIN_RSSI` is the weakest signal the tester keeps, in dBm, for example `-40`. The
+acceptance filter already keeps the tester to the device by address, so this is an orthogonal option
+for a setup where address alone does not separate them: with the two boards coupled by a coaxial
+cable the device arrives tens of dB above the air leaking in, so a limit between the two drops the
+air, and the reported RSSI of a capture shows where the limit belongs. Left unset, the tester keeps
+every PDU.
 
 `BLUETOE_DUT_TIMEOUT_MS` bounds one request to either instrument, by default 2000 ms; a toolbox call
 is answered from inside the device's dispatcher, so it has to cover a point multiplication on the
@@ -51,11 +53,13 @@ A test that needs a feature the device may lack is decorated with a `preconditio
 `dut_supports`, one that needs the tester with a `precondition` on `tester_present`, so that it is
 skipped and reported as such rather than failed.
 
-## Over the air, for now
+## Over the air
 
 The timing tests run with both boards on their antennas, so the tester hears every advertiser on
-the channel and the device's advertising window occasionally catches one. The tests tell the
-device's PDUs from the air's by content and tolerate a missed one, but a stray reception on the
-device stalls that run, so a run may fail and is simply repeated. Ruling that out, and being able to
-assert that a PDU did *not* appear, needs the two boards coupled by cable with their antennas
-switched out; that is a bench change, not a code change.
+the channel. An acceptance filter on each side keeps the air off the record: the device answers only
+the tester, so a stray in its window no longer stalls a run, and the tester reports only the device,
+so what it hands back is the device's. That is the device filtering of the Core Specification,
+Vol 6 Part B 4.3, set up by the fixture; see `documentation/scheduled_radio_test_rig.md`, decision 25.
+A collision, a stranger transmitting at the same instant as the device, still corrupts a PDU on air,
+which the interval test tolerates as a doubled gap on the grid; coupling the boards by cable would
+only make that rarer.
