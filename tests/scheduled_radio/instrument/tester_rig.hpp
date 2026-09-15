@@ -452,7 +452,10 @@ namespace test_rig {
         {
             const std::uint64_t ticks = static_cast< std::uint64_t >( op.window.usec() ) * ( tester_ticks_per_second / 1'000'000 );
 
-            platform_.receive( op.channel, op.phy, ticks );
+            if ( op.kind == operation_kind::scan )
+                platform_.scan( op.channel, op.phy, ticks, op.target, op.response );
+            else
+                platform_.receive( op.channel, op.phy, ticks );
         }
 
         /*

@@ -173,6 +173,17 @@ namespace {
         return o;
     }
 
+    operation scan_op( std::uint32_t channel, delta_time window, const bluetoe::link_layer::device_address& target )
+    {
+        return operation{
+            .kind     = operation_kind::scan,
+            .channel  = channel,
+            .phy      = phy::le_1m_phy,
+            .window   = window,
+            .target   = target,
+            .response = pdu( adv_ind ) };
+    }
+
     struct fixture
     {
         rig_transport                               transport;
@@ -500,4 +511,19 @@ BOOST_FIXTURE_TEST_CASE( a_transmission_is_captured_with_its_direction_and_time,
     BOOST_CHECK( captured[ 1 ].crc_ok );
     BOOST_CHECK_EQUAL( captured[ 1 ].rssi, 0 );
     BOOST_CHECK( captured[ 1 ].data == pdu( adv_ind ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( starting_a_scan_begins_it_on_the_platform_with_its_target_and_response, fixture )
+{
+    const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
+
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( scan_op( 37, delta_time::msec( 100 ), target ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_CHECK( platform.receives.empty() );
+    BOOST_REQUIRE_EQUAL( platform.scans.size(), 1u );
+    BOOST_CHECK_EQUAL( platform.scans[ 0 ].channel, 37u );
+    BOOST_CHECK( tester_duration( platform.scans[ 0 ].ticks ) == 100ms );
+    BOOST_CHECK( platform.scans[ 0 ].target == target );
+    BOOST_CHECK( platform.scans[ 0 ].response == pdu( adv_ind ) );
 }
