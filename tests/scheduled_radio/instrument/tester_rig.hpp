@@ -4,10 +4,10 @@
 /**
  * @file tester_rig.hpp
  *
- * The platform independent half of the tester: what the contract in
- * tests/scheduled_radio/tester.hpp asks for that is neither the port nor the pin, on top
- * of what instrument/instrument.hpp provides to both instruments. See
- * documentation/scheduled_radio_test_rig.md, decisions 4 and 22.
+ * The platform independent half of the tester: the instrument of decision 23, everything
+ * that is neither the port nor the pin, on top of what instrument/instrument.hpp provides
+ * to both instruments. See documentation/scheduled_radio_test_rig.md, decisions 4, 22
+ * and 23.
  *
  * Besides the reset of the device under test, the tester runs a program of operations and
  * queues the PDUs it receives, the program interpreter of decision 14 for the tester: an
@@ -198,7 +198,7 @@ namespace test_rig {
         /**
          * @name Instrument functions
          *
-         * The functions of instrument.hpp and tester.hpp that are the tester's own; the
+         * The functions that are the tester's own, beside those of instrument.hpp; the
          * names and the session token are the instrument's.
          * @{
          */
@@ -335,6 +335,9 @@ namespace test_rig {
 
         /**
          * @brief hands over the oldest captured PDUs and forgets them
+         *
+         * An empty batch is a meaningful answer: it is how a test asserts that the device
+         * under test transmitted nothing.
          */
         captured_batch collect_captured()
         {

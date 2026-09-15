@@ -5,8 +5,7 @@
  * @file tester_program.hpp
  *
  * What a program of the tester and the PDUs it captures look like on the wire, shared by the
- * tester and the host. See tests/scheduled_radio/tester.hpp for the contract and
- * documentation/scheduled_radio_test_rig.md, decisions 14 and 24.
+ * tester and the host. See documentation/scheduled_radio_test_rig.md, decisions 14, 23 and 24.
  *
  * A program is a sequence of operations, each run for the duration it names from the moment
  * the previous one ended (decision 14). The PDUs received during it, and the one a scan

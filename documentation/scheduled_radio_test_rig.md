@@ -510,8 +510,10 @@ can see, and it lets the lock's purpose blur from "the link layer's state" into 
 
 `scheduled_radio2.hpp` and `serial_port.hpp` state their requirements as C++20 concepts:
 `scheduled_radio_callbacks`, `lesc_pairing_toolbox`, `scheduled_radio_features`, `scheduled_radio`,
-`byte_ring_buffer` and `serial_port`. The instrument contracts in `instrument.hpp`, `dut_rig.hpp`
-and `tester.hpp` stay as they are.
+`byte_ring_buffer` and `serial_port`. The instrument contracts in `instrument.hpp` and `dut_rig.hpp`
+stay as they are. The tester has no prose contract of its own any more: what the host can ask of
+it is `tester_rig::functions` and the operations of `link/tester_program.hpp`, both C++ that the
+host instantiates and the compiler checks, and the reasoning behind them is decision 23.
 
 The distinction is whether anything is generic over the type. A radio has several implementations,
 the nRF52, the simulated radio, the next port, and two generic consumers, the link layer and the
@@ -699,6 +701,19 @@ link code and the nRF52 serial port, which is the same code on both boards and l
 `tests/scheduled_radio/nrf52/`, and nothing else; reuse where something is genuinely the same, no
 shared shape where it is not.
 
+What the tester is, as an instrument, follows from what it is for. It holds no protocol state: it
+transmits when it is told to, receives when it is told to, and reports what it saw and when. The
+one thing it does on its own is answer a received PDU after the inter frame space, because no host
+can meet that deadline. That is the whole vocabulary for testing a radio, because a radio has no
+protocol state either; testing a link layer over the air later will need the tester to hold a
+connection, which means adding to this vocabulary rather than moving the tests into the tester.
+Its program is a sequence of operations, each run for the duration it names from the moment the
+previous one ended, and none of them placed at a point in time: the tester has no origin that
+means anything to a test, and the device's origin becomes visible to it only when a PDU arrives,
+so an operation that has to transmit at a particular moment is expressed relative to a received
+PDU. Likewise its clock is not a function the host can call: every time the host sees is attached
+to something that was observed (decision 24).
+
 **Rejected:** a `tester_rigs/` project on the pattern of `dut_rigs/`, with the CMake both had in
 common factored into a shared file, which is what the first cut did. It framed the tester as a
 family it is not, and coupled the two projects' builds in exchange for a dozen lines.
@@ -772,3 +787,9 @@ not appear, which is where decision 11 had left it open.
   address in its set and ignores one outside it needs the tester to transmit a scan request from a
   chosen address, which it does not do yet. Until then the filter is exercised only in the one
   direction the listen-only tests take, the device rejecting what is not the tester.
+- Whether the tester's answer is placed at a variable delay or at the inter frame space. The scan
+  answers one inter frame space after the received PDU ended, by the radio's own TIFS and its
+  DISABLED to TXEN short, which places it exactly and keeps software out of that path. A test that
+  answers early or late, to find the edges of the device's receive window, needs the delay to be a
+  parameter, which the short cannot give and a timer driven TXEN can; that is a second operation
+  when such a test is written, not a change to the scan.
