@@ -13,11 +13,14 @@
  * reset, released to high impedance otherwise, so that it never fights the kit's own reset
  * circuitry, which sits on the same net.
  *
- * The radio is a receiver: it listens on a channel, captures the timer at the moment the
- * access address is received, and reports each PDU with the time its first bit was on air
- * in the tester's ticks (decision 24). A timer compare ends the window and is reported as
- * well. The receiver keeps nothing of the device's binding, which it must not: the tester
- * observes a radio, it is not one (decision 23).
+ * The radio listens on a channel, captures the timer at the moment the access address is
+ * received, and reports each PDU with the time its first bit was on air in the tester's
+ * ticks (decision 24); a timer compare ends the window and is reported as well. A scan
+ * also answers the first advertising PDU from a named target one inter frame space after
+ * it ended, timed by the radio's own inter frame spacing rather than by software, and
+ * reports that transmission with its time from the same capture. The radio keeps nothing
+ * of the device's binding, which it must not: the tester observes a radio, it is not one
+ * (decision 23).
  */
 
 #include "instrument/tester_rig.hpp"
@@ -59,6 +62,8 @@ namespace test_rig {
          */
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
         void receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks );
+        void scan( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+            const link_layer::device_address& target, const pdu& response );
         std::optional< tester_happened > next_event();
         /** @} */
 
@@ -72,7 +77,9 @@ namespace test_rig {
 
     private:
         void on_packet_end();
+        void on_radio_disabled();
         void on_window_end();
+        bool from_target() const;
         void enqueue( const tester_happened& event );
 
         /*
@@ -87,6 +94,18 @@ namespace test_rig {
         volatile std::uint32_t                  event_tail_;
 
         std::uint8_t                            receive_buffer_[ max_advertising_pdu_size ];
+
+        /*
+         * A scan's state, shared between scan(), the window end and the two radio
+         * interrupts: whether this operation answers at all, whether it already did, and
+         * whether the packet now on air is the answer, so that its END is told from a
+         * reception's. The answer's bytes are kept where the radio can transmit them.
+         */
+        volatile bool                           scanning_       = false;
+        volatile bool                           answered_       = false;
+        volatile bool                           transmitting_   = false;
+        link_layer::device_address              target_;
+        std::uint8_t                            response_buffer_[ max_advertising_pdu_size ];
 
         static platform*                        instance_;
     };

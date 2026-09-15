@@ -63,6 +63,12 @@ namespace test_rig {
          */
         constexpr std::uint32_t preamble_and_access_address_ticks = 40 * 16;
 
+        /*
+         * The inter frame space of the Core Specification, which the radio's TIFS keeps
+         * between the end of a received PDU and the start of the answer.
+         */
+        constexpr std::uint32_t inter_frame_space_us = 150;
+
         std::uint32_t frequency_from_channel( std::uint32_t channel )
         {
             assert( channel < 40 );
@@ -189,6 +195,9 @@ namespace test_rig {
      */
     void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks )
     {
+        // a plain receive answers nothing; scan() sets this once the receiver is armed
+        scanning_ = false;
+
         // bring the radio to DISABLED, whatever the previous operation left it in
         NRF_RADIO->INTENCLR = 0xffffffff;
         NRF_RADIO->SHORTS   = 0;
@@ -221,29 +230,138 @@ namespace test_rig {
         NRF_RADIO->TASKS_RXEN = 1;
     }
 
+    /*
+     * A scan is a receive that answers: the first advertising PDU from `target` is met
+     * with `response` one inter frame space after it ended. The radio times that itself,
+     * by its TIFS and the DISABLED to TXEN short, so the answer's timing owes nothing to
+     * the interrupt; the interrupt only decides, at the end of the received packet and
+     * before the radio has finished disabling, whether to arm that short. After every
+     * packet it does not answer, and after the answer itself, the receiver is re-armed
+     * from the DISABLED interrupt, so the scan keeps listening for the rest of its window.
+     *
+     * The receiver's ramp up is tens of microseconds, so the state and the shorts set
+     * after receive() are in place long before a packet could end.
+     */
+    void platform::scan(
+        std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+        const link_layer::device_address& target, const pdu& response )
+    {
+        receive( channel, phy, ticks );
+
+        target_ = target;
+        std::copy( response.data.begin(), response.data.begin() + response.size, response_buffer_ );
+
+        answered_     = false;
+        transmitting_ = false;
+        scanning_     = true;
+
+        // a packet ends the reception, so the radio is disabled for the inter frame space
+        // the answer is timed from; nothing is answered until the interrupt arms it
+        NRF_RADIO->TIFS      = inter_frame_space_us;
+        NRF_RADIO->SHORTS   |= RADIO_SHORTS_END_DISABLE_Msk;
+        NRF_RADIO->INTENSET  = RADIO_INTENSET_DISABLED_Msk;
+    }
+
+    /*
+     * The END of a packet: a reception, or in a scan possibly the answer going out. The
+     * ADDRESS event fires for a transmitted packet just as for a received one, so the same
+     * capture times the answer's first bit.
+     */
     void platform::on_packet_end()
     {
         NRF_RADIO->EVENTS_END = 0;
 
+        const std::uint32_t first_bit = NRF_TIMER0->CC[ cc_address ] - preamble_and_access_address_ticks;
+
+        if ( transmitting_ )
+        {
+            transmitting_ = false;
+
+            // the answer is out; the END to DISABLE short now only closes the transmission,
+            // and DISABLED re-arms the receiver, which answers no second time
+            NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+            const std::size_t size = std::min< std::size_t >( response_buffer_[ 1 ] + 2, max_advertising_pdu_size );
+
+            const tester_happened event{
+                .kind   = tester_event::transmitted,
+                .when   = tester_time{ first_bit },
+                .data   = pdu( std::span< const std::uint8_t >( response_buffer_, size ) ),
+                .crc_ok = true,
+                .rssi   = 0 };
+
+            enqueue( event );
+            __SEV();
+
+            return;
+        }
+
         const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
             == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
 
-        const std::uint32_t first_bit = NRF_TIMER0->CC[ cc_address ] - preamble_and_access_address_ticks;
-        const std::size_t   size      = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
+        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
 
-        tester_happened event;
-        event.kind   = tester_event::received;
-        event.when   = tester_time{ first_bit };
-        event.data   = pdu( std::span< const std::uint8_t >( receive_buffer_, size ) );
-        event.crc_ok = crc_ok;
-        event.rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE );
+        const tester_happened event{
+            .kind   = tester_event::received,
+            .when   = tester_time{ first_bit },
+            .data   = pdu( std::span< const std::uint8_t >( receive_buffer_, size ) ),
+            .crc_ok = crc_ok,
+            .rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE ) };
 
         enqueue( event );
 
-        // receive the next packet of the window
-        NRF_RADIO->TASKS_START = 1;
+        if ( scanning_ )
+        {
+            // the first PDU from the target is answered: the transmission is armed now,
+            // while the radio is still disabling, and its TIFS places the answer one inter
+            // frame space after this packet ended. Everything else is re-armed from DISABLED.
+            if ( !answered_ && crc_ok && from_target() )
+            {
+                answered_     = true;
+                transmitting_ = true;
+
+                NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_buffer_ );
+                NRF_RADIO->SHORTS    = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+            }
+        }
+        else
+        {
+            // receive the next packet of the window
+            NRF_RADIO->TASKS_START = 1;
+        }
 
         __SEV();
+    }
+
+    /*
+     * Whether the received advertising PDU is from the scan's target: its AdvA, the six
+     * bytes after the two byte header, and the address's kind by the header's TxAdd bit.
+     */
+    bool platform::from_target() const
+    {
+        constexpr std::uint8_t tx_add_mask = 0x40;
+
+        const bool is_random = receive_buffer_[ 0 ] & tx_add_mask;
+
+        return is_random == target_.is_random()
+            && std::equal( target_.begin(), target_.end(), &receive_buffer_[ 2 ] );
+    }
+
+    /*
+     * In a scan the radio disables itself after every packet, by the END to DISABLE short.
+     * After a packet that was not answered, and after the answer itself, the receiver is
+     * re-armed here, so the scan keeps listening; while the answer is armed the short from
+     * DISABLED to TXEN is doing the transmitting, and nothing is re-armed.
+     */
+    void platform::on_radio_disabled()
+    {
+        NRF_RADIO->EVENTS_DISABLED = 0;
+
+        if ( !scanning_ || transmitting_ )
+            return;
+
+        NRF_RADIO->PACKETPTR  = reinterpret_cast< std::uint32_t >( receive_buffer_ );
+        NRF_RADIO->TASKS_RXEN = 1;
     }
 
     void platform::on_window_end()
@@ -251,7 +369,11 @@ namespace test_rig {
         NRF_TIMER0->EVENTS_COMPARE[ cc_window ] = 0;
         NRF_TIMER0->INTENCLR = TIMER_INTENCLR_COMPARE1_Msk;
 
-        NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk;
+        // a scan re-arms the receiver from DISABLED; not the disable that ends the window
+        scanning_     = false;
+        transmitting_ = false;
+
+        NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
         NRF_RADIO->SHORTS        = 0;
         NRF_RADIO->TASKS_DISABLE = 1;
 
@@ -285,10 +407,20 @@ namespace test_rig {
         return event;
     }
 
+    /*
+     * END before DISABLED: with the END to DISABLE short both can be pending together,
+     * and the decision made at END is what the handling of DISABLED then respects.
+     */
     void platform::radio_interrupt()
     {
-        if ( instance_ )
+        if ( !instance_ )
+            return;
+
+        if ( NRF_RADIO->EVENTS_END )
             instance_->on_packet_end();
+
+        if ( NRF_RADIO->EVENTS_DISABLED )
+            instance_->on_radio_disabled();
     }
 
     void platform::timer_interrupt()

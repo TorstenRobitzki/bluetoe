@@ -62,14 +62,16 @@ namespace test_rig {
     /**
      * @brief what the tester's radio reports to the program interpreter
      *
-     * A received PDU, with the time its first bit was on air in the tester's ticks, or
-     * the end of the window the current operation was listening for. Not a wire type: the
-     * platform hands it to the rig, which turns a reception into a captured_pdu and a
-     * window end into the next operation.
+     * A received PDU or one the radio transmitted, each with the time its first bit was on
+     * air in the tester's ticks, or the end of the window the current operation was
+     * listening for. Not a wire type: the platform hands it to the rig, which turns a
+     * reception or a transmission into a captured_pdu and a window end into the next
+     * operation.
      */
     enum class tester_event
     {
         received,
+        transmitted,
         window_ended
     };
 
@@ -95,7 +97,9 @@ namespace test_rig {
         T                                               platform,
         std::uint32_t                                   value,
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy,
-        std::uint64_t                                   ticks )
+        std::uint64_t                                   ticks,
+        const link_layer::device_address&               address,
+        const pdu&                                      data )
     {
         /*
          * Holds the reset input of the device under test asserted for as long as that
@@ -123,6 +127,14 @@ namespace test_rig {
          * received event for every PDU and a window_ended event when the time is up.
          */
         platform.receive( value, phy, ticks );
+
+        /*
+         * Listens like receive(), and the first time it hears an advertising PDU whose
+         * AdvA is `address`, transmits `data` one inter frame space after that PDU ended,
+         * queuing a transmitted event with the time the answer's first bit was on air. It
+         * keeps listening for the rest of the window without answering again.
+         */
+        platform.scan( value, phy, ticks, address, data );
 
         /*
          * The oldest event the radio has for the interpreter, and it is forgotten.
@@ -379,6 +391,18 @@ namespace test_rig {
                     entry.crc_ok = next->crc_ok;
                     entry.rssi   = next->rssi;
                     entry.data   = next->data;
+
+                    enqueue( entry );
+                }
+                else if ( next->kind == tester_event::transmitted )
+                {
+                    // what the tester sent is captured beside what it heard; no filter
+                    // applies, since the rig itself decided to send it
+                    captured_pdu entry;
+                    entry.direction = pdu_direction::transmitted;
+                    entry.when      = next->when;
+                    entry.crc_ok    = true;
+                    entry.data      = next->data;
 
                     enqueue( entry );
                 }

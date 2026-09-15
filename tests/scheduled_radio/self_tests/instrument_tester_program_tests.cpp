@@ -57,6 +57,12 @@ namespace {
             receives.push_back( { channel, p, ticks } );
         }
 
+        void scan( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks,
+            const bluetoe::link_layer::device_address& target, const pdu& response )
+        {
+            scans.push_back( { channel, p, ticks, target, response } );
+        }
+
         std::optional< tester_happened > next_event()
         {
             if ( events.empty() )
@@ -80,6 +86,18 @@ namespace {
             events.push_back( e );
         }
 
+        void push_transmitted( tester_time when, std::span< const std::uint8_t > bytes )
+        {
+            tester_happened e;
+            e.kind   = tester_event::transmitted;
+            e.when   = when;
+            e.data   = pdu( bytes );
+            e.crc_ok = true;
+            e.rssi   = 0;
+
+            events.push_back( e );
+        }
+
         void push_window_ended()
         {
             tester_happened e{};
@@ -95,7 +113,17 @@ namespace {
             std::uint64_t               ticks;
         };
 
+        struct scan_call
+        {
+            std::uint32_t                           channel;
+            phy::phy_ll_encoding_t                  phy;
+            std::uint64_t                           ticks;
+            bluetoe::link_layer::device_address     target;
+            pdu                                     response;
+        };
+
         std::vector< receive_call >     receives;
+        std::vector< scan_call >        scans;
         std::deque< tester_happened >   events;
         std::uint32_t                   access_address = 0;
         std::uint32_t                   crc_init       = 0;
@@ -448,4 +476,28 @@ BOOST_AUTO_TEST_CASE( a_transmitted_entry_round_trips_with_its_direction )
     BOOST_CHECK_EQUAL( decoded.rssi, 0 );
     BOOST_CHECK( decoded.data == sent.data );
     BOOST_CHECK_EQUAL( in.remaining(), 0u );
+}
+
+/*
+ * A transmission the radio reports is captured beside what it heard, with its direction
+ * and time, and the acceptance filter does not apply to it.
+ */
+BOOST_FIXTURE_TEST_CASE( a_transmission_is_captured_with_its_direction_and_time, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_transmitted( at( 1150us ), adv_ind );
+    rig.run();
+
+    const auto captured = collect_all();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
+    BOOST_CHECK( captured[ 0 ].direction == pdu_direction::received );
+    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( time_of( captured[ 1 ].when ) == 1150us );
+    BOOST_CHECK( captured[ 1 ].crc_ok );
+    BOOST_CHECK_EQUAL( captured[ 1 ].rssi, 0 );
+    BOOST_CHECK( captured[ 1 ].data == pdu( adv_ind ) );
 }
