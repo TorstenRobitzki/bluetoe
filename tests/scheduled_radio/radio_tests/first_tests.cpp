@@ -52,7 +52,7 @@ namespace {
 
     // whether a received PDU carries exactly these bytes; the channel test tells the two
     // markers apart by it, since both share the address the tester filters on
-    bool carries( const received_pdu& p, std::span< const std::uint8_t > bytes )
+    bool carries( const captured_pdu& p, std::span< const std::uint8_t > bytes )
     {
         return p.data.size == bytes.size()
             && std::equal( bytes.begin(), bytes.end(), p.data.data.begin() );
@@ -78,7 +78,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_is_transmitted_at_the_requested_time, rig_f
     run();
 
     // the tester's acceptance filter keeps only the device, so all it reports is the device's
-    const auto seen = tester_received();
+    const auto seen = tester_captured();
 
     BOOST_TEST_MESSAGE( "tester received " << seen.size() << " of the device's advertisings" );
     BOOST_REQUIRE_GE( seen.size(), 2u );
@@ -111,11 +111,11 @@ BOOST_FIXTURE_TEST_CASE( advertising_is_transmitted_on_the_requested_channel, ri
 
     run();
 
-    const auto received = tester_received();
+    const auto received = tester_captured();
 
     const auto count_of = [ & ]( std::span< const std::uint8_t > bytes ) {
         return std::count_if( received.begin(), received.end(),
-            [ & ]( const received_pdu& p ){ return carries( p, bytes ); } );
+            [ & ]( const captured_pdu& p ){ return carries( p, bytes ); } );
     };
 
     BOOST_CHECK_GE( count_of( marker ), 1 );

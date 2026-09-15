@@ -4,19 +4,20 @@
 /**
  * @file tester_program.hpp
  *
- * What a program of the tester and its received PDUs look like on the wire, shared by the
+ * What a program of the tester and the PDUs it captures look like on the wire, shared by the
  * tester and the host. See tests/scheduled_radio/tester.hpp for the contract and
  * documentation/scheduled_radio_test_rig.md, decisions 14 and 24.
  *
  * A program is a sequence of operations, each run for the duration it names from the moment
- * the previous one ended (decision 14). The PDUs received during it come back in batches,
- * each naming the index of its first PDU and the number produced so far, the same loss
- * detection the device under test's records use (decision 7).
+ * the previous one ended (decision 14). The PDUs received during it, and the one a scan
+ * sends, come back in batches, each naming the index of its first PDU and the number
+ * produced so far, the same loss detection the device under test's records use (decision 7).
  */
 
 #include "link/pdu.hpp"
 #include "link/serialize.hpp"
 
+#include <bluetoe/address.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/phy_encodings.hpp>
 
@@ -53,18 +54,23 @@ namespace test_rig {
     };
 
     /**
-     * @brief what an operation does; only listening exists yet
+     * @brief what an operation does
      */
     enum class operation_kind : std::uint8_t
     {
-        receive
+        receive,
+        scan
     };
 
     /**
      * @brief one operation of a tester program
      *
      * `window` is how long it runs, from the end of the previous one. A receive listens
-     * on `channel` with `phy` and queues every PDU it hears.
+     * on `channel` with `phy` and queues every PDU it hears. A scan listens the same way
+     * and, the first time it hears an advertising PDU from `target`, answers it with
+     * `response` one inter frame space after the PDU ended; the answer is queued too, as
+     * a transmitted entry with the time its first bit was on air. `target` and `response`
+     * are unused by a receive.
      */
     struct operation
     {
@@ -72,6 +78,8 @@ namespace test_rig {
         std::uint32_t                                   channel = 0;
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy     = link_layer::phy_ll_encoding::le_1m_phy;
         link_layer::delta_time                          window;
+        link_layer::device_address                      target;
+        pdu                                             response;
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -79,7 +87,20 @@ namespace test_rig {
     constexpr std::size_t max_operations = 16;
 
     /**
-     * @brief one PDU the tester received, with the time its first bit was on air
+     * @brief whether an entry is a PDU the tester heard or one it sent
+     */
+    enum class pdu_direction : std::uint8_t
+    {
+        received,
+        transmitted
+    };
+
+    /**
+     * @brief one PDU the tester received or sent, with the time its first bit was on air
+     *
+     * The two directions share one queue, so that the host reads a scan as an ordered
+     * timeline: the advertising PDU heard, then the answer sent, each with its time, from
+     * which an inter frame space is a plain difference.
      *
      * `crc_ok` is false for a PDU received with a CRC error, which is still reported,
      * because a test may assert that the device under test transmitted something wrong.
@@ -87,31 +108,33 @@ namespace test_rig {
      * `rssi` is the received signal strength, as a positive count of decibels below one
      * milliwatt (the nRF52 RSSISAMPLE), so a smaller number is a stronger signal. It lets a
      * test tell the device, strong over a cable, from the air leaking in weakly, and it is
-     * how the threshold for that is found.
+     * how the threshold for that is found. A transmitted entry carries neither: its
+     * `crc_ok` is true and its `rssi` zero.
      */
-    struct received_pdu
+    struct captured_pdu
     {
+        pdu_direction           direction = pdu_direction::received;
         tester_time             when;
-        bool                    crc_ok  = false;
-        std::uint8_t            rssi    = 0;
+        bool                    crc_ok    = false;
+        std::uint8_t            rssi      = 0;
         pdu                     data;
     };
 
-    constexpr std::size_t received_per_batch = 4;
+    constexpr std::size_t captured_per_batch = 4;
 
     /**
      * @brief the PDUs the tester hands over in one response
      *
-     * `first` is the index of received[ 0 ] among all PDUs of the program, `produced` how
-     * many it received so far; a PDU with an index below `produced` that never arrives was
+     * `first` is the index of captured[ 0 ] among all PDUs of the program, `produced` how
+     * many it captured so far; a PDU with an index below `produced` that never arrives was
      * dropped by a full queue.
      */
-    struct received_batch
+    struct captured_batch
     {
         std::uint32_t                                   first       = 0;
         std::uint32_t                                   produced    = 0;
         std::uint8_t                                    count       = 0;
-        std::array< received_pdu, received_per_batch >  received;
+        std::array< captured_pdu, captured_per_batch >  captured;
     };
 
     template < sink Sink >
@@ -129,43 +152,43 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const operation& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window ) );
+        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.phy, value.window );
+        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response );
 
         return deserialize( in, fields );
     }
 
     template < sink Sink >
-    bool serialize( Sink& out, const received_pdu& value )
+    bool serialize( Sink& out, const captured_pdu& value )
     {
-        return serialize( out, std::tie( value.when, value.crc_ok, value.rssi, value.data ) );
+        return serialize( out, std::tie( value.direction, value.when, value.crc_ok, value.rssi, value.data ) );
     }
 
     template < source Source >
-    bool deserialize( Source& in, received_pdu& value )
+    bool deserialize( Source& in, captured_pdu& value )
     {
-        auto fields = std::tie( value.when, value.crc_ok, value.rssi, value.data );
+        auto fields = std::tie( value.direction, value.when, value.crc_ok, value.rssi, value.data );
 
         return deserialize( in, fields );
     }
 
     template < sink Sink >
-    bool serialize( Sink& out, const received_batch& value )
+    bool serialize( Sink& out, const captured_batch& value )
     {
-        return serialize( out, std::tie( value.first, value.produced, value.count, value.received ) );
+        return serialize( out, std::tie( value.first, value.produced, value.count, value.captured ) );
     }
 
     template < source Source >
-    bool deserialize( Source& in, received_batch& value )
+    bool deserialize( Source& in, captured_batch& value )
     {
-        auto fields = std::tie( value.first, value.produced, value.count, value.received );
+        auto fields = std::tie( value.first, value.produced, value.count, value.captured );
 
-        return deserialize( in, fields ) && value.count <= received_per_batch;
+        return deserialize( in, fields ) && value.count <= captured_per_batch;
     }
 }
 }

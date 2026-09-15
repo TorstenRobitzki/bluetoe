@@ -52,7 +52,7 @@ namespace test_rig {
      * A test's worth, plus room for what a busy channel adds while the host is not
      * listening, which shows as a gap in the count rather than as lost history.
      */
-    constexpr std::size_t received_queue_size = 32;
+    constexpr std::size_t captured_queue_size = 32;
 
     /**
      * @brief the rssi limit that accepts every PDU, however weak
@@ -64,7 +64,7 @@ namespace test_rig {
      *
      * A received PDU, with the time its first bit was on air in the tester's ticks, or
      * the end of the window the current operation was listening for. Not a wire type: the
-     * platform hands it to the rig, which turns a reception into a received_pdu and a
+     * platform hands it to the rig, which turns a reception into a captured_pdu and a
      * window end into the next operation.
      */
     enum class tester_event
@@ -208,7 +208,7 @@ namespace test_rig {
         /** @} */
 
         /**
-         * @name Program and received PDUs
+         * @name Program and captured PDUs
          * @{
          */
 
@@ -322,20 +322,20 @@ namespace test_rig {
         }
 
         /**
-         * @brief hands over the oldest received PDUs and forgets them
+         * @brief hands over the oldest captured PDUs and forgets them
          */
-        received_batch collect_received()
+        captured_batch collect_captured()
         {
-            received_batch batch;
+            captured_batch batch;
 
             batch.first    = collected_;
             batch.produced = produced_;
 
-            while ( batch.count != received_per_batch && queued_ != 0 )
+            while ( batch.count != captured_per_batch && queued_ != 0 )
             {
-                batch.received[ batch.count ] = received_[ head_ ];
+                batch.captured[ batch.count ] = captured_[ head_ ];
 
-                head_ = ( head_ + 1 ) % received_queue_size;
+                head_ = ( head_ + 1 ) % captured_queue_size;
                 --queued_;
                 ++collected_;
                 ++batch.count;
@@ -357,7 +357,7 @@ namespace test_rig {
             &tester_rig::add_operation,
             &tester_rig::start_program,
             &tester_rig::program_finished,
-            &tester_rig::collect_received >;
+            &tester_rig::collect_captured >;
 
     private:
         void handle_events()
@@ -374,7 +374,7 @@ namespace test_rig {
                     if ( !in_acceptance_filter( next->data ) )
                         continue;
 
-                    received_pdu entry;
+                    captured_pdu entry;
                     entry.when   = next->when;
                     entry.crc_ok = next->crc_ok;
                     entry.rssi   = next->rssi;
@@ -432,14 +432,14 @@ namespace test_rig {
          * A full queue drops the newest PDU and counts it anyway, so that the host sees
          * the gap in the count rather than a rewritten history.
          */
-        void enqueue( const received_pdu& entry )
+        void enqueue( const captured_pdu& entry )
         {
             ++produced_;
 
-            if ( queued_ == received_queue_size )
+            if ( queued_ == captured_queue_size )
                 return;
 
-            received_[ ( head_ + queued_ ) % received_queue_size ] = entry;
+            captured_[ ( head_ + queued_ ) % captured_queue_size ] = entry;
             ++queued_;
         }
 
@@ -454,7 +454,7 @@ namespace test_rig {
         std::uint8_t                                    cursor_             = 0;
         bool                                            started_            = false;
 
-        std::array< received_pdu, received_queue_size > received_;
+        std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;
         std::size_t                                     queued_             = 0;
         std::uint32_t                                   produced_           = 0;

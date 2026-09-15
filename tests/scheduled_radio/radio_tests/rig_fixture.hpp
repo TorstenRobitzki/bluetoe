@@ -188,14 +188,14 @@ namespace test_rig {
             }
         }
 
-        std::vector< received_pdu > tester_received()
+        std::vector< captured_pdu > tester_captured()
         {
-            std::vector< received_pdu > result;
+            std::vector< captured_pdu > result;
 
             for ( ;; )
             {
-                const received_batch batch = observer.call< &tester::collect_received >();
-                result.insert( result.end(), batch.received.begin(), batch.received.begin() + batch.count );
+                const captured_batch batch = observer.call< &tester::collect_captured >();
+                result.insert( result.end(), batch.captured.begin(), batch.captured.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;

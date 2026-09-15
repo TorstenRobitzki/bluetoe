@@ -13,6 +13,7 @@
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/phy_encodings.hpp>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -151,16 +152,16 @@ namespace {
         rig_t&                                      rig      = transport.rig;
         scripted_platform&                          platform = transport.platform;
 
-        std::vector< received_pdu > collect_all()
+        std::vector< captured_pdu > collect_all()
         {
-            std::vector< received_pdu > result;
+            std::vector< captured_pdu > result;
 
             for ( ;; )
             {
-                const received_batch batch = remote.call< &rig_t::collect_received >();
+                const captured_batch batch = remote.call< &rig_t::collect_captured >();
 
                 BOOST_REQUIRE_EQUAL( batch.first, result.size() );
-                result.insert( result.end(), batch.received.begin(), batch.received.begin() + batch.count );
+                result.insert( result.end(), batch.captured.begin(), batch.captured.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;
@@ -256,7 +257,7 @@ BOOST_FIXTURE_TEST_CASE( a_new_program_can_be_built_after_the_last_one_ended, fi
     BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 38u );
 }
 
-BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_queued_with_its_time_and_bytes, fixture )
+BOOST_FIXTURE_TEST_CASE( a_captured_pdu_is_queued_with_its_time_and_bytes, fixture )
 {
     remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
@@ -286,13 +287,13 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_weaker_than_the_rssi_limit_is_dropped_not_lost, f
     platform.push_received( at( 3ms ), adv_ind, true, 40 );   // exactly at the limit, kept
     rig.run();
 
-    const received_batch batch = remote.call< &rig_t::collect_received >();
+    const captured_batch batch = remote.call< &rig_t::collect_captured >();
 
     // the two strong PDUs are kept; the weak one is not counted as produced either
     BOOST_REQUIRE_EQUAL( batch.count, 2u );
     BOOST_CHECK_EQUAL( batch.produced, 2u );
-    BOOST_CHECK_EQUAL( batch.received[ 0 ].rssi, 17 );
-    BOOST_CHECK_EQUAL( batch.received[ 1 ].rssi, 40 );
+    BOOST_CHECK_EQUAL( batch.captured[ 0 ].rssi, 17 );
+    BOOST_CHECK_EQUAL( batch.captured[ 1 ].rssi, 40 );
 }
 
 BOOST_FIXTURE_TEST_CASE( an_empty_acceptance_filter_keeps_every_advertiser, fixture )
@@ -320,12 +321,12 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_from_outside_the_acceptance_filter_is_dropped_not
     platform.push_received( at( 2ms ), other_adv, true, 30 );   // another advertiser, dropped
     rig.run();
 
-    const received_batch batch = remote.call< &rig_t::collect_received >();
+    const captured_batch batch = remote.call< &rig_t::collect_captured >();
 
     // only the accepted advertiser is kept, and the other is not counted as produced
     BOOST_REQUIRE_EQUAL( batch.count, 1u );
     BOOST_CHECK_EQUAL( batch.produced, 1u );
-    BOOST_CHECK( batch.received[ 0 ].data == pdu( adv_ind ) );
+    BOOST_CHECK( batch.captured[ 0 ].data == pdu( adv_ind ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )
@@ -342,7 +343,7 @@ BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )
     BOOST_CHECK( !received[ 0 ].crc_ok );
 }
 
-BOOST_FIXTURE_TEST_CASE( received_come_in_batches_with_continuing_indices, fixture )
+BOOST_FIXTURE_TEST_CASE( captured_come_in_batches_with_continuing_indices, fixture )
 {
     remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
@@ -351,19 +352,19 @@ BOOST_FIXTURE_TEST_CASE( received_come_in_batches_with_continuing_indices, fixtu
         platform.push_received( at( i * 1ms ), adv_ind, true );
     rig.run();
 
-    const received_batch first = remote.call< &rig_t::collect_received >();
+    const captured_batch first = remote.call< &rig_t::collect_captured >();
     BOOST_CHECK_EQUAL( first.first, 0u );
     BOOST_CHECK_EQUAL( first.produced, 9u );
-    BOOST_CHECK_EQUAL( first.count, received_per_batch );
+    BOOST_CHECK_EQUAL( first.count, captured_per_batch );
 
-    const received_batch second = remote.call< &rig_t::collect_received >();
-    BOOST_CHECK_EQUAL( second.first, received_per_batch );
+    const captured_batch second = remote.call< &rig_t::collect_captured >();
+    BOOST_CHECK_EQUAL( second.first, captured_per_batch );
 
-    const received_batch third = remote.call< &rig_t::collect_received >();
-    BOOST_CHECK_EQUAL( third.first, 2 * received_per_batch );
+    const captured_batch third = remote.call< &rig_t::collect_captured >();
+    BOOST_CHECK_EQUAL( third.first, 2 * captured_per_batch );
     BOOST_CHECK_EQUAL( third.count, 1u );
 
-    const received_batch empty = remote.call< &rig_t::collect_received >();
+    const captured_batch empty = remote.call< &rig_t::collect_captured >();
     BOOST_CHECK_EQUAL( empty.count, 0u );
     BOOST_CHECK_EQUAL( empty.produced, 9u );
 }
@@ -373,15 +374,15 @@ BOOST_FIXTURE_TEST_CASE( a_full_queue_drops_the_newest_and_counts_them, fixture 
     remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
-    for ( std::size_t i = 0; i != received_queue_size + 5; ++i )
+    for ( std::size_t i = 0; i != captured_queue_size + 5; ++i )
         platform.push_received( at( std::chrono::milliseconds{ static_cast< int >( i ) } ), adv_ind, true );
     rig.run();
 
     const auto received = collect_all();
 
-    BOOST_CHECK_EQUAL( received.size(), received_queue_size );
+    BOOST_CHECK_EQUAL( received.size(), captured_queue_size );
     // the last kept PDU is the newest of those that fit, the rest were dropped
-    BOOST_CHECK( time_of( received.back().when ) == std::chrono::milliseconds{ static_cast< int >( received_queue_size - 1 ) } );
+    BOOST_CHECK( time_of( received.back().when ) == std::chrono::milliseconds{ static_cast< int >( captured_queue_size - 1 ) } );
 }
 
 BOOST_FIXTURE_TEST_CASE( the_access_address_and_crc_init_reach_the_platform, fixture )
@@ -398,4 +399,53 @@ BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_operation, fixture )
         BOOST_CHECK( remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 1 ) ) ) );
 
     BOOST_CHECK( !remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 1 ) ) ) );
+}
+
+/*
+ * The scan operation and the transmitted entry are new on the wire; both round trip with
+ * the fields they add, so that the tester and the host agree on them.
+ */
+BOOST_AUTO_TEST_CASE( a_scan_operation_round_trips_with_its_target_and_response )
+{
+    const operation scan{
+        .kind     = operation_kind::scan,
+        .channel  = 38,
+        .window   = delta_time::msec( 100 ),
+        .target   = bluetoe::link_layer::device_address{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 }, false },
+        .response = pdu( adv_ind ) };
+
+    std::array< std::uint8_t, 128 > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, scan ) );
+
+    buffer_source in( storage.data(), out.size() );
+    operation     decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded == scan );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
+}
+
+BOOST_AUTO_TEST_CASE( a_transmitted_entry_round_trips_with_its_direction )
+{
+    const captured_pdu sent{
+        .direction = pdu_direction::transmitted,
+        .when      = tester_time{ 123456789 },
+        .crc_ok    = true,
+        .data      = pdu( adv_ind ) };
+
+    std::array< std::uint8_t, 128 > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, sent ) );
+
+    buffer_source in( storage.data(), out.size() );
+    captured_pdu  decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded.direction == pdu_direction::transmitted );
+    BOOST_CHECK( decoded.when == sent.when );
+    BOOST_CHECK( decoded.crc_ok );
+    BOOST_CHECK_EQUAL( decoded.rssi, 0 );
+    BOOST_CHECK( decoded.data == sent.data );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
 }

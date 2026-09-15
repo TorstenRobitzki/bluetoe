@@ -144,7 +144,7 @@ namespace test_rig {
          * Oldest first, and the queue is emptied. An empty result is a meaningful answer:
          * it is how a test asserts that the device under test transmitted nothing.
          */
-        std::size_t collect_received( received_pdu* out, std::size_t max_count );
+        std::size_t collect_captured( captured_pdu* out, std::size_t max_count );
 
         /**
          * @brief hold the reset input of the device under test asserted, then release it
