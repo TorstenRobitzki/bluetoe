@@ -307,3 +307,41 @@ BOOST_FIXTURE_TEST_CASE( a_corrupt_frame_is_dropped_without_an_answer, fixture )
 
     BOOST_CHECK_EQUAL( remote.call< &rig_t::protocol_version >(), dut_protocol_version );
 }
+
+BOOST_FIXTURE_TEST_CASE( an_empty_acceptance_filter_accepts_every_sender, fixture )
+{
+    const bluetoe::link_layer::device_address a{ { 1, 2, 3, 4, 5, 6 }, false };
+    const bluetoe::link_layer::device_address b{ { 6, 5, 4, 3, 2, 1 }, true };
+
+    BOOST_CHECK( transport.rig.is_in_acceptance_filter( a ) );
+    BOOST_CHECK( transport.rig.is_in_acceptance_filter( b ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_filled_acceptance_filter_accepts_only_its_members, fixture )
+{
+    const bluetoe::link_layer::device_address accepted{ { 1, 2, 3, 4, 5, 6 }, false };
+    const bluetoe::link_layer::device_address same_bytes_random{ { 1, 2, 3, 4, 5, 6 }, true };
+    const bluetoe::link_layer::device_address stranger{ { 9, 8, 7, 6, 5, 4 }, false };
+
+    BOOST_CHECK( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
+
+    BOOST_CHECK(  transport.rig.is_in_acceptance_filter( accepted ) );
+    BOOST_CHECK( !transport.rig.is_in_acceptance_filter( stranger ) );
+    // the address type is part of the match: the same bytes as a random address are not in
+    BOOST_CHECK( !transport.rig.is_in_acceptance_filter( same_bytes_random ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_acceptance_filter_reports_room_and_ignores_duplicates, fixture )
+{
+    for ( std::uint8_t i = 0; i != max_acceptance_filter_entries; ++i )
+        BOOST_CHECK( remote.call< &rig_t::add_to_acceptance_filter >(
+            bluetoe::link_layer::device_address{ { i, 0, 0, 0, 0, 0 }, false } ) );
+
+    // a duplicate of one already in the full set still reports true
+    BOOST_CHECK( remote.call< &rig_t::add_to_acceptance_filter >(
+        bluetoe::link_layer::device_address{ { 0, 0, 0, 0, 0, 0 }, false } ) );
+
+    // a new address does not fit
+    BOOST_CHECK( !remote.call< &rig_t::add_to_acceptance_filter >(
+        bluetoe::link_layer::device_address{ { 0xff, 0, 0, 0, 0, 0 }, false } ) );
+}

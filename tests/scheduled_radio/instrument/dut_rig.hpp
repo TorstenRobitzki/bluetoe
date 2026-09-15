@@ -60,6 +60,14 @@ namespace test_rig {
      */
     constexpr std::size_t record_queue_size = 32;
 
+    /**
+     * @brief addresses the acceptance filter of the rig holds
+     *
+     * A test accepts the tester, and perhaps a second sender; more is not needed. The
+     * reset before every test empties the set, as it does the program.
+     */
+    constexpr std::size_t max_acceptance_filter_entries = 4;
+
     namespace details {
 
         /*
@@ -207,12 +215,16 @@ namespace test_rig {
         /**
          * @brief the acceptance filter, radio context
          *
-         * Accepts every device for now, which is what an empty filter set means; the
-         * filter set and the program operations that fill it are a later step.
+         * True when the sender is in the filter set, or the set is empty, which is how an
+         * empty set accepts every device (scheduled_radio2.hpp). add_to_acceptance_filter()
+         * fills the set; the reset before every test empties it.
          */
-        bool is_in_acceptance_filter( const link_layer::device_address& ) const
+        bool is_in_acceptance_filter( const link_layer::device_address& sender ) const
         {
-            return true;
+            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
+
+            return acceptance_filter_count_ == 0
+                || std::find( acceptance_filter_.begin(), end, sender ) != end;
         }
         /** @} */
 
@@ -320,6 +332,34 @@ namespace test_rig {
         /** @} */
 
         /**
+         * @name Acceptance filter
+         * @{
+         */
+
+        /**
+         * @brief adds an address to the acceptance filter set
+         *
+         * True if it was added or was already there, false if the set is full. There is no
+         * removal: the reset before every test empties the set, as it does the program.
+         */
+        bool add_to_acceptance_filter( const link_layer::device_address& address )
+        {
+            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
+
+            if ( std::find( acceptance_filter_.begin(), end, address ) != end )
+                return true;
+
+            if ( acceptance_filter_count_ == max_acceptance_filter_entries )
+                return false;
+
+            acceptance_filter_[ acceptance_filter_count_ ] = address;
+            ++acceptance_filter_count_;
+
+            return true;
+        }
+        /** @} */
+
+        /**
          * @name Pairing toolbox
          *
          * The functions of lesc_pairing_toolbox that take a pointer, with the array the
@@ -365,6 +405,7 @@ namespace test_rig {
             &dut_rig::add_step,
             &dut_rig::start_program,
             &dut_rig::collect_records,
+            &dut_rig::add_to_acceptance_filter,
             &toolbox_t::generate_keys,
             &toolbox_t::select_random_nonce,
             &wrapped_t::p256,
@@ -471,6 +512,9 @@ namespace test_rig {
         std::size_t                                     queued_                 = 0;
         std::uint32_t                                   produced_               = 0;
         std::uint32_t                                   collected_              = 0;
+
+        std::array< link_layer::device_address, max_acceptance_filter_entries >  acceptance_filter_;
+        std::size_t                                                              acceptance_filter_count_ = 0;
     };
 }
 }
