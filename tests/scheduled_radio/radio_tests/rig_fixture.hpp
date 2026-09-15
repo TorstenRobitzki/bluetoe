@@ -30,6 +30,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -119,6 +120,49 @@ namespace test_rig {
         result.channel = channel;
         result.phy     = link_layer::phy_ll_encoding::le_1m_phy;
         result.window  = window;
+
+        return result;
+    }
+
+    /**
+     * @brief a tester operation: listen like receive(), and answer the first advertising
+     *        PDU from `target` with `response` one inter frame space after it ended
+     */
+    inline operation scan(
+        std::uint32_t channel, link_layer::delta_time window,
+        const link_layer::device_address& target, std::span< const std::uint8_t > response )
+    {
+        return operation{
+            .kind     = operation_kind::scan,
+            .channel  = channel,
+            .phy      = link_layer::phy_ll_encoding::le_1m_phy,
+            .window   = window,
+            .target   = target,
+            .response = pdu( response ) };
+    }
+
+    /**
+     * @brief a SCAN_REQ from `scanner` to `advertiser`, as the tester transmits it
+     *
+     * Header type 0x03, TxAdd the scanner's address kind and RxAdd the advertiser's, then
+     * the two addresses in that order, each six bytes as the address stores them.
+     */
+    inline std::array< std::uint8_t, 14 > scan_request(
+        const link_layer::device_address& scanner, const link_layer::device_address& advertiser )
+    {
+        constexpr std::uint8_t scan_req  = 0x03;
+        constexpr std::uint8_t tx_add    = 0x40;
+        constexpr std::uint8_t rx_add    = 0x80;
+
+        std::array< std::uint8_t, 14 > result = {};
+
+        result[ 0 ] = scan_req
+            | ( scanner.is_random() ? tx_add : 0 )
+            | ( advertiser.is_random() ? rx_add : 0 );
+        result[ 1 ] = 12;
+
+        std::copy( scanner.begin(), scanner.end(), result.begin() + 2 );
+        std::copy( advertiser.begin(), advertiser.end(), result.begin() + 8 );
 
         return result;
     }
