@@ -27,6 +27,7 @@ namespace {
         void radio_ready() {}
         void adv_received( abs_time, const read_buffer& ) {}
         void adv_timeout( abs_time ) {}
+        bool is_in_acceptance_filter( const device_address& ) { return true; }
         void user_timer( abs_time ) {}
     };
 
@@ -35,6 +36,15 @@ namespace {
         void radio_ready() {}
         void adv_received( abs_time, const read_buffer& ) {}
         void adv_timeout( abs_time ) {}
+        bool is_in_acceptance_filter( const device_address& ) { return true; }
+    };
+
+    struct callbacks_without_the_acceptance_filter
+    {
+        void radio_ready() {}
+        void adv_received( abs_time, const read_buffer& ) {}
+        void adv_timeout( abs_time ) {}
+        void user_timer( abs_time ) {}
     };
 
     struct model_connection_callbacks : model_callbacks
@@ -80,6 +90,22 @@ namespace {
         static constexpr std::size_t    radio_package_overhead = 0;
         static constexpr std::uint32_t  radio_max_supported_payload_length = 255;
         static constexpr std::uint32_t  sleep_time_accuracy_ppm = 20;
+        static constexpr std::size_t    radio_maximum_acceptance_filter_entries = 0;
+    };
+
+    struct model_acceptance_filter
+    {
+        bool add_to_acceptance_filter( const device_address& ) { return true; }
+        bool remove_from_acceptance_filter( const device_address& ) { return true; }
+        void clear_acceptance_filter() {}
+        std::size_t acceptance_filter_free_size() const { return 0; }
+    };
+
+    struct acceptance_filter_without_clear
+    {
+        bool add_to_acceptance_filter( const device_address& ) { return true; }
+        bool remove_from_acceptance_filter( const device_address& ) { return true; }
+        std::size_t acceptance_filter_free_size() const { return 0; }
     };
 
     /*
@@ -131,6 +157,18 @@ namespace {
         using lock_guard = void;
     };
 
+    template < typename CallBacks >
+    struct radio_with_a_hardware_acceptance_filter : model_radio< CallBacks >, model_acceptance_filter
+    {
+        static constexpr std::size_t radio_maximum_acceptance_filter_entries = 4;
+    };
+
+    template < typename CallBacks >
+    struct radio_claiming_a_hardware_acceptance_filter_without_it : model_radio< CallBacks >
+    {
+        static constexpr std::size_t radio_maximum_acceptance_filter_entries = 4;
+    };
+
     struct model_buffer
     {
         std::size_t free() const { return 0; }
@@ -176,6 +214,12 @@ namespace {
     static_assert( scheduled_radio_callbacks< model_callbacks > );
     static_assert( !scheduled_radio_callbacks< callbacks_without_the_timer > );
 
+    static_assert( software_acceptance_filter< model_callbacks > );
+    static_assert( !software_acceptance_filter< callbacks_without_the_acceptance_filter > );
+
+    static_assert( hardware_acceptance_filter< model_acceptance_filter > );
+    static_assert( !hardware_acceptance_filter< acceptance_filter_without_clear > );
+
     static_assert( scheduled_radio_connection_callbacks< model_connection_callbacks > );
     static_assert( !scheduled_radio_connection_callbacks< model_callbacks > );
     static_assert( !scheduled_radio_connection_callbacks< callbacks_returning_the_buffer_by_value > );
@@ -193,6 +237,11 @@ namespace {
     static_assert( !scheduled_radio< radio_with_a_void_cancel, model_callbacks > );
     static_assert( !scheduled_radio< radio_without_a_lock, model_callbacks > );
     static_assert( !scheduled_radio< model_radio, callbacks_without_the_timer > );
+    static_assert( scheduled_radio< radio_with_a_hardware_acceptance_filter, model_callbacks > );
+    static_assert( !scheduled_radio< radio_claiming_a_hardware_acceptance_filter_without_it, model_callbacks > );
+    // a radio that filters in hardware does not need the callback; one without it does
+    static_assert( scheduled_radio< radio_with_a_hardware_acceptance_filter, callbacks_without_the_acceptance_filter > );
+    static_assert( !scheduled_radio< model_radio, callbacks_without_the_acceptance_filter > );
 
     static_assert( byte_ring_buffer< model_buffer > );
     static_assert( !byte_ring_buffer< buffer_with_a_non_const_free > );

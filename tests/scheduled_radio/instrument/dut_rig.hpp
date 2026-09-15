@@ -203,6 +203,17 @@ namespace test_rig {
             timer_pending_ = false;
             on_callback( callback_kind::user_timer, when, {} );
         }
+
+        /**
+         * @brief the acceptance filter, radio context
+         *
+         * Accepts every device for now, which is what an empty filter set means; the
+         * filter set and the program operations that fill it are a later step.
+         */
+        bool is_in_acceptance_filter( const link_layer::device_address& ) const
+        {
+            return true;
+        }
         /** @} */
 
         /**

@@ -74,6 +74,7 @@ namespace {
         static constexpr std::size_t    radio_package_overhead                      = 0;
         static constexpr std::uint32_t  radio_max_supported_payload_length          = 27;
         static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 500;
+        static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
 
         struct ccm_counter_t {};
         struct lock_guard {};

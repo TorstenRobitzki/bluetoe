@@ -71,9 +71,7 @@ namespace link_layer {
     /**
      * @brief the callbacks of advertising and of the timer
      *
-     * What every type a scheduled radio delivers to provides. Context: link layer. The
-     * white list check that schedule_advertising_event() refers to is a radio context
-     * callback of advertising; it is not required here yet.
+     * What every type a scheduled radio delivers to provides. Context: link layer.
      */
     template < typename T >
     concept scheduled_radio_callbacks = requires (
@@ -109,6 +107,33 @@ namespace link_layer {
          * scheduled for, which may differ from the time it is delivered at.
          */
         callbacks.user_timer( when );
+    };
+
+    /**
+     * @brief the acceptance filter a radio without filtering hardware asks the caller for
+     *
+     * Required of the CallBacks of a scheduled_radio whose radio_maximum_acceptance_filter_entries
+     * is zero: the radio has no filter of its own, so it asks the caller, which owns the
+     * filter set. A radio that filters in hardware never asks, and its CallBacks need not
+     * provide this. The device filtering of Vol 6, Part B, 4.3.
+     *
+     * Context: radio.
+     */
+    template < typename T >
+    concept software_acceptance_filter = requires (
+        T                               callbacks,
+        const device_address&           address )
+    {
+        /*
+         * While an advertising event is receiving, whether the device a packet came from
+         * may be answered: `address` is the packet's sender, the first address field of an
+         * advertising channel PDU, the ScanA of a scan request, the InitA of a connection
+         * request, or the AdvA of a stray advertising. True lets the reception be reported
+         * with adv_received(); false makes the radio ignore the packet, so a lone stray
+         * ends the event as adv_timeout(). A caller with an empty set answers true for
+         * every address, so a radio runs with no filter configured.
+         */
+        { callbacks.is_in_acceptance_filter( address ) } -> std::same_as< bool >;
     };
 
     /**
@@ -255,6 +280,53 @@ namespace link_layer {
          * tolerates over an interval from this.
          */
         { T::sleep_time_accuracy_ppm } -> std::convertible_to< std::uint32_t >;
+
+        /*
+         * How many addresses the radio can hold in an acceptance filter of its own, the
+         * device filtering of Vol 6, Part B, 4.3. Zero means it has no filter hardware and
+         * the caller applies the filter in software through is_in_acceptance_filter();
+         * above zero, the radio satisfies hardware_acceptance_filter and the caller loads
+         * the set into it.
+         */
+        { T::radio_maximum_acceptance_filter_entries } -> std::convertible_to< std::size_t >;
+    };
+
+    /**
+     * @brief the acceptance filter of a radio that keeps it in hardware
+     *
+     * Required of a scheduled_radio whose radio_maximum_acceptance_filter_entries is above
+     * zero. The caller loads the filter set into the radio, which matches on air and does
+     * not wake the CPU for a packet it rejects, so it never asks is_in_acceptance_filter().
+     * An empty set accepts every device, as it does on the software path. The device
+     * filtering of Vol 6, Part B, 4.3.
+     *
+     * Context: link layer.
+     */
+    template < typename T >
+    concept hardware_acceptance_filter = requires (
+        T                               radio,
+        const device_address&           address )
+    {
+        /*
+         * Add an address to the filter set: true if it was added or already there, false
+         * if the set is full.
+         */
+        { radio.add_to_acceptance_filter( address ) } -> std::same_as< bool >;
+
+        /*
+         * Remove an address from the filter set: true if it was there.
+         */
+        { radio.remove_from_acceptance_filter( address ) } -> std::same_as< bool >;
+
+        /*
+         * Empty the filter set.
+         */
+        radio.clear_acceptance_filter();
+
+        /*
+         * How many more addresses fit before add_to_acceptance_filter() returns false.
+         */
+        { radio.acceptance_filter_free_size() } -> std::convertible_to< std::size_t >;
     };
 
     /**
@@ -278,6 +350,10 @@ namespace link_layer {
            scheduled_radio_callbacks< CallBacks >
         && scheduled_radio_features< Radio< CallBacks > >
         && ( !Radio< CallBacks >::hardware_supports_lesc_pairing || lesc_pairing_toolbox< Radio< CallBacks > > )
+        && ( Radio< CallBacks >::radio_maximum_acceptance_filter_entries == 0
+                || hardware_acceptance_filter< Radio< CallBacks > > )
+        && ( Radio< CallBacks >::radio_maximum_acceptance_filter_entries != 0
+                || software_acceptance_filter< CallBacks > )
         && requires (
             Radio< CallBacks >                      radio,
             std::uint32_t                           value,
@@ -393,7 +469,7 @@ namespace link_layer {
          * first bit is on air at `when`, then listen for a response. A response within
          * the window is delivered with adv_received() in `receive`, which has room for at
          * least two bytes; none is delivered with adv_timeout(). A scan request that
-         * passes the white list is answered with the second buffer.
+         * passes the acceptance filter is answered with the second buffer.
          *
          * Returns true if the event was scheduled, false if `when` was already too close
          * or gone by.
