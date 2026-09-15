@@ -24,6 +24,8 @@
 #include "link/program.hpp"
 #include "link/tester_program.hpp"
 
+#include <bluetoe/address.hpp>
+
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
@@ -37,6 +39,17 @@
 
 namespace bluetoe {
 namespace test_rig {
+
+    /**
+     * @brief the address the device answers, its one legitimate peer
+     *
+     * The fixture puts it in the device's acceptance filter, so that stray advertising in
+     * the device's receive window is rejected instead of being reported and stalling the
+     * program (scheduled_radio2.hpp). The tester does not transmit yet, so for now this
+     * only rejects, which is what a listen-only test wants; when the tester sends scan
+     * requests it will send them from this address.
+     */
+    const link_layer::device_address tester_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01 }, false };
 
     /**
      * @brief a step of a device program: a call to make on a callback
@@ -108,6 +121,10 @@ namespace test_rig {
         {
             // a known state on the device; the tester empties its program itself
             device.restart( observer );
+
+            // the device answers only the tester, so stray advertising in its receive
+            // window is rejected instead of stalling the program (scheduled_radio2.hpp)
+            BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( tester_address ) );
         }
 
         void program_device( std::initializer_list< step > steps )
