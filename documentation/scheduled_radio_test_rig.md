@@ -729,6 +729,36 @@ This is the accuracy being bought rather than proven, which decision 11 places b
 timing assertion; the tester's code runs on the stock crystal meanwhile, only less accurately, so
 it is built and the tests are written before the oscillator is swapped.
 
+## 25. Each instrument answers only the other, by an acceptance filter
+
+Over the air both boards are on their antennas, so the tester hears every advertiser on the
+channel, and the device's own receive window now and then catches a stranger's advertising and
+reports `adv_received` where the program awaited `adv_timeout`, stalling that run. The fix is the
+device filtering of the Core Specification, Vol 6, Part B, section 4.3: each instrument matches the
+address of what it receives against a set and ignores what is not in it. The device is given the
+tester's address and answers only the tester, so a stray in its window is no longer taken for a
+response; the tester is given the device's address and reports only the device, so what it hands the
+host is the device's and not the air's. An empty set matches every sender, the state a radio starts
+in, so the filter is opt in and changes nothing until an address is loaded.
+
+This is deliberately not the test looking away from a stray, which was refused: a step that advanced
+on either callback could not tell a real reception from a stray, nor later check scan-request
+handling. The acceptance filter is instead what a real controller does, the same address match a link
+layer applies through its filter accept list, so the rig drives the radio as it will be used rather
+than working around it. It lives in the radio interface for that reason (`scheduled_radio2.hpp`): a
+radio without filtering hardware is asked per reception through `is_in_acceptance_filter()`, and one
+that filters on air is loaded with the set and never woken for what it drops, the two chosen by
+`radio_maximum_acceptance_filter_entries`. The tester, which is not a `scheduled_radio`, carries the
+same match on its own receiver, and its RSSI limit stays as an orthogonal option for a setup where
+address alone does not separate the device.
+
+What the filter does not remove is a collision: a stranger transmitting at the same moment as the
+device corrupts the device's PDU on air, which then fails its CRC and is not received whatever
+address it carried. The interval test already tolerates a missed PDU as a doubled gap on the grid, so
+a collision costs resolution, not correctness, and coupling the boards by cable would only make it
+rarer. Ruling out the air is therefore no longer a precondition of the tests that assert a PDU did
+not appear, which is where decision 11 had left it open.
+
 ## Open questions
 
 - `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the
@@ -738,15 +768,7 @@ it is built and the tests are written before the oscillator is swapped.
   an error there presents as a fault in the device under test. Checking it against a known good
   device or against a sniffer has to happen before the first timing assertion is believed; decision
   11 places it there, and defers the how.
-- Ruling out the air, by isolation, not by weakening the tests. The first timing tests run with both
-  boards on their antennas, so the tester hears every advertiser on the channel, and the device's own
-  advertising window occasionally catches one and reports `adv_received` where the program awaited
-  `adv_timeout`, stalling that run. The tests tell the device's PDUs from the air's by content and
-  tolerate a missed one, and a stalled run is repeated, which is enough to make progress. It is
-  deliberately not fixed by letting a program step advance on either callback: a test that ignores a
-  stray reception cannot tell it from a real one, nor later check scan-request handling. The fix is to
-  remove the strays, by coupling the two boards inside one shield so only the USB cables cross the
-  wall (ferrite-choked and shield-bonded), with the antennas switched out; the device at 0 dBm over
-  the cable then sits far above whatever leaks past the USB, which the tester's RSSI limit rejects.
-  That is a bench setup, and it is a precondition of the tests that assert a PDU did *not* appear, not
-  of the tests that measure an interval.
+- How the tester validates the acceptance filter it now relies on: that the device answers an
+  address in its set and ignores one outside it needs the tester to transmit a scan request from a
+  chosen address, which it does not do yet. Until then the filter is exercised only in the one
+  direction the listen-only tests take, the device rejecting what is not the tester.
