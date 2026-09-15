@@ -68,6 +68,33 @@ namespace bluetoe
             constexpr std::uint8_t  tx_add_mask                 = 0x40;
 
             /*
+             * The RxAdd bit: set when the address the PDU is addressed to, its second
+             * address field, is random.
+             */
+            constexpr std::uint8_t  rx_add_mask                 = 0x80;
+
+            /*
+             * An advertising channel PDU carries its type in the low four bits of the
+             * header. Only an advertisement that can be scanned is answered, and only a
+             * scan request answers it; its payload is the scanner's address followed by
+             * the advertiser's, which is the one it is addressed to.
+             */
+            constexpr std::uint8_t  pdu_type_mask               = 0x0f;
+            constexpr std::uint8_t  adv_ind_type                = 0x00;
+            constexpr std::uint8_t  adv_scan_ind_type           = 0x06;
+            constexpr std::uint8_t  scan_request_type           = 0x03;
+            constexpr std::uint8_t  scan_request_payload_size   = 12;
+            constexpr std::size_t   address_size                = 6;
+            constexpr std::size_t   addressed_to_offset         = 2 + address_size;
+
+            bool is_scannable( std::uint8_t header )
+            {
+                const std::uint8_t type = header & pdu_type_mask;
+
+                return type == adv_ind_type || type == adv_scan_ind_type;
+            }
+
+            /*
              * The Core Specification's channel to frequency mapping, in MHz above 2400.
              */
             std::uint32_t frequency_from_channel( std::uint32_t channel )
@@ -176,6 +203,8 @@ namespace bluetoe
             , timer_when_()
             , timer_event_pending_( false )
             , acceptance_filter_( nullptr )
+            , local_address_()
+            , scannable_( false )
         {
             assert( instance_ == nullptr );
             instance_ = this;
@@ -232,6 +261,35 @@ namespace bluetoe
         void radio_base::set_acceptance_filter( bool ( *filter )( radio_base*, const link_layer::device_address& ) )
         {
             acceptance_filter_ = filter;
+        }
+
+        void radio_base::set_local_address( const link_layer::device_address& address )
+        {
+            local_address_ = address;
+        }
+
+        /*
+         * Whether what was received is a scan request this device has to answer: the
+         * advertisement it follows could be scanned, the PDU is a scan request of the
+         * size one has, and the address it is addressed to, the second address field,
+         * is this device's. Whether that scanner may be answered is then the acceptance
+         * filter's decision, not this one's.
+         */
+        bool radio_base::is_scan_request_for_us() const
+        {
+            if ( !scannable_ || receive_.size < addressed_to_offset + address_size )
+                return false;
+
+            if ( ( receive_.buffer[ 0 ] & pdu_type_mask ) != scan_request_type )
+                return false;
+
+            if ( receive_.buffer[ 1 ] != scan_request_payload_size )
+                return false;
+
+            const bool is_random = receive_.buffer[ 0 ] & rx_add_mask;
+
+            return is_random == local_address_.is_random()
+                && std::equal( local_address_.begin(), local_address_.end(), &receive_.buffer[ addressed_to_offset ] );
         }
 
         /*
@@ -293,6 +351,7 @@ namespace bluetoe
 
             receive_        = receive;
             transmit_time_  = when;
+            scannable_      = is_scannable( transmit.buffer[ 0 ] );
 
             NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
             NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
@@ -444,7 +503,7 @@ namespace bluetoe
 
                 const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
 
-                if ( NRF_RADIO->EVENTS_END && crc_ok && sender_in_acceptance_filter() )
+                if ( NRF_RADIO->EVENTS_END && crc_ok && is_scan_request_for_us() && sender_in_acceptance_filter() )
                 {
                     const std::uint32_t payload_size = receive_.buffer[ 1 ];
 
