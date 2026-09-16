@@ -232,19 +232,21 @@ namespace test_rig {
         return result;
     }
 
-    struct rig_fixture
+    /**
+     * @brief the rig with the device's acceptance filter left to the test
+     *
+     * For the tests of the filter itself; everything else runs on rig_fixture.
+     */
+    struct rig_fixture_without_device_filter
     {
         dut_connection&     device   = the_dut();
         tester_connection&  observer = the_tester();
 
-        rig_fixture()
+        rig_fixture_without_device_filter()
         {
-            // a known state on the device; the tester empties its program itself
+            // a known state on the device, its acceptance filter empty; the tester empties
+            // its program itself
             device.restart( observer );
-
-            // the device answers only the tester, so stray advertising in its receive
-            // window is rejected instead of stalling the program (scheduled_radio2.hpp)
-            BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( tester_address ) );
 
             // the tester reports only the device's advertisings, not the air's, by the same
             // filter on its side; it is not reset between tests, so this runs every test
@@ -315,6 +317,16 @@ namespace test_rig {
                 if ( batch.count == 0 )
                     return result;
             }
+        }
+    };
+
+    struct rig_fixture : rig_fixture_without_device_filter
+    {
+        rig_fixture()
+        {
+            // the device answers only the tester, so stray advertising in its receive
+            // window is rejected instead of stalling the program (scheduled_radio2.hpp)
+            BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( tester_address ) );
         }
     };
 }

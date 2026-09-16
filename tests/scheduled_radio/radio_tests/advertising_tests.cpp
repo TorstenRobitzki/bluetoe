@@ -107,6 +107,83 @@ namespace {
         BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - interval.usec() ), tolerance_us );
     }
 
+    /*
+     * The tester answers the first advertising with a scan request from `scanner`: the device
+     * answers with its scan response and reports the request with adv_received().
+     */
+    void a_scan_request_is_answered( rig_fixture_without_device_filter& rig, const bluetoe::link_layer::device_address& scanner )
+    {
+        const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
+        const auto response      = advertising( 10, 0x02, scan_rsp );
+        const auto request       = scan_request( scanner, dut_address );
+
+        rig.program_device( {
+            on_start(
+                set_local_address( dut_address ),
+                start_advertising( 37, advertisement, response ) ) } );
+
+        rig.program_tester( {
+            answer( 37, delta_time::msec( 100 ), dut_address, request ) } );
+
+        rig.run();
+
+        const auto captured = rig.tester_captured();
+
+        BOOST_REQUIRE_EQUAL( captured.size(), 3u );
+        BOOST_CHECK( captured[ 0 ].direction == pdu_direction::received );
+        BOOST_CHECK( carries( captured[ 0 ], advertisement ) );
+        BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+        BOOST_CHECK( carries( captured[ 1 ], request ) );
+        BOOST_CHECK( captured[ 2 ].direction == pdu_direction::received );
+        BOOST_CHECK( captured[ 2 ].crc_ok );
+        BOOST_CHECK( carries( captured[ 2 ], response ) );
+
+        const auto received = callbacks_of( rig.device_records(), callback_kind::adv_received );
+
+        BOOST_REQUIRE_EQUAL( received.size(), 1u );
+        BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+    }
+
+    /*
+     * The tester answers the first advertising with a scan request from `scanner`, which the
+     * device does not answer; the event ends with adv_timeout(), and the advertising scheduled
+     * from that shows the device went on.
+     */
+    void a_scan_request_is_ignored( rig_fixture_without_device_filter& rig, const bluetoe::link_layer::device_address& scanner )
+    {
+        const auto first    = advertising( 6, 0x01, adv_scan_ind );
+        const auto next     = advertising( 6, 0x02, adv_scan_ind );
+        const auto response = advertising( 10, 0x03, scan_rsp );
+        const auto request  = scan_request( scanner, dut_address );
+
+        rig.program_device( {
+            on_start(
+                set_local_address( dut_address ),
+                start_advertising( 37, first, response ) ),
+            on_adv_timeout(
+                schedule_advertising_event( 37, delta_time::msec( 100 ), next, response ) ) } );
+
+        // the answer gets no reply and runs to its window, which closes before the next advertising
+        rig.program_tester( {
+            answer( 37, delta_time::msec( 50 ), dut_address, request ),
+            receive( 37, delta_time::msec( 300 ), 1 ) } );
+
+        rig.run();
+
+        const auto captured = rig.tester_captured();
+
+        BOOST_REQUIRE_EQUAL( captured.size(), 3u );
+        BOOST_CHECK( carries( captured[ 0 ], first ) );
+        BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+        BOOST_CHECK( carries( captured[ 1 ], request ) );
+        BOOST_CHECK( carries( captured[ 2 ], next ) );
+
+        const auto records = rig.device_records();
+
+        BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
+        BOOST_CHECK( callbacks_of( records, callback_kind::adv_received ).empty() );
+    }
+
     // the device moves off the advertising access address before it starts
     void advertise_on_another_access_address( rig_fixture& rig )
     {
@@ -287,35 +364,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_on_another_access_address_is_not_heard_on_t
  */
 BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_first_advertising_is_answered, rig_fixture, *if_tester )
 {
-    const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
-    const auto response      = advertising( 10, 0x02, scan_rsp );
-    const auto request       = scan_request( tester_address, dut_address );
-
-    program_device( {
-        on_start(
-            set_local_address( dut_address ),
-            start_advertising( 37, advertisement, response ) ) } );
-
-    program_tester( {
-        answer( 37, delta_time::msec( 100 ), dut_address, request ) } );
-
-    run();
-
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
-    BOOST_CHECK( captured[ 0 ].direction == pdu_direction::received );
-    BOOST_CHECK( carries( captured[ 0 ], advertisement ) );
-    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
-    BOOST_CHECK( carries( captured[ 1 ], request ) );
-    BOOST_CHECK( captured[ 2 ].direction == pdu_direction::received );
-    BOOST_CHECK( captured[ 2 ].crc_ok );
-    BOOST_CHECK( carries( captured[ 2 ], response ) );
-
-    const auto received = callbacks_of( device_records(), callback_kind::adv_received );
-
-    BOOST_REQUIRE_EQUAL( received.size(), 1u );
-    BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+    a_scan_request_is_answered( *this, tester_address );
 }
 
 /*
@@ -373,39 +422,23 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
 
 /*
  * A scan request from a scanner outside the acceptance filter is not answered, and the event
- * ends with adv_timeout(). The advertising scheduled from it shows the device went on.
+ * ends with adv_timeout().
  */
 BOOST_FIXTURE_TEST_CASE( a_scan_request_from_outside_the_acceptance_filter_is_ignored, rig_fixture, *if_tester )
 {
-    const auto first    = advertising( 6, 0x01, adv_scan_ind );
-    const auto next     = advertising( 6, 0x02, adv_scan_ind );
-    const auto response = advertising( 10, 0x03, scan_rsp );
-    const auto request  = scan_request( stranger_address, dut_address );
+    a_scan_request_is_ignored( *this, stranger_address );
+}
 
-    program_device( {
-        on_start(
-            set_local_address( dut_address ),
-            start_advertising( 37, first, response ) ),
-        on_adv_timeout(
-            schedule_advertising_event( 37, delta_time::msec( 100 ), next, response ) ) } );
+// the same with the tester's address, from a filter that holds another scanner only
+BOOST_FIXTURE_TEST_CASE( a_scan_request_is_ignored_when_the_filter_holds_another_scanner, rig_fixture_without_device_filter, *if_tester )
+{
+    BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( stranger_address ) );
 
-    // the answer gets no reply and runs to its window, which closes before the next advertising
-    program_tester( {
-        answer( 37, delta_time::msec( 50 ), dut_address, request ),
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+    a_scan_request_is_ignored( *this, tester_address );
+}
 
-    run();
-
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
-    BOOST_CHECK( carries( captured[ 0 ], first ) );
-    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
-    BOOST_CHECK( carries( captured[ 1 ], request ) );
-    BOOST_CHECK( carries( captured[ 2 ], next ) );
-
-    const auto records = device_records();
-
-    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
-    BOOST_CHECK( callbacks_of( records, callback_kind::adv_received ).empty() );
+// an empty acceptance filter accepts every scanner (scheduled_radio2.hpp)
+BOOST_FIXTURE_TEST_CASE( a_scan_request_from_any_scanner_is_answered_with_an_empty_filter, rig_fixture_without_device_filter, *if_tester )
+{
+    a_scan_request_is_answered( *this, stranger_address );
 }
