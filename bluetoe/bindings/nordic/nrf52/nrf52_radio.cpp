@@ -45,9 +45,37 @@ namespace bluetoe
 
             /*
              * How far ahead a request has to be for the radio to be set up in time: the
-             * ramp up, and a margin for the setup itself and an interrupt in between.
+             * ramp up, and a margin for the setup itself. The setup runs with interrupts
+             * off, from the reading of the clock the request is checked against to the
+             * arming of the start, so nothing can use that margin up in between and the
+             * start can never slip past before the channel that forwards it is enabled.
              */
             constexpr std::uint32_t earliest_us = ramp_up_us + 60;
+
+            /*
+             * Interrupts off for the few microseconds of that setup, the mask restored
+             * afterwards so that a caller already in a critical section stays in one.
+             */
+            class interrupts_off
+            {
+            public:
+                interrupts_off()
+                    : primask_( __get_PRIMASK() )
+                {
+                    __disable_irq();
+                }
+
+                ~interrupts_off()
+                {
+                    __set_PRIMASK( primask_ );
+                }
+
+                interrupts_off( const interrupts_off& ) = delete;
+                interrupts_off& operator=( const interrupts_off& ) = delete;
+
+            private:
+                std::uint32_t primask_;
+            };
 
             /*
              * The receive window after an advertising PDU: the inter frame space, the
@@ -318,6 +346,8 @@ namespace bluetoe
             const link_layer::write_buffer&     response,
             const link_layer::read_buffer&      receive )
         {
+            const interrupts_off no_interruption;
+
             return schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
         }
 
@@ -328,6 +358,8 @@ namespace bluetoe
             const link_layer::write_buffer&     response,
             const link_layer::read_buffer&      receive )
         {
+            const interrupts_off no_interruption;
+
             if ( when.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us ) ) )
                 return false;
 
@@ -339,6 +371,18 @@ namespace bluetoe
          * ramp up before the first bit is due; the end of the packet lands in capture 2
          * through PPI, and the shorts take the radio from there into receiving. The
          * interrupt on DISABLED then finishes the setup of the receiver.
+         *
+         * Called with interrupts disabled, from the moment its caller read the clock the
+         * start is placed against. A PPI channel forwards an event as it happens and does
+         * nothing for one that already did, so a compare that passes before the channel is
+         * enabled is simply lost: the transmission never starts, no callback is ever
+         * delivered, and the radio is left pending on an action that cannot end. The margin
+         * in earliest_us is what the setup needs, and holding interrupts off for its few
+         * microseconds is what makes that margin a guarantee rather than a likelihood.
+         *
+         * It also makes the check of state_ atomic against the radio's own interrupt, which
+         * is what lets start_advertising() be called from the application context while a
+         * callback is in flight.
          */
         bool radio_base::schedule(
             std::uint32_t                       channel,
