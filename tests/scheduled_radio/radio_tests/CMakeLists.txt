@@ -2,9 +2,11 @@ find_package(Boost REQUIRED)
 
 # A radio test needs a device under test on the serial port BLUETOE_DUT names. The label keeps
 # ctest from running it unless asked for: `ctest -L radio` runs the radio tests only, the CI
-# runs `ctest -LE radio` (decision 21).
-function(add_radio_test test_runner)
-    add_executable(${test_runner} ${test_runner}.cpp dut.cpp tester.cpp environment.cpp)
+# runs `ctest -LE radio` (decision 21). The target is prefixed with radio_, since the library's own
+# tests take the plain names, advertising_tests among them.
+function(add_radio_test name)
+    set(test_runner radio_${name})
+    add_executable(${test_runner} ${name}.cpp dut.cpp tester.cpp environment.cpp)
 
     target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
     target_include_directories(${test_runner} PRIVATE ${CMAKE_SOURCE_DIR}/tests)
@@ -17,4 +19,4 @@ endfunction()
 
 add_radio_test(toolbox_tests)
 add_radio_test(reset_tests)
-add_radio_test(first_tests)
+add_radio_test(advertising_tests)

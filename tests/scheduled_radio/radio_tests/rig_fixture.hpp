@@ -64,6 +64,12 @@ namespace test_rig {
     const link_layer::device_address tester_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01 }, false };
 
     /**
+     * @brief the access address and CRC init the specification fixes for advertising
+     */
+    constexpr std::uint32_t advertising_access_address = 0x8E89BED6;
+    constexpr std::uint32_t advertising_crc_init       = 0x555555;
+
+    /**
      * @brief a step of a device program: a call to make on a callback
      * @{
      */
@@ -107,6 +113,26 @@ namespace test_rig {
         result.calls[ 0 ] = c;
 
         return result;
+    }
+
+    inline step on_start( call first, call second )
+    {
+        return step{ .on = callback_kind::start, .call_count = 2, .calls = { first, second } };
+    }
+
+    inline step on_adv_timeout( call first, call second )
+    {
+        return step{ .on = callback_kind::adv_timeout, .call_count = 2, .calls = { first, second } };
+    }
+
+    inline call set_local_address( const link_layer::device_address& address )
+    {
+        return call{ .kind = call_kind::set_local_address, .address = address };
+    }
+
+    inline call set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+    {
+        return call{ .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init };
     }
     /** @} */
 
@@ -184,6 +210,9 @@ namespace test_rig {
             // the tester reports only the device's advertisings, not the air's, by the same
             // filter on its side; it is not reset between tests, so this runs every test
             BOOST_REQUIRE( observer.call< &tester::add_to_acceptance_filter >( dut_address ) );
+
+            // nor is its access address, which a test may have moved
+            observer.call< &tester::set_access_address_and_crc_init >( advertising_access_address, advertising_crc_init );
         }
 
         void program_device( std::initializer_list< step > steps )

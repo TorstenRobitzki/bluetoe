@@ -47,7 +47,7 @@ Without a device, run everything else with `ctest -LE radio`, as the CI does.
 | `toolbox_tests.cpp` | the pairing toolbox with the Core Specification's vectors, and a key agreement with the software toolbox of the security manager tests; skipped on a device without a toolbox |
 | `reset_tests.cpp` | the reset line: the device answers with a zero session token after the tester pulled it; skipped without a tester |
 | `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; the program builders |
-| `first_tests.cpp` | the first timing tests over the air: an advertising event is transmitted at the requested interval, and on the requested channel; skipped without a tester |
+| `advertising_tests.cpp` | start_advertising() and schedule_advertising_event() over the air: payload sizes, channels, intervals and the access address; skipped without a tester |
 
 A test that needs a feature the device may lack is decorated with a `precondition` on
 `dut_supports`, one that needs the tester with a `precondition` on `tester_present`, so that it is
@@ -61,5 +61,4 @@ the tester, so a stray in its window no longer stalls a run, and the tester repo
 so what it hands back is the device's. That is the device filtering of the Core Specification,
 Vol 6 Part B 4.3, set up by the fixture; see `documentation/scheduled_radio_test_rig.md`, decision 25.
 A collision, a stranger transmitting at the same instant as the device, still corrupts a PDU on air,
-which the interval test tolerates as a doubled gap on the grid; coupling the boards by cable would
-only make that rarer.
+and a test that expects that PDU then fails; coupling the boards by cable would make that rarer.
