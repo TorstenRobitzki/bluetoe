@@ -677,3 +677,64 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_of_an_earlier_operation_does_not_count_for_the_ne
     BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
     BOOST_CHECK_EQUAL( collect_all().size(), 2u );
 }
+
+BOOST_FIXTURE_TEST_CASE( an_answer_operation_ends_with_the_reply_to_its_answer, fixture )
+{
+    const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
+
+    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), target ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    // what came before the answer does not end it
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_received( at( 2ms ), adv_ind, true );
+    rig.run();
+    BOOST_CHECK( platform.receives.empty() );
+
+    platform.push_transmitted( at( 2150us ), adv_ind );
+    rig.run();
+    BOOST_CHECK( platform.receives.empty() );
+
+    // the reply ends it, even with a CRC error
+    platform.push_received( at( 3ms ), adv_ind, false );
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 1u );
+    BOOST_CHECK_EQUAL( platform.receives[ 0 ].channel, 38u );
+    BOOST_CHECK_EQUAL( collect_all().size(), 4u );
+}
+
+BOOST_FIXTURE_TEST_CASE( an_answer_operation_without_a_reply_ends_with_its_window, fixture )
+{
+    const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
+
+    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), target ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_transmitted( at( 1150us ), adv_ind );
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
+}
+
+// a reply filtered out is not the device's, and does not end the operation
+BOOST_FIXTURE_TEST_CASE( a_filtered_pdu_after_an_answer_does_not_end_it, fixture )
+{
+    const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
+
+    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), accepted ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_transmitted( at( 1150us ), adv_ind );
+    platform.push_received( at( 2ms ), other_adv, true );
+    rig.run();
+
+    BOOST_CHECK( platform.receives.empty() );
+}

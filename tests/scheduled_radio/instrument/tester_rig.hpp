@@ -11,9 +11,10 @@
  *
  * Besides the reset of the device under test, the tester runs a program of operations and
  * queues the PDUs it receives, the program interpreter of decision 14 for the tester: an
- * operation runs for the duration it names or until it received the PDUs it counts, and the
- * next begins when it ends. The platform gives it the radio, whose events, a received PDU
- * or the end of a window, the tester drains in run().
+ * operation runs for the duration it names, until it received the PDUs it counts, or, for
+ * an answer, until the reply to its answer arrived, and the next begins when it ends. The
+ * platform gives it the radio, whose events, a received PDU or the end of a window, the
+ * tester drains in run().
  *
  * The host instantiates the same template with dummies (host/tester_functions.hpp) to
  * obtain the function list the wire is keyed on, which is why no function of the list
@@ -410,7 +411,13 @@ namespace test_rig {
 
                     enqueue( entry );
 
-                    if ( next->crc_ok && next->operation_id == operation_id_ )
+                    if ( next->operation_id != operation_id_ )
+                        continue;
+
+                    // the PDU after an answer is the reply to it, whatever its CRC
+                    if ( answered_ )
+                        advance();
+                    else if ( next->crc_ok )
                         count_received();
                 }
                 else if ( next->kind == tester_event::transmitted )
@@ -424,6 +431,9 @@ namespace test_rig {
                     entry.data      = next->data;
 
                     enqueue( entry );
+
+                    if ( next->operation_id == operation_id_ )
+                        answered_ = true;
                 }
                 else if ( next->operation_id == operation_id_ )
                 {
@@ -484,6 +494,7 @@ namespace test_rig {
 
             ++operation_id_;
             received_ = 0;
+            answered_ = false;
 
             if ( op.kind == operation_kind::answer )
                 platform_.answer( op.channel, op.phy, ticks, op.target, op.response, operation_id_ );
@@ -518,6 +529,7 @@ namespace test_rig {
         bool                                            started_            = false;
         std::uint32_t                                   operation_id_       = 0;
         std::uint32_t                                   received_           = 0;
+        bool                                            answered_           = false;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;

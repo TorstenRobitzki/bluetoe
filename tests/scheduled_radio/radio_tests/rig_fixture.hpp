@@ -172,8 +172,9 @@ namespace test_rig {
     }
 
     /**
-     * @brief a tester operation: listen like receive(), and answer the first advertising
-     *        PDU from `target` with `response` one inter frame space after it ended
+     * @brief a tester operation: listen like receive(), answer the first advertising PDU
+     *        from `target` with `response` one inter frame space after it ended, and end
+     *        with the reply
      */
     inline operation answer(
         std::uint32_t channel, link_layer::delta_time window,

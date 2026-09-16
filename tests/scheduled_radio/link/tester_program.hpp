@@ -69,8 +69,9 @@ namespace test_rig {
      * on `channel` with `phy` and queues every PDU it hears. An answer listens the same
      * way and, the first time it hears an advertising PDU from `target`, answers it with
      * `response` one inter frame space after the PDU ended; the answer is queued too, as
-     * a transmitted entry with the time its first bit was on air. `target` and `response`
-     * are unused by a receive.
+     * a transmitted entry with the time its first bit was on air, and the operation ends
+     * with the next PDU received, the reply. `target` and `response` are unused by a
+     * receive.
      *
      * A `count` other than zero ends either operation early, once it received that many
      * PDUs with a valid CRC that passed the tester's filters; the window still bounds it.
