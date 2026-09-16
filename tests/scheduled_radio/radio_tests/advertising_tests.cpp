@@ -144,6 +144,46 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
 }
 
 /*
+ * The tester follows the device from channel to channel: each receive ends with the one
+ * advertising it waits for, so the next listens on the channel the device moves to.
+ */
+BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fixture, *if_tester )
+{
+    const std::uint32_t channels[] = { 37, 38, 39, 37 };
+    const delta_time    interval   = delta_time::msec( 100 );
+
+    std::vector< std::vector< std::uint8_t > > sent;
+
+    for ( std::uint8_t fill = 0; fill != std::size( channels ); ++fill )
+        sent.push_back( advertising( 7, fill ) );
+
+    program_device( {
+        on_start(       start_advertising(          channels[ 0 ],           sent[ 0 ] ) ),
+        on_adv_timeout( schedule_advertising_event( channels[ 1 ], interval, sent[ 1 ] ) ),
+        on_adv_timeout( schedule_advertising_event( channels[ 2 ], interval, sent[ 2 ] ) ),
+        on_adv_timeout( schedule_advertising_event( channels[ 3 ], interval, sent[ 3 ] ) ) } );
+
+    // the window only bounds a lost advertising
+    program_tester( {
+        receive( channels[ 0 ], delta_time::msec( 300 ), 1 ),
+        receive( channels[ 1 ], delta_time::msec( 300 ), 1 ),
+        receive( channels[ 2 ], delta_time::msec( 300 ), 1 ),
+        receive( channels[ 3 ], delta_time::msec( 300 ), 1 ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), sent.size() );
+
+    for ( std::size_t i = 0; i != sent.size(); ++i )
+        BOOST_CHECK( carries( captured[ i ], sent[ i ] ) );
+
+    for ( std::size_t i = 1; i != captured.size(); ++i )
+        BOOST_CHECK_LE( std::abs( microseconds_between( captured[ i - 1 ], captured[ i ] ) - interval.usec() ), tolerance_us );
+}
+
+/*
  * start_advertising() from the callback of an event restarts the sequence. The restart has no
  * required time, so only what follows it is measured: it is placed from the restart.
  */

@@ -151,6 +151,19 @@ namespace test_rig {
     }
 
     /**
+     * @brief a tester operation: listen like receive(), but end after `count` received PDUs
+     */
+    inline operation receive( std::uint32_t channel, link_layer::delta_time window, std::uint32_t count )
+    {
+        return operation{
+            .kind    = operation_kind::receive,
+            .channel = channel,
+            .phy     = link_layer::phy_ll_encoding::le_1m_phy,
+            .window  = window,
+            .count   = count };
+    }
+
+    /**
      * @brief a tester operation: listen like receive(), and answer the first advertising
      *        PDU from `target` with `response` one inter frame space after it ended
      */
