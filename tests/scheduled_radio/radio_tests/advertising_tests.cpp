@@ -37,13 +37,26 @@ namespace {
     constexpr std::uint32_t other_access_address = 0x71764129;
     constexpr std::uint32_t other_crc_init       = 0x7a8f23;
 
-    // an ADV_NONCONN_IND of `payload_size` bytes: the device's address, then `fill`
-    std::vector< std::uint8_t > advertising( std::size_t payload_size, std::uint8_t fill )
+    constexpr std::uint8_t adv_nonconn_ind = 0x02;
+    constexpr std::uint8_t scan_rsp        = 0x04;
+    constexpr std::uint8_t adv_scan_ind    = 0x06;
+
+    // an advertising channel PDU of `payload_size` bytes: the device's address, then `fill`
+    std::vector< std::uint8_t > advertising( std::size_t payload_size, std::uint8_t fill, std::uint8_t type = adv_nonconn_ind )
     {
         std::vector< std::uint8_t > result( 2 + payload_size, fill );
-        result[ 0 ] = 0x02;
+        result[ 0 ] = type;
         result[ 1 ] = static_cast< std::uint8_t >( payload_size );
         std::copy( dut_address.begin(), dut_address.end(), result.begin() + 2 );
+
+        return result;
+    }
+
+    std::vector< record > callbacks_of( const std::vector< record >& records, callback_kind kind )
+    {
+        std::vector< record > result;
+        std::copy_if( records.begin(), records.end(), std::back_inserter( result ),
+            [ kind ]( const record& r ){ return r.kind == record_kind::callback && r.callback == kind; } );
 
         return result;
     }
@@ -263,4 +276,41 @@ BOOST_FIXTURE_TEST_CASE( advertising_on_another_access_address_is_not_heard_on_t
     run();
 
     BOOST_CHECK( tester_captured().empty() );
+}
+
+/*
+ * The tester answers the first advertising with a scan request from its own address: the
+ * device answers that with its scan response and reports the request with adv_received().
+ */
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_first_advertising_is_answered, rig_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
+    const auto response      = advertising( 10, 0x02, scan_rsp );
+    const auto request       = scan_request( tester_address, dut_address );
+
+    program_device( {
+        on_start(
+            set_local_address( dut_address ),
+            start_advertising( 37, advertisement, response ) ) } );
+
+    program_tester( {
+        answer( 37, delta_time::msec( 100 ), dut_address, request ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
+    BOOST_CHECK( captured[ 0 ].direction == pdu_direction::received );
+    BOOST_CHECK( carries( captured[ 0 ], advertisement ) );
+    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( carries( captured[ 1 ], request ) );
+    BOOST_CHECK( captured[ 2 ].direction == pdu_direction::received );
+    BOOST_CHECK( captured[ 2 ].crc_ok );
+    BOOST_CHECK( carries( captured[ 2 ], response ) );
+
+    const auto received = callbacks_of( device_records(), callback_kind::adv_received );
+
+    BOOST_REQUIRE_EQUAL( received.size(), 1u );
+    BOOST_CHECK( received[ 0 ].data == pdu( request ) );
 }

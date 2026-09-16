@@ -57,9 +57,7 @@ namespace test_rig {
      *
      * The fixture puts it in the device's acceptance filter, so that stray advertising in
      * the device's receive window is rejected instead of being reported and stalling the
-     * program (scheduled_radio2.hpp). The tester does not transmit yet, so for now this
-     * only rejects, which is what a listen-only test wants; when the tester sends scan
-     * requests it will send them from this address.
+     * program (scheduled_radio2.hpp). The tester sends its scan requests from this address.
      */
     const link_layer::device_address tester_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01 }, false };
 
@@ -81,6 +79,16 @@ namespace test_rig {
         result.transmit = pdu( transmit );
 
         return result;
+    }
+
+    inline call start_advertising(
+        std::uint32_t channel, std::span< const std::uint8_t > transmit, std::span< const std::uint8_t > response )
+    {
+        return call{
+            .kind     = call_kind::start_advertising,
+            .channel  = channel,
+            .transmit = pdu( transmit ),
+            .response = pdu( response ) };
     }
 
     inline call schedule_advertising_event(
