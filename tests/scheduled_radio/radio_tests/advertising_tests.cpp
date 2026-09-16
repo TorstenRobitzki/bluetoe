@@ -123,10 +123,22 @@ namespace {
     using request_t = std::array< std::uint8_t, 14 >;
 
     /*
-     * The tester answers the first advertising with `request`: the device answers with its
-     * scan response and reports the request with adv_received().
+     * The time from the end of `earlier` to the first bit of `later`: preamble, access
+     * address, the PDU and its CRC at 1 Mbit are 8 µs a byte.
      */
-    void a_scan_request_is_answered( rig_fixture_without_device_filter& rig, const request_t& request )
+    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later )
+    {
+        const std::chrono::microseconds air_time( ( 1 + 4 + earlier.data.size + 3 ) * 8 );
+
+        return time_of( later.when ) - time_of( earlier.when ) - air_time;
+    }
+
+    /*
+     * The tester answers the first advertising with `request`: the device answers with its
+     * scan response and reports the request with adv_received(). Returns what the tester
+     * captured: the advertising, the request and the response.
+     */
+    std::vector< captured_pdu > a_scan_request_is_answered( rig_fixture_without_device_filter& rig, const request_t& request )
     {
         const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
         const auto response      = advertising( 10, 0x02, scan_rsp );
@@ -156,6 +168,8 @@ namespace {
 
         BOOST_REQUIRE_EQUAL( received.size(), 1u );
         BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+
+        return captured;
     }
 
     /*
@@ -520,4 +534,21 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
 
     BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 1u );
     BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_received ).size(), 2u );
+}
+
+/*
+ * The scan response starts one inter frame space, 150 µs, after the request ended. The
+ * tolerance covers the tester's placement of a received packet; the tester's offset for that
+ * was measured against this very response, so this guards against a device that answers
+ * off T_IFS, not the calibration.
+ */
+BOOST_FIXTURE_TEST_CASE( the_scan_response_starts_one_inter_frame_space_after_the_request, rig_fixture, *if_tester )
+{
+    using namespace std::chrono_literals;
+
+    const auto   captured = a_scan_request_is_answered( *this, scan_request( tester_address, dut_address ) );
+    const auto   space    = inter_frame_space( captured[ 1 ], captured[ 2 ] );
+    const double space_us = std::chrono::duration< double, std::micro >( space ).count();
+
+    BOOST_CHECK_MESSAGE( std::chrono::abs( space - 150us ) <= 2us, "inter frame space " << space_us << " µs" );
 }
