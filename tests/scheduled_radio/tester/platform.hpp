@@ -61,9 +61,11 @@ namespace test_rig {
          * @{
          */
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
-        void receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks );
+        void receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+            std::uint32_t operation_id );
         void answer( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-            const link_layer::device_address& target, const pdu& response );
+            const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
+        void stop();
         std::optional< tester_happened > next_event();
         /** @} */
 
@@ -92,6 +94,7 @@ namespace test_rig {
         tester_happened                         events_[ event_ring_size ];
         volatile std::uint32_t                  event_head_;
         volatile std::uint32_t                  event_tail_;
+        volatile std::uint32_t                  operation_id_   = 0;
 
         std::uint8_t                            receive_buffer_[ max_advertising_pdu_size ];
 

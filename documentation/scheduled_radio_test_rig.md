@@ -719,12 +719,12 @@ one thing it does on its own is answer a received PDU after the inter frame spac
 can meet that deadline. That is the whole vocabulary for testing a radio, because a radio has no
 protocol state either; testing a link layer over the air later will need the tester to hold a
 connection, which means adding to this vocabulary rather than moving the tests into the tester.
-Its program is a sequence of operations, each run for the duration it names from the moment the
-previous one ended, and none of them placed at a point in time: the tester has no origin that
-means anything to a test, and the device's origin becomes visible to it only when a PDU arrives,
-so an operation that has to transmit at a particular moment is expressed relative to a received
-PDU. Likewise its clock is not a function the host can call: every time the host sees is attached
-to something that was observed (decision 24).
+Its program is a sequence of operations, each run for the duration it names, or until it received
+the number of PDUs it names, from the moment the previous one ended, and none of them placed at a
+point in time: the tester has no origin that means anything to a test, and the device's origin
+becomes visible to it only when a PDU arrives, so an operation that has to transmit at a particular
+moment is expressed relative to a received PDU. Likewise its clock is not a function the host can
+call: every time the host sees is attached to something that was observed (decision 24).
 
 **Rejected:** a `tester_rigs/` project on the pattern of `dut_rigs/`, with the CMake both had in
 common factored into a shared file, which is what the first cut did. It framed the tester as a

@@ -52,15 +52,22 @@ namespace {
             crc_init       = crc;
         }
 
-        void receive( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks )
+        void receive( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t id )
         {
             receives.push_back( { channel, p, ticks } );
+            operation_id = id;
         }
 
         void answer( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks,
-            const bluetoe::link_layer::device_address& target, const pdu& response )
+            const bluetoe::link_layer::device_address& target, const pdu& response, std::uint32_t id )
         {
             answers.push_back( { channel, p, ticks, target, response } );
+            operation_id = id;
+        }
+
+        void stop()
+        {
+            ++stops;
         }
 
         std::optional< tester_happened > next_event()
@@ -77,11 +84,12 @@ namespace {
         void push_received( tester_time when, std::span< const std::uint8_t > bytes, bool crc_ok, std::uint8_t rssi = 60 )
         {
             tester_happened e;
-            e.kind   = tester_event::received;
-            e.when   = when;
-            e.data   = pdu( bytes );
-            e.crc_ok = crc_ok;
-            e.rssi   = rssi;
+            e.kind         = tester_event::received;
+            e.when         = when;
+            e.data         = pdu( bytes );
+            e.crc_ok       = crc_ok;
+            e.rssi         = rssi;
+            e.operation_id = operation_id;
 
             events.push_back( e );
         }
@@ -89,19 +97,27 @@ namespace {
         void push_transmitted( tester_time when, std::span< const std::uint8_t > bytes )
         {
             tester_happened e;
-            e.kind   = tester_event::transmitted;
-            e.when   = when;
-            e.data   = pdu( bytes );
-            e.crc_ok = true;
-            e.rssi   = 0;
+            e.kind         = tester_event::transmitted;
+            e.when         = when;
+            e.data         = pdu( bytes );
+            e.crc_ok       = true;
+            e.rssi         = 0;
+            e.operation_id = operation_id;
 
             events.push_back( e );
         }
 
+        // the events are tagged with the current operation's id, as the radio does
         void push_window_ended()
         {
+            push_window_ended( operation_id );
+        }
+
+        void push_window_ended( std::uint32_t id )
+        {
             tester_happened e{};
-            e.kind = tester_event::window_ended;
+            e.kind         = tester_event::window_ended;
+            e.operation_id = id;
 
             events.push_back( e );
         }
@@ -127,6 +143,8 @@ namespace {
         std::deque< tester_happened >   events;
         std::uint32_t                   access_address = 0;
         std::uint32_t                   crc_init       = 0;
+        std::uint32_t                   operation_id   = 0;
+        int                             stops          = 0;
 
         static inline scripted_platform* instance = nullptr;
     };
@@ -171,6 +189,16 @@ namespace {
         o.window  = window;
 
         return o;
+    }
+
+    operation recv_count( std::uint32_t channel, delta_time window, std::uint32_t count )
+    {
+        return operation{
+            .kind    = operation_kind::receive,
+            .channel = channel,
+            .phy     = phy::le_1m_phy,
+            .window  = window,
+            .count   = count };
     }
 
     operation answer_op( std::uint32_t channel, delta_time window, const bluetoe::link_layer::device_address& target )
@@ -526,4 +554,126 @@ BOOST_FIXTURE_TEST_CASE( starting_an_answer_begins_it_on_the_platform_with_its_t
     BOOST_CHECK( tester_duration( platform.answers[ 0 ].ticks ) == 100ms );
     BOOST_CHECK( platform.answers[ 0 ].target == target );
     BOOST_CHECK( platform.answers[ 0 ].response == pdu( adv_ind ) );
+}
+
+BOOST_AUTO_TEST_CASE( an_operation_round_trips_with_its_count )
+{
+    const operation counted = recv_count( 39, delta_time::msec( 500 ), 3 );
+
+    std::array< std::uint8_t, 128 > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, counted ) );
+
+    buffer_source in( storage.data(), out.size() );
+    operation     decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded == counted );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_counted_operation_ends_with_its_last_pdu, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 2 ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    rig.run();
+    BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
+
+    platform.push_received( at( 2ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 38u );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_counted_operation_still_ends_with_its_window, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 2 ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
+}
+
+// neither is counted, but both are still captured
+BOOST_FIXTURE_TEST_CASE( a_crc_error_or_a_filtered_pdu_is_not_counted, fixture )
+{
+    const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
+
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, false );
+    platform.push_received( at( 2ms ), other_adv, true );
+    rig.run();
+
+    BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
+    BOOST_CHECK_EQUAL( collect_all().size(), 1u );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_counted_last_operation_finishes_the_program_and_stops_the_radio, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( platform.stops, 1 );
+}
+
+/*
+ * The window of an operation that ended early may still have ended before its event was
+ * drained; that event must not end the operation that follows.
+ */
+BOOST_FIXTURE_TEST_CASE( a_window_end_of_an_earlier_operation_is_ignored, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( recv( 39, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    const std::uint32_t first = platform.operation_id;
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    platform.push_window_ended( first );
+    rig.run();
+
+    BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_NE( platform.operation_id, first );
+}
+
+// a PDU received before the next operation began is captured, but counts for none
+BOOST_FIXTURE_TEST_CASE( a_pdu_of_an_earlier_operation_does_not_count_for_the_next, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( recv_count( 38, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( recv( 39, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    const std::uint32_t first = platform.operation_id;
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    rig.run();
+
+    tester_happened late{};
+    late.kind         = tester_event::received;
+    late.data         = pdu( adv_ind );
+    late.crc_ok       = true;
+    late.operation_id = first;
+    platform.events.push_back( late );
+    rig.run();
+
+    BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_EQUAL( collect_all().size(), 2u );
 }

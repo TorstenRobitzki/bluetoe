@@ -7,10 +7,11 @@
  * What a program of the tester and the PDUs it captures look like on the wire, shared by the
  * tester and the host. See documentation/scheduled_radio_test_rig.md, decisions 14, 23 and 24.
  *
- * A program is a sequence of operations, each run for the duration it names from the moment
- * the previous one ended (decision 14). The PDUs received during it, and the one an answer
- * sends, come back in batches, each naming the index of its first PDU and the number
- * produced so far, the same loss detection the device under test's records use (decision 7).
+ * A program is a sequence of operations, each run for the duration it names, or until it
+ * received the PDUs it counts, from the moment the previous one ended (decision 14). The
+ * PDUs received during it, and the one an answer sends, come back in batches, each naming
+ * the index of its first PDU and the number produced so far, the same loss detection the
+ * device under test's records use (decision 7).
  */
 
 #include "link/pdu.hpp"
@@ -70,15 +71,19 @@ namespace test_rig {
      * `response` one inter frame space after the PDU ended; the answer is queued too, as
      * a transmitted entry with the time its first bit was on air. `target` and `response`
      * are unused by a receive.
+     *
+     * A `count` other than zero ends either operation early, once it received that many
+     * PDUs with a valid CRC that passed the tester's filters; the window still bounds it.
      */
     struct operation
     {
-        operation_kind                                  kind    = operation_kind::receive;
-        std::uint32_t                                   channel = 0;
-        link_layer::phy_ll_encoding::phy_ll_encoding_t  phy     = link_layer::phy_ll_encoding::le_1m_phy;
-        link_layer::delta_time                          window;
-        link_layer::device_address                      target;
-        pdu                                             response;
+        operation_kind                                  kind     = operation_kind::receive;
+        std::uint32_t                                   channel  = 0;
+        link_layer::phy_ll_encoding::phy_ll_encoding_t  phy      = link_layer::phy_ll_encoding::le_1m_phy;
+        link_layer::delta_time                          window   = {};
+        link_layer::device_address                      target   = {};
+        pdu                                             response = {};
+        std::uint32_t                                   count    = 0;
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -151,13 +156,13 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const operation& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response ) );
+        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response );
+        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count );
 
         return deserialize( in, fields );
     }

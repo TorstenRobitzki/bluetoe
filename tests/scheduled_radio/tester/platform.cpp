@@ -189,18 +189,25 @@ namespace test_rig {
     }
 
     /*
-     * Listen on the channel until the window is over, restarting the receiver after every
-     * packet so that a whole window of PDUs is caught. Only 1 Mbit is implemented; the phy
-     * is ignored until a test needs another.
+     * No interrupt of the radio or the window is enabled or pending afterwards, so no event is
+     * queued until the next operation arms them again. Both are silenced with interrupts
+     * off, as an interrupt already on its way would otherwise queue an event after this.
      */
-    void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks )
+    void platform::stop()
     {
-        // a plain receive answers nothing; answer() sets this once the receiver is armed
-        answering_ = false;
+        __disable_irq();
 
-        // bring the radio to DISABLED, whatever the previous operation left it in
-        NRF_RADIO->INTENCLR = 0xffffffff;
-        NRF_RADIO->SHORTS   = 0;
+        NRF_TIMER0->INTENCLR                    = TIMER_INTENCLR_COMPARE1_Msk;
+        NRF_TIMER0->EVENTS_COMPARE[ cc_window ] = 0;
+        NRF_RADIO->INTENCLR                     = 0xffffffff;
+        NRF_RADIO->SHORTS                       = 0;
+        NVIC_ClearPendingIRQ( TIMER0_IRQn );
+        NVIC_ClearPendingIRQ( RADIO_IRQn );
+
+        answering_    = false;
+        transmitting_ = false;
+
+        __enable_irq();
 
         if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) != ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos ) )
         {
@@ -210,6 +217,20 @@ namespace test_rig {
                 ;
         }
         NRF_RADIO->EVENTS_DISABLED = 0;
+    }
+
+    /*
+     * Listen on the channel until the window is over, restarting the receiver after every
+     * packet so that a whole window of PDUs is caught. Only 1 Mbit is implemented; the phy
+     * is ignored until a test needs another.
+     */
+    void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
+        std::uint32_t operation_id )
+    {
+        stop();
+
+        // nothing is queued while stopped, so every event from here on is this operation's
+        operation_id_ = operation_id;
 
         NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
@@ -245,9 +266,9 @@ namespace test_rig {
      */
     void platform::answer(
         std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-        const link_layer::device_address& target, const pdu& response )
+        const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id )
     {
-        receive( channel, phy, ticks );
+        receive( channel, phy, ticks, operation_id );
 
         target_ = target;
         std::copy( response.data.begin(), response.data.begin() + response.size, response_buffer_ );
@@ -392,7 +413,8 @@ namespace test_rig {
         if ( event_tail_ - event_head_ == event_ring_size )
             return;
 
-        events_[ event_tail_ % event_ring_size ] = event;
+        events_[ event_tail_ % event_ring_size ]              = event;
+        events_[ event_tail_ % event_ring_size ].operation_id = operation_id_;
         __DMB();
         event_tail_ = event_tail_ + 1;
     }

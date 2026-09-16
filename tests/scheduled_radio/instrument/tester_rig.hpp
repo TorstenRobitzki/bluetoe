@@ -11,9 +11,9 @@
  *
  * Besides the reset of the device under test, the tester runs a program of operations and
  * queues the PDUs it receives, the program interpreter of decision 14 for the tester: an
- * operation runs for the duration it names, and the next begins when it ends. The platform
- * gives it the radio, whose events, a received PDU or the end of a window, the tester
- * drains in run().
+ * operation runs for the duration it names or until it received the PDUs it counts, and the
+ * next begins when it ends. The platform gives it the radio, whose events, a received PDU
+ * or the end of a window, the tester drains in run().
  *
  * The host instantiates the same template with dummies (host/tester_functions.hpp) to
  * obtain the function list the wire is keyed on, which is why no function of the list
@@ -67,6 +67,10 @@ namespace test_rig {
      * listening for. Not a wire type: the platform hands it to the rig, which turns a
      * reception or a transmission into a captured_pdu and a window end into the next
      * operation.
+     *
+     * `operation_id` is the one the platform was given when the event's operation began, so
+     * that an event still queued from an operation that ended early is told from the
+     * current one's.
      */
     enum class tester_event
     {
@@ -82,6 +86,7 @@ namespace test_rig {
         pdu             data;
         bool            crc_ok;
         std::uint8_t    rssi;
+        std::uint32_t   operation_id = 0;
     };
 
     /**
@@ -124,17 +129,25 @@ namespace test_rig {
 
         /*
          * Listens on `channel` with `phy` for `ticks` of the tester's clock, queuing a
-         * received event for every PDU and a window_ended event when the time is up.
+         * received event for every PDU and a window_ended event when the time is up. Stops
+         * whatever ran before, and tags every event from now on with `value`, the operation
+         * id.
          */
-        platform.receive( value, phy, ticks );
+        platform.receive( value, phy, ticks, value );
 
         /*
          * Listens like receive(), and the first time it hears an advertising PDU whose
          * AdvA is `address`, transmits `data` one inter frame space after that PDU ended,
          * queuing a transmitted event with the time the answer's first bit was on air. It
-         * keeps listening for the rest of the window without answering again.
+         * keeps listening for the rest of the window without answering again. Stops and
+         * tags like receive().
          */
-        platform.answer( value, phy, ticks, address, data );
+        platform.answer( value, phy, ticks, address, data, value );
+
+        /*
+         * Stops listening; no event is queued afterwards.
+         */
+        platform.stop();
 
         /*
          * The oldest event the radio has for the interpreter, and it is forgotten.
@@ -396,6 +409,9 @@ namespace test_rig {
                     entry.data   = next->data;
 
                     enqueue( entry );
+
+                    if ( next->crc_ok && next->operation_id == operation_id_ )
+                        count_received();
                 }
                 else if ( next->kind == tester_event::transmitted )
                 {
@@ -409,7 +425,7 @@ namespace test_rig {
 
                     enqueue( entry );
                 }
-                else
+                else if ( next->operation_id == operation_id_ )
                 {
                     advance();
                 }
@@ -437,6 +453,17 @@ namespace test_rig {
             return std::find( acceptance_filter_.begin(), end, advertiser ) != end;
         }
 
+        void count_received()
+        {
+            if ( cursor_ == operation_count_ )
+                return;
+
+            ++received_;
+
+            if ( received_ == operations_[ cursor_ ].count )
+                advance();
+        }
+
         void advance()
         {
             if ( cursor_ == operation_count_ )
@@ -446,16 +473,22 @@ namespace test_rig {
 
             if ( cursor_ != operation_count_ )
                 begin( operations_[ cursor_ ] );
+            else
+                platform_.stop();
         }
 
+        // a fresh id per operation, never reused, so a stale event can not match a later one
         void begin( const operation& op )
         {
             const std::uint64_t ticks = static_cast< std::uint64_t >( op.window.usec() ) * ( tester_ticks_per_second / 1'000'000 );
 
+            ++operation_id_;
+            received_ = 0;
+
             if ( op.kind == operation_kind::answer )
-                platform_.answer( op.channel, op.phy, ticks, op.target, op.response );
+                platform_.answer( op.channel, op.phy, ticks, op.target, op.response, operation_id_ );
             else
-                platform_.receive( op.channel, op.phy, ticks );
+                platform_.receive( op.channel, op.phy, ticks, operation_id_ );
         }
 
         /*
@@ -483,6 +516,8 @@ namespace test_rig {
         std::uint8_t                                    operation_count_    = 0;
         std::uint8_t                                    cursor_             = 0;
         bool                                            started_            = false;
+        std::uint32_t                                   operation_id_       = 0;
+        std::uint32_t                                   received_           = 0;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;

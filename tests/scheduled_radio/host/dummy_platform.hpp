@@ -30,8 +30,9 @@ namespace test_rig {
         void run() {}
         void wake_up() {}
         void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
-        void receive( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ) {}
-        void answer( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, const link_layer::device_address&, const pdu& ) {}
+        void receive( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, std::uint32_t ) {}
+        void answer( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, const link_layer::device_address&, const pdu&, std::uint32_t ) {}
+        void stop() {}
 
         std::optional< tester_happened > next_event()
         {
