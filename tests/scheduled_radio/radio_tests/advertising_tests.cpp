@@ -143,6 +143,63 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
         BOOST_CHECK_LE( std::abs( microseconds_between( captured[ i ], captured[ i + 1 ] ) - requested_us[ i ] ), tolerance_us );
 }
 
+/*
+ * start_advertising() from the callback of an event restarts the sequence. The restart has no
+ * required time, so only what follows it is measured: it is placed from the restart.
+ */
+BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_the_first, rig_fixture, *if_tester )
+{
+    const auto first     = advertising( 7, 1 );
+    const auto restarted = advertising( 7, 2 );
+    const auto scheduled = advertising( 7, 3 );
+
+    program_device( {
+        on_start(       start_advertising(          37,                         first ) ),
+        on_adv_timeout( start_advertising(          37,                         restarted ) ),
+        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), scheduled ) ) } );
+    program_tester( { receive( 37, delta_time::msec( 400 ) ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
+    BOOST_CHECK( carries( captured[ 0 ], first ) );
+    BOOST_CHECK( carries( captured[ 1 ], restarted ) );
+    BOOST_CHECK( carries( captured[ 2 ], scheduled ) );
+    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 1 ], captured[ 2 ] ) - 100'000 ), tolerance_us );
+}
+
+BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events, rig_fixture, *if_tester )
+{
+    std::vector< std::vector< std::uint8_t > > sent;
+
+    for ( std::uint8_t fill = 0; fill != 5; ++fill )
+        sent.push_back( advertising( 7, fill ) );
+
+    program_device( {
+        on_start(       start_advertising(          37,                         sent[ 0 ] ) ),
+        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), sent[ 1 ] ) ),
+        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), sent[ 2 ] ) ),
+        on_adv_timeout( start_advertising(          37,                         sent[ 3 ] ) ),
+        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), sent[ 4 ] ) ) } );
+    program_tester( { receive( 37, delta_time::msec( 600 ) ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), sent.size() );
+
+    for ( std::size_t i = 0; i != sent.size(); ++i )
+        BOOST_CHECK( carries( captured[ i ], sent[ i ] ) );
+
+    // placed from the start before them; the restart itself has no required time
+    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 1 ], captured[ 2 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 3 ], captured[ 4 ] ) - 100'000 ), tolerance_us );
+}
+
 // a tester that follows the device to its access address hears both with a valid CRC
 BOOST_FIXTURE_TEST_CASE( advertising_uses_the_access_address_and_crc_init_that_were_set, rig_fixture, *if_tester )
 {
