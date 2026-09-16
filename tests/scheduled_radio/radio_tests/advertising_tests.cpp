@@ -15,6 +15,7 @@
 #include <bluetoe/delta_time.hpp>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -36,6 +37,11 @@ namespace {
 
     // a scanner the device's acceptance filter does not hold: the tester's address, one byte off
     const bluetoe::link_layer::device_address stranger_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02 }, false };
+
+    // advertisers a scan request can be addressed to instead of the device: other bytes, and
+    // the device's bytes as a random address
+    const bluetoe::link_layer::device_address other_advertiser{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc1 }, false };
+    const bluetoe::link_layer::device_address dut_bytes_as_random{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 }, true };
 
     constexpr std::uint32_t other_access_address = 0x71764129;
     constexpr std::uint32_t other_crc_init       = 0x7a8f23;
@@ -107,15 +113,16 @@ namespace {
         BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - interval.usec() ), tolerance_us );
     }
 
+    using request_t = std::array< std::uint8_t, 14 >;
+
     /*
-     * The tester answers the first advertising with a scan request from `scanner`: the device
-     * answers with its scan response and reports the request with adv_received().
+     * The tester answers the first advertising with `request`: the device answers with its
+     * scan response and reports the request with adv_received().
      */
-    void a_scan_request_is_answered( rig_fixture_without_device_filter& rig, const bluetoe::link_layer::device_address& scanner )
+    void a_scan_request_is_answered( rig_fixture_without_device_filter& rig, const request_t& request )
     {
         const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
         const auto response      = advertising( 10, 0x02, scan_rsp );
-        const auto request       = scan_request( scanner, dut_address );
 
         rig.program_device( {
             on_start(
@@ -145,16 +152,15 @@ namespace {
     }
 
     /*
-     * The tester answers the first advertising with a scan request from `scanner`, which the
-     * device does not answer; the event ends with adv_timeout(), and the advertising scheduled
-     * from that shows the device went on.
+     * The tester answers the first advertising with `request`, which the device does not
+     * answer; the event ends with adv_timeout(), and the advertising scheduled from that shows
+     * the device went on.
      */
-    void a_scan_request_is_ignored( rig_fixture_without_device_filter& rig, const bluetoe::link_layer::device_address& scanner )
+    void a_scan_request_is_ignored( rig_fixture_without_device_filter& rig, const request_t& request )
     {
         const auto first    = advertising( 6, 0x01, adv_scan_ind );
         const auto next     = advertising( 6, 0x02, adv_scan_ind );
         const auto response = advertising( 10, 0x03, scan_rsp );
-        const auto request  = scan_request( scanner, dut_address );
 
         rig.program_device( {
             on_start(
@@ -364,7 +370,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_on_another_access_address_is_not_heard_on_t
  */
 BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_first_advertising_is_answered, rig_fixture, *if_tester )
 {
-    a_scan_request_is_answered( *this, tester_address );
+    a_scan_request_is_answered( *this, scan_request( tester_address, dut_address ) );
 }
 
 /*
@@ -426,7 +432,7 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
  */
 BOOST_FIXTURE_TEST_CASE( a_scan_request_from_outside_the_acceptance_filter_is_ignored, rig_fixture, *if_tester )
 {
-    a_scan_request_is_ignored( *this, stranger_address );
+    a_scan_request_is_ignored( *this, scan_request( stranger_address, dut_address ) );
 }
 
 // the same with the tester's address, from a filter that holds another scanner only
@@ -434,11 +440,23 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_is_ignored_when_the_filter_holds_another
 {
     BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( stranger_address ) );
 
-    a_scan_request_is_ignored( *this, tester_address );
+    a_scan_request_is_ignored( *this, scan_request( tester_address, dut_address ) );
 }
 
 // an empty acceptance filter accepts every scanner (scheduled_radio2.hpp)
 BOOST_FIXTURE_TEST_CASE( a_scan_request_from_any_scanner_is_answered_with_an_empty_filter, rig_fixture_without_device_filter, *if_tester )
 {
-    a_scan_request_is_answered( *this, stranger_address );
+    a_scan_request_is_answered( *this, scan_request( stranger_address, dut_address ) );
+}
+
+// the device answers only requests addressed to itself: the address's bytes
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_another_advertiser_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, scan_request( tester_address, other_advertiser ) );
+}
+
+// and its kind, public or random, by the request's RxAdd bit
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_device_address_as_random_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, scan_request( tester_address, dut_bytes_as_random ) );
 }
