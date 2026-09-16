@@ -17,7 +17,7 @@
  * received, and reports each PDU with the time its first bit was on air in the tester's
  * ticks (decision 24); a timer compare ends the window and is reported as well. An answer
  * operation also answers the first advertising PDU from a named target one inter frame
- * space after it ended, timed by the radio's own inter frame spacing rather than by software, and
+ * space after it ended, started by a timer compare rather than by software, and
  * reports that transmission with its time from the same capture. The radio keeps nothing
  * of the device's binding, which it must not: the tester observes a radio, it is not one
  * (decision 23).
@@ -82,6 +82,7 @@ namespace test_rig {
         void on_radio_disabled();
         void on_window_end();
         bool from_target() const;
+        void arm_answer( std::uint32_t first_bit );
         void enqueue( const tester_happened& event );
 
         /*

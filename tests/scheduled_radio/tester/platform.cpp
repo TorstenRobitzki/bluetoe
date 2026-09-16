@@ -48,11 +48,16 @@ namespace test_rig {
         constexpr std::size_t   cc_address          = 0;    // the access address was received
         constexpr std::size_t   cc_window           = 1;    // the listen window is over
         constexpr std::size_t   cc_now              = 2;    // reading the clock
+        constexpr std::size_t   cc_answer           = 3;    // the transmitter of an answer ramps up
 
         /*
-         * One free PPI channel captures the timer at the RADIO ADDRESS event.
+         * One PPI channel captures the timer at the RADIO ADDRESS event, another starts the
+         * transmitter of an answer at its compare.
          */
         constexpr std::size_t   ppi_address_capture = 0;
+        constexpr std::size_t   ppi_answer_txen     = 1;
+
+        constexpr std::uint32_t ticks_per_us        = 16;
 
         /*
          * The RADIO ADDRESS event fires once the preamble and the access address are on
@@ -61,13 +66,32 @@ namespace test_rig {
          * shifts the origin, which cancels in the interval a test compares, but it is the
          * true offset for an absolute measurement such as T_IFS.
          */
-        constexpr std::uint32_t preamble_and_access_address_ticks = 40 * 16;
+        constexpr std::uint32_t preamble_and_access_address_ticks = 40 * ticks_per_us;
 
         /*
-         * The inter frame space of the Core Specification, which the radio's TIFS keeps
-         * between the end of a received PDU and the start of the answer.
+         * The inter frame space of the Core Specification, from the end of a received PDU
+         * to the first bit of the answer. The radio's TIFS does not keep it with fast ramp
+         * up, so the timer starts the transmitter one ramp up earlier.
          */
         constexpr std::uint32_t inter_frame_space_us = 150;
+        constexpr std::uint32_t fast_ramp_up_us      = 40;
+
+        // the ticks from the first bit of a packet to its last: preamble, access address,
+        // header, payload and CRC
+        std::uint32_t air_ticks( std::uint32_t payload_size )
+        {
+            return ( 1 + 4 + 2 + payload_size + 3 ) * 8 * ticks_per_us;
+        }
+
+        // an answer operation disables the receiver after every packet, so that the
+        // transmitter can be started from there
+        constexpr std::uint32_t shorts_answering =
+            RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+        bool radio_disabled()
+        {
+            return ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos );
+        }
 
         std::uint32_t frequency_from_channel( std::uint32_t channel )
         {
@@ -155,6 +179,9 @@ namespace test_rig {
         NRF_PPI->CH[ ppi_address_capture ].TEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER0->TASKS_CAPTURE[ cc_address ] );
         NRF_PPI->CHENSET = 1u << ppi_address_capture;
 
+        NRF_PPI->CH[ ppi_answer_txen ].EEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER0->EVENTS_COMPARE[ cc_answer ] );
+        NRF_PPI->CH[ ppi_answer_txen ].TEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->TASKS_TXEN );
+
         NVIC_SetPriority( RADIO_IRQn, 0 );
         NVIC_ClearPendingIRQ( RADIO_IRQn );
         NVIC_EnableIRQ( RADIO_IRQn );
@@ -201,6 +228,7 @@ namespace test_rig {
         NRF_TIMER0->EVENTS_COMPARE[ cc_window ] = 0;
         NRF_RADIO->INTENCLR                     = 0xffffffff;
         NRF_RADIO->SHORTS                       = 0;
+        NRF_PPI->CHENCLR                        = 1u << ppi_answer_txen;
         NVIC_ClearPendingIRQ( TIMER0_IRQn );
         NVIC_ClearPendingIRQ( RADIO_IRQn );
 
@@ -209,7 +237,7 @@ namespace test_rig {
 
         __enable_irq();
 
-        if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) != ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos ) )
+        if ( !radio_disabled() )
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
             NRF_RADIO->TASKS_DISABLE   = 1;
@@ -253,13 +281,12 @@ namespace test_rig {
 
     /*
      * An answer operation is a receive that answers: the first advertising PDU from `target`
-     * is met with `response` one inter frame space after it ended. The radio times that itself,
-     * by its TIFS and the DISABLED to TXEN short, so the answer's timing owes nothing to
-     * the interrupt; the interrupt only decides, at the end of the received packet and
-     * before the radio has finished disabling, whether to arm that short. After every
-     * packet it does not answer, and after the answer itself, the receiver is re-armed
-     * from the DISABLED interrupt, so the operation keeps listening for the rest of its
-     * window.
+     * is met with `response` one inter frame space after it ended. Every packet disables the
+     * receiver; the END interrupt, with more than a hundred microseconds to spare, sets a
+     * timer compare that starts the transmitter by PPI, so that the answer's timing owes
+     * nothing to the interrupt. After every packet it does not answer, and after the answer
+     * itself, the receiver is re-armed from DISABLED, so the operation keeps listening for
+     * the rest of its window.
      *
      * The receiver's ramp up is tens of microseconds, so the state and the shorts set
      * after receive() are in place long before a packet could end.
@@ -277,10 +304,7 @@ namespace test_rig {
         transmitting_ = false;
         answering_    = true;
 
-        // a packet ends the reception, so the radio is disabled for the inter frame space
-        // the answer is timed from; nothing is answered until the interrupt arms it
-        NRF_RADIO->TIFS      = inter_frame_space_us;
-        NRF_RADIO->SHORTS   |= RADIO_SHORTS_END_DISABLE_Msk;
+        NRF_RADIO->SHORTS    = shorts_answering;
         NRF_RADIO->INTENSET  = RADIO_INTENSET_DISABLED_Msk;
     }
 
@@ -299,9 +323,8 @@ namespace test_rig {
         {
             transmitting_ = false;
 
-            // the answer is out; the END to DISABLE short now only closes the transmission,
-            // and DISABLED re-arms the receiver, which answers no second time
-            NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+            // the answer is out; DISABLED re-arms the receiver, which answers no second time
+            NRF_PPI->CHENCLR = 1u << ppi_answer_txen;
 
             const std::size_t size = std::min< std::size_t >( response_buffer_[ 1 ] + 2, max_advertising_pdu_size );
 
@@ -321,6 +344,18 @@ namespace test_rig {
         const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
             == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
 
+        if ( answering_ )
+        {
+            // decided first, as the answer's deadline runs from the end of this packet
+            if ( !answered_ && crc_ok && from_target() )
+                arm_answer( first_bit );
+        }
+        else
+        {
+            // receive the next packet of the window
+            NRF_RADIO->TASKS_START = 1;
+        }
+
         const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
 
         const tester_happened event{
@@ -331,26 +366,6 @@ namespace test_rig {
             .rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE ) };
 
         enqueue( event );
-
-        if ( answering_ )
-        {
-            // the first PDU from the target is answered: the transmission is armed now,
-            // while the radio is still disabling, and its TIFS places the answer one inter
-            // frame space after this packet ended. Everything else is re-armed from DISABLED.
-            if ( !answered_ && crc_ok && from_target() )
-            {
-                answered_     = true;
-                transmitting_ = true;
-
-                NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_buffer_ );
-                NRF_RADIO->SHORTS    = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
-            }
-        }
-        else
-        {
-            // receive the next packet of the window
-            NRF_RADIO->TASKS_START = 1;
-        }
 
         __SEV();
     }
@@ -370,16 +385,49 @@ namespace test_rig {
     }
 
     /*
-     * In an answer operation the radio disables itself after every packet, by the END to
-     * DISABLE short. After a packet that was not answered, and after the answer itself, the
-     * receiver is re-armed here, so the operation keeps listening; while the answer is armed
-     * the short from DISABLED to TXEN is doing the transmitting, and nothing is re-armed.
+     * Starts the transmitter of the answer by the timer, one ramp up before the inter frame
+     * space after the received packet ended, `first_bit` being that packet's first bit. The
+     * compare is set before PPI forwards it, and PPI forwards only a compare that happens
+     * after it was enabled: if the timer is already past it then, the answer is given up
+     * rather than sent late, and the packet is treated as one not answered.
+     */
+    void platform::arm_answer( std::uint32_t first_bit )
+    {
+        const std::uint32_t start = air_ticks( receive_buffer_[ 1 ] ) + ( inter_frame_space_us - fast_ramp_up_us ) * ticks_per_us;
+
+        NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_buffer_ );
+
+        NRF_TIMER0->EVENTS_COMPARE[ cc_answer ] = 0;
+        NRF_TIMER0->CC[ cc_answer ]             = first_bit + start;
+        NRF_PPI->CHENSET                        = 1u << ppi_answer_txen;
+
+        NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
+
+        if ( NRF_TIMER0->CC[ cc_now ] - first_bit < start )
+        {
+            answered_     = true;
+            transmitting_ = true;
+
+            return;
+        }
+
+        // too late; a transmitter the compare started meanwhile is cancelled
+        NRF_PPI->CHENCLR         = 1u << ppi_answer_txen;
+        NRF_RADIO->PACKETPTR     = reinterpret_cast< std::uint32_t >( receive_buffer_ );
+        NRF_RADIO->TASKS_DISABLE = 1;
+    }
+
+    /*
+     * In an answer operation the radio disables itself after every packet. While an answer
+     * is armed, the timer starts the transmitter from here. Otherwise the receiver is
+     * re-armed once the radio is really disabled: a cancelled transmitter disables a second
+     * time.
      */
     void platform::on_radio_disabled()
     {
         NRF_RADIO->EVENTS_DISABLED = 0;
 
-        if ( !answering_ || transmitting_ )
+        if ( !answering_ || transmitting_ || !radio_disabled() )
             return;
 
         NRF_RADIO->PACKETPTR  = reinterpret_cast< std::uint32_t >( receive_buffer_ );
@@ -398,6 +446,7 @@ namespace test_rig {
 
         NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
         NRF_RADIO->SHORTS        = 0;
+        NRF_PPI->CHENCLR         = 1u << ppi_answer_txen;
         NRF_RADIO->TASKS_DISABLE = 1;
 
         tester_happened event{};
