@@ -120,7 +120,15 @@ namespace {
         BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - interval.usec() ), tolerance_us );
     }
 
-    using request_t = std::array< std::uint8_t, 14 >;
+    // a scan request with its length field set to `length`, its payload cut or padded to match
+    std::vector< std::uint8_t > with_length( std::span< const std::uint8_t > request, std::uint8_t length )
+    {
+        std::vector< std::uint8_t > result( request.begin(), request.end() );
+        result.resize( 2 + length, 0 );
+        result[ 1 ] = length;
+
+        return result;
+    }
 
     /*
      * The time from the end of `earlier` to the first bit of `later`: preamble, access
@@ -138,7 +146,7 @@ namespace {
      * scan response and reports the request with adv_received(). Returns what the tester
      * captured: the advertising, the request and the response.
      */
-    std::vector< captured_pdu > a_scan_request_is_answered( rig_fixture_without_device_filter& rig, const request_t& request )
+    std::vector< captured_pdu > a_scan_request_is_answered( rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request )
     {
         const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
         const auto response      = advertising( 10, 0x02, scan_rsp );
@@ -177,7 +185,7 @@ namespace {
      * answer; the event ends with adv_timeout(), and the advertising scheduled from that shows
      * the device went on.
      */
-    void a_scan_request_is_ignored( rig_fixture_without_device_filter& rig, const request_t& request )
+    void a_scan_request_is_ignored( rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request )
     {
         const auto first    = advertising( 6, 0x01, adv_scan_ind );
         const auto next     = advertising( 6, 0x02, adv_scan_ind );
@@ -551,4 +559,27 @@ BOOST_FIXTURE_TEST_CASE( the_scan_response_starts_one_inter_frame_space_after_th
     const double space_us = std::chrono::duration< double, std::micro >( space ).count();
 
     BOOST_CHECK_MESSAGE( std::chrono::abs( space - 150us ) <= 2us, "inter frame space " << space_us << " µs" );
+}
+
+// a scan request has a payload of 12 bytes, the two addresses, and nothing else is one
+BOOST_FIXTURE_TEST_CASE( a_scan_request_that_is_too_short_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, with_length( scan_request( tester_address, dut_address ), 11 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_scan_request_that_is_too_long_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, with_length( scan_request( tester_address, dut_address ), 13 ) );
+}
+
+// the same two addresses under another PDU type, ADV_IND, are not a request
+BOOST_FIXTURE_TEST_CASE( a_pdu_of_another_type_is_not_answered, rig_fixture, *if_tester )
+{
+    constexpr std::uint8_t pdu_type_mask = 0x0f;
+    constexpr std::uint8_t adv_ind       = 0x00;
+
+    auto request = scan_request( tester_address, dut_address );
+    request[ 0 ] = ( request[ 0 ] & ~pdu_type_mask ) | adv_ind;
+
+    a_scan_request_is_ignored( *this, request );
 }
