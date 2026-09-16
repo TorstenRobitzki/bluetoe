@@ -455,9 +455,8 @@ namespace link_layer {
          * event after radio_ready(), and every return to advertising after a connection
          * ended or after advertising was switched on while the radio was idle.
          *
-         * Context: application or link layer. Switching advertising on happens in the
-         * application context while the radio is idle, and it is the radio's job to make
-         * that safe against a callback in flight, not the caller's.
+         * Context: application or link layer. The radio makes the call safe against its
+         * own interrupt; a callback not yet delivered still counts as a pending action.
          *
          * Returns nothing. The only way this could fail is with an action already
          * pending, which the rule above forbids, so a refusal would report a broken

@@ -160,11 +160,13 @@ namespace bluetoe
                 idle,
                 transmitting,
                 receiving,
-                responding
+                responding,
+                // the air is quiet, the callback not yet delivered: still pending
+                reporting
             };
 
             link_layer::abs_time now() const;
-            bool schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::write_buffer& response, const link_layer::read_buffer& receive );
+            void schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::write_buffer& response, const link_layer::read_buffer& receive );
             bool sender_in_acceptance_filter();
             bool is_scan_request_for_us() const;
             void on_packet_end();

@@ -340,11 +340,6 @@ namespace bluetoe
             return acceptance_filter_( this, sender );
         }
 
-        /*
-         * The time is this function's own to choose, so the only way the event could be
-         * refused is an action already pending, which the caller must not have; it is a
-         * precondition rather than a result.
-         */
         void radio_base::start_advertising(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
@@ -353,10 +348,7 @@ namespace bluetoe
         {
             const interrupts_off no_interruption;
 
-            const bool scheduled = schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
-
-            assert( scheduled );
-            static_cast< void >( scheduled );
+            schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
         }
 
         bool radio_base::schedule_advertising_event(
@@ -371,7 +363,9 @@ namespace bluetoe
             if ( when.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us ) ) )
                 return false;
 
-            return schedule( channel, when, transmit, response, receive );
+            schedule( channel, when, transmit, response, receive );
+
+            return true;
         }
 
         /*
@@ -388,11 +382,9 @@ namespace bluetoe
          * in earliest_us is what the setup needs, and holding interrupts off for its few
          * microseconds is what makes that margin a guarantee rather than a likelihood.
          *
-         * It also makes the check of state_ atomic against the radio's own interrupt, which
-         * is what lets start_advertising() be called from the application context while a
-         * callback is in flight.
+         * It also keeps the radio's own interrupt out of the check of state_.
          */
-        bool radio_base::schedule(
+        void radio_base::schedule(
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
@@ -402,8 +394,8 @@ namespace bluetoe
             assert( receive.buffer && receive.size >= 2 );
             assert( transmit.buffer && transmit.size >= 2 );
 
-            if ( state_ != state::idle )
-                return false;
+            // pending lasts until the callback is delivered; see next_event()
+            assert( state_ == state::idle );
 
             receive_        = receive;
             response_       = response;
@@ -436,8 +428,6 @@ namespace bluetoe
             state_ = state::transmitting;
 
             NRF_RADIO->INTENSET = RADIO_INTENSET_DISABLED_Msk;
-
-            return true;
         }
 
         /*
@@ -448,6 +438,8 @@ namespace bluetoe
          */
         bool radio_base::cancel_radio_event()
         {
+            const interrupts_off no_interruption;
+
             if ( state_ != state::transmitting )
                 return false;
 
@@ -471,6 +463,8 @@ namespace bluetoe
 
         bool radio_base::schedule_timer( link_layer::abs_time when )
         {
+            const interrupts_off no_interruption;
+
             assert( !timer_scheduled_ );
 
             if ( when.is_in_near_past( now() + link_layer::delta_time::usec( 2 ) ) )
@@ -493,6 +487,8 @@ namespace bluetoe
          */
         bool radio_base::cancel_timer()
         {
+            const interrupts_off no_interruption;
+
             if ( !timer_scheduled_ )
                 return false;
 
@@ -512,6 +508,8 @@ namespace bluetoe
 
         std::optional< radio_base::happened > radio_base::next_event()
         {
+            const interrupts_off no_interruption;
+
             if ( ready_pending_ )
             {
                 ready_pending_ = false;
@@ -521,7 +519,9 @@ namespace bluetoe
 
             if ( radio_event_pending_ )
             {
+                // handed out now, so the action stops being pending now
                 radio_event_pending_ = false;
+                state_               = state::idle;
 
                 return happened{ radio_event_, radio_event_time_, { receive_.buffer, received_size_ } };
             }
@@ -529,6 +529,7 @@ namespace bluetoe
             if ( timer_event_pending_ )
             {
                 timer_event_pending_ = false;
+                timer_scheduled_     = false;
 
                 return happened{ event::user_timer, timer_when_, { nullptr, 0 } };
             }
@@ -619,7 +620,7 @@ namespace bluetoe
                 if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos ) )
                     end_event();
             }
-            else if ( state_ != state::idle )
+            else if ( state_ == state::receiving || state_ == state::responding )
             {
                 end_event();
             }
@@ -646,7 +647,7 @@ namespace bluetoe
                 radio_event_      = event::adv_timeout;
             }
 
-            state_               = state::idle;
+            state_               = state::reporting;
             answering_           = false;
             radio_event_pending_ = true;
             __SEV();
@@ -657,7 +658,6 @@ namespace bluetoe
             NRF_TIMER1->EVENTS_COMPARE[ cc_user_timer ] = 0;
             NRF_TIMER1->INTENCLR = TIMER_INTENCLR_COMPARE0_Msk;
 
-            timer_scheduled_     = false;
             timer_event_pending_ = true;
             __SEV();
         }
