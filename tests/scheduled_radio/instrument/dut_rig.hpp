@@ -4,10 +4,9 @@
 /**
  * @file dut_rig.hpp
  *
- * The platform independent half of a device under test: everything the contract in
- * tests/scheduled_radio/dut_rig.hpp asks for that is neither the radio nor the serial
- * port, on top of what instrument/instrument.hpp provides to both instruments. See
- * documentation/scheduled_radio_test_rig.md, decisions 16, 17 and 20.
+ * The platform independent half of a device under test: everything that is neither the
+ * radio nor the serial port, on top of what instrument/instrument.hpp provides to both
+ * instruments. See documentation/scheduled_radio_test_rig.md, decisions 9, 16, 17 and 20.
  *
  * The rig is a template over the scheduled radio implementation and over the platform's
  * serial port; dut_rigs/template_dut_rig.cpp shows how a platform binds the two. The
@@ -231,7 +230,7 @@ namespace test_rig {
         /**
          * @name Instrument functions
          *
-         * The functions of instrument.hpp and dut_rig.hpp that are the rig's own; the
+         * The functions that are the rig's own, beside those of instrument/instrument.hpp; the
          * names and the session token are the instrument's.
          * @{
          */

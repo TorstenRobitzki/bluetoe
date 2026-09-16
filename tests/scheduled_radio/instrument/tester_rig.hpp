@@ -198,7 +198,7 @@ namespace test_rig {
         /**
          * @name Instrument functions
          *
-         * The functions that are the tester's own, beside those of instrument.hpp; the
+         * The functions that are the tester's own, beside those of instrument/instrument.hpp; the
          * names and the session token are the instrument's.
          * @{
          */

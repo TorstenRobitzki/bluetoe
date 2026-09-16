@@ -5,8 +5,8 @@
  * @file program.hpp
  *
  * What a program of the device under test and its records look like on the wire, shared by
- * the rig and the host. See tests/scheduled_radio/dut_rig.hpp for the contract and
- * documentation/scheduled_radio_test_rig.md, decisions 7 and 14.
+ * the rig and the host. See documentation/scheduled_radio_test_rig.md, decisions 7, 9
+ * and 14.
  *
  * A program is loaded one step at a time, because a step with its PDUs is what fits into
  * one request. The records come back in batches, each naming the index of its first record

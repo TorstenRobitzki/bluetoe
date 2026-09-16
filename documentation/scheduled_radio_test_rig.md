@@ -191,6 +191,13 @@ interface, satisfies the rig contract, and the existing test suite runs against 
 design considerations document notes that the proof that the abstraction is implementable on other
 hardware is still outstanding. This is how that proof gets produced.
 
+Where the contract is written down is this document and the code that carries it: each rig's
+`functions` list names what the host may call, `link/program.hpp` and `link/tester_program.hpp` the
+types those calls take, and the decisions here say what each has to do. It was once a set of header
+files of declarations that nothing compiled, `instrument.hpp`, `dut_rig.hpp` and `tester.hpp`; they
+drifted from the implementation, as a specification nothing checks does, and describing a contract
+twice is what let them.
+
 ## 10. Every interface function states its observable effect
 
 Each function of the interface documents what is externally observable when it is called: what
@@ -510,10 +517,10 @@ can see, and it lets the lock's purpose blur from "the link layer's state" into 
 
 `scheduled_radio2.hpp` and `serial_port.hpp` state their requirements as C++20 concepts:
 `scheduled_radio_callbacks`, `lesc_pairing_toolbox`, `scheduled_radio_features`, `scheduled_radio`,
-`byte_ring_buffer` and `serial_port`. The instrument contracts in `instrument.hpp` and `dut_rig.hpp`
-stay as they are. The tester has no prose contract of its own any more: what the host can ask of
-it is `tester_rig::functions` and the operations of `link/tester_program.hpp`, both C++ that the
-host instantiates and the compiler checks, and the reasoning behind them is decision 23.
+`byte_ring_buffer` and `serial_port`. The instruments have no prose contracts of their own any
+more: what the host can ask of either is its rig's `functions` list and the wire types of
+`link/program.hpp` and `link/tester_program.hpp`, all C++ that the host instantiates and the
+compiler checks, and the reasoning behind them is this document.
 
 The distinction is whether anything is generic over the type. A radio has several implementations,
 the nRF52, the simulated radio, the next port, and two generic consumers, the link layer and the
@@ -524,8 +531,8 @@ checks at the point of use and names the missing requirement. The conditional pa
 the toolbox is required only where `hardware_supports_lesc_pairing` is true, which a concept
 states directly and a class declaration could only say in a comment. The instruments, by
 contrast, exist once each and are reached over a link; nothing is generic over them as C++ types,
-and their requirements, the token in every response, the sequence numbers, are wire behaviour that
-no concept can express.
+and their requirements, the token in every response, the counts that make a dropped entry visible,
+are wire behaviour that no concept can express.
 
 A concept checks syntax. Everything decision 10 and decision 17 ask for, the observable effect,
 the tolerance, the context, is semantics and stays as prose next to each requirement, which is

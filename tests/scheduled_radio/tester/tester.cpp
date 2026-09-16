@@ -26,7 +26,7 @@ namespace bluetoe_tester {
 
     /*
      * Constructed at startup by the runtime, before main(), so that the session token reads
-     * as zero after every reset (instrument.hpp, "Detecting a restart"); a namespace scope
+     * as zero after every reset (decision 8); a namespace scope
      * object for the reasons dut_rigs/template_dut_rig.cpp gives.
      */
     rig_t rig( "tester on nRF52840-DK", TESTER_BUILD_IDENTIFIER );

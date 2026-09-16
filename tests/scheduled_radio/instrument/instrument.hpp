@@ -4,11 +4,10 @@
 /**
  * @file instrument.hpp
  *
- * What the two instruments have in common, the device under test and the tester: the
- * contract of tests/scheduled_radio/instrument.hpp, minus the programs and the queues,
- * which follow. The names an instrument reports, the session token, the two ring buffers
- * the platform's port works on, the framing, and the step that answers a request. See
- * documentation/scheduled_radio_test_rig.md, decisions 6, 8 and 16.
+ * What the two instruments have in common, the device under test and the tester, leaving
+ * the programs and the queues to each: the names an instrument reports, the session token,
+ * the two ring buffers the platform's port works on, the framing, and the step that answers
+ * a request. See documentation/scheduled_radio_test_rig.md, decisions 6, 8 and 16.
  *
  * An instrument derives from this class and passes itself: it is what the port wakes, and
  * its function list is what requests are dispatched against. The list names the functions
@@ -59,8 +58,8 @@ namespace test_rig {
         /**
          * @name Instrument functions
          *
-         * The functions of instrument.hpp that are the same on both instruments; the
-         * derived class lists them in the order of its wire protocol.
+         * The functions that are the same on both instruments; the derived class lists
+         * them in the order of its wire protocol.
          * @{
          */
         bytes< name_size > implementation_name() const
