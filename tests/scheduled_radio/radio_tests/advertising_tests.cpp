@@ -43,6 +43,9 @@ namespace {
     const bluetoe::link_layer::device_address other_advertiser{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc1 }, false };
     const bluetoe::link_layer::device_address dut_bytes_as_random{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 }, true };
 
+    // the address the device changes to, a static random one
+    const bluetoe::link_layer::device_address changed_address{ { 0x66, 0x55, 0x44, 0x33, 0x22, 0xd1 }, true };
+
     constexpr std::uint32_t other_access_address = 0x71764129;
     constexpr std::uint32_t other_crc_init       = 0x7a8f23;
 
@@ -50,13 +53,17 @@ namespace {
     constexpr std::uint8_t scan_rsp        = 0x04;
     constexpr std::uint8_t adv_scan_ind    = 0x06;
 
-    // an advertising channel PDU of `payload_size` bytes: the device's address, then `fill`
-    std::vector< std::uint8_t > advertising( std::size_t payload_size, std::uint8_t fill, std::uint8_t type = adv_nonconn_ind )
+    // an advertising channel PDU of `payload_size` bytes: the advertiser's address, then `fill`
+    std::vector< std::uint8_t > advertising(
+        std::size_t payload_size, std::uint8_t fill, std::uint8_t type = adv_nonconn_ind,
+        const bluetoe::link_layer::device_address& advertiser = dut_address )
     {
+        constexpr std::uint8_t tx_add = 0x40;
+
         std::vector< std::uint8_t > result( 2 + payload_size, fill );
-        result[ 0 ] = type;
+        result[ 0 ] = type | ( advertiser.is_random() ? tx_add : 0 );
         result[ 1 ] = static_cast< std::uint8_t >( payload_size );
-        std::copy( dut_address.begin(), dut_address.end(), result.begin() + 2 );
+        std::copy( advertiser.begin(), advertiser.end(), result.begin() + 2 );
 
         return result;
     }
@@ -459,4 +466,58 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_another_advertiser_is_ignored, rig_fi
 BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_device_address_as_random_is_ignored, rig_fixture, *if_tester )
 {
     a_scan_request_is_ignored( *this, scan_request( tester_address, dut_bytes_as_random ) );
+}
+
+/*
+ * set_local_address() between two events changes the address a request has to be addressed
+ * to: the device answers a request to its first address, then, after the change, ignores a
+ * request to the old one and answers one to the new one.
+ */
+BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_tester )
+{
+    const auto old_advertising   = advertising( 6, 0x01, adv_scan_ind );
+    const auto old_response      = advertising( 10, 0x02, scan_rsp );
+    const auto new_advertising   = advertising( 6, 0x03, adv_scan_ind, changed_address );
+    const auto next_advertising  = advertising( 6, 0x04, adv_scan_ind, changed_address );
+    const auto new_response      = advertising( 10, 0x05, scan_rsp, changed_address );
+    const auto request_to_old    = scan_request( tester_address, dut_address );
+    const auto request_to_new    = scan_request( tester_address, changed_address );
+
+    // the tester reports the device under its new address as well
+    BOOST_REQUIRE( observer.call< &tester::add_to_acceptance_filter >( changed_address ) );
+
+    program_device( {
+        on_start(
+            set_local_address( dut_address ),
+            start_advertising( 37, old_advertising, old_response ) ),
+        on_adv_received(
+            set_local_address( changed_address ),
+            schedule_advertising_event( 37, delta_time::msec( 100 ), new_advertising, new_response ) ),
+        on_adv_timeout(
+            schedule_advertising_event( 37, delta_time::msec( 100 ), next_advertising, new_response ) ) } );
+
+    // the request to the old address gets no reply; its window closes before the next advertising
+    program_tester( {
+        answer( 37, delta_time::msec( 300 ), dut_address, request_to_old ),
+        answer( 37, delta_time::msec( 150 ), changed_address, request_to_old ),
+        answer( 37, delta_time::msec( 300 ), changed_address, request_to_new ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 8u );
+    BOOST_CHECK( carries( captured[ 0 ], old_advertising ) );
+    BOOST_CHECK( carries( captured[ 1 ], request_to_old ) );
+    BOOST_CHECK( carries( captured[ 2 ], old_response ) );
+    BOOST_CHECK( carries( captured[ 3 ], new_advertising ) );
+    BOOST_CHECK( carries( captured[ 4 ], request_to_old ) );
+    BOOST_CHECK( carries( captured[ 5 ], next_advertising ) );
+    BOOST_CHECK( carries( captured[ 6 ], request_to_new ) );
+    BOOST_CHECK( carries( captured[ 7 ], new_response ) );
+
+    const auto records = device_records();
+
+    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 1u );
+    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_received ).size(), 2u );
 }
