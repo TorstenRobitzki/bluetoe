@@ -125,7 +125,7 @@ namespace {
         void set_ccm_counter( ccm_counter_t&, ccm_counter_t& ) {}
         void set_phy( phy_ll_encoding::phy_ll_encoding_t, phy_ll_encoding::phy_ll_encoding_t ) {}
         void set_local_address( const device_address& ) {}
-        bool start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
+        void start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) {}
         bool schedule_advertising_event( std::uint32_t, abs_time, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
         bool schedule_connection_event( std::uint32_t, abs_time, abs_time ) { return true; }
         bool cancel_radio_event() { return true; }
@@ -149,6 +149,16 @@ namespace {
     struct radio_with_a_void_cancel : model_radio< CallBacks >
     {
         void cancel_radio_event() {}
+    };
+
+    /*
+     * start_advertising() cannot refuse, so a bool would report a broken caller as a
+     * runtime condition; the concept asks for void and so rejects one that answers.
+     */
+    template < typename CallBacks >
+    struct radio_whose_start_advertising_answers : model_radio< CallBacks >
+    {
+        bool start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
     };
 
     template < typename CallBacks >
@@ -235,6 +245,7 @@ namespace {
     static_assert( scheduled_radio< radio_without_lesc_pairing, model_callbacks > );
     static_assert( !scheduled_radio< radio_claiming_lesc_pairing_without_the_toolbox, model_callbacks > );
     static_assert( !scheduled_radio< radio_with_a_void_cancel, model_callbacks > );
+    static_assert( !scheduled_radio< radio_whose_start_advertising_answers, model_callbacks > );
     static_assert( !scheduled_radio< radio_without_a_lock, model_callbacks > );
     static_assert( !scheduled_radio< model_radio, callbacks_without_the_timer > );
     static_assert( scheduled_radio< radio_with_a_hardware_acceptance_filter, model_callbacks > );

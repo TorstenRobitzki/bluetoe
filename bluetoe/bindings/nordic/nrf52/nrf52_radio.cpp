@@ -340,7 +340,12 @@ namespace bluetoe
             return acceptance_filter_( this, sender );
         }
 
-        bool radio_base::start_advertising(
+        /*
+         * The time is this function's own to choose, so the only way the event could be
+         * refused is an action already pending, which the caller must not have; it is a
+         * precondition rather than a result.
+         */
+        void radio_base::start_advertising(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
             const link_layer::write_buffer&     response,
@@ -348,7 +353,10 @@ namespace bluetoe
         {
             const interrupts_off no_interruption;
 
-            return schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
+            const bool scheduled = schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
+
+            assert( scheduled );
+            static_cast< void >( scheduled );
         }
 
         bool radio_base::schedule_advertising_event(

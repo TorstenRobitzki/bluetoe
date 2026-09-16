@@ -102,7 +102,8 @@ namespace test_rig {
      *
      * For a callback, `when` is the time it carried and `data` what adv_received()
      * received. For a call, `when` is the resolved time it passed, `channel` its channel,
-     * and `result` what it returned; start_advertising() and the cancels carry no time.
+     * and `result` what it returned; start_advertising() and the cancels carry no time,
+     * and start_advertising() carries no result either, since it returns none.
      */
     struct record
     {

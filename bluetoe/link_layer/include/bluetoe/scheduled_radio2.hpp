@@ -459,10 +459,13 @@ namespace link_layer {
          * application context while the radio is idle, and it is the radio's job to make
          * that safe against a callback in flight, not the caller's.
          *
-         * Returns true if the event was scheduled, false only if another action is
-         * pending.
+         * Returns nothing. The only way this could fail is with an action already
+         * pending, which the rule above forbids, so a refusal would report a broken
+         * caller as if it were a runtime condition; and a caller that holds no usable
+         * time, which is the whole reason this function exists, could do nothing with one
+         * anyway. An implementation may assert the precondition.
          */
-        { radio.start_advertising( value, transmit, transmit, receive ) } -> std::same_as< bool >;
+        { radio.start_advertising( value, transmit, transmit, receive ) } -> std::same_as< void >;
 
         /*
          * Schedules one advertising event: transmit `transmit` on `channel` so that its

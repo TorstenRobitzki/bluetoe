@@ -117,7 +117,7 @@ namespace bluetoe
              */
             void set_local_address( const link_layer::device_address& address );
 
-            bool start_advertising(
+            void start_advertising(
                 std::uint32_t                       channel,
                 const link_layer::write_buffer&     transmit,
                 const link_layer::write_buffer&     response,

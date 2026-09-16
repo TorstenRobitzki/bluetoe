@@ -456,8 +456,10 @@ namespace test_rig {
             switch ( what.kind )
             {
             case call_kind::start_advertising:
-                entry.result = radio_t::start_advertising( what.channel, transmit, response, receive );
-                radio_event_pending_ = radio_event_pending_ || entry.result;
+                // it cannot refuse: the radio is idle whenever a step runs, and the time
+                // is the radio's own to choose, so there is no result to record
+                radio_t::start_advertising( what.channel, transmit, response, receive );
+                radio_event_pending_ = true;
                 break;
             case call_kind::schedule_advertising_event:
                 entry.when   = when + what.delay;

@@ -51,10 +51,10 @@ namespace {
             instance = this;
         }
 
-        bool start_advertising( std::uint32_t channel, const bluetoe::link_layer::write_buffer& transmit,
+        void start_advertising( std::uint32_t channel, const bluetoe::link_layer::write_buffer& transmit,
             const bluetoe::link_layer::write_buffer& response, const bluetoe::link_layer::read_buffer& receive )
         {
-            return remember( call_kind::start_advertising, channel, abs_time(), transmit, response, receive );
+            remember( call_kind::start_advertising, channel, abs_time(), transmit, response, receive );
         }
 
         bool schedule_advertising_event( std::uint32_t channel, abs_time when, const bluetoe::link_layer::write_buffer& transmit,
@@ -316,13 +316,20 @@ BOOST_FIXTURE_TEST_CASE( the_program_is_finished_when_the_last_scheduled_action_
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
 }
 
+/*
+ * start_advertising() cannot refuse, so the call that can is the one to check: a program
+ * whose last step was refused waits for no callback, since none is coming.
+ */
 BOOST_FIXTURE_TEST_CASE( a_refused_call_leaves_nothing_pending, fixture )
 {
-    const step program[] = { on( callback_kind::start, start_advertising( 37, adv_ind ) ) };
+    const step program[] = {
+        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) };
     load( program );
-    radio.answer = false;
-
     remote.call< &rig_t::start_program >();
+
+    radio.answer = false;
+    rig.adv_timeout( abs_time( 1000 ) );
 
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
 }

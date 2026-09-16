@@ -87,9 +87,8 @@ namespace {
         void set_phy( bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t, bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
         void set_local_address( const bluetoe::link_layer::device_address& ) {}
 
-        bool start_advertising( std::uint32_t, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::read_buffer& )
+        void start_advertising( std::uint32_t, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::read_buffer& )
         {
-            return false;
         }
 
         bool schedule_advertising_event( std::uint32_t, bluetoe::link_layer::abs_time, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::write_buffer&, const bluetoe::link_layer::read_buffer& )
