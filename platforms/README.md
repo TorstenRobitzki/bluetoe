@@ -58,6 +58,17 @@ which applies the options every firmware is built with, adds this directory and 
 defines `add_bluetoe_firmware( target sources... )`. `examples/CMakeLists.txt` is the smallest
 example of such a project.
 
+## Build types
+
+`CMAKE_BUILD_TYPE` chooses the optimisation and whether assertions are kept, `Release` if none is
+given:
+
+| build type | flags | assertions |
+|---|---|---|
+| `Debug` | `-Og` | kept |
+| `Release`, `MinSizeRel` | `-Os` | removed |
+| `RelWithDebInfo` | `-O2` | removed |
+
 ## The build container
 
 `docker/` holds a container image with the toolchain and the SDK headers, and a Makefile that builds

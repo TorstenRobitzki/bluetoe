@@ -24,9 +24,12 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
 
-# Optimizations / Debug
-add_compile_options($<IF:$<CONFIG:Debug>,-O0,-Os>)
-add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:NDEBUG>)
+# Release unless a build type is given; the toolchain file sets the flags of each.
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+endif()
+
+message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 # Regardles of build type: Debug informations just make it into the elf file, never into the final binary
 add_compile_options(-g)

@@ -21,7 +21,7 @@ reset circuitry.
 ## Building and flashing
 
 ```bash
-cmake -S tests/scheduled_radio/tester -B build_tester -G Ninja -DBLUETOE_JLINK=<serial number> -DNRF5_SDK_ROOT=/path/to/nrf5_sdk
+cmake -S tests/scheduled_radio/tester -B build_tester -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBLUETOE_JLINK=<serial number> -DNRF5_SDK_ROOT=/path/to/nrf5_sdk
 ```
 
 ```bash

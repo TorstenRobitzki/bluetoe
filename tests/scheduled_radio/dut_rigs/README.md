@@ -13,7 +13,7 @@ Nordic SDK headers and the board variables, is described in `platforms/README.md
 For the nRF52840-DK, PCA10056, with the J-Link's serial number for flashing:
 
 ```bash
-cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -G Ninja -DBLUETOE_BOARD=PCA10056 -DBLUETOE_JLINK=<serial number> -DNRF5_SDK_ROOT=/path/to/nrf5_sdk
+cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBLUETOE_BOARD=PCA10056 -DBLUETOE_JLINK=<serial number> -DNRF5_SDK_ROOT=/path/to/nrf5_sdk
 ```
 
 ```bash
