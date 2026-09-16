@@ -193,7 +193,10 @@ namespace bluetoe
         radio_base::radio_base()
             : state_( state::idle )
             , receive_{ nullptr, 0 }
+            , response_{ nullptr, 0 }
             , transmit_time_()
+            , accepted_( false )
+            , answering_( false )
             , ready_pending_( true )
             , radio_event_pending_( false )
             , radio_event_( event::adv_timeout )
@@ -312,23 +315,23 @@ namespace bluetoe
         bool radio_base::start_advertising(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
-            const link_layer::write_buffer&,
+            const link_layer::write_buffer&     response,
             const link_layer::read_buffer&      receive )
         {
-            return schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, receive );
+            return schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
         }
 
         bool radio_base::schedule_advertising_event(
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
-            const link_layer::write_buffer&,
+            const link_layer::write_buffer&     response,
             const link_layer::read_buffer&      receive )
         {
             if ( when.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us ) ) )
                 return false;
 
-            return schedule( channel, when, transmit, receive );
+            return schedule( channel, when, transmit, response, receive );
         }
 
         /*
@@ -341,6 +344,7 @@ namespace bluetoe
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
+            const link_layer::write_buffer&     response,
             const link_layer::read_buffer&      receive )
         {
             assert( receive.buffer && receive.size >= 2 );
@@ -350,8 +354,11 @@ namespace bluetoe
                 return false;
 
             receive_        = receive;
+            response_       = response;
             transmit_time_  = when;
             scannable_      = is_scannable( transmit.buffer[ 0 ] );
+            accepted_       = false;
+            answering_      = false;
 
             NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
             NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
@@ -477,6 +484,56 @@ namespace bluetoe
             return std::nullopt;
         }
 
+        /*
+         * The end of a packet of an advertising event: the request that was received, or
+         * the answer going out. The reception is judged here rather than at the disable
+         * that follows it, because the answer has to be armed while the radio is still
+         * disabling for the radio's own inter frame spacing to place it.
+         */
+        void radio_base::on_packet_end()
+        {
+            NRF_RADIO->EVENTS_END = 0;
+
+            if ( state_ == state::responding )
+            {
+                // the answer is out; the chain stops here, so the disable it causes ends
+                // the event rather than starting a second transmission
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+                answering_        = false;
+
+                return;
+            }
+
+            if ( state_ != state::receiving )
+                return;
+
+            const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+
+            if ( !crc_ok || !is_scan_request_for_us() || !sender_in_acceptance_filter() )
+                return;
+
+            // the time and the bytes are taken now, before the answer repoints the radio
+            // and its own end captures the timer again
+            const std::uint32_t payload_size = receive_.buffer[ 1 ];
+
+            received_size_    = std::min< std::size_t >( payload_size + 2, receive_.size );
+            radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( payload_size ) );
+            accepted_         = true;
+
+            if ( response_.buffer == nullptr || response_.size < 2 )
+                return;
+
+            // the window must not cut the answer off, and the disable this end causes is
+            // what ramps the transmitter up, one inter frame space after this packet
+            NRF_PPI->CHENCLR     = ppi_compare1_disable;
+            NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_.buffer );
+            NRF_RADIO->PCNF1     = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( response_.size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
+            NRF_RADIO->SHORTS    = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+
+            answering_ = true;
+            state_     = state::responding;
+        }
+
         void radio_base::on_radio_disabled()
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
@@ -489,38 +546,58 @@ namespace bluetoe
                 NRF_RADIO->PCNF1        = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( receive_.size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
                 NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
+                // the reception is judged at its end, so that an answer can be armed there
+                NRF_RADIO->INTENSET     = RADIO_INTENSET_END_Msk;
+
                 NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
                 NRF_TIMER0->CC[ cc_window_end ]             = NRF_TIMER0->CC[ cc_packet_end ] + response_window_us;
                 NRF_PPI->CHENSET = ppi_compare1_disable;
 
                 state_ = state::receiving;
             }
-            else if ( state_ == state::receiving )
+            else if ( answering_ )
             {
-                NRF_PPI->CHENCLR    = ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2;
-                NRF_RADIO->SHORTS   = 0;
-                NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
-
-                const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
-
-                if ( NRF_RADIO->EVENTS_END && crc_ok && is_scan_request_for_us() && sender_in_acceptance_filter() )
-                {
-                    const std::uint32_t payload_size = receive_.buffer[ 1 ];
-
-                    received_size_    = std::min< std::size_t >( payload_size + 2, receive_.size );
-                    radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( payload_size ) );
-                    radio_event_      = event::adv_received;
-                }
-                else
-                {
-                    radio_event_time_ = transmit_time_;
-                    radio_event_      = event::adv_timeout;
-                }
-
-                state_               = state::idle;
-                radio_event_pending_ = true;
-                __SEV();
+                /*
+                 * The disable between the request and the answer, which the short turns
+                 * into the transmitter's ramp up; there is nothing to do. Unless the radio
+                 * is still disabled, which means the short was armed after this event had
+                 * passed: the timing makes that improbable, and ending the event is better
+                 * than leaving it hanging.
+                 */
+                if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos ) )
+                    end_event();
             }
+            else if ( state_ != state::idle )
+            {
+                end_event();
+            }
+        }
+
+        /*
+         * Ends the advertising event and reports it: what was accepted at the end of the
+         * received packet, or a timeout carrying the time this event's own transmission
+         * began, so that a caller can chain intervals from it.
+         */
+        void radio_base::end_event()
+        {
+            NRF_PPI->CHENCLR    = ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2;
+            NRF_RADIO->SHORTS   = 0;
+            NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_END_Msk;
+
+            if ( accepted_ )
+            {
+                radio_event_ = event::adv_received;
+            }
+            else
+            {
+                radio_event_time_ = transmit_time_;
+                radio_event_      = event::adv_timeout;
+            }
+
+            state_               = state::idle;
+            answering_           = false;
+            radio_event_pending_ = true;
+            __SEV();
         }
 
         void radio_base::on_timer_expired()
@@ -533,9 +610,19 @@ namespace bluetoe
             __SEV();
         }
 
+        /*
+         * END before DISABLED: the short between them can leave both pending together,
+         * and what the end of the packet decided is what the disable then acts on.
+         */
         void radio_base::radio_interrupt()
         {
-            if ( instance_ )
+            if ( !instance_ )
+                return;
+
+            if ( NRF_RADIO->EVENTS_END )
+                instance_->on_packet_end();
+
+            if ( NRF_RADIO->EVENTS_DISABLED )
                 instance_->on_radio_disabled();
         }
 

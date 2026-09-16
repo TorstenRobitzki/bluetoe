@@ -8,9 +8,9 @@
  * name it through <bluetoe/radio.hpp>.
  *
  * This is the advertising slice of decision 11, step 3: the time base, radio_ready(),
- * start_advertising() and schedule_advertising_event() with their receive window,
- * the timer, and the callbacks, delivered from run(). Connection events, encryption and
- * PHY changes are present and decline; the scan response is accepted and not yet sent.
+ * start_advertising() and schedule_advertising_event() with their receive window and the
+ * scan response, the timer, and the callbacks, delivered from run(). Connection events,
+ * encryption and PHY changes are present and decline.
  * See documentation/scheduled_radio_test_rig.md.
  *
  * @section timebase The time base
@@ -33,6 +33,12 @@
  * CRC, another kind of PDU, one addressed elsewhere, a sender the filter rejects, or no PDU
  * at all, is reported with adv_timeout(), carrying the time the event's own transmission
  * began, so that a caller can chain intervals from it without knowing the window.
+ *
+ * A request that is accepted is answered with the scan response one inter frame space
+ * after it ended, placed by the radio's own spacing rather than by software: the reception
+ * is judged at the end of the packet, while the radio is still disabling, and the answer is
+ * armed there so that the disable ramps the transmitter up. adv_received() is reported once
+ * the answer is out, which is what makes the event's end mean the air is quiet again.
  *
  * A connection request is not recognised as a response yet, because there is nothing this
  * slice could do with a connection; that comes with the connection events.
@@ -153,19 +159,31 @@ namespace bluetoe
             {
                 idle,
                 transmitting,
-                receiving
+                receiving,
+                responding
             };
 
             link_layer::abs_time now() const;
-            bool schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::read_buffer& receive );
+            bool schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::write_buffer& response, const link_layer::read_buffer& receive );
             bool sender_in_acceptance_filter();
             bool is_scan_request_for_us() const;
+            void on_packet_end();
             void on_radio_disabled();
+            void end_event();
             void on_timer_expired();
 
             volatile state              state_;
             link_layer::read_buffer     receive_;
+            link_layer::write_buffer    response_;
             link_layer::abs_time        transmit_time_;
+
+            /*
+             * Whether the reception was one to report, and whether the answer to it is
+             * armed. Both are decided at the end of the received packet and read by the
+             * disable that follows it.
+             */
+            volatile bool               accepted_;
+            volatile bool               answering_;
 
             volatile bool               ready_pending_;
             volatile bool               radio_event_pending_;
