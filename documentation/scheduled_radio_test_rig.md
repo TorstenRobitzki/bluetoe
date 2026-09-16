@@ -601,6 +601,12 @@ is, and the dispatcher answers those opcodes with `unsupported_function` without
 arguments. The host reads `properties()` before it asks. Zeros from a dummy were rejected, since a
 zero is a result and a missing feature is not.
 
+**Amended.** Program actions are not rig functions on the wire. A step reaches the rig through
+`add_step()` and carries its calls as data, a `call_kind` with its parameters (`link/program.hpp`),
+which the rig executes with a switch. The dispatcher takes a request as one call, while a step holds
+several, resolves each one's time against the callback it runs in, and hands the radio buffers that
+have to outlive the call.
+
 ## 20. The host names the rig's function list by instantiating the rig with dummies
 
 The wire is keyed on member function pointers (decision 19, `link/function_list.hpp`): the
