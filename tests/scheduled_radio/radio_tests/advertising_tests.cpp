@@ -34,6 +34,9 @@ namespace {
     // events and the drift of two stock crystals over an interval
     constexpr long tolerance_us = 50;
 
+    // a scanner the device's acceptance filter does not hold: the tester's address, one byte off
+    const bluetoe::link_layer::device_address stranger_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02 }, false };
+
     constexpr std::uint32_t other_access_address = 0x71764129;
     constexpr std::uint32_t other_crc_init       = 0x7a8f23;
 
@@ -366,4 +369,43 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
 
     BOOST_REQUIRE_EQUAL( received.size(), 1u );
     BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+}
+
+/*
+ * A scan request from a scanner outside the acceptance filter is not answered, and the event
+ * ends with adv_timeout(). The advertising scheduled from it shows the device went on.
+ */
+BOOST_FIXTURE_TEST_CASE( a_scan_request_from_outside_the_acceptance_filter_is_ignored, rig_fixture, *if_tester )
+{
+    const auto first    = advertising( 6, 0x01, adv_scan_ind );
+    const auto next     = advertising( 6, 0x02, adv_scan_ind );
+    const auto response = advertising( 10, 0x03, scan_rsp );
+    const auto request  = scan_request( stranger_address, dut_address );
+
+    program_device( {
+        on_start(
+            set_local_address( dut_address ),
+            start_advertising( 37, first, response ) ),
+        on_adv_timeout(
+            schedule_advertising_event( 37, delta_time::msec( 100 ), next, response ) ) } );
+
+    // the answer gets no reply and runs to its window, which closes before the next advertising
+    program_tester( {
+        answer( 37, delta_time::msec( 50 ), dut_address, request ),
+        receive( 37, delta_time::msec( 300 ), 1 ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
+    BOOST_CHECK( carries( captured[ 0 ], first ) );
+    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( carries( captured[ 1 ], request ) );
+    BOOST_CHECK( carries( captured[ 2 ], next ) );
+
+    const auto records = device_records();
+
+    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
+    BOOST_CHECK( callbacks_of( records, callback_kind::adv_received ).empty() );
 }
