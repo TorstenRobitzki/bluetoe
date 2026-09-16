@@ -74,7 +74,9 @@ namespace test_rig {
      * receive.
      *
      * A `count` other than zero ends either operation early, once it received that many
-     * PDUs with a valid CRC that passed the tester's filters; the window still bounds it.
+     * PDUs with a valid CRC that passed the tester's filters. An operation whose window
+     * ends before its count was reached, or before an answer heard its target, times out
+     * and ends the program.
      */
     struct operation
     {

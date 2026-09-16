@@ -282,6 +282,9 @@ namespace test_rig {
                 std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
             }
 
+            const std::uint8_t timed_out = observer.call< &tester::timed_out_operation >();
+            BOOST_REQUIRE_MESSAGE( timed_out == no_operation_timed_out, "tester operation " << int( timed_out ) << " timed out" );
+
             BOOST_REQUIRE( device.call< &dut::program_finished >() );
             BOOST_REQUIRE( observer.call< &tester::program_finished >() );
         }

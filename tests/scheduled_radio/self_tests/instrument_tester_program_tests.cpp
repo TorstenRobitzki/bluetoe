@@ -589,17 +589,54 @@ BOOST_FIXTURE_TEST_CASE( a_counted_operation_ends_with_its_last_pdu, fixture )
     BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 38u );
 }
 
-BOOST_FIXTURE_TEST_CASE( a_counted_operation_still_ends_with_its_window, fixture )
+BOOST_FIXTURE_TEST_CASE( a_counted_operation_that_times_out_ends_the_program, fixture )
 {
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 2 ) );
     remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_window_ended();
+    rig.run();
 
     platform.push_received( at( 1ms ), adv_ind, true );
     platform.push_window_ended();
     rig.run();
 
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 1u );
     BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.stops, 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_program_that_ran_through_reports_no_timeout, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_window_ended();
+    rig.run();
+
+    platform.push_received( at( 1ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
+}
+
+// a new program starts without the timeout of the one before
+BOOST_FIXTURE_TEST_CASE( a_timeout_is_cleared_with_the_next_program, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_window_ended();
+    rig.run();
+    BOOST_REQUIRE_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
+
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
 }
 
 // neither is counted, but both are still captured
@@ -719,6 +756,24 @@ BOOST_FIXTURE_TEST_CASE( an_answer_operation_without_a_reply_ends_with_its_windo
     rig.run();
 
     BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
+}
+
+BOOST_FIXTURE_TEST_CASE( an_answer_operation_that_never_answered_times_out, fixture )
+{
+    const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
+
+    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), target ) );
+    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), other_adv, true );
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
+    BOOST_CHECK( platform.receives.empty() );
 }
 
 // a reply filtered out is not the device's, and does not end the operation

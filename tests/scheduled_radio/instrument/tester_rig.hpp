@@ -12,9 +12,10 @@
  * Besides the reset of the device under test, the tester runs a program of operations and
  * queues the PDUs it receives, the program interpreter of decision 14 for the tester: an
  * operation runs for the duration it names, until it received the PDUs it counts, or, for
- * an answer, until the reply to its answer arrived, and the next begins when it ends. The
- * platform gives it the radio, whose events, a received PDU or the end of a window, the
- * tester drains in run().
+ * an answer, until the reply to its answer arrived, and the next begins when it ends. An
+ * operation that waits for PDUs that do not come within its window times out and ends the
+ * program, since what follows it would wait in vain as well. The platform gives it the
+ * radio, whose events, a received PDU or the end of a window, the tester drains in run().
  *
  * The host instantiates the same template with dummies (host/tester_functions.hpp) to
  * obtain the function list the wire is keyed on, which is why no function of the list
@@ -59,6 +60,11 @@ namespace test_rig {
      * @brief the rssi limit that accepts every PDU, however weak
      */
     constexpr std::uint8_t accept_any_rssi = 0xff;
+
+    /**
+     * @brief what timed_out_operation() returns when no operation timed out
+     */
+    constexpr std::uint8_t no_operation_timed_out = 0xff;
 
     /**
      * @brief what the tester's radio reports to the program interpreter
@@ -302,6 +308,7 @@ namespace test_rig {
                 operation_count_ = 0;
                 cursor_          = 0;
                 started_         = false;
+                timed_out_       = no_operation_timed_out;
             }
 
             if ( operation_count_ == max_operations )
@@ -324,8 +331,9 @@ namespace test_rig {
             if ( operation_count_ == 0 || started_ )
                 return false;
 
-            cursor_  = 0;
-            started_ = true;
+            cursor_    = 0;
+            started_   = true;
+            timed_out_ = no_operation_timed_out;
 
             // a program's received PDUs are numbered from zero; unlike the device under
             // test the tester is not reset between tests, so start clears the queue
@@ -345,6 +353,19 @@ namespace test_rig {
         bool program_finished() const
         {
             return started_ && cursor_ == operation_count_;
+        }
+
+        /**
+         * @brief the index of the operation that timed out and ended the program
+         *
+         * An operation times out when its window ends before the PDUs it waits for came:
+         * a receive with a count that was not reached, or an answer that never heard its
+         * target. An answer without a reply does not time out; that is a result a test
+         * asserts. no_operation_timed_out otherwise.
+         */
+        std::uint8_t timed_out_operation() const
+        {
+            return timed_out_;
         }
 
         /**
@@ -386,7 +407,8 @@ namespace test_rig {
             &tester_rig::add_operation,
             &tester_rig::start_program,
             &tester_rig::program_finished,
-            &tester_rig::collect_captured >;
+            &tester_rig::collect_captured,
+            &tester_rig::timed_out_operation >;
 
     private:
         void handle_events()
@@ -437,7 +459,7 @@ namespace test_rig {
                 }
                 else if ( next->operation_id == operation_id_ )
                 {
-                    advance();
+                    window_ended();
                 }
             }
         }
@@ -472,6 +494,25 @@ namespace test_rig {
 
             if ( received_ == operations_[ cursor_ ].count )
                 advance();
+        }
+
+        void window_ended()
+        {
+            if ( cursor_ == operation_count_ )
+                return;
+
+            const operation& current   = operations_[ cursor_ ];
+            const bool       timed_out = current.count != 0 || ( current.kind == operation_kind::answer && !answered_ );
+
+            if ( !timed_out )
+            {
+                advance();
+                return;
+            }
+
+            timed_out_ = cursor_;
+            cursor_    = operation_count_;
+            platform_.stop();
         }
 
         void advance()
@@ -530,6 +571,7 @@ namespace test_rig {
         std::uint32_t                                   operation_id_       = 0;
         std::uint32_t                                   received_           = 0;
         bool                                            answered_           = false;
+        std::uint8_t                                    timed_out_          = no_operation_timed_out;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;
