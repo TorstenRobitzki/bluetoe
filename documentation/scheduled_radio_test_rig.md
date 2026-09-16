@@ -799,9 +799,9 @@ not appear, which is where decision 11 had left it open.
   address in its set and ignores one outside it needs the tester to transmit a scan request from a
   chosen address, which it does not do yet. Until then the filter is exercised only in the one
   direction the listen-only tests take, the device rejecting what is not the tester.
-- Whether the tester's answer is placed at a variable delay or at the inter frame space. The scan
+- Whether the tester's answer is placed at a variable delay or at the inter frame space. The answer
   answers one inter frame space after the received PDU ended, by the radio's own TIFS and its
   DISABLED to TXEN short, which places it exactly and keeps software out of that path. A test that
   answers early or late, to find the edges of the device's receive window, needs the delay to be a
   parameter, which the short cannot give and a timer driven TXEN can; that is a second operation
-  when such a test is written, not a change to the scan.
+  when such a test is written, not a change to the answer.

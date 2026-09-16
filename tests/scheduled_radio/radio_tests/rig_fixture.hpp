@@ -154,12 +154,12 @@ namespace test_rig {
      * @brief a tester operation: listen like receive(), and answer the first advertising
      *        PDU from `target` with `response` one inter frame space after it ended
      */
-    inline operation scan(
+    inline operation answer(
         std::uint32_t channel, link_layer::delta_time window,
         const link_layer::device_address& target, std::span< const std::uint8_t > response )
     {
         return operation{
-            .kind     = operation_kind::scan,
+            .kind     = operation_kind::answer,
             .channel  = channel,
             .phy      = link_layer::phy_ll_encoding::le_1m_phy,
             .window   = window,

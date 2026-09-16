@@ -57,10 +57,10 @@ namespace {
             receives.push_back( { channel, p, ticks } );
         }
 
-        void scan( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks,
+        void answer( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks,
             const bluetoe::link_layer::device_address& target, const pdu& response )
         {
-            scans.push_back( { channel, p, ticks, target, response } );
+            answers.push_back( { channel, p, ticks, target, response } );
         }
 
         std::optional< tester_happened > next_event()
@@ -113,7 +113,7 @@ namespace {
             std::uint64_t               ticks;
         };
 
-        struct scan_call
+        struct answer_call
         {
             std::uint32_t                           channel;
             phy::phy_ll_encoding_t                  phy;
@@ -123,7 +123,7 @@ namespace {
         };
 
         std::vector< receive_call >     receives;
-        std::vector< scan_call >        scans;
+        std::vector< answer_call >      answers;
         std::deque< tester_happened >   events;
         std::uint32_t                   access_address = 0;
         std::uint32_t                   crc_init       = 0;
@@ -173,10 +173,10 @@ namespace {
         return o;
     }
 
-    operation scan_op( std::uint32_t channel, delta_time window, const bluetoe::link_layer::device_address& target )
+    operation answer_op( std::uint32_t channel, delta_time window, const bluetoe::link_layer::device_address& target )
     {
         return operation{
-            .kind     = operation_kind::scan,
+            .kind     = operation_kind::answer,
             .channel  = channel,
             .phy      = phy::le_1m_phy,
             .window   = window,
@@ -441,13 +441,13 @@ BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_operation, fixture )
 }
 
 /*
- * The scan operation and the transmitted entry are new on the wire; both round trip with
+ * The answer operation and the transmitted entry are new on the wire; both round trip with
  * the fields they add, so that the tester and the host agree on them.
  */
-BOOST_AUTO_TEST_CASE( a_scan_operation_round_trips_with_its_target_and_response )
+BOOST_AUTO_TEST_CASE( an_answer_operation_round_trips_with_its_target_and_response )
 {
-    const operation scan{
-        .kind     = operation_kind::scan,
+    const operation answer{
+        .kind     = operation_kind::answer,
         .channel  = 38,
         .window   = delta_time::msec( 100 ),
         .target   = bluetoe::link_layer::device_address{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 }, false },
@@ -455,13 +455,13 @@ BOOST_AUTO_TEST_CASE( a_scan_operation_round_trips_with_its_target_and_response 
 
     std::array< std::uint8_t, 128 > storage = {};
     buffer_sink out( storage );
-    BOOST_REQUIRE( serialize( out, scan ) );
+    BOOST_REQUIRE( serialize( out, answer ) );
 
     buffer_source in( storage.data(), out.size() );
     operation     decoded;
     BOOST_REQUIRE( deserialize( in, decoded ) );
 
-    BOOST_CHECK( decoded == scan );
+    BOOST_CHECK( decoded == answer );
     BOOST_CHECK_EQUAL( in.remaining(), 0u );
 }
 
@@ -513,17 +513,17 @@ BOOST_FIXTURE_TEST_CASE( a_transmission_is_captured_with_its_direction_and_time,
     BOOST_CHECK( captured[ 1 ].data == pdu( adv_ind ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( starting_a_scan_begins_it_on_the_platform_with_its_target_and_response, fixture )
+BOOST_FIXTURE_TEST_CASE( starting_an_answer_begins_it_on_the_platform_with_its_target_and_response, fixture )
 {
     const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
 
-    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( scan_op( 37, delta_time::msec( 100 ), target ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 100 ), target ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_CHECK( platform.receives.empty() );
-    BOOST_REQUIRE_EQUAL( platform.scans.size(), 1u );
-    BOOST_CHECK_EQUAL( platform.scans[ 0 ].channel, 37u );
-    BOOST_CHECK( tester_duration( platform.scans[ 0 ].ticks ) == 100ms );
-    BOOST_CHECK( platform.scans[ 0 ].target == target );
-    BOOST_CHECK( platform.scans[ 0 ].response == pdu( adv_ind ) );
+    BOOST_REQUIRE_EQUAL( platform.answers.size(), 1u );
+    BOOST_CHECK_EQUAL( platform.answers[ 0 ].channel, 37u );
+    BOOST_CHECK( tester_duration( platform.answers[ 0 ].ticks ) == 100ms );
+    BOOST_CHECK( platform.answers[ 0 ].target == target );
+    BOOST_CHECK( platform.answers[ 0 ].response == pdu( adv_ind ) );
 }

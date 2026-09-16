@@ -8,7 +8,7 @@
  * tester and the host. See documentation/scheduled_radio_test_rig.md, decisions 14, 23 and 24.
  *
  * A program is a sequence of operations, each run for the duration it names from the moment
- * the previous one ended (decision 14). The PDUs received during it, and the one a scan
+ * the previous one ended (decision 14). The PDUs received during it, and the one an answer
  * sends, come back in batches, each naming the index of its first PDU and the number
  * produced so far, the same loss detection the device under test's records use (decision 7).
  */
@@ -58,15 +58,15 @@ namespace test_rig {
     enum class operation_kind : std::uint8_t
     {
         receive,
-        scan
+        answer
     };
 
     /**
      * @brief one operation of a tester program
      *
      * `window` is how long it runs, from the end of the previous one. A receive listens
-     * on `channel` with `phy` and queues every PDU it hears. A scan listens the same way
-     * and, the first time it hears an advertising PDU from `target`, answers it with
+     * on `channel` with `phy` and queues every PDU it hears. An answer listens the same
+     * way and, the first time it hears an advertising PDU from `target`, answers it with
      * `response` one inter frame space after the PDU ended; the answer is queued too, as
      * a transmitted entry with the time its first bit was on air. `target` and `response`
      * are unused by a receive.
@@ -97,7 +97,7 @@ namespace test_rig {
     /**
      * @brief one PDU the tester received or sent, with the time its first bit was on air
      *
-     * The two directions share one queue, so that the host reads a scan as an ordered
+     * The two directions share one queue, so that the host reads an answer as an ordered
      * timeline: the advertising PDU heard, then the answer sent, each with its time, from
      * which an inter frame space is a plain difference.
      *

@@ -134,7 +134,7 @@ namespace test_rig {
          * queuing a transmitted event with the time the answer's first bit was on air. It
          * keeps listening for the rest of the window without answering again.
          */
-        platform.scan( value, phy, ticks, address, data );
+        platform.answer( value, phy, ticks, address, data );
 
         /*
          * The oldest event the radio has for the interpreter, and it is forgotten.
@@ -452,8 +452,8 @@ namespace test_rig {
         {
             const std::uint64_t ticks = static_cast< std::uint64_t >( op.window.usec() ) * ( tester_ticks_per_second / 1'000'000 );
 
-            if ( op.kind == operation_kind::scan )
-                platform_.scan( op.channel, op.phy, ticks, op.target, op.response );
+            if ( op.kind == operation_kind::answer )
+                platform_.answer( op.channel, op.phy, ticks, op.target, op.response );
             else
                 platform_.receive( op.channel, op.phy, ticks );
         }

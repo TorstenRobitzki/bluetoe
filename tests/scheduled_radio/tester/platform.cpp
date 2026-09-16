@@ -195,8 +195,8 @@ namespace test_rig {
      */
     void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks )
     {
-        // a plain receive answers nothing; scan() sets this once the receiver is armed
-        scanning_ = false;
+        // a plain receive answers nothing; answer() sets this once the receiver is armed
+        answering_ = false;
 
         // bring the radio to DISABLED, whatever the previous operation left it in
         NRF_RADIO->INTENCLR = 0xffffffff;
@@ -231,18 +231,19 @@ namespace test_rig {
     }
 
     /*
-     * A scan is a receive that answers: the first advertising PDU from `target` is met
-     * with `response` one inter frame space after it ended. The radio times that itself,
+     * An answer operation is a receive that answers: the first advertising PDU from `target`
+     * is met with `response` one inter frame space after it ended. The radio times that itself,
      * by its TIFS and the DISABLED to TXEN short, so the answer's timing owes nothing to
      * the interrupt; the interrupt only decides, at the end of the received packet and
      * before the radio has finished disabling, whether to arm that short. After every
      * packet it does not answer, and after the answer itself, the receiver is re-armed
-     * from the DISABLED interrupt, so the scan keeps listening for the rest of its window.
+     * from the DISABLED interrupt, so the operation keeps listening for the rest of its
+     * window.
      *
      * The receiver's ramp up is tens of microseconds, so the state and the shorts set
      * after receive() are in place long before a packet could end.
      */
-    void platform::scan(
+    void platform::answer(
         std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
         const link_layer::device_address& target, const pdu& response )
     {
@@ -253,7 +254,7 @@ namespace test_rig {
 
         answered_     = false;
         transmitting_ = false;
-        scanning_     = true;
+        answering_    = true;
 
         // a packet ends the reception, so the radio is disabled for the inter frame space
         // the answer is timed from; nothing is answered until the interrupt arms it
@@ -263,9 +264,9 @@ namespace test_rig {
     }
 
     /*
-     * The END of a packet: a reception, or in a scan possibly the answer going out. The
-     * ADDRESS event fires for a transmitted packet just as for a received one, so the same
-     * capture times the answer's first bit.
+     * The END of a packet: a reception, or in an answer operation possibly the answer going
+     * out. The ADDRESS event fires for a transmitted packet just as for a received one, so
+     * the same capture times the answer's first bit.
      */
     void platform::on_packet_end()
     {
@@ -310,7 +311,7 @@ namespace test_rig {
 
         enqueue( event );
 
-        if ( scanning_ )
+        if ( answering_ )
         {
             // the first PDU from the target is answered: the transmission is armed now,
             // while the radio is still disabling, and its TIFS places the answer one inter
@@ -334,7 +335,7 @@ namespace test_rig {
     }
 
     /*
-     * Whether the received advertising PDU is from the scan's target: its AdvA, the six
+     * Whether the received advertising PDU is from the target: its AdvA, the six
      * bytes after the two byte header, and the address's kind by the header's TxAdd bit.
      */
     bool platform::from_target() const
@@ -348,16 +349,16 @@ namespace test_rig {
     }
 
     /*
-     * In a scan the radio disables itself after every packet, by the END to DISABLE short.
-     * After a packet that was not answered, and after the answer itself, the receiver is
-     * re-armed here, so the scan keeps listening; while the answer is armed the short from
-     * DISABLED to TXEN is doing the transmitting, and nothing is re-armed.
+     * In an answer operation the radio disables itself after every packet, by the END to
+     * DISABLE short. After a packet that was not answered, and after the answer itself, the
+     * receiver is re-armed here, so the operation keeps listening; while the answer is armed
+     * the short from DISABLED to TXEN is doing the transmitting, and nothing is re-armed.
      */
     void platform::on_radio_disabled()
     {
         NRF_RADIO->EVENTS_DISABLED = 0;
 
-        if ( !scanning_ || transmitting_ )
+        if ( !answering_ || transmitting_ )
             return;
 
         NRF_RADIO->PACKETPTR  = reinterpret_cast< std::uint32_t >( receive_buffer_ );
@@ -369,8 +370,9 @@ namespace test_rig {
         NRF_TIMER0->EVENTS_COMPARE[ cc_window ] = 0;
         NRF_TIMER0->INTENCLR = TIMER_INTENCLR_COMPARE1_Msk;
 
-        // a scan re-arms the receiver from DISABLED; not the disable that ends the window
-        scanning_     = false;
+        // an answer operation re-arms the receiver from DISABLED; not the disable that ends
+        // the window
+        answering_    = false;
         transmitting_ = false;
 
         NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
