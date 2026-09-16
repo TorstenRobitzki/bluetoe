@@ -314,3 +314,56 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_first_advertising_is_answered, ri
     BOOST_REQUIRE_EQUAL( received.size(), 1u );
     BOOST_CHECK( received[ 0 ].data == pdu( request ) );
 }
+
+/*
+ * The tester lets the first advertising pass and answers the scheduled one: the device
+ * answers a request to an event placed by schedule_advertising_event() as well. The last
+ * advertising is scheduled from adv_received(), so seeing it shows that the request was
+ * reported, and at the time its first bit was on air.
+ */
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, rig_fixture, *if_tester )
+{
+    const auto first     = advertising( 6, 0x01, adv_scan_ind );
+    const auto scheduled = advertising( 6, 0x02, adv_scan_ind );
+    const auto last      = advertising( 6, 0x04, adv_scan_ind );
+    const auto response  = advertising( 10, 0x03, scan_rsp );
+    const auto request   = scan_request( tester_address, dut_address );
+
+    program_device( {
+        on_start(
+            set_local_address( dut_address ),
+            start_advertising( 37, first, response ) ),
+        on_adv_timeout(
+            schedule_advertising_event( 37, delta_time::msec( 100 ), scheduled, response ) ),
+        on_adv_received(
+            schedule_advertising_event( 37, delta_time::msec( 100 ), last, response ) ) } );
+
+    program_tester( {
+        receive( 37, delta_time::msec( 300 ), 1 ),
+        answer( 37, delta_time::msec( 300 ), dut_address, request ),
+        receive( 37, delta_time::msec( 300 ), 1 ) } );
+
+    run();
+
+    const auto captured = tester_captured();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 5u );
+    BOOST_CHECK( carries( captured[ 0 ], first ) );
+    BOOST_CHECK( carries( captured[ 1 ], scheduled ) );
+    BOOST_CHECK( captured[ 2 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( carries( captured[ 2 ], request ) );
+    BOOST_CHECK( captured[ 3 ].direction == pdu_direction::received );
+    BOOST_CHECK( captured[ 3 ].crc_ok );
+    BOOST_CHECK( carries( captured[ 3 ], response ) );
+    BOOST_CHECK( carries( captured[ 4 ], last ) );
+    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 2 ], captured[ 4 ] ) - 100'000 ), tolerance_us );
+
+    const auto records = device_records();
+
+    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
+
+    const auto received = callbacks_of( records, callback_kind::adv_received );
+
+    BOOST_REQUIRE_EQUAL( received.size(), 1u );
+    BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+}

@@ -103,6 +103,18 @@ namespace test_rig {
         return result;
     }
 
+    inline call schedule_advertising_event(
+        std::uint32_t channel, link_layer::delta_time delay,
+        std::span< const std::uint8_t > transmit, std::span< const std::uint8_t > response )
+    {
+        return call{
+            .kind     = call_kind::schedule_advertising_event,
+            .channel  = channel,
+            .delay    = delay,
+            .transmit = pdu( transmit ),
+            .response = pdu( response ) };
+    }
+
     inline step on_start( call c )
     {
         step result;
@@ -121,6 +133,11 @@ namespace test_rig {
         result.calls[ 0 ] = c;
 
         return result;
+    }
+
+    inline step on_adv_received( call c )
+    {
+        return step{ .on = callback_kind::adv_received, .call_count = 1, .calls = { c } };
     }
 
     inline step on_start( call first, call second )
