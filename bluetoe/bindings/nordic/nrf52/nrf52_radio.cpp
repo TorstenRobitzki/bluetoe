@@ -39,9 +39,10 @@ namespace bluetoe
             constexpr std::size_t   ppi_start_timers        = 0;
 
             /*
-             * With MODECNF0.RU set, the radio ramps up in 40 µs on every nRF52.
+             * The radio ramps up with the default ramp up, as TIFS is only kept with that
+             * one; about 140 µs, as measured with the tester.
              */
-            constexpr std::uint32_t ramp_up_us = 40;
+            constexpr std::uint32_t ramp_up_us = 140;
 
             /*
              * How far ahead a request has to be for the radio to be set up in time: the
@@ -76,6 +77,11 @@ namespace bluetoe
             private:
                 std::uint32_t primask_;
             };
+
+            bool radio_disabled()
+            {
+                return ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos );
+            }
 
             /*
              * The receive window after an advertising PDU: the inter frame space, the
@@ -184,7 +190,7 @@ namespace bluetoe
             {
                 NRF_RADIO->MODE     = RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos;
                 NRF_RADIO->MODECNF0 =
-                      ( RADIO_MODECNF0_RU_Fast << RADIO_MODECNF0_RU_Pos )
+                      ( RADIO_MODECNF0_RU_Default << RADIO_MODECNF0_RU_Pos )
                     | ( RADIO_MODECNF0_DTX_Center << RADIO_MODECNF0_DTX_Pos );
 
                 // a legacy PDU: one byte of flags, one byte of length, eight bit preamble
@@ -563,7 +569,10 @@ namespace bluetoe
             const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
 
             if ( !crc_ok || !is_scan_request_for_us() || !sender_in_acceptance_filter() )
+            {
+                cancel_answer();
                 return;
+            }
 
             // the time and the bytes are taken now, before the answer repoints the radio
             // and its own end captures the timer again
@@ -573,15 +582,12 @@ namespace bluetoe
             radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( payload_size ) );
             accepted_         = true;
 
-            if ( response_.buffer == nullptr || response_.size < 2 )
+            if ( !answer_armed() )
                 return;
 
-            // the window must not cut the answer off, and the disable this end causes is
-            // what ramps the transmitter up, one inter frame space after this packet
-            NRF_PPI->CHENCLR     = ppi_compare1_disable;
+            // the transmitter is on its way already; it only needs to know what to send
             NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_.buffer );
             NRF_RADIO->PCNF1     = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( response_.size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
-            NRF_RADIO->SHORTS    = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
 
             answering_ = true;
             state_     = state::responding;
@@ -599,8 +605,9 @@ namespace bluetoe
                 NRF_RADIO->PCNF1        = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( receive_.size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
                 NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
-                // the reception is judged at its end, so that an answer can be armed there
-                NRF_RADIO->INTENSET     = RADIO_INTENSET_END_Msk;
+                // the reception is judged at its end; an answer is armed at its address
+                NRF_RADIO->EVENTS_ADDRESS = 0;
+                NRF_RADIO->INTENSET     = RADIO_INTENSET_END_Msk | ( can_answer() ? RADIO_INTENSET_ADDRESS_Msk : 0 );
 
                 NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
                 NRF_TIMER0->CC[ cc_window_end ]             = NRF_TIMER0->CC[ cc_packet_end ] + response_window_us;
@@ -610,20 +617,61 @@ namespace bluetoe
             }
             else if ( answering_ )
             {
-                /*
-                 * The disable between the request and the answer, which the short turns
-                 * into the transmitter's ramp up; there is nothing to do. Unless the radio
-                 * is still disabled, which means the short was armed after this event had
-                 * passed: the timing makes that improbable, and ending the event is better
-                 * than leaving it hanging.
-                 */
-                if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos ) )
-                    end_event();
+                // the short has started the transmitter; the end of the answer must not start another
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
             }
-            else if ( state_ == state::receiving || state_ == state::responding )
+            else if ( ( state_ == state::receiving || state_ == state::responding ) && radio_disabled() )
             {
+                // a cancelled transmitter disables a second time, so only a disabled radio ends the event
                 end_event();
             }
+        }
+
+        bool radio_base::can_answer() const
+        {
+            return scannable_ && response_.buffer != nullptr && response_.size >= 2;
+        }
+
+        bool radio_base::answer_armed() const
+        {
+            return NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk;
+        }
+
+        /*
+         * The address of a packet in the receive window of a scannable advertisement. TIFS
+         * holds only when the shorts that turn the end of the packet into the transmitter's
+         * ramp up are in place before the packet ends, so the answer is armed here and
+         * cancelled at the end if the packet is not one to answer. A window that closed
+         * before this interrupt disabled the receiver already, and nothing is armed.
+         */
+        void radio_base::on_address()
+        {
+            NRF_RADIO->EVENTS_ADDRESS = 0;
+            NRF_RADIO->INTENCLR       = RADIO_INTENCLR_ADDRESS_Msk;
+
+            if ( state_ != state::receiving )
+                return;
+
+            // the window must not cut the packet, nor a possible answer, off
+            NRF_PPI->CHENCLR = ppi_compare1_disable;
+
+            if ( NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] )
+                return;
+
+            NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+        }
+
+        /*
+         * The short is removed in case the receiver is still disabling, and a transmitter
+         * it started already is ramping up and is disabled again.
+         */
+        void radio_base::cancel_answer()
+        {
+            if ( !answer_armed() )
+                return;
+
+            NRF_RADIO->SHORTS        = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+            NRF_RADIO->TASKS_DISABLE = 1;
         }
 
         /*
@@ -635,7 +683,7 @@ namespace bluetoe
         {
             NRF_PPI->CHENCLR    = ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2;
             NRF_RADIO->SHORTS   = 0;
-            NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_END_Msk;
+            NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk | RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_ADDRESS_Msk;
 
             if ( accepted_ )
             {
@@ -670,6 +718,9 @@ namespace bluetoe
         {
             if ( !instance_ )
                 return;
+
+            if ( NRF_RADIO->EVENTS_ADDRESS && ( NRF_RADIO->INTENSET & RADIO_INTENSET_ADDRESS_Msk ) )
+                instance_->on_address();
 
             if ( NRF_RADIO->EVENTS_END )
                 instance_->on_packet_end();

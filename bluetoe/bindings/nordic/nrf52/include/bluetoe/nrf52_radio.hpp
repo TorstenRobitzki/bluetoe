@@ -35,10 +35,12 @@
  * began, so that a caller can chain intervals from it without knowing the window.
  *
  * A request that is accepted is answered with the scan response one inter frame space
- * after it ended, placed by the radio's own spacing rather than by software: the reception
- * is judged at the end of the packet, while the radio is still disabling, and the answer is
- * armed there so that the disable ramps the transmitter up. adv_received() is reported once
- * the answer is out, which is what makes the event's end mean the air is quiet again.
+ * after it ended, placed by the radio's TIFS rather than by software. TIFS holds only when
+ * the shorts from the end of the packet to the transmitter's ramp up are in place before
+ * the packet ends, so the answer is armed when a packet's address is received, and the
+ * reception is judged at its end: the response is set, or the transmitter is cancelled.
+ * adv_received() is reported once the answer is out, which is what makes the event's end
+ * mean the air is quiet again.
  *
  * A connection request is not recognised as a response yet, because there is nothing this
  * slice could do with a connection; that comes with the connection events.
@@ -169,6 +171,10 @@ namespace bluetoe
             void schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::write_buffer& response, const link_layer::read_buffer& receive );
             bool sender_in_acceptance_filter();
             bool is_scan_request_for_us() const;
+            bool can_answer() const;
+            bool answer_armed() const;
+            void on_address();
+            void cancel_answer();
             void on_packet_end();
             void on_radio_disabled();
             void end_event();
