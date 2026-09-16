@@ -69,6 +69,13 @@ namespace test_rig {
         constexpr std::uint32_t preamble_and_access_address_ticks = 40 * ticks_per_us;
 
         /*
+         * A received packet's ADDRESS event comes later than a transmitted one's, by the
+         * receiver's address detection. Measured against the device under test's scan
+         * response, which its radio's TIFS places 150 µs after the request: 172 ticks.
+         */
+        constexpr std::uint32_t address_detection_ticks = 172;
+
+        /*
          * The inter frame space of the Core Specification, from the end of a received PDU
          * to the first bit of the answer. The radio's TIFS does not keep it with fast ramp
          * up, so the timer starts the transmitter one ramp up earlier.
@@ -317,7 +324,7 @@ namespace test_rig {
     {
         NRF_RADIO->EVENTS_END = 0;
 
-        const std::uint32_t first_bit = NRF_TIMER0->CC[ cc_address ] - preamble_and_access_address_ticks;
+        const std::uint32_t address = NRF_TIMER0->CC[ cc_address ];
 
         if ( transmitting_ )
         {
@@ -330,7 +337,7 @@ namespace test_rig {
 
             const tester_happened event{
                 .kind   = tester_event::transmitted,
-                .when   = tester_time{ first_bit },
+                .when   = tester_time{ address - preamble_and_access_address_ticks },
                 .data   = pdu( std::span< const std::uint8_t >( response_buffer_, size ) ),
                 .crc_ok = true,
                 .rssi   = 0 };
@@ -340,6 +347,8 @@ namespace test_rig {
 
             return;
         }
+
+        const std::uint32_t first_bit = address - preamble_and_access_address_ticks - address_detection_ticks;
 
         const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
             == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
