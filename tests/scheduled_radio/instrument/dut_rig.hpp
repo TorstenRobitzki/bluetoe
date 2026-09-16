@@ -479,6 +479,12 @@ namespace test_rig {
                 entry.result = radio_t::cancel_timer();
                 timer_pending_ = timer_pending_ && !entry.result;
                 break;
+            case call_kind::set_local_address:
+                radio_t::set_local_address( what.address );
+                break;
+            case call_kind::set_access_address_and_crc_init:
+                radio_t::set_access_address_and_crc_init( what.access_address, what.crc_init );
+                break;
             }
 
             add_record( entry );

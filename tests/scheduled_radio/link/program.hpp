@@ -18,6 +18,7 @@
 #include "link/serialize.hpp"
 
 #include <bluetoe/abs_time.hpp>
+#include <bluetoe/address.hpp>
 #include <bluetoe/delta_time.hpp>
 
 #include <array>
@@ -52,22 +53,28 @@ namespace test_rig {
         schedule_advertising_event,
         schedule_timer,
         cancel_radio_event,
-        cancel_timer
+        cancel_timer,
+        set_local_address,
+        set_access_address_and_crc_init
     };
 
     /**
      * @brief one call of a step, with the parameters the call kind uses
      *
      * `delay` is added to the time the triggering callback carried; `transmit` and
-     * `response` are the advertising PDU and the scan response of an advertising event.
+     * `response` are the advertising PDU and the scan response of an advertising event;
+     * `address`, `access_address` and `crc_init` are what the two setup calls set.
      */
     struct call
     {
-        call_kind               kind    = call_kind::cancel_radio_event;
-        std::uint32_t           channel = 0;
-        link_layer::delta_time  delay;
-        pdu                     transmit;
-        pdu                     response;
+        call_kind                   kind            = call_kind::cancel_radio_event;
+        std::uint32_t               channel         = 0;
+        link_layer::delta_time      delay           = {};
+        pdu                         transmit        = {};
+        pdu                         response        = {};
+        link_layer::device_address  address         = {};
+        std::uint32_t               access_address  = 0;
+        std::uint32_t               crc_init        = 0;
 
         friend bool operator==( const call&, const call& ) = default;
     };
@@ -102,8 +109,8 @@ namespace test_rig {
      *
      * For a callback, `when` is the time it carried and `data` what adv_received()
      * received. For a call, `when` is the resolved time it passed, `channel` its channel,
-     * and `result` what it returned; start_advertising() and the cancels carry no time,
-     * and start_advertising() carries no result either, since it returns none.
+     * and `result` what it returned; start_advertising(), the cancels and the setup calls
+     * carry no time, and start_advertising() and the setup calls no result.
      */
     struct record
     {
@@ -136,13 +143,15 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const call& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.delay, value.transmit, value.response ) );
+        return serialize( out, std::tie( value.kind, value.channel, value.delay, value.transmit, value.response,
+            value.address, value.access_address, value.crc_init ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, call& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.delay, value.transmit, value.response );
+        auto fields = std::tie( value.kind, value.channel, value.delay, value.transmit, value.response,
+            value.address, value.access_address, value.crc_init );
 
         return deserialize( in, fields );
     }

@@ -23,6 +23,7 @@ using namespace bluetoe::test_rig;
 using namespace bluetoe::test_rig::self_test;
 using bluetoe::link_layer::abs_time;
 using bluetoe::link_layer::delta_time;
+using bluetoe::link_layer::device_address;
 
 namespace {
 
@@ -35,11 +36,14 @@ namespace {
     {
         call_kind                       kind;
         std::uint32_t                   channel = 0;
-        abs_time                        when;
-        std::vector< std::uint8_t >     transmit;
-        std::vector< std::uint8_t >     response;
+        abs_time                        when = {};
+        std::vector< std::uint8_t >     transmit = {};
+        std::vector< std::uint8_t >     response = {};
         std::uint8_t*                   receive = nullptr;
         std::size_t                     receive_size = 0;
+        device_address                  address = {};
+        std::uint32_t                   access_address = 0;
+        std::uint32_t                   crc_init = 0;
     };
 
     template < typename CallBacks >
@@ -49,6 +53,16 @@ namespace {
         scripted_radio()
         {
             instance = this;
+        }
+
+        void set_local_address( const device_address& address )
+        {
+            calls.push_back( { .kind = call_kind::set_local_address, .address = address } );
+        }
+
+        void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+        {
+            calls.push_back( { .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init } );
         }
 
         void start_advertising( std::uint32_t channel, const bluetoe::link_layer::write_buffer& transmit,
@@ -88,10 +102,13 @@ namespace {
             const bluetoe::link_layer::write_buffer& response, const bluetoe::link_layer::read_buffer& receive )
         {
             calls.push_back( {
-                kind, channel, when,
-                { transmit.buffer, transmit.buffer + transmit.size },
-                { response.buffer, response.buffer + response.size },
-                receive.buffer, receive.size } );
+                .kind         = kind,
+                .channel      = channel,
+                .when         = when,
+                .transmit     = { transmit.buffer, transmit.buffer + transmit.size },
+                .response     = { response.buffer, response.buffer + response.size },
+                .receive      = receive.buffer,
+                .receive_size = receive.size } );
 
             return answer;
         }
@@ -163,6 +180,16 @@ namespace {
         result.kind = call_kind::cancel_radio_event;
 
         return result;
+    }
+
+    call set_local_address( const device_address& address )
+    {
+        return call{ .kind = call_kind::set_local_address, .address = address };
+    }
+
+    call set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+    {
+        return call{ .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init };
     }
 
     template < typename... Calls >
@@ -442,4 +469,52 @@ BOOST_FIXTURE_TEST_CASE( a_timed_call_on_start_is_refused, fixture )
     BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::start, schedule_timer( delta_time::msec( 1 ) ) ) ) );
     BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::radio_ready ) ) );
     BOOST_CHECK( remote.call< &rig_t::add_step >( on( callback_kind::start, cancel_radio_event() ) ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_setup_call_reaches_the_radio_and_schedules_nothing, fixture )
+{
+    const device_address address{ { 1, 2, 3, 4, 5, 6 }, true };
+
+    const step program[] = {
+        on( callback_kind::start, set_local_address( address ), set_access_address_and_crc_init( 0x12345678, 0xabcdef ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_REQUIRE_EQUAL( radio.calls.size(), 2u );
+    BOOST_CHECK( radio.calls[ 0 ].kind == call_kind::set_local_address );
+    BOOST_CHECK( radio.calls[ 0 ].address == address );
+    BOOST_CHECK( radio.calls[ 1 ].kind == call_kind::set_access_address_and_crc_init );
+    BOOST_CHECK_EQUAL( radio.calls[ 1 ].access_address, 0x12345678u );
+    BOOST_CHECK_EQUAL( radio.calls[ 1 ].crc_init, 0xabcdefu );
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+}
+
+/*
+ * A step goes in one request behind a one byte opcode, so the largest a step can be has to
+ * fit: every call carrying every parameter at its largest.
+ */
+BOOST_AUTO_TEST_CASE( the_largest_step_fits_into_one_request )
+{
+    const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
+
+    const call largest{
+        .kind           = call_kind::schedule_advertising_event,
+        .channel        = 39,
+        .delay          = delta_time::msec( 10 ),
+        .transmit       = pdu( largest_pdu ),
+        .response       = pdu( largest_pdu ),
+        .address        = device_address{ { 1, 2, 3, 4, 5, 6 }, true },
+        .access_address = 0xffffffff,
+        .crc_init       = 0xffffff };
+
+    std::array< call, max_calls_per_step > calls;
+    calls.fill( largest );
+
+    const step largest_step{ .on = callback_kind::adv_timeout, .call_count = max_calls_per_step, .calls = calls };
+
+    std::array< std::uint8_t, default_max_payload - 1 > request;
+    buffer_sink out( request );
+
+    BOOST_CHECK( serialize( out, largest_step ) );
 }
