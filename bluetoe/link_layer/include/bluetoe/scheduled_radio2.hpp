@@ -489,10 +489,10 @@ namespace link_layer {
          * event is reported with connection_end_event() carrying its start time, or with
          * connection_timeout() carrying `end`. If it was cancelled, nothing is reported.
          *
-         * A received PDU is answered one inter frame space after it ended. The radio
-         * closes the event after its answer when
-         * - neither its answer nor the last PDU received has the MD flag set,
-         * - the buffer is full after storing the PDU received, or
+         * A received PDU is answered one inter frame space after it ended. If the buffer has
+         * no room for the PDU, the answer does not acknowledge it. The radio closes the event
+         * after its answer when
+         * - neither its answer nor the last PDU received has the MD flag set, or
          * - nothing is received in the inter frame space after its answer,
          * and without an answer when the second PDU in a row was received with an invalid
          * CRC.
