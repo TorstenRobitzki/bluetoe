@@ -62,6 +62,15 @@ from shorter than the inter frame space to considerably longer, and record the r
 `adv_received` still occurs. This is the measurement the whole setup exists for, and it is the
 reason the delay is a parameter of `respond_to_next` rather than fixed.
 
+**A radio copes with the tolerance of T_IFS.** The Core Specification allows the inter frame space
+to deviate by ±2 µs. Have the tester answer the DUT at 148 µs and at 152 µs, and expect the DUT
+to receive the answer in both cases: a scan request answered with its scan response, and later a
+data PDU in a connection event answered with the next one. This needs the tester to place an
+answer to well below a microsecond, so it waits for the temperature compensated oscillator of
+decision 24 and for the tester to be validated against an independent reference; until then the
+tester's receive timestamps are calibrated against the DUT's own T_IFS, and a deviation of 2 µs
+cannot be told from that calibration.
+
 ## Connection events
 
 **A connection event receives and transmits.** Both programs set the access address and CRC
