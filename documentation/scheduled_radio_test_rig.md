@@ -309,11 +309,14 @@ that they finished, and then collects what was recorded on either side and asser
 On the device under test a step is "on this callback, make these calls", with every time expressed
 relative to the time that callback carried. The rig executes the step inside the callback, and
 records the callback, the calls it made with their resolved arguments, and their return values. On
-the tester a step is one of its operations, run for a stated duration from the moment the previous
-one ended. Nothing on the tester is placed at a point in time: the tester has no origin that means
-anything to a test, and the origin of the device under test only becomes visible to it when a PDU
-arrives, so an operation that has to transmit at a particular moment will be expressed relative to
-a received PDU.
+the tester a step is one of its operations, run from the moment the previous one ended until what it
+waits for has happened: a stated number of PDUs, or for an answer the reply to it, or, for an
+operation that waits for nothing, its window. The window bounds every operation; one that waited for
+PDUs that did not come times out and ends the program, since what follows would wait in vain as well,
+and the host reports which operation that was. Nothing on the tester is placed at a point in time:
+the tester has no origin that means anything to a test, and the origin of the device under test only
+becomes visible to it when a PDU arrives, so an operation that has to transmit at a particular moment
+is expressed relative to a received PDU.
 
 The order in which the host does this is fixed: reset the device under test, wait until it reports
 `radio_ready`, load the tester's program, load the device's program, start the tester, start the
@@ -719,12 +722,12 @@ one thing it does on its own is answer a received PDU after the inter frame spac
 can meet that deadline. That is the whole vocabulary for testing a radio, because a radio has no
 protocol state either; testing a link layer over the air later will need the tester to hold a
 connection, which means adding to this vocabulary rather than moving the tests into the tester.
-Its program is a sequence of operations, each run for the duration it names, or until it received
-the number of PDUs it names, from the moment the previous one ended, and none of them placed at a
-point in time: the tester has no origin that means anything to a test, and the device's origin
-becomes visible to it only when a PDU arrives, so an operation that has to transmit at a particular
-moment is expressed relative to a received PDU. Likewise its clock is not a function the host can
-call: every time the host sees is attached to something that was observed (decision 24).
+Its program is a sequence of operations, each run from the moment the previous one ended until it
+received what it waits for or its window closed (decision 14), and none of them placed at a point in
+time: the tester has no origin that means anything to a test, and the device's origin becomes
+visible to it only when a PDU arrives, so an operation that has to transmit at a particular moment
+is expressed relative to a received PDU. Likewise its clock is not a function the host can call:
+every time the host sees is attached to something that was observed (decision 24).
 
 **Rejected:** a `tester_rigs/` project on the pattern of `dut_rigs/`, with the CMake both had in
 common factored into a shared file, which is what the first cut did. It framed the tester as a
@@ -756,17 +759,25 @@ This is the accuracy being bought rather than proven, which decision 11 places b
 timing assertion; the tester's code runs on the stock crystal meanwhile, only less accurately, so
 it is built and the tests are written before the oscillator is swapped.
 
+A timestamp is the capture of the timer at the radio's ADDRESS event, moved back by the preamble and
+the access address to the packet's first bit. For a received packet the event comes later than for a
+transmitted one, by the time the receiver takes to detect the address, 172 ticks or about 10.75 µs,
+which the tester subtracts as well; without it every interval from a transmission to a reception
+reads long by that much. The value was measured against the device's scan response, taken to start
+exactly one inter frame space after the tester's request (decision 26), so it is only as good as that
+assumption until the tester is checked against an independent reference.
+
 ## 25. Each instrument answers only the other, by an acceptance filter
 
-Over the air both boards are on their antennas, so the tester hears every advertiser on the
-channel, and the device's own receive window now and then catches a stranger's advertising and
-reports `adv_received` where the program awaited `adv_timeout`, stalling that run. The fix is the
-device filtering of the Core Specification, Vol 6, Part B, section 4.3: each instrument matches the
-address of what it receives against a set and ignores what is not in it. The device is given the
-tester's address and answers only the tester, so a stray in its window is no longer taken for a
-response; the tester is given the device's address and reports only the device, so what it hands the
-host is the device's and not the air's. An empty set matches every sender, the state a radio starts
-in, so the filter is opt in and changes nothing until an address is loaded.
+Even with the two boards coupled by a cable the tester hears the advertisers around it, and the
+device's own receive window now and then catches a stranger's advertising and reports `adv_received`
+where the program awaited `adv_timeout`, stalling that run. The fix is the device filtering of the
+Core Specification, Vol 6, Part B, section 4.3: each instrument matches the address of what it
+receives against a set and ignores what is not in it. The device is given the tester's address and
+answers only the tester, so a stray in its window is no longer taken for a response; the tester is
+given the device's address and reports only the device, so what it hands the host is the device's
+and not the air's. An empty set matches every sender, the state a radio starts in, so the filter is
+opt in and changes nothing until an address is loaded.
 
 This is deliberately not the test looking away from a stray, which was refused: a step that advanced
 on either callback could not tell a real reception from a stray, nor later check scan-request
@@ -779,29 +790,56 @@ that filters on air is loaded with the set and never woken for what it drops, th
 same match on its own receiver, and its RSSI limit stays as an orthogonal option for a setup where
 address alone does not separate the device.
 
-What the filter does not remove is a collision: a stranger transmitting at the same moment as the
-device corrupts the device's PDU on air, which then fails its CRC and is not received whatever
-address it carried. The interval test already tolerates a missed PDU as a doubled gap on the grid, so
-a collision costs resolution, not correctness, and coupling the boards by cable would only make it
-rarer. Ruling out the air is therefore no longer a precondition of the tests that assert a PDU did
-not appear, which is where decision 11 had left it open.
+A filter applied to a packet after it was received does not keep the receiver free, though: while
+the tester receives a stranger's packet to its end, a PDU of the device that starts meanwhile is lost,
+about one test in seventy. The tester's radio therefore matches the advertiser address in hardware as
+well and abandons a stranger's packet once its address is received, restarting the reception without
+a ramp up; the radio does not abandon it by itself, it only reports the miss. That leaves the time
+from a stranger's access address to its advertiser address in which the device can be missed, about
+one test in five hundred, and a run of the radio tests is repeated when one fails (`ctest --repeat
+until-pass:3`, see the radio tests README). A real fault fails every attempt; only a fault that
+comes and goes could hide behind a repeat. Ruling out the air is therefore no longer a precondition of
+the tests that assert a PDU did not appear, which is where decision 11 had left it open.
+
+**Rejected:** moving both instruments to an access address no other device uses, which would have
+kept strangers off the receiver altogether. A radio may be unable to advertise on anything but the
+advertising access address, and the tests must not depend on what the radio under test can do beyond
+its interface.
+
+## 26. An answer at the inter frame space is placed by hardware, armed before the packet ends
+
+A scan response has to start one inter frame space, 150 µs, after the scan request ended. Software
+cannot meet that, so the radio does: the nRF52 keeps its TIFS between the end of a received packet
+and the start of the transmission that follows, but only when the shorts from END to DISABLE and from
+DISABLED to TXEN are in place before the packet ends, and only with the default ramp up. The first cut
+armed the short in the END interrupt, which is too late, since the receiver is disabled before that
+interrupt runs, and the transmission never started; with the shorts armed in time but the fast ramp
+up, the response started about 50 µs after the request instead of 150 µs.
+
+The device's radio therefore uses the default ramp up and arms the answer when a packet's address is
+received in the window of a scannable advertising: the transmitter follows the packet by itself, and
+the END interrupt either points it at the response or disables it again before it went on air. That
+is also how the library's earlier nRF52 radio did it.
+
+The tester answers differently. It stays on the fast ramp up, so that its receiver is back in time to
+hear the reply to its own answer, and starts its transmitter by a timer compare set in the END
+interrupt, one ramp up before the inter frame space after the received packet; the interrupt has more
+than a hundred microseconds for that, and an answer whose compare is already past is given up rather
+than sent late. A timer also leaves the delay open to be a parameter.
 
 ## Open questions
 
 - `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the
   old radio is still there. Once the old implementation is removed, the header is renamed to
   `scheduled_radio.hpp` and the old one deleted.
-- How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
-  an error there presents as a fault in the device under test. Checking it against a known good
-  device or against a sniffer has to happen before the first timing assertion is believed; decision
-  11 places it there, and defers the how.
-- How the tester validates the acceptance filter it now relies on: that the device answers an
-  address in its set and ignores one outside it needs the tester to transmit a scan request from a
-  chosen address, which it does not do yet. Until then the filter is exercised only in the one
-  direction the listen-only tests take, the device rejecting what is not the tester.
-- Whether the tester's answer is placed at a variable delay or at the inter frame space. The answer
-  answers one inter frame space after the received PDU ended, by the radio's own TIFS and its
-  DISABLED to TXEN short, which places it exactly and keeps software out of that path. A test that
-  answers early or late, to find the edges of the device's receive window, needs the delay to be a
-  parameter, which the short cannot give and a timer driven TXEN can; that is a second operation
-  when such a test is written, not a change to the answer.
+- How the tester itself is validated. Its timestamps and its answer are the measurement, so an error
+  there presents as a fault in the device under test. Its receive timestamps are calibrated against
+  the device's TIFS (decision 24), so an inter frame space it measures on that device is correct by
+  construction. Checking it against a known good device or against a sniffer has to happen before
+  the first timing assertion is believed; decision 11 places it there, and defers the how.
+- Whether the tester's answer is placed at a variable delay. It is started by a timer compare
+  (decision 26), so the delay can become a parameter of the answer operation when a test that answers
+  early or late, to find the edges of the device's receive window, is written.
+- Two scan request cases the tester cannot produce yet: a second request within the same advertising
+  event, since the tester answers once per operation, and a request with a CRC error, since its radio
+  always sends a valid CRC.
