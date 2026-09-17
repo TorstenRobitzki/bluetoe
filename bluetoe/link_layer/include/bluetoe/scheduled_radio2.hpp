@@ -144,6 +144,48 @@ namespace link_layer {
     };
 
     /**
+     * @brief the PDU buffer a radio uses in connection events
+     *
+     * The radio's side of the buffer the link layer hands over with link_layer_pdu_buffer().
+     * The buffer sets SN, NESN and MD of the PDUs it hands out and keeps what it received in
+     * order. Context: radio.
+     */
+    template < typename T >
+    concept scheduled_radio_pdu_buffer = requires (
+        T                               buffer,
+        read_buffer                     pdu )
+    {
+        /*
+         * Room for the next PDU to receive; empty if there is none, in which case the radio
+         * receives the PDU elsewhere and does not acknowledge it.
+         */
+        { buffer.allocate_receive_buffer() } -> std::same_as< read_buffer >;
+
+        /*
+         * A PDU received with a valid CRC into the room allocate_receive_buffer() gave; stores
+         * it, and returns the PDU to answer with.
+         */
+        { buffer.received( pdu ) } -> std::same_as< write_buffer >;
+
+        /*
+         * A PDU received with a valid CRC that is not stored, as there was no room for it;
+         * takes its acknowledgement, and returns the PDU to answer with.
+         */
+        { buffer.acknowledge( pdu ) } -> std::same_as< write_buffer >;
+
+        /*
+         * The next PDU to send, without taking anything received; after a PDU with an invalid
+         * CRC, for example.
+         */
+        { buffer.next_transmit() } -> std::same_as< write_buffer >;
+
+        /*
+         * Whether PDUs are queued to be sent.
+         */
+        { buffer.pending_outgoing_data_available() } -> std::same_as< bool >;
+    };
+
+    /**
      * @brief the callbacks of connection events
      *
      * Required, in addition to scheduled_radio_callbacks, of a type that schedules
@@ -178,6 +220,7 @@ namespace link_layer {
          * fills and drains it from the link layer context, which it has to be built for.
          */
         requires std::is_lvalue_reference_v< decltype( callbacks.link_layer_pdu_buffer() ) >;
+        requires scheduled_radio_pdu_buffer< std::remove_reference_t< decltype( callbacks.link_layer_pdu_buffer() ) > >;
     };
 
     /**

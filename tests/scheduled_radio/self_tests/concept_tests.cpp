@@ -49,7 +49,14 @@ namespace {
 
     struct model_connection_callbacks : model_callbacks
     {
-        struct pdu_buffer {};
+        struct pdu_buffer
+        {
+            read_buffer allocate_receive_buffer() { return {}; }
+            write_buffer received( read_buffer ) { return {}; }
+            write_buffer acknowledge( read_buffer ) { return {}; }
+            write_buffer next_transmit() { return {}; }
+            bool pending_outgoing_data_available() { return false; }
+        };
 
         void connection_timeout( abs_time ) {}
         void connection_end_event( abs_time, connection_event_events ) {}
@@ -62,6 +69,21 @@ namespace {
     struct callbacks_returning_the_buffer_by_value : model_connection_callbacks
     {
         pdu_buffer link_layer_pdu_buffer() { return {}; }
+    };
+
+    struct buffer_without_next_transmit
+    {
+        read_buffer allocate_receive_buffer() { return {}; }
+        write_buffer received( read_buffer ) { return {}; }
+        write_buffer acknowledge( read_buffer ) { return {}; }
+        bool pending_outgoing_data_available() { return false; }
+    };
+
+    struct callbacks_with_an_incomplete_buffer : model_connection_callbacks
+    {
+        buffer_without_next_transmit& link_layer_pdu_buffer() { return incomplete_; }
+
+        buffer_without_next_transmit incomplete_;
     };
 
     struct model_toolbox
@@ -240,6 +262,8 @@ namespace {
     static_assert( scheduled_radio_connection_callbacks< model_connection_callbacks > );
     static_assert( !scheduled_radio_connection_callbacks< model_callbacks > );
     static_assert( !scheduled_radio_connection_callbacks< callbacks_returning_the_buffer_by_value > );
+    static_assert( !scheduled_radio_connection_callbacks< callbacks_with_an_incomplete_buffer > );
+    static_assert( scheduled_radio_pdu_buffer< model_connection_callbacks::pdu_buffer > );
 
     static_assert( lesc_pairing_toolbox< model_toolbox > );
     static_assert( !lesc_pairing_toolbox< model_radio_base< model_callbacks > > );
