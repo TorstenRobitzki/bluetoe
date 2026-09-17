@@ -49,6 +49,8 @@ namespace {
     constexpr std::uint32_t other_access_address = 0x71764129;
     constexpr std::uint32_t other_crc_init       = 0x7a8f23;
 
+    constexpr std::uint8_t adv_ind         = 0x00;
+    constexpr std::uint8_t adv_direct_ind  = 0x01;
     constexpr std::uint8_t adv_nonconn_ind = 0x02;
     constexpr std::uint8_t scan_rsp        = 0x04;
     constexpr std::uint8_t adv_scan_ind    = 0x06;
@@ -142,13 +144,14 @@ namespace {
     }
 
     /*
-     * The tester answers the first advertising with `request`: the device answers with its
-     * scan response and reports the request with adv_received(). Returns what the tester
-     * captured: the advertising, the request and the response.
+     * The tester answers the first advertising, of `type`, with `request`: the device answers
+     * with its scan response and reports the request with adv_received(). Returns what the
+     * tester captured: the advertising, the request and the response.
      */
-    std::vector< captured_pdu > a_scan_request_is_answered( rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request )
+    std::vector< captured_pdu > a_scan_request_is_answered(
+        rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request, std::uint8_t type = adv_scan_ind )
     {
-        const auto advertisement = advertising( 6, 0x01, adv_scan_ind );
+        const auto advertisement = advertising( 6, 0x01, type );
         const auto response      = advertising( 10, 0x02, scan_rsp );
 
         rig.program_device( {
@@ -181,14 +184,16 @@ namespace {
     }
 
     /*
-     * The tester answers the first advertising with `request`, which the device does not
-     * answer; the event ends with adv_timeout(), and the advertising scheduled from that shows
-     * the device went on.
+     * The tester answers the first advertising, of `type` with a payload of `payload_size`, with
+     * `request`, which the device does not answer; the event ends with adv_timeout(), and the
+     * advertising scheduled from that shows the device went on.
      */
-    void a_scan_request_is_ignored( rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request )
+    void a_scan_request_is_ignored(
+        rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request,
+        std::uint8_t type = adv_scan_ind, std::size_t payload_size = 6 )
     {
-        const auto first    = advertising( 6, 0x01, adv_scan_ind );
-        const auto next     = advertising( 6, 0x02, adv_scan_ind );
+        const auto first    = advertising( payload_size, 0x01, type );
+        const auto next     = advertising( payload_size, 0x02, type );
         const auto response = advertising( 10, 0x03, scan_rsp );
 
         rig.program_device( {
@@ -576,10 +581,27 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_that_is_too_long_is_ignored, rig_fixture
 BOOST_FIXTURE_TEST_CASE( a_pdu_of_another_type_is_not_answered, rig_fixture, *if_tester )
 {
     constexpr std::uint8_t pdu_type_mask = 0x0f;
-    constexpr std::uint8_t adv_ind       = 0x00;
 
     auto request = scan_request( tester_address, dut_address );
     request[ 0 ] = ( request[ 0 ] & ~pdu_type_mask ) | adv_ind;
 
     a_scan_request_is_ignored( *this, request );
+}
+
+// ADV_IND can be scanned as well as ADV_SCAN_IND
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_an_adv_ind_is_answered, rig_fixture, *if_tester )
+{
+    a_scan_request_is_answered( *this, scan_request( tester_address, dut_address ), adv_ind );
+}
+
+// an advertising that can not be scanned is not answered, though the event has a response
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_an_adv_nonconn_ind_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, scan_request( tester_address, dut_address ), adv_nonconn_ind );
+}
+
+// ADV_DIRECT_IND carries the device's address and a target address, 12 bytes
+BOOST_FIXTURE_TEST_CASE( a_scan_request_to_an_adv_direct_ind_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, scan_request( tester_address, dut_address ), adv_direct_ind, 12 );
 }
