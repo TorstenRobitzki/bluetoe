@@ -65,6 +65,8 @@ namespace test_rig {
             std::uint32_t operation_id );
         void answer( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
+        bool transmit( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+            std::uint32_t at, const pdu& data, std::uint32_t operation_id );
         void stop();
         void accept_advertiser( std::uint32_t slot, const link_layer::device_address& address );
         std::optional< tester_happened > next_event();
@@ -79,6 +81,7 @@ namespace test_rig {
         /** @} */
 
     private:
+        void prepare( std::uint32_t channel, std::uint64_t ticks, std::uint32_t operation_id );
         void on_packet_end();
         void on_radio_disabled();
         void on_window_end();

@@ -152,6 +152,14 @@ namespace test_rig {
         platform.answer( value, phy, ticks, address, data, value );
 
         /*
+         * Transmits `data` on `value` with its first bit on air at `value`, a time of the
+         * tester's clock, and listens for the rest of `ticks` from now afterwards, queuing a
+         * transmitted event and every PDU received. False, and nothing started, if that time
+         * is too close or gone by. Stops and tags like receive().
+         */
+        { platform.transmit( value, phy, ticks, value, data, value ) } -> std::same_as< bool >;
+
+        /*
          * Stops listening; no event is queued afterwards.
          */
         platform.stop();
@@ -340,9 +348,10 @@ namespace test_rig {
             if ( operation_count_ == 0 || started_ )
                 return false;
 
-            cursor_    = 0;
-            started_   = true;
-            timed_out_ = no_operation_timed_out;
+            cursor_        = 0;
+            started_       = true;
+            timed_out_     = no_operation_timed_out;
+            has_reference_ = false;
 
             // a program's received PDUs are numbered from zero; unlike the device under
             // test the tester is not reset between tests, so start clears the queue
@@ -442,6 +451,10 @@ namespace test_rig {
 
                     enqueue( entry );
 
+                    // what a later transmit is placed from
+                    reference_     = entry.when;
+                    has_reference_ = true;
+
                     if ( next->operation_id != operation_id_ )
                         continue;
 
@@ -511,14 +524,17 @@ namespace test_rig {
                 return;
 
             const operation& current   = operations_[ cursor_ ];
-            const bool       timed_out = current.count != 0 || ( current.kind == operation_kind::answer && !answered_ );
+            const bool       sends     = current.kind == operation_kind::answer || current.kind == operation_kind::transmit;
+            const bool       timed_out = current.count != 0 || ( sends && !answered_ );
 
-            if ( !timed_out )
-            {
+            if ( timed_out )
+                time_out();
+            else
                 advance();
-                return;
-            }
+        }
 
+        void time_out()
+        {
             timed_out_ = cursor_;
             cursor_    = operation_count_;
             platform_.stop();
@@ -547,9 +563,22 @@ namespace test_rig {
             answered_ = false;
 
             if ( op.kind == operation_kind::answer )
+            {
                 platform_.answer( op.channel, op.phy, ticks, op.target, op.response, operation_id_ );
+            }
+            else if ( op.kind == operation_kind::transmit )
+            {
+                // without a PDU to place it from, or too late, it can never be sent
+                const std::uint64_t delay = static_cast< std::uint64_t >( op.delay.usec() ) * ( tester_ticks_per_second / 1'000'000 );
+                const std::uint32_t at    = static_cast< std::uint32_t >( reference_.ticks + delay );
+
+                if ( !has_reference_ || !platform_.transmit( op.channel, op.phy, ticks, at, op.response, operation_id_ ) )
+                    time_out();
+            }
             else
+            {
                 platform_.receive( op.channel, op.phy, ticks, operation_id_ );
+            }
         }
 
         /*
@@ -581,6 +610,8 @@ namespace test_rig {
         std::uint32_t                                   received_           = 0;
         bool                                            answered_           = false;
         std::uint8_t                                    timed_out_          = no_operation_timed_out;
+        tester_time                                     reference_;
+        bool                                            has_reference_      = false;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;

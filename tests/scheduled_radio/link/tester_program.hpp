@@ -59,7 +59,8 @@ namespace test_rig {
     enum class operation_kind : std::uint8_t
     {
         receive,
-        answer
+        answer,
+        transmit
     };
 
     /**
@@ -73,7 +74,11 @@ namespace test_rig {
      * with the next PDU received, the reply. `target` and `response` are unused by a
      * receive.
      *
-     * A `count` other than zero ends either operation early, once it received that many
+     * A transmit sends `response` so that its first bit is on air `delay` after the first bit
+     * of the last PDU the program captured, then listens like a receive and ends with the
+     * reply. The radio is not listening before the transmission.
+     *
+     * A `count` other than zero ends a receive or an answer early, once it received that many
      * PDUs with a valid CRC that passed the tester's filters. An operation whose window
      * ends before its count was reached, or before an answer heard its target, times out
      * and ends the program.
@@ -87,6 +92,7 @@ namespace test_rig {
         link_layer::device_address                      target   = {};
         pdu                                             response = {};
         std::uint32_t                                   count    = 0;
+        link_layer::delta_time                          delay    = {};
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -159,13 +165,13 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const operation& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count ) );
+        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count );
+        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay );
 
         return deserialize( in, fields );
     }

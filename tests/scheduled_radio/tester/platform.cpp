@@ -299,6 +299,19 @@ namespace test_rig {
     void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
         std::uint32_t operation_id )
     {
+        prepare( channel, ticks, operation_id );
+
+        // start receiving when ready, sample RSSI at the address match, stay in RXIDLE after a packet
+        NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
+        NRF_RADIO->TASKS_RXEN   = 1;
+    }
+
+    /*
+     * What every operation begins with: the radio stopped and set to the channel, its
+     * interrupts on, and the window running.
+     */
+    void platform::prepare( std::uint32_t channel, std::uint64_t ticks, std::uint32_t operation_id )
+    {
         stop();
 
         // nothing is queued while stopped, so every event from here on is this operation's
@@ -307,9 +320,6 @@ namespace test_rig {
         NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
         NRF_RADIO->PACKETPTR    = reinterpret_cast< std::uint32_t >( receive_buffer_ );
-
-        // start receiving when ready, sample RSSI at the address match, stay in RXIDLE after a packet
-        NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
 
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_END       = 0;
@@ -320,8 +330,44 @@ namespace test_rig {
         NRF_TIMER0->TASKS_CAPTURE[ cc_now ]     = 1;
         NRF_TIMER0->CC[ cc_window ]             = NRF_TIMER0->CC[ cc_now ] + static_cast< std::uint32_t >( ticks );
         NRF_TIMER0->INTENSET = TIMER_INTENSET_COMPARE1_Msk;
+    }
 
-        NRF_RADIO->TASKS_RXEN = 1;
+    /*
+     * A transmit starts the transmitter by the same compare as an answer, one ramp up before
+     * `at`, and then goes the answer's way: the END of the transmission disables the radio,
+     * DISABLED re-arms the receiver, and nothing received is answered. The compare is set
+     * before PPI forwards it, so a time already past when the channel is on is given up.
+     */
+    bool platform::transmit( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
+        std::uint32_t at, const pdu& data, std::uint32_t operation_id )
+    {
+        prepare( channel, ticks, operation_id );
+
+        std::copy( data.data.begin(), data.data.begin() + data.size, response_buffer_ );
+
+        answered_     = true;
+        transmitting_ = true;
+        answering_    = true;
+
+        const std::uint32_t start = at - fast_ramp_up_us * ticks_per_us;
+
+        NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_buffer_ );
+        NRF_RADIO->SHORTS    = shorts_answering;
+        NRF_RADIO->INTENSET  = RADIO_INTENSET_DISABLED_Msk;
+
+        NRF_TIMER0->EVENTS_COMPARE[ cc_answer ] = 0;
+        NRF_TIMER0->CC[ cc_answer ]             = start;
+        NRF_PPI->CHENSET                        = 1u << ppi_answer_txen;
+
+        // ahead means less than half the clock's range ahead of now
+        NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
+
+        if ( start - NRF_TIMER0->CC[ cc_now ] < 0x80000000u )
+            return true;
+
+        stop();
+
+        return false;
     }
 
     /*

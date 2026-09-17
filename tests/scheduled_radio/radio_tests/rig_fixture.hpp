@@ -242,6 +242,23 @@ namespace test_rig {
     }
 
     /**
+     * @brief a tester operation: transmit `data` on `channel` with its first bit on air `delay`
+     *        after the first bit of the PDU captured last, then listen and end with the reply
+     */
+    inline operation transmit(
+        std::uint32_t channel, link_layer::delta_time window, link_layer::delta_time delay,
+        std::span< const std::uint8_t > data )
+    {
+        return operation{
+            .kind     = operation_kind::transmit,
+            .channel  = channel,
+            .phy      = link_layer::phy_ll_encoding::le_1m_phy,
+            .window   = window,
+            .response = pdu( data ),
+            .delay    = delay };
+    }
+
+    /**
      * @brief a SCAN_REQ from `scanner` to `advertiser`, as the tester transmits it
      *
      * Header type 0x03, TxAdd the scanner's address kind and RxAdd the advertiser's, then
