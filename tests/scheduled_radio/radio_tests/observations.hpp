@@ -15,6 +15,7 @@
 
 #include <bluetoe/address.hpp>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -27,7 +28,7 @@ namespace test_rig {
      * @brief how far an observed interval may be off the requested one: the placement of both
      *        events and the drift of two stock crystals over an interval
      */
-    constexpr long tolerance_us = 50;
+    constexpr std::chrono::microseconds tolerance{ 50 };
 
     /**
      * @brief advertising channel PDU types
@@ -66,10 +67,15 @@ namespace test_rig {
     bool carries( const captured_pdu& p, std::span< const std::uint8_t > bytes );
 
     /**
-     * @brief the time from the first bit of `earlier` to the first bit of `later`, in whole
-     *        microseconds
+     * @brief the time from the first bit of `earlier` to the first bit of `later`, by the
+     *        tester's clock
      */
-    long microseconds_between( const captured_pdu& earlier, const captured_pdu& later );
+    std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later );
+
+    /**
+     * @brief the time from `earlier` to `later`, by the device's clock
+     */
+    std::chrono::microseconds time_between( const record& earlier, const record& later );
 }
 }
 

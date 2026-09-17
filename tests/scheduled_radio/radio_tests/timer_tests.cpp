@@ -14,18 +14,19 @@
 #include "radio_tests/rig_fixture.hpp"
 #include "radio_tests/tester.hpp"
 
-#include <bluetoe/delta_time.hpp>
-
 #include <algorithm>
-#include <cstdlib>
+#include <chrono>
 #include <vector>
 
 using namespace bluetoe::test_rig;
-using bluetoe::link_layer::delta_time;
+using namespace std::chrono_literals;
 
 namespace {
 
     const auto if_tester = boost::unit_test::precondition( tester_present{} );
+
+    // how long a tester operation may wait for what it waits for
+    const time_out operation_timeout{ 300ms };
 
     // the index of the first record that is the callback `kind`
     std::size_t index_of( const std::vector< record >& records, callback_kind kind )
@@ -43,17 +44,20 @@ namespace {
  */
 BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig_fixture, *if_tester )
 {
+    constexpr auto timer_delay = 100ms;
+    constexpr auto event_delay = 10ms;
+
     const auto first  = advertising( 6, 0x01 );
     const auto second = advertising( 6, 0x02 );
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
-        on_adv_timeout( schedule_timer( delta_time::msec( 100 ) ) ),
-        on_user_timer(  schedule_advertising_event( 37, delta_time::msec( 10 ), second ) ) } );
+        on_adv_timeout( schedule_timer( timer_delay ) ),
+        on_user_timer(  schedule_advertising_event( 37, event_delay, second ) ) } );
 
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, operation_timeout, 1 ) } );
 
     run();
 
@@ -62,7 +66,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
     BOOST_REQUIRE_EQUAL( captured.size(), 2u );
     BOOST_CHECK( carries( captured[ 0 ], first ) );
     BOOST_CHECK( carries( captured[ 1 ], second ) );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - 110'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - ( timer_delay + event_delay ) ), tolerance );
 
     const auto records   = device_records();
     const auto timeouts  = callbacks_of( records, callback_kind::adv_timeout );
@@ -73,8 +77,8 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
     BOOST_REQUIRE_EQUAL( scheduled.size(), 1u );
     BOOST_REQUIRE_EQUAL( expired.size(), 1u );
     BOOST_CHECK( scheduled[ 0 ].result );
+    BOOST_CHECK_EQUAL( time_between( timeouts[ 0 ], scheduled[ 0 ] ), timer_delay );
     // abs_time compares by proximity; these are the same instant
-    BOOST_CHECK_EQUAL( scheduled[ 0 ].when.data(), ( timeouts[ 0 ].when + delta_time::msec( 100 ) ).data() );
     BOOST_CHECK_EQUAL( expired[ 0 ].when.data(), scheduled[ 0 ].when.data() );
 }
 
@@ -86,13 +90,13 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), second ),
-                        schedule_timer( delta_time::msec( 50 ) ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, second ),
+                        schedule_timer( 50ms ) ),
         on_user_timer() } );
 
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, operation_timeout, 1 ) } );
 
     run();
 
@@ -100,7 +104,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
 
     BOOST_REQUIRE_EQUAL( captured.size(), 2u );
     BOOST_CHECK( carries( captured[ 1 ], second ) );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
 
     // the first adv_timeout, then the timer, then the second event's adv_timeout
     auto records = device_records();
@@ -120,12 +124,12 @@ BOOST_FIXTURE_TEST_CASE( a_timer_for_a_time_gone_by_is_refused, rig_fixture, *if
 {
     program_device( {
         on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
-        on_adv_timeout( schedule_timer( delta_time::msec( 0 ) ) ) } );
+        on_adv_timeout( schedule_timer( 0ms ) ) } );
 
     // the second receive only keeps the run going while a wrongly scheduled timer would expire
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 100 ) ) } );
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, time_out( 100ms ) ) } );
 
     run();
 
@@ -141,13 +145,13 @@ BOOST_FIXTURE_TEST_CASE( a_timer_cancelled_in_time_does_not_expire, rig_fixture,
 {
     program_device( {
         on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
-        on_adv_timeout( schedule_timer( delta_time::msec( 100 ) ),
+        on_adv_timeout( schedule_timer( 100ms ),
                         cancel_timer() ) } );
 
     // the second receive keeps the run going past the time the timer was scheduled for
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 300 ) ) } );
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, time_out( 300ms ) ) } );
 
     run();
 
@@ -168,11 +172,11 @@ BOOST_FIXTURE_TEST_CASE( cancelling_without_a_scheduled_timer_is_refused, rig_fi
     program_device( {
         on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
         on_adv_timeout( cancel_timer(),
-                        schedule_timer( delta_time::msec( 50 ) ) ),
+                        schedule_timer( 50ms ) ),
         on_user_timer(  cancel_timer() ) } );
 
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+        receive( 37, operation_timeout, 1 ) } );
 
     run();
 

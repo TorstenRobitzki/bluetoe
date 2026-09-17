@@ -17,34 +17,32 @@
 
 #include "host/central.hpp"
 
-#include <bluetoe/delta_time.hpp>
-
+#include <chrono>
 #include <cstdint>
-#include <cstdlib>
 #include <vector>
 
 using namespace bluetoe::test_rig;
-using bluetoe::link_layer::delta_time;
+using namespace std::chrono_literals;
 
 namespace {
 
     const auto if_tester = boost::unit_test::precondition( tester_present{} );
 
+    // how long a tester operation may wait for what it waits for
+    const time_out operation_timeout{ 300ms };
+
     constexpr std::uint32_t connection_access_address = 0x71764129;
     constexpr std::uint32_t connection_crc_init       = 0x7a8f23;
     constexpr std::uint32_t data_channel              = 5;
 
-    // how long a tester operation may wait for what it waits for
-    const delta_time operation_timeout = delta_time::msec( 300 );
-
     // the connection event starts this long after the advertising, and receives until
     // `receive_window` later without a reception
-    const delta_time event_start       = delta_time::msec( 50 );
-    const delta_time receive_window    = delta_time::msec( 2 );
+    constexpr auto event_start    = 50ms;
+    constexpr auto receive_window = 2ms;
 
     // the tester's first PDU of the event begins this long after the advertising, 500 µs into
     // the receive window
-    const delta_time first_pdu_after_advertising = event_start + delta_time::usec( 500 );
+    constexpr auto first_pdu_after_advertising = event_start + 500us;
 }
 
 // the central's empty PDU is answered with an empty one, and the event closes after it
@@ -94,7 +92,10 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
 
     // the anchor is the first bit of the tester's PDU, by the device's clock
     const auto advertising_end = callbacks_of( records, callback_kind::adv_timeout );
+
     BOOST_REQUIRE_EQUAL( advertising_end.size(), 1u );
-    const long anchor_us = static_cast< long >( ends[ 0 ].when.data() - advertising_end[ 0 ].when.data() );
-    BOOST_CHECK_LE( std::abs( anchor_us - first_pdu_after_advertising.usec() ), tolerance_us );
+
+    const auto anchor = time_between( advertising_end[ 0 ], ends[ 0 ] );
+
+    BOOST_CHECK_LE( std::chrono::abs( anchor - first_pdu_after_advertising ), tolerance );
 }

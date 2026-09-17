@@ -35,7 +35,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <span>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -62,6 +64,43 @@ namespace test_rig {
     const link_layer::device_address tester_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01 }, false };
 
     /**
+     * @brief `duration` as the delta_time a program carries
+     *
+     * A builder takes nanoseconds, so that a test writes the unit that fits its value.
+     *
+     * @throw std::invalid_argument if `duration` is not a whole number of microseconds, or
+     *        does not fit into delta_time's 32 bit of them
+     */
+    inline link_layer::delta_time as_delta_time( std::chrono::nanoseconds duration )
+    {
+        const auto in_usec = std::chrono::duration_cast< std::chrono::microseconds >( duration );
+
+        if ( in_usec != duration )
+            throw std::invalid_argument( "duration is not a whole number of microseconds" );
+
+        if ( in_usec < std::chrono::microseconds::zero()
+            || in_usec.count() > std::numeric_limits< std::uint32_t >::max() )
+            throw std::invalid_argument( "duration does not fit into delta_time" );
+
+        return link_layer::delta_time( static_cast< std::uint32_t >( in_usec.count() ) );
+    }
+
+    /**
+     * @brief how long a tester operation may wait for what it waits for
+     *
+     * Named, so that an operation's window is not mistaken for the delay of its transmission.
+     */
+    struct time_out
+    {
+        explicit time_out( std::chrono::nanoseconds duration )
+            : window( duration )
+        {
+        }
+
+        std::chrono::nanoseconds    window;
+    };
+
+    /**
      * @brief a step of a device program: a call to make on a callback
      * @{
      */
@@ -86,25 +125,25 @@ namespace test_rig {
     }
 
     inline call schedule_advertising_event(
-        std::uint32_t channel, link_layer::delta_time delay, std::span< const std::uint8_t > transmit )
+        std::uint32_t channel, std::chrono::nanoseconds delay, std::span< const std::uint8_t > transmit )
     {
         call result;
         result.kind     = call_kind::schedule_advertising_event;
         result.channel  = channel;
-        result.delay    = delay;
+        result.delay    = as_delta_time( delay );
         result.transmit = pdu( transmit );
 
         return result;
     }
 
     inline call schedule_advertising_event(
-        std::uint32_t channel, link_layer::delta_time delay,
+        std::uint32_t channel, std::chrono::nanoseconds delay,
         std::span< const std::uint8_t > transmit, std::span< const std::uint8_t > response )
     {
         return call{
             .kind     = call_kind::schedule_advertising_event,
             .channel  = channel,
-            .delay    = delay,
+            .delay    = as_delta_time( delay ),
             .transmit = pdu( transmit ),
             .response = pdu( response ) };
     }
@@ -178,14 +217,18 @@ namespace test_rig {
      * @brief a connection event on `channel`, receiving from `start` and until `end` without a
      *        reception, both relative to the callback
      */
-    inline call schedule_connection_event( std::uint32_t channel, link_layer::delta_time start, link_layer::delta_time end )
+    inline call schedule_connection_event( std::uint32_t channel, std::chrono::nanoseconds start, std::chrono::nanoseconds end )
     {
-        return call{ .kind = call_kind::schedule_connection_event, .channel = channel, .delay = start, .end_delay = end };
+        return call{
+            .kind      = call_kind::schedule_connection_event,
+            .channel   = channel,
+            .delay     = as_delta_time( start ),
+            .end_delay = as_delta_time( end ) };
     }
 
-    inline call schedule_timer( link_layer::delta_time delay )
+    inline call schedule_timer( std::chrono::nanoseconds delay )
     {
-        return call{ .kind = call_kind::schedule_timer, .delay = delay };
+        return call{ .kind = call_kind::schedule_timer, .delay = as_delta_time( delay ) };
     }
 
     inline call cancel_timer()
@@ -212,13 +255,13 @@ namespace test_rig {
     /**
      * @brief a tester operation: listen on a channel for a duration, at 1 Mbit
      */
-    inline operation receive( std::uint32_t channel, link_layer::delta_time window )
+    inline operation receive( std::uint32_t channel, time_out window )
     {
         operation result;
         result.kind    = operation_kind::receive;
         result.channel = channel;
         result.phy     = link_layer::phy_ll_encoding::le_1m_phy;
-        result.window  = window;
+        result.window  = as_delta_time( window.window );
 
         return result;
     }
@@ -226,13 +269,13 @@ namespace test_rig {
     /**
      * @brief a tester operation: listen like receive(), but end after `count` received PDUs
      */
-    inline operation receive( std::uint32_t channel, link_layer::delta_time window, std::uint32_t count )
+    inline operation receive( std::uint32_t channel, time_out window, std::uint32_t count )
     {
         return operation{
             .kind    = operation_kind::receive,
             .channel = channel,
             .phy     = link_layer::phy_ll_encoding::le_1m_phy,
-            .window  = window,
+            .window  = as_delta_time( window.window ),
             .count   = count };
     }
 
@@ -242,14 +285,14 @@ namespace test_rig {
      *        with the reply
      */
     inline operation answer(
-        std::uint32_t channel, link_layer::delta_time window,
+        std::uint32_t channel, time_out window,
         const link_layer::device_address& target, std::span< const std::uint8_t > response )
     {
         return operation{
             .kind     = operation_kind::answer,
             .channel  = channel,
             .phy      = link_layer::phy_ll_encoding::le_1m_phy,
-            .window   = window,
+            .window   = as_delta_time( window.window ),
             .target   = target,
             .response = pdu( response ) };
     }
@@ -260,16 +303,16 @@ namespace test_rig {
      *        `window` bounds the whole operation
      */
     inline operation transmit(
-        std::uint32_t channel, link_layer::delta_time delay, std::span< const std::uint8_t > data,
-        link_layer::delta_time window )
+        std::uint32_t channel, std::chrono::nanoseconds delay, std::span< const std::uint8_t > data,
+        time_out window )
     {
         return operation{
             .kind     = operation_kind::transmit,
             .channel  = channel,
             .phy      = link_layer::phy_ll_encoding::le_1m_phy,
-            .window   = window,
+            .window   = as_delta_time( window.window ),
             .response = pdu( data ),
-            .delay    = delay };
+            .delay    = as_delta_time( delay ) };
     }
 
     /**

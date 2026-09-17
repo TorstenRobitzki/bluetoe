@@ -13,24 +13,24 @@
 #include "radio_tests/rig_fixture.hpp"
 #include "radio_tests/tester.hpp"
 
-#include <bluetoe/delta_time.hpp>
-
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <iterator>
 #include <span>
 #include <vector>
 
 using namespace bluetoe::test_rig;
-using bluetoe::link_layer::delta_time;
+using namespace std::chrono_literals;
 
 namespace {
 
     const auto if_tester = boost::unit_test::precondition( tester_present{} );
+
+    // how long a tester operation may wait for what it waits for
+    const time_out operation_timeout{ 300ms };
 
     // a scanner the device's acceptance filter does not hold: the tester's address, one byte off
     const bluetoe::link_layer::device_address stranger_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02 }, false };
@@ -54,9 +54,9 @@ namespace {
     void two_advertisings_are_seen_as_sent(
         rig_fixture& rig, std::size_t payload_size, std::uint32_t first_channel, std::uint32_t second_channel )
     {
-        const delta_time interval = delta_time::msec( 100 );
-        const auto       first    = advertising( payload_size, 0x01 );
-        const auto       second   = advertising( payload_size, 0x02 );
+        constexpr auto interval = 100ms;
+        const auto     first    = advertising( payload_size, 0x01 );
+        const auto     second   = advertising( payload_size, 0x02 );
 
         rig.program_device( {
             on_start(       start_advertising(          first_channel,              first ) ),
@@ -64,8 +64,8 @@ namespace {
 
         // the first goes out within milliseconds of the start, the second at the interval
         rig.program_tester( {
-            receive( first_channel,  delta_time::msec( 50 ) ),
-            receive( second_channel, delta_time::msec( 250 ) ) } );
+            receive( first_channel,  time_out( 50ms ) ),
+            receive( second_channel, time_out( 250ms ) ) } );
 
         rig.run();
 
@@ -74,7 +74,7 @@ namespace {
         BOOST_REQUIRE_EQUAL( captured.size(), 2u );
         BOOST_CHECK( carries( captured[ 0 ], first ) );
         BOOST_CHECK( carries( captured[ 1 ], second ) );
-        BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - interval.usec() ), tolerance_us );
+        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - interval ), tolerance );
     }
 
     // a scan request with its length field set to `length`, its payload cut or padded to match
@@ -115,7 +115,7 @@ namespace {
                 start_advertising( 37, advertisement, response ) ) } );
 
         rig.program_tester( {
-            answer( 37, delta_time::msec( 100 ), dut_address, request ) } );
+            answer( 37, time_out( 100ms ), dut_address, request ) } );
 
         rig.run();
 
@@ -156,12 +156,12 @@ namespace {
                 set_local_address( dut_address ),
                 start_advertising( 37, first, response ) ),
             on_adv_timeout(
-                schedule_advertising_event( 37, delta_time::msec( 100 ), next, response ) ) } );
+                schedule_advertising_event( 37, 100ms, next, response ) ) } );
 
         // the answer gets no reply and runs to its window, which closes before the next advertising
         rig.program_tester( {
-            answer( 37, delta_time::msec( 50 ), dut_address, request ),
-            receive( 37, delta_time::msec( 300 ), 1 ) } );
+            answer( 37, time_out( 50ms ), dut_address, request ),
+            receive( 37, operation_timeout, 1 ) } );
 
         rig.run();
 
@@ -188,8 +188,8 @@ namespace {
             on_start(
                 set_access_address_and_crc_init( other_access_address, other_crc_init ),
                 start_advertising( 37, advertisement ) ),
-            on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), advertisement ) ) } );
-        rig.program_tester( { receive( 37, delta_time::msec( 300 ) ) } );
+            on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ) } );
+        rig.program_tester( { receive( 37, time_out( 300ms ) ) } );
     }
 }
 
@@ -214,10 +214,10 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
 
     program_device( {
         on_start(       start_advertising(          37,                         advertisement ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), advertisement ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 50 ),  advertisement ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 150 ), advertisement ) ) } );
-    program_tester( { receive( 37, delta_time::msec( 500 ) ) } );
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 50ms,  advertisement ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 150ms, advertisement ) ) } );
+    program_tester( { receive( 37, time_out( 500ms ) ) } );
 
     run();
 
@@ -225,10 +225,10 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
 
     BOOST_REQUIRE_EQUAL( captured.size(), 4u );
 
-    const long requested_us[] = { 100'000, 50'000, 150'000 };
+    const std::chrono::milliseconds requested[] = { 100ms, 50ms, 150ms };
 
-    for ( std::size_t i = 0; i != std::size( requested_us ); ++i )
-        BOOST_CHECK_LE( std::abs( microseconds_between( captured[ i ], captured[ i + 1 ] ) - requested_us[ i ] ), tolerance_us );
+    for ( std::size_t i = 0; i != std::size( requested ); ++i )
+        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i ], captured[ i + 1 ] ) - requested[ i ] ), tolerance );
 }
 
 /*
@@ -238,7 +238,7 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
 BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fixture, *if_tester )
 {
     const std::uint32_t channels[] = { 37, 38, 39, 37 };
-    const delta_time    interval   = delta_time::msec( 100 );
+    constexpr auto      interval   = 100ms;
 
     std::vector< std::vector< std::uint8_t > > sent;
 
@@ -253,10 +253,10 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
 
     // the window only bounds a lost advertising
     program_tester( {
-        receive( channels[ 0 ], delta_time::msec( 300 ), 1 ),
-        receive( channels[ 1 ], delta_time::msec( 300 ), 1 ),
-        receive( channels[ 2 ], delta_time::msec( 300 ), 1 ),
-        receive( channels[ 3 ], delta_time::msec( 300 ), 1 ) } );
+        receive( channels[ 0 ], operation_timeout, 1 ),
+        receive( channels[ 1 ], operation_timeout, 1 ),
+        receive( channels[ 2 ], operation_timeout, 1 ),
+        receive( channels[ 3 ], operation_timeout, 1 ) } );
 
     run();
 
@@ -268,7 +268,7 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
         BOOST_CHECK( carries( captured[ i ], sent[ i ] ) );
 
     for ( std::size_t i = 1; i != captured.size(); ++i )
-        BOOST_CHECK_LE( std::abs( microseconds_between( captured[ i - 1 ], captured[ i ] ) - interval.usec() ), tolerance_us );
+        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i - 1 ], captured[ i ] ) - interval ), tolerance );
 }
 
 /*
@@ -284,8 +284,8 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_t
     program_device( {
         on_start(       start_advertising(          37,                         first ) ),
         on_adv_timeout( start_advertising(          37,                         restarted ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), scheduled ) ) } );
-    program_tester( { receive( 37, delta_time::msec( 400 ) ) } );
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, scheduled ) ) } );
+    program_tester( { receive( 37, time_out( 400ms ) ) } );
 
     run();
 
@@ -295,7 +295,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_t
     BOOST_CHECK( carries( captured[ 0 ], first ) );
     BOOST_CHECK( carries( captured[ 1 ], restarted ) );
     BOOST_CHECK( carries( captured[ 2 ], scheduled ) );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 1 ], captured[ 2 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance );
 }
 
 BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events, rig_fixture, *if_tester )
@@ -307,11 +307,11 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
 
     program_device( {
         on_start(       start_advertising(          37,                         sent[ 0 ] ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), sent[ 1 ] ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), sent[ 2 ] ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 1 ] ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 2 ] ) ),
         on_adv_timeout( start_advertising(          37,                         sent[ 3 ] ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), sent[ 4 ] ) ) } );
-    program_tester( { receive( 37, delta_time::msec( 600 ) ) } );
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 4 ] ) ) } );
+    program_tester( { receive( 37, time_out( 600ms ) ) } );
 
     run();
 
@@ -323,9 +323,9 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
         BOOST_CHECK( carries( captured[ i ], sent[ i ] ) );
 
     // placed from the start before them; the restart itself has no required time
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - 100'000 ), tolerance_us );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 1 ], captured[ 2 ] ) - 100'000 ), tolerance_us );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 3 ], captured[ 4 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 4 ] ) - 100ms ), tolerance );
 }
 
 // a tester that follows the device to its access address hears both with a valid CRC
@@ -381,14 +381,14 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
             set_local_address( dut_address ),
             start_advertising( 37, first, response ) ),
         on_adv_timeout(
-            schedule_advertising_event( 37, delta_time::msec( 100 ), scheduled, response ) ),
+            schedule_advertising_event( 37, 100ms, scheduled, response ) ),
         on_adv_received(
-            schedule_advertising_event( 37, delta_time::msec( 100 ), last, response ) ) } );
+            schedule_advertising_event( 37, 100ms, last, response ) ) } );
 
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        answer( 37, delta_time::msec( 300 ), dut_address, request ),
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+        receive( 37, operation_timeout, 1 ),
+        answer( 37, operation_timeout, dut_address, request ),
+        receive( 37, operation_timeout, 1 ) } );
 
     run();
 
@@ -403,7 +403,7 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
     BOOST_CHECK( captured[ 3 ].crc_ok );
     BOOST_CHECK( carries( captured[ 3 ], response ) );
     BOOST_CHECK( carries( captured[ 4 ], last ) );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 2 ], captured[ 4 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 2 ], captured[ 4 ] ) - 100ms ), tolerance );
 
     const auto records = device_records();
 
@@ -474,15 +474,15 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
             start_advertising( 37, old_advertising, old_response ) ),
         on_adv_received(
             set_local_address( changed_address ),
-            schedule_advertising_event( 37, delta_time::msec( 100 ), new_advertising, new_response ) ),
+            schedule_advertising_event( 37, 100ms, new_advertising, new_response ) ),
         on_adv_timeout(
-            schedule_advertising_event( 37, delta_time::msec( 100 ), next_advertising, new_response ) ) } );
+            schedule_advertising_event( 37, 100ms, next_advertising, new_response ) ) } );
 
     // the request to the old address gets no reply; its window closes before the next advertising
     program_tester( {
-        answer( 37, delta_time::msec( 300 ), dut_address, request_to_old ),
-        answer( 37, delta_time::msec( 150 ), changed_address, request_to_old ),
-        answer( 37, delta_time::msec( 300 ), changed_address, request_to_new ) } );
+        answer( 37, operation_timeout, dut_address, request_to_old ),
+        answer( 37, time_out( 150ms ), changed_address, request_to_old ),
+        answer( 37, operation_timeout, changed_address, request_to_new ) } );
 
     run();
 
@@ -512,8 +512,6 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
  */
 BOOST_FIXTURE_TEST_CASE( the_scan_response_starts_one_inter_frame_space_after_the_request, rig_fixture, *if_tester )
 {
-    using namespace std::chrono_literals;
-
     const auto   captured = a_scan_request_is_answered( *this, scan_request( tester_address, dut_address ) );
     const auto   space    = inter_frame_space( captured[ 1 ], captured[ 2 ] );
     const double space_us = std::chrono::duration< double, std::micro >( space ).count();

@@ -46,10 +46,15 @@ namespace test_rig {
             && std::equal( bytes.begin(), bytes.end(), p.data.data.begin() );
     }
 
-    long microseconds_between( const captured_pdu& earlier, const captured_pdu& later )
+    std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later )
     {
         return std::chrono::duration_cast< std::chrono::microseconds >(
-            time_of( later.when ) - time_of( earlier.when ) ).count();
+            time_of( later.when ) - time_of( earlier.when ) );
+    }
+
+    std::chrono::microseconds time_between( const record& earlier, const record& later )
+    {
+        return std::chrono::microseconds( ( later.when - earlier.when ).usec() );
     }
 }
 }

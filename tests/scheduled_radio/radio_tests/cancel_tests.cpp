@@ -15,17 +15,18 @@
 #include "radio_tests/rig_fixture.hpp"
 #include "radio_tests/tester.hpp"
 
-#include <bluetoe/delta_time.hpp>
-
-#include <cstdlib>
+#include <chrono>
 #include <vector>
 
 using namespace bluetoe::test_rig;
-using bluetoe::link_layer::delta_time;
+using namespace std::chrono_literals;
 
 namespace {
 
     const auto if_tester = boost::unit_test::precondition( tester_present{} );
+
+    // how long a tester operation may wait for what it waits for
+    const time_out operation_timeout{ 300ms };
 
     /*
      * The tester hears `first` and then, for a window past the cancelled event's time,
@@ -38,8 +39,8 @@ namespace {
             on_adv_timeout( schedule, cancel_radio_event() ) } );
 
         rig.program_tester( {
-            receive( 37, delta_time::msec( 300 ), 1 ),
-            receive( 37, delta_time::msec( 300 ) ) } );
+            receive( 37, operation_timeout, 1 ),
+            receive( 37, time_out( 300ms ) ) } );
 
         rig.run();
 
@@ -63,7 +64,7 @@ BOOST_FIXTURE_TEST_CASE( a_scheduled_advertising_event_cancelled_in_time_is_not_
     const auto first     = advertising( 6, 0x01 );
     const auto cancelled = advertising( 6, 0x02 );
 
-    cancelled_in_time( *this, schedule_advertising_event( 37, delta_time::msec( 100 ), cancelled ), first );
+    cancelled_in_time( *this, schedule_advertising_event( 37, 100ms, cancelled ), first );
 }
 
 // the cancel follows the start by microseconds, before the transmitter was started
@@ -83,7 +84,7 @@ BOOST_FIXTURE_TEST_CASE( cancelling_with_nothing_pending_is_refused, rig_fixture
         on_adv_timeout( cancel_radio_event() ) } );
 
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+        receive( 37, operation_timeout, 1 ) } );
 
     run();
 
@@ -104,13 +105,13 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), late ),
-                        schedule_timer( delta_time::msec( 100 ) ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, late ),
+                        schedule_timer( 100ms ) ),
         on_user_timer(  cancel_radio_event() ) } );
 
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 300 ), 1 ) } );
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, operation_timeout, 1 ) } );
 
     run();
 
@@ -118,7 +119,7 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
 
     BOOST_REQUIRE_EQUAL( captured.size(), 2u );
     BOOST_CHECK( carries( captured[ 1 ], late ) );
-    BOOST_CHECK_LE( std::abs( microseconds_between( captured[ 0 ], captured[ 1 ] ) - 100'000 ), tolerance_us );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
 
     const auto records   = device_records();
     const auto cancelled = calls_of( records, call_kind::cancel_radio_event );
@@ -141,16 +142,16 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
-        on_adv_timeout( schedule_advertising_event( 37, delta_time::msec( 100 ), cancelled ),
-                        schedule_timer( delta_time::msec( 50 ) ) ),
+        on_adv_timeout( schedule_advertising_event( 37, 100ms, cancelled ),
+                        schedule_timer( 50ms ) ),
         on_user_timer(  cancel_radio_event(),
                         start_advertising( 37, restarted ) ) } );
 
     // the last receive covers the time the cancelled event was scheduled for
     program_tester( {
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 300 ), 1 ),
-        receive( 37, delta_time::msec( 100 ) ) } );
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, operation_timeout, 1 ),
+        receive( 37, time_out( 100ms ) ) } );
 
     run();
 
@@ -159,10 +160,10 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig
     BOOST_REQUIRE_EQUAL( captured.size(), 2u );
     BOOST_CHECK( carries( captured[ 1 ], restarted ) );
 
-    const long between_us = microseconds_between( captured[ 0 ], captured[ 1 ] );
+    const auto between = time_between( captured[ 0 ], captured[ 1 ] );
 
-    BOOST_CHECK_GE( between_us, 50'000 );
-    BOOST_CHECK_LT( between_us, 100'000 );
+    BOOST_CHECK_GE( between, 50ms );
+    BOOST_CHECK_LT( between, 100ms );
 
     const auto records         = device_records();
     const auto cancelled_calls = calls_of( records, call_kind::cancel_radio_event );
