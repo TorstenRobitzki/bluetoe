@@ -57,6 +57,7 @@ Without a device, run everything else with `ctest -LE radio`, as the CI does.
 | `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; the program builders |
 | `observations.hpp` | what the timing tests build their PDUs from and read their results with: advertising channel PDUs, the records and captures of a run |
 | `advertising_tests.cpp` | start_advertising() and schedule_advertising_event() over the air: payload sizes, channels, intervals, the access address, and scan requests with the acceptance filter and T_IFS; skipped without a tester |
+| `cancel_tests.cpp` | cancel_radio_event() on advertising events: in time, too late and with nothing pending; skipped without a tester |
 | `timer_tests.cpp` | schedule_timer() and cancel_timer(), made visible by an advertising scheduled from user_timer(); skipped without a tester |
 
 A test that needs a feature the device may lack is decorated with a `precondition` on

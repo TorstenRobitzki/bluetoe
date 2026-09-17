@@ -160,6 +160,11 @@ namespace test_rig {
         return step{ .on = callback_kind::adv_received, .call_count = 2, .calls = { first, second } };
     }
 
+    inline step on_user_timer( call first, call second )
+    {
+        return step{ .on = callback_kind::user_timer, .call_count = 2, .calls = { first, second } };
+    }
+
     inline step on_adv_timeout( call first, call second )
     {
         return step{ .on = callback_kind::adv_timeout, .call_count = 2, .calls = { first, second } };
