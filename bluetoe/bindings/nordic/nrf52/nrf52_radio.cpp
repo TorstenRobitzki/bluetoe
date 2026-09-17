@@ -73,6 +73,20 @@ namespace bluetoe
             constexpr std::uint32_t longest_response_us     = ( 1 + 4 + 2 + 34 + 3 ) * 8;
             constexpr std::uint32_t response_window_us      = inter_frame_space_us + longest_response_us + 50;
 
+            /*
+             * The receive window after an answer in a connection event: the inter frame space,
+             * the preamble and access address of the next PDU, and a margin. Its address event
+             * ends the window.
+             */
+            constexpr std::uint32_t connection_answer_window_us = inter_frame_space_us + ( 1 + 4 ) * 8 + 50;
+
+            /*
+             * The header bits of a data channel PDU the radio reads.
+             */
+            constexpr std::uint8_t  nesn_mask                   = 0x04;
+            constexpr std::uint8_t  sn_mask                     = 0x08;
+            constexpr std::uint8_t  md_mask                     = 0x10;
+
             constexpr std::uint32_t advertising_access_address  = 0x8E89BED6;
             constexpr std::uint32_t advertising_crc_init        = 0x555555;
 
@@ -234,6 +248,19 @@ namespace bluetoe
             , acceptance_filter_( nullptr )
             , local_address_()
             , scannable_( false )
+            , buffer_{}
+            , scratch_{}
+            , reception_{ nullptr, 0 }
+            , into_scratch_( false )
+            , received_any_( false )
+            , continues_( false )
+            , crc_errors_in_a_row_( 0 )
+            , anchor_()
+            , connection_end_()
+            , last_transmitted_more_data_( false )
+            , unacknowledged_( false )
+            , unacknowledged_sn_( false )
+            , connection_events_()
         {
             assert( instance_ == nullptr );
             instance_ = this;
@@ -298,6 +325,11 @@ namespace bluetoe
         void radio_base::set_local_address( const link_layer::device_address& address )
         {
             local_address_ = address;
+        }
+
+        void radio_base::set_pdu_buffer_access( const pdu_buffer_access& access )
+        {
+            buffer_ = access;
         }
 
         /*
@@ -432,6 +464,58 @@ namespace bluetoe
         }
 
         /*
+         * The receiver starts when TIMER0 reaches compare 0, a ramp up before `start`, and
+         * compare 1 disables it at `end` if no packet began by then. From there the event runs
+         * in the interrupts, like an advertising event; see on_connection_packet_end().
+         */
+        bool radio_base::schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end )
+        {
+            const interrupts_off no_interruption;
+
+            assert( buffer_.received != nullptr );
+
+            // end lies after start; the comparison is on the ring of abs_time
+            assert( !end.is_in_near_past( start + link_layer::delta_time::usec( 1 ) ) );
+
+            if ( start.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us ) ) )
+                return false;
+
+            // pending lasts until the callback is delivered; see next_event()
+            assert( state_ == state::idle );
+
+            received_any_               = false;
+            continues_                  = false;
+            crc_errors_in_a_row_        = 0;
+            connection_end_             = end;
+            last_transmitted_more_data_ = false;
+            connection_events_          = link_layer::connection_event_events();
+
+            NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
+            NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
+            NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+            allocate_connection_reception();
+
+            NRF_RADIO->EVENTS_READY     = 0;
+            NRF_RADIO->EVENTS_ADDRESS   = 0;
+            NRF_RADIO->EVENTS_END       = 0;
+            NRF_RADIO->EVENTS_DISABLED  = 0;
+
+            NRF_TIMER0->EVENTS_COMPARE[ cc_start ]      = 0;
+            NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
+            NRF_TIMER0->CC[ cc_start ]                  = start.data() - ramp_up_us;
+            NRF_TIMER0->CC[ cc_window_end ]             = end.data();
+
+            NRF_PPI->CHENCLR = ppi_compare0_txen;
+            NRF_PPI->CHENSET = ppi_compare0_rxen | ppi_compare1_disable | ppi_end_capture2;
+
+            state_ = state::connection_receiving;
+
+            NRF_RADIO->INTENSET = RADIO_INTENSET_ADDRESS_Msk | RADIO_INTENSET_END_Msk | RADIO_INTENSET_DISABLED_Msk;
+
+            return true;
+        }
+
+        /*
          * Definitive against the start of the event: once the PPI channel that starts
          * the transmission is off, the radio is either still disabled, in which case the
          * start can no longer happen, or it has begun to ramp up, in which case the event
@@ -440,6 +524,27 @@ namespace bluetoe
         bool radio_base::cancel_radio_event()
         {
             const interrupts_off no_interruption;
+
+            // a connection event that has not started, the same way, with the receiver
+            if ( state_ == state::connection_receiving && !received_any_ )
+            {
+                NRF_PPI->CHENCLR = ppi_compare0_rxen;
+
+                const link_layer::abs_time start = now();
+                while ( now().data() - start.data() < 2 )
+                    ;
+
+                if ( !radio_disabled() )
+                    return false;
+
+                NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk | RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
+                NRF_RADIO->SHORTS   = 0;
+                NRF_PPI->CHENCLR    = ppi_compare1_disable | ppi_end_capture2;
+
+                state_ = state::idle;
+
+                return true;
+            }
 
             if ( state_ != state::transmitting )
                 return false;
@@ -515,7 +620,7 @@ namespace bluetoe
             {
                 ready_pending_ = false;
 
-                return happened{ event::radio_ready, link_layer::abs_time(), { nullptr, 0 } };
+                return happened{ event::radio_ready, link_layer::abs_time(), { nullptr, 0 }, {} };
             }
 
             if ( radio_event_pending_ )
@@ -524,7 +629,7 @@ namespace bluetoe
                 radio_event_pending_ = false;
                 state_               = state::idle;
 
-                return happened{ radio_event_, radio_event_time_, { receive_.buffer, received_size_ } };
+                return happened{ radio_event_, radio_event_time_, { receive_.buffer, received_size_ }, connection_events_ };
             }
 
             if ( timer_event_pending_ )
@@ -532,7 +637,7 @@ namespace bluetoe
                 timer_event_pending_ = false;
                 timer_scheduled_     = false;
 
-                return happened{ event::user_timer, timer_when_, { nullptr, 0 } };
+                return happened{ event::user_timer, timer_when_, { nullptr, 0 }, {} };
             }
 
             return std::nullopt;
@@ -547,6 +652,12 @@ namespace bluetoe
         void radio_base::on_packet_end()
         {
             NRF_RADIO->EVENTS_END = 0;
+
+            if ( state_ == state::connection_receiving || state_ == state::connection_transmitting || state_ == state::connection_closing )
+            {
+                on_connection_packet_end();
+                return;
+            }
 
             if ( state_ == state::responding )
             {
@@ -591,6 +702,12 @@ namespace bluetoe
         void radio_base::on_radio_disabled()
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
+
+            if ( state_ == state::connection_receiving || state_ == state::connection_transmitting || state_ == state::connection_closing )
+            {
+                on_connection_disabled();
+                return;
+            }
 
             if ( state_ == state::transmitting )
             {
@@ -642,6 +759,18 @@ namespace bluetoe
         void radio_base::on_address()
         {
             NRF_RADIO->EVENTS_ADDRESS = 0;
+
+            // in a connection event every packet received is answered, and the interrupt stays on
+            if ( state_ == state::connection_receiving )
+            {
+                NRF_PPI->CHENCLR = ppi_compare1_disable;
+
+                if ( !NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] )
+                    NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_TXEN_Msk;
+
+                return;
+            }
+
             NRF_RADIO->INTENCLR       = RADIO_INTENCLR_ADDRESS_Msk;
 
             if ( state_ != state::receiving )
@@ -692,6 +821,184 @@ namespace bluetoe
 
             state_               = state::reporting;
             answering_           = false;
+            radio_event_pending_ = true;
+            __SEV();
+        }
+
+        /*
+         * The room of the buffer for the next PDU, or the scratch if the buffer has none; a PDU
+         * received into the scratch is not stored, and its sender gets no acknowledgement.
+         */
+        void radio_base::allocate_connection_reception()
+        {
+            reception_    = buffer_.allocate_receive_buffer( this );
+            into_scratch_ = reception_.size == 0;
+
+            if ( into_scratch_ )
+                reception_ = link_layer::read_buffer{ scratch_, sizeof( scratch_ ) };
+
+            NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( reception_.buffer );
+            NRF_RADIO->PCNF1     = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( reception_.size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
+        }
+
+        /*
+         * The end of a packet of a connection event.
+         *
+         * A received packet is answered from the buffer: a PDU with a valid CRC goes into it,
+         * and the answer acknowledges it; one with an invalid CRC gets the answer without an
+         * acknowledgement, and the second in a row cancels the transmitter and closes the event.
+         * The transmitter is already on its way, armed at the address, and TIFS places it.
+         *
+         * The end of the answer decides what follows it: with more data on either side the
+         * receiver, which the DISABLED to RXEN short ramps up, for the answer window; otherwise
+         * nothing, and the disable closes the event.
+         */
+        void radio_base::on_connection_packet_end()
+        {
+            if ( state_ == state::connection_transmitting )
+            {
+                if ( !continues_ )
+                {
+                    state_ = state::connection_closing;
+                    return;
+                }
+
+                allocate_connection_reception();
+
+                NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
+                NRF_TIMER0->CC[ cc_window_end ]             = NRF_TIMER0->CC[ cc_packet_end ] + connection_answer_window_us;
+                NRF_PPI->CHENSET = ppi_compare1_disable;
+
+                state_ = state::connection_receiving;
+
+                return;
+            }
+
+            if ( state_ != state::connection_receiving )
+                return;
+
+            const bool          crc_ok       = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+            const std::uint8_t  header       = reception_.buffer[ 0 ];
+            const std::uint32_t payload_size = reception_.buffer[ 1 ];
+
+            // the anchor is the first bit of the first packet, whatever its CRC
+            if ( !received_any_ )
+            {
+                anchor_       = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( payload_size ) );
+                received_any_ = true;
+            }
+
+            // the window closed before the address, and the disable ends the event
+            if ( !answer_armed() )
+                return;
+
+            link_layer::write_buffer answer{ nullptr, 0 };
+
+            if ( crc_ok )
+            {
+                crc_errors_in_a_row_ = 0;
+
+                if ( unacknowledged_ && static_cast< bool >( header & nesn_mask ) != unacknowledged_sn_ )
+                    unacknowledged_ = false;
+
+                connection_events_.last_received_not_empty     = payload_size != 0;
+                connection_events_.last_received_had_more_data = header & md_mask;
+
+                answer = into_scratch_
+                    ? buffer_.acknowledge( this, reception_ )
+                    : buffer_.received( this, reception_ );
+            }
+            else
+            {
+                connection_events_.error_occured = true;
+
+                if ( ++crc_errors_in_a_row_ == 2 )
+                {
+                    NRF_RADIO->SHORTS        = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+                    NRF_RADIO->TASKS_DISABLE = 1;
+                    state_                   = state::connection_closing;
+
+                    return;
+                }
+
+                answer = buffer_.next_transmit( this );
+            }
+
+            NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( answer.buffer );
+            NRF_RADIO->PCNF1     = ( NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk ) | ( ( answer.size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
+
+            const std::uint8_t answer_header = answer.buffer[ 0 ];
+
+            last_transmitted_more_data_                   = answer_header & md_mask;
+            connection_events_.last_transmitted_not_empty = answer.buffer[ 1 ] != 0;
+
+            if ( answer.buffer[ 1 ] != 0 )
+            {
+                unacknowledged_    = true;
+                unacknowledged_sn_ = answer_header & sn_mask;
+            }
+
+            // the MD bit of a PDU with an invalid CRC is unknown; the central decides with its next
+            continues_ = !crc_ok || ( header & md_mask ) || last_transmitted_more_data_;
+            state_     = state::connection_transmitting;
+        }
+
+        /*
+         * The disables of a connection event. The one between a reception and its answer is
+         * where the short started the transmitter, so it is taken out again, and the one
+         * after the answer ramps the receiver up if the event goes on. A disable that leaves
+         * the radio disabled ends the event: the window closed, the last answer is out, or the
+         * transmitter was cancelled.
+         */
+        void radio_base::on_connection_disabled()
+        {
+            if ( state_ == state::connection_transmitting )
+            {
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk
+                    | ( continues_ ? RADIO_SHORTS_DISABLED_RXEN_Msk : 0 );
+
+                return;
+            }
+
+            if ( !radio_disabled() )
+            {
+                // the receiver ramps up after the answer; the next disable must not start it again
+                NRF_RADIO->SHORTS = NRF_RADIO->SHORTS & ~RADIO_SHORTS_DISABLED_RXEN_Msk;
+
+                return;
+            }
+
+            end_connection_event();
+        }
+
+        /*
+         * Reports the connection event: its end with the anchor and what happened, or a
+         * timeout carrying `end` if nothing was received.
+         */
+        void radio_base::end_connection_event()
+        {
+            NRF_PPI->CHENCLR    = ppi_compare0_rxen | ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2;
+            NRF_RADIO->SHORTS   = 0;
+            NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk | RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
+
+            if ( received_any_ )
+            {
+                // more to send: the last answer said so, or data came after an empty one
+                connection_events_.unacknowledged_data   = unacknowledged_;
+                connection_events_.pending_outgoing_data = last_transmitted_more_data_
+                    || ( !connection_events_.last_transmitted_not_empty && buffer_.pending_outgoing_data_available( this ) );
+
+                radio_event_      = event::connection_end_event;
+                radio_event_time_ = anchor_;
+            }
+            else
+            {
+                radio_event_      = event::connection_timeout;
+                radio_event_time_ = connection_end_;
+            }
+
+            received_size_       = 0;
+            state_               = state::reporting;
             radio_event_pending_ = true;
             __SEV();
         }

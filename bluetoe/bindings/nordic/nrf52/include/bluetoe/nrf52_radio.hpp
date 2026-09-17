@@ -9,8 +9,8 @@
  *
  * This is the advertising slice of decision 11, step 3: the time base, radio_ready(),
  * start_advertising() and schedule_advertising_event() with their receive window and the
- * scan response, the timer, and the callbacks, delivered from run(). Connection events,
- * encryption and PHY changes are present and decline.
+ * scan response, the timer, and the callbacks, delivered from run(); and connection events
+ * without encryption, at 1 Mbit. Encryption and PHY changes are present and ignored.
  * See documentation/scheduled_radio_test_rig.md.
  *
  * @section timebase The time base
@@ -42,8 +42,15 @@
  * adv_received() is reported once the answer is out, which is what makes the event's end
  * mean the air is quiet again.
  *
- * A connection request is not recognised as a response yet, because there is nothing this
- * slice could do with a connection; that comes with the connection events.
+ * A connection request is not recognised as a response yet.
+ *
+ * A connection event receives from its start and answers every PDU received one inter
+ * frame space later, with a PDU from the link layer's buffer, the same way: the shorts to
+ * the transmitter are armed at the address of a packet, and its end decides what is sent.
+ * It closes after an answer when neither side has more data, or when nothing is received
+ * in the inter frame space after the answer, and without an answer after the second PDU in
+ * a row with an invalid CRC. The anchor it reports is the first bit of the first PDU
+ * received.
  */
 
 #include <bluetoe/security_tool_box.hpp>
@@ -51,6 +58,8 @@
 #include <bluetoe/abs_time.hpp>
 #include <bluetoe/address.hpp>
 #include <bluetoe/buffer.hpp>
+#include <bluetoe/connection_events.hpp>
+#include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/phy_encodings.hpp>
 
 #include <cstddef>
@@ -148,23 +157,45 @@ namespace bluetoe
                 const link_layer::write_buffer&     response,
                 const link_layer::read_buffer&      receive );
 
+            bool schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end );
+
             bool cancel_radio_event();
             bool schedule_timer( link_layer::abs_time when );
             bool cancel_timer();
+
+            /**
+             * @brief the radio's side of the link layer's PDU buffer
+             *
+             * Thunks, like the acceptance filter's, since the interrupts live in this base,
+             * which has no callbacks type.
+             */
+            struct pdu_buffer_access
+            {
+                link_layer::read_buffer  ( *allocate_receive_buffer )( radio_base* );
+                link_layer::write_buffer ( *received )( radio_base*, link_layer::read_buffer );
+                link_layer::write_buffer ( *acknowledge )( radio_base*, link_layer::read_buffer );
+                link_layer::write_buffer ( *next_transmit )( radio_base* );
+                bool                     ( *pending_outgoing_data_available )( radio_base* );
+            };
+
+            void set_pdu_buffer_access( const pdu_buffer_access& access );
 
             enum class event
             {
                 radio_ready,
                 adv_received,
                 adv_timeout,
-                user_timer
+                user_timer,
+                connection_timeout,
+                connection_end_event
             };
 
             struct happened
             {
-                event                   kind;
-                link_layer::abs_time    when;
-                link_layer::read_buffer received;
+                event                               kind;
+                link_layer::abs_time                when;
+                link_layer::read_buffer             received;
+                link_layer::connection_event_events events;
             };
 
             /**
@@ -179,6 +210,10 @@ namespace bluetoe
                 transmitting,
                 receiving,
                 responding,
+                connection_receiving,
+                connection_transmitting,
+                // the transmitter is being cancelled, or sends the last answer
+                connection_closing,
                 // the air is quiet, the callback not yet delivered: still pending
                 reporting
             };
@@ -195,6 +230,10 @@ namespace bluetoe
             void on_radio_disabled();
             void end_event();
             void on_timer_expired();
+            void allocate_connection_reception();
+            void on_connection_packet_end();
+            void on_connection_disabled();
+            void end_connection_event();
 
             volatile state              state_;
             link_layer::read_buffer     receive_;
@@ -228,6 +267,31 @@ namespace bluetoe
              */
             link_layer::device_address  local_address_;
             volatile bool               scannable_;
+
+            /*
+             * A connection event: where the PDU being received goes, the room of the buffer or
+             * the scratch when it has none; what happened so far; and whether the event goes
+             * on after the answer being sent.
+             */
+            pdu_buffer_access           buffer_;
+            std::uint8_t                scratch_[ 2 + 255 ];
+            link_layer::read_buffer     reception_;
+            volatile bool               into_scratch_;
+            volatile bool               received_any_;
+            volatile bool               continues_;
+            std::uint8_t                crc_errors_in_a_row_;
+            link_layer::abs_time        anchor_;
+            link_layer::abs_time        connection_end_;
+            bool                        last_transmitted_more_data_;
+
+            /*
+             * Kept across events: the last PDU sent that was not empty, and its sequence number,
+             * until a PDU received acknowledges it.
+             */
+            bool                        unacknowledged_;
+            bool                        unacknowledged_sn_;
+
+            link_layer::connection_event_events connection_events_;
 
             static radio_base*          instance_;
         };
@@ -295,6 +359,16 @@ namespace bluetoe
             radio()
             {
                 radio_base::set_acceptance_filter( &apply_acceptance_filter );
+
+                if constexpr ( link_layer::scheduled_radio_connection_callbacks< CallBacks > )
+                {
+                    radio_base::set_pdu_buffer_access( {
+                        .allocate_receive_buffer         = []( radio_base* base ) { return buffer( base ).allocate_receive_buffer(); },
+                        .received                        = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).received( pdu ); },
+                        .acknowledge                     = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).acknowledge( pdu ); },
+                        .next_transmit                   = []( radio_base* base ) { return buffer( base ).next_transmit(); },
+                        .pending_outgoing_data_available = []( radio_base* base ) { return buffer( base ).pending_outgoing_data_available(); } } );
+                }
             }
 
             /**
@@ -324,6 +398,14 @@ namespace bluetoe
                     case event::user_timer:
                         callbacks.user_timer( next->when );
                         break;
+                    case event::connection_timeout:
+                        if constexpr ( link_layer::scheduled_radio_connection_callbacks< CallBacks > )
+                            callbacks.connection_timeout( next->when );
+                        break;
+                    case event::connection_end_event:
+                        if constexpr ( link_layer::scheduled_radio_connection_callbacks< CallBacks > )
+                            callbacks.connection_end_event( next->when, next->events );
+                        break;
                     }
                 }
 
@@ -335,6 +417,7 @@ namespace bluetoe
             using radio_base::set_local_address;
             using radio_base::start_advertising;
             using radio_base::schedule_advertising_event;
+            using radio_base::schedule_connection_event;
             using radio_base::cancel_radio_event;
             using radio_base::schedule_timer;
             using radio_base::cancel_timer;
@@ -342,20 +425,19 @@ namespace bluetoe
             /**
              * @name Not implemented in this slice
              *
-             * Present so that the class satisfies the concept; the scheduling function
-             * declines.
+             * Present so that the class satisfies the concept, and ignored.
              * @{
              */
             void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
             void set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
-
-            bool schedule_connection_event( std::uint32_t, link_layer::abs_time, link_layer::abs_time )
-            {
-                return false;
-            }
             /** @} */
 
         private:
+            static auto& buffer( radio_base* base )
+            {
+                return static_cast< CallBacks& >( static_cast< radio& >( *base ) ).link_layer_pdu_buffer();
+            }
+
             /*
              * The thunk the base calls to apply the acceptance filter, the one thing the
              * receive interrupt needs from the callbacks type it cannot name itself.
