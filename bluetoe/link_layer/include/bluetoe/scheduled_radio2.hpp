@@ -495,12 +495,14 @@ namespace link_layer {
         { radio.schedule_connection_event( value, when, when ) } -> std::same_as< bool >;
 
         /*
-         * Cancels the pending connection event. The answer is definitive at the time of
-         * the call: true, and none of the event's callbacks will be called; false, no
-         * event was pending or it was too late, and the event proceeds as if this had
-         * not been called. An implementation decides this atomically against the start
-         * of the event, so that a caller never sees true and a callback for the same
-         * event.
+         * Cancels the pending action, whichever scheduling function scheduled it. The
+         * answer is definitive at the time of the call: true, and none of the action's
+         * callbacks will be called, so no action is pending any more; false, no action
+         * was pending or it was too late, and the action proceeds as if this had not been
+         * called. An action that ended, but whose callback was not delivered yet, is past
+         * cancelling: false, and the callback follows. An implementation decides this
+         * atomically against the start of the action, so that a caller never sees true
+         * and a callback for the same action.
          */
         { radio.cancel_radio_event() } -> std::same_as< bool >;
 
