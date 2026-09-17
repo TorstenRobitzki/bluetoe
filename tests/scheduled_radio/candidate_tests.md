@@ -73,17 +73,75 @@ cannot be told from that calibration.
 
 ## Connection events
 
-**A connection event receives and transmits.** Both programs set the access address and CRC
-init; the DUT schedules a connection event, the tester transmits a data PDU inside the window.
-Expect the tester to observe the DUT's response and the DUT to report a `connection_end_event`.
-Where inside the window the tester transmits has to be counted from something the tester saw,
-so the DUT program transmits an advertising PDU first and the tester program places its data
-PDU relative to the moment it received that. That is an operation the tester does not have yet.
+Every test starts with the DUT advertising: the tester places its first data PDU from that
+advertising (`transmit`), after both switched to the connection's access address. The tester's
+program is loaded before the run, so its SN, NESN and MD bits are what the test expects the flow to
+be; a host side model of the central builds them, and a DUT that deviates shows in the replies the
+tester captured. Encryption is left for a later batch.
 
-**A cancelled connection event does not go on air.** Schedule an event far enough ahead and
-cancel it in the same step. Expect the recorded result of the cancel to be `true`, no
-`connection_end_event` or `connection_timeout` afterwards, and nothing observed by the tester.
-The cancel's answer is definitive, so the absence of the callbacks is part of what is asserted.
+Several entries look at the same behaviour from different sides, the MD flag or a CRC error as an
+end of the event and as a flag of `connection_event_events`, for example. Such a behaviour gets one
+test, not one per entry.
+
+### Normal flow
+
+**One PDU each way, both empty.** The DUT answers the tester's empty PDU with an empty one, the event
+closes as neither has MD set, and `connection_end_event` carries the anchor.
+
+**PDU sizes.** Vary the payload in both directions: empty, a middle size, 27 bytes, and up to
+`radio_max_supported_payload_length`. Expect the bytes on both sides and the answer at T_IFS after
+the end of a PDU of each length.
+
+**The MD flag.** Both MD clear closes the event after one exchange; the tester's MD set keeps the
+DUT listening; the DUT's MD set, with more queued, keeps the event going while the tester transmits.
+
+**The channel changes.** Two connection events on different data channels, the tester following.
+
+**The access address is used and can be changed.** A tester on the connection's access address gets
+answers, one on another address none; after the DUT switches, the tester follows.
+
+**2 Mbit.** Sending and receiving at 2 Mbit, on a DUT that supports it. Needs 2 Mbit in the tester
+and in the DUT's radio.
+
+**The times reported are correct.** The next event is scheduled from the time `connection_end_event`
+or `connection_timeout` carried, and the tester measures the distance of the anchors.
+
+### How an event ends
+
+One test for every end the interface names:
+
+- nothing is received between `start` and `end`: `connection_timeout` carrying `end`;
+- neither side has MD set: `connection_end_event` after the DUT's answer;
+- nothing is received after the DUT's answer: `connection_end_event`;
+- the second PDU in a row with an invalid CRC: `connection_end_event`, without an answer;
+- the event is cancelled: nothing is reported.
+
+### Errors
+
+**The receive window.** A first PDU from the tester before `start` and after `end` is not received;
+one just after `start` and one near `end` are.
+
+**PDUs with an invalid CRC.** The tester transmits with another CRC init than the DUT uses. Expect a
+negative acknowledgement to the first (LL/CON/PER/BV-15-C) and the end of the event after the second
+in a row. Needs a CRC init for the transmission alone, or the reply is received with the wrong one
+as well.
+
+**A full receive buffer.** A PDU the DUT's buffer has no room for is not acknowledged, and the event
+goes on: the tester's retransmission is acknowledged in a later event, once the buffer was drained.
+
+**A pending connection event can be cancelled.** In time in the step that scheduled it, too late
+from a timer, and with nothing pending, as for advertising events.
+
+### The flags of `connection_event_events`
+
+One situation for each:
+
+- `unacknowledged_data`: the DUT sends data, and the tester does not acknowledge it;
+- `last_received_not_empty`: the tester sends a payload, against an empty PDU;
+- `last_transmitted_not_empty`: the DUT's buffer holds data, against an empty buffer;
+- `last_received_had_more_data`: the tester's last PDU has MD set;
+- `pending_outgoing_data`: more is queued in the DUT's buffer than the event sends;
+- `error_occured`: a PDU from the tester with an invalid CRC.
 
 ## The pairing toolbox
 
