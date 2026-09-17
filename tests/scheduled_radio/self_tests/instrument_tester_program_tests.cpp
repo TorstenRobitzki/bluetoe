@@ -1015,3 +1015,19 @@ BOOST_FIXTURE_TEST_CASE( access_address_operations_in_a_row_and_at_the_end, fixt
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
     BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
 }
+
+// a PDU on another access address carries no advertiser's address, and the filter does not apply
+BOOST_FIXTURE_TEST_CASE( the_acceptance_filter_does_not_apply_on_another_access_address, fixture )
+{
+    const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
+
+    remote.call< &rig_t::add_operation >( address_op( 0x71764129, 0x7a8f23 ) );
+    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 1ms ), other_adv, true );
+    rig.run();
+
+    BOOST_CHECK_EQUAL( collect_all().size(), 1u );
+}

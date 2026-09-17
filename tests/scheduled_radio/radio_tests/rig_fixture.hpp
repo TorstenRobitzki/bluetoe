@@ -62,12 +62,6 @@ namespace test_rig {
     const link_layer::device_address tester_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01 }, false };
 
     /**
-     * @brief the access address and CRC init the specification fixes for advertising
-     */
-    constexpr std::uint32_t advertising_access_address = 0x8E89BED6;
-    constexpr std::uint32_t advertising_crc_init       = 0x555555;
-
-    /**
      * @brief a step of a device program: a call to make on a callback
      * @{
      */

@@ -180,7 +180,7 @@ namespace test_rig {
         NRF_TIMER0->TASKS_START = 1;
 
         configure_radio();
-        set_access_address_and_crc_init( 0x8E89BED6, 0x555555 );
+        set_access_address_and_crc_init( advertising_access_address, advertising_crc_init );
 
         NRF_PPI->CH[ ppi_address_capture ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RADIO->EVENTS_ADDRESS );
         NRF_PPI->CH[ ppi_address_capture ].TEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER0->TASKS_CAPTURE[ cc_address ] );
@@ -217,6 +217,8 @@ namespace test_rig {
 
     void platform::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
     {
+        access_address_ = access_address;
+
         NRF_RADIO->BASE0    = access_address << 8;
         NRF_RADIO->PREFIX0  = access_address >> 24;
         NRF_RADIO->CRCINIT  = crc_init;
@@ -321,10 +323,13 @@ namespace test_rig {
         NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
         NRF_RADIO->PACKETPTR    = reinterpret_cast< std::uint32_t >( receive_buffer_ );
 
+        // only a PDU on the advertising access address has an advertiser's address to match
+        const bool match_advertisers = matching_advertisers_ && access_address_ == advertising_access_address;
+
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_END       = 0;
         NRF_RADIO->EVENTS_DEVMISS   = 0;
-        NRF_RADIO->INTENSET         = RADIO_INTENSET_END_Msk | ( matching_advertisers_ ? RADIO_INTENSET_DEVMISS_Msk : 0 );
+        NRF_RADIO->INTENSET         = RADIO_INTENSET_END_Msk | ( match_advertisers ? RADIO_INTENSET_DEVMISS_Msk : 0 );
 
         NRF_TIMER0->EVENTS_COMPARE[ cc_window ] = 0;
         NRF_TIMER0->TASKS_CAPTURE[ cc_now ]     = 1;

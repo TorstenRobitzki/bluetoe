@@ -104,8 +104,10 @@ namespace test_rig {
 
         std::uint8_t                            receive_buffer_[ max_advertising_pdu_size ];
 
-        // whether the radio matches advertisers, which is when it reports a miss
+        // whether the radio matches advertisers, which is when it reports a miss, and the
+        // access address, on which it only does for advertising
         bool                                    matching_advertisers_ = false;
+        std::uint32_t                           access_address_       = 0;
 
         /*
          * An answer operation's state, shared between answer(), the window end and the two

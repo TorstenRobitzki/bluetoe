@@ -67,6 +67,16 @@ namespace test_rig {
     constexpr std::uint8_t no_operation_timed_out = 0xff;
 
     /**
+     * @brief the access address and CRC init the specification fixes for advertising
+     *
+     * A PDU on this access address carries its advertiser's address, and the acceptance
+     * filter applies to it; a PDU on any other access address carries none, and the filter
+     * does not apply.
+     */
+    constexpr std::uint32_t advertising_access_address = 0x8E89BED6;
+    constexpr std::uint32_t advertising_crc_init       = 0x555555;
+
+    /**
      * @brief what the tester's radio reports to the program interpreter
      *
      * A received PDU or one the radio transmitted, each with the time its first bit was on
@@ -168,7 +178,8 @@ namespace test_rig {
          * Puts `address` into slot `value` of the advertisers the radio accepts. With at
          * least one slot filled, the radio abandons a packet from any other advertiser as
          * soon as its address is received, so that the receiver is free again for the device
-         * under test. Slots are only ever added, like the rig's acceptance filter.
+         * under test. Only on the advertising access address, whose PDUs carry an
+         * advertiser's address. Slots are only ever added, like the rig's acceptance filter.
          */
         platform.accept_advertiser( value, address );
 
@@ -268,6 +279,7 @@ namespace test_rig {
          */
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
         {
+            access_address_ = access_address;
             platform_.set_access_address_and_crc_init( access_address, crc_init );
         }
 
@@ -440,7 +452,8 @@ namespace test_rig {
                     if ( next->rssi > rssi_limit_ )
                         continue;
 
-                    if ( !in_acceptance_filter( next->data ) )
+                    // only a PDU on the advertising access address carries an advertiser's address
+                    if ( access_address_ == advertising_access_address && !in_acceptance_filter( next->data ) )
                         continue;
 
                     captured_pdu entry;
@@ -558,7 +571,7 @@ namespace test_rig {
             for ( ; cursor_ != operation_count_ && operations_[ cursor_ ].kind == operation_kind::set_access_address_and_crc_init; ++cursor_ )
             {
                 platform_.stop();
-                platform_.set_access_address_and_crc_init( operations_[ cursor_ ].access_address, operations_[ cursor_ ].crc_init );
+                set_access_address_and_crc_init( operations_[ cursor_ ].access_address, operations_[ cursor_ ].crc_init );
             }
 
             if ( cursor_ != operation_count_ )
@@ -623,6 +636,7 @@ namespace test_rig {
         std::uint32_t                                   operation_id_       = 0;
         std::uint32_t                                   received_           = 0;
         bool                                            answered_           = false;
+        std::uint32_t                                   access_address_     = advertising_access_address;
         std::uint8_t                                    timed_out_          = no_operation_timed_out;
         tester_time                                     reference_;
         bool                                            has_reference_      = false;
