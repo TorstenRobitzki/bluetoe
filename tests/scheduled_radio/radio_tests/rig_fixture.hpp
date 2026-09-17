@@ -164,6 +164,25 @@ namespace test_rig {
         return step{ .on = callback_kind::adv_timeout, .call_count = 2, .calls = { first, second } };
     }
 
+    inline step on_connection_end_event( call c )
+    {
+        return step{ .on = callback_kind::connection_end_event, .call_count = 1, .calls = { c } };
+    }
+
+    inline step on_connection_timeout( call c )
+    {
+        return step{ .on = callback_kind::connection_timeout, .call_count = 1, .calls = { c } };
+    }
+
+    /**
+     * @brief a connection event on `channel`, receiving from `start` and until `end` without a
+     *        reception, both relative to the callback
+     */
+    inline call schedule_connection_event( std::uint32_t channel, link_layer::delta_time start, link_layer::delta_time end )
+    {
+        return call{ .kind = call_kind::schedule_connection_event, .channel = channel, .delay = start, .end_delay = end };
+    }
+
     inline call schedule_timer( link_layer::delta_time delay )
     {
         return call{ .kind = call_kind::schedule_timer, .delay = delay };
@@ -237,11 +256,12 @@ namespace test_rig {
 
     /**
      * @brief a tester operation: transmit `data` on `channel` with its first bit on air `delay`
-     *        after the first bit of the PDU captured last, then listen and end with the reply
+     *        after the first bit of the PDU captured last, then listen and end with the reply;
+     *        `window` bounds the whole operation
      */
     inline operation transmit(
-        std::uint32_t channel, link_layer::delta_time window, link_layer::delta_time delay,
-        std::span< const std::uint8_t > data )
+        std::uint32_t channel, link_layer::delta_time delay, std::span< const std::uint8_t > data,
+        link_layer::delta_time window )
     {
         return operation{
             .kind     = operation_kind::transmit,
@@ -357,6 +377,32 @@ namespace test_rig {
             {
                 const record_batch batch = device.call< &dut::collect_records >();
                 result.insert( result.end(), batch.records.begin(), batch.records.begin() + batch.count );
+
+                if ( batch.count == 0 )
+                    return result;
+            }
+        }
+
+        /**
+         * @brief queues data channel PDUs for the device to send in connection events
+         */
+        void queue_device_pdus( std::initializer_list< std::span< const std::uint8_t > > pdus )
+        {
+            for ( const auto& p : pdus )
+                BOOST_REQUIRE( device.call< &dut::queue_pdu >( pdu( p ) ) );
+        }
+
+        /**
+         * @brief the PDUs the device received in connection events, in order
+         */
+        std::vector< pdu > device_received()
+        {
+            std::vector< pdu > result;
+
+            for ( ;; )
+            {
+                const received_batch batch = device.call< &dut::collect_received >();
+                result.insert( result.end(), batch.pdus.begin(), batch.pdus.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;
