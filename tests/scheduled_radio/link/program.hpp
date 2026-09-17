@@ -19,6 +19,7 @@
 
 #include <bluetoe/abs_time.hpp>
 #include <bluetoe/address.hpp>
+#include <bluetoe/connection_events.hpp>
 #include <bluetoe/delta_time.hpp>
 
 #include <array>
@@ -41,7 +42,9 @@ namespace test_rig {
         radio_ready,
         adv_received,
         adv_timeout,
-        user_timer
+        user_timer,
+        connection_timeout,
+        connection_end_event
     };
 
     /**
@@ -55,13 +58,15 @@ namespace test_rig {
         cancel_radio_event,
         cancel_timer,
         set_local_address,
-        set_access_address_and_crc_init
+        set_access_address_and_crc_init,
+        schedule_connection_event
     };
 
     /**
      * @brief one call of a step, with the parameters the call kind uses
      *
-     * `delay` is added to the time the triggering callback carried; `transmit` and
+     * `delay` is added to the time the triggering callback carried, and so is `end_delay`,
+     * the end of a connection event's receive window; `transmit` and
      * `response` are the advertising PDU and the scan response of an advertising event;
      * `address`, `access_address` and `crc_init` are what the two setup calls set.
      */
@@ -70,6 +75,7 @@ namespace test_rig {
         call_kind                   kind            = call_kind::cancel_radio_event;
         std::uint32_t               channel         = 0;
         link_layer::delta_time      delay           = {};
+        link_layer::delta_time      end_delay       = {};
         pdu                         transmit        = {};
         pdu                         response        = {};
         link_layer::device_address  address         = {};
@@ -107,23 +113,68 @@ namespace test_rig {
     /**
      * @brief one thing that happened: a callback the radio made, or a call a step made
      *
-     * For a callback, `when` is the time it carried and `data` what adv_received()
-     * received. For a call, `when` is the resolved time it passed, `channel` its channel,
-     * and `result` what it returned; start_advertising(), the cancels and the setup calls
+     * For a callback, `when` is the time it carried, `data` what adv_received() received,
+     * and `events` what connection_end_event() reported. For a call, `when` is the resolved
+     * time it passed, `channel` its channel, and `result` what it returned; start_advertising(), the cancels and the setup calls
      * carry no time, and start_advertising() and the setup calls no result.
      */
     struct record
     {
-        record_kind             kind        = record_kind::callback;
-        callback_kind           callback    = callback_kind::start;
-        call_kind               call        = call_kind::cancel_radio_event;
-        link_layer::abs_time    when;
-        std::uint32_t           channel     = 0;
-        bool                    result      = false;
-        pdu                     data;
+        record_kind                         kind        = record_kind::callback;
+        callback_kind                       callback    = callback_kind::start;
+        call_kind                           call        = call_kind::cancel_radio_event;
+        link_layer::abs_time                when;
+        std::uint32_t                       channel     = 0;
+        bool                                result      = false;
+        pdu                                 data;
+        link_layer::connection_event_events events;
     };
 
     constexpr std::size_t records_per_batch = 4;
+
+    constexpr std::size_t received_per_batch = 4;
+
+    /**
+     * @brief the PDUs received in connection events that the rig hands over in one response
+     *
+     * They are the ones the link layer's side of the PDU buffer reads, in the order they were
+     * received; an empty batch means none is left.
+     */
+    struct received_batch
+    {
+        std::uint8_t                                    count       = 0;
+        std::array< pdu, received_per_batch >           pdus;
+    };
+
+    template < sink Sink >
+    bool serialize( Sink& out, const link_layer::connection_event_events& value )
+    {
+        return serialize( out, std::tie( value.unacknowledged_data, value.last_received_not_empty, value.last_transmitted_not_empty,
+            value.last_received_had_more_data, value.pending_outgoing_data, value.error_occured ) );
+    }
+
+    template < source Source >
+    bool deserialize( Source& in, link_layer::connection_event_events& value )
+    {
+        auto fields = std::tie( value.unacknowledged_data, value.last_received_not_empty, value.last_transmitted_not_empty,
+            value.last_received_had_more_data, value.pending_outgoing_data, value.error_occured );
+
+        return deserialize( in, fields );
+    }
+
+    template < sink Sink >
+    bool serialize( Sink& out, const received_batch& value )
+    {
+        return serialize( out, std::tie( value.count, value.pdus ) );
+    }
+
+    template < source Source >
+    bool deserialize( Source& in, received_batch& value )
+    {
+        auto fields = std::tie( value.count, value.pdus );
+
+        return deserialize( in, fields ) && value.count <= received_per_batch;
+    }
 
     /**
      * @brief the records the rig hands over in one response
@@ -143,14 +194,14 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const call& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.delay, value.transmit, value.response,
+        return serialize( out, std::tie( value.kind, value.channel, value.delay, value.end_delay, value.transmit, value.response,
             value.address, value.access_address, value.crc_init ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, call& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.delay, value.transmit, value.response,
+        auto fields = std::tie( value.kind, value.channel, value.delay, value.end_delay, value.transmit, value.response,
             value.address, value.access_address, value.crc_init );
 
         return deserialize( in, fields );
@@ -173,13 +224,13 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const record& value )
     {
-        return serialize( out, std::tie( value.kind, value.callback, value.call, value.when, value.channel, value.result, value.data ) );
+        return serialize( out, std::tie( value.kind, value.callback, value.call, value.when, value.channel, value.result, value.data, value.events ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, record& value )
     {
-        auto fields = std::tie( value.kind, value.callback, value.call, value.when, value.channel, value.result, value.data );
+        auto fields = std::tie( value.kind, value.callback, value.call, value.when, value.channel, value.result, value.data, value.events );
 
         return deserialize( in, fields );
     }

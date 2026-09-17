@@ -37,6 +37,7 @@ namespace {
         call_kind                       kind;
         std::uint32_t                   channel = 0;
         abs_time                        when = {};
+        abs_time                        end = {};
         std::vector< std::uint8_t >     transmit = {};
         std::vector< std::uint8_t >     response = {};
         std::uint8_t*                   receive = nullptr;
@@ -75,6 +76,13 @@ namespace {
             const bluetoe::link_layer::write_buffer& response, const bluetoe::link_layer::read_buffer& receive )
         {
             return remember( call_kind::schedule_advertising_event, channel, when, transmit, response, receive );
+        }
+
+        bool schedule_connection_event( std::uint32_t channel, abs_time start, abs_time end )
+        {
+            calls.push_back( { .kind = call_kind::schedule_connection_event, .channel = channel, .when = start, .end = end } );
+
+            return answer;
         }
 
         bool schedule_timer( abs_time when )
@@ -172,6 +180,11 @@ namespace {
         result.delay = delay;
 
         return result;
+    }
+
+    call schedule_connection_event( std::uint32_t channel, delta_time start, delta_time end )
+    {
+        return call{ .kind = call_kind::schedule_connection_event, .channel = channel, .delay = start, .end_delay = end };
     }
 
     call cancel_radio_event()
@@ -517,4 +530,156 @@ BOOST_AUTO_TEST_CASE( the_largest_step_fits_into_one_request )
     buffer_sink out( request );
 
     BOOST_CHECK( serialize( out, largest_step ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+
+    BOOST_REQUIRE_EQUAL( radio.calls.size(), 2u );
+    BOOST_CHECK( radio.calls[ 1 ].kind == call_kind::schedule_connection_event );
+    BOOST_CHECK_EQUAL( radio.calls[ 1 ].channel, 5u );
+    BOOST_CHECK_EQUAL( radio.calls[ 1 ].when.data(), 20000u );
+    BOOST_CHECK_EQUAL( radio.calls[ 1 ].end.data(), 22000u );
+
+    const auto records = collect_all();
+
+    BOOST_REQUIRE_EQUAL( records.size(), 3u );
+    BOOST_CHECK( records[ 2 ].call == call_kind::schedule_connection_event );
+    BOOST_CHECK_EQUAL( records[ 2 ].when.data(), 20000u );
+    BOOST_CHECK( records[ 2 ].result );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connection_event_on_start_is_refused, fixture )
+{
+    BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::start, schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) ) );
+}
+
+// the program is finished once the connection event reported its end, with the events recorded
+BOOST_FIXTURE_TEST_CASE( a_connection_event_end_is_recorded_with_its_events, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+
+    const bluetoe::link_layer::connection_event_events events( true, false, true, false, true, false );
+    rig.connection_end_event( abs_time( 20000 ), events );
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+
+    const auto records = collect_all();
+
+    BOOST_REQUIRE_EQUAL( records.size(), 4u );
+    BOOST_CHECK( records[ 3 ].callback == callback_kind::connection_end_event );
+    BOOST_CHECK_EQUAL( records[ 3 ].when.data(), 20000u );
+    BOOST_CHECK( records[ 3 ].events.unacknowledged_data );
+    BOOST_CHECK( !records[ 3 ].events.last_received_not_empty );
+    BOOST_CHECK( records[ 3 ].events.last_transmitted_not_empty );
+    BOOST_CHECK( !records[ 3 ].events.last_received_had_more_data );
+    BOOST_CHECK( records[ 3 ].events.pending_outgoing_data );
+    BOOST_CHECK( !records[ 3 ].events.error_occured );
+}
+
+// a step can wait for a connection timeout, and schedules from the time it carried
+BOOST_FIXTURE_TEST_CASE( a_step_runs_on_a_connection_timeout, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,              start_advertising( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout,        schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ),
+        on( callback_kind::connection_timeout, schedule_connection_event( 6, delta_time::msec( 30 ), delta_time::msec( 32 ) ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.connection_timeout( abs_time( 22000 ) );
+
+    BOOST_REQUIRE_EQUAL( radio.calls.size(), 3u );
+    BOOST_CHECK_EQUAL( radio.calls[ 2 ].channel, 6u );
+    BOOST_CHECK_EQUAL( radio.calls[ 2 ].when.data(), 52000u );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+}
+
+// a queued PDU is what the radio transmits, with the SN the buffer set
+BOOST_FIXTURE_TEST_CASE( a_queued_pdu_reaches_the_radio, fixture )
+{
+    const std::uint8_t data[] = { 0x02, 0x03, 0x0a, 0x0b, 0x0c };
+
+    BOOST_REQUIRE( remote.call< &rig_t::queue_pdu >( pdu( data ) ) );
+
+    const auto transmit = rig.link_layer_pdu_buffer().next_transmit();
+
+    BOOST_REQUIRE_EQUAL( transmit.size, sizeof( data ) );
+    BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & 0x0f, 0x02 );
+    BOOST_TEST( std::vector< std::uint8_t >( transmit.buffer + 1, transmit.buffer + transmit.size ) == std::vector< std::uint8_t >( data + 1, data + sizeof( data ) ), boost::test_tools::per_element() );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_full_buffer_refuses_a_queued_pdu, fixture )
+{
+    const std::array< std::uint8_t, 29 > largest = { 0x02, 27 };
+
+    bool queued = true;
+    for ( std::size_t i = 0; queued && i != 10; ++i )
+        queued = remote.call< &rig_t::queue_pdu >( pdu( largest ) );
+
+    BOOST_CHECK( !queued );
+}
+
+// what the radio stored is handed over in the order it was received, and is gone afterwards
+BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_collected, fixture )
+{
+    auto& buffer = rig.link_layer_pdu_buffer();
+
+    for ( std::uint8_t sn = 0; sn != 2; ++sn )
+    {
+        auto room = buffer.allocate_receive_buffer();
+        BOOST_REQUIRE( room.size != 0 );
+
+        const std::uint8_t received[] = { static_cast< std::uint8_t >( 0x02 | ( sn ? 0x08 : 0 ) ), 0x01, sn };
+        std::copy( std::begin( received ), std::end( received ), room.buffer );
+
+        buffer.received( room );
+    }
+
+    const received_batch batch = remote.call< &rig_t::collect_received >();
+
+    BOOST_REQUIRE_EQUAL( batch.count, 2u );
+    BOOST_CHECK_EQUAL( batch.pdus[ 0 ].data[ 2 ], 0 );
+    BOOST_CHECK_EQUAL( batch.pdus[ 1 ].data[ 2 ], 1 );
+
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
+}
+
+BOOST_AUTO_TEST_CASE( a_full_record_batch_and_a_full_received_batch_fit_into_one_response )
+{
+    const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
+
+    record largest;
+    largest.data = pdu( largest_pdu );
+
+    record_batch records;
+    records.count = records_per_batch;
+    records.records.fill( largest );
+
+    received_batch received;
+    received.count = received_per_batch;
+    received.pdus.fill( pdu( largest_pdu ) );
+
+    std::array< std::uint8_t, default_max_payload - 1 > response;
+
+    buffer_sink records_out( response );
+    BOOST_CHECK( serialize( records_out, records ) );
+
+    buffer_sink received_out( response );
+    BOOST_CHECK( serialize( received_out, received ) );
 }

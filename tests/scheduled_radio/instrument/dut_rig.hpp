@@ -29,6 +29,7 @@
 #include "link/function_list.hpp"
 #include "link/program.hpp"
 
+#include <bluetoe/ll_data_pdu_buffer.hpp>
 #include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/radio_properties.hpp>
 
@@ -66,6 +67,13 @@ namespace test_rig {
      * reset before every test empties the set, as it does the program.
      */
     constexpr std::size_t max_acceptance_filter_entries = 4;
+
+    /**
+     * @brief bytes of the PDU buffer of connection events, for each direction
+     *
+     * A few PDUs of the largest payload without data length extension.
+     */
+    constexpr std::size_t pdu_buffer_size = 4 * 29;
 
     namespace details {
 
@@ -166,6 +174,7 @@ namespace test_rig {
             : instrument_t( implementation_name, build_identifier )
         {
             static_assert( link_layer::scheduled_radio< Radio, dut_rig > );
+            static_assert( link_layer::scheduled_radio_connection_callbacks< dut_rig > );
 
             instrument_t::start();
         }
@@ -209,6 +218,26 @@ namespace test_rig {
         {
             timer_pending_ = false;
             on_callback( callback_kind::user_timer, when, {} );
+        }
+
+        void connection_timeout( link_layer::abs_time when )
+        {
+            radio_event_pending_ = false;
+            on_callback( callback_kind::connection_timeout, when, {} );
+        }
+
+        void connection_end_event( link_layer::abs_time when, link_layer::connection_event_events events )
+        {
+            radio_event_pending_ = false;
+            on_callback( callback_kind::connection_end_event, when, {}, events );
+        }
+
+        /**
+         * @brief the PDU buffer of connection events, radio context
+         */
+        auto& link_layer_pdu_buffer()
+        {
+            return pdu_buffer_;
         }
 
         /**
@@ -283,7 +312,8 @@ namespace test_rig {
                 const call_kind kind = next.calls[ i ].kind;
 
                 if ( next.on == callback_kind::start
-                  && ( kind == call_kind::schedule_advertising_event || kind == call_kind::schedule_timer ) )
+                  && ( kind == call_kind::schedule_advertising_event || kind == call_kind::schedule_timer
+                    || kind == call_kind::schedule_connection_event ) )
                     return false;
             }
 
@@ -323,6 +353,43 @@ namespace test_rig {
                 head_ = ( head_ + 1 ) % record_queue_size;
                 --queued_;
                 ++collected_;
+                ++batch.count;
+            }
+
+            return batch;
+        }
+
+        /**
+         * @brief queues a PDU for transmission in a connection event
+         *
+         * `data` is a data channel PDU; its SN and NESN bits are the buffer's to set. False, and
+         * nothing queued, if the buffer has no room for it. The reset before every test empties
+         * the buffer.
+         */
+        bool queue_pdu( const pdu& data )
+        {
+            link_layer::read_buffer room = pdu_buffer_.allocate_transmit_buffer( data.size );
+
+            if ( room.size == 0 )
+                return false;
+
+            std::copy( data.data.begin(), data.data.begin() + data.size, room.buffer );
+            pdu_buffer_.commit_transmit_buffer( room );
+
+            return true;
+        }
+
+        /**
+         * @brief hands over the oldest PDUs received in connection events and forgets them
+         */
+        received_batch collect_received()
+        {
+            received_batch batch;
+
+            for ( auto next = pdu_buffer_.next_received(); batch.count != received_per_batch && next.size != 0; next = pdu_buffer_.next_received() )
+            {
+                batch.pdus[ batch.count ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+                pdu_buffer_.free_received();
                 ++batch.count;
             }
 
@@ -405,6 +472,8 @@ namespace test_rig {
             &dut_rig::start_program,
             &dut_rig::collect_records,
             &dut_rig::add_to_acceptance_filter,
+            &dut_rig::queue_pdu,
+            &dut_rig::collect_received,
             &toolbox_t::generate_keys,
             &toolbox_t::select_random_nonce,
             &wrapped_t::p256,
@@ -414,13 +483,42 @@ namespace test_rig {
             &wrapped_t::g2 >;
 
     private:
-        void on_callback( callback_kind kind, link_layer::abs_time when, const pdu& data )
+        /*
+         * The library's PDU buffer is written to be a base of the radio. The rig owns it
+         * instead and hands it to the radio, so this makes the radio's side of it public and
+         * provides what the buffer asks of its radio: the lock, and the CCM counters, which
+         * stay unused without encryption.
+         */
+        class pdu_buffer : public link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >
+        {
+        public:
+            using base_t     = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >;
+
+            // excludes the radio context, which uses the buffer
+            using lock_guard = typename radio_t::radio_lock_guard;
+
+            using base_t::allocate_receive_buffer;
+            using base_t::received;
+            using base_t::next_transmit;
+
+            // forwarded, as a private overload of the same name rules out a using-declaration
+            link_layer::write_buffer acknowledge( link_layer::read_buffer pdu )
+            {
+                return base_t::acknowledge( pdu );
+            }
+
+            void increment_receive_packet_counter() {}
+            void increment_transmit_packet_counter() {}
+        };
+
+        void on_callback( callback_kind kind, link_layer::abs_time when, const pdu& data, link_layer::connection_event_events events = {} )
         {
             record entry;
             entry.kind      = record_kind::callback;
             entry.callback  = kind;
             entry.when      = when;
             entry.data      = data;
+            entry.events    = events;
             add_record( entry );
 
             run_step_if_waiting_for( kind, when );
@@ -464,6 +562,11 @@ namespace test_rig {
             case call_kind::schedule_advertising_event:
                 entry.when   = when + what.delay;
                 entry.result = radio_t::schedule_advertising_event( what.channel, entry.when, transmit, response, receive );
+                radio_event_pending_ = radio_event_pending_ || entry.result;
+                break;
+            case call_kind::schedule_connection_event:
+                entry.when   = when + what.delay;
+                entry.result = radio_t::schedule_connection_event( what.channel, entry.when, when + what.end_delay );
                 radio_event_pending_ = radio_event_pending_ || entry.result;
                 break;
             case call_kind::schedule_timer:
@@ -513,6 +616,7 @@ namespace test_rig {
         bool                                            timer_pending_          = false;
 
         std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
+        pdu_buffer                                      pdu_buffer_;
 
         std::array< record, record_queue_size >         records_;
         std::size_t                                     head_                   = 0;

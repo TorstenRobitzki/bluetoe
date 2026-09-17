@@ -77,7 +77,11 @@ namespace {
         static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
 
         struct ccm_counter_t {};
-        struct radio_lock_guard {};
+        // a constructor of its own, as the PDU buffer never names the lock it holds
+        struct radio_lock_guard
+        {
+            radio_lock_guard() {}
+        };
         struct link_layer_lock_guard {};
 
         void run() {}
