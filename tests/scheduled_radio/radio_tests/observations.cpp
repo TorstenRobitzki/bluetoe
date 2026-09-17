@@ -40,12 +40,6 @@ namespace test_rig {
         return result;
     }
 
-    bool carries( const captured_pdu& p, std::span< const std::uint8_t > bytes )
-    {
-        return p.data.size == bytes.size()
-            && std::equal( bytes.begin(), bytes.end(), p.data.data.begin() );
-    }
-
     std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later )
     {
         return std::chrono::duration_cast< std::chrono::microseconds >(

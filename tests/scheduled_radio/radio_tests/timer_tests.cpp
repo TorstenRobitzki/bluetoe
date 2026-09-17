@@ -61,11 +61,10 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
 
     run();
 
-    const auto captured = tester_captured();
+    const auto captured = check_captured( {
+        received( first ),
+        received( second ) } );
 
-    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
-    BOOST_CHECK( carries( captured[ 0 ], first ) );
-    BOOST_CHECK( carries( captured[ 1 ], second ) );
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - ( timer_delay + event_delay ) ), tolerance );
 
     const auto records   = device_records();
@@ -100,10 +99,10 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
 
     run();
 
-    const auto captured = tester_captured();
+    const auto captured = check_captured( {
+        received( first ),
+        received( second ) } );
 
-    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
-    BOOST_CHECK( carries( captured[ 1 ], second ) );
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
 
     // the first adv_timeout, then the timer, then the second event's adv_timeout

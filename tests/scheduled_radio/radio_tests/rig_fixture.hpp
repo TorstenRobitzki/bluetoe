@@ -18,6 +18,7 @@
 
 #include "radio_tests/dut.hpp"
 #include "radio_tests/tester.hpp"
+#include "radio_tests/timeline.hpp"
 
 #include "host/dut_functions.hpp"
 #include "host/tester_functions.hpp"
@@ -450,6 +451,18 @@ namespace test_rig {
                 if ( batch.count == 0 )
                     return result;
             }
+        }
+
+        /**
+         * @brief the tester's timeline, required to be exactly `expected`
+         */
+        std::vector< captured_pdu > check_captured( const std::vector< expected_pdu >& expected )
+        {
+            const auto captured = tester_captured();
+
+            test_rig::check_captured( captured, expected );
+
+            return captured;
         }
 
         std::vector< captured_pdu > tester_captured()

@@ -44,10 +44,7 @@ namespace {
 
         rig.run();
 
-        const auto captured = rig.tester_captured();
-
-        BOOST_REQUIRE_EQUAL( captured.size(), 1u );
-        BOOST_CHECK( carries( captured[ 0 ], first ) );
+        rig.check_captured( { received( first ) } );
 
         const auto records   = rig.device_records();
         const auto cancelled = calls_of( records, call_kind::cancel_radio_event );
@@ -115,10 +112,10 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
 
     run();
 
-    const auto captured = tester_captured();
+    const auto captured = check_captured( {
+        received( first ),
+        received( late ) } );
 
-    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
-    BOOST_CHECK( carries( captured[ 1 ], late ) );
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
 
     const auto records   = device_records();
@@ -155,10 +152,9 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig
 
     run();
 
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
-    BOOST_CHECK( carries( captured[ 1 ], restarted ) );
+    const auto captured = check_captured( {
+        received( first ),
+        received( restarted ) } );
 
     const auto between = time_between( captured[ 0 ], captured[ 1 ] );
 

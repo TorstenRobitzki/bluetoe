@@ -69,11 +69,10 @@ namespace {
 
         rig.run();
 
-        const auto captured = rig.tester_captured();
+        const auto captured = rig.check_captured( {
+            received( first ),
+            received( second ) } );
 
-        BOOST_REQUIRE_EQUAL( captured.size(), 2u );
-        BOOST_CHECK( carries( captured[ 0 ], first ) );
-        BOOST_CHECK( carries( captured[ 1 ], second ) );
         BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - interval ), tolerance );
     }
 
@@ -119,21 +118,15 @@ namespace {
 
         rig.run();
 
-        const auto captured = rig.tester_captured();
+        const auto captured = rig.check_captured( {
+            received( advertisement ),
+            sent( request ),
+            received( response ) } );
 
-        BOOST_REQUIRE_EQUAL( captured.size(), 3u );
-        BOOST_CHECK( captured[ 0 ].direction == pdu_direction::received );
-        BOOST_CHECK( carries( captured[ 0 ], advertisement ) );
-        BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
-        BOOST_CHECK( carries( captured[ 1 ], request ) );
-        BOOST_CHECK( captured[ 2 ].direction == pdu_direction::received );
-        BOOST_CHECK( captured[ 2 ].crc_ok );
-        BOOST_CHECK( carries( captured[ 2 ], response ) );
+        const auto reported = callbacks_of( rig.device_records(), callback_kind::adv_received );
 
-        const auto received = callbacks_of( rig.device_records(), callback_kind::adv_received );
-
-        BOOST_REQUIRE_EQUAL( received.size(), 1u );
-        BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+        BOOST_REQUIRE_EQUAL( reported.size(), 1u );
+        BOOST_CHECK( reported[ 0 ].data == pdu( request ) );
 
         return captured;
     }
@@ -165,13 +158,10 @@ namespace {
 
         rig.run();
 
-        const auto captured = rig.tester_captured();
-
-        BOOST_REQUIRE_EQUAL( captured.size(), 3u );
-        BOOST_CHECK( carries( captured[ 0 ], first ) );
-        BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
-        BOOST_CHECK( carries( captured[ 1 ], request ) );
-        BOOST_CHECK( carries( captured[ 2 ], next ) );
+        rig.check_captured( {
+            received( first ),
+            sent( request ),
+            received( next ) } );
 
         const auto records = rig.device_records();
 
@@ -180,7 +170,7 @@ namespace {
     }
 
     // the device moves off the advertising access address before it starts
-    void advertise_on_another_access_address( rig_fixture& rig )
+    std::vector< std::uint8_t > advertise_on_another_access_address( rig_fixture& rig )
     {
         const auto advertisement = advertising( 6, 0 );
 
@@ -190,6 +180,8 @@ namespace {
                 start_advertising( 37, advertisement ) ),
             on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ) } );
         rig.program_tester( { listen( 37, 300ms ) } );
+
+        return advertisement;
     }
 }
 
@@ -221,9 +213,11 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
 
     run();
 
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 4u );
+    const auto captured = check_captured( {
+        received( advertisement ),
+        received( advertisement ),
+        received( advertisement ),
+        received( advertisement ) } );
 
     const std::chrono::milliseconds requested[] = { 100ms, 50ms, 150ms };
 
@@ -260,12 +254,12 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
 
     run();
 
-    const auto captured = tester_captured();
+    std::vector< expected_pdu > expected;
 
-    BOOST_REQUIRE_EQUAL( captured.size(), sent.size() );
+    for ( const auto& advertisement : sent )
+        expected.push_back( received( advertisement ) );
 
-    for ( std::size_t i = 0; i != sent.size(); ++i )
-        BOOST_CHECK( carries( captured[ i ], sent[ i ] ) );
+    const auto captured = check_captured( expected );
 
     for ( std::size_t i = 1; i != captured.size(); ++i )
         BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i - 1 ], captured[ i ] ) - interval ), tolerance );
@@ -289,12 +283,11 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_t
 
     run();
 
-    const auto captured = tester_captured();
+    const auto captured = check_captured( {
+        received( first ),
+        received( restarted ),
+        received( scheduled ) } );
 
-    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
-    BOOST_CHECK( carries( captured[ 0 ], first ) );
-    BOOST_CHECK( carries( captured[ 1 ], restarted ) );
-    BOOST_CHECK( carries( captured[ 2 ], scheduled ) );
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance );
 }
 
@@ -315,12 +308,12 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
 
     run();
 
-    const auto captured = tester_captured();
+    std::vector< expected_pdu > expected;
 
-    BOOST_REQUIRE_EQUAL( captured.size(), sent.size() );
+    for ( const auto& advertisement : sent )
+        expected.push_back( received( advertisement ) );
 
-    for ( std::size_t i = 0; i != sent.size(); ++i )
-        BOOST_CHECK( carries( captured[ i ], sent[ i ] ) );
+    const auto captured = check_captured( expected );
 
     // placed from the start before them; the restart itself has no required time
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
@@ -332,15 +325,14 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
 BOOST_FIXTURE_TEST_CASE( advertising_uses_the_access_address_and_crc_init_that_were_set, rig_fixture, *if_tester )
 {
     observer.call< &tester::set_access_address_and_crc_init >( other_access_address, other_crc_init );
-    advertise_on_another_access_address( *this );
+
+    const auto advertisement = advertise_on_another_access_address( *this );
 
     run();
 
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
-    BOOST_CHECK( captured[ 0 ].crc_ok );
-    BOOST_CHECK( captured[ 1 ].crc_ok );
+    check_captured( {
+        received( advertisement ),
+        received( advertisement ) } );
 }
 
 // one that stays on the advertising access address hears nothing
@@ -392,17 +384,13 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
 
     run();
 
-    const auto captured = tester_captured();
+    const auto captured = check_captured( {
+        received( first ),
+        received( scheduled ),
+        sent( request ),
+        received( response ),
+        received( last ) } );
 
-    BOOST_REQUIRE_EQUAL( captured.size(), 5u );
-    BOOST_CHECK( carries( captured[ 0 ], first ) );
-    BOOST_CHECK( carries( captured[ 1 ], scheduled ) );
-    BOOST_CHECK( captured[ 2 ].direction == pdu_direction::transmitted );
-    BOOST_CHECK( carries( captured[ 2 ], request ) );
-    BOOST_CHECK( captured[ 3 ].direction == pdu_direction::received );
-    BOOST_CHECK( captured[ 3 ].crc_ok );
-    BOOST_CHECK( carries( captured[ 3 ], response ) );
-    BOOST_CHECK( carries( captured[ 4 ], last ) );
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 2 ], captured[ 4 ] ) - 100ms ), tolerance );
 
     const auto records = device_records();
@@ -486,17 +474,15 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
 
     run();
 
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 8u );
-    BOOST_CHECK( carries( captured[ 0 ], old_advertising ) );
-    BOOST_CHECK( carries( captured[ 1 ], request_to_old ) );
-    BOOST_CHECK( carries( captured[ 2 ], old_response ) );
-    BOOST_CHECK( carries( captured[ 3 ], new_advertising ) );
-    BOOST_CHECK( carries( captured[ 4 ], request_to_old ) );
-    BOOST_CHECK( carries( captured[ 5 ], next_advertising ) );
-    BOOST_CHECK( carries( captured[ 6 ], request_to_new ) );
-    BOOST_CHECK( carries( captured[ 7 ], new_response ) );
+    check_captured( {
+        received( old_advertising ),
+        sent( request_to_old ),
+        received( old_response ),
+        received( new_advertising ),
+        sent( request_to_old ),
+        received( next_advertising ),
+        sent( request_to_new ),
+        received( new_response ) } );
 
     const auto records = device_records();
 

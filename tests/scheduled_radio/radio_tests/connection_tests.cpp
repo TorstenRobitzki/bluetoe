@@ -51,7 +51,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
     const auto advertisement = advertising( 6, 0x01 );
 
     central tester_side;
-    const auto sent = tester_side.send();
+    const auto from_central = tester_side.send();
 
     program_device( {
         on_start(
@@ -63,22 +63,22 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
     program_tester( {
         receive( 37, 1, operation_timeout ),
         use_access_address( connection_access_address, connection_crc_init ),
-        transmit( data_channel, first_pdu_after_advertising, sent, operation_timeout ) } );
+        transmit( data_channel, first_pdu_after_advertising, from_central, operation_timeout ) } );
 
     run();
 
-    const auto captured = tester_captured();
-
-    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
-    BOOST_CHECK( carries( captured[ 1 ], sent ) );
+    // the test does not know the bytes of the device's reply, so its fields are checked below
+    const auto captured = check_captured( {
+        received( advertisement ),
+        sent( from_central ),
+        received_anything() } );
 
     const captured_pdu& reply = captured[ 2 ];
 
-    BOOST_CHECK( reply.crc_ok );
     BOOST_CHECK_EQUAL( reply.data.size, 2u );
     BOOST_CHECK_EQUAL( reply.data.data[ 0 ] & 0x03, 0x01 );
-    BOOST_CHECK( acknowledges( reply, sent ) );
-    BOOST_CHECK( is_new( reply, sent ) );
+    BOOST_CHECK( acknowledges( reply, from_central ) );
+    BOOST_CHECK( is_new( reply, from_central ) );
     BOOST_CHECK( !more_data( std::span< const std::uint8_t >( reply.data.data.data(), reply.data.size ) ) );
 
     const auto records = device_records();

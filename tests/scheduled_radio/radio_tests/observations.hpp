@@ -62,11 +62,6 @@ namespace test_rig {
     std::vector< record > calls_of( const std::vector< record >& records, call_kind kind );
 
     /**
-     * @brief whether a captured PDU consists of exactly `bytes`
-     */
-    bool carries( const captured_pdu& p, std::span< const std::uint8_t > bytes );
-
-    /**
      * @brief the time from the first bit of `earlier` to the first bit of `later`, by the
      *        tester's clock
      */
