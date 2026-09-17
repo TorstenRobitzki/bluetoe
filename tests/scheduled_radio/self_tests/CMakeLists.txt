@@ -25,3 +25,4 @@ target_include_directories(instrument_toolbox_tests PRIVATE ${CMAKE_SOURCE_DIR}/
 target_link_libraries(instrument_toolbox_tests PRIVATE test::tools)
 
 add_scheduled_radio_test(host_transport_tests)
+add_scheduled_radio_test(host_central_tests)

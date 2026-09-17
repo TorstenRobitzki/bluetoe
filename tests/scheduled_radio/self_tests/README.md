@@ -24,6 +24,7 @@ instruments against a real device and live in `../radio_tests/`. See
 | `instrument_tester_program_tests.cpp` | the tester as program interpreter: operations run in sequence, the window advances, the received PDUs and their loss |
 | `instrument_program_tests.cpp` | the rig as program interpreter: steps on callbacks, times relative to the callback, when a program is finished, the records and their loss |
 | `instrument_toolbox_tests.cpp` | the pairing toolbox through the wire, against the software toolbox of the security manager tests, with the Core Specification's vectors |
+| `host_central_tests.cpp` | the central a test writes for the tester: the SN, NESN and MD bits of its PDUs, and the checks of the device's replies |
 | `host_transport_tests.cpp` | the host's transport over a stream: a call, a timeout, a corrupt response, a late response |
 | `observed_port.hpp` | the instrumented port both rig tests play the host end of |
 
