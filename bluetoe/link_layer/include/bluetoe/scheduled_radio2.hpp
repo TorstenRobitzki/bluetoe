@@ -561,6 +561,8 @@ namespace link_layer {
          * PHY have been set for this connection, and link_layer_pdu_buffer() returns its
          * buffer.
          *
+         * `end` lies after `start`.
+         *
          * Returns true if the event was scheduled, false if `start` was already too
          * close or gone by.
          */
