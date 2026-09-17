@@ -117,7 +117,8 @@ namespace {
     struct model_radio_base : model_features
     {
         struct ccm_counter_t {};
-        struct lock_guard {};
+        struct radio_lock_guard {};
+        struct link_layer_lock_guard {};
 
         void run() {}
         void wake_up() {}
@@ -162,9 +163,15 @@ namespace {
     };
 
     template < typename CallBacks >
-    struct radio_without_a_lock : model_radio< CallBacks >
+    struct radio_without_a_radio_lock : model_radio< CallBacks >
     {
-        using lock_guard = void;
+        using radio_lock_guard = void;
+    };
+
+    template < typename CallBacks >
+    struct radio_without_a_link_layer_lock : model_radio< CallBacks >
+    {
+        using link_layer_lock_guard = void;
     };
 
     template < typename CallBacks >
@@ -246,7 +253,8 @@ namespace {
     static_assert( !scheduled_radio< radio_claiming_lesc_pairing_without_the_toolbox, model_callbacks > );
     static_assert( !scheduled_radio< radio_with_a_void_cancel, model_callbacks > );
     static_assert( !scheduled_radio< radio_whose_start_advertising_answers, model_callbacks > );
-    static_assert( !scheduled_radio< radio_without_a_lock, model_callbacks > );
+    static_assert( !scheduled_radio< radio_without_a_radio_lock, model_callbacks > );
+    static_assert( !scheduled_radio< radio_without_a_link_layer_lock, model_callbacks > );
     static_assert( !scheduled_radio< model_radio, callbacks_without_the_timer > );
     static_assert( scheduled_radio< radio_with_a_hardware_acceptance_filter, model_callbacks > );
     static_assert( !scheduled_radio< radio_claiming_a_hardware_acceptance_filter_without_it, model_callbacks > );

@@ -77,7 +77,8 @@ namespace {
         static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
 
         struct ccm_counter_t {};
-        struct lock_guard {};
+        struct radio_lock_guard {};
+        struct link_layer_lock_guard {};
 
         void run() {}
         void wake_up() {}

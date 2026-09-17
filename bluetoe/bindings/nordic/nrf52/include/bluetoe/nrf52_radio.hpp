@@ -62,6 +62,22 @@ namespace bluetoe
     namespace nrf52_details
     {
         /**
+         * @brief all interrupts off while an instance is alive, the mask restored afterwards
+         */
+        class radio_lock_guard
+        {
+        public:
+            radio_lock_guard();
+            ~radio_lock_guard();
+
+            radio_lock_guard( const radio_lock_guard& ) = delete;
+            radio_lock_guard& operator=( const radio_lock_guard& ) = delete;
+
+        private:
+            std::uint32_t primask_;
+        };
+
+        /**
          * @brief what does not depend on the callbacks type: the hardware and its state
          *
          * The interrupts write what happened into one slot per kind of event, and the
@@ -261,9 +277,14 @@ namespace bluetoe
             };
 
             /**
+             * @brief the radio's interrupt is excluded with all others
+             */
+            using radio_lock_guard = nrf52_details::radio_lock_guard;
+
+            /**
              * @brief nothing to exclude: the callbacks are delivered from run()
              */
-            struct lock_guard {};
+            struct link_layer_lock_guard {};
 
             /**
              * @brief hands the base a thunk to the callbacks' acceptance filter

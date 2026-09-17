@@ -447,6 +447,8 @@ where the GATT layer delivers its callbacks. A radio without a context of its ow
 callbacks from inside `run()`, so the last two are the same; a radio that advertises
 `hardware_supports_link_layer_context` provides the link layer context itself, as an interrupt
 below the radio's priority and above the application's. The contract is identical in both cases.
+The radio context is interrupted by neither of the others, the link layer context by the radio
+context only, and the application context by both.
 
 `run()` has one meaning everywhere: sleep until there is something for the application context to
 do, then return. `wake_up()`, callable from any context including interrupts, guarantees that it
@@ -466,7 +468,8 @@ Every function and callback of the interface belongs to one of four words:
 |---|---|
 | `run()` | application |
 | `wake_up()` | any, including interrupts |
-| `lock_guard` | application |
+| `radio_lock_guard` | application or link layer |
+| `link_layer_lock_guard` | application |
 | `start_advertising()` | application or link layer; the radio makes it safe |
 | `set_*`, `schedule_*`, `cancel_*` | link layer |
 | the constants | any |
@@ -480,12 +483,14 @@ for its own sake. The one exception is `start_advertising()`: switching advertis
 the application context while the radio is idle, and rather than make the caller prove that
 nothing is in flight, the radio is made responsible for that, since only it can see.
 
-`lock_guard` exists for the link layer, not for the radio. It excludes the link layer context and
+The two locks exist for the link layer, not for the radio, and each excludes the contexts above the
+one that holds it. `radio_lock_guard` excludes the radio context, and with it the link layer context
+below it; it protects the PDU buffer, which the radio reads and writes from its own context while
+the link layer fills and drains it. `link_layer_lock_guard` excludes the link layer context and
 protects the state the link layer shares between its two halves: data on its way from the
 application to the PDU buffer, and received data on its way up. How the link layer splits its work
 across the line, and in particular where L2CAP reassembly happens, is step 4 of decision 11 and not
-the radio's concern; the radio provides the lock and `wake_up()`, and the PDU buffer is the
-structure already built to be written from one side and read by the radio.
+the radio's concern; the radio provides the locks and `wake_up()`.
 
 Two callbacks are not in the link layer context and the interface says so loudly.
 `link_layer_pdu_buffer()` is called between the PDUs of a connection event, with the inter frame
@@ -512,9 +517,10 @@ request all reach the air through the PDU buffer and the connection event that i
 scheduled, with no scheduling call at all. The only application context need is starting
 advertising while idle, which the rule above covers.
 
-**Rejected:** allowing the scheduling functions from the application context while a `lock_guard`
-is held. It would work, but it makes the caller responsible for a collision that only the radio
-can see, and it lets the lock's purpose blur from "the link layer's state" into "anything".
+**Rejected:** allowing the scheduling functions from the application context while a
+`link_layer_lock_guard` is held. It would work, but it makes the caller responsible for a collision
+that only the radio can see, and it lets the lock's purpose blur from "the link layer's state" into
+"anything".
 
 ## 18. The C++ interfaces are concepts; the wire contracts stay prose
 

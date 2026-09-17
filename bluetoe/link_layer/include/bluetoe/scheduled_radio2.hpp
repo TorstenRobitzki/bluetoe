@@ -58,9 +58,16 @@
  * the same in both cases; what changes is whether two of the three names denote one
  * context.
  *
- * The link layer's own state shared between its two contexts, data on its way from the
- * application to the PDU buffer and received data on its way up, is protected with
- * lock_guard. The radio's state is never the caller's concern: every scheduling function
+ * The radio context has the highest priority and is interrupted by neither of the other
+ * two; the link layer context is interrupted by the radio context only; the application
+ * context by both.
+ *
+ * Two locks exclude the contexts above the one that holds them. radio_lock_guard excludes
+ * the radio context, and with it the link layer context below it; it protects the PDU
+ * buffer the link layer shares with the radio. link_layer_lock_guard excludes the link
+ * layer context only; it protects the link layer's own state shared between its two
+ * contexts, data on its way from the application to the PDU buffer and received data on
+ * its way up. The radio's state is never the caller's concern: every scheduling function
  * is called from one context only, except start_advertising(), which the radio makes safe
  * itself. Decision 17.
  */
@@ -396,6 +403,16 @@ namespace link_layer {
         radio.wake_up();
 
         /*
+         * Excludes the radio context, and with it the link layer context, while an
+         * instance is alive. For the PDU buffer the link layer shares with the radio; held
+         * briefly.
+         *
+         * Context: application or link layer.
+         */
+        typename Radio< CallBacks >::radio_lock_guard;
+        requires std::default_initializable< typename Radio< CallBacks >::radio_lock_guard >;
+
+        /*
          * Excludes the link layer context while an instance is alive. For the link
          * layer's own state shared between its two contexts; held briefly, from the
          * application context. In a radio without a link layer context of its own this
@@ -403,8 +420,8 @@ namespace link_layer {
          *
          * Context: application.
          */
-        typename Radio< CallBacks >::lock_guard;
-        requires std::default_initializable< typename Radio< CallBacks >::lock_guard >;
+        typename Radio< CallBacks >::link_layer_lock_guard;
+        requires std::default_initializable< typename Radio< CallBacks >::link_layer_lock_guard >;
 
         /*
          * Setup. These configure the radio for the next action and are applied by the

@@ -57,26 +57,7 @@ namespace bluetoe
              * Interrupts off for the few microseconds of that setup, the mask restored
              * afterwards so that a caller already in a critical section stays in one.
              */
-            class interrupts_off
-            {
-            public:
-                interrupts_off()
-                    : primask_( __get_PRIMASK() )
-                {
-                    __disable_irq();
-                }
-
-                ~interrupts_off()
-                {
-                    __set_PRIMASK( primask_ );
-                }
-
-                interrupts_off( const interrupts_off& ) = delete;
-                interrupts_off& operator=( const interrupts_off& ) = delete;
-
-            private:
-                std::uint32_t primask_;
-            };
+            using interrupts_off = radio_lock_guard;
 
             bool radio_disabled()
             {
@@ -220,6 +201,17 @@ namespace bluetoe
                 NRF_RADIO->SHORTS   = 0;
                 NRF_RADIO->INTENCLR = 0xffffffff;
             }
+        }
+
+        radio_lock_guard::radio_lock_guard()
+            : primask_( __get_PRIMASK() )
+        {
+            __disable_irq();
+        }
+
+        radio_lock_guard::~radio_lock_guard()
+        {
+            __set_PRIMASK( primask_ );
         }
 
         radio_base* radio_base::instance_ = nullptr;
