@@ -9,6 +9,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include "radio_tests/dut.hpp"
+#include "radio_tests/observations.hpp"
 #include "radio_tests/rig_fixture.hpp"
 #include "radio_tests/tester.hpp"
 
@@ -31,10 +32,6 @@ namespace {
 
     const auto if_tester = boost::unit_test::precondition( tester_present{} );
 
-    // how far an observed interval may be off the requested one: the placement of both
-    // events and the drift of two stock crystals over an interval
-    constexpr long tolerance_us = 50;
-
     // a scanner the device's acceptance filter does not hold: the tester's address, one byte off
     const bluetoe::link_layer::device_address stranger_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02 }, false };
 
@@ -48,48 +45,6 @@ namespace {
 
     constexpr std::uint32_t other_access_address = 0x71764129;
     constexpr std::uint32_t other_crc_init       = 0x7a8f23;
-
-    constexpr std::uint8_t adv_ind         = 0x00;
-    constexpr std::uint8_t adv_direct_ind  = 0x01;
-    constexpr std::uint8_t adv_nonconn_ind = 0x02;
-    constexpr std::uint8_t scan_rsp        = 0x04;
-    constexpr std::uint8_t adv_scan_ind    = 0x06;
-
-    // an advertising channel PDU of `payload_size` bytes: the advertiser's address, then `fill`
-    std::vector< std::uint8_t > advertising(
-        std::size_t payload_size, std::uint8_t fill, std::uint8_t type = adv_nonconn_ind,
-        const bluetoe::link_layer::device_address& advertiser = dut_address )
-    {
-        constexpr std::uint8_t tx_add = 0x40;
-
-        std::vector< std::uint8_t > result( 2 + payload_size, fill );
-        result[ 0 ] = type | ( advertiser.is_random() ? tx_add : 0 );
-        result[ 1 ] = static_cast< std::uint8_t >( payload_size );
-        std::copy( advertiser.begin(), advertiser.end(), result.begin() + 2 );
-
-        return result;
-    }
-
-    std::vector< record > callbacks_of( const std::vector< record >& records, callback_kind kind )
-    {
-        std::vector< record > result;
-        std::copy_if( records.begin(), records.end(), std::back_inserter( result ),
-            [ kind ]( const record& r ){ return r.kind == record_kind::callback && r.callback == kind; } );
-
-        return result;
-    }
-
-    bool carries( const captured_pdu& p, std::span< const std::uint8_t > bytes )
-    {
-        return p.data.size == bytes.size()
-            && std::equal( bytes.begin(), bytes.end(), p.data.data.begin() );
-    }
-
-    long microseconds_between( const captured_pdu& earlier, const captured_pdu& later )
-    {
-        return std::chrono::duration_cast< std::chrono::microseconds >(
-            time_of( later.when ) - time_of( earlier.when ) ).count();
-    }
 
     /*
      * One advertising started on `first_channel`, the next scheduled an interval later on

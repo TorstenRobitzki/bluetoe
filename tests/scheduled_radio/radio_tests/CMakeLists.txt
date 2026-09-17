@@ -6,7 +6,7 @@ find_package(Boost REQUIRED)
 # tests take the plain names, advertising_tests among them.
 function(add_radio_test name)
     set(test_runner radio_${name})
-    add_executable(${test_runner} ${name}.cpp dut.cpp tester.cpp environment.cpp)
+    add_executable(${test_runner} ${name}.cpp dut.cpp tester.cpp environment.cpp observations.cpp)
 
     target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
     target_include_directories(${test_runner} PRIVATE ${CMAKE_SOURCE_DIR}/tests)
@@ -20,3 +20,4 @@ endfunction()
 add_radio_test(toolbox_tests)
 add_radio_test(reset_tests)
 add_radio_test(advertising_tests)
+add_radio_test(timer_tests)

@@ -140,6 +140,16 @@ namespace test_rig {
         return step{ .on = callback_kind::adv_received, .call_count = 1, .calls = { c } };
     }
 
+    inline step on_user_timer()
+    {
+        return step{ .on = callback_kind::user_timer, .call_count = 0, .calls = {} };
+    }
+
+    inline step on_user_timer( call c )
+    {
+        return step{ .on = callback_kind::user_timer, .call_count = 1, .calls = { c } };
+    }
+
     inline step on_start( call first, call second )
     {
         return step{ .on = callback_kind::start, .call_count = 2, .calls = { first, second } };
@@ -153,6 +163,21 @@ namespace test_rig {
     inline step on_adv_timeout( call first, call second )
     {
         return step{ .on = callback_kind::adv_timeout, .call_count = 2, .calls = { first, second } };
+    }
+
+    inline call schedule_timer( link_layer::delta_time delay )
+    {
+        return call{ .kind = call_kind::schedule_timer, .delay = delay };
+    }
+
+    inline call cancel_timer()
+    {
+        return call{ .kind = call_kind::cancel_timer };
+    }
+
+    inline call cancel_radio_event()
+    {
+        return call{ .kind = call_kind::cancel_radio_event };
     }
 
     inline call set_local_address( const link_layer::device_address& address )

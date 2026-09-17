@@ -55,7 +55,9 @@ Without a device, run everything else with `ctest -LE radio`, as the CI does.
 | `toolbox_tests.cpp` | the pairing toolbox with the Core Specification's vectors, and a key agreement with the software toolbox of the security manager tests; skipped on a device without a toolbox |
 | `reset_tests.cpp` | the reset line: the device answers with a zero session token after the tester pulled it; skipped without a tester |
 | `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; the program builders |
+| `observations.hpp` | what the timing tests build their PDUs from and read their results with: advertising channel PDUs, the records and captures of a run |
 | `advertising_tests.cpp` | start_advertising() and schedule_advertising_event() over the air: payload sizes, channels, intervals, the access address, and scan requests with the acceptance filter and T_IFS; skipped without a tester |
+| `timer_tests.cpp` | schedule_timer() and cancel_timer(), made visible by an advertising scheduled from user_timer(); skipped without a tester |
 
 A test that needs a feature the device may lack is decorated with a `precondition` on
 `dut_supports`, one that needs the tester with a `precondition` on `tester_present`, so that it is
