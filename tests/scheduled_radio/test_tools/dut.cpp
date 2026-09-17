@@ -1,8 +1,8 @@
-#include "radio_tests/dut.hpp"
+#include "test_tools/dut.hpp"
 
 #include "host/errors.hpp"
 #include "instrument/dut_rig.hpp"
-#include "radio_tests/environment.hpp"
+#include "test_tools/environment.hpp"
 
 #include <boost/test/unit_test.hpp>
 

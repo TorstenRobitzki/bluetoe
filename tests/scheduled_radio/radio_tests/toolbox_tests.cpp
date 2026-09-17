@@ -13,7 +13,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "radio_tests/dut.hpp"
+#include "test_tools/dut.hpp"
 
 #include "security_manager/test_sm.hpp"
 

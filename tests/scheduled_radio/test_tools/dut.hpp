@@ -21,7 +21,7 @@
 #include "host/dut_functions.hpp"
 #include "host/proxy.hpp"
 #include "host/serial_transport.hpp"
-#include "radio_tests/tester.hpp"
+#include "test_tools/tester.hpp"
 
 #include <bluetoe/radio_properties.hpp>
 

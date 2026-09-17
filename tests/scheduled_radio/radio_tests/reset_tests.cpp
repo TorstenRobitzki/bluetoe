@@ -10,8 +10,8 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "radio_tests/dut.hpp"
-#include "radio_tests/tester.hpp"
+#include "test_tools/dut.hpp"
+#include "test_tools/tester.hpp"
 
 #include <string>
 

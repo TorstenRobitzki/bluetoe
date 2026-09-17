@@ -16,9 +16,9 @@
  * the device (scheduled_radio2.hpp).
  */
 
-#include "radio_tests/dut.hpp"
-#include "radio_tests/tester.hpp"
-#include "radio_tests/timeline.hpp"
+#include "test_tools/dut.hpp"
+#include "test_tools/tester.hpp"
+#include "test_tools/timeline.hpp"
 
 #include "host/dut_functions.hpp"
 #include "host/tester_functions.hpp"

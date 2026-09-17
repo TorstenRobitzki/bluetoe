@@ -8,7 +8,7 @@
  * the tolerance of an observed interval and the intervals themselves.
  */
 
-#include "radio_tests/rig_fixture.hpp"
+#include "test_tools/rig_fixture.hpp"
 
 #include "link/program.hpp"
 #include "link/tester_program.hpp"

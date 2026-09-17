@@ -10,11 +10,11 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "radio_tests/dut.hpp"
-#include "radio_tests/observations.hpp"
-#include "radio_tests/records.hpp"
-#include "radio_tests/rig_fixture.hpp"
-#include "radio_tests/tester.hpp"
+#include "test_tools/dut.hpp"
+#include "test_tools/observations.hpp"
+#include "test_tools/records.hpp"
+#include "test_tools/rig_fixture.hpp"
+#include "test_tools/tester.hpp"
 
 #include "host/central.hpp"
 

@@ -27,9 +27,9 @@ target_link_libraries(instrument_toolbox_tests PRIVATE test::tools)
 add_scheduled_radio_test(host_transport_tests)
 add_scheduled_radio_test(host_central_tests)
 
-# the expectations of the radio tests, whose implementation lives with them
-add_scheduled_radio_test(radio_timeline_tests)
-target_sources(radio_timeline_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../radio_tests/timeline.cpp)
+# the expectations a radio test writes, which need no instrument
+add_scheduled_radio_test(test_tools_timeline_tests)
+target_sources(test_tools_timeline_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../test_tools/timeline.cpp)
 
-add_scheduled_radio_test(radio_records_tests)
-target_sources(radio_records_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../radio_tests/records.cpp)
+add_scheduled_radio_test(test_tools_records_tests)
+target_sources(test_tools_records_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../test_tools/records.cpp)

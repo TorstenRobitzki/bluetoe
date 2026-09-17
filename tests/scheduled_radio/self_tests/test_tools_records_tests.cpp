@@ -9,7 +9,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "radio_tests/records.hpp"
+#include "test_tools/records.hpp"
 
 #include <vector>
 

@@ -3,5 +3,6 @@
 # continuous integration build applies to the rest of the library.
 add_subdirectory(link)
 add_subdirectory(host)
+add_subdirectory(test_tools)
 add_subdirectory(self_tests)
 add_subdirectory(radio_tests)
