@@ -356,8 +356,12 @@ namespace link_layer {
                 || software_acceptance_filter< CallBacks > )
         && requires (
             Radio< CallBacks >                      radio,
-            std::uint32_t                           value,
+            std::uint32_t                           channel,
+            std::uint32_t                           access_address,
+            std::uint32_t                           crc_init,
             abs_time                                when,
+            abs_time                                start,
+            abs_time                                end,
             const write_buffer&                     transmit,
             const read_buffer&                      receive,
             phy_ll_encoding::phy_ll_encoding_t      phy,
@@ -414,7 +418,7 @@ namespace link_layer {
          * The access address and CRC initial value for transmitted and received PDUs.
          * Changed only while no action is pending.
          */
-        radio.set_access_address_and_crc_init( value, value );
+        radio.set_access_address_and_crc_init( access_address, crc_init );
 
         /*
          * The CCM counters for receiving and transmitting, part of the nonce, changed
@@ -464,7 +468,7 @@ namespace link_layer {
          * time, which is the whole reason this function exists, could do nothing with one
          * anyway. An implementation may assert the precondition.
          */
-        { radio.start_advertising( value, transmit, transmit, receive ) } -> std::same_as< void >;
+        { radio.start_advertising( channel, transmit, transmit, receive ) } -> std::same_as< void >;
 
         /*
          * Schedules one advertising event: transmit `transmit` on `channel` so that its
@@ -476,7 +480,7 @@ namespace link_layer {
          * Returns true if the event was scheduled, false if `when` was already too close
          * or gone by.
          */
-        { radio.schedule_advertising_event( value, when, transmit, transmit, receive ) } -> std::same_as< bool >;
+        { radio.schedule_advertising_event( channel, when, transmit, transmit, receive ) } -> std::same_as< bool >;
 
         /*
          * Schedules one connection event: listen on `channel` from `start`, receive PDUs
@@ -485,6 +489,14 @@ namespace link_layer {
          * event is reported with connection_end_event() carrying its start time, or with
          * connection_timeout() carrying `end`. If it was cancelled, nothing is reported.
          *
+         * A received PDU is answered one inter frame space after it ended. The radio
+         * closes the event after its answer when
+         * - neither its answer nor the last PDU received has the MD flag set,
+         * - the buffer is full after storing the PDU received, or
+         * - nothing is received in the inter frame space after its answer,
+         * and without an answer when the second PDU in a row was received with an invalid
+         * CRC.
+         *
          * The access address, the CCM counters if the connection is encrypted, and the
          * PHY have been set for this connection, and link_layer_pdu_buffer() returns its
          * buffer.
@@ -492,7 +504,7 @@ namespace link_layer {
          * Returns true if the event was scheduled, false if `start` was already too
          * close or gone by.
          */
-        { radio.schedule_connection_event( value, when, when ) } -> std::same_as< bool >;
+        { radio.schedule_connection_event( channel, start, end ) } -> std::same_as< bool >;
 
         /*
          * Cancels the pending action, whichever scheduling function scheduled it. The
