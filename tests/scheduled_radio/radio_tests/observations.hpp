@@ -4,8 +4,8 @@
 /**
  * @file observations.hpp
  *
- * What the timing tests build their PDUs from and read their results with: advertising
- * channel PDUs, and the records and captures of a run.
+ * What the timing tests build their PDUs from and measure with: advertising channel PDUs,
+ * the tolerance of an observed interval and the intervals themselves.
  */
 
 #include "radio_tests/rig_fixture.hpp"
@@ -50,16 +50,6 @@ namespace test_rig {
     std::vector< std::uint8_t > advertising(
         std::size_t payload_size, std::uint8_t fill, std::uint8_t type = adv_nonconn_ind,
         const link_layer::device_address& advertiser = dut_address );
-
-    /**
-     * @brief the callbacks of `kind` among a device's records, in the order they were recorded
-     */
-    std::vector< record > callbacks_of( const std::vector< record >& records, callback_kind kind );
-
-    /**
-     * @brief the calls of `kind` among a device's records, in the order they were made
-     */
-    std::vector< record > calls_of( const std::vector< record >& records, call_kind kind );
 
     /**
      * @brief the time from the first bit of `earlier` to the first bit of `later`, by the

@@ -22,24 +22,6 @@ namespace test_rig {
         return result;
     }
 
-    std::vector< record > callbacks_of( const std::vector< record >& records, callback_kind kind )
-    {
-        std::vector< record > result;
-        std::copy_if( records.begin(), records.end(), std::back_inserter( result ),
-            [ kind ]( const record& r ){ return r.kind == record_kind::callback && r.callback == kind; } );
-
-        return result;
-    }
-
-    std::vector< record > calls_of( const std::vector< record >& records, call_kind kind )
-    {
-        std::vector< record > result;
-        std::copy_if( records.begin(), records.end(), std::back_inserter( result ),
-            [ kind ]( const record& r ){ return r.kind == record_kind::call && r.call == kind; } );
-
-        return result;
-    }
-
     std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later )
     {
         return std::chrono::duration_cast< std::chrono::microseconds >(

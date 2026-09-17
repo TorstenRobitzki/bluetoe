@@ -12,6 +12,7 @@
 
 #include "radio_tests/dut.hpp"
 #include "radio_tests/observations.hpp"
+#include "radio_tests/records.hpp"
 #include "radio_tests/rig_fixture.hpp"
 #include "radio_tests/tester.hpp"
 
