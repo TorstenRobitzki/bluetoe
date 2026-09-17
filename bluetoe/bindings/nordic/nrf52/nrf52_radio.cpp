@@ -290,6 +290,9 @@ namespace bluetoe
 
         void radio_base::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
         {
+            // changed only while no action is pending
+            assert( state_ == state::idle );
+
             NRF_RADIO->BASE0    = access_address << 8;
             NRF_RADIO->PREFIX0  = access_address >> 24;
             NRF_RADIO->CRCINIT  = crc_init;
