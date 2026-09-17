@@ -66,6 +66,7 @@ namespace test_rig {
         void answer( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
         void stop();
+        void accept_advertiser( std::uint32_t slot, const link_layer::device_address& address );
         std::optional< tester_happened > next_event();
         /** @} */
 
@@ -81,6 +82,7 @@ namespace test_rig {
         void on_packet_end();
         void on_radio_disabled();
         void on_window_end();
+        void on_device_address_miss();
         bool from_target() const;
         void arm_answer( std::uint32_t first_bit );
         void enqueue( const tester_happened& event );
@@ -98,6 +100,9 @@ namespace test_rig {
         volatile std::uint32_t                  operation_id_   = 0;
 
         std::uint8_t                            receive_buffer_[ max_advertising_pdu_size ];
+
+        // whether the radio matches advertisers, which is when it reports a miss
+        bool                                    matching_advertisers_ = false;
 
         /*
          * An answer operation's state, shared between answer(), the window end and the two

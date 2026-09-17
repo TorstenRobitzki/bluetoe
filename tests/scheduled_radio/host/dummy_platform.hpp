@@ -33,6 +33,7 @@ namespace test_rig {
         void receive( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, std::uint32_t ) {}
         void answer( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, const link_layer::device_address&, const pdu&, std::uint32_t ) {}
         void stop() {}
+        void accept_advertiser( std::uint32_t, const link_layer::device_address& ) {}
 
         std::optional< tester_happened > next_event()
         {

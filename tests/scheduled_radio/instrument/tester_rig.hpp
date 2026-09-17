@@ -157,6 +157,14 @@ namespace test_rig {
         platform.stop();
 
         /*
+         * Puts `address` into slot `value` of the advertisers the radio accepts. With at
+         * least one slot filled, the radio abandons a packet from any other advertiser as
+         * soon as its address is received, so that the receiver is free again for the device
+         * under test. Slots are only ever added, like the rig's acceptance filter.
+         */
+        platform.accept_advertiser( value, address );
+
+        /*
          * The oldest event the radio has for the interpreter, and it is forgotten.
          */
         { platform.next_event() } -> std::same_as< std::optional< tester_happened > >;
@@ -289,6 +297,7 @@ namespace test_rig {
                 return false;
 
             acceptance_filter_[ acceptance_filter_count_ ] = address;
+            platform_.accept_advertiser( acceptance_filter_count_, address );
             ++acceptance_filter_count_;
 
             return true;

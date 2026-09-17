@@ -255,6 +255,43 @@ namespace test_rig {
     }
 
     /*
+     * The radio compares the TxAdd bit and the six bytes after the header, an advertising
+     * PDU's AdvA, with the enabled slots: the first four bytes in DAB, the last two in DAP.
+     */
+    void platform::accept_advertiser( std::uint32_t slot, const link_layer::device_address& address )
+    {
+        assert( slot < 8 );
+
+        const std::uint8_t* bytes = address.begin();
+
+        NRF_RADIO->DAB[ slot ] = bytes[ 0 ] | ( bytes[ 1 ] << 8 ) | ( bytes[ 2 ] << 16 ) | ( std::uint32_t( bytes[ 3 ] ) << 24 );
+        NRF_RADIO->DAP[ slot ] = bytes[ 4 ] | ( bytes[ 5 ] << 8 );
+
+        NRF_RADIO->DACNF = ( NRF_RADIO->DACNF & ~( ( 1u << slot ) | ( 1u << ( RADIO_DACNF_TXADD0_Pos + slot ) ) ) )
+            | ( 1u << slot )
+            | ( address.is_random() ? 1u << ( RADIO_DACNF_TXADD0_Pos + slot ) : 0 );
+
+        matching_advertisers_ = true;
+    }
+
+    /*
+     * A packet from an advertiser outside the slots, abandoned once its address is known: the
+     * receiver stops and starts again without ramping up, so that the device under test is
+     * not missed while the rest of the stranger's packet is on air. Only a reception is
+     * stopped; after an END the radio may be disabling or transmitting an answer already.
+     */
+    void platform::on_device_address_miss()
+    {
+        NRF_RADIO->EVENTS_DEVMISS = 0;
+
+        if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) != ( RADIO_STATE_STATE_Rx << RADIO_STATE_STATE_Pos ) )
+            return;
+
+        NRF_RADIO->TASKS_STOP  = 1;
+        NRF_RADIO->TASKS_START = 1;
+    }
+
+    /*
      * Listen on the channel until the window is over, restarting the receiver after every
      * packet so that a whole window of PDUs is caught. Only 1 Mbit is implemented; the phy
      * is ignored until a test needs another.
@@ -276,7 +313,8 @@ namespace test_rig {
 
         NRF_RADIO->EVENTS_ADDRESS   = 0;
         NRF_RADIO->EVENTS_END       = 0;
-        NRF_RADIO->INTENSET         = RADIO_INTENSET_END_Msk;
+        NRF_RADIO->EVENTS_DEVMISS   = 0;
+        NRF_RADIO->INTENSET         = RADIO_INTENSET_END_Msk | ( matching_advertisers_ ? RADIO_INTENSET_DEVMISS_Msk : 0 );
 
         NRF_TIMER0->EVENTS_COMPARE[ cc_window ] = 0;
         NRF_TIMER0->TASKS_CAPTURE[ cc_now ]     = 1;
@@ -500,6 +538,8 @@ namespace test_rig {
 
         if ( NRF_RADIO->EVENTS_END )
             instance_->on_packet_end();
+        else if ( NRF_RADIO->EVENTS_DEVMISS )
+            instance_->on_device_address_miss();
 
         if ( NRF_RADIO->EVENTS_DISABLED )
             instance_->on_radio_disabled();

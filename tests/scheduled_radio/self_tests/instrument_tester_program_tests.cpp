@@ -70,6 +70,11 @@ namespace {
             ++stops;
         }
 
+        void accept_advertiser( std::uint32_t slot, const bluetoe::link_layer::device_address& address )
+        {
+            accepted.push_back( { slot, address } );
+        }
+
         std::optional< tester_happened > next_event()
         {
             if ( events.empty() )
@@ -145,6 +150,7 @@ namespace {
         std::uint32_t                   crc_init       = 0;
         std::uint32_t                   operation_id   = 0;
         int                             stops          = 0;
+        std::vector< std::pair< std::uint32_t, bluetoe::link_layer::device_address > > accepted;
 
         static inline scripted_platform* instance = nullptr;
     };
@@ -394,6 +400,33 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_from_outside_the_acceptance_filter_is_dropped_not
     BOOST_REQUIRE_EQUAL( batch.count, 1u );
     BOOST_CHECK_EQUAL( batch.produced, 1u );
     BOOST_CHECK( batch.captured[ 0 ].data == pdu( adv_ind ) );
+}
+
+// the radio matches the same advertisers, one slot each, in the order they were added
+BOOST_FIXTURE_TEST_CASE( an_accepted_advertiser_reaches_the_radio_in_its_own_slot, fixture )
+{
+    const bluetoe::link_layer::device_address first{ { 1, 2, 3, 4, 5, 6 }, false };
+    const bluetoe::link_layer::device_address second{ { 6, 5, 4, 3, 2, 1 }, true };
+
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( first ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( second ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( first ) );
+
+    BOOST_REQUIRE_EQUAL( platform.accepted.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.accepted[ 0 ].first, 0u );
+    BOOST_CHECK( platform.accepted[ 0 ].second == first );
+    BOOST_CHECK_EQUAL( platform.accepted[ 1 ].first, 1u );
+    BOOST_CHECK( platform.accepted[ 1 ].second == second );
+}
+
+// a full filter refuses the address, and the radio's slots are not touched
+BOOST_FIXTURE_TEST_CASE( an_advertiser_beyond_the_filter_does_not_reach_the_radio, fixture )
+{
+    for ( std::uint8_t i = 0; i != rig_t::max_acceptance_filter_entries; ++i )
+        BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( bluetoe::link_layer::device_address{ { i, 0, 0, 0, 0, 0 }, false } ) );
+
+    BOOST_CHECK( !remote.call< &rig_t::add_to_acceptance_filter >( bluetoe::link_layer::device_address{ { 0xff, 0, 0, 0, 0, 0 }, false } ) );
+    BOOST_CHECK_EQUAL( platform.accepted.size(), rig_t::max_acceptance_filter_entries );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )
