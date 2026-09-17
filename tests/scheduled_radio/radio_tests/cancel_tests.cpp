@@ -58,8 +58,8 @@ namespace {
 
 BOOST_FIXTURE_TEST_CASE( a_scheduled_advertising_event_cancelled_in_time_is_not_sent, rig_fixture, *if_tester )
 {
-    const auto first     = advertising( 6, 0x01 );
-    const auto cancelled = advertising( 6, 0x02 );
+    const auto first     = advertising( 7, 0x01 );
+    const auto cancelled = advertising( 7, 0x02 );
 
     cancelled_in_time( *this, schedule_advertising_event( 37, 100ms, cancelled ), first );
 }
@@ -67,8 +67,8 @@ BOOST_FIXTURE_TEST_CASE( a_scheduled_advertising_event_cancelled_in_time_is_not_
 // the cancel follows the start by microseconds, before the transmitter was started
 BOOST_FIXTURE_TEST_CASE( a_started_advertising_cancelled_in_time_is_not_sent, rig_fixture, *if_tester )
 {
-    const auto first     = advertising( 6, 0x01 );
-    const auto cancelled = advertising( 6, 0x02 );
+    const auto first     = advertising( 7, 0x01 );
+    const auto cancelled = advertising( 7, 0x02 );
 
     cancelled_in_time( *this, start_advertising( 37, cancelled ), first );
 }
@@ -77,7 +77,7 @@ BOOST_FIXTURE_TEST_CASE( a_started_advertising_cancelled_in_time_is_not_sent, ri
 BOOST_FIXTURE_TEST_CASE( cancelling_with_nothing_pending_is_refused, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
+        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( cancel_radio_event() ) } );
 
     program_tester( {
@@ -97,8 +97,8 @@ BOOST_FIXTURE_TEST_CASE( cancelling_with_nothing_pending_is_refused, rig_fixture
  */
 BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, *if_tester )
 {
-    const auto first = advertising( 6, 0x01 );
-    const auto late  = advertising( 6, 0x02 );
+    const auto first = advertising( 7, 0x01 );
+    const auto late  = advertising( 7, 0x02 );
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
@@ -133,9 +133,9 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
  */
 BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig_fixture, *if_tester )
 {
-    const auto first     = advertising( 6, 0x01 );
-    const auto cancelled = advertising( 6, 0x02 );
-    const auto restarted = advertising( 6, 0x03 );
+    const auto first     = advertising( 7, 0x01 );
+    const auto cancelled = advertising( 7, 0x02 );
+    const auto restarted = advertising( 7, 0x03 );
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),

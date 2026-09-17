@@ -49,7 +49,8 @@ namespace {
     /*
      * One advertising started on `first_channel`, the next scheduled an interval later on
      * `second_channel`. The tester listens on the first channel, then on the second, so each
-     * is seen only if it went out on its channel.
+     * is seen only if it went out on its channel. At the smallest payload the two PDUs are
+     * the same bytes, since six bytes are the advertiser's address alone.
      */
     void two_advertisings_are_seen_as_sent(
         rig_fixture& rig, std::size_t payload_size, std::uint32_t first_channel, std::uint32_t second_channel )
@@ -138,7 +139,7 @@ namespace {
      */
     void a_scan_request_is_ignored(
         rig_fixture_without_device_filter& rig, std::span< const std::uint8_t > request,
-        std::uint8_t type = adv_scan_ind, std::size_t payload_size = 6 )
+        std::uint8_t type = adv_scan_ind, std::size_t payload_size = 7 )
     {
         const auto first    = advertising( payload_size, 0x01, type );
         const auto next     = advertising( payload_size, 0x02, type );
@@ -362,9 +363,9 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_first_advertising_is_answered, ri
  */
 BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, rig_fixture, *if_tester )
 {
-    const auto first     = advertising( 6, 0x01, adv_scan_ind );
-    const auto scheduled = advertising( 6, 0x02, adv_scan_ind );
-    const auto last      = advertising( 6, 0x04, adv_scan_ind );
+    const auto first     = advertising( 7, 0x01, adv_scan_ind );
+    const auto scheduled = advertising( 7, 0x02, adv_scan_ind );
+    const auto last      = advertising( 7, 0x04, adv_scan_ind );
     const auto response  = advertising( 10, 0x03, scan_rsp );
     const auto request   = scan_request( tester_address, dut_address );
 
@@ -445,10 +446,10 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_the_device_address_as_random_is_ignor
  */
 BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_tester )
 {
-    const auto old_advertising   = advertising( 6, 0x01, adv_scan_ind );
+    const auto old_advertising   = advertising( 7, 0x01, adv_scan_ind );
     const auto old_response      = advertising( 10, 0x02, scan_rsp );
-    const auto new_advertising   = advertising( 6, 0x03, adv_scan_ind, changed_address );
-    const auto next_advertising  = advertising( 6, 0x04, adv_scan_ind, changed_address );
+    const auto new_advertising   = advertising( 7, 0x03, adv_scan_ind, changed_address );
+    const auto next_advertising  = advertising( 7, 0x04, adv_scan_ind, changed_address );
     const auto new_response      = advertising( 10, 0x05, scan_rsp, changed_address );
     const auto request_to_old    = scan_request( tester_address, dut_address );
     const auto request_to_new    = scan_request( tester_address, changed_address );

@@ -47,8 +47,8 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
     constexpr auto timer_delay = 100ms;
     constexpr auto event_delay = 10ms;
 
-    const auto first  = advertising( 6, 0x01 );
-    const auto second = advertising( 6, 0x02 );
+    const auto first  = advertising( 7, 0x01 );
+    const auto second = advertising( 7, 0x02 );
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
@@ -84,8 +84,8 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
 // a timer expires between the events, and the advertising event keeps its time
 BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_each_other, rig_fixture, *if_tester )
 {
-    const auto first  = advertising( 6, 0x01 );
-    const auto second = advertising( 6, 0x02 );
+    const auto first  = advertising( 7, 0x01 );
+    const auto second = advertising( 7, 0x02 );
 
     program_device( {
         on_start(       start_advertising( 37, first ) ),
@@ -122,7 +122,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
 BOOST_FIXTURE_TEST_CASE( a_timer_for_a_time_gone_by_is_refused, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
+        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( schedule_timer( 0ms ) ) } );
 
     // the listen only keeps the run going while a wrongly scheduled timer would expire
@@ -143,7 +143,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_for_a_time_gone_by_is_refused, rig_fixture, *if
 BOOST_FIXTURE_TEST_CASE( a_timer_cancelled_in_time_does_not_expire, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
+        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( schedule_timer( 100ms ),
                         cancel_timer() ) } );
 
@@ -169,7 +169,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_cancelled_in_time_does_not_expire, rig_fixture,
 BOOST_FIXTURE_TEST_CASE( cancelling_without_a_scheduled_timer_is_refused, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
+        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( cancel_timer(),
                         schedule_timer( 50ms ) ),
         on_user_timer(  cancel_timer() ) } );
