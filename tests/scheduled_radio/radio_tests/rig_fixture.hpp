@@ -255,21 +255,21 @@ namespace test_rig {
     /**
      * @brief a tester operation: listen on a channel for a duration, at 1 Mbit
      */
-    inline operation receive( std::uint32_t channel, time_out window )
+    inline operation listen( std::uint32_t channel, std::chrono::nanoseconds duration )
     {
         operation result;
         result.kind    = operation_kind::receive;
         result.channel = channel;
         result.phy     = link_layer::phy_ll_encoding::le_1m_phy;
-        result.window  = as_delta_time( window.window );
+        result.window  = as_delta_time( duration );
 
         return result;
     }
 
     /**
-     * @brief a tester operation: listen like receive(), but end after `count` received PDUs
+     * @brief a tester operation: listen like listen() and end with the `count`th PDU received
      */
-    inline operation receive( std::uint32_t channel, time_out window, std::uint32_t count )
+    inline operation receive( std::uint32_t channel, std::uint32_t count, time_out window )
     {
         return operation{
             .kind    = operation_kind::receive,
@@ -280,13 +280,13 @@ namespace test_rig {
     }
 
     /**
-     * @brief a tester operation: listen like receive(), answer the first advertising PDU
-     *        from `target` with `response` one inter frame space after it ended, and end
-     *        with the reply
+     * @brief a tester operation: listen like listen(), answer the first advertising PDU
+     *        from `target` with `response` one inter frame space after it ended, and end with
+     *        the reply
      */
     inline operation answer(
-        std::uint32_t channel, time_out window,
-        const link_layer::device_address& target, std::span< const std::uint8_t > response )
+        std::uint32_t channel, const link_layer::device_address& target,
+        std::span< const std::uint8_t > response, time_out window )
     {
         return operation{
             .kind     = operation_kind::answer,

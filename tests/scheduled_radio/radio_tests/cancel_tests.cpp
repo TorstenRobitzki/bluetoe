@@ -39,8 +39,8 @@ namespace {
             on_adv_timeout( schedule, cancel_radio_event() ) } );
 
         rig.program_tester( {
-            receive( 37, operation_timeout, 1 ),
-            receive( 37, time_out( 300ms ) ) } );
+            receive( 37, 1, operation_timeout ),
+            listen( 37, 300ms ) } );
 
         rig.run();
 
@@ -84,7 +84,7 @@ BOOST_FIXTURE_TEST_CASE( cancelling_with_nothing_pending_is_refused, rig_fixture
         on_adv_timeout( cancel_radio_event() ) } );
 
     program_tester( {
-        receive( 37, operation_timeout, 1 ) } );
+        receive( 37, 1, operation_timeout ) } );
 
     run();
 
@@ -110,8 +110,8 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
         on_user_timer(  cancel_radio_event() ) } );
 
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, operation_timeout, 1 ) } );
+        receive( 37, 1, operation_timeout ),
+        receive( 37, 1, operation_timeout ) } );
 
     run();
 
@@ -147,11 +147,11 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig
         on_user_timer(  cancel_radio_event(),
                         start_advertising( 37, restarted ) ) } );
 
-    // the last receive covers the time the cancelled event was scheduled for
+    // the listen covers the time the cancelled event was scheduled for
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, time_out( 100ms ) ) } );
+        receive( 37, 1, operation_timeout ),
+        receive( 37, 1, operation_timeout ),
+        listen( 37, 100ms ) } );
 
     run();
 

@@ -64,8 +64,8 @@ namespace {
 
         // the first goes out within milliseconds of the start, the second at the interval
         rig.program_tester( {
-            receive( first_channel,  time_out( 50ms ) ),
-            receive( second_channel, time_out( 250ms ) ) } );
+            listen( first_channel,  50ms ),
+            listen( second_channel, 250ms ) } );
 
         rig.run();
 
@@ -115,7 +115,7 @@ namespace {
                 start_advertising( 37, advertisement, response ) ) } );
 
         rig.program_tester( {
-            answer( 37, time_out( 100ms ), dut_address, request ) } );
+            answer( 37, dut_address, request, time_out( 100ms ) ) } );
 
         rig.run();
 
@@ -160,8 +160,8 @@ namespace {
 
         // the answer gets no reply and runs to its window, which closes before the next advertising
         rig.program_tester( {
-            answer( 37, time_out( 50ms ), dut_address, request ),
-            receive( 37, operation_timeout, 1 ) } );
+            answer( 37, dut_address, request, time_out( 50ms ) ),
+            receive( 37, 1, operation_timeout ) } );
 
         rig.run();
 
@@ -189,7 +189,7 @@ namespace {
                 set_access_address_and_crc_init( other_access_address, other_crc_init ),
                 start_advertising( 37, advertisement ) ),
             on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ) } );
-        rig.program_tester( { receive( 37, time_out( 300ms ) ) } );
+        rig.program_tester( { listen( 37, 300ms ) } );
     }
 }
 
@@ -217,7 +217,7 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
         on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ),
         on_adv_timeout( schedule_advertising_event( 37, 50ms,  advertisement ) ),
         on_adv_timeout( schedule_advertising_event( 37, 150ms, advertisement ) ) } );
-    program_tester( { receive( 37, time_out( 500ms ) ) } );
+    program_tester( { listen( 37, 500ms ) } );
 
     run();
 
@@ -253,10 +253,10 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
 
     // the window only bounds a lost advertising
     program_tester( {
-        receive( channels[ 0 ], operation_timeout, 1 ),
-        receive( channels[ 1 ], operation_timeout, 1 ),
-        receive( channels[ 2 ], operation_timeout, 1 ),
-        receive( channels[ 3 ], operation_timeout, 1 ) } );
+        receive( channels[ 0 ], 1, operation_timeout ),
+        receive( channels[ 1 ], 1, operation_timeout ),
+        receive( channels[ 2 ], 1, operation_timeout ),
+        receive( channels[ 3 ], 1, operation_timeout ) } );
 
     run();
 
@@ -285,7 +285,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_t
         on_start(       start_advertising(          37,                         first ) ),
         on_adv_timeout( start_advertising(          37,                         restarted ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, scheduled ) ) } );
-    program_tester( { receive( 37, time_out( 400ms ) ) } );
+    program_tester( { listen( 37, 400ms ) } );
 
     run();
 
@@ -311,7 +311,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
         on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 2 ] ) ),
         on_adv_timeout( start_advertising(          37,                         sent[ 3 ] ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 4 ] ) ) } );
-    program_tester( { receive( 37, time_out( 600ms ) ) } );
+    program_tester( { listen( 37, 600ms ) } );
 
     run();
 
@@ -386,9 +386,9 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
             schedule_advertising_event( 37, 100ms, last, response ) ) } );
 
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        answer( 37, operation_timeout, dut_address, request ),
-        receive( 37, operation_timeout, 1 ) } );
+        receive( 37, 1, operation_timeout ),
+        answer( 37, dut_address, request, operation_timeout ),
+        receive( 37, 1, operation_timeout ) } );
 
     run();
 
@@ -480,9 +480,9 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
 
     // the request to the old address gets no reply; its window closes before the next advertising
     program_tester( {
-        answer( 37, operation_timeout, dut_address, request_to_old ),
-        answer( 37, time_out( 150ms ), changed_address, request_to_old ),
-        answer( 37, operation_timeout, changed_address, request_to_new ) } );
+        answer( 37, dut_address, request_to_old, operation_timeout ),
+        answer( 37, changed_address, request_to_old, time_out( 150ms ) ),
+        answer( 37, changed_address, request_to_new, operation_timeout ) } );
 
     run();
 

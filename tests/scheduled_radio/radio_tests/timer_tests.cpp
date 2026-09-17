@@ -56,8 +56,8 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
         on_user_timer(  schedule_advertising_event( 37, event_delay, second ) ) } );
 
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, operation_timeout, 1 ) } );
+        receive( 37, 1, operation_timeout ),
+        receive( 37, 1, operation_timeout ) } );
 
     run();
 
@@ -95,8 +95,8 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
         on_user_timer() } );
 
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, operation_timeout, 1 ) } );
+        receive( 37, 1, operation_timeout ),
+        receive( 37, 1, operation_timeout ) } );
 
     run();
 
@@ -126,10 +126,10 @@ BOOST_FIXTURE_TEST_CASE( a_timer_for_a_time_gone_by_is_refused, rig_fixture, *if
         on_start(       start_advertising( 37, advertising( 6, 0x01 ) ) ),
         on_adv_timeout( schedule_timer( 0ms ) ) } );
 
-    // the second receive only keeps the run going while a wrongly scheduled timer would expire
+    // the listen only keeps the run going while a wrongly scheduled timer would expire
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, time_out( 100ms ) ) } );
+        receive( 37, 1, operation_timeout ),
+        listen( 37, 100ms ) } );
 
     run();
 
@@ -148,10 +148,10 @@ BOOST_FIXTURE_TEST_CASE( a_timer_cancelled_in_time_does_not_expire, rig_fixture,
         on_adv_timeout( schedule_timer( 100ms ),
                         cancel_timer() ) } );
 
-    // the second receive keeps the run going past the time the timer was scheduled for
+    // the listen keeps the run going past the time the timer was scheduled for
     program_tester( {
-        receive( 37, operation_timeout, 1 ),
-        receive( 37, time_out( 300ms ) ) } );
+        receive( 37, 1, operation_timeout ),
+        listen( 37, 300ms ) } );
 
     run();
 
@@ -176,7 +176,7 @@ BOOST_FIXTURE_TEST_CASE( cancelling_without_a_scheduled_timer_is_refused, rig_fi
         on_user_timer(  cancel_timer() ) } );
 
     program_tester( {
-        receive( 37, operation_timeout, 1 ) } );
+        receive( 37, 1, operation_timeout ) } );
 
     run();
 
