@@ -15,6 +15,7 @@
 
 #include <bluetoe/address.hpp>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -50,6 +51,15 @@ namespace test_rig {
     std::vector< std::uint8_t > advertising(
         std::size_t payload_size, std::uint8_t fill, std::uint8_t type = adv_nonconn_ind,
         const link_layer::device_address& advertiser = dut_address );
+
+    /**
+     * @brief a SCAN_REQ from `scanner` to `advertiser`, as the tester transmits it
+     *
+     * Header type 0x03, TxAdd the scanner's address kind and RxAdd the advertiser's, then
+     * the two addresses in that order, each six bytes as the address stores them.
+     */
+    std::array< std::uint8_t, 14 > scan_request(
+        const link_layer::device_address& scanner, const link_layer::device_address& advertiser );
 
     /**
      * @brief the time from the first bit of `earlier` to the first bit of `later`, by the

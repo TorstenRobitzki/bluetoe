@@ -30,9 +30,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include <algorithm>
 #include <array>
 #include <chrono>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -101,18 +101,34 @@ namespace test_rig {
         std::chrono::nanoseconds    window;
     };
 
+    /** @cond HIDDEN_SYMBOLS */
+    namespace details {
+
+        template < typename... Calls >
+        step step_on( callback_kind kind, Calls... calls )
+        {
+            static_assert( sizeof...( calls ) <= max_calls_per_step, "a step makes at most max_calls_per_step calls" );
+
+            step result;
+            result.on         = kind;
+            result.call_count = sizeof...( calls );
+            result.calls      = { calls... };
+
+            return result;
+        }
+    }
+    /** @endcond */
+
     /**
-     * @brief a step of a device program: a call to make on a callback
+     * @brief a call a step makes
      * @{
      */
     inline call start_advertising( std::uint32_t channel, std::span< const std::uint8_t > transmit )
     {
-        call result;
-        result.kind     = call_kind::start_advertising;
-        result.channel  = channel;
-        result.transmit = pdu( transmit );
-
-        return result;
+        return call{
+            .kind     = call_kind::start_advertising,
+            .channel  = channel,
+            .transmit = pdu( transmit ) };
     }
 
     inline call start_advertising(
@@ -128,13 +144,11 @@ namespace test_rig {
     inline call schedule_advertising_event(
         std::uint32_t channel, std::chrono::nanoseconds delay, std::span< const std::uint8_t > transmit )
     {
-        call result;
-        result.kind     = call_kind::schedule_advertising_event;
-        result.channel  = channel;
-        result.delay    = as_delta_time( delay );
-        result.transmit = pdu( transmit );
-
-        return result;
+        return call{
+            .kind     = call_kind::schedule_advertising_event,
+            .channel  = channel,
+            .delay    = as_delta_time( delay ),
+            .transmit = pdu( transmit ) };
     }
 
     inline call schedule_advertising_event(
@@ -147,71 +161,6 @@ namespace test_rig {
             .delay    = as_delta_time( delay ),
             .transmit = pdu( transmit ),
             .response = pdu( response ) };
-    }
-
-    inline step on_start( call c )
-    {
-        step result;
-        result.on         = callback_kind::start;
-        result.call_count = 1;
-        result.calls[ 0 ] = c;
-
-        return result;
-    }
-
-    inline step on_adv_timeout( call c )
-    {
-        step result;
-        result.on         = callback_kind::adv_timeout;
-        result.call_count = 1;
-        result.calls[ 0 ] = c;
-
-        return result;
-    }
-
-    inline step on_adv_received( call c )
-    {
-        return step{ .on = callback_kind::adv_received, .call_count = 1, .calls = { c } };
-    }
-
-    inline step on_user_timer()
-    {
-        return step{ .on = callback_kind::user_timer, .call_count = 0, .calls = {} };
-    }
-
-    inline step on_user_timer( call c )
-    {
-        return step{ .on = callback_kind::user_timer, .call_count = 1, .calls = { c } };
-    }
-
-    inline step on_start( call first, call second )
-    {
-        return step{ .on = callback_kind::start, .call_count = 2, .calls = { first, second } };
-    }
-
-    inline step on_adv_received( call first, call second )
-    {
-        return step{ .on = callback_kind::adv_received, .call_count = 2, .calls = { first, second } };
-    }
-
-    inline step on_user_timer( call first, call second )
-    {
-        return step{ .on = callback_kind::user_timer, .call_count = 2, .calls = { first, second } };
-    }
-
-    inline step on_adv_timeout( call first, call second )
-    {
-        return step{ .on = callback_kind::adv_timeout, .call_count = 2, .calls = { first, second } };
-    }
-
-    inline step on_connection_end_event( call c )
-    {
-        return step{ .on = callback_kind::connection_end_event, .call_count = 1, .calls = { c } };
-    }
-
-    inline step on_connection_timeout( call c )
-    {
-        return step{ .on = callback_kind::connection_timeout, .call_count = 1, .calls = { c } };
     }
 
     /**
@@ -254,17 +203,57 @@ namespace test_rig {
     /** @} */
 
     /**
+     * @brief a step: the callback it waits for and the calls it makes then, up to
+     *        max_calls_per_step of them
+     * @{
+     */
+    template < std::same_as< call >... Calls >
+    step on_start( Calls... calls )
+    {
+        return details::step_on( callback_kind::start, calls... );
+    }
+
+    template < std::same_as< call >... Calls >
+    step on_adv_received( Calls... calls )
+    {
+        return details::step_on( callback_kind::adv_received, calls... );
+    }
+
+    template < std::same_as< call >... Calls >
+    step on_adv_timeout( Calls... calls )
+    {
+        return details::step_on( callback_kind::adv_timeout, calls... );
+    }
+
+    template < std::same_as< call >... Calls >
+    step on_user_timer( Calls... calls )
+    {
+        return details::step_on( callback_kind::user_timer, calls... );
+    }
+
+    template < std::same_as< call >... Calls >
+    step on_connection_end_event( Calls... calls )
+    {
+        return details::step_on( callback_kind::connection_end_event, calls... );
+    }
+
+    template < std::same_as< call >... Calls >
+    step on_connection_timeout( Calls... calls )
+    {
+        return details::step_on( callback_kind::connection_timeout, calls... );
+    }
+    /** @} */
+
+    /**
      * @brief a tester operation: listen on a channel for a duration, at 1 Mbit
      */
     inline operation listen( std::uint32_t channel, std::chrono::nanoseconds duration )
     {
-        operation result;
-        result.kind    = operation_kind::receive;
-        result.channel = channel;
-        result.phy     = link_layer::phy_ll_encoding::le_1m_phy;
-        result.window  = as_delta_time( duration );
-
-        return result;
+        return operation{
+            .kind    = operation_kind::receive,
+            .channel = channel,
+            .phy     = link_layer::phy_ll_encoding::le_1m_phy,
+            .window  = as_delta_time( duration ) };
     }
 
     /**
@@ -326,32 +315,6 @@ namespace test_rig {
             .kind           = operation_kind::set_access_address_and_crc_init,
             .access_address = access_address,
             .crc_init       = crc_init };
-    }
-
-    /**
-     * @brief a SCAN_REQ from `scanner` to `advertiser`, as the tester transmits it
-     *
-     * Header type 0x03, TxAdd the scanner's address kind and RxAdd the advertiser's, then
-     * the two addresses in that order, each six bytes as the address stores them.
-     */
-    inline std::array< std::uint8_t, 14 > scan_request(
-        const link_layer::device_address& scanner, const link_layer::device_address& advertiser )
-    {
-        constexpr std::uint8_t scan_req  = 0x03;
-        constexpr std::uint8_t tx_add    = 0x40;
-        constexpr std::uint8_t rx_add    = 0x80;
-
-        std::array< std::uint8_t, 14 > result = {};
-
-        result[ 0 ] = scan_req
-            | ( scanner.is_random() ? tx_add : 0 )
-            | ( advertiser.is_random() ? rx_add : 0 );
-        result[ 1 ] = 12;
-
-        std::copy( scanner.begin(), scanner.end(), result.begin() + 2 );
-        std::copy( advertiser.begin(), advertiser.end(), result.begin() + 8 );
-
-        return result;
     }
 
     /**

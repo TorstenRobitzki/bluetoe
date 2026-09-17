@@ -22,6 +22,26 @@ namespace test_rig {
         return result;
     }
 
+    std::array< std::uint8_t, 14 > scan_request(
+        const link_layer::device_address& scanner, const link_layer::device_address& advertiser )
+    {
+        constexpr std::uint8_t scan_req  = 0x03;
+        constexpr std::uint8_t tx_add    = 0x40;
+        constexpr std::uint8_t rx_add    = 0x80;
+
+        std::array< std::uint8_t, 14 > result = {};
+
+        result[ 0 ] = scan_req
+            | ( scanner.is_random() ? tx_add : 0 )
+            | ( advertiser.is_random() ? rx_add : 0 );
+        result[ 1 ] = 12;
+
+        std::copy( scanner.begin(), scanner.end(), result.begin() + 2 );
+        std::copy( advertiser.begin(), advertiser.end(), result.begin() + 8 );
+
+        return result;
+    }
+
     std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later )
     {
         return std::chrono::duration_cast< std::chrono::microseconds >(
