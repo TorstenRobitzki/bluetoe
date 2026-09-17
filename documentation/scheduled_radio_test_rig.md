@@ -833,11 +833,26 @@ interrupt, one ramp up before the inter frame space after the received packet; t
 than a hundred microseconds for that, and an answer whose compare is already past is given up rather
 than sent late. A timer also leaves the delay open to be a parameter.
 
-## Open questions
+## Changes once the new interface is in use
 
+What the library has to change when the link layer is built on `scheduled_radio2.hpp`, collected
+while the rig finds it:
+
+- `link_layer::link_layer<>` is built on the new interface: its callbacks, `start_advertising()` for
+  a sequence without a time, and `cancel_radio_event()` for any pending action.
+- `ll_data_pdu_buffer` is written to be a base of the radio. With the new interface the link layer
+  owns it and hands it to the radio, so the radio's side of it becomes public, and the lock and the
+  CCM counters no longer come from a downcast to the radio; the lock it takes is the radio's
+  `radio_lock_guard`. Until then the device rig wraps it (`instrument/dut_rig.hpp`).
+- The concept names the functions a radio calls on that buffer, and how a radio with a PDU layout of
+  its own states it; `pdu_layout_by_radio` is keyed on the radio today.
+- The old radio bindings, `nrf51.cpp` and `nrf52.cpp`, are removed once `nrf52_radio` replaces them.
 - `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the
   old radio is still there. Once the old implementation is removed, the header is renamed to
   `scheduled_radio.hpp` and the old one deleted.
+
+## Open questions
+
 - How the tester itself is validated. Its timestamps and its answer are the measurement, so an error
   there presents as a fault in the device under test. Its receive timestamps are calibrated against
   the device's TIFS (decision 24), so an inter frame space it measures on that device is correct by
