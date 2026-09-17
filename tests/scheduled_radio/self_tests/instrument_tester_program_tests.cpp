@@ -48,8 +48,9 @@ namespace {
 
         void set_access_address_and_crc_init( std::uint32_t aa, std::uint32_t crc )
         {
-            access_address = aa;
-            crc_init       = crc;
+            access_address         = aa;
+            crc_init               = crc;
+            stops_at_address_change = stops;
         }
 
         void receive( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t id )
@@ -166,10 +167,11 @@ namespace {
         bool                            transmit_in_time = true;
         std::vector< answer_call >      answers;
         std::deque< tester_happened >   events;
-        std::uint32_t                   access_address = 0;
-        std::uint32_t                   crc_init       = 0;
-        std::uint32_t                   operation_id   = 0;
-        int                             stops          = 0;
+        std::uint32_t                   access_address          = 0;
+        std::uint32_t                   crc_init                = 0;
+        std::uint32_t                   operation_id            = 0;
+        int                             stops                   = 0;
+        int                             stops_at_address_change = -1;
         std::vector< std::pair< std::uint32_t, bluetoe::link_layer::device_address > > accepted;
 
         static inline scripted_platform* instance = nullptr;
@@ -236,6 +238,14 @@ namespace {
             .window   = window,
             .response = pdu( adv_ind ),
             .delay    = delay };
+    }
+
+    operation address_op( std::uint32_t access_address, std::uint32_t crc_init )
+    {
+        return operation{
+            .kind           = operation_kind::set_access_address_and_crc_init,
+            .access_address = access_address,
+            .crc_init       = crc_init };
     }
 
     operation answer_op( std::uint32_t channel, delta_time window, const bluetoe::link_layer::device_address& target )
@@ -954,4 +964,54 @@ BOOST_FIXTURE_TEST_CASE( a_transmit_without_a_captured_pdu_times_out_at_once, fi
     BOOST_CHECK( platform.transmits.empty() );
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
     BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
+}
+
+BOOST_AUTO_TEST_CASE( an_access_address_operation_round_trips_with_its_values )
+{
+    const operation sent = address_op( 0x71764129, 0x7a8f23 );
+
+    std::array< std::uint8_t, 128 > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, sent ) );
+
+    buffer_source in( storage.data(), out.size() );
+    operation     decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded == sent );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
+}
+
+// the radio is stopped before the change, and the next operation begins without waiting
+BOOST_FIXTURE_TEST_CASE( an_access_address_operation_changes_the_address_and_goes_on, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( address_op( 0x71764129, 0x7a8f23 ) );
+    remote.call< &rig_t::add_operation >( recv( 12, delta_time::msec( 100 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_CHECK_EQUAL( platform.access_address, 0x71764129u );
+    BOOST_CHECK_EQUAL( platform.crc_init, 0x7a8f23u );
+    BOOST_CHECK_EQUAL( platform.stops_at_address_change, 1 );
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 12u );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+}
+
+// several in a row take effect in order, and one at the end finishes the program
+BOOST_FIXTURE_TEST_CASE( access_address_operations_in_a_row_and_at_the_end, fixture )
+{
+    remote.call< &rig_t::add_operation >( address_op( 1, 2 ) );
+    remote.call< &rig_t::add_operation >( address_op( 3, 4 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_CHECK_EQUAL( platform.access_address, 3u );
+    BOOST_CHECK_EQUAL( platform.crc_init, 4u );
+    BOOST_CHECK( platform.receives.empty() );
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
 }

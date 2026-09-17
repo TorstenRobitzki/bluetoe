@@ -259,6 +259,18 @@ namespace test_rig {
     }
 
     /**
+     * @brief a tester operation: stop the radio and use `access_address` and `crc_init` from
+     *        here on
+     */
+    inline operation use_access_address( std::uint32_t access_address, std::uint32_t crc_init )
+    {
+        return operation{
+            .kind           = operation_kind::set_access_address_and_crc_init,
+            .access_address = access_address,
+            .crc_init       = crc_init };
+    }
+
+    /**
      * @brief a SCAN_REQ from `scanner` to `advertiser`, as the tester transmits it
      *
      * Header type 0x03, TxAdd the scanner's address kind and RxAdd the advertiser's, then

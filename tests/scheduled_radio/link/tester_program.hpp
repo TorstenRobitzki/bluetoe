@@ -60,7 +60,8 @@ namespace test_rig {
     {
         receive,
         answer,
-        transmit
+        transmit,
+        set_access_address_and_crc_init
     };
 
     /**
@@ -78,6 +79,9 @@ namespace test_rig {
      * of the last PDU the program captured, then listens like a receive and ends with the
      * reply. The radio is not listening before the transmission.
      *
+     * A set_access_address_and_crc_init stops the radio, sets `access_address` and `crc_init`
+     * for the operations that follow, and ends at once; it has no channel and no window.
+     *
      * A `count` other than zero ends a receive or an answer early, once it received that many
      * PDUs with a valid CRC that passed the tester's filters. An operation whose window
      * ends before its count was reached, or before an answer heard its target, times out
@@ -85,14 +89,16 @@ namespace test_rig {
      */
     struct operation
     {
-        operation_kind                                  kind     = operation_kind::receive;
-        std::uint32_t                                   channel  = 0;
-        link_layer::phy_ll_encoding::phy_ll_encoding_t  phy      = link_layer::phy_ll_encoding::le_1m_phy;
-        link_layer::delta_time                          window   = {};
-        link_layer::device_address                      target   = {};
-        pdu                                             response = {};
-        std::uint32_t                                   count    = 0;
-        link_layer::delta_time                          delay    = {};
+        operation_kind                                  kind            = operation_kind::receive;
+        std::uint32_t                                   channel         = 0;
+        link_layer::phy_ll_encoding::phy_ll_encoding_t  phy             = link_layer::phy_ll_encoding::le_1m_phy;
+        link_layer::delta_time                          window          = {};
+        link_layer::device_address                      target          = {};
+        pdu                                             response        = {};
+        std::uint32_t                                   count           = 0;
+        link_layer::delta_time                          delay           = {};
+        std::uint32_t                                   access_address  = 0;
+        std::uint32_t                                   crc_init        = 0;
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -165,13 +171,13 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const operation& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay ) );
+        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay );
+        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init );
 
         return deserialize( in, fields );
     }

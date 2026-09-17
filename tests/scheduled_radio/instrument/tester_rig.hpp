@@ -360,7 +360,7 @@ namespace test_rig {
             produced_  = 0;
             collected_ = 0;
 
-            begin( operations_[ 0 ] );
+            begin_current();
 
             return true;
         }
@@ -546,6 +546,20 @@ namespace test_rig {
                 return;
 
             ++cursor_;
+            begin_current();
+        }
+
+        /*
+         * Begins the operation at the cursor. A change of the access address takes effect at
+         * once, with the radio stopped, and the operation after it begins right away.
+         */
+        void begin_current()
+        {
+            for ( ; cursor_ != operation_count_ && operations_[ cursor_ ].kind == operation_kind::set_access_address_and_crc_init; ++cursor_ )
+            {
+                platform_.stop();
+                platform_.set_access_address_and_crc_init( operations_[ cursor_ ].access_address, operations_[ cursor_ ].crc_init );
+            }
 
             if ( cursor_ != operation_count_ )
                 begin( operations_[ cursor_ ] );
