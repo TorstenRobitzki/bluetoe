@@ -83,20 +83,18 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
     BOOST_CHECK( !more_data( std::span< const std::uint8_t >( reply.data.data.data(), reply.data.size ) ) );
 
     const auto records = device_records();
-    const auto ends    = callbacks_of( records, callback_kind::connection_end_event );
 
-    BOOST_REQUIRE_EQUAL( ends.size(), 1u );
-    BOOST_CHECK( callbacks_of( records, callback_kind::connection_timeout ).empty() );
-    BOOST_CHECK( !ends[ 0 ].events.last_received_not_empty );
-    BOOST_CHECK( !ends[ 0 ].events.last_transmitted_not_empty );
-    BOOST_CHECK( !ends[ 0 ].events.error_occured );
+    check_callbacks( records, { adv_timeout, connection_end_event } );
+
+    const auto end = the_only( callbacks_of( records, connection_end_event ) );
+
+    BOOST_CHECK( !end.events.last_received_not_empty );
+    BOOST_CHECK( !end.events.last_transmitted_not_empty );
+    BOOST_CHECK( !end.events.error_occured );
 
     // the anchor is the first bit of the tester's PDU, by the device's clock
-    const auto advertising_end = callbacks_of( records, callback_kind::adv_timeout );
-
-    BOOST_REQUIRE_EQUAL( advertising_end.size(), 1u );
-
-    const auto anchor = time_between( advertising_end[ 0 ], ends[ 0 ] );
+    const auto advertising_end = the_only( callbacks_of( records, adv_timeout ) );
+    const auto anchor          = time_between( advertising_end, end );
 
     BOOST_CHECK_LE( std::chrono::abs( anchor - first_pdu_after_advertising ), tolerance );
 }

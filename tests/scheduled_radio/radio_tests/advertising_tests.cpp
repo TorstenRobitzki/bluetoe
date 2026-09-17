@@ -125,10 +125,7 @@ namespace {
             sent( request ),
             received( response ) } );
 
-        const auto reported = callbacks_of( rig.device_records(), callback_kind::adv_received );
-
-        BOOST_REQUIRE_EQUAL( reported.size(), 1u );
-        BOOST_CHECK( reported[ 0 ].data == pdu( request ) );
+        BOOST_CHECK( the_only( callbacks_of( rig.device_records(), adv_received ) ).data == pdu( request ) );
 
         return captured;
     }
@@ -165,10 +162,7 @@ namespace {
             sent( request ),
             received( next ) } );
 
-        const auto records = rig.device_records();
-
-        BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
-        BOOST_CHECK( callbacks_of( records, callback_kind::adv_received ).empty() );
+        check_callbacks( rig.device_records(), { adv_timeout, adv_timeout } );
     }
 
     // the device moves off the advertising access address before it starts
@@ -397,12 +391,9 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
 
     const auto records = device_records();
 
-    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
+    check_callbacks( records, { adv_timeout, adv_received, adv_timeout } );
 
-    const auto received = callbacks_of( records, callback_kind::adv_received );
-
-    BOOST_REQUIRE_EQUAL( received.size(), 1u );
-    BOOST_CHECK( received[ 0 ].data == pdu( request ) );
+    BOOST_CHECK( the_only( callbacks_of( records, adv_received ) ).data == pdu( request ) );
 }
 
 /*
@@ -486,10 +477,7 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
         sent( request_to_new ),
         received( new_response ) } );
 
-    const auto records = device_records();
-
-    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 1u );
-    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_received ).size(), 2u );
+    check_callbacks( device_records(), { adv_received, adv_timeout, adv_received } );
 }
 
 /*

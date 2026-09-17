@@ -47,13 +47,10 @@ namespace {
 
         rig.check_captured( { received( first ) } );
 
-        const auto records   = rig.device_records();
-        const auto cancelled = calls_of( records, call_kind::cancel_radio_event );
+        const auto records = rig.device_records();
 
-        BOOST_REQUIRE_EQUAL( cancelled.size(), 1u );
-        BOOST_CHECK( cancelled[ 0 ].result );
-        BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 1u );
-        BOOST_CHECK( callbacks_of( records, callback_kind::adv_received ).empty() );
+        BOOST_CHECK( the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+        check_callbacks( records, { adv_timeout } );
     }
 }
 
@@ -86,10 +83,7 @@ BOOST_FIXTURE_TEST_CASE( cancelling_with_nothing_pending_is_refused, rig_fixture
 
     run();
 
-    const auto cancelled = calls_of( device_records(), call_kind::cancel_radio_event );
-
-    BOOST_REQUIRE_EQUAL( cancelled.size(), 1u );
-    BOOST_CHECK( !cancelled[ 0 ].result );
+    BOOST_CHECK( !the_only( calls_of( device_records(), call_kind::cancel_radio_event ) ).result );
 }
 
 /*
@@ -119,12 +113,10 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
 
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
 
-    const auto records   = device_records();
-    const auto cancelled = calls_of( records, call_kind::cancel_radio_event );
+    const auto records = device_records();
 
-    BOOST_REQUIRE_EQUAL( cancelled.size(), 1u );
-    BOOST_CHECK( !cancelled[ 0 ].result );
-    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
+    BOOST_CHECK( !the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+    check_callbacks( records, { adv_timeout, user_timer, adv_timeout } );
 }
 
 /*
@@ -162,10 +154,8 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig
     BOOST_CHECK_GE( between, 50ms );
     BOOST_CHECK_LT( between, 100ms );
 
-    const auto records         = device_records();
-    const auto cancelled_calls = calls_of( records, call_kind::cancel_radio_event );
+    const auto records = device_records();
 
-    BOOST_REQUIRE_EQUAL( cancelled_calls.size(), 1u );
-    BOOST_CHECK( cancelled_calls[ 0 ].result );
-    BOOST_CHECK_EQUAL( callbacks_of( records, callback_kind::adv_timeout ).size(), 2u );
+    BOOST_CHECK( the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+    check_callbacks( records, { adv_timeout, user_timer, adv_timeout } );
 }
