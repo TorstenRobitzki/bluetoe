@@ -545,9 +545,10 @@ namespace link_layer {
         /*
          * Schedules one connection event: listen on `channel` from `start`, receive PDUs
          * and answer them with pending ones from the buffer that link_layer_pdu_buffer()
-         * returns, until the event closes or `end` is reached without any reception. The
-         * event is reported with connection_end_event() carrying its start time, or with
-         * connection_timeout() carrying `end`. If it was cancelled, nothing is reported.
+         * returns, until the event closes or `end` is reached without any reception. A PDU is
+         * received if its first bit is on air between `start` and `end`. The event is reported
+         * with connection_end_event() carrying its start time, or with connection_timeout()
+         * carrying `end`. If it was cancelled, nothing is reported.
          *
          * A received PDU is answered one inter frame space after it ended. If the buffer has
          * no room for the PDU, the answer does not acknowledge it. The radio closes the event
