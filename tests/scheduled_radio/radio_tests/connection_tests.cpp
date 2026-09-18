@@ -44,6 +44,50 @@ namespace {
     // the tester's first PDU of the event begins this long after the advertising, 500 µs into
     // the receive window
     constexpr auto first_pdu_after_advertising = event_start + 500us;
+
+    const std::uint8_t some_data[] = { 0x01, 0x02, 0x03 };
+
+    /*
+     * One event in which the central sends three PDUs, the first two with MD set, each after
+     * the device's reply to the one before with `t_ifs` in between. The device has to follow at
+     * the edges of the inter frame space the Core Specification allows, 150 µs ± 2 µs.
+     */
+    void the_device_follows_a_central_at( connection_fixture& rig, std::chrono::microseconds t_ifs )
+    {
+        const auto advertisement = advertising( 6, 0x01 );
+
+        central tester_side;
+        const auto first  = tester_side.send( {}, true );
+        const auto second = tester_side.send( {}, true );
+        const auto third  = tester_side.send();
+
+        rig.program_device( {
+            on_start(
+                start_advertising( 37, advertisement ) ),
+            on_adv_timeout(
+                set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+                schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+            on_connection_end_event() } );
+
+        rig.program_tester( {
+            receive( 37, 1, operation_timeout ),
+            use_access_address( connection_access_address, connection_crc_init ),
+            connection_event( data_channel, first_pdu_after_advertising, { first, second, third }, t_ifs ) } );
+
+        rig.run();
+
+        const auto captured = rig.check_captured( {
+            received( advertisement ),
+            sent( first ),  received( reply_to( first ) ),
+            sent( second ), received( reply_to( second ) ),
+            sent( third ),  received( reply_to( third ) ) } );
+
+        check_callbacks( rig.device_records(), { adv_timeout, connection_end_event{} } );
+
+        // the tester kept the space it was asked to, or the test proves nothing
+        BOOST_CHECK_LE( std::chrono::abs( inter_frame_space( captured[ 2 ], captured[ 3 ] ) - t_ifs ), 500ns );
+        BOOST_CHECK_LE( std::chrono::abs( inter_frame_space( captured[ 4 ], captured[ 5 ] ) - t_ifs ), 500ns );
+    }
 }
 
 // the central's empty PDU is answered with an empty one, and the event closes after it
@@ -83,4 +127,192 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
     const auto anchor          = time_between( advertising_end, end );
 
     BOOST_CHECK_LE( std::chrono::abs( anchor - first_pdu_after_advertising ), tolerance );
+}
+
+/*
+ * The device follows the central from event to event and from channel to channel. The anchors
+ * are an interval apart by both clocks: the tester's, which placed them, and the device's,
+ * which reports them.
+ */
+BOOST_FIXTURE_TEST_CASE( connection_events_follow_each_other_at_the_interval, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send();
+    const auto third  = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( 5, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            next_event( 12 ) ),
+        on_connection_end_event(
+            next_event( 19 ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( 5,  first_pdu_after_advertising, { first } ),
+        connection_event( 12, interval, { second } ),
+        connection_event( 19, interval, { third } ) } );
+
+    run();
+
+    const auto captured = check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first ) ),
+        sent( second ), received( reply_to( second ) ),
+        sent( third ),  received( reply_to( third ) ) } );
+
+    const auto records = device_records();
+
+    check_callbacks( records, { adv_timeout, connection_end_event{}, connection_end_event{}, connection_end_event{} } );
+
+    const auto ends = callbacks_of( records, callback_kind::connection_end_event );
+
+    BOOST_REQUIRE_EQUAL( ends.size(), 3u );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 5 ] ) - interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 1 ], ends[ 2 ] ) - interval ), tolerance );
+}
+
+/*
+ * A PDU in the buffer before the connection goes out with the first reply. Its acknowledgement
+ * can only come with the central's first PDU of the next event, so the first event ends with
+ * the data unacknowledged, and the second with nothing left.
+ */
+BOOST_FIXTURE_TEST_CASE( data_queued_before_the_start_is_sent_in_the_first_event, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send();
+
+    queue_device_pdus( { data_pdu( llid::start, some_data ) } );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ),
+        connection_event( data_channel, interval, { second } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first, some_data, false, llid::start ) ),
+        sent( second ), received( reply_to( second ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
+        connection_end_event{} } );
+}
+
+// what a link layer does from its callback: fill the buffer for the next event
+BOOST_FIXTURE_TEST_CASE( data_queued_after_an_event_is_sent_in_the_next, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            queue_pdu( data_pdu( llid::start, some_data ) ),
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ),
+        connection_event( data_channel, interval, { second } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first ) ),
+        sent( second ), received( reply_to( second, some_data, false, llid::start ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{},
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true } } );
+}
+
+/*
+ * The central's MD keeps the device listening after its reply. The last PDU of the event has
+ * MD clear, so last_received_had_more_data, which is about the last PDU received, is clear.
+ */
+BOOST_FIXTURE_TEST_CASE( more_data_of_the_central_keeps_the_event_open, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send( {}, true );
+    const auto second = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first, second } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first ) ),
+        sent( second ), received( reply_to( second ) ) } );
+
+    check_callbacks( device_records(), { adv_timeout, connection_end_event{} } );
+}
+
+/*
+ * The tester places a PDU to one tick of its clock, but finds the end of the device's reply
+ * from a receive offset calibrated against this device's own T_IFS; until the tester is
+ * validated against an independent reference, this shows that the device follows at 148 µs
+ * and 152 µs as the tester measures them (candidate_tests.md).
+ */
+BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_shortest_inter_frame_space, connection_fixture, *if_tester )
+{
+    the_device_follows_a_central_at( *this, 148us );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_longest_inter_frame_space, connection_fixture, *if_tester )
+{
+    the_device_follows_a_central_at( *this, 152us );
 }
