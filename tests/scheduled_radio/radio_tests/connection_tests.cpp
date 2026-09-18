@@ -1034,3 +1034,45 @@ BOOST_FIXTURE_TEST_CASE( data_stays_unacknowledged_until_the_central_acknowledge
         connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
         connection_end_event{} } );
 }
+
+/*
+ * With two PDUs queued, the device's first reply has MD set, and the event goes on although the
+ * central's PDU has it clear: the central's next PDU gets the second, with MD clear, and neither
+ * side announcing more closes the event.
+ */
+BOOST_FIXTURE_TEST_CASE( more_data_of_the_device_keeps_the_event_open, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+    const auto first_data    = payload_of( 5, 0x10 );
+    const auto second_data   = payload_of( 5, 0x20 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send();
+
+    queue_device_pdus( { data_pdu( llid::start, first_data ), data_pdu( llid::start, second_data ) } );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first, second } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first, first_data, more_data, llid::start ) ),
+        sent( second ), received( reply_to( second, second_data, no_more_data, llid::start ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true } } );
+}
