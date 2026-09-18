@@ -61,8 +61,14 @@ namespace test_rig {
         receive,
         answer,
         transmit,
-        set_access_address_and_crc_init
+        set_access_address_and_crc_init,
+        connection_event
     };
+
+    /**
+     * @brief the most PDUs a connection_event sends
+     */
+    constexpr std::size_t max_event_pdus = 4;
 
     /**
      * @brief one operation of a tester program
@@ -82,6 +88,14 @@ namespace test_rig {
      * A set_access_address_and_crc_init stops the radio, sets `access_address` and `crc_init`
      * for the operations that follow, and ends at once; it has no channel and no window.
      *
+     * A connection_event is one connection event on `channel`, with the tester as the central.
+     * It sends the first of its `pdu_count` `pdus` so that its first bit, the event's anchor, is
+     * on air `delay` after the anchor of the previous connection_event, or, before the first,
+     * after the first bit of the PDU the program captured last. After each PDU it listens for the
+     * device's reply and sends the next one `t_ifs` after the reply ended; it ends with the reply
+     * to the last. Every PDU sent and every reply is captured, and a reply that does not come
+     * before `window` ended is a time out.
+     *
      * A `count` other than zero ends a receive or an answer early, once it received that many
      * PDUs with a valid CRC that passed the tester's filters. An operation whose window
      * ends before its count was reached, or before an answer heard its target, times out
@@ -99,6 +113,9 @@ namespace test_rig {
         link_layer::delta_time                          delay           = {};
         std::uint32_t                                   access_address  = 0;
         std::uint32_t                                   crc_init        = 0;
+        std::array< pdu, max_event_pdus >               pdus            = {};
+        std::uint8_t                                    pdu_count       = 0;
+        link_layer::delta_time                          t_ifs           = {};
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -171,15 +188,17 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const operation& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init ) );
+        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
+            value.pdus, value.pdu_count, value.t_ifs ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init );
+        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
+            value.pdus, value.pdu_count, value.t_ifs );
 
-        return deserialize( in, fields );
+        return deserialize( in, fields ) && value.pdu_count <= max_event_pdus;
     }
 
     template < sink Sink >

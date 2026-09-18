@@ -343,6 +343,10 @@ namespace test_rig {
             if ( operation_count_ == max_operations )
                 return false;
 
+            // described on the wire, but not run by this tester yet
+            if ( next.kind == operation_kind::connection_event )
+                return false;
+
             operations_[ operation_count_ ] = next;
             ++operation_count_;
 

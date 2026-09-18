@@ -240,6 +240,25 @@ namespace {
             .delay    = delay };
     }
 
+    // the largest a connection event can be: every PDU at its largest
+    operation largest_event_op()
+    {
+        const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
+
+        operation result{
+            .kind      = operation_kind::connection_event,
+            .channel   = 36,
+            .phy       = phy::le_1m_phy,
+            .window    = delta_time::msec( 100 ),
+            .delay     = delta_time::usec( 7500 ),
+            .pdu_count = max_event_pdus,
+            .t_ifs     = delta_time::usec( 148 ) };
+
+        result.pdus.fill( pdu( largest_pdu ) );
+
+        return result;
+    }
+
     operation address_op( std::uint32_t access_address, std::uint32_t crc_init )
     {
         return operation{
@@ -1030,4 +1049,53 @@ BOOST_FIXTURE_TEST_CASE( the_acceptance_filter_does_not_apply_on_another_access_
     rig.run();
 
     BOOST_CHECK_EQUAL( collect_all().size(), 1u );
+}
+
+BOOST_AUTO_TEST_CASE( a_connection_event_operation_round_trips_with_its_pdus_and_t_ifs )
+{
+    const operation sent = largest_event_op();
+
+    std::array< std::uint8_t, default_max_payload > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, sent ) );
+
+    buffer_source in( storage.data(), out.size() );
+    operation     decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded == sent );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
+}
+
+/*
+ * An operation goes in one request behind a one byte opcode, so the largest it can be has to
+ * fit: a connection event with every PDU at its largest.
+ */
+BOOST_AUTO_TEST_CASE( the_largest_operation_fits_into_one_request )
+{
+    std::array< std::uint8_t, default_max_payload - 1 > request;
+    buffer_sink out( request );
+
+    BOOST_CHECK( serialize( out, largest_event_op() ) );
+}
+
+BOOST_AUTO_TEST_CASE( more_pdus_than_an_event_holds_are_refused_on_the_wire )
+{
+    operation sent = largest_event_op();
+    sent.pdu_count = max_event_pdus + 1;
+
+    std::array< std::uint8_t, default_max_payload > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, sent ) );
+
+    buffer_source in( storage.data(), out.size() );
+    operation     decoded;
+
+    BOOST_CHECK( !deserialize( in, decoded ) );
+}
+
+// described on the wire, so that tests can be written against it, but not run yet
+BOOST_FIXTURE_TEST_CASE( a_connection_event_is_refused_for_now, fixture )
+{
+    BOOST_CHECK( !remote.call< &rig_t::add_operation >( largest_event_op() ) );
 }
