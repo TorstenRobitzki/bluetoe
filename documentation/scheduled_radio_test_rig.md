@@ -898,7 +898,10 @@ while the rig finds it:
   CCM counters no longer come from a downcast to the radio; the lock it takes is the radio's
   `radio_lock_guard`. Until then the device rig wraps it (`instrument/dut_rig.hpp`).
 - The concept names the functions a radio calls on that buffer, and how a radio with a PDU layout of
-  its own states it; `pdu_layout_by_radio` is keyed on the radio today.
+  its own states it; `pdu_layout_by_radio` is keyed on the radio today. `acknowledge()` is not among
+  them: a PDU the buffer has no room for is answered with `next_transmit()`, taking nothing from it,
+  as the PDU sent before must go out again unchanged. `ll_data_pdu_buffer::acknowledge()` advances
+  the expected sequence number, which suits only the old binding's use for a PDU whose MIC failed.
 - The old radio bindings, `nrf51.cpp` and `nrf52.cpp`, are removed once `nrf52_radio` replaces them.
 - `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the
   old radio is still there. Once the old implementation is removed, the header is renamed to

@@ -157,7 +157,7 @@ namespace link_layer {
     {
         /*
          * Room for the next PDU to receive; empty if there is none, in which case the radio
-         * receives the PDU elsewhere and does not acknowledge it.
+         * receives the PDU elsewhere, takes nothing from it, and answers with next_transmit().
          */
         { buffer.allocate_receive_buffer() } -> std::same_as< read_buffer >;
 
@@ -168,14 +168,9 @@ namespace link_layer {
         { buffer.received( pdu ) } -> std::same_as< write_buffer >;
 
         /*
-         * A PDU received with a valid CRC that is not stored, as there was no room for it;
-         * takes its acknowledgement, and returns the PDU to answer with.
-         */
-        { buffer.acknowledge( pdu ) } -> std::same_as< write_buffer >;
-
-        /*
-         * The next PDU to send, without taking anything received; after a PDU with an invalid
-         * CRC, for example.
+         * The next PDU to send, without taking anything received: after a PDU with an invalid
+         * CRC, or one there was no room for. A PDU sent before and not acknowledged is sent
+         * again unchanged.
          */
         { buffer.next_transmit() } -> std::same_as< write_buffer >;
 
@@ -551,8 +546,8 @@ namespace link_layer {
          * carrying `end`. If it was cancelled, nothing is reported.
          *
          * A received PDU is answered one inter frame space after it ended. If the buffer has
-         * no room for the PDU, the answer does not acknowledge it. The radio closes the event
-         * after its answer when
+         * no room for the PDU, the radio takes nothing from it, and its answer, the PDU sent
+         * before, does not acknowledge it. The radio closes the event after its answer when
          * - neither its answer nor the last PDU received has the MD flag set, or
          * - nothing is received in the inter frame space after its answer,
          * and without an answer when the second PDU in a row was received with an invalid
