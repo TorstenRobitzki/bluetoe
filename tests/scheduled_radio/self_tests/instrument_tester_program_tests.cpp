@@ -1079,10 +1079,12 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_ends_with_the_reply_to_its_last_pdu,
     BOOST_CHECK( batch.captured[ 2 ].direction == pdu_direction::received );
 }
 
-BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_times_out, fixture )
+// a device that does not answer is what a test observes, in the captured PDUs; the program goes on
+BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_ends_with_its_window, fixture )
 {
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
     remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) );
+    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1093,8 +1095,9 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_times_out, f
     platform.push_window_ended();
     rig.run();
 
-    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 1u );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture )

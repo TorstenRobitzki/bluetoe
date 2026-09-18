@@ -560,10 +560,11 @@ namespace test_rig {
             if ( cursor_ == operation_count_ )
                 return;
 
+            // a connection event without all its replies ends here: a device that does not
+            // answer is what a test observes, in the captured PDUs
             const operation& current   = operations_[ cursor_ ];
             const bool       answers   = current.kind == operation_kind::answer;
-            const bool       timed_out = current.count != 0 || ( answers && !answered_ )
-                || current.kind == operation_kind::connection_event;
+            const bool       timed_out = current.count != 0 || ( answers && !answered_ );
 
             if ( timed_out )
                 time_out();

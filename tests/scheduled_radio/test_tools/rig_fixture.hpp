@@ -312,8 +312,8 @@ namespace test_rig {
      *
      * The first of `pdus` has its first bit on air `after` the anchor of the previous connection
      * event, or, before the first, after the first bit of the PDU captured last; each further one
-     * `t_ifs` after the device's reply ended. It ends with the reply to the last. Its window is
-     * what the event can take, so that a reply that does not come ends the program.
+     * `t_ifs` after the device's reply ended. It ends with the reply to the last, or, if a reply
+     * does not come, with its window, which is what the event can take.
      *
      * @throw std::invalid_argument for more PDUs than an event holds
      */

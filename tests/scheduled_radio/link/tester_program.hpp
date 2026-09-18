@@ -88,8 +88,9 @@ namespace test_rig {
      * on air `delay` after the anchor of the previous connection_event, or, before the first,
      * after the first bit of the PDU the program captured last. After each PDU it listens for the
      * device's reply and sends the next one `t_ifs` after the reply ended; it ends with the reply
-     * to the last. Every PDU sent and every reply is captured, and a reply that does not come
-     * before `window` ended is a time out.
+     * to the last. Every PDU sent and every reply is captured. A reply that does not come ends
+     * the event with its `window`, not the program, as a device that does not answer is what
+     * some tests observe.
      *
      * A `count` other than zero ends a receive or an answer early, once it received that many
      * PDUs with a valid CRC that passed the tester's filters. An operation whose window

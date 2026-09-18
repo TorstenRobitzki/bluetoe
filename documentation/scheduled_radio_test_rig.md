@@ -853,8 +853,11 @@ The operation is `connection_event`: up to four PDUs on one channel, the first w
 `delay` after the previous event's anchor, or, for the first event, after the PDU captured last,
 which is the advertising the connection starts from. Every further PDU follows the device's reply
 after a T_IFS the test gives, 150 µs unless it moves it to the edges of the ±2 µs the Core
-Specification allows. The operation ends with the reply to its last PDU. It replaced `transmit`,
-which placed one PDU from the PDU captured last and is an event of one PDU.
+Specification allows. The operation ends with the reply to its last PDU, or, if a reply does not
+come, with its window, not with a timeout: a device that does not answer, to a PDU outside its
+receive window or after a second CRC error, is what such a test observes, and the captured PDUs show
+it. It replaced `transmit`, which placed one PDU from the PDU captured last and is an event of one
+PDU.
 
 That the main loop cannot place a PDU 150 µs after a reception suggested moving the program
 interpreter into interrupt context. It was not needed. The platform already arms the transmissions
