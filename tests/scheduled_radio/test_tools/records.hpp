@@ -10,6 +10,7 @@
 
 #include "link/program.hpp"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,8 +25,39 @@ namespace test_rig {
     constexpr callback_kind adv_timeout          = callback_kind::adv_timeout;
     constexpr callback_kind user_timer           = callback_kind::user_timer;
     constexpr callback_kind connection_timeout   = callback_kind::connection_timeout;
-    constexpr callback_kind connection_end_event = callback_kind::connection_end_event;
     /** @} */
+
+    /**
+     * @brief a connection_end_event() with the flags it is expected to report
+     *
+     * A flag not named is expected clear, so connection_end_event{} requires all six clear.
+     * link_layer::connection_event_events has constructors, which rule out naming its members.
+     */
+    struct connection_end_event
+    {
+        bool unacknowledged_data         = false;
+        bool last_received_not_empty     = false;
+        bool last_transmitted_not_empty  = false;
+        bool last_received_had_more_data = false;
+        bool pending_outgoing_data       = false;
+        bool error_occured               = false;
+    };
+
+    /**
+     * @brief one entry of an expected sequence of callbacks
+     *
+     * Converts from a callback_kind, which requires the kind only, and from a
+     * connection_end_event, which requires its flags as well.
+     */
+    struct expected_callback
+    {
+        expected_callback( callback_kind expected_kind );
+
+        expected_callback( const connection_end_event& expected_events );
+
+        callback_kind                           kind;
+        std::optional< connection_end_event >   events;
+    };
 
     /**
      * @brief the callbacks of `kind` among a device's records, in the order they were recorded
@@ -46,26 +78,28 @@ namespace test_rig {
     record the_only( const std::vector< record >& records );
 
     /**
-     * @brief the callbacks a program caused, in order
+     * @brief a callback as its name
+     */
+    std::string as_text( callback_kind kind );
+
+    /**
+     * @brief the callbacks a program caused, as a line: each with what `expected` requires of
+     *        the entry at its position, separated by commas
      *
      * radio_ready() is left out: the rig reports it once when the radio came up after the
      * reset of the fixture, before a program was loaded.
      */
-    std::vector< callback_kind > callbacks( const std::vector< record >& records );
+    std::string as_text( const std::vector< record >& records, const std::vector< expected_callback >& expected );
 
     /**
-     * @brief the callbacks as their names, separated by commas
-     * @{
+     * @brief an expected sequence as the same line
      */
-    std::string as_text( callback_kind kind );
-
-    std::string as_text( const std::vector< callback_kind >& kinds );
-    /** @} */
+    std::string as_text( const std::vector< expected_callback >& expected );
 
     /**
      * @brief require the callbacks a program caused to be exactly `expected`
      */
-    void check_callbacks( const std::vector< record >& records, const std::vector< callback_kind >& expected );
+    void check_callbacks( const std::vector< record >& records, const std::vector< expected_callback >& expected );
 }
 }
 

@@ -84,9 +84,9 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
 
     const auto records = device_records();
 
-    check_callbacks( records, { adv_timeout, connection_end_event } );
+    check_callbacks( records, { adv_timeout, callback_kind::connection_end_event } );
 
-    const auto end = the_only( callbacks_of( records, connection_end_event ) );
+    const auto end = the_only( callbacks_of( records, callback_kind::connection_end_event ) );
 
     BOOST_CHECK( !end.events.last_received_not_empty );
     BOOST_CHECK( !end.events.last_transmitted_not_empty );

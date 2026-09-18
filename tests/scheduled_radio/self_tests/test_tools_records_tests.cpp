@@ -67,19 +67,71 @@ BOOST_AUTO_TEST_CASE( the_one_record_of_a_kind_is_handed_over )
 // the rig reports it once when the radio came up, before a program was loaded
 BOOST_AUTO_TEST_CASE( the_sequence_of_callbacks_leaves_radio_ready_out )
 {
-    const std::vector< callback_kind > expected = { adv_timeout, user_timer, adv_timeout };
-
-    BOOST_CHECK( callbacks( a_run ) == expected );
+    BOOST_CHECK_EQUAL( as_text( a_run, {} ), "adv_timeout, user_timer, adv_timeout" );
 }
 
 BOOST_AUTO_TEST_CASE( a_sequence_is_rendered_as_names_separated_by_commas )
 {
-    BOOST_CHECK_EQUAL( as_text( callbacks( a_run ) ), "adv_timeout, user_timer, adv_timeout" );
-    BOOST_CHECK_EQUAL( as_text( std::vector< callback_kind >{} ), "" );
-    BOOST_CHECK_EQUAL( as_text( connection_end_event ), "connection_end_event" );
+    BOOST_CHECK_EQUAL( as_text( { adv_timeout, user_timer } ), "adv_timeout, user_timer" );
+    BOOST_CHECK_EQUAL( as_text( std::vector< expected_callback >{} ), "" );
+    BOOST_CHECK_EQUAL( as_text( callback_kind::connection_end_event ), "connection_end_event" );
 }
 
 BOOST_AUTO_TEST_CASE( a_run_that_caused_the_expected_callbacks_passes )
 {
     check_callbacks( a_run, { adv_timeout, user_timer, adv_timeout } );
 }
+
+BOOST_AUTO_TEST_SUITE( the_flags_of_a_connection_event )
+
+    record an_end_event( const bluetoe::link_layer::connection_event_events& events )
+    {
+        record result = a_callback( callback_kind::connection_end_event );
+        result.events = events;
+
+        return result;
+    }
+
+    // unacknowledged, received not empty, transmitted not empty, received MD, pending, error
+    const bluetoe::link_layer::connection_event_events pending_data( false, false, true, false, true, false );
+
+    BOOST_AUTO_TEST_CASE( an_expected_end_event_names_the_flags_it_requires_set )
+    {
+        BOOST_CHECK_EQUAL( as_text( { connection_end_event{} } ), "connection_end_event{}" );
+        BOOST_CHECK_EQUAL(
+            as_text( { connection_end_event{ .last_transmitted_not_empty = true, .pending_outgoing_data = true } } ),
+            "connection_end_event{ last_transmitted_not_empty, pending_outgoing_data }" );
+    }
+
+    BOOST_AUTO_TEST_CASE( a_recorded_end_event_shows_its_flags_where_they_are_expected )
+    {
+        const std::vector< record > run = { an_end_event( pending_data ) };
+
+        BOOST_CHECK_EQUAL( as_text( run, { connection_end_event{} } ),
+            "connection_end_event{ last_transmitted_not_empty, pending_outgoing_data }" );
+    }
+
+    // an end event in the sequence without flags requires the kind only
+    BOOST_AUTO_TEST_CASE( a_recorded_end_event_shows_no_flags_where_none_are_expected )
+    {
+        const std::vector< record > run = { an_end_event( pending_data ) };
+
+        BOOST_CHECK_EQUAL( as_text( run, { callback_kind::connection_end_event } ), "connection_end_event" );
+    }
+
+    BOOST_AUTO_TEST_CASE( flags_expected_past_the_recorded_sequence_are_not_shown_on_it )
+    {
+        const std::vector< record > run = { a_callback( adv_timeout ), an_end_event( pending_data ) };
+
+        BOOST_CHECK_EQUAL( as_text( run, { adv_timeout } ), "adv_timeout, connection_end_event" );
+    }
+
+    BOOST_AUTO_TEST_CASE( an_end_event_with_the_flags_expected_passes )
+    {
+        const std::vector< record > run = { a_callback( adv_timeout ), an_end_event( pending_data ) };
+
+        check_callbacks( run, { adv_timeout,
+            connection_end_event{ .last_transmitted_not_empty = true, .pending_outgoing_data = true } } );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
