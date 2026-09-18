@@ -893,3 +893,56 @@ BOOST_FIXTURE_TEST_CASE( cancelling_after_the_connection_event_ended_is_refused,
 
     BOOST_CHECK( !the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
 }
+
+/*
+ * The second event hears nothing, and its connection_timeout() carries its `end`, an interval
+ * and the widening after the first event's anchor. The third event is scheduled from that time,
+ * as a link layer schedules the event after a missed one, and falls two intervals after the first
+ * anchor by both clocks; the tester leaves the second event out.
+ */
+BOOST_FIXTURE_TEST_CASE( the_next_event_is_placed_from_the_end_a_connection_timeout_carried, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( 5, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            next_event( 12 ) ),
+        on_connection_timeout(
+            // from the missed event's end to the third event's window around its anchor
+            schedule_connection_event( 19, interval - 2 * widening, interval ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( 5,  first_pdu_after_advertising, { first } ),
+        connection_event( 19, 2 * interval, { second } ) } );
+
+    run();
+
+    const auto captured = check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first ) ),
+        sent( second ), received( reply_to( second ) ) } );
+
+    const auto records = device_records();
+
+    check_callbacks( records, { adv_timeout, connection_end_event{}, connection_timeout, connection_end_event{} } );
+
+    const auto ends    = callbacks_of( records, callback_kind::connection_end_event );
+    const auto timeout = the_only( callbacks_of( records, connection_timeout ) );
+
+    BOOST_REQUIRE_EQUAL( ends.size(), 2u );
+    BOOST_CHECK_EQUAL( time_between( ends[ 0 ], timeout ), interval + widening );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - 2 * interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - 2 * interval ), tolerance );
+}
