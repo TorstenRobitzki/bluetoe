@@ -144,6 +144,17 @@ drains the buffer with `read_received`, as a link layer does.
 **A pending connection event can be cancelled.** In time in the step that scheduled it, too late
 from a timer, and with nothing pending, as for advertising events.
 
+### Where the sequence numbers live
+
+**The SN and NESN logic is the buffer's, not the radio's.** The radio takes every PDU it answers
+with, its SN, NESN and MD included, from the buffer `link_layer_pdu_buffer()` returns, and keeps no
+sequence state of its own. The rig holds a second buffer, and a step switches to it between two
+events. In the next event the device's answer follows the second buffer's state, for a fresh buffer
+the first PDU of a connection whatever the flow was, and carries the data queued in it; switching
+back continues the first buffer's flow where it stopped. A radio that tracks the sequence numbers
+itself answers with the continued flow instead. Needs a second buffer in the rig and a call that
+switches between them.
+
 ### The flags of `connection_event_events`
 
 One situation for each:
