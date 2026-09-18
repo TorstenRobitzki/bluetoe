@@ -18,14 +18,17 @@
  * ticks (decision 24); a timer compare ends the window and is reported as well. An answer
  * operation also answers the first advertising PDU from a named target one inter frame
  * space after it ended, started by a timer compare rather than by software, and
- * reports that transmission with its time from the same capture. The radio keeps nothing
- * of the device's binding, which it must not: the tester observes a radio, it is not one
- * (decision 23).
+ * reports that transmission with its time from the same capture. A connection event
+ * transmits its PDUs the same way, each one inter frame space after the device's reply to
+ * the one before, and lets the radio switch to receive on its own after each. The radio
+ * keeps nothing of the device's binding, which it must not: the tester observes a radio, it
+ * is not one (decision 23).
  */
 
 #include "instrument/tester_rig.hpp"
 #include "link/pdu.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -67,6 +70,9 @@ namespace test_rig {
             const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
         bool transmit( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             std::uint32_t at, const pdu& data, std::uint32_t operation_id );
+        bool connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+            std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
+            std::uint32_t operation_id );
         void stop();
         void accept_advertiser( std::uint32_t slot, const link_layer::device_address& address );
         std::optional< tester_happened > next_event();
@@ -83,7 +89,10 @@ namespace test_rig {
     private:
         void prepare( std::uint32_t channel, std::uint64_t ticks, std::uint32_t operation_id );
         void on_packet_end();
+        void on_event_packet_end();
+        void on_radio_ready();
         void on_radio_disabled();
+        bool arm_event_transmission( std::uint32_t at );
         void on_window_end();
         void on_device_address_miss();
         bool from_target() const;
@@ -120,6 +129,18 @@ namespace test_rig {
         volatile bool                           transmitting_   = false;
         link_layer::device_address              target_;
         std::uint8_t                            response_buffer_[ max_advertising_pdu_size ];
+
+        /*
+         * A connection event's state, shared between connection_event() and the radio
+         * interrupts: its PDUs where the radio can transmit them, the one on air or the next,
+         * and the inter frame space to keep after each reply. `transmitting_` tells the END
+         * of one of its PDUs from a reply's, as for an answer.
+         */
+        volatile bool                           connecting_     = false;
+        std::uint8_t                            event_pdus_[ max_event_pdus ][ max_advertising_pdu_size ];
+        std::uint32_t                           event_count_    = 0;
+        volatile std::uint32_t                  event_next_     = 0;
+        std::uint32_t                           event_t_ifs_    = 0;
 
         static platform*                        instance_;
     };

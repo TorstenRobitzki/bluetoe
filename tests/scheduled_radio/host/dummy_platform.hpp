@@ -12,6 +12,7 @@
 
 #include "instrument/tester_rig.hpp"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -33,6 +34,8 @@ namespace test_rig {
         void receive( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, std::uint32_t ) {}
         void answer( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, const link_layer::device_address&, const pdu&, std::uint32_t ) {}
         bool transmit( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, std::uint32_t, const pdu&, std::uint32_t ) { return false; }
+        bool connection_event( std::uint32_t, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t, std::uint32_t,
+            const std::array< pdu, max_event_pdus >&, std::uint32_t, std::uint32_t, std::uint32_t ) { return false; }
         void stop() {}
         void accept_advertiser( std::uint32_t, const link_layer::device_address& ) {}
 

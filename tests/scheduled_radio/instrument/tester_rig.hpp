@@ -121,7 +121,8 @@ namespace test_rig {
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy,
         std::uint64_t                                   ticks,
         const link_layer::device_address&               address,
-        const pdu&                                      data )
+        const pdu&                                      data,
+        const std::array< pdu, max_event_pdus >&        pdus )
     {
         /*
          * Holds the reset input of the device under test asserted for as long as that
@@ -168,6 +169,16 @@ namespace test_rig {
          * is too close or gone by. Stops and tags like receive().
          */
         { platform.transmit( value, phy, ticks, value, data, value ) } -> std::same_as< bool >;
+
+        /*
+         * One connection event as its central: transmits the first `value` of `pdus` on `value`
+         * with its first bit on air at `value`, a time of the tester's clock, listens for the
+         * reply after each and transmits the next `value` ticks after the reply ended, queuing
+         * a transmitted event for every PDU sent and a received event for every reply. The
+         * radio stays idle after the last reply. False, and nothing started, if the first
+         * transmission's time is too close or gone by. Stops and tags like receive().
+         */
+        { platform.connection_event( value, phy, ticks, value, pdus, value, value, value ) } -> std::same_as< bool >;
 
         /*
          * Stops listening; no event is queued afterwards.
@@ -343,10 +354,6 @@ namespace test_rig {
             if ( operation_count_ == max_operations )
                 return false;
 
-            // described on the wire, but not run by this tester yet
-            if ( next.kind == operation_kind::connection_event )
-                return false;
-
             operations_[ operation_count_ ] = next;
             ++operation_count_;
 
@@ -368,6 +375,7 @@ namespace test_rig {
             started_       = true;
             timed_out_     = no_operation_timed_out;
             has_reference_ = false;
+            has_anchor_    = false;
 
             // a program's received PDUs are numbered from zero; unlike the device under
             // test the tester is not reset between tests, so start clears the queue
@@ -475,8 +483,14 @@ namespace test_rig {
                     if ( next->operation_id != operation_id_ )
                         continue;
 
+                    // a connection event ends with the reply to its last PDU, whatever its CRC
+                    if ( current_is( operation_kind::connection_event ) )
+                    {
+                        if ( ++received_ == operations_[ cursor_ ].pdu_count )
+                            advance();
+                    }
                     // the PDU after an answer is the reply to it, whatever its CRC
-                    if ( answered_ )
+                    else if ( answered_ )
                         advance();
                     else if ( next->crc_ok )
                         count_received();
@@ -493,8 +507,17 @@ namespace test_rig {
 
                     enqueue( entry );
 
-                    if ( next->operation_id == operation_id_ )
-                        answered_ = true;
+                    if ( next->operation_id != operation_id_ )
+                        continue;
+
+                    // the first PDU of a connection event is its anchor, which the next is placed from
+                    if ( current_is( operation_kind::connection_event ) && !answered_ )
+                    {
+                        anchor_     = entry.when;
+                        has_anchor_ = true;
+                    }
+
+                    answered_ = true;
                 }
                 else if ( next->operation_id == operation_id_ )
                 {
@@ -524,6 +547,11 @@ namespace test_rig {
             return std::find( acceptance_filter_.begin(), end, advertiser ) != end;
         }
 
+        bool current_is( operation_kind kind ) const
+        {
+            return cursor_ != operation_count_ && operations_[ cursor_ ].kind == kind;
+        }
+
         void count_received()
         {
             if ( cursor_ == operation_count_ )
@@ -542,7 +570,8 @@ namespace test_rig {
 
             const operation& current   = operations_[ cursor_ ];
             const bool       sends     = current.kind == operation_kind::answer || current.kind == operation_kind::transmit;
-            const bool       timed_out = current.count != 0 || ( sends && !answered_ );
+            const bool       timed_out = current.count != 0 || ( sends && !answered_ )
+                || current.kind == operation_kind::connection_event;
 
             if ( timed_out )
                 time_out();
@@ -606,6 +635,18 @@ namespace test_rig {
                 if ( !has_reference_ || !platform_.transmit( op.channel, op.phy, ticks, at, op.response, operation_id_ ) )
                     time_out();
             }
+            else if ( op.kind == operation_kind::connection_event )
+            {
+                // the first event is placed from the PDU captured last, every later one from the anchor before
+                const std::uint64_t delay = static_cast< std::uint64_t >( op.delay.usec() ) * ( tester_ticks_per_second / 1'000'000 );
+                const tester_time   from  = has_anchor_ ? anchor_ : reference_;
+                const std::uint32_t at    = static_cast< std::uint32_t >( from.ticks + delay );
+                const std::uint32_t t_ifs = op.t_ifs.usec() * ( tester_ticks_per_second / 1'000'000 );
+
+                if ( !( has_anchor_ || has_reference_ )
+                  || !platform_.connection_event( op.channel, op.phy, ticks, at, op.pdus, op.pdu_count, t_ifs, operation_id_ ) )
+                    time_out();
+            }
             else
             {
                 platform_.receive( op.channel, op.phy, ticks, operation_id_ );
@@ -644,6 +685,8 @@ namespace test_rig {
         std::uint8_t                                    timed_out_          = no_operation_timed_out;
         tester_time                                     reference_;
         bool                                            has_reference_      = false;
+        tester_time                                     anchor_;
+        bool                                            has_anchor_         = false;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;

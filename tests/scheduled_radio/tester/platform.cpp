@@ -243,6 +243,7 @@ namespace test_rig {
 
         answering_    = false;
         transmitting_ = false;
+        connecting_   = false;
 
         __enable_irq();
 
@@ -376,6 +377,146 @@ namespace test_rig {
     }
 
     /*
+     * A connection event as its central: the first PDU goes out at `at` and every further one
+     * `t_ifs` after the reply to the one before ended, each started by the timer through PPI
+     * like an answer, so that the timing owes nothing to an interrupt. The END of a PDU
+     * disables the radio and DISABLED starts the receiver for the reply by a short, which the
+     * transmitter's READY adds only once the transmission runs: added while the radio is still
+     * disabling after a reply, it would start the receiver instead of waiting for the compare.
+     * The END of a reply arms the next PDU, or leaves the radio disabled after the last.
+     */
+    bool platform::connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
+        std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
+        std::uint32_t operation_id )
+    {
+        prepare( channel, ticks, operation_id );
+
+        for ( std::uint32_t index = 0; index != count; ++index )
+            std::copy( pdus[ index ].data.begin(), pdus[ index ].data.begin() + pdus[ index ].size, event_pdus_[ index ] );
+
+        event_count_ = count;
+        event_next_  = 0;
+        event_t_ifs_ = t_ifs;
+        connecting_  = true;
+
+        NRF_RADIO->EVENTS_READY    = 0;
+        NRF_RADIO->EVENTS_DISABLED = 0;
+        NRF_RADIO->INTENSET        = RADIO_INTENSET_READY_Msk | RADIO_INTENSET_DISABLED_Msk;
+
+        if ( arm_event_transmission( at ) )
+            return true;
+
+        stop();
+
+        return false;
+    }
+
+    /*
+     * The event's next PDU, with its first bit on air at `at`: the compare starts the
+     * transmitter one ramp up earlier, and the compare is set before PPI forwards it. False if
+     * the timer is past it then; a transmitter the compare started meanwhile is cancelled.
+     */
+    bool platform::arm_event_transmission( std::uint32_t at )
+    {
+        const std::uint32_t start = at - fast_ramp_up_us * ticks_per_us;
+
+        transmitting_        = true;
+        NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( event_pdus_[ event_next_ ] );
+        NRF_RADIO->SHORTS    = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+        NRF_TIMER0->EVENTS_COMPARE[ cc_answer ] = 0;
+        NRF_TIMER0->CC[ cc_answer ]             = start;
+        NRF_PPI->CHENSET                        = 1u << ppi_answer_txen;
+
+        // ahead means less than half the clock's range ahead of now
+        NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
+
+        if ( start - NRF_TIMER0->CC[ cc_now ] < 0x80000000u )
+            return true;
+
+        transmitting_            = false;
+        NRF_PPI->CHENCLR         = 1u << ppi_answer_txen;
+        NRF_RADIO->TASKS_DISABLE = 1;
+
+        return false;
+    }
+
+    /*
+     * The transmitter of an event's PDU is ready: the reply is received right after it, by
+     * the short from DISABLED. A receiver's READY needs nothing.
+     */
+    void platform::on_radio_ready()
+    {
+        NRF_RADIO->EVENTS_READY = 0;
+
+        if ( !connecting_ || !transmitting_ )
+            return;
+
+        NRF_PPI->CHENCLR   = 1u << ppi_answer_txen;
+        NRF_RADIO->SHORTS  = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
+    }
+
+    /*
+     * The END of an event's PDU, reported with its first bit, or of the reply to it, after
+     * which the next PDU is armed one inter frame space after the reply ended. A reply with a
+     * CRC error is answered all the same: the test scripted the flow, and the device's reply
+     * is what it reports on.
+     */
+    void platform::on_event_packet_end()
+    {
+        const std::uint32_t address = NRF_TIMER0->CC[ cc_address ];
+
+        if ( transmitting_ )
+        {
+            transmitting_        = false;
+            NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( receive_buffer_ );
+
+            const std::uint8_t* sent = event_pdus_[ event_next_ ];
+            const std::size_t   size = std::min< std::size_t >( sent[ 1 ] + 2, max_advertising_pdu_size );
+
+            event_next_ = event_next_ + 1;
+
+            const tester_happened event{
+                .kind   = tester_event::transmitted,
+                .when   = tester_time{ address - preamble_and_access_address_ticks },
+                .data   = pdu( std::span< const std::uint8_t >( sent, size ) ),
+                .crc_ok = true,
+                .rssi   = 0 };
+
+            enqueue( event );
+            __SEV();
+
+            return;
+        }
+
+        // the address match still compares a data channel PDU; its miss must not restart the
+        // receiver later, as it would for a stranger's advertising
+        NRF_RADIO->EVENTS_DEVMISS = 0;
+
+        const std::uint32_t first_bit = address - preamble_and_access_address_ticks - address_detection_ticks;
+
+        const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
+            == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+
+        // decided first, as the next PDU's deadline runs from the end of this one
+        if ( event_next_ != event_count_ )
+            arm_event_transmission( first_bit + air_ticks( receive_buffer_[ 1 ] ) + event_t_ifs_ );
+
+        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
+
+        const tester_happened event{
+            .kind   = tester_event::received,
+            .when   = tester_time{ first_bit },
+            .data   = pdu( std::span< const std::uint8_t >( receive_buffer_, size ) ),
+            .crc_ok = crc_ok,
+            .rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE ) };
+
+        enqueue( event );
+
+        __SEV();
+    }
+
+    /*
      * An answer operation is a receive that answers: the first advertising PDU from `target`
      * is met with `response` one inter frame space after it ended. Every packet disables the
      * receiver; the END interrupt, with more than a hundred microseconds to spare, sets a
@@ -412,6 +553,13 @@ namespace test_rig {
     void platform::on_packet_end()
     {
         NRF_RADIO->EVENTS_END = 0;
+
+        if ( connecting_ )
+        {
+            on_event_packet_end();
+
+            return;
+        }
 
         const std::uint32_t address = NRF_TIMER0->CC[ cc_address ];
 
@@ -525,6 +673,16 @@ namespace test_rig {
     {
         NRF_RADIO->EVENTS_DISABLED = 0;
 
+        // after one of its PDUs the radio is ramping up the receiver for the reply already,
+        // by the short; after the reply it stays disabled for the next PDU's compare
+        if ( connecting_ )
+        {
+            if ( !transmitting_ )
+                NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+
+            return;
+        }
+
         if ( !answering_ || transmitting_ || !radio_disabled() )
             return;
 
@@ -541,8 +699,9 @@ namespace test_rig {
         // the window
         answering_    = false;
         transmitting_ = false;
+        connecting_   = false;
 
-        NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
+        NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_READY_Msk | RADIO_INTENCLR_DISABLED_Msk;
         NRF_RADIO->SHORTS        = 0;
         NRF_PPI->CHENCLR         = 1u << ppi_answer_txen;
         NRF_RADIO->TASKS_DISABLE = 1;
@@ -586,6 +745,9 @@ namespace test_rig {
     {
         if ( !instance_ )
             return;
+
+        if ( NRF_RADIO->EVENTS_READY )
+            instance_->on_radio_ready();
 
         if ( NRF_RADIO->EVENTS_END )
             instance_->on_packet_end();

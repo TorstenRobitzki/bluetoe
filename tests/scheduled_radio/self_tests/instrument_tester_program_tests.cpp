@@ -75,6 +75,15 @@ namespace {
             return transmit_in_time;
         }
 
+        bool connection_event( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t at,
+            const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs, std::uint32_t id )
+        {
+            connection_events.push_back( { channel, p, ticks, at, std::vector< pdu >( pdus.begin(), pdus.begin() + count ), t_ifs } );
+            operation_id = id;
+
+            return transmit_in_time;
+        }
+
         void stop()
         {
             ++stops;
@@ -162,8 +171,19 @@ namespace {
             pdu                                     data;
         };
 
+        struct connection_event_call
+        {
+            std::uint32_t                           channel;
+            phy::phy_ll_encoding_t                  phy;
+            std::uint64_t                           ticks;
+            std::uint32_t                           at;
+            std::vector< pdu >                      pdus;
+            std::uint32_t                           t_ifs;
+        };
+
         std::vector< receive_call >     receives;
         std::vector< transmit_call >    transmits;
+        std::vector< connection_event_call > connection_events;
         bool                            transmit_in_time = true;
         std::vector< answer_call >      answers;
         std::deque< tester_happened >   events;
@@ -1094,8 +1114,138 @@ BOOST_AUTO_TEST_CASE( more_pdus_than_an_event_holds_are_refused_on_the_wire )
     BOOST_CHECK( !deserialize( in, decoded ) );
 }
 
-// described on the wire, so that tests can be written against it, but not run yet
-BOOST_FIXTURE_TEST_CASE( a_connection_event_is_refused_for_now, fixture )
+namespace {
+
+    const std::uint8_t empty_pdu[] = { 0x01, 0x00 };
+    const std::uint8_t reply_pdu[] = { 0x05, 0x00 };
+
+    operation event_op( std::uint32_t channel, delta_time delay, std::uint8_t pdu_count )
+    {
+        operation result{
+            .kind      = operation_kind::connection_event,
+            .channel   = channel,
+            .phy       = phy::le_1m_phy,
+            .window    = delta_time::msec( 20 ),
+            .delay     = delay,
+            .pdu_count = pdu_count,
+            .t_ifs     = delta_time::usec( 148 ) };
+
+        result.pdus.fill( pdu( empty_pdu ) );
+
+        return result;
+    }
+}
+
+// the first event has no anchor before it, so it is placed like a transmit
+BOOST_FIXTURE_TEST_CASE( the_first_connection_event_is_placed_from_the_pdu_captured_last, fixture )
 {
-    BOOST_CHECK( !remote.call< &rig_t::add_operation >( largest_event_op() ) );
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.connection_events.size(), 1u );
+
+    const auto& started = platform.connection_events[ 0 ];
+
+    BOOST_CHECK_EQUAL( started.channel, 5u );
+    BOOST_CHECK( tester_duration( started.at ) == 55ms );
+    BOOST_CHECK( tester_duration( started.ticks ) == 20ms );
+    BOOST_CHECK_EQUAL( started.pdus.size(), 2u );
+    BOOST_CHECK( tester_duration( started.t_ifs ) == 148us );
+}
+
+// the anchor is the first bit of the event's first PDU, not the reply after it
+BOOST_FIXTURE_TEST_CASE( a_later_connection_event_is_placed_from_the_anchor_before, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );
+    remote.call< &rig_t::add_operation >( event_op( 12, delta_time::msec( 10 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    platform.push_transmitted( at( 55ms ), empty_pdu );
+    platform.push_received( at( 55300us ), reply_pdu, true );
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.connection_events.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.connection_events[ 1 ].channel, 12u );
+    BOOST_CHECK( tester_duration( platform.connection_events[ 1 ].at ) == 65ms );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connection_event_ends_with_the_reply_to_its_last_pdu, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    platform.push_transmitted( at( 55ms ), empty_pdu );
+    platform.push_received( at( 55230us ), reply_pdu, true );
+    platform.push_transmitted( at( 55460us ), empty_pdu );
+    rig.run();
+
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+
+    // a reply with a CRC error is a reply all the same
+    platform.push_received( at( 55690us ), reply_pdu, false );
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
+
+    const captured_batch batch = remote.call< &rig_t::collect_captured >();
+
+    BOOST_REQUIRE_EQUAL( batch.count, 4u );
+    BOOST_CHECK( batch.captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( batch.captured[ 2 ].direction == pdu_direction::received );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_times_out, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    platform.push_transmitted( at( 55ms ), empty_pdu );
+    platform.push_received( at( 55230us ), reply_pdu, true );
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 1u );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture )
+{
+    platform.transmit_in_time = false;
+
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 1u );
+}
+
+// with nothing captured before it, there is nothing to place the first event from
+BOOST_FIXTURE_TEST_CASE( a_connection_event_without_a_pdu_to_place_it_from_times_out, fixture )
+{
+    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_CHECK( platform.connection_events.empty() );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
 }
