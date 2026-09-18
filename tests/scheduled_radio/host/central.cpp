@@ -12,13 +12,13 @@ namespace test_rig {
         constexpr std::uint8_t md_mask      = 0x10;
 
         std::vector< std::uint8_t > data_channel_pdu(
-            llid kind, bool sn, bool nesn, bool more_data, std::span< const std::uint8_t > payload )
+            llid kind, bool sn, bool nesn, bool md, std::span< const std::uint8_t > payload )
         {
             std::vector< std::uint8_t > result( 2 + payload.size() );
             result[ 0 ] = static_cast< std::uint8_t >( kind )
                 | ( nesn ? nesn_mask : 0 )
                 | ( sn ? sn_mask : 0 )
-                | ( more_data ? md_mask : 0 );
+                | ( md ? md_mask : 0 );
             result[ 1 ] = static_cast< std::uint8_t >( payload.size() );
             std::copy( payload.begin(), payload.end(), result.begin() + 2 );
 
@@ -26,7 +26,7 @@ namespace test_rig {
         }
     }
 
-    std::vector< std::uint8_t > central::send( std::span< const std::uint8_t > payload, bool more_data, llid kind )
+    std::vector< std::uint8_t > central::send( std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
     {
         if ( sent_ )
         {
@@ -34,7 +34,7 @@ namespace test_rig {
             nesn_ = !nesn_;
         }
 
-        return build( payload, more_data, kind );
+        return build( payload, md, kind );
     }
 
     std::vector< std::uint8_t > central::resend()
@@ -48,19 +48,19 @@ namespace test_rig {
         return last_;
     }
 
-    std::vector< std::uint8_t > central::send_nack( std::span< const std::uint8_t > payload, bool more_data, llid kind )
+    std::vector< std::uint8_t > central::send_nack( std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
     {
         assert( sent_ );
 
         sn_ = !sn_;
 
-        return build( payload, more_data, kind );
+        return build( payload, md, kind );
     }
 
-    std::vector< std::uint8_t > central::build( std::span< const std::uint8_t > payload, bool more_data, llid kind )
+    std::vector< std::uint8_t > central::build( std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
     {
         sent_ = true;
-        last_ = data_channel_pdu( kind, sn_, nesn_, more_data, payload );
+        last_ = data_channel_pdu( kind, sn_, nesn_, md, payload );
 
         return last_;
     }
@@ -75,7 +75,7 @@ namespace test_rig {
         return pdu[ 0 ] & nesn_mask;
     }
 
-    bool more_data( std::span< const std::uint8_t > pdu )
+    bool has_more_data( std::span< const std::uint8_t > pdu )
     {
         return pdu[ 0 ] & md_mask;
     }
@@ -86,9 +86,9 @@ namespace test_rig {
     }
 
     std::vector< std::uint8_t > reply_to(
-        std::span< const std::uint8_t > sent, std::span< const std::uint8_t > payload, bool more_data, llid kind )
+        std::span< const std::uint8_t > sent, std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
     {
-        return data_channel_pdu( kind, next_expected_sequence_number( sent ), !sequence_number( sent ), more_data, payload );
+        return data_channel_pdu( kind, next_expected_sequence_number( sent ), !sequence_number( sent ), md, payload );
     }
 
     bool acknowledges( const captured_pdu& reply, std::span< const std::uint8_t > sent )

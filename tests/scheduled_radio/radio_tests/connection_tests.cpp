@@ -68,7 +68,7 @@ namespace {
         const auto payload       = payload_of( payload_size );
 
         central tester_side;
-        const auto data = tester_side.send( payload, false, llid::start );
+        const auto data = tester_side.send( payload, no_more_data, llid::start );
 
         rig.program_device( {
             on_start(
@@ -132,7 +132,7 @@ namespace {
         const auto captured = rig.check_captured( {
             received( advertisement ),
             sent( first ),
-            received( reply_to( first, payload, false, llid::start ) ) } );
+            received( reply_to( first, payload, no_more_data, llid::start ) ) } );
 
         check_callbacks( rig.device_records(), {
             adv_timeout, connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true } } );
@@ -150,8 +150,8 @@ namespace {
         const auto advertisement = advertising( 6, 0x01 );
 
         central tester_side;
-        const auto first  = tester_side.send( {}, true );
-        const auto second = tester_side.send( {}, true );
+        const auto first  = tester_side.send( {}, more_data );
+        const auto second = tester_side.send( {}, more_data );
         const auto third  = tester_side.send();
 
         rig.program_device( {
@@ -311,7 +311,7 @@ BOOST_FIXTURE_TEST_CASE( data_queued_before_the_start_is_sent_in_the_first_event
 
     check_captured( {
         received( advertisement ),
-        sent( first ),  received( reply_to( first, some_data, false, llid::start ) ),
+        sent( first ),  received( reply_to( first, some_data, no_more_data, llid::start ) ),
         sent( second ), received( reply_to( second ) ) } );
 
     check_callbacks( device_records(), {
@@ -351,7 +351,7 @@ BOOST_FIXTURE_TEST_CASE( data_queued_after_an_event_is_sent_in_the_next, connect
     check_captured( {
         received( advertisement ),
         sent( first ),  received( reply_to( first ) ),
-        sent( second ), received( reply_to( second, some_data, false, llid::start ) ) } );
+        sent( second ), received( reply_to( second, some_data, no_more_data, llid::start ) ) } );
 
     check_callbacks( device_records(), {
         adv_timeout,
@@ -368,7 +368,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_of_the_central_keeps_the_event_open, connecti
     const auto advertisement = advertising( 6, 0x01 );
 
     central tester_side;
-    const auto first  = tester_side.send( {}, true );
+    const auto first  = tester_side.send( {}, more_data );
     const auto second = tester_side.send();
 
     program_device( {

@@ -30,6 +30,16 @@ namespace test_rig {
     };
 
     /**
+     * @brief the MD bit of a data channel PDU, named where a PDU is built, so that a bare `true`
+     *        can not stand for it
+     */
+    enum more_data_flag : bool
+    {
+        no_more_data = false,
+        more_data    = true
+    };
+
+    /**
      * @brief the sequence numbers of the central in one connection, both starting at zero
      *
      * send() is the normal flow: the central's previous PDU was acknowledged and the device's
@@ -41,7 +51,7 @@ namespace test_rig {
         /**
          * @brief the next PDU: the previous one acknowledged, the device's reply to it new
          */
-        std::vector< std::uint8_t > send( std::span< const std::uint8_t > payload = {}, bool more_data = false, llid kind = llid::continuation );
+        std::vector< std::uint8_t > send( std::span< const std::uint8_t > payload = {}, more_data_flag md = no_more_data, llid kind = llid::continuation );
 
         /**
          * @brief the previous PDU again, as it was not acknowledged; the device's reply to it new
@@ -52,10 +62,10 @@ namespace test_rig {
          * @brief the next PDU, the previous one acknowledged, but the device's reply to it not
          *        accepted, for example as it had an invalid CRC
          */
-        std::vector< std::uint8_t > send_nack( std::span< const std::uint8_t > payload = {}, bool more_data = false, llid kind = llid::continuation );
+        std::vector< std::uint8_t > send_nack( std::span< const std::uint8_t > payload = {}, more_data_flag md = no_more_data, llid kind = llid::continuation );
 
     private:
-        std::vector< std::uint8_t > build( std::span< const std::uint8_t > payload, bool more_data, llid kind );
+        std::vector< std::uint8_t > build( std::span< const std::uint8_t > payload, more_data_flag md, llid kind );
 
         bool                        sent_   = false;
         bool                        sn_     = false;
@@ -69,7 +79,7 @@ namespace test_rig {
      */
     bool sequence_number( std::span< const std::uint8_t > pdu );
     bool next_expected_sequence_number( std::span< const std::uint8_t > pdu );
-    bool more_data( std::span< const std::uint8_t > pdu );
+    bool has_more_data( std::span< const std::uint8_t > pdu );
     /** @} */
 
     /**
@@ -84,7 +94,7 @@ namespace test_rig {
      */
     std::vector< std::uint8_t > reply_to(
         std::span< const std::uint8_t > sent, std::span< const std::uint8_t > payload = {},
-        bool more_data = false, llid kind = llid::continuation );
+        more_data_flag md = no_more_data, llid kind = llid::continuation );
 
     /**
      * @brief whether the device's `reply` acknowledges the central's `sent`: its NESN is the SN

@@ -35,11 +35,11 @@ BOOST_AUTO_TEST_CASE( the_first_pdu_starts_both_sequence_numbers_at_zero )
 BOOST_AUTO_TEST_CASE( a_pdu_carries_its_llid_payload_and_more_data )
 {
     central c;
-    const auto sent = c.send( payload, true, llid::start );
+    const auto sent = c.send( payload, more_data, llid::start );
 
     const std::vector< std::uint8_t > expected = { 0x02 | 0x10, 3, 1, 2, 3 };
     BOOST_CHECK( sent == expected );
-    BOOST_CHECK( more_data( sent ) );
+    BOOST_CHECK( has_more_data( sent ) );
 }
 
 // the normal flow advances both bits with every PDU
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE( a_reply_carries_its_llid_payload_and_more_data )
     const auto sent = c.send();
 
     const std::vector< std::uint8_t > expected = { 0x02 | 0x04 | 0x10, 3, 1, 2, 3 };
-    BOOST_CHECK( reply_to( sent, payload, true, llid::start ) == expected );
+    BOOST_CHECK( reply_to( sent, payload, more_data, llid::start ) == expected );
 }
 
 // what reply_to() builds is what acknowledges() and is_new() accept
