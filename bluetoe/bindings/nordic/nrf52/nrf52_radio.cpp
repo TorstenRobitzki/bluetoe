@@ -771,6 +771,10 @@ namespace bluetoe
                 return;
             }
 
+            // the address of the device's own answer; the next reception needs the interrupt
+            if ( state_ == state::connection_transmitting || state_ == state::connection_closing )
+                return;
+
             NRF_RADIO->INTENCLR       = RADIO_INTENCLR_ADDRESS_Msk;
 
             if ( state_ != state::receiving )
