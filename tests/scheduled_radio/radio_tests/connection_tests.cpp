@@ -946,3 +946,91 @@ BOOST_FIXTURE_TEST_CASE( the_next_event_is_placed_from_the_end_a_connection_time
     BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - 2 * interval ), tolerance );
     BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - 2 * interval ), tolerance );
 }
+
+/*
+ * Two PDUs are queued and the event sends one: the device's reply has MD set, the central sends
+ * nothing more, and the event reports the data still pending.
+ */
+BOOST_FIXTURE_TEST_CASE( data_left_in_the_buffer_is_reported_as_pending, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+    const auto first_data    = payload_of( 5, 0x10 );
+    const auto second_data   = payload_of( 5, 0x20 );
+
+    central tester_side;
+    const auto first = tester_side.send();
+
+    queue_device_pdus( { data_pdu( llid::start, first_data ), data_pdu( llid::start, second_data ) } );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ), received( reply_to( first, first_data, more_data, llid::start ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true, .pending_outgoing_data = true } } );
+}
+
+/*
+ * The device's data is not acknowledged in the second event, so the device sends it again and
+ * the mark stays; the third event acknowledges it, and the mark is gone.
+ */
+BOOST_FIXTURE_TEST_CASE( data_stays_unacknowledged_until_the_central_acknowledges_it, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send_nack();
+    const auto third  = tester_side.send();
+
+    queue_device_pdus( { data_pdu( llid::start, some_data ) } );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            next_event( data_channel ) ),
+        on_connection_end_event(
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ),
+        connection_event( data_channel, interval, { second } ),
+        connection_event( data_channel, interval, { third } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first, some_data, no_more_data, llid::start ) ),
+        sent( second ), received( reply_to( second, some_data, no_more_data, llid::start ) ),
+        sent( third ),  received( reply_to( third ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
+        connection_end_event{} } );
+}
