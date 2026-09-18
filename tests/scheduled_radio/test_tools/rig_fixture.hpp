@@ -296,24 +296,6 @@ namespace test_rig {
     }
 
     /**
-     * @brief a tester operation: transmit `data` on `channel` with its first bit on air `delay`
-     *        after the first bit of the PDU captured last, then listen and end with the reply;
-     *        `window` bounds the whole operation
-     */
-    inline operation transmit(
-        std::uint32_t channel, std::chrono::nanoseconds delay, std::span< const std::uint8_t > data,
-        time_out window )
-    {
-        return operation{
-            .kind     = operation_kind::transmit,
-            .channel  = channel,
-            .phy      = link_layer::phy_ll_encoding::le_1m_phy,
-            .window   = as_delta_time( window.window ),
-            .response = pdu( data ),
-            .delay    = as_delta_time( delay ) };
-    }
-
-    /**
      * @brief a tester operation: stop the radio and use `access_address` and `crc_init` from
      *        here on
      */

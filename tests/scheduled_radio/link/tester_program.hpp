@@ -60,7 +60,6 @@ namespace test_rig {
     {
         receive,
         answer,
-        transmit,
         set_access_address_and_crc_init,
         connection_event
     };
@@ -80,10 +79,6 @@ namespace test_rig {
      * a transmitted entry with the time its first bit was on air, and the operation ends
      * with the next PDU received, the reply. `target` and `response` are unused by a
      * receive.
-     *
-     * A transmit sends `response` so that its first bit is on air `delay` after the first bit
-     * of the last PDU the program captured, then listens like a receive and ends with the
-     * reply. The radio is not listening before the transmission.
      *
      * A set_access_address_and_crc_init stops the radio, sets `access_address` and `crc_init`
      * for the operations that follow, and ends at once; it has no channel and no window.

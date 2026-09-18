@@ -66,22 +66,13 @@ namespace {
             operation_id = id;
         }
 
-        bool transmit( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t at,
-            const pdu& data, std::uint32_t id )
-        {
-            transmits.push_back( { channel, p, ticks, at, data } );
-            operation_id = id;
-
-            return transmit_in_time;
-        }
-
         bool connection_event( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t at,
             const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs, std::uint32_t id )
         {
             connection_events.push_back( { channel, p, ticks, at, std::vector< pdu >( pdus.begin(), pdus.begin() + count ), t_ifs } );
             operation_id = id;
 
-            return transmit_in_time;
+            return event_in_time;
         }
 
         void stop()
@@ -162,15 +153,6 @@ namespace {
             pdu                                     response;
         };
 
-        struct transmit_call
-        {
-            std::uint32_t                           channel;
-            phy::phy_ll_encoding_t                  phy;
-            std::uint64_t                           ticks;
-            std::uint32_t                           at;
-            pdu                                     data;
-        };
-
         struct connection_event_call
         {
             std::uint32_t                           channel;
@@ -182,9 +164,8 @@ namespace {
         };
 
         std::vector< receive_call >     receives;
-        std::vector< transmit_call >    transmits;
         std::vector< connection_event_call > connection_events;
-        bool                            transmit_in_time = true;
+        bool                            event_in_time = true;
         std::vector< answer_call >      answers;
         std::deque< tester_happened >   events;
         std::uint32_t                   access_address          = 0;
@@ -247,17 +228,6 @@ namespace {
             .phy     = phy::le_1m_phy,
             .window  = window,
             .count   = count };
-    }
-
-    operation transmit_op( std::uint32_t channel, delta_time window, delta_time delay )
-    {
-        return operation{
-            .kind     = operation_kind::transmit,
-            .channel  = channel,
-            .phy      = phy::le_1m_phy,
-            .window   = window,
-            .response = pdu( adv_ind ),
-            .delay    = delay };
     }
 
     // the largest a connection event can be: every PDU at its largest
@@ -907,104 +877,6 @@ BOOST_FIXTURE_TEST_CASE( a_filtered_pdu_after_an_answer_does_not_end_it, fixture
     BOOST_CHECK( platform.receives.empty() );
 }
 
-BOOST_AUTO_TEST_CASE( a_transmit_operation_round_trips_with_its_delay )
-{
-    const operation sent = transmit_op( 12, delta_time::msec( 30 ), delta_time::usec( 100278 ) );
-
-    std::array< std::uint8_t, 128 > storage = {};
-    buffer_sink out( storage );
-    BOOST_REQUIRE( serialize( out, sent ) );
-
-    buffer_source in( storage.data(), out.size() );
-    operation     decoded;
-    BOOST_REQUIRE( deserialize( in, decoded ) );
-
-    BOOST_CHECK( decoded == sent );
-    BOOST_CHECK_EQUAL( in.remaining(), 0u );
-}
-
-// the transmission is placed from the first bit of the PDU captured last
-BOOST_FIXTURE_TEST_CASE( a_transmit_is_placed_its_delay_after_the_last_captured_pdu, fixture )
-{
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( transmit_op( 37, delta_time::msec( 300 ), delta_time::msec( 100 ) ) );
-    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
-
-    platform.push_received( at( 5ms ), adv_ind, true );
-    rig.run();
-
-    BOOST_REQUIRE_EQUAL( platform.transmits.size(), 1u );
-    BOOST_CHECK_EQUAL( platform.transmits[ 0 ].channel, 37u );
-    BOOST_CHECK( tester_duration( platform.transmits[ 0 ].ticks ) == 300ms );
-    BOOST_CHECK( tester_duration( platform.transmits[ 0 ].at ) == 105ms );
-    BOOST_CHECK( platform.transmits[ 0 ].data == pdu( adv_ind ) );
-}
-
-BOOST_FIXTURE_TEST_CASE( a_transmit_ends_with_the_reply, fixture )
-{
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( transmit_op( 37, delta_time::msec( 300 ), delta_time::msec( 100 ) ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
-    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
-
-    platform.push_received( at( 5ms ), adv_ind, true );
-    rig.run();
-
-    platform.push_transmitted( at( 105ms ), adv_ind );
-    rig.run();
-    BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
-
-    platform.push_received( at( 106ms ), adv_ind, true );
-    rig.run();
-
-    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
-    BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 38u );
-}
-
-// without a transmission its window ends in a timeout; a transmit without a reply does not
-BOOST_FIXTURE_TEST_CASE( a_transmit_that_was_not_sent_times_out, fixture )
-{
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( transmit_op( 37, delta_time::msec( 300 ), delta_time::msec( 100 ) ) );
-    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
-
-    platform.push_received( at( 5ms ), adv_ind, true );
-    rig.run();
-
-    platform.push_window_ended();
-    rig.run();
-
-    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 1u );
-}
-
-BOOST_FIXTURE_TEST_CASE( a_transmit_the_radio_refuses_times_out_at_once, fixture )
-{
-    platform.transmit_in_time = false;
-
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( transmit_op( 37, delta_time::msec( 300 ), delta_time::msec( 100 ) ) );
-    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
-
-    platform.push_received( at( 5ms ), adv_ind, true );
-    rig.run();
-
-    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 1u );
-    BOOST_CHECK_EQUAL( platform.stops, 1 );
-}
-
-// a program that begins with a transmit has nothing to place it from
-BOOST_FIXTURE_TEST_CASE( a_transmit_without_a_captured_pdu_times_out_at_once, fixture )
-{
-    remote.call< &rig_t::add_operation >( transmit_op( 37, delta_time::msec( 300 ), delta_time::msec( 100 ) ) );
-    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
-
-    BOOST_CHECK( platform.transmits.empty() );
-    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
-}
-
 BOOST_AUTO_TEST_CASE( an_access_address_operation_round_trips_with_its_values )
 {
     const operation sent = address_op( 0x71764129, 0x7a8f23 );
@@ -1227,7 +1099,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_times_out, f
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture )
 {
-    platform.transmit_in_time = false;
+    platform.event_in_time = false;
 
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
     remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );

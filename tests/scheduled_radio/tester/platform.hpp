@@ -68,8 +68,6 @@ namespace test_rig {
             std::uint32_t operation_id );
         void answer( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
-        bool transmit( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-            std::uint32_t at, const pdu& data, std::uint32_t operation_id );
         bool connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
             std::uint32_t operation_id );

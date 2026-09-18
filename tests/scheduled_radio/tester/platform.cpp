@@ -339,44 +339,6 @@ namespace test_rig {
     }
 
     /*
-     * A transmit starts the transmitter by the same compare as an answer, one ramp up before
-     * `at`, and then goes the answer's way: the END of the transmission disables the radio,
-     * DISABLED re-arms the receiver, and nothing received is answered. The compare is set
-     * before PPI forwards it, so a time already past when the channel is on is given up.
-     */
-    bool platform::transmit( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
-        std::uint32_t at, const pdu& data, std::uint32_t operation_id )
-    {
-        prepare( channel, ticks, operation_id );
-
-        std::copy( data.data.begin(), data.data.begin() + data.size, response_buffer_ );
-
-        answered_     = true;
-        transmitting_ = true;
-        answering_    = true;
-
-        const std::uint32_t start = at - fast_ramp_up_us * ticks_per_us;
-
-        NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_buffer_ );
-        NRF_RADIO->SHORTS    = shorts_answering;
-        NRF_RADIO->INTENSET  = RADIO_INTENSET_DISABLED_Msk;
-
-        NRF_TIMER0->EVENTS_COMPARE[ cc_answer ] = 0;
-        NRF_TIMER0->CC[ cc_answer ]             = start;
-        NRF_PPI->CHENSET                        = 1u << ppi_answer_txen;
-
-        // ahead means less than half the clock's range ahead of now
-        NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
-
-        if ( start - NRF_TIMER0->CC[ cc_now ] < 0x80000000u )
-            return true;
-
-        stop();
-
-        return false;
-    }
-
-    /*
      * A connection event as its central: the first PDU goes out at `at` and every further one
      * `t_ifs` after the reply to the one before ended, each started by the timer through PPI
      * like an answer, so that the timing owes nothing to an interrupt. The END of a PDU

@@ -108,7 +108,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
     program_tester( {
         receive( 37, 1, operation_timeout ),
         use_access_address( connection_access_address, connection_crc_init ),
-        transmit( data_channel, first_pdu_after_advertising, from_central, operation_timeout ) } );
+        connection_event( data_channel, first_pdu_after_advertising, { from_central } ) } );
 
     run();
 

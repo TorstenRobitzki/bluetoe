@@ -73,8 +73,8 @@ cannot be told from that calibration.
 
 ## Connection events
 
-Every test starts with the DUT advertising: the tester places its first data PDU from that
-advertising (`transmit`), after both switched to the connection's access address. The tester's
+Every test starts with the DUT advertising: the tester places its first connection event from that
+advertising (`connection_event`), after both switched to the connection's access address. The tester's
 program is loaded before the run, so its SN, NESN and MD bits are what the test expects the flow to
 be; a host side model of the central builds them, and a DUT that deviates shows in the replies the
 tester captured. Encryption is left for a later batch.
