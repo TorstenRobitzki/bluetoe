@@ -93,7 +93,10 @@ closes as neither has MD set, and `connection_end_event` carries the anchor.
 
 **PDU sizes.** Vary the payload in both directions: empty, a middle size, 27 bytes, and up to
 `radio_max_supported_payload_length`. Expect the bytes on both sides and the answer at T_IFS after
-the end of a PDU of each length.
+the end of a PDU of each length. Written for 1, 13 and 27 bytes. More than 27 is the data length
+extension and more than the setup carries: a PDU on the wire holds 39 bytes, the tester's radio 37
+of payload, the rig's buffer 27, and a PDU of 251 bytes would not fit into one request, so it would
+have to be generated on the instrument rather than carried to it.
 
 **The MD flag.** Both MD clear closes the event after one exchange; the tester's MD set keeps the
 DUT listening; the DUT's MD set, with more queued, keeps the event going while the tester transmits.

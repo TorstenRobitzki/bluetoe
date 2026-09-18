@@ -19,7 +19,9 @@
 #include "host/central.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <numeric>
 #include <vector>
 
 using namespace bluetoe::test_rig;
@@ -46,6 +48,97 @@ namespace {
     constexpr auto first_pdu_after_advertising = event_start + 500us;
 
     const std::uint8_t some_data[] = { 0x01, 0x02, 0x03 };
+
+    // `size` bytes, each one different, so that a byte out of place shows
+    std::vector< std::uint8_t > payload_of( std::size_t size )
+    {
+        std::vector< std::uint8_t > result( size );
+        std::iota( result.begin(), result.end(), std::uint8_t( 1 ) );
+
+        return result;
+    }
+
+    /*
+     * The central sends a data PDU with `payload_size` bytes of payload. The device acknowledges
+     * it one inter frame space after it ended and hands it to its link layer as it was received.
+     */
+    void a_data_pdu_of_the_central_is_received( connection_fixture& rig, std::size_t payload_size )
+    {
+        const auto advertisement = advertising( 6, 0x01 );
+        const auto payload       = payload_of( payload_size );
+
+        central tester_side;
+        const auto data = tester_side.send( payload, false, llid::start );
+
+        rig.program_device( {
+            on_start(
+                start_advertising( 37, advertisement ) ),
+            on_adv_timeout(
+                set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+                schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+            on_connection_end_event() } );
+
+        rig.program_tester( {
+            receive( 37, 1, operation_timeout ),
+            use_access_address( connection_access_address, connection_crc_init ),
+            connection_event( data_channel, first_pdu_after_advertising, { data } ) } );
+
+        rig.run();
+
+        const auto captured = rig.check_captured( {
+            received( advertisement ),
+            sent( data ),
+            received( reply_to( data ) ) } );
+
+        check_callbacks( rig.device_records(), { adv_timeout, connection_end_event{ .last_received_not_empty = true } } );
+
+        BOOST_CHECK_LE( std::chrono::abs( inter_frame_space( captured[ 1 ], captured[ 2 ] ) - 150us ), 2us );
+
+        const auto stored = rig.device_received();
+
+        BOOST_REQUIRE_EQUAL( stored.size(), 1u );
+        BOOST_CHECK( std::vector< std::uint8_t >( stored[ 0 ].data.begin(), stored[ 0 ].data.begin() + stored[ 0 ].size ) == data );
+    }
+
+    /*
+     * The device has a data PDU with `payload_size` bytes of payload queued, and sends it as its
+     * reply one inter frame space after the central's PDU ended.
+     */
+    void a_data_pdu_of_the_device_is_sent( connection_fixture& rig, std::size_t payload_size )
+    {
+        const auto advertisement = advertising( 6, 0x01 );
+        const auto payload       = payload_of( payload_size );
+
+        central tester_side;
+        const auto first = tester_side.send();
+
+        rig.queue_device_pdus( { data_pdu( llid::start, payload ) } );
+
+        rig.program_device( {
+            on_start(
+                start_advertising( 37, advertisement ) ),
+            on_adv_timeout(
+                set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+                schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+            on_connection_end_event() } );
+
+        rig.program_tester( {
+            receive( 37, 1, operation_timeout ),
+            use_access_address( connection_access_address, connection_crc_init ),
+            connection_event( data_channel, first_pdu_after_advertising, { first } ) } );
+
+        rig.run();
+
+        const auto captured = rig.check_captured( {
+            received( advertisement ),
+            sent( first ),
+            received( reply_to( first, payload, false, llid::start ) ) } );
+
+        check_callbacks( rig.device_records(), {
+            adv_timeout, connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true } } );
+
+        BOOST_CHECK_LE( std::chrono::abs( inter_frame_space( captured[ 1 ], captured[ 2 ] ) - 150us ), 2us );
+    }
 
     /*
      * One event in which the central sends three PDUs, the first two with MD set, each after
@@ -315,4 +408,38 @@ BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_shortest_inter_fram
 BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_longest_inter_frame_space, connection_fixture, *if_tester )
 {
     the_device_follows_a_central_at( *this, 152us );
+}
+
+/*
+ * Payloads of one byte, a middle size and 27 bytes, the largest without the data length
+ * extension, in both directions (candidate_tests.md).
+ */
+BOOST_FIXTURE_TEST_CASE( the_smallest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_central_is_received( *this, 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_middle_sized_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_central_is_received( *this, 13 );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_central_is_received( *this, 27 );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_smallest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_device_is_sent( *this, 1 );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_middle_sized_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_device_is_sent( *this, 13 );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_device_is_sent( *this, 27 );
 }
