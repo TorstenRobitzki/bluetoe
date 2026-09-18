@@ -208,6 +208,15 @@ namespace test_rig {
     {
         return call{ .kind = call_kind::queue_pdu, .transmit = pdu( data ) };
     }
+
+    /**
+     * @brief take what the PDU buffer received out of it, as the link layer would, so that it has
+     *        room again; device_received() hands the PDUs over
+     */
+    inline call read_received()
+    {
+        return call{ .kind = call_kind::read_received };
+    }
     /** @} */
 
     /**

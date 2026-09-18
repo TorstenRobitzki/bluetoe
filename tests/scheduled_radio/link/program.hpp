@@ -60,7 +60,8 @@ namespace test_rig {
         set_local_address,
         set_access_address_and_crc_init,
         schedule_connection_event,
-        queue_pdu
+        queue_pdu,
+        read_received
     };
 
     /**
@@ -70,7 +71,9 @@ namespace test_rig {
      * the end of a connection event's receive window; `transmit` and
      * `response` are the advertising PDU and the scan response of an advertising event, and
      * `transmit` the data channel PDU a queue_pdu puts into the PDU buffer, as the link layer
-     * would; `address`, `access_address` and `crc_init` are what the two setup calls set.
+     * would; a read_received takes what the buffer received out of it, as the link layer would,
+     * and the rig keeps it for the host; `address`, `access_address` and `crc_init` are what the
+     * two setup calls set.
      */
     struct call
     {

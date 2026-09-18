@@ -873,7 +873,9 @@ sends it with another CRC init, which the PDU's END restores before the receiver
 starts, so that the reply is still received with the connection's.
 
 On the device a step fills the PDU buffer with `queue_pdu`, as a link layer does from its callbacks,
-so that data goes out in a later event; `queue_device_pdus()` fills it before the start.
+so that data goes out in a later event, and `read_received` takes out what the buffer received, so
+that it has room again; `queue_device_pdus()` fills the buffer before the start, and
+`device_received()` hands over what the device received.
 
 The first tests with more than one PDU in an event found the device's radio closing every event
 after the first exchange: the address of its own answer switched the address interrupt off, and the

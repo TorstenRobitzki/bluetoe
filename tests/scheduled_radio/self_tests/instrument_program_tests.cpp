@@ -646,6 +646,53 @@ BOOST_FIXTURE_TEST_CASE( a_step_queues_a_pdu, fixture )
     BOOST_CHECK( records[ 0 ].result );
 }
 
+namespace {
+
+    // what the radio does with a PDU received with a valid CRC, `sn` alternating as for new PDUs
+    bool receive_largest_pdu( rig_t& rig, bool sn )
+    {
+        auto& buffer = rig.link_layer_pdu_buffer();
+        auto  room   = buffer.allocate_receive_buffer();
+
+        if ( room.size == 0 )
+            return false;
+
+        std::array< std::uint8_t, 29 > largest = { static_cast< std::uint8_t >( 0x02 | ( sn ? 0x08 : 0 ) ), 27 };
+        std::copy( largest.begin(), largest.end(), room.buffer );
+        buffer.received( room );
+
+        return true;
+    }
+}
+
+// the radio tests of a full receive buffer are written against this number
+BOOST_FIXTURE_TEST_CASE( the_receive_buffer_holds_received_pdus_until_full, fixture )
+{
+    for ( std::size_t stored = 0; stored != received_pdus_until_full; ++stored )
+        BOOST_REQUIRE( receive_largest_pdu( rig, stored % 2 ) );
+
+    BOOST_CHECK( !receive_largest_pdu( rig, received_pdus_until_full % 2 ) );
+}
+
+// what a link layer does from its callback: take what was received, so that there is room again
+BOOST_FIXTURE_TEST_CASE( a_step_reads_the_received_pdus_and_the_host_collects_them, fixture )
+{
+    for ( std::size_t stored = 0; stored != received_pdus_until_full; ++stored )
+        BOOST_REQUIRE( receive_largest_pdu( rig, stored % 2 ) );
+
+    const step program[] = { on( callback_kind::start, call{ .kind = call_kind::read_received } ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_CHECK( receive_largest_pdu( rig, received_pdus_until_full % 2 ) );
+
+    const received_batch first  = remote.call< &rig_t::collect_received >();
+    const received_batch second = remote.call< &rig_t::collect_received >();
+
+    BOOST_CHECK_EQUAL( first.count + second.count, received_pdus_until_full + 1 );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_full_buffer_refuses_a_queued_pdu, fixture )
 {
     const std::array< std::uint8_t, 29 > largest = { 0x02, 27 };

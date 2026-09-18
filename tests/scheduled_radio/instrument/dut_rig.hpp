@@ -75,6 +75,18 @@ namespace test_rig {
      */
     constexpr std::size_t pdu_buffer_size = 4 * 29;
 
+    /**
+     * @brief how many PDUs of the largest payload without data length extension the receive
+     *        side of the PDU buffer holds before it has no room
+     */
+    constexpr std::size_t received_pdus_until_full = 4;
+
+    /**
+     * @brief PDUs a program's read_received() takes out of the PDU buffer and the rig keeps until
+     *        the host collects them; what does not fit is dropped
+     */
+    constexpr std::size_t read_queue_size = 2 * received_pdus_until_full;
+
     namespace details {
 
         /*
@@ -381,10 +393,16 @@ namespace test_rig {
 
         /**
          * @brief hands over the oldest PDUs received in connection events and forgets them
+         *
+         * What a program's read_received() took out of the buffer comes first, then what is still
+         * in it.
          */
         received_batch collect_received()
         {
             received_batch batch;
+
+            for ( ; batch.count != received_per_batch && read_head_ != read_count_; ++read_head_ )
+                batch.pdus[ batch.count++ ] = read_[ read_head_ ];
 
             for ( auto next = pdu_buffer_.next_received(); batch.count != received_per_batch && next.size != 0; next = pdu_buffer_.next_received() )
             {
@@ -591,6 +609,9 @@ namespace test_rig {
             case call_kind::queue_pdu:
                 entry.result = queue_pdu( what.transmit );
                 break;
+            case call_kind::read_received:
+                read_received();
+                break;
             }
 
             add_record( entry );
@@ -620,6 +641,25 @@ namespace test_rig {
 
         std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
         pdu_buffer                                      pdu_buffer_;
+
+        /*
+         * Takes what the buffer received out of it, as a link layer would, so that it has room
+         * again; the rig keeps the PDUs for the host.
+         */
+        void read_received()
+        {
+            for ( auto next = pdu_buffer_.next_received(); next.size != 0; next = pdu_buffer_.next_received() )
+            {
+                if ( read_count_ != read_queue_size )
+                    read_[ read_count_++ ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+
+                pdu_buffer_.free_received();
+            }
+        }
+
+        std::array< pdu, read_queue_size >              read_;
+        std::size_t                                     read_head_              = 0;
+        std::size_t                                     read_count_             = 0;
 
         std::array< record, record_queue_size >         records_;
         std::size_t                                     head_                   = 0;
