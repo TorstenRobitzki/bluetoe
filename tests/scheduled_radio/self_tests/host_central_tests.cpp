@@ -144,3 +144,27 @@ BOOST_AUTO_TEST_CASE( a_pdu_for_the_buffer_leaves_the_sequence_numbers_and_md_to
 
     BOOST_CHECK( data_pdu( llid::start, payload ) == expected );
 }
+
+// the device's first PDU of the connection: SN and NESN zero, which acknowledges no PDU yet
+BOOST_AUTO_TEST_CASE( a_nack_before_any_pdu_was_received_is_the_first_pdu )
+{
+    const std::vector< std::uint8_t > first = { 0x01, 0 };
+
+    BOOST_CHECK( nack_reply() == first );
+}
+
+// the acknowledgement of the missed PDU did not reach the device, so it repeats itself
+BOOST_AUTO_TEST_CASE( a_nack_repeats_the_reply_to_the_last_pdu_received )
+{
+    central c;
+    c.send();
+    const auto received = c.send();
+    const auto missed   = c.send();
+
+    BOOST_CHECK( nack_reply( received ) == reply_to( received ) );
+
+    const auto nack  = nack_reply( received );
+    const auto entry = captured_pdu{ .direction = pdu_direction::received, .when = {}, .crc_ok = true, .data = pdu( nack ) };
+
+    BOOST_CHECK( !acknowledges( entry, missed ) );
+}

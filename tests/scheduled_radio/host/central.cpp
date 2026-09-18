@@ -91,6 +91,13 @@ namespace test_rig {
         return data_channel_pdu( kind, next_expected_sequence_number( sent ), !sequence_number( sent ), md, payload );
     }
 
+    std::vector< std::uint8_t > nack_reply( std::span< const std::uint8_t > last_received )
+    {
+        return last_received.empty()
+            ? data_channel_pdu( llid::continuation, false, false, false, {} )
+            : reply_to( last_received );
+    }
+
     bool acknowledges( const captured_pdu& reply, std::span< const std::uint8_t > sent )
     {
         const std::span< const std::uint8_t > bytes( reply.data.data.data(), reply.data.size );

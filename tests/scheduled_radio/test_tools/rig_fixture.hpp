@@ -308,6 +308,31 @@ namespace test_rig {
     }
 
     /**
+     * @brief a PDU of a connection event, as the tester sends it: with a valid CRC, or, marked by
+     *        with_crc_error(), with an invalid one
+     */
+    struct event_pdu
+    {
+        template < typename Bytes >
+            requires std::convertible_to< const Bytes&, std::span< const std::uint8_t > >
+        event_pdu( const Bytes& bytes )
+            : data( std::span< const std::uint8_t >( bytes ) )
+        {
+        }
+
+        std::span< const std::uint8_t > data;
+        bool                            crc_error = false;
+    };
+
+    inline event_pdu with_crc_error( std::span< const std::uint8_t > bytes )
+    {
+        event_pdu result( bytes );
+        result.crc_error = true;
+
+        return result;
+    }
+
+    /**
      * @brief a tester operation: one connection event on `channel`, with the tester as the central
      *
      * The first of `pdus` has its first bit on air `after` the anchor of the previous connection
@@ -319,7 +344,7 @@ namespace test_rig {
      */
     inline operation connection_event(
         std::uint32_t channel, std::chrono::nanoseconds after,
-        std::initializer_list< std::span< const std::uint8_t > > pdus,
+        std::initializer_list< event_pdu > pdus,
         std::chrono::nanoseconds t_ifs = std::chrono::microseconds( 150 ) )
     {
         // an exchange of the largest PDUs at 1 Mbit takes about 1 ms
@@ -339,8 +364,12 @@ namespace test_rig {
 
         std::size_t index = 0;
 
-        for ( const auto& data : pdus )
-            result.pdus[ index++ ] = pdu( data );
+        for ( const event_pdu& next : pdus )
+        {
+            result.pdus[ index ] = pdu( next.data );
+            result.crc_errors   |= next.crc_error ? 1u << index : 0u;
+            ++index;
+        }
 
         return result;
     }
