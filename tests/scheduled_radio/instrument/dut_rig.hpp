@@ -304,33 +304,45 @@ namespace test_rig {
          */
 
         /**
-         * @brief appends a step to the program
+         * @brief appends a step to the program, waiting for `on`; its calls follow with add_call()
          *
          * There is no way to remove one: the device is reset before every test, and the
          * reset is what empties the program. Refused, and not appended, if the program is
-         * full, if the step waits for a callback that cannot trigger one, or if a step on
-         * start makes a call that needs a time, since none exists then.
+         * full, or if the step waits for a callback that cannot trigger one.
          */
-        bool add_step( const step& next )
+        bool add_step( callback_kind on )
         {
-            if ( step_count_ == max_steps || next.call_count > max_calls_per_step )
+            if ( step_count_ == max_steps || on == callback_kind::radio_ready )
                 return false;
 
-            if ( next.on == callback_kind::radio_ready )
-                return false;
-
-            for ( std::size_t i = 0; i != next.call_count; ++i )
-            {
-                const call_kind kind = next.calls[ i ].kind;
-
-                if ( next.on == callback_kind::start
-                  && ( kind == call_kind::schedule_advertising_event || kind == call_kind::schedule_timer
-                    || kind == call_kind::schedule_connection_event ) )
-                    return false;
-            }
-
-            steps_[ step_count_ ] = next;
+            steps_[ step_count_ ] = program_step{ .on = on, .first_call = call_count_, .call_count = 0 };
             ++step_count_;
+
+            return true;
+        }
+
+        /**
+         * @brief appends a call to the step added last
+         *
+         * The steps share max_calls calls. Refused, and not appended, if no step was added yet,
+         * if the program's calls are all used, or if the step waits for start and the call
+         * needs a time, since none exists then.
+         */
+        bool add_call( const call& next )
+        {
+            if ( step_count_ == 0 || call_count_ == max_calls )
+                return false;
+
+            program_step& last = steps_[ step_count_ - 1 ];
+
+            if ( last.on == callback_kind::start
+              && ( next.kind == call_kind::schedule_advertising_event || next.kind == call_kind::schedule_timer
+                || next.kind == call_kind::schedule_connection_event ) )
+                return false;
+
+            calls_[ call_count_ ] = next;
+            ++call_count_;
+            ++last.call_count;
 
             return true;
         }
@@ -487,6 +499,7 @@ namespace test_rig {
             &dut_rig::program_finished,
             &dut_rig::properties,
             &dut_rig::add_step,
+            &dut_rig::add_call,
             &dut_rig::start_program,
             &dut_rig::collect_records,
             &dut_rig::add_to_acceptance_filter,
@@ -541,11 +554,11 @@ namespace test_rig {
             if ( !running_ || cursor_ == step_count_ || steps_[ cursor_ ].on != kind )
                 return;
 
-            const step& current = steps_[ cursor_ ];
+            const program_step& current = steps_[ cursor_ ];
             ++cursor_;
 
-            for ( std::size_t i = 0; i != current.call_count; ++i )
-                execute( current.calls[ i ], when );
+            for ( std::size_t i = current.first_call; i != current.first_call + current.call_count; ++i )
+                execute( calls_[ i ], when );
         }
 
         /*
@@ -626,8 +639,21 @@ namespace test_rig {
             ++queued_;
         }
 
-        std::array< step, max_steps >                   steps_;
+        /*
+         * A step of the program: the callback it waits for, and its calls, a range of calls_,
+         * which all steps share.
+         */
+        struct program_step
+        {
+            callback_kind   on;
+            std::uint8_t    first_call;
+            std::uint8_t    call_count;
+        };
+
+        std::array< program_step, max_steps >           steps_;
         std::uint8_t                                    step_count_             = 0;
+        std::array< call, max_calls >                   calls_;
+        std::uint8_t                                    call_count_             = 0;
         std::uint8_t                                    cursor_                 = 0;
         bool                                            running_                = false;
         bool                                            radio_event_pending_    = false;

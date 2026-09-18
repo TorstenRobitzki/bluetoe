@@ -205,17 +205,17 @@ namespace {
         return call{ .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init };
     }
 
+    // a step as the host builds it, loaded as the step and then its calls
+    struct step
+    {
+        callback_kind       on;
+        std::vector< call > calls;
+    };
+
     template < typename... Calls >
     step on( callback_kind kind, Calls... calls )
     {
-        step result;
-        result.on         = kind;
-        result.call_count = sizeof...( calls );
-
-        const std::array< call, sizeof...( Calls ) > given = { calls... };
-        std::copy( given.begin(), given.end(), result.calls.begin() );
-
-        return result;
+        return step{ .on = kind, .calls = { calls... } };
     }
 
     struct fixture
@@ -228,7 +228,12 @@ namespace {
         void load( std::span< const step > steps )
         {
             for ( const step& s : steps )
-                BOOST_REQUIRE( remote.call< &rig_t::add_step >( s ) );
+            {
+                BOOST_REQUIRE( remote.call< &rig_t::add_step >( s.on ) );
+
+                for ( const call& c : s.calls )
+                    BOOST_REQUIRE( remote.call< &rig_t::add_call >( c ) );
+            }
         }
 
         std::vector< record > collect_all()
@@ -471,17 +476,63 @@ BOOST_FIXTURE_TEST_CASE( a_full_queue_drops_the_newest_and_counts_them, fixture 
 BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_step, fixture )
 {
     for ( std::size_t i = 0; i != max_steps; ++i )
-        BOOST_CHECK( remote.call< &rig_t::add_step >( on( callback_kind::adv_timeout ) ) );
+        BOOST_CHECK( remote.call< &rig_t::add_step >( callback_kind::adv_timeout ) );
 
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::adv_timeout ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::adv_timeout ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_step_on_radio_ready_is_refused, fixture )
+{
+    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::radio_ready ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_timed_call_on_start_is_refused, fixture )
 {
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::start, schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) ) );
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::start, schedule_timer( delta_time::msec( 1 ) ) ) ) );
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::radio_ready ) ) );
-    BOOST_CHECK( remote.call< &rig_t::add_step >( on( callback_kind::start, cancel_radio_event() ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start ) );
+
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_timer( delta_time::msec( 1 ) ) ) );
+    BOOST_CHECK( remote.call< &rig_t::add_call >( cancel_radio_event() ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_call_without_a_step_is_refused, fixture )
+{
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( cancel_radio_event() ) );
+}
+
+// the steps share the calls: one step may use all of them
+BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_call, fixture )
+{
+    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::adv_timeout ) );
+
+    for ( std::size_t i = 0; i != max_calls; ++i )
+        BOOST_CHECK( remote.call< &rig_t::add_call >( cancel_radio_event() ) );
+
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( cancel_radio_event() ) );
+    BOOST_CHECK( remote.call< &rig_t::add_step >( callback_kind::user_timer ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( cancel_radio_event() ) );
+}
+
+// the calls of a step run in the order they were added, each step its own
+BOOST_FIXTURE_TEST_CASE( a_step_makes_all_its_calls, fixture )
+{
+    const device_address address{ { 1, 2, 3, 4, 5, 6 }, true };
+
+    const step program[] = {
+        on( callback_kind::start,
+            set_local_address( address ),
+            set_access_address_and_crc_init( 0x12345678, 0xabcdef ),
+            start_advertising( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout,
+            cancel_radio_event() ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_REQUIRE_EQUAL( radio.calls.size(), 3u );
+    BOOST_CHECK( radio.calls[ 0 ].kind == call_kind::set_local_address );
+    BOOST_CHECK( radio.calls[ 1 ].kind == call_kind::set_access_address_and_crc_init );
+    BOOST_CHECK( radio.calls[ 2 ].kind == call_kind::start_advertising );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_setup_call_reaches_the_radio_and_schedules_nothing, fixture )
@@ -504,10 +555,10 @@ BOOST_FIXTURE_TEST_CASE( a_setup_call_reaches_the_radio_and_schedules_nothing, f
 }
 
 /*
- * A step goes in one request behind a one byte opcode, so the largest a step can be has to
- * fit: every call carrying every parameter at its largest.
+ * A call goes in one request behind a one byte opcode, so the largest a call can be has to
+ * fit: every parameter at its largest.
  */
-BOOST_AUTO_TEST_CASE( the_largest_step_fits_into_one_request )
+BOOST_AUTO_TEST_CASE( the_largest_call_fits_into_one_request )
 {
     const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
 
@@ -521,15 +572,10 @@ BOOST_AUTO_TEST_CASE( the_largest_step_fits_into_one_request )
         .access_address = 0xffffffff,
         .crc_init       = 0xffffff };
 
-    std::array< call, max_calls_per_step > calls;
-    calls.fill( largest );
-
-    const step largest_step{ .on = callback_kind::adv_timeout, .call_count = max_calls_per_step, .calls = calls };
-
     std::array< std::uint8_t, default_max_payload - 1 > request;
     buffer_sink out( request );
 
-    BOOST_CHECK( serialize( out, largest_step ) );
+    BOOST_CHECK( serialize( out, largest ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, fixture )
@@ -558,7 +604,8 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, 
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_on_start_is_refused, fixture )
 {
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( on( callback_kind::start, schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) );
 }
 
 // the program is finished once the connection event reported its end, with the events recorded

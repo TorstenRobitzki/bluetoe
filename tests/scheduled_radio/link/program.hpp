@@ -8,10 +8,11 @@
  * the rig and the host. See documentation/scheduled_radio_test_rig.md, decisions 7, 9
  * and 14.
  *
- * A program is loaded one step at a time, because a step with its PDUs is what fits into
- * one request. The records come back in batches, each naming the index of its first record
- * and the number of records produced so far, which is how the host notices that the rig had
- * to drop some.
+ * A program is loaded one request at a time: a step, the callback it waits for, and then each
+ * of its calls, as a call with its PDUs is what fits into one request. The steps share one pool
+ * of calls, so that a step makes as many as it needs. The records come back in batches, each
+ * naming the index of its first record and the number of records produced so far, which is how
+ * the host notices that the rig had to drop some.
  */
 
 #include "link/pdu.hpp"
@@ -90,21 +91,11 @@ namespace test_rig {
         friend bool operator==( const call&, const call& ) = default;
     };
 
-    constexpr std::size_t max_calls_per_step = 2;
-
     /**
-     * @brief the callback a step waits for and the calls it makes then
+     * @brief the steps a program holds, and the calls, in all its steps together
      */
-    struct step
-    {
-        callback_kind                               on          = callback_kind::start;
-        std::uint8_t                                call_count  = 0;
-        std::array< call, max_calls_per_step >      calls;
-
-        friend bool operator==( const step&, const step& ) = default;
-    };
-
     constexpr std::size_t max_steps = 16;
+    constexpr std::size_t max_calls = 32;
 
     /**
      * @brief what a record is about
@@ -210,20 +201,6 @@ namespace test_rig {
             value.address, value.access_address, value.crc_init );
 
         return deserialize( in, fields );
-    }
-
-    template < sink Sink >
-    bool serialize( Sink& out, const step& value )
-    {
-        return serialize( out, std::tie( value.on, value.call_count, value.calls ) );
-    }
-
-    template < source Source >
-    bool deserialize( Source& in, step& value )
-    {
-        auto fields = std::tie( value.on, value.call_count, value.calls );
-
-        return deserialize( in, fields ) && value.call_count <= max_calls_per_step;
     }
 
     template < sink Sink >

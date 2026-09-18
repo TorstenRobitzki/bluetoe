@@ -882,8 +882,9 @@ after the first exchange: the address of its own answer switched the address int
 central's next PDU went unanswered. No earlier test sent a second PDU.
 
 The limits come from the wire. A request carries at most 255 bytes, which holds an operation with
-four PDUs of 39 bytes, and a device step of two calls. A program holds 16 operations and 16 steps,
-about a dozen connection events per test.
+four PDUs of 39 bytes; a device step is loaded call by call, so it makes as many calls as the
+program's 32 have room for. A program holds 16 operations and 16 steps, about a dozen connection
+events per test.
 
 **Rejected:** running the program interpreter in interrupt context, as above; and a tester that
 keeps the connection's sequence numbers itself.

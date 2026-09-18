@@ -101,20 +101,25 @@ namespace test_rig {
         std::chrono::nanoseconds    window;
     };
 
+    /**
+     * @brief a step of a device program: the callback it waits for and the calls it makes then
+     *
+     * The rig loads it as a step and one call after the other; the steps of a program share
+     * max_calls calls.
+     */
+    struct step
+    {
+        callback_kind       on;
+        std::vector< call > calls;
+    };
+
     /** @cond HIDDEN_SYMBOLS */
     namespace details {
 
         template < typename... Calls >
         step step_on( callback_kind kind, Calls... calls )
         {
-            static_assert( sizeof...( calls ) <= max_calls_per_step, "a step makes at most max_calls_per_step calls" );
-
-            step result;
-            result.on         = kind;
-            result.call_count = sizeof...( calls );
-            result.calls      = { calls... };
-
-            return result;
+            return step{ .on = kind, .calls = { calls... } };
         }
     }
     /** @endcond */
@@ -220,8 +225,7 @@ namespace test_rig {
     /** @} */
 
     /**
-     * @brief a step: the callback it waits for and the calls it makes then, up to
-     *        max_calls_per_step of them
+     * @brief a step: the callback it waits for and the calls it makes then
      * @{
      */
     template < std::same_as< call >... Calls >
@@ -410,7 +414,12 @@ namespace test_rig {
         void program_device( std::initializer_list< step > steps )
         {
             for ( const step& s : steps )
-                BOOST_REQUIRE( device.call< &dut::add_step >( s ) );
+            {
+                BOOST_REQUIRE( device.call< &dut::add_step >( s.on ) );
+
+                for ( const call& c : s.calls )
+                    BOOST_REQUIRE( device.call< &dut::add_call >( c ) );
+            }
         }
 
         void program_tester( std::initializer_list< operation > operations )
