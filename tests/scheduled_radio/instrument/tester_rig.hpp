@@ -166,11 +166,13 @@ namespace test_rig {
          * One connection event as its central: transmits the first `value` of `pdus` on `value`
          * with its first bit on air at `value`, a time of the tester's clock, listens for the
          * reply after each and transmits the next `value` ticks after the reply ended, queuing
-         * a transmitted event for every PDU sent and a received event for every reply. The
-         * radio stays idle after the last reply. False, and nothing started, if the first
-         * transmission's time is too close or gone by. Stops and tags like receive().
+         * a transmitted event for every PDU sent and a received event for every reply. A PDU
+         * whose bit is set in `value`, bit 0 for the first, goes out with an invalid CRC, and its
+         * transmitted event says so. The radio stays idle after the last reply. False, and
+         * nothing started, if the first transmission's time is too close or gone by. Stops and
+         * tags like receive().
          */
-        { platform.connection_event( value, phy, ticks, value, pdus, value, value, value ) } -> std::same_as< bool >;
+        { platform.connection_event( value, phy, ticks, value, pdus, value, value, value, value ) } -> std::same_as< bool >;
 
         /*
          * Stops listening; no event is queued afterwards.
@@ -494,7 +496,7 @@ namespace test_rig {
                     captured_pdu entry;
                     entry.direction = pdu_direction::transmitted;
                     entry.when      = next->when;
-                    entry.crc_ok    = true;
+                    entry.crc_ok    = next->crc_ok;
                     entry.data      = next->data;
 
                     enqueue( entry );
@@ -628,7 +630,7 @@ namespace test_rig {
                 const std::uint32_t t_ifs = op.t_ifs.usec() * ( tester_ticks_per_second / 1'000'000 );
 
                 if ( !( has_anchor_ || has_reference_ )
-                  || !platform_.connection_event( op.channel, op.phy, ticks, at, op.pdus, op.pdu_count, t_ifs, operation_id_ ) )
+                  || !platform_.connection_event( op.channel, op.phy, ticks, at, op.pdus, op.pdu_count, t_ifs, op.crc_errors, operation_id_ ) )
                     time_out();
             }
             else

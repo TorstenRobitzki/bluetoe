@@ -70,7 +70,7 @@ namespace test_rig {
             const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
         bool connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
-            std::uint32_t operation_id );
+            std::uint32_t crc_errors, std::uint32_t operation_id );
         void stop();
         void accept_advertiser( std::uint32_t slot, const link_layer::device_address& address );
         std::optional< tester_happened > next_event();
@@ -91,6 +91,7 @@ namespace test_rig {
         void on_radio_ready();
         void on_radio_disabled();
         bool arm_event_transmission( std::uint32_t at );
+        bool crc_error( std::uint32_t pdu_index ) const;
         void on_window_end();
         void on_device_address_miss();
         bool from_target() const;
@@ -115,6 +116,7 @@ namespace test_rig {
         // access address, on which it only does for advertising
         bool                                    matching_advertisers_ = false;
         std::uint32_t                           access_address_       = 0;
+        std::uint32_t                           crc_init_             = 0;
 
         /*
          * An answer operation's state, shared between answer(), the window end and the two
@@ -131,14 +133,15 @@ namespace test_rig {
         /*
          * A connection event's state, shared between connection_event() and the radio
          * interrupts: its PDUs where the radio can transmit them, the one on air or the next,
-         * and the inter frame space to keep after each reply. `transmitting_` tells the END
-         * of one of its PDUs from a reply's, as for an answer.
+         * the inter frame space to keep after each reply, and which PDUs go out with an invalid
+         * CRC. `transmitting_` tells the END of one of its PDUs from a reply's, as for an answer.
          */
         volatile bool                           connecting_     = false;
         std::uint8_t                            event_pdus_[ max_event_pdus ][ max_advertising_pdu_size ];
         std::uint32_t                           event_count_    = 0;
         volatile std::uint32_t                  event_next_     = 0;
-        std::uint32_t                           event_t_ifs_    = 0;
+        std::uint32_t                           event_t_ifs_        = 0;
+        std::uint32_t                           event_crc_errors_   = 0;
 
         static platform*                        instance_;
     };

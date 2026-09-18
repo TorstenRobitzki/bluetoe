@@ -218,6 +218,7 @@ namespace test_rig {
     void platform::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
     {
         access_address_ = access_address;
+        crc_init_       = crc_init;
 
         NRF_RADIO->BASE0    = access_address << 8;
         NRF_RADIO->PREFIX0  = access_address >> 24;
@@ -244,6 +245,9 @@ namespace test_rig {
         answering_    = false;
         transmitting_ = false;
         connecting_   = false;
+
+        // a PDU with an invalid CRC may have been armed but never sent
+        NRF_RADIO->CRCINIT = crc_init_;
 
         __enable_irq();
 
@@ -345,21 +349,24 @@ namespace test_rig {
      * disables the radio and DISABLED starts the receiver for the reply by a short, which the
      * transmitter's READY adds only once the transmission runs: added while the radio is still
      * disabling after a reply, it would start the receiver instead of waiting for the compare.
-     * The END of a reply arms the next PDU, or leaves the radio disabled after the last.
+     * The END of a reply arms the next PDU, or leaves the radio disabled after the last. A PDU
+     * sent with an invalid CRC is sent with another CRC init, which its END restores before the
+     * receiver for the reply starts.
      */
     bool platform::connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
         std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
-        std::uint32_t operation_id )
+        std::uint32_t crc_errors, std::uint32_t operation_id )
     {
         prepare( channel, ticks, operation_id );
 
         for ( std::uint32_t index = 0; index != count; ++index )
             std::copy( pdus[ index ].data.begin(), pdus[ index ].data.begin() + pdus[ index ].size, event_pdus_[ index ] );
 
-        event_count_ = count;
-        event_next_  = 0;
-        event_t_ifs_ = t_ifs;
-        connecting_  = true;
+        event_count_      = count;
+        event_next_       = 0;
+        event_t_ifs_      = t_ifs;
+        event_crc_errors_ = crc_errors;
+        connecting_       = true;
 
         NRF_RADIO->EVENTS_READY    = 0;
         NRF_RADIO->EVENTS_DISABLED = 0;
@@ -385,6 +392,7 @@ namespace test_rig {
         transmitting_        = true;
         NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( event_pdus_[ event_next_ ] );
         NRF_RADIO->SHORTS    = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+        NRF_RADIO->CRCINIT   = crc_error( event_next_ ) ? crc_init_ ^ 1 : crc_init_;
 
         NRF_TIMER0->EVENTS_COMPARE[ cc_answer ] = 0;
         NRF_TIMER0->CC[ cc_answer ]             = start;
@@ -401,6 +409,11 @@ namespace test_rig {
         NRF_RADIO->TASKS_DISABLE = 1;
 
         return false;
+    }
+
+    bool platform::crc_error( std::uint32_t pdu_index ) const
+    {
+        return event_crc_errors_ & ( 1u << pdu_index );
     }
 
     /*
@@ -432,9 +445,11 @@ namespace test_rig {
         {
             transmitting_        = false;
             NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( receive_buffer_ );
+            NRF_RADIO->CRCINIT   = crc_init_;
 
-            const std::uint8_t* sent = event_pdus_[ event_next_ ];
-            const std::size_t   size = std::min< std::size_t >( sent[ 1 ] + 2, max_advertising_pdu_size );
+            const std::uint8_t* sent   = event_pdus_[ event_next_ ];
+            const std::size_t   size   = std::min< std::size_t >( sent[ 1 ] + 2, max_advertising_pdu_size );
+            const bool          crc_ok = !crc_error( event_next_ );
 
             event_next_ = event_next_ + 1;
 
@@ -442,7 +457,7 @@ namespace test_rig {
                 .kind   = tester_event::transmitted,
                 .when   = tester_time{ address - preamble_and_access_address_ticks },
                 .data   = pdu( std::span< const std::uint8_t >( sent, size ) ),
-                .crc_ok = true,
+                .crc_ok = crc_ok,
                 .rssi   = 0 };
 
             enqueue( event );
@@ -663,6 +678,7 @@ namespace test_rig {
         transmitting_ = false;
         connecting_   = false;
 
+        NRF_RADIO->CRCINIT       = crc_init_;
         NRF_RADIO->INTENCLR      = RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_READY_Msk | RADIO_INTENCLR_DISABLED_Msk;
         NRF_RADIO->SHORTS        = 0;
         NRF_PPI->CHENCLR         = 1u << ppi_answer_txen;

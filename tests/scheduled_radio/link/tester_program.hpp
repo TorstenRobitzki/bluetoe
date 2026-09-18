@@ -88,7 +88,8 @@ namespace test_rig {
      * on air `delay` after the anchor of the previous connection_event, or, before the first,
      * after the first bit of the PDU the program captured last. After each PDU it listens for the
      * device's reply and sends the next one `t_ifs` after the reply ended; it ends with the reply
-     * to the last. Every PDU sent and every reply is captured. A reply that does not come ends
+     * to the last. A PDU whose bit is set in `crc_errors`, bit 0 for the first, is sent with an
+     * invalid CRC. Every PDU sent and every reply is captured. A reply that does not come ends
      * the event with its `window`, not the program, as a device that does not answer is what
      * some tests observe.
      *
@@ -112,6 +113,7 @@ namespace test_rig {
         std::array< pdu, max_event_pdus >               pdus            = {};
         std::uint8_t                                    pdu_count       = 0;
         link_layer::delta_time                          t_ifs           = {};
+        std::uint8_t                                    crc_errors      = 0;
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -185,14 +187,14 @@ namespace test_rig {
     bool serialize( Sink& out, const operation& value )
     {
         return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
-            value.pdus, value.pdu_count, value.t_ifs ) );
+            value.pdus, value.pdu_count, value.t_ifs, value.crc_errors ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
         auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
-            value.pdus, value.pdu_count, value.t_ifs );
+            value.pdus, value.pdu_count, value.t_ifs, value.crc_errors );
 
         return deserialize( in, fields ) && value.pdu_count <= max_event_pdus;
     }

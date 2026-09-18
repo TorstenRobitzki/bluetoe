@@ -868,6 +868,10 @@ the receiver for the reply follows the PDU; the reply's END arms the next PDU. T
 READY because the radio is still disabling after a reply when the next PDU is armed, and the short
 would start the receiver instead of waiting for the compare.
 
+A PDU of an event can be sent with an invalid CRC, for the tests of CRC errors: the tester's radio
+sends it with another CRC init, which the PDU's END restores before the receiver for the reply
+starts, so that the reply is still received with the connection's.
+
 On the device a step fills the PDU buffer with `queue_pdu`, as a link layer does from its callbacks,
 so that data goes out in a later event; `queue_device_pdus()` fills it before the start.
 
@@ -912,5 +916,5 @@ while the rig finds it:
   delay can become a parameter of the answer operation when a test that answers early or late, to
   find the edges of the device's receive window, is written.
 - Two scan request cases the tester cannot produce yet: a second request within the same advertising
-  event, since the tester answers once per operation, and a request with a CRC error, since its radio
-  always sends a valid CRC.
+  event, since the tester answers once per operation, and a request with a CRC error, which only a
+  connection event's PDU can have so far (decision 27).

@@ -67,9 +67,10 @@ namespace {
         }
 
         bool connection_event( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t at,
-            const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs, std::uint32_t id )
+            const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs, std::uint32_t crc_errors,
+            std::uint32_t id )
         {
-            connection_events.push_back( { channel, p, ticks, at, std::vector< pdu >( pdus.begin(), pdus.begin() + count ), t_ifs } );
+            connection_events.push_back( { channel, p, ticks, at, std::vector< pdu >( pdus.begin(), pdus.begin() + count ), t_ifs, crc_errors } );
             operation_id = id;
 
             return event_in_time;
@@ -109,13 +110,13 @@ namespace {
             events.push_back( e );
         }
 
-        void push_transmitted( tester_time when, std::span< const std::uint8_t > bytes )
+        void push_transmitted( tester_time when, std::span< const std::uint8_t > bytes, bool crc_ok = true )
         {
             tester_happened e;
             e.kind         = tester_event::transmitted;
             e.when         = when;
             e.data         = pdu( bytes );
-            e.crc_ok       = true;
+            e.crc_ok       = crc_ok;
             e.rssi         = 0;
             e.operation_id = operation_id;
 
@@ -161,6 +162,7 @@ namespace {
             std::uint32_t                           at;
             std::vector< pdu >                      pdus;
             std::uint32_t                           t_ifs;
+            std::uint32_t                           crc_errors;
         };
 
         std::vector< receive_call >     receives;
@@ -241,8 +243,9 @@ namespace {
             .phy       = phy::le_1m_phy,
             .window    = delta_time::msec( 100 ),
             .delay     = delta_time::usec( 7500 ),
-            .pdu_count = max_event_pdus,
-            .t_ifs     = delta_time::usec( 148 ) };
+            .pdu_count  = max_event_pdus,
+            .t_ifs      = delta_time::usec( 148 ),
+            .crc_errors = 0x0f };
 
         result.pdus.fill( pdu( largest_pdu ) );
 
@@ -1098,6 +1101,32 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_ends_with_it
     BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
     BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
     BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
+}
+
+// the radio sends them with an invalid CRC and says so, and the captured PDU shows it
+BOOST_FIXTURE_TEST_CASE( a_connection_event_sends_the_pdus_it_marks_with_an_invalid_crc, fixture )
+{
+    operation event = event_op( 5, delta_time::msec( 50 ), 2 );
+    event.crc_errors = 0x01;
+
+    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( event );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.connection_events.size(), 1u );
+    BOOST_CHECK_EQUAL( platform.connection_events[ 0 ].crc_errors, 0x01u );
+
+    platform.push_transmitted( at( 55ms ), empty_pdu, false );
+    rig.run();
+
+    const captured_batch batch = remote.call< &rig_t::collect_captured >();
+
+    BOOST_REQUIRE_EQUAL( batch.count, 2u );
+    BOOST_CHECK( batch.captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( !batch.captured[ 1 ].crc_ok );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture )
