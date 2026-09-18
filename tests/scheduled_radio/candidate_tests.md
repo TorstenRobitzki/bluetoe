@@ -138,6 +138,8 @@ errors that are not in a row.
 
 **A full receive buffer.** A PDU the DUT's buffer has no room for is not acknowledged, and the event
 goes on: the tester's retransmission is acknowledged in a later event, once the buffer was drained.
+Written: the device takes nothing from such a PDU and sends its previous PDU again, and a step
+drains the buffer with `read_received`, as a link layer does.
 
 **A pending connection event can be cancelled.** In time in the step that scheduled it, too late
 from a timer, and with nothing pending, as for advertising events.

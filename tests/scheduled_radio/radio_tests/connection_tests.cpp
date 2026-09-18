@@ -137,10 +137,10 @@ namespace {
     }
 
     // `size` bytes, each one different, so that a byte out of place shows
-    std::vector< std::uint8_t > payload_of( std::size_t size )
+    std::vector< std::uint8_t > payload_of( std::size_t size, std::uint8_t first = 1 )
     {
         std::vector< std::uint8_t > result( size );
-        std::iota( result.begin(), result.end(), std::uint8_t( 1 ) );
+        std::iota( result.begin(), result.end(), first );
 
         return result;
     }
@@ -667,4 +667,70 @@ BOOST_FIXTURE_TEST_CASE( invalid_crcs_that_are_not_in_a_row_are_answered, connec
 
     check_callbacks( device_records(), {
         adv_timeout, connection_end_event{ .last_received_had_more_data = true, .error_occured = true } } );
+}
+
+/*
+ * The first event fills the device's receive buffer, and the PDU of the second finds no room: the
+ * device takes nothing from it and sends its previous PDU again. Once the device's link layer read
+ * the buffer, the central's unchanged retransmission in the third event is acknowledged, and the
+ * link layer received every PDU once.
+ */
+BOOST_FIXTURE_TEST_CASE( a_pdu_without_room_in_the_buffer_is_refused_until_the_buffer_was_read, connection_fixture, *if_tester )
+{
+    static_assert( received_pdus_until_full == max_event_pdus, "the first event fills the buffer" );
+
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first   = tester_side.send( payload_of( 27, 0x10 ), more_data, llid::start );
+    const auto second  = tester_side.send( payload_of( 27, 0x20 ), more_data, llid::start );
+    const auto third   = tester_side.send( payload_of( 27, 0x30 ), more_data, llid::start );
+    const auto fourth  = tester_side.send( payload_of( 27, 0x40 ), no_more_data, llid::start );
+    const auto refused = tester_side.send( payload_of( 27, 0x50 ), no_more_data, llid::start );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            next_event( data_channel ) ),
+        on_connection_end_event(
+            read_received(),
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first, second, third, fourth } ),
+        connection_event( data_channel, interval, { refused } ),
+        connection_event( data_channel, interval, { refused } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),   received( reply_to( first ) ),
+        sent( second ),  received( reply_to( second ) ),
+        sent( third ),   received( reply_to( third ) ),
+        sent( fourth ),  received( reply_to( fourth ) ),
+        sent( refused ), received( nack_reply( fourth ) ),
+        sent( refused ), received( reply_to( refused ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .last_received_not_empty = true },
+        connection_end_event{ .last_received_not_empty = true },
+        connection_end_event{ .last_received_not_empty = true } } );
+
+    std::vector< std::vector< std::uint8_t > > stored;
+
+    for ( const pdu& received_by_device : device_received() )
+        stored.emplace_back( received_by_device.data.begin(), received_by_device.data.begin() + received_by_device.size );
+
+    const std::vector< std::vector< std::uint8_t > > expected = { first, second, third, fourth, refused };
+
+    BOOST_CHECK( stored == expected );
 }

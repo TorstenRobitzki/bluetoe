@@ -97,11 +97,13 @@ namespace test_rig {
         more_data_flag md = no_more_data, llid kind = llid::continuation );
 
     /**
-     * @brief the device's reply to a PDU it did not receive, for example as its CRC was invalid
+     * @brief the device's reply to a PDU it did not take, as its CRC was invalid or as there was no
+     *        room for it
      *
-     * The PDU's acknowledgement did not reach the device either, so it repeats its reply to
-     * `last_received`, the last PDU of the central it did receive, or, before any, sends its first
-     * PDU of the connection; the NESN of either does not acknowledge the PDU it missed.
+     * The device takes nothing from such a PDU, not even its acknowledgement, so it repeats its
+     * reply to `last_received`, the last PDU of the central it did take, or, before any, sends its
+     * first PDU of the connection; the NESN of either does not acknowledge the PDU it missed. The
+     * central sends that PDU again unchanged, as the repeated reply is nothing new to it.
      */
     std::vector< std::uint8_t > nack_reply( std::span< const std::uint8_t > last_received = {} );
 
