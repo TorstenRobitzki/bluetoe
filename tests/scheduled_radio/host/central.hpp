@@ -73,6 +73,12 @@ namespace test_rig {
     /** @} */
 
     /**
+     * @brief a data channel PDU as the link layer hands it to the PDU buffer: the LLID, the
+     *        length and the payload; SN, NESN and MD are the buffer's to set
+     */
+    std::vector< std::uint8_t > data_pdu( llid kind, std::span< const std::uint8_t > payload );
+
+    /**
      * @brief the device's reply to the central's `sent` in the normal flow: it acknowledges
      *        `sent` and is new to the central
      */

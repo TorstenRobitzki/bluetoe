@@ -80,6 +80,11 @@ namespace test_rig {
         return pdu[ 0 ] & md_mask;
     }
 
+    std::vector< std::uint8_t > data_pdu( llid kind, std::span< const std::uint8_t > payload )
+    {
+        return data_channel_pdu( kind, false, false, false, payload );
+    }
+
     std::vector< std::uint8_t > reply_to(
         std::span< const std::uint8_t > sent, std::span< const std::uint8_t > payload, bool more_data, llid kind )
     {

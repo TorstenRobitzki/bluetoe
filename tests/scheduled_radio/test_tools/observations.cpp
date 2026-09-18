@@ -48,6 +48,13 @@ namespace test_rig {
             time_of( later.when ) - time_of( earlier.when ) );
     }
 
+    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later )
+    {
+        const std::chrono::microseconds air_time( ( 1 + 4 + earlier.data.size + 3 ) * 8 );
+
+        return time_of( later.when ) - time_of( earlier.when ) - air_time;
+    }
+
     std::chrono::microseconds time_between( const record& earlier, const record& later )
     {
         return std::chrono::microseconds( ( later.when - earlier.when ).usec() );

@@ -89,17 +89,6 @@ namespace {
     }
 
     /*
-     * The time from the end of `earlier` to the first bit of `later`: preamble, access
-     * address, the PDU and its CRC at 1 Mbit are 8 µs a byte.
-     */
-    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later )
-    {
-        const std::chrono::microseconds air_time( ( 1 + 4 + earlier.data.size + 3 ) * 8 );
-
-        return time_of( later.when ) - time_of( earlier.when ) - air_time;
-    }
-
-    /*
      * The tester answers the first advertising, of `type`, with `request`: the device answers
      * with its scan response and reports the request with adv_received(). Returns what the
      * tester captured: the advertising, the request and the response.

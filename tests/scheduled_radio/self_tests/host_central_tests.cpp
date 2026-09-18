@@ -137,3 +137,10 @@ BOOST_AUTO_TEST_CASE( a_reply_built_for_a_pdu_passes_both_checks )
     BOOST_CHECK( acknowledges( entry, sent ) );
     BOOST_CHECK( is_new( entry, sent ) );
 }
+
+BOOST_AUTO_TEST_CASE( a_pdu_for_the_buffer_leaves_the_sequence_numbers_and_md_to_it )
+{
+    const std::vector< std::uint8_t > expected = { 0x02, 3, 1, 2, 3 };
+
+    BOOST_CHECK( data_pdu( llid::start, payload ) == expected );
+}

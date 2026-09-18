@@ -200,6 +200,14 @@ namespace test_rig {
     {
         return call{ .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init };
     }
+
+    /**
+     * @brief put `data` into the PDU buffer, as the link layer would, for a later connection event
+     */
+    inline call queue_pdu( std::span< const std::uint8_t > data )
+    {
+        return call{ .kind = call_kind::queue_pdu, .transmit = pdu( data ) };
+    }
     /** @} */
 
     /**
@@ -315,6 +323,44 @@ namespace test_rig {
             .kind           = operation_kind::set_access_address_and_crc_init,
             .access_address = access_address,
             .crc_init       = crc_init };
+    }
+
+    /**
+     * @brief a tester operation: one connection event on `channel`, with the tester as the central
+     *
+     * The first of `pdus` has its first bit on air `after` the anchor of the previous connection
+     * event, or, before the first, after the first bit of the PDU captured last; each further one
+     * `t_ifs` after the device's reply ended. It ends with the reply to the last. Its window is
+     * what the event can take, so that a reply that does not come ends the program.
+     *
+     * @throw std::invalid_argument for more PDUs than an event holds
+     */
+    inline operation connection_event(
+        std::uint32_t channel, std::chrono::nanoseconds after,
+        std::initializer_list< std::span< const std::uint8_t > > pdus,
+        std::chrono::nanoseconds t_ifs = std::chrono::microseconds( 150 ) )
+    {
+        // an exchange of the largest PDUs at 1 Mbit takes about 1 ms
+        constexpr std::chrono::milliseconds per_exchange( 2 );
+
+        if ( pdus.size() == 0 || pdus.size() > max_event_pdus )
+            throw std::invalid_argument( "a connection event sends one to max_event_pdus PDUs" );
+
+        operation result{
+            .kind      = operation_kind::connection_event,
+            .channel   = channel,
+            .phy       = link_layer::phy_ll_encoding::le_1m_phy,
+            .window    = as_delta_time( after + per_exchange * pdus.size() ),
+            .delay     = as_delta_time( after ),
+            .pdu_count = static_cast< std::uint8_t >( pdus.size() ),
+            .t_ifs     = as_delta_time( t_ifs ) };
+
+        std::size_t index = 0;
+
+        for ( const auto& data : pdus )
+            result.pdus[ index++ ] = pdu( data );
+
+        return result;
     }
 
     /**
@@ -450,6 +496,29 @@ namespace test_rig {
             // the device answers only the tester, so stray advertising in its receive
             // window is rejected instead of stalling the program (scheduled_radio2.hpp)
             BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( tester_address ) );
+        }
+    };
+
+    /**
+     * @brief the rig for connection tests, with the parameters of the connection
+     *
+     * A test changes them before it builds its programs, so that the device's and the tester's
+     * program are built from the same numbers.
+     */
+    struct connection_fixture : rig_fixture
+    {
+        std::chrono::microseconds   interval    = std::chrono::milliseconds( 10 );
+
+        // how long before and after the anchor the device listens
+        std::chrono::microseconds   widening    = std::chrono::microseconds( 250 );
+
+        /**
+         * @brief the device's next connection event on `channel`, placed from the anchor the
+         *        connection_end_event() of the one before carried
+         */
+        call next_event( std::uint32_t channel ) const
+        {
+            return schedule_connection_event( channel, interval - widening, interval + widening );
         }
     };
 }

@@ -10,6 +10,7 @@
 
 #include "test_tools/rig_fixture.hpp"
 
+#include "host/tester_time.hpp"
 #include "link/program.hpp"
 #include "link/tester_program.hpp"
 
@@ -66,6 +67,12 @@ namespace test_rig {
      *        tester's clock
      */
     std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later );
+
+    /**
+     * @brief the time from the end of `earlier` to the first bit of `later`, by the tester's
+     *        clock: preamble, access address, the PDU and its CRC at 1 Mbit are 8 µs a byte
+     */
+    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later );
 
     /**
      * @brief the time from `earlier` to `later`, by the device's clock
