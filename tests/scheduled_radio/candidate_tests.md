@@ -69,15 +69,18 @@ data PDU in a connection event answered with the next one. This needs the tester
 answer to well below a microsecond, so it waits for the temperature compensated oscillator of
 decision 24 and for the tester to be validated against an independent reference; until then the
 tester's receive timestamps are calibrated against the DUT's own T_IFS, and a deviation of 2 µs
-cannot be told from that calibration.
+cannot be told from that calibration. The connection event half is written, with that caveat in its
+comment; the scan request half waits for the answer's delay to become a parameter.
 
 ## Connection events
 
 Every test starts with the DUT advertising: the tester places its first connection event from that
-advertising (`connection_event`), after both switched to the connection's access address. The tester's
-program is loaded before the run, so its SN, NESN and MD bits are what the test expects the flow to
-be; a host side model of the central builds them, and a DUT that deviates shows in the replies the
-tester captured. Encryption is left for a later batch.
+advertising (`connection_event`), after both switched to the connection's access address. The
+tester's program is loaded before the run, so its SN, NESN and MD bits are what the test expects the
+flow to be; a host side model of the central builds them, and a DUT that deviates shows in the
+replies the tester captured. Encryption is left for a later batch. Written out so far, in
+radio_tests/connection_tests.cpp: one PDU each way, a row of events over changing channels, data
+queued before the start and from a callback, the central's MD, and T_IFS at its edges.
 
 Several entries look at the same behaviour from different sides, the MD flag or a CRC error as an
 end of the event and as a flag of `connection_event_events`, for example. Such a behaviour gets one
@@ -215,12 +218,11 @@ does the per-test reset.
 
 ## What writing these tests revealed
 
-**The connection event tests cannot be written yet.** In the interface the implementation asks
-its callbacks for a PDU buffer, and the rig interface says nothing about how the host puts a PDU
-into that buffer or reads what was received into it. Scheduling a connection event is
-expressible; saying what should be transmitted in it is not. The rig needs a way to set the
-outgoing PDUs and to read the incoming ones, and it should be described in the same terms as
-the buffer the implementation is handed, not invented separately.
+**The connection event tests could not be written at first.** In the interface the implementation
+asks its callbacks for a PDU buffer, and the rig interface said nothing about how the host puts a PDU
+into that buffer or reads what was received into it. The rig now does both in the terms of that
+buffer: `queue_pdu` fills it, from a step or before the start, and `collect_received` hands over
+what the link layer's side of it read.
 
 **The timer cannot be measured, only checked for consistency.** `schedule_timer` produces
 nothing the tester can observe, so the only witness to when the callback happened is the DUT's
@@ -242,4 +244,6 @@ has to state.
 without any origin on the tester. A test in which the tester has to hit a window the DUT opened
 cannot, because the window is expressed in the DUT's domain and the tester has no clock origin
 of its own that a test could use. The tester needs an operation whose time is relative to a PDU
-it received, so that the DUT can mark the origin on air and the tester can count from there.
+it received, so that the DUT can mark the origin on air and the tester can count from there. A
+connection event counts from the PDU captured last for the first event, and from its own anchor
+for every later one.

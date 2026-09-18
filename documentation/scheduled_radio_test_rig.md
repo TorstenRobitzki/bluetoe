@@ -310,13 +310,14 @@ On the device under test a step is "on this callback, make these calls", with ev
 relative to the time that callback carried. The rig executes the step inside the callback, and
 records the callback, the calls it made with their resolved arguments, and their return values. On
 the tester a step is one of its operations, run from the moment the previous one ended until what it
-waits for has happened: a stated number of PDUs, or for an answer the reply to it, or, for an
-operation that waits for nothing, its window. The window bounds every operation; one that waited for
-PDUs that did not come times out and ends the program, since what follows would wait in vain as well,
-and the host reports which operation that was. Nothing on the tester is placed at a point in time:
-the tester has no origin that means anything to a test, and the origin of the device under test only
-becomes visible to it when a PDU arrives, so an operation that has to transmit at a particular moment
-is expressed relative to a received PDU.
+waits for has happened: a stated number of PDUs, for an answer the reply to it, for a connection
+event the reply to its last PDU, or, for an operation that waits for nothing, its window. The window
+bounds every operation; one that waited for PDUs that did not come times out and ends the program,
+since what follows would wait in vain as well, and the host reports which operation that was.
+Nothing on the tester is placed at a point in time: the tester has no origin that means anything to
+a test, and the origin of the device under test only becomes visible to it when a PDU arrives, so an
+operation that has to transmit at a particular moment is expressed relative to a received PDU, or to
+the anchor of the connection event before it, which the tester placed itself (decision 27).
 
 The order in which the host does this is fixed: reset the device under test, wait until it reports
 `radio_ready`, load the tester's program, load the device's program, start the tester, start the
@@ -724,7 +725,8 @@ shared shape where it is not.
 
 What the tester is, as an instrument, follows from what it is for. It holds no protocol state: it
 transmits when it is told to, receives when it is told to, and reports what it saw and when. The
-one thing it does on its own is answer a received PDU after the inter frame space, because no host
+one thing it does on its own is keep the inter frame space: it answers a received PDU, or sends the
+next PDU of a connection event, one inter frame space after the device's PDU ended, because no host
 can meet that deadline. That is the whole vocabulary for testing a radio, because a radio has no
 protocol state either; testing a link layer over the air later will need the tester to hold a
 connection, which means adding to this vocabulary rather than moving the tests into the tester.
@@ -732,8 +734,9 @@ Its program is a sequence of operations, each run from the moment the previous o
 received what it waits for or its window closed (decision 14), and none of them placed at a point in
 time: the tester has no origin that means anything to a test, and the device's origin becomes
 visible to it only when a PDU arrives, so an operation that has to transmit at a particular moment
-is expressed relative to a received PDU. Likewise its clock is not a function the host can call:
-every time the host sees is attached to something that was observed (decision 24).
+is expressed relative to a received PDU, or to the anchor of the connection event before it.
+Likewise its clock is not a function the host can call: every time the host sees is attached to
+something that was observed (decision 24).
 
 **Rejected:** a `tester_rigs/` project on the pattern of `dut_rigs/`, with the CMake both had in
 common factored into a shared file, which is what the first cut did. It framed the tester as a
@@ -831,7 +834,50 @@ The tester answers differently. It stays on the fast ramp up, so that its receiv
 hear the reply to its own answer, and starts its transmitter by a timer compare set in the END
 interrupt, one ramp up before the inter frame space after the received packet; the interrupt has more
 than a hundred microseconds for that, and an answer whose compare is already past is given up rather
-than sent late. A timer also leaves the delay open to be a parameter.
+than sent late. A timer also leaves the delay open to be a parameter, which a connection event makes
+it (decision 27).
+
+## 27. A connection event of the tester is a script, run from the radio's interrupts
+
+In a connection test the tester is the central: it sends the first PDU of every event at the event's
+anchor, one connection interval after the anchor before, and each further PDU of the event one inter
+frame space after the device's reply ended. Two choices follow from that.
+
+The tester does not react to what the device sends. A test builds the PDUs of an event on the host
+with the central model (`host/central.hpp`), with the SN, NESN and MD bits of the flow the test
+expects, and `reply_to()` builds the reply the device should send to each. A device that deviates
+shows in the replies the tester captured, which is what the test observes; a tester that kept the
+sequence numbers itself would follow a deviating device and hide the deviation.
+
+The operation is `connection_event`: up to four PDUs on one channel, the first with its first bit
+`delay` after the previous event's anchor, or, for the first event, after the PDU captured last,
+which is the advertising the connection starts from. Every further PDU follows the device's reply
+after a T_IFS the test gives, 150 µs unless it moves it to the edges of the ±2 µs the Core
+Specification allows. The operation ends with the reply to its last PDU. It replaced `transmit`,
+which placed one PDU from the PDU captured last and is an event of one PDU.
+
+That the main loop cannot place a PDU 150 µs after a reception suggested moving the program
+interpreter into interrupt context. It was not needed. The platform already arms the transmissions
+that have a deadline from its interrupts (decision 26), so it runs the whole event there, and the
+interpreter only starts the next event before its anchor, milliseconds later. A timer compare starts
+the transmitter through PPI; the transmitter's READY adds the short from DISABLED to RXEN, so that
+the receiver for the reply follows the PDU; the reply's END arms the next PDU. The short waits for
+READY because the radio is still disabling after a reply when the next PDU is armed, and the short
+would start the receiver instead of waiting for the compare.
+
+On the device a step fills the PDU buffer with `queue_pdu`, as a link layer does from its callbacks,
+so that data goes out in a later event; `queue_device_pdus()` fills it before the start.
+
+The first tests with more than one PDU in an event found the device's radio closing every event
+after the first exchange: the address of its own answer switched the address interrupt off, and the
+central's next PDU went unanswered. No earlier test sent a second PDU.
+
+The limits come from the wire. A request carries at most 255 bytes, which holds an operation with
+four PDUs of 39 bytes, and a device step of two calls. A program holds 16 operations and 16 steps,
+about a dozen connection events per test.
+
+**Rejected:** running the program interpreter in interrupt context, as above; and a tester that
+keeps the connection's sequence numbers itself.
 
 ## Changes once the new interface is in use
 
@@ -858,9 +904,10 @@ while the rig finds it:
   the device's TIFS (decision 24), so an inter frame space it measures on that device is correct by
   construction. Checking it against a known good device or against a sniffer has to happen before
   the first timing assertion is believed; decision 11 places it there, and defers the how.
-- Whether the tester's answer is placed at a variable delay. It is started by a timer compare
-  (decision 26), so the delay can become a parameter of the answer operation when a test that answers
-  early or late, to find the edges of the device's receive window, is written.
+- Whether the tester's answer to an advertising is placed at a variable delay, as the PDUs of a
+  connection event already are (decision 27). It is started by a timer compare (decision 26), so the
+  delay can become a parameter of the answer operation when a test that answers early or late, to
+  find the edges of the device's receive window, is written.
 - Two scan request cases the tester cannot produce yet: a second request within the same advertising
   event, since the tester answers once per operation, and a request with a CRC error, since its radio
   always sends a valid CRC.

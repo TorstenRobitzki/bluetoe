@@ -3,7 +3,7 @@
 The tester is one firmware for one board: the rig of `instrument/tester_rig.hpp`, the UART, and
 what else the tester needs from the board, today the reset line to the device under test.
 `documentation/scheduled_radio_test_rig.md`, decisions 4 and 23, say what it is for and why it is
-laid out like this; its radio follows with decision 11, step 3.
+laid out like this; decisions 24 to 27 describe its radio.
 
 It runs on an nRF52840-DK, PCA10056, next to the device under test. This is a firmware project on
 `platforms/` for the toolchain, the startup code and the flash target; the board is preset, so only
@@ -46,5 +46,5 @@ Tests that need the tester are skipped without it. See `../radio_tests/README.md
 | file | contents |
 |---|---|
 | `tester.cpp` | the tester's rig on its board, and `main()` |
-| `platform.hpp`, `platform.cpp` | the reset line and the idling, on the nRF52 development kits |
+| `platform.hpp`, `platform.cpp` | the reset line, the idling, and the radio: receptions, answers and connection events, on the nRF52 development kits |
 | `../nrf52/uart.hpp`, `uart.cpp` | the serial port, shared with the devices under test |
