@@ -588,6 +588,9 @@ namespace test_rig {
             case call_kind::set_access_address_and_crc_init:
                 radio_t::set_access_address_and_crc_init( what.access_address, what.crc_init );
                 break;
+            case call_kind::queue_pdu:
+                entry.result = queue_pdu( what.transmit );
+                break;
             }
 
             add_record( entry );

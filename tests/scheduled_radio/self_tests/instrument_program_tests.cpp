@@ -624,6 +624,28 @@ BOOST_FIXTURE_TEST_CASE( a_queued_pdu_reaches_the_radio, fixture )
     BOOST_TEST( std::vector< std::uint8_t >( transmit.buffer + 1, transmit.buffer + transmit.size ) == std::vector< std::uint8_t >( data + 1, data + sizeof( data ) ), boost::test_tools::per_element() );
 }
 
+// what a link layer does from its callback: fill the buffer for the next event
+BOOST_FIXTURE_TEST_CASE( a_step_queues_a_pdu, fixture )
+{
+    const std::uint8_t data[] = { 0x02, 0x03, 0x0a, 0x0b, 0x0c };
+
+    const step program[] = {
+        on( callback_kind::start, call{ .kind = call_kind::queue_pdu, .transmit = pdu( data ) } ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    const auto transmit = rig.link_layer_pdu_buffer().next_transmit();
+
+    BOOST_REQUIRE_EQUAL( transmit.size, sizeof( data ) );
+    BOOST_TEST( std::vector< std::uint8_t >( transmit.buffer + 1, transmit.buffer + transmit.size ) == std::vector< std::uint8_t >( data + 1, data + sizeof( data ) ), boost::test_tools::per_element() );
+
+    const auto records = collect_all();
+
+    BOOST_REQUIRE_EQUAL( records.size(), 1u );
+    BOOST_CHECK( records[ 0 ].call == call_kind::queue_pdu );
+    BOOST_CHECK( records[ 0 ].result );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_full_buffer_refuses_a_queued_pdu, fixture )
 {
     const std::array< std::uint8_t, 29 > largest = { 0x02, 27 };

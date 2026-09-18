@@ -59,7 +59,8 @@ namespace test_rig {
         cancel_timer,
         set_local_address,
         set_access_address_and_crc_init,
-        schedule_connection_event
+        schedule_connection_event,
+        queue_pdu
     };
 
     /**
@@ -67,8 +68,9 @@ namespace test_rig {
      *
      * `delay` is added to the time the triggering callback carried, and so is `end_delay`,
      * the end of a connection event's receive window; `transmit` and
-     * `response` are the advertising PDU and the scan response of an advertising event;
-     * `address`, `access_address` and `crc_init` are what the two setup calls set.
+     * `response` are the advertising PDU and the scan response of an advertising event, and
+     * `transmit` the data channel PDU a queue_pdu puts into the PDU buffer, as the link layer
+     * would; `address`, `access_address` and `crc_init` are what the two setup calls set.
      */
     struct call
     {
