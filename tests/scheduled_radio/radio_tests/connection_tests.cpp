@@ -734,3 +734,162 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_without_room_in_the_buffer_is_refused_until_the_b
 
     BOOST_CHECK( stored == expected );
 }
+
+/*
+ * A connection event cancelled in the step that scheduled it: the cancel is in time, the tester's
+ * PDU in the window finds no receiver, and nothing is reported.
+ */
+BOOST_FIXTURE_TEST_CASE( a_connection_event_cancelled_in_time_is_not_held, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ),
+            cancel_radio_event() ) } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ) } );
+
+    const auto records = device_records();
+
+    check_callbacks( records, { adv_timeout } );
+
+    BOOST_CHECK( the_only( calls_of( records, call_kind::schedule_connection_event ) ).result );
+    BOOST_CHECK( the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+}
+
+/*
+ * The same, cancelled from a timer halfway between the step that scheduled the event and its
+ * start: still in time, and nothing is reported.
+ */
+BOOST_FIXTURE_TEST_CASE( a_connection_event_cancelled_in_time_from_a_timer_is_not_held, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ),
+            schedule_timer( event_start / 2 ) ),
+        on_user_timer(
+            cancel_radio_event() ) } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ) } );
+
+    const auto records = device_records();
+
+    check_callbacks( records, { adv_timeout, user_timer } );
+
+    BOOST_CHECK( the_only( calls_of( records, call_kind::schedule_connection_event ) ).result );
+    BOOST_CHECK( the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+}
+
+/*
+ * The timer expires at the event's start, when the receiver ramps up already: the cancel is
+ * refused, and the event goes on and is reported.
+ */
+BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_connection_event_proceed, connection_fixture, *if_tester )
+{
+    constexpr auto timer_delay = 10ms;
+
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_timer( timer_delay ) ),
+        on_user_timer(
+            schedule_connection_event( data_channel, event_start - timer_delay, event_start - timer_delay + receive_window ),
+            schedule_timer( event_start - timer_delay ) ),
+        on_user_timer(
+            cancel_radio_event() ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),
+        received( reply_to( first ) ) } );
+
+    const auto records = device_records();
+
+    check_callbacks( records, { adv_timeout, user_timer, user_timer, connection_end_event{} } );
+
+    BOOST_CHECK( !the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+}
+
+// once connection_end_event() was delivered, nothing is pending
+BOOST_FIXTURE_TEST_CASE( cancelling_after_the_connection_event_ended_is_refused, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            cancel_radio_event() ) } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),
+        received( reply_to( first ) ) } );
+
+    const auto records = device_records();
+
+    check_callbacks( records, { adv_timeout, connection_end_event{} } );
+
+    BOOST_CHECK( !the_only( calls_of( records, call_kind::cancel_radio_event ) ).result );
+}
