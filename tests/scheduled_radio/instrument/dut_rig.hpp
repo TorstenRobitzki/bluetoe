@@ -519,12 +519,6 @@ namespace test_rig {
             using base_t::received;
             using base_t::next_transmit;
 
-            // forwarded, as a private overload of the same name rules out a using-declaration
-            link_layer::write_buffer acknowledge( link_layer::read_buffer pdu )
-            {
-                return base_t::acknowledge( pdu );
-            }
-
             void increment_receive_packet_counter() {}
             void increment_transmit_packet_counter() {}
         };

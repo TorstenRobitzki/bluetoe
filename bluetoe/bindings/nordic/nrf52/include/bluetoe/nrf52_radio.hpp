@@ -173,7 +173,6 @@ namespace bluetoe
             {
                 link_layer::read_buffer  ( *allocate_receive_buffer )( radio_base* );
                 link_layer::write_buffer ( *received )( radio_base*, link_layer::read_buffer );
-                link_layer::write_buffer ( *acknowledge )( radio_base*, link_layer::read_buffer );
                 link_layer::write_buffer ( *next_transmit )( radio_base* );
                 bool                     ( *pending_outgoing_data_available )( radio_base* );
             };
@@ -365,7 +364,6 @@ namespace bluetoe
                     radio_base::set_pdu_buffer_access( {
                         .allocate_receive_buffer         = []( radio_base* base ) { return buffer( base ).allocate_receive_buffer(); },
                         .received                        = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).received( pdu ); },
-                        .acknowledge                     = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).acknowledge( pdu ); },
                         .next_transmit                   = []( radio_base* base ) { return buffer( base ).next_transmit(); },
                         .pending_outgoing_data_available = []( radio_base* base ) { return buffer( base ).pending_outgoing_data_available(); } } );
                 }

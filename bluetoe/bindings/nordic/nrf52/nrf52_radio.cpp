@@ -867,8 +867,9 @@ namespace bluetoe
          * The end of a packet of a connection event.
          *
          * A received packet is answered from the buffer: a PDU with a valid CRC goes into it,
-         * and the answer acknowledges it; one with an invalid CRC gets the answer without an
-         * acknowledgement, and the second in a row cancels the transmitter and closes the event.
+         * and the answer acknowledges it; one the buffer had no room for, and one with an invalid
+         * CRC, get the answer without an acknowledgement, and the second invalid CRC in a row
+         * cancels the transmitter and closes the event.
          * The transmitter is already on its way, armed at the address, and TIFS places it.
          *
          * The end of the answer decides what follows it: with more data on either side the
@@ -920,15 +921,22 @@ namespace bluetoe
             {
                 crc_errors_in_a_row_ = 0;
 
-                if ( unacknowledged_ && static_cast< bool >( header & nesn_mask ) != unacknowledged_sn_ )
-                    unacknowledged_ = false;
-
                 connection_events_.last_received_not_empty     = payload_size != 0;
                 connection_events_.last_received_had_more_data = header & md_mask;
 
-                answer = into_scratch_
-                    ? buffer_.acknowledge( this, reception_ )
-                    : buffer_.received( this, reception_ );
+                // without room nothing is taken from the PDU, not even its acknowledgement, so
+                // the PDU sent before goes out again unchanged
+                if ( into_scratch_ )
+                {
+                    answer = buffer_.next_transmit( this );
+                }
+                else
+                {
+                    if ( unacknowledged_ && static_cast< bool >( header & nesn_mask ) != unacknowledged_sn_ )
+                        unacknowledged_ = false;
+
+                    answer = buffer_.received( this, reception_ );
+                }
             }
             else
             {
