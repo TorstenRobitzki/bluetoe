@@ -73,6 +73,14 @@ namespace test_rig {
     /** @} */
 
     /**
+     * @brief the device's reply to the central's `sent` in the normal flow: it acknowledges
+     *        `sent` and is new to the central
+     */
+    std::vector< std::uint8_t > reply_to(
+        std::span< const std::uint8_t > sent, std::span< const std::uint8_t > payload = {},
+        bool more_data = false, llid kind = llid::continuation );
+
+    /**
      * @brief whether the device's `reply` acknowledges the central's `sent`: its NESN is the SN
      *        after the one `sent` carried
      */

@@ -101,3 +101,39 @@ BOOST_AUTO_TEST_CASE( a_reply_is_new_when_its_sn_is_the_one_expected )
     BOOST_CHECK( is_new( reply( true, false ), second ) );
     BOOST_CHECK( !is_new( reply( false, false ), second ) );
 }
+
+// the reply acknowledges what was sent and is new: NESN the SN after the central's, SN its NESN
+BOOST_AUTO_TEST_CASE( the_reply_to_a_pdu_acknowledges_it_and_is_new )
+{
+    central c;
+    const auto first  = c.send();
+    const auto second = c.send();
+
+    const std::vector< std::uint8_t > to_first  = { 0x01 | 0x04, 0 };
+    const std::vector< std::uint8_t > to_second = { 0x01 | 0x08, 0 };
+
+    BOOST_CHECK( reply_to( first ) == to_first );
+    BOOST_CHECK( reply_to( second ) == to_second );
+}
+
+BOOST_AUTO_TEST_CASE( a_reply_carries_its_llid_payload_and_more_data )
+{
+    central c;
+    const auto sent = c.send();
+
+    const std::vector< std::uint8_t > expected = { 0x02 | 0x04 | 0x10, 3, 1, 2, 3 };
+    BOOST_CHECK( reply_to( sent, payload, true, llid::start ) == expected );
+}
+
+// what reply_to() builds is what acknowledges() and is_new() accept
+BOOST_AUTO_TEST_CASE( a_reply_built_for_a_pdu_passes_both_checks )
+{
+    central c;
+    c.send();
+    const auto sent  = c.send( payload );
+    const auto bytes = reply_to( sent );
+    const auto entry = captured_pdu{ .direction = pdu_direction::received, .when = {}, .crc_ok = true, .data = pdu( bytes ) };
+
+    BOOST_CHECK( acknowledges( entry, sent ) );
+    BOOST_CHECK( is_new( entry, sent ) );
+}
