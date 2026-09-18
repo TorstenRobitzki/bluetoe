@@ -74,11 +74,28 @@ namespace bluetoe
             constexpr std::uint32_t response_window_us      = inter_frame_space_us + longest_response_us + 50;
 
             /*
+             * The preamble and the access address at 1 Mbit.
+             */
+            constexpr std::uint32_t preamble_and_access_address_us = ( 1 + 4 ) * 8;
+
+            /*
+             * How long a connection event's receive window stays open after `end`, so that a
+             * packet whose first bit was on air by `end` is received: its preamble and access
+             * address, the receiver's address detection, which the tester measured at 10.75 µs
+             * on this radio, and the time the address interrupt takes to stop the window's
+             * compare. A packet that begins a few microseconds after `end` may be received too.
+             */
+            constexpr std::uint32_t address_detection_us            = 11;
+            constexpr std::uint32_t address_interrupt_us            = 5;
+            constexpr std::uint32_t address_of_a_packet_at_end_us   =
+                preamble_and_access_address_us + address_detection_us + address_interrupt_us;
+
+            /*
              * The receive window after an answer in a connection event: the inter frame space,
              * the preamble and access address of the next PDU, and a margin. Its address event
              * ends the window.
              */
-            constexpr std::uint32_t connection_answer_window_us = inter_frame_space_us + ( 1 + 4 ) * 8 + 50;
+            constexpr std::uint32_t connection_answer_window_us = inter_frame_space_us + preamble_and_access_address_us + 50;
 
             /*
              * The header bits of a data channel PDU the radio reads.
@@ -465,8 +482,9 @@ namespace bluetoe
 
         /*
          * The receiver starts when TIMER0 reaches compare 0, a ramp up before `start`, and
-         * compare 1 disables it at `end` if no packet began by then. From there the event runs
-         * in the interrupts, like an advertising event; see on_connection_packet_end().
+         * compare 1 disables it if no packet began by `end`: a packet that began by then has its
+         * address received before the compare, and the address interrupt stops it. From there the
+         * event runs in the interrupts, like an advertising event; see on_connection_packet_end().
          */
         bool radio_base::schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end )
         {
@@ -503,7 +521,7 @@ namespace bluetoe
             NRF_TIMER0->EVENTS_COMPARE[ cc_start ]      = 0;
             NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
             NRF_TIMER0->CC[ cc_start ]                  = start.data() - ramp_up_us;
-            NRF_TIMER0->CC[ cc_window_end ]             = end.data();
+            NRF_TIMER0->CC[ cc_window_end ]             = end.data() + address_of_a_packet_at_end_us;
 
             NRF_PPI->CHENCLR = ppi_compare0_txen;
             NRF_PPI->CHENSET = ppi_compare0_rxen | ppi_compare1_disable | ppi_end_capture2;
