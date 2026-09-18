@@ -38,6 +38,9 @@ namespace {
     constexpr std::uint32_t connection_crc_init       = 0x7a8f23;
     constexpr std::uint32_t data_channel              = 5;
 
+    // an access address of another connection
+    constexpr std::uint32_t other_access_address      = 0x2f6c9d31;
+
     // the connection event starts this long after the advertising, and receives until
     // `receive_window` later without a reception
     constexpr auto event_start    = 50ms;
@@ -48,6 +51,90 @@ namespace {
     constexpr auto first_pdu_after_advertising = event_start + 500us;
 
     const std::uint8_t some_data[] = { 0x01, 0x02, 0x03 };
+
+
+    /*
+     * The central's first PDU has its first bit on air `at` after the advertising, which the
+     * device's event is placed from as well: the device answers it, and the event ends with its
+     * anchor there.
+     */
+    void a_pdu_is_received( connection_fixture& rig, std::chrono::microseconds at )
+    {
+        const auto advertisement = advertising( 6, 0x01 );
+
+        central tester_side;
+        const auto first = tester_side.send();
+
+        rig.program_device( {
+            on_start(
+                start_advertising( 37, advertisement ) ),
+            on_adv_timeout(
+                set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+                schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+            on_connection_end_event() } );
+
+        rig.program_tester( {
+            receive( 37, 1, operation_timeout ),
+            use_access_address( connection_access_address, connection_crc_init ),
+            connection_event( data_channel, at, { first } ) } );
+
+        rig.run();
+
+        rig.check_captured( {
+            received( advertisement ),
+            sent( first ),
+            received( reply_to( first ) ) } );
+
+        const auto records = rig.device_records();
+
+        check_callbacks( records, { adv_timeout, connection_end_event{} } );
+
+        const auto advertising_end = the_only( callbacks_of( records, adv_timeout ) );
+        const auto end             = the_only( callbacks_of( records, callback_kind::connection_end_event ) );
+
+        BOOST_CHECK_LE( std::chrono::abs( time_between( advertising_end, end ) - at ), tolerance );
+    }
+
+    /*
+     * The same PDU where the device must not receive it, outside its receive window or on an
+     * access address other than the connection's: the device does not answer, and the event
+     * ends with connection_timeout() carrying `end`.
+     */
+    void a_pdu_is_not_received( connection_fixture& rig, std::chrono::microseconds at, std::uint32_t access_address )
+    {
+        const auto advertisement = advertising( 6, 0x01 );
+
+        central tester_side;
+        const auto first = tester_side.send();
+
+        rig.program_device( {
+            on_start(
+                start_advertising( 37, advertisement ) ),
+            on_adv_timeout(
+                set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+                schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+            on_connection_timeout() } );
+
+        rig.program_tester( {
+            receive( 37, 1, operation_timeout ),
+            use_access_address( access_address, connection_crc_init ),
+            connection_event( data_channel, at, { first } ) } );
+
+        rig.run();
+
+        rig.check_captured( {
+            received( advertisement ),
+            sent( first ) } );
+
+        const auto records = rig.device_records();
+
+        check_callbacks( records, { adv_timeout, connection_timeout } );
+
+        const auto advertising_end = the_only( callbacks_of( records, adv_timeout ) );
+        const auto timeout         = the_only( callbacks_of( records, connection_timeout ) );
+
+        BOOST_CHECK_EQUAL( time_between( advertising_end, timeout ), std::chrono::microseconds( event_start + receive_window ) );
+    }
 
     // `size` bytes, each one different, so that a byte out of place shows
     std::vector< std::uint8_t > payload_of( std::size_t size )
@@ -442,4 +529,35 @@ BOOST_FIXTURE_TEST_CASE( a_middle_sized_data_pdu_of_the_device_is_sent, connecti
 BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
 {
     a_data_pdu_of_the_device_is_sent( *this, 27 );
+}
+
+/*
+ * The edges of the device's receive window, from `start` to `end` of the event: a PDU is received
+ * if its first bit is on air between them. The margin of 20 µs covers the drift of two stock
+ * crystals over the 50 ms both sides place the event from the advertising.
+ */
+BOOST_FIXTURE_TEST_CASE( a_pdu_before_the_receive_window_is_not_received, connection_fixture, *if_tester )
+{
+    a_pdu_is_not_received( *this, event_start - 200us, connection_access_address );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_pdu_just_after_the_receive_window_opened_is_received, connection_fixture, *if_tester )
+{
+    a_pdu_is_received( *this, event_start + 20us );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_pdu_just_before_the_receive_window_closes_is_received, connection_fixture, *if_tester )
+{
+    a_pdu_is_received( *this, event_start + receive_window - 20us );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_pdu_after_the_receive_window_closed_is_not_received, connection_fixture, *if_tester )
+{
+    a_pdu_is_not_received( *this, event_start + receive_window + 100us, connection_access_address );
+}
+
+// the window's end must not make a reception of what it does not match
+BOOST_FIXTURE_TEST_CASE( a_pdu_on_another_access_address_is_not_received, connection_fixture, *if_tester )
+{
+    a_pdu_is_not_received( *this, first_pdu_after_advertising, other_access_address );
 }

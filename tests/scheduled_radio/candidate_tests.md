@@ -125,7 +125,10 @@ One test for every end the interface names:
 ### Errors
 
 **The receive window.** A first PDU from the tester before `start` and after `end` is not received;
-one just after `start` and one near `end` are.
+one just after `start` and one near `end` are. A PDU is received if its first bit is on air between
+the two, so a radio keeps listening after `end` for the address of a PDU that began by then; a PDU
+on another access address in the middle of the window is not received. Written, 20 µs inside each
+edge and well outside them.
 
 **PDUs with an invalid CRC.** The tester transmits with another CRC init than the DUT uses. Expect a
 negative acknowledgement to the first (LL/CON/PER/BV-15-C) and the end of the event after the second
