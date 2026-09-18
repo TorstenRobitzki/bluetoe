@@ -133,7 +133,8 @@ edge and well outside them.
 **PDUs with an invalid CRC.** The tester transmits with another CRC init than the DUT uses. Expect a
 negative acknowledgement to the first (LL/CON/PER/BV-15-C) and the end of the event after the second
 in a row. Needs a CRC init for the transmission alone, or the reply is received with the wrong one
-as well.
+as well. Written, with `with_crc_error()` marking a PDU of `connection_event`, and a third test for
+errors that are not in a row.
 
 **A full receive buffer.** A PDU the DUT's buffer has no room for is not acknowledged, and the event
 goes on: the tester's retransmission is acknowledged in a later event, once the buffer was drained.

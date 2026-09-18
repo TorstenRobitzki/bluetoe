@@ -561,3 +561,110 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_on_another_access_address_is_not_received, connec
 {
     a_pdu_is_not_received( *this, first_pdu_after_advertising, other_access_address );
 }
+
+/*
+ * A PDU with an invalid CRC is answered, but not acknowledged (LL/CON/PER/BV-15-C), and the
+ * event goes on, as the PDU's MD bit is unknown; its retransmission is acknowledged. The event
+ * reports the error.
+ */
+BOOST_FIXTURE_TEST_CASE( a_pdu_with_an_invalid_crc_is_not_acknowledged, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.resend();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { with_crc_error( first ), second } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ).with_crc_error(), received( nack_reply() ),
+        sent( second ),                 received( reply_to( second ) ) } );
+
+    check_callbacks( device_records(), { adv_timeout, connection_end_event{ .error_occured = true } } );
+}
+
+// the second PDU in a row with an invalid CRC is not answered, and the event ends
+BOOST_FIXTURE_TEST_CASE( a_second_invalid_crc_in_a_row_ends_the_event_without_an_answer, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.resend();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { with_crc_error( first ), with_crc_error( second ) } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ).with_crc_error(), received( nack_reply() ),
+        sent( second ).with_crc_error() } );
+
+    check_callbacks( device_records(), { adv_timeout, connection_end_event{ .error_occured = true } } );
+}
+
+/*
+ * Invalid CRCs that are not in a row are answered each: the valid PDU between them, with MD set to
+ * keep the event going, resets the count. The last answer repeats the reply to that valid PDU,
+ * as the acknowledgement of the invalid one did not reach the device.
+ */
+BOOST_FIXTURE_TEST_CASE( invalid_crcs_that_are_not_in_a_row_are_answered, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send( {}, more_data );
+    const auto second = tester_side.resend();
+    const auto third  = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { with_crc_error( first ), second, with_crc_error( third ) } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ).with_crc_error(), received( nack_reply() ),
+        sent( second ),                 received( reply_to( second ) ),
+        sent( third ).with_crc_error(), received( nack_reply( second ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout, connection_end_event{ .last_received_had_more_data = true, .error_occured = true } } );
+}
