@@ -1196,3 +1196,46 @@ BOOST_FIXTURE_TEST_CASE( unacknowledged_data_of_one_connection_is_not_reported_f
         connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
         connection_end_event{} } );
 }
+
+/*
+ * The device changes the access address and CRC init between two events, and the tester follows:
+ * the second event is received and answered on the new ones, which a device still on the old
+ * address would not do.
+ */
+BOOST_FIXTURE_TEST_CASE( the_access_address_can_be_changed_between_events, connection_fixture, *if_tester )
+{
+    constexpr std::uint32_t new_crc_init = 0x3c5a96;
+
+    const auto advertisement = advertising( 6, 0x01 );
+
+    central tester_side;
+    const auto first  = tester_side.send();
+    const auto second = tester_side.send();
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            set_access_address_and_crc_init( other_access_address, new_crc_init ),
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { first } ),
+        use_access_address( other_access_address, new_crc_init ),
+        connection_event( data_channel, interval, { second } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( first ),  received( reply_to( first ) ),
+        sent( second ), received( reply_to( second ) ) } );
+
+    check_callbacks( device_records(), { adv_timeout, connection_end_event{}, connection_end_event{} } );
+}

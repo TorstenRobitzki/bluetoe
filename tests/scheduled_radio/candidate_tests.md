@@ -103,8 +103,7 @@ DUT listening; the DUT's MD set, with more queued, keeps the event going while t
 **The channel changes.** Two connection events on different data channels, the tester following.
 
 **The access address is used and can be changed.** A tester on the connection's access address gets
-answers, one on another address none; after the DUT switches, the tester follows. The switch is not
-written yet.
+answers, one on another address none; after the DUT switches, the tester follows.
 
 **2 Mbit.** Sending and receiving at 2 Mbit, on a DUT that supports it. Not written: needs 2 Mbit in
 the tester and in the DUT's radio.
