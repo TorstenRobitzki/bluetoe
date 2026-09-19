@@ -201,7 +201,8 @@ namespace link_layer {
 
         /*
          * A connection event took place. `when` is the time the event started, that is
-         * the anchor the next event is computed from.
+         * the anchor the next event is computed from; `events` describe this event alone,
+         * as the next may be another connection's.
          */
         callbacks.connection_end_event( when, events );
 
