@@ -76,6 +76,11 @@ namespace test_rig {
     constexpr std::size_t pdu_buffer_size = 4 * 29;
 
     /**
+     * @brief the PDU buffers of the rig, one for each connection a test runs on the radio
+     */
+    constexpr std::size_t pdu_buffers = 2;
+
+    /**
      * @brief how many PDUs of the largest payload without data length extension the receive
      *        side of the PDU buffer holds before it has no room
      */
@@ -246,10 +251,12 @@ namespace test_rig {
 
         /**
          * @brief the PDU buffer of connection events, radio context
+         *
+         * The active one of the rig's buffers, which a program switches between events.
          */
         auto& link_layer_pdu_buffer()
         {
-            return pdu_buffer_;
+            return pdu_buffers_[ active_buffer_ ];
         }
 
         /**
@@ -386,19 +393,20 @@ namespace test_rig {
         /**
          * @brief queues a PDU for transmission in a connection event
          *
-         * `data` is a data channel PDU; its SN and NESN bits are the buffer's to set. False, and
-         * nothing queued, if the buffer has no room for it. The reset before every test empties
-         * the buffer.
+         * `data` is a data channel PDU; its SN and NESN bits are the buffer's to set. It goes
+         * into the active buffer. False, and nothing queued, if the buffer has no room for it.
+         * The reset before every test empties the buffers.
          */
         bool queue_pdu( const pdu& data )
         {
-            link_layer::read_buffer room = pdu_buffer_.allocate_transmit_buffer( data.size );
+            pdu_buffer&             buffer = link_layer_pdu_buffer();
+            link_layer::read_buffer room   = buffer.allocate_transmit_buffer( data.size );
 
             if ( room.size == 0 )
                 return false;
 
             std::copy( data.data.begin(), data.data.begin() + data.size, room.buffer );
-            pdu_buffer_.commit_transmit_buffer( room );
+            buffer.commit_transmit_buffer( room );
 
             return true;
         }
@@ -406,8 +414,8 @@ namespace test_rig {
         /**
          * @brief hands over the oldest PDUs received in connection events and forgets them
          *
-         * What a program's read_received() took out of the buffer comes first, then what is still
-         * in it.
+         * What a program's read_received() took out of the buffers comes first, then what is
+         * still in them, the first buffer before the second.
          */
         received_batch collect_received()
         {
@@ -416,11 +424,14 @@ namespace test_rig {
             for ( ; batch.count != received_per_batch && read_head_ != read_count_; ++read_head_ )
                 batch.pdus[ batch.count++ ] = read_[ read_head_ ];
 
-            for ( auto next = pdu_buffer_.next_received(); batch.count != received_per_batch && next.size != 0; next = pdu_buffer_.next_received() )
+            for ( pdu_buffer& buffer : pdu_buffers_ )
             {
-                batch.pdus[ batch.count ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
-                pdu_buffer_.free_received();
-                ++batch.count;
+                for ( auto next = buffer.next_received(); batch.count != received_per_batch && next.size != 0; next = buffer.next_received() )
+                {
+                    batch.pdus[ batch.count ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+                    buffer.free_received();
+                    ++batch.count;
+                }
             }
 
             return batch;
@@ -619,6 +630,10 @@ namespace test_rig {
             case call_kind::read_received:
                 read_received();
                 break;
+            case call_kind::switch_pdu_buffer:
+                // between events: the radio takes the buffer anew for every event
+                active_buffer_ = ( active_buffer_ + 1 ) % pdu_buffers;
+                break;
             }
 
             add_record( entry );
@@ -660,7 +675,8 @@ namespace test_rig {
         bool                                            timer_pending_          = false;
 
         std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
-        pdu_buffer                                      pdu_buffer_;
+        std::array< pdu_buffer, pdu_buffers >           pdu_buffers_;
+        std::size_t                                     active_buffer_          = 0;
 
         /*
          * Takes what the buffer received out of it, as a link layer would, so that it has room
@@ -668,12 +684,14 @@ namespace test_rig {
          */
         void read_received()
         {
-            for ( auto next = pdu_buffer_.next_received(); next.size != 0; next = pdu_buffer_.next_received() )
+            pdu_buffer& buffer = link_layer_pdu_buffer();
+
+            for ( auto next = buffer.next_received(); next.size != 0; next = buffer.next_received() )
             {
                 if ( read_count_ != read_queue_size )
                     read_[ read_count_++ ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
 
-                pdu_buffer_.free_received();
+                buffer.free_received();
             }
         }
 

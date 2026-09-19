@@ -222,6 +222,15 @@ namespace test_rig {
     {
         return call{ .kind = call_kind::read_received };
     }
+
+    /**
+     * @brief hand the radio the rig's other PDU buffer from now on, as a link layer with a second
+     *        connection would; queue_pdu() and read_received() act on the buffer handed out
+     */
+    inline call switch_pdu_buffer()
+    {
+        return call{ .kind = call_kind::switch_pdu_buffer };
+    }
     /** @} */
 
     /**

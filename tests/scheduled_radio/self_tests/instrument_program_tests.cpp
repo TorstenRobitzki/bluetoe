@@ -740,6 +740,74 @@ BOOST_FIXTURE_TEST_CASE( a_step_reads_the_received_pdus_and_the_host_collects_th
     BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
 }
 
+namespace {
+
+    const call switch_buffer{ .kind = call_kind::switch_pdu_buffer };
+
+    // the payload of the PDU the radio would send next from the buffer handed out
+    std::vector< std::uint8_t > next_payload( rig_t& rig )
+    {
+        const auto next = rig.link_layer_pdu_buffer().next_transmit();
+
+        return std::vector< std::uint8_t >( next.buffer + 2, next.buffer + next.size );
+    }
+}
+
+// as a link layer with a second connection would; the radio takes the buffer anew every event
+BOOST_FIXTURE_TEST_CASE( a_step_hands_the_radio_the_other_pdu_buffer_and_back, fixture )
+{
+    const auto* first = &rig.link_layer_pdu_buffer();
+
+    const step program[] = {
+        on( callback_kind::start,       start_advertising( 37, adv_ind ), switch_buffer ),
+        on( callback_kind::adv_timeout, switch_buffer ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_CHECK( &rig.link_layer_pdu_buffer() != first );
+
+    rig.adv_timeout( abs_time( 10000 ) );
+
+    BOOST_CHECK( &rig.link_layer_pdu_buffer() == first );
+}
+
+// the host queues into the buffer handed out, and each keeps what was queued into it
+BOOST_FIXTURE_TEST_CASE( a_queued_pdu_stays_with_its_buffer, fixture )
+{
+    const std::uint8_t first_pdu[]  = { 0x02, 0x01, 0xaa };
+    const std::uint8_t second_pdu[] = { 0x02, 0x01, 0xbb };
+
+    BOOST_REQUIRE( remote.call< &rig_t::queue_pdu >( pdu( first_pdu ) ) );
+
+    const step program[] = {
+        on( callback_kind::start,       switch_buffer ),
+        on( callback_kind::adv_timeout, switch_buffer ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_REQUIRE( remote.call< &rig_t::queue_pdu >( pdu( second_pdu ) ) );
+    BOOST_CHECK( next_payload( rig ) == std::vector< std::uint8_t >{ 0xbb } );
+
+    rig.adv_timeout( abs_time( 10000 ) );
+
+    BOOST_CHECK( next_payload( rig ) == std::vector< std::uint8_t >{ 0xaa } );
+}
+
+// what either buffer received is handed over, the first buffer's before the second's
+BOOST_FIXTURE_TEST_CASE( the_pdus_received_into_both_buffers_are_collected, fixture )
+{
+    BOOST_REQUIRE( receive_largest_pdu( rig, false ) );
+
+    const step program[] = { on( callback_kind::start, switch_buffer ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_REQUIRE( receive_largest_pdu( rig, false ) );
+
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 2u );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_full_buffer_refuses_a_queued_pdu, fixture )
 {
     const std::array< std::uint8_t, 29 > largest = { 0x02, 27 };
