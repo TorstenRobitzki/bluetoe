@@ -1149,3 +1149,50 @@ BOOST_FIXTURE_TEST_CASE( the_sequence_numbers_are_the_buffers_not_the_radios, co
     BOOST_REQUIRE_EQUAL( stored.size(), 1u );
     BOOST_CHECK( std::vector< std::uint8_t >( stored[ 0 ].data.begin(), stored[ 0 ].data.begin() + stored[ 0 ].size ) == b1 );
 }
+
+/*
+ * The flags of an event are about that event, and the next event may be another connection's:
+ * data the first connection left unacknowledged is not reported for the second, which sent none.
+ */
+BOOST_FIXTURE_TEST_CASE( unacknowledged_data_of_one_connection_is_not_reported_for_another, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+    const auto first_data    = payload_of( 5, 0x10 );
+
+    central first_connection;
+    central second_connection;
+
+    const auto a1 = first_connection.send();
+    const auto b1 = second_connection.send();
+
+    queue_device_pdus( { data_pdu( llid::start, first_data ) } );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            switch_pdu_buffer(),
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { a1 } ),
+        connection_event( data_channel, interval, { b1 } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( a1 ), received( reply_to( a1, first_data, no_more_data, llid::start ) ),
+        sent( b1 ), received( reply_to( b1 ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
+        connection_end_event{} } );
+}
