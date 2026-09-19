@@ -61,7 +61,8 @@ namespace test_rig {
         receive,
         answer,
         set_access_address_and_crc_init,
-        connection_event
+        connection_event,
+        set_phy
     };
 
     /**
@@ -72,16 +73,17 @@ namespace test_rig {
     /**
      * @brief one operation of a tester program
      *
-     * `window` is how long it runs, from the end of the previous one. A receive listens
-     * on `channel` with `phy` and queues every PDU it hears. An answer listens the same
-     * way and, the first time it hears an advertising PDU from `target`, answers it with
-     * `response` one inter frame space after the PDU ended; the answer is queued too, as
-     * a transmitted entry with the time its first bit was on air, and the operation ends
-     * with the next PDU received, the reply. `target` and `response` are unused by a
-     * receive.
+     * `window` is how long it runs, from the end of the previous one. A receive listens on
+     * `channel` with the program's PHY and queues every PDU it hears. An answer listens the
+     * same way and, the first time it hears an advertising PDU from `target`, answers it with
+     * `response` one inter frame space after the PDU ended; the answer is queued too, as a
+     * transmitted entry with the time its first bit was on air, and the operation ends with
+     * the next PDU received, the reply. `target` and `response` are unused by a receive.
      *
      * A set_access_address_and_crc_init stops the radio, sets `access_address` and `crc_init`
-     * for the operations that follow, and ends at once; it has no channel and no window.
+     * for the operations that follow, and ends at once; it has no channel and no window. A
+     * set_phy selects `phy` for the operations that follow in the same way; a program starts
+     * at 1 Mbit.
      *
      * A connection_event is one connection event on `channel`, with the tester as the central.
      * It sends the first of its `pdu_count` `pdus` so that its first bit, the event's anchor, is

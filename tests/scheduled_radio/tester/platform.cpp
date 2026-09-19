@@ -60,20 +60,32 @@ namespace test_rig {
         constexpr std::uint32_t ticks_per_us        = 16;
 
         /*
-         * The RADIO ADDRESS event fires once the preamble and the access address are on
-         * air, so the first bit of the packet was one preamble and one access address
-         * earlier: 8 + 32 bits at 1 Mbit, 40 microseconds, 640 ticks. The value only
-         * shifts the origin, which cancels in the interval a test compares, but it is the
-         * true offset for an absolute measurement such as T_IFS.
-         */
-        constexpr std::uint32_t preamble_and_access_address_ticks = 40 * ticks_per_us;
-
-        /*
+         * The timing of a packet on each PHY. The RADIO ADDRESS event fires
+         * once the preamble and the access address are on air, so the first bit of the packet
+         * was one preamble and one access address earlier: 8 + 32 bits at 1 Mbit, 40 µs, and
+         * 16 + 32 bits at 2 Mbit, 24 µs. The value only shifts the origin, which cancels in the
+         * interval a test compares, but it is the true offset for an absolute measurement such
+         * as T_IFS.
+         *
          * A received packet's ADDRESS event comes later than a transmitted one's, by the
          * receiver's address detection. Measured against the device under test's scan
-         * response, which its radio's TIFS places 150 µs after the request: 172 ticks.
+         * response, which its radio's TIFS places 150 µs after the request: 172 ticks at
+         * 1 Mbit. At 2 Mbit it is not measured yet, and the 1 Mbit value stands in.
          */
-        constexpr std::uint32_t address_detection_ticks = 172;
+        struct phy_timing
+        {
+            std::uint32_t preamble_and_access_address_ticks;
+            std::uint32_t address_detection_ticks;
+            std::uint32_t ticks_per_byte;
+        };
+
+        constexpr phy_timing le_1m_timing{ 40 * ticks_per_us, 172, 8 * ticks_per_us };
+        constexpr phy_timing le_2m_timing{ 24 * ticks_per_us, 172, 4 * ticks_per_us };
+
+        const phy_timing& timing( bool two_mbit )
+        {
+            return two_mbit ? le_2m_timing : le_1m_timing;
+        }
 
         /*
          * The inter frame space of the Core Specification, from the end of a received PDU
@@ -85,9 +97,9 @@ namespace test_rig {
 
         // the ticks from the first bit of a packet to its last: preamble, access address,
         // header, payload and CRC
-        std::uint32_t air_ticks( std::uint32_t payload_size )
+        std::uint32_t air_ticks( const phy_timing& timing, std::uint32_t payload_size )
         {
-            return ( 1 + 4 + 2 + payload_size + 3 ) * 8 * ticks_per_us;
+            return timing.preamble_and_access_address_ticks + ( 2 + payload_size + 3 ) * timing.ticks_per_byte;
         }
 
         // an answer operation disables the receiver after every packet, so that the
@@ -300,13 +312,12 @@ namespace test_rig {
 
     /*
      * Listen on the channel until the window is over, restarting the receiver after every
-     * packet so that a whole window of PDUs is caught. Only 1 Mbit is implemented; the phy
-     * is ignored until a test needs another.
+     * packet so that a whole window of PDUs is caught.
      */
-    void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
+    void platform::receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
         std::uint32_t operation_id )
     {
-        prepare( channel, ticks, operation_id );
+        prepare( channel, phy, ticks, operation_id );
 
         // start receiving when ready, sample RSSI at the address match, stay in RXIDLE after a packet
         NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_ADDRESS_RSSISTART_Msk;
@@ -314,15 +325,23 @@ namespace test_rig {
     }
 
     /*
-     * What every operation begins with: the radio stopped and set to the channel, its
-     * interrupts on, and the window running.
+     * What every operation begins with: the radio stopped and set to the channel and the
+     * PHY, its interrupts on, and the window running.
      */
-    void platform::prepare( std::uint32_t channel, std::uint64_t ticks, std::uint32_t operation_id )
+    void platform::prepare( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+        std::uint32_t operation_id )
     {
         stop();
 
         // nothing is queued while stopped, so every event from here on is this operation's
         operation_id_ = operation_id;
+
+        two_mbit_ = phy == link_layer::phy_ll_encoding::le_2m_phy;
+
+        // the preamble is one byte at 1 Mbit and two at 2 Mbit
+        NRF_RADIO->MODE  = ( two_mbit_ ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+        NRF_RADIO->PCNF0 = ( NRF_RADIO->PCNF0 & ~RADIO_PCNF0_PLEN_Msk )
+            | ( ( two_mbit_ ? RADIO_PCNF0_PLEN_16bit : RADIO_PCNF0_PLEN_8bit ) << RADIO_PCNF0_PLEN_Pos );
 
         NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
         NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
@@ -353,11 +372,11 @@ namespace test_rig {
      * sent with an invalid CRC is sent with another CRC init, which its END restores before the
      * receiver for the reply starts.
      */
-    bool platform::connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t, std::uint64_t ticks,
+    bool platform::connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
         std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
         std::uint32_t crc_errors, std::uint32_t operation_id )
     {
-        prepare( channel, ticks, operation_id );
+        prepare( channel, phy, ticks, operation_id );
 
         for ( std::uint32_t index = 0; index != count; ++index )
             std::copy( pdus[ index ].data.begin(), pdus[ index ].data.begin() + pdus[ index ].size, event_pdus_[ index ] );
@@ -455,7 +474,7 @@ namespace test_rig {
 
             const tester_happened event{
                 .kind   = tester_event::transmitted,
-                .when   = tester_time{ address - preamble_and_access_address_ticks },
+                .when   = tester_time{ address - timing( two_mbit_ ).preamble_and_access_address_ticks },
                 .data   = pdu( std::span< const std::uint8_t >( sent, size ) ),
                 .crc_ok = crc_ok,
                 .rssi   = 0 };
@@ -470,14 +489,14 @@ namespace test_rig {
         // receiver later, as it would for a stranger's advertising
         NRF_RADIO->EVENTS_DEVMISS = 0;
 
-        const std::uint32_t first_bit = address - preamble_and_access_address_ticks - address_detection_ticks;
+        const std::uint32_t first_bit = address - timing( two_mbit_ ).preamble_and_access_address_ticks - timing( two_mbit_ ).address_detection_ticks;
 
         const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
             == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
 
         // decided first, as the next PDU's deadline runs from the end of this one
         if ( event_next_ != event_count_ )
-            arm_event_transmission( first_bit + air_ticks( receive_buffer_[ 1 ] ) + event_t_ifs_ );
+            arm_event_transmission( first_bit + air_ticks( timing( two_mbit_ ), receive_buffer_[ 1 ] ) + event_t_ifs_ );
 
         const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
 
@@ -551,7 +570,7 @@ namespace test_rig {
 
             const tester_happened event{
                 .kind   = tester_event::transmitted,
-                .when   = tester_time{ address - preamble_and_access_address_ticks },
+                .when   = tester_time{ address - timing( two_mbit_ ).preamble_and_access_address_ticks },
                 .data   = pdu( std::span< const std::uint8_t >( response_buffer_, size ) ),
                 .crc_ok = true,
                 .rssi   = 0 };
@@ -562,7 +581,7 @@ namespace test_rig {
             return;
         }
 
-        const std::uint32_t first_bit = address - preamble_and_access_address_ticks - address_detection_ticks;
+        const std::uint32_t first_bit = address - timing( two_mbit_ ).preamble_and_access_address_ticks - timing( two_mbit_ ).address_detection_ticks;
 
         const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
             == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
@@ -616,7 +635,7 @@ namespace test_rig {
      */
     void platform::arm_answer( std::uint32_t first_bit )
     {
-        const std::uint32_t start = air_ticks( receive_buffer_[ 1 ] ) + ( inter_frame_space_us - fast_ramp_up_us ) * ticks_per_us;
+        const std::uint32_t start = air_ticks( timing( two_mbit_ ), receive_buffer_[ 1 ] ) + ( inter_frame_space_us - fast_ramp_up_us ) * ticks_per_us;
 
         NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( response_buffer_ );
 

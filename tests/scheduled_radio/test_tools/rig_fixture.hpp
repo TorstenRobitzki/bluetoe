@@ -275,14 +275,13 @@ namespace test_rig {
     /** @} */
 
     /**
-     * @brief a tester operation: listen on a channel for a duration, at 1 Mbit
+     * @brief a tester operation: listen on a channel for a duration
      */
     inline operation listen( std::uint32_t channel, std::chrono::nanoseconds duration )
     {
         return operation{
             .kind    = operation_kind::receive,
             .channel = channel,
-            .phy     = link_layer::phy_ll_encoding::le_1m_phy,
             .window  = as_delta_time( duration ) };
     }
 
@@ -294,7 +293,6 @@ namespace test_rig {
         return operation{
             .kind    = operation_kind::receive,
             .channel = channel,
-            .phy     = link_layer::phy_ll_encoding::le_1m_phy,
             .window  = as_delta_time( window.window ),
             .count   = count };
     }
@@ -311,10 +309,17 @@ namespace test_rig {
         return operation{
             .kind     = operation_kind::answer,
             .channel  = channel,
-            .phy      = link_layer::phy_ll_encoding::le_1m_phy,
             .window   = as_delta_time( window.window ),
             .target   = target,
             .response = pdu( response ) };
+    }
+
+    /**
+     * @brief a tester operation: use `phy` from here on; a program starts at 1 Mbit
+     */
+    inline operation use_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t phy )
+    {
+        return operation{ .kind = operation_kind::set_phy, .phy = phy };
     }
 
     /**
@@ -378,7 +383,6 @@ namespace test_rig {
         operation result{
             .kind      = operation_kind::connection_event,
             .channel   = channel,
-            .phy       = link_layer::phy_ll_encoding::le_1m_phy,
             .window    = as_delta_time( after + per_exchange * pdus.size() ),
             .delay     = as_delta_time( after ),
             .pdu_count = static_cast< std::uint8_t >( pdus.size() ),

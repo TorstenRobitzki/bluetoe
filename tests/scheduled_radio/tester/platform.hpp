@@ -85,7 +85,8 @@ namespace test_rig {
         /** @} */
 
     private:
-        void prepare( std::uint32_t channel, std::uint64_t ticks, std::uint32_t operation_id );
+        void prepare( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
+            std::uint32_t operation_id );
         void on_packet_end();
         void on_event_packet_end();
         void on_radio_ready();
@@ -117,6 +118,9 @@ namespace test_rig {
         bool                                    matching_advertisers_ = false;
         std::uint32_t                           access_address_       = 0;
         std::uint32_t                           crc_init_             = 0;
+
+        // the PHY of the current operation, which the timing of its packets depends on
+        bool                                    two_mbit_             = false;
 
         /*
          * An answer operation's state, shared between answer(), the window end and the two

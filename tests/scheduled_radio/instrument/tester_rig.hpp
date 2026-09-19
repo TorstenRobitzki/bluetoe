@@ -370,6 +370,7 @@ namespace test_rig {
             timed_out_     = no_operation_timed_out;
             has_reference_ = false;
             has_anchor_    = false;
+            phy_           = link_layer::phy_ll_encoding::le_1m_phy;
 
             // a program's received PDUs are numbered from zero; unlike the device under
             // test the tester is not reset between tests, so start clears the queue
@@ -592,14 +593,28 @@ namespace test_rig {
 
         /*
          * Begins the operation at the cursor. A change of the access address takes effect at
-         * once, with the radio stopped, and the operation after it begins right away.
+         * once, with the radio stopped, and a change of the PHY with the next operation; the
+         * operation after either begins right away.
          */
         void begin_current()
         {
-            for ( ; cursor_ != operation_count_ && operations_[ cursor_ ].kind == operation_kind::set_access_address_and_crc_init; ++cursor_ )
+            for ( ; cursor_ != operation_count_; ++cursor_ )
             {
-                platform_.stop();
-                set_access_address_and_crc_init( operations_[ cursor_ ].access_address, operations_[ cursor_ ].crc_init );
+                const operation& op = operations_[ cursor_ ];
+
+                if ( op.kind == operation_kind::set_access_address_and_crc_init )
+                {
+                    platform_.stop();
+                    set_access_address_and_crc_init( op.access_address, op.crc_init );
+                }
+                else if ( op.kind == operation_kind::set_phy )
+                {
+                    phy_ = op.phy;
+                }
+                else
+                {
+                    break;
+                }
             }
 
             if ( cursor_ != operation_count_ )
@@ -619,7 +634,7 @@ namespace test_rig {
 
             if ( op.kind == operation_kind::answer )
             {
-                platform_.answer( op.channel, op.phy, ticks, op.target, op.response, operation_id_ );
+                platform_.answer( op.channel, phy_, ticks, op.target, op.response, operation_id_ );
             }
             else if ( op.kind == operation_kind::connection_event )
             {
@@ -630,12 +645,12 @@ namespace test_rig {
                 const std::uint32_t t_ifs = op.t_ifs.usec() * ( tester_ticks_per_second / 1'000'000 );
 
                 if ( !( has_anchor_ || has_reference_ )
-                  || !platform_.connection_event( op.channel, op.phy, ticks, at, op.pdus, op.pdu_count, t_ifs, op.crc_errors, operation_id_ ) )
+                  || !platform_.connection_event( op.channel, phy_, ticks, at, op.pdus, op.pdu_count, t_ifs, op.crc_errors, operation_id_ ) )
                     time_out();
             }
             else
             {
-                platform_.receive( op.channel, op.phy, ticks, operation_id_ );
+                platform_.receive( op.channel, phy_, ticks, operation_id_ );
             }
         }
 
@@ -673,6 +688,7 @@ namespace test_rig {
         bool                                            has_reference_      = false;
         tester_time                                     anchor_;
         bool                                            has_anchor_         = false;
+        link_layer::phy_ll_encoding::phy_ll_encoding_t  phy_                = link_layer::phy_ll_encoding::le_1m_phy;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;

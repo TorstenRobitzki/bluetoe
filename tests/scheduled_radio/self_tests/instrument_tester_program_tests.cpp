@@ -1153,3 +1153,49 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_a_pdu_to_place_it_from_times
     BOOST_CHECK( platform.connection_events.empty() );
     BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
 }
+
+namespace {
+
+    operation phy_op( phy::phy_ll_encoding_t selected )
+    {
+        return operation{ .kind = operation_kind::set_phy, .phy = selected };
+    }
+}
+
+// a set_phy takes no time: the operation after it begins right away, with the PHY selected
+BOOST_FIXTURE_TEST_CASE( a_set_phy_operation_selects_the_phy_for_what_follows, fixture )
+{
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 10 ) ) );
+    remote.call< &rig_t::add_operation >( phy_op( phy::le_2m_phy ) );
+    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 1u );
+    BOOST_CHECK( platform.receives[ 0 ].phy == phy::le_1m_phy );
+
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK( platform.receives[ 1 ].phy == phy::le_2m_phy );
+}
+
+// the tester is not reset between tests, so a program must not inherit the PHY of the one before
+BOOST_FIXTURE_TEST_CASE( every_program_starts_at_1_mbit, fixture )
+{
+    remote.call< &rig_t::add_operation >( phy_op( phy::le_2m_phy ) );
+    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_REQUIRE( remote.call< &rig_t::program_finished >() );
+
+    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 10 ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK( platform.receives[ 0 ].phy == phy::le_2m_phy );
+    BOOST_CHECK( platform.receives[ 1 ].phy == phy::le_1m_phy );
+}
