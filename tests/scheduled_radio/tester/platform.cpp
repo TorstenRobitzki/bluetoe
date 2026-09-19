@@ -70,7 +70,8 @@ namespace test_rig {
          * A received packet's ADDRESS event comes later than a transmitted one's, by the
          * receiver's address detection. Measured against the device under test's scan
          * response, which its radio's TIFS places 150 µs after the request: 172 ticks at
-         * 1 Mbit. At 2 Mbit it is not measured yet, and the 1 Mbit value stands in.
+         * 1 Mbit. At 2 Mbit the same against the device's reply in a connection event, taken
+         * to start 150 µs after the tester's PDU ended: 96 ticks.
          */
         struct phy_timing
         {
@@ -80,7 +81,7 @@ namespace test_rig {
         };
 
         constexpr phy_timing le_1m_timing{ 40 * ticks_per_us, 172, 8 * ticks_per_us };
-        constexpr phy_timing le_2m_timing{ 24 * ticks_per_us, 172, 4 * ticks_per_us };
+        constexpr phy_timing le_2m_timing{ 24 * ticks_per_us, 96, 4 * ticks_per_us };
 
         const phy_timing& timing( bool two_mbit )
         {
