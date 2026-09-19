@@ -76,8 +76,8 @@ namespace bluetoe
             /*
              * The timing of a packet on each PHY: its preamble and access address, 8 + 32 bits
              * at 1 Mbit and 16 + 32 bits at 2 Mbit, a byte, and the receiver's address
-             * detection, which the tester measured at 10.75 µs at 1 Mbit on this radio. At
-             * 2 Mbit it is not measured yet, and the 1 Mbit value stands in.
+             * detection, which the tester measured at 10.75 µs at 1 Mbit and at 6 µs at 2 Mbit
+             * on this radio.
              */
             struct phy_timing
             {
@@ -87,7 +87,7 @@ namespace bluetoe
             };
 
             constexpr phy_timing le_1m_timing{ ( 1 + 4 ) * 8, 8, 11 };
-            constexpr phy_timing le_2m_timing{ ( 2 + 4 ) * 4, 4, 11 };
+            constexpr phy_timing le_2m_timing{ ( 2 + 4 ) * 4, 4, 6 };
 
             const phy_timing& timing( bool two_mbit )
             {
