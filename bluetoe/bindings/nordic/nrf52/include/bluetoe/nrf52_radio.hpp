@@ -126,6 +126,8 @@ namespace bluetoe
 
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
+            void set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting );
+
             /**
              * @brief registers the acceptance filter the template calls into
              *
@@ -293,6 +295,9 @@ namespace bluetoe
 
             link_layer::connection_event_events connection_events_;
 
+            // the PHY of the connection events; advertising is always on 1 Mbit
+            bool                        connection_2mbit_;
+
             static radio_base*          instance_;
         };
 
@@ -312,7 +317,7 @@ namespace bluetoe
             static constexpr bool           hardware_supports_encryption                = false;
             static constexpr bool           hardware_supports_lesc_pairing              = true;
             static constexpr bool           hardware_supports_legacy_pairing            = false;
-            static constexpr bool           hardware_supports_2mbit                     = false;
+            static constexpr bool           hardware_supports_2mbit                     = true;
             static constexpr bool           hardware_supports_synchronized_user_timer   = false;
             static constexpr bool           hardware_supports_link_layer_context        = false;
 
@@ -413,6 +418,7 @@ namespace bluetoe
 
             using radio_base::wake_up;
             using radio_base::set_access_address_and_crc_init;
+            using radio_base::set_phy;
             using radio_base::set_local_address;
             using radio_base::start_advertising;
             using radio_base::schedule_advertising_event;
@@ -428,7 +434,6 @@ namespace bluetoe
              * @{
              */
             void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
-            void set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
             /** @} */
 
         private:

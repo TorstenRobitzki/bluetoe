@@ -74,28 +74,49 @@ namespace bluetoe
             constexpr std::uint32_t response_window_us      = inter_frame_space_us + longest_response_us + 50;
 
             /*
-             * The preamble and the access address at 1 Mbit.
+             * The timing of a packet on each PHY: its preamble and access address, 8 + 32 bits
+             * at 1 Mbit and 16 + 32 bits at 2 Mbit, a byte, and the receiver's address
+             * detection, which the tester measured at 10.75 µs at 1 Mbit on this radio. At
+             * 2 Mbit it is not measured yet, and the 1 Mbit value stands in.
              */
-            constexpr std::uint32_t preamble_and_access_address_us = ( 1 + 4 ) * 8;
+            struct phy_timing
+            {
+                std::uint32_t preamble_and_access_address_us;
+                std::uint32_t byte_us;
+                std::uint32_t address_detection_us;
+            };
+
+            constexpr phy_timing le_1m_timing{ ( 1 + 4 ) * 8, 8, 11 };
+            constexpr phy_timing le_2m_timing{ ( 2 + 4 ) * 4, 4, 11 };
+
+            const phy_timing& timing( bool two_mbit )
+            {
+                return two_mbit ? le_2m_timing : le_1m_timing;
+            }
 
             /*
              * How long a connection event's receive window stays open after `end`, so that a
              * packet whose first bit was on air by `end` is received: its preamble and access
-             * address, the receiver's address detection, which the tester measured at 10.75 µs
-             * on this radio, and the time the address interrupt takes to stop the window's
-             * compare. A packet that begins a few microseconds after `end` may be received too.
+             * address, the receiver's address detection, and the time the address interrupt
+             * takes to stop the window's compare. A packet that begins a few microseconds after
+             * `end` may be received too.
              */
-            constexpr std::uint32_t address_detection_us            = 11;
-            constexpr std::uint32_t address_interrupt_us            = 5;
-            constexpr std::uint32_t address_of_a_packet_at_end_us   =
-                preamble_and_access_address_us + address_detection_us + address_interrupt_us;
+            constexpr std::uint32_t address_interrupt_us = 5;
+
+            std::uint32_t address_of_a_packet_at_end_us( const phy_timing& timing )
+            {
+                return timing.preamble_and_access_address_us + timing.address_detection_us + address_interrupt_us;
+            }
 
             /*
              * The receive window after an answer in a connection event: the inter frame space,
              * the preamble and access address of the next PDU, and a margin. Its address event
              * ends the window.
              */
-            constexpr std::uint32_t connection_answer_window_us = inter_frame_space_us + preamble_and_access_address_us + 50;
+            std::uint32_t connection_answer_window_us( const phy_timing& timing )
+            {
+                return inter_frame_space_us + timing.preamble_and_access_address_us + 50;
+            }
 
             /*
              * The header bits of a data channel PDU the radio reads.
@@ -163,12 +184,19 @@ namespace bluetoe
             }
 
             /*
-             * Time on air of a legacy PDU at 1 Mbit: preamble, access address, header,
-             * payload and CRC, eight microseconds per byte.
+             * Time on air of a legacy PDU: preamble, access address, header, payload and CRC.
              */
-            std::uint32_t air_time_us( std::uint32_t payload_size )
+            std::uint32_t air_time_us( const phy_timing& timing, std::uint32_t payload_size )
             {
-                return ( 1 + 4 + 2 + payload_size + 3 ) * 8;
+                return timing.preamble_and_access_address_us + ( 2 + payload_size + 3 ) * timing.byte_us;
+            }
+
+            // the preamble is one byte at 1 Mbit and two at 2 Mbit
+            void configure_phy( bool two_mbit )
+            {
+                NRF_RADIO->MODE  = ( two_mbit ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
+                NRF_RADIO->PCNF0 = ( NRF_RADIO->PCNF0 & ~RADIO_PCNF0_PLEN_Msk )
+                    | ( ( two_mbit ? RADIO_PCNF0_PLEN_16bit : RADIO_PCNF0_PLEN_8bit ) << RADIO_PCNF0_PLEN_Pos );
             }
 
             void configure_timer( NRF_TIMER_Type& timer )
@@ -278,6 +306,7 @@ namespace bluetoe
             , unacknowledged_( false )
             , unacknowledged_sn_( false )
             , connection_events_()
+            , connection_2mbit_( false )
         {
             assert( instance_ == nullptr );
             instance_ = this;
@@ -332,6 +361,22 @@ namespace bluetoe
             NRF_RADIO->BASE0    = access_address << 8;
             NRF_RADIO->PREFIX0  = access_address >> 24;
             NRF_RADIO->CRCINIT  = crc_init;
+        }
+
+        /*
+         * Taken over by the next connection event scheduled. Only a symmetric PHY is
+         * implemented, both directions on the same one; an unchanged direction keeps its PHY.
+         */
+        void radio_base::set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting )
+        {
+            using namespace link_layer::phy_ll_encoding;
+
+            const bool receive_2mbit  = receiving == le_unchanged_coding ? connection_2mbit_ : receiving == le_2m_phy;
+            const bool transmit_2mbit = transmitting == le_unchanged_coding ? connection_2mbit_ : transmitting == le_2m_phy;
+
+            assert( receive_2mbit == transmit_2mbit );
+
+            connection_2mbit_ = receive_2mbit;
         }
 
         void radio_base::set_acceptance_filter( bool ( *filter )( radio_base*, const link_layer::device_address& ) )
@@ -454,6 +499,9 @@ namespace bluetoe
             accepted_       = false;
             answering_      = false;
 
+            // advertising is on the 1 Mbit PHY, whatever the connections use
+            configure_phy( false );
+
             NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
             NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
             NRF_RADIO->PACKETPTR    = reinterpret_cast< std::uint32_t >( transmit.buffer );
@@ -509,6 +557,8 @@ namespace bluetoe
             last_transmitted_more_data_ = false;
             connection_events_          = link_layer::connection_event_events();
 
+            configure_phy( connection_2mbit_ );
+
             NRF_RADIO->FREQUENCY    = frequency_from_channel( channel );
             NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
             NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
@@ -522,7 +572,7 @@ namespace bluetoe
             NRF_TIMER0->EVENTS_COMPARE[ cc_start ]      = 0;
             NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
             NRF_TIMER0->CC[ cc_start ]                  = start.data() - ramp_up_us;
-            NRF_TIMER0->CC[ cc_window_end ]             = end.data() + address_of_a_packet_at_end_us;
+            NRF_TIMER0->CC[ cc_window_end ]             = end.data() + address_of_a_packet_at_end_us( timing( connection_2mbit_ ) );
 
             NRF_PPI->CHENCLR = ppi_compare0_txen;
             NRF_PPI->CHENSET = ppi_compare0_rxen | ppi_compare1_disable | ppi_end_capture2;
@@ -704,7 +754,7 @@ namespace bluetoe
             const std::uint32_t payload_size = receive_.buffer[ 1 ];
 
             received_size_    = std::min< std::size_t >( payload_size + 2, receive_.size );
-            radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( payload_size ) );
+            radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( le_1m_timing, payload_size ) );
             accepted_         = true;
 
             if ( !answer_armed() )
@@ -890,7 +940,7 @@ namespace bluetoe
                 allocate_connection_reception();
 
                 NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
-                NRF_TIMER0->CC[ cc_window_end ]             = NRF_TIMER0->CC[ cc_packet_end ] + connection_answer_window_us;
+                NRF_TIMER0->CC[ cc_window_end ]             = NRF_TIMER0->CC[ cc_packet_end ] + connection_answer_window_us( timing( connection_2mbit_ ) );
                 NRF_PPI->CHENSET = ppi_compare1_disable;
 
                 state_ = state::connection_receiving;
@@ -908,7 +958,7 @@ namespace bluetoe
             // the anchor is the first bit of the first packet, whatever its CRC
             if ( !received_any_ )
             {
-                anchor_       = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( payload_size ) );
+                anchor_       = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( timing( connection_2mbit_ ), payload_size ) );
                 received_any_ = true;
             }
 
