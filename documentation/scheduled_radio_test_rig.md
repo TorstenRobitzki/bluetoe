@@ -307,17 +307,19 @@ each, a sequence of steps the instrument executes on its own, starts both, waits
 that they finished, and then collects what was recorded on either side and asserts over it.
 
 On the device under test a step is "on this callback, make these calls", with every time expressed
-relative to the time that callback carried. The rig executes the step inside the callback, and
-records the callback, the calls it made with their resolved arguments, and their return values. On
-the tester a step is one of its operations, run from the moment the previous one ended until what it
-waits for has happened: a stated number of PDUs, for an answer the reply to it, for a connection
-event the reply to its last PDU, or, for an operation that waits for nothing, its window. The window
-bounds every operation; one that waited for PDUs that did not come times out and ends the program,
-since what follows would wait in vain as well, and the host reports which operation that was.
-Nothing on the tester is placed at a point in time: the tester has no origin that means anything to
-a test, and the origin of the device under test only becomes visible to it when a PDU arrives, so an
-operation that has to transmit at a particular moment is expressed relative to a received PDU, or to
-the anchor of the connection event before it, which the tester placed itself (decision 27).
+relative to the time that callback carried. It is loaded call by call, and the steps of a program
+share one pool of calls, so that a step makes as many as it needs. The rig executes the step inside
+the callback, and records the callback, the calls it made with their resolved arguments, and their
+return values. On the tester a step is one of its operations, run from the moment the previous one
+ended until what it waits for has happened: a stated number of PDUs, for an answer the reply to it,
+for a connection event the reply to its last PDU, or, for an operation that waits for nothing, its
+window. The window bounds every operation; one that waited for PDUs that did not come times out and
+ends the program, since what follows would wait in vain as well, and the host reports which
+operation that was. Nothing on the tester is placed at a point in time: the tester has no origin
+that means anything to a test, and the origin of the device under test only becomes visible to it
+when a PDU arrives, so an operation that has to transmit at a particular moment is expressed
+relative to a received PDU, or to the anchor of the connection event before it, which the tester
+placed itself (decision 27).
 
 The order in which the host does this is fixed: reset the device under test, wait until it reports
 `radio_ready`, load the tester's program, load the device's program, start the tester, start the
@@ -875,7 +877,9 @@ starts, so that the reply is still received with the connection's.
 On the device a step fills the PDU buffer with `queue_pdu`, as a link layer does from its callbacks,
 so that data goes out in a later event, and `read_received` takes out what the buffer received, so
 that it has room again; `queue_device_pdus()` fills the buffer before the start, and
-`device_received()` hands over what the device received.
+`device_received()` hands over what the device received. The rig holds a second buffer, and
+`switch_pdu_buffer` hands it to the radio between two events, as a link layer with two connections
+does; that is what shows that the sequence numbers are kept in the buffer and not in the radio.
 
 The first tests with more than one PDU in an event found the device's radio closing every event
 after the first exchange: the address of its own answer switched the address interrupt off, and the

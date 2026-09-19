@@ -54,7 +54,7 @@ The tests are here; what they are written with is in `../test_tools`.
 | `toolbox_tests.cpp` | the pairing toolbox with the Core Specification's vectors, and a key agreement with the software toolbox of the security manager tests; skipped on a device without a toolbox |
 | `reset_tests.cpp` | the reset line: the device answers with a zero session token after the tester pulled it; skipped without a tester |
 | `advertising_tests.cpp` | start_advertising() and schedule_advertising_event() over the air: payload sizes, channels, intervals, the access address, and scan requests with the acceptance filter and T_IFS; skipped without a tester |
-| `connection_tests.cpp` | schedule_connection_event() over the air, with the tester as the central: a row of events over changing channels, data the device queued, the central's MD, and T_IFS at its edges; skipped without a tester |
+| `connection_tests.cpp` | schedule_connection_event() over the air, with the tester as the central: rows of events, PDU sizes, MD on either side, T_IFS at its edges, the receive window, CRC errors, a full receive buffer, cancelling, the reported times and flags, and two connections on one radio; skipped without a tester |
 | `cancel_tests.cpp` | cancel_radio_event() on advertising events: in time, too late and with nothing pending; skipped without a tester |
 | `timer_tests.cpp` | schedule_timer() and cancel_timer(), made visible by an advertising scheduled from user_timer(); skipped without a tester |
 

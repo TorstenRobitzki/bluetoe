@@ -78,9 +78,8 @@ Every test starts with the DUT advertising: the tester places its first connecti
 advertising (`connection_event`), after both switched to the connection's access address. The
 tester's program is loaded before the run, so its SN, NESN and MD bits are what the test expects the
 flow to be; a host side model of the central builds them, and a DUT that deviates shows in the
-replies the tester captured. Encryption is left for a later batch. Written out so far, in
-radio_tests/connection_tests.cpp: one PDU each way, a row of events over changing channels, data
-queued before the start and from a callback, the central's MD, and T_IFS at its edges.
+replies the tester captured. Encryption is left for a later batch. The entries below are written
+out in radio_tests/connection_tests.cpp, except where an entry says what is missing.
 
 Several entries look at the same behaviour from different sides, the MD flag or a CRC error as an
 end of the event and as a flag of `connection_event_events`, for example. Such a behaviour gets one
@@ -104,10 +103,11 @@ DUT listening; the DUT's MD set, with more queued, keeps the event going while t
 **The channel changes.** Two connection events on different data channels, the tester following.
 
 **The access address is used and can be changed.** A tester on the connection's access address gets
-answers, one on another address none; after the DUT switches, the tester follows.
+answers, one on another address none; after the DUT switches, the tester follows. The switch is not
+written yet.
 
-**2 Mbit.** Sending and receiving at 2 Mbit, on a DUT that supports it. Needs 2 Mbit in the tester
-and in the DUT's radio.
+**2 Mbit.** Sending and receiving at 2 Mbit, on a DUT that supports it. Not written: needs 2 Mbit in
+the tester and in the DUT's radio.
 
 **The times reported are correct.** The next event is scheduled from the time `connection_end_event`
 or `connection_timeout` carried, and the tester measures the distance of the anchors.
@@ -141,23 +141,27 @@ goes on: the tester's retransmission is acknowledged in a later event, once the 
 Written: the device takes nothing from such a PDU and sends its previous PDU again, and a step
 drains the buffer with `read_received`, as a link layer does.
 
-**A pending connection event can be cancelled.** In time in the step that scheduled it, too late
-from a timer, and with nothing pending, as for advertising events.
+**A pending connection event can be cancelled.** In time in the step that scheduled it and from a
+timer before its start, too late from a timer at its start, and with nothing pending, as for
+advertising events.
 
 ### Where the sequence numbers live
 
 **The SN and NESN logic is the buffer's, not the radio's.** The radio takes every PDU it answers
 with, its SN, NESN and MD included, from the buffer `link_layer_pdu_buffer()` returns, and keeps no
-sequence state of its own. The rig holds a second buffer, and a step switches to it between two
-events. In the next event the device's answer follows the second buffer's state, for a fresh buffer
-the first PDU of a connection whatever the flow was, and carries the data queued in it; switching
-back continues the first buffer's flow where it stopped. A radio that tracks the sequence numbers
-itself answers with the continued flow instead. Needs a second buffer in the rig and a call that
-switches between them.
+sequence state of its own. The rig holds a second buffer, and `switch_pdu_buffer` changes to it
+between two events, as a link layer with two connections does. The bits of an answer follow from the
+PDU just received alone, so what shows where the sequence numbers are kept is what they decide: the
+events alternate between two connections, and the second connection's first data is stored once, and
+its acknowledgement of the device's data is taken as one. With one buffer for both connections, as a
+radio that kept the sequence numbers itself would have it, the test fails in both places.
+
+**The flags are about one event.** The data one connection left unacknowledged is not reported for
+the other connection's event, which sent none.
 
 ### The flags of `connection_event_events`
 
-One situation for each:
+The flags describe the event they are reported with, not the connection. One situation for each:
 
 - `unacknowledged_data`: the DUT sends data, and the tester does not acknowledge it;
 - `last_received_not_empty`: the tester sends a payload, against an empty PDU;
@@ -259,6 +263,13 @@ writing the test rather than while designing the interface. The first test shows
 derived and what cannot: the drift over an interval follows from `sleep_time_accuracy_ppm`,
 which the interface already has, and the placement tolerance is what the implementation still
 has to state.
+
+**Running the connection tests found four faults in the nRF52 radio.** An event ended after the
+first exchange whatever the MD bits said, as the address of the device's own answer switched the
+address interrupt off. A PDU that began shortly before the end of the receive window was cut off, as
+the window closed before its address was detected. A PDU the buffer had no room for was acknowledged
+and lost. And the mark for unacknowledged data was kept across events, so that one connection's
+was reported for another's.
 
 **The tester can only count from a PDU it received.** Every test that only observes gets by
 without any origin on the tester. A test in which the tester has to hit a window the DUT opened

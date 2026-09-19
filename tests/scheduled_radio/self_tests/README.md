@@ -22,9 +22,9 @@ instruments against a real device and live in `../radio_tests/`. See
 | `instrument_dut_rig_tests.cpp` | the rig around a scheduled radio: its main loop, the session token, the instrument functions, a radio without a toolbox |
 | `instrument_tester_rig_tests.cpp` | the tester's rig: its main loop, the session token, the reset of the device under test |
 | `instrument_tester_program_tests.cpp` | the tester as program interpreter: operations run in sequence, the window advances, connection events placed from the anchor before, the received PDUs and their loss |
-| `instrument_program_tests.cpp` | the rig as program interpreter: steps on callbacks, times relative to the callback, a PDU queued from a step, when a program is finished, the records and their loss |
+| `instrument_program_tests.cpp` | the rig as program interpreter: steps on callbacks and the pool of calls they share, times relative to the callback, PDUs queued and read from a step, the two PDU buffers, when a program is finished, the records and their loss |
 | `instrument_toolbox_tests.cpp` | the pairing toolbox through the wire, against the software toolbox of the security manager tests, with the Core Specification's vectors |
-| `host_central_tests.cpp` | the central a test writes for the tester: the SN, NESN and MD bits of its PDUs, the device's reply to each, and the checks of the device's replies |
+| `host_central_tests.cpp` | the central a test writes for the tester: the SN, NESN and MD bits of its PDUs, the device's reply to each and its NACK, and the checks of the device's replies |
 | `host_transport_tests.cpp` | the host's transport over a stream: a call, a timeout, a corrupt response, a late response |
 | `test_tools_timeline_tests.cpp` | what a radio test expects of the PDUs a tester program captured: how an entry is rendered, and which entries count as a difference |
 | `test_tools_records_tests.cpp` | what a radio test expects of the device's records: the callbacks and calls of one kind, and the sequence of callbacks a program caused |
