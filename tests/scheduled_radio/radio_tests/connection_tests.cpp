@@ -1076,3 +1076,76 @@ BOOST_FIXTURE_TEST_CASE( more_data_of_the_device_keeps_the_event_open, connectio
         adv_timeout,
         connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true } } );
 }
+
+/*
+ * Two connections on one radio, as a link layer with a second connection runs them: each has its
+ * own PDU buffer and its own central, and the events alternate. The bits of a reply follow from the
+ * PDU just received alone, so what shows where the sequence numbers are kept is what they decide:
+ * a radio that kept them itself would take the second connection's first PDU, SN 0 after the
+ * first connection's SN 0, for a retransmission and drop its data, and would take the second
+ * connection's acknowledgement in the last event for none and send its data again.
+ */
+BOOST_FIXTURE_TEST_CASE( the_sequence_numbers_are_the_buffers_not_the_radios, connection_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01 );
+    const auto first_data    = payload_of( 5, 0x10 );
+    const auto second_data   = payload_of( 5, 0x20 );
+    const auto central_data  = payload_of( 5, 0x30 );
+
+    central first_connection;
+    central second_connection;
+
+    const auto a1 = first_connection.send();
+    const auto b1 = second_connection.send( central_data, no_more_data, llid::start );
+    const auto a2 = first_connection.send();
+    const auto b2 = second_connection.send();
+
+    queue_device_pdus( { data_pdu( llid::start, first_data ) } );
+
+    program_device( {
+        on_start(
+            start_advertising( 37, advertisement ) ),
+        on_adv_timeout(
+            set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
+            schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
+        on_connection_end_event(
+            switch_pdu_buffer(),
+            queue_pdu( data_pdu( llid::start, second_data ) ),
+            next_event( data_channel ) ),
+        on_connection_end_event(
+            switch_pdu_buffer(),
+            next_event( data_channel ) ),
+        on_connection_end_event(
+            switch_pdu_buffer(),
+            next_event( data_channel ) ),
+        on_connection_end_event() } );
+
+    program_tester( {
+        receive( 37, 1, operation_timeout ),
+        use_access_address( connection_access_address, connection_crc_init ),
+        connection_event( data_channel, first_pdu_after_advertising, { a1 } ),
+        connection_event( data_channel, interval, { b1 } ),
+        connection_event( data_channel, interval, { a2 } ),
+        connection_event( data_channel, interval, { b2 } ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( a1 ), received( reply_to( a1, first_data, no_more_data, llid::start ) ),
+        sent( b1 ), received( reply_to( b1, second_data, no_more_data, llid::start ) ),
+        sent( a2 ), received( reply_to( a2 ) ),
+        sent( b2 ), received( reply_to( b2 ) ) } );
+
+    check_callbacks( device_records(), {
+        adv_timeout,
+        connection_end_event{ .unacknowledged_data = true, .last_transmitted_not_empty = true },
+        connection_end_event{ .unacknowledged_data = true, .last_received_not_empty = true, .last_transmitted_not_empty = true },
+        connection_end_event{},
+        connection_end_event{} } );
+
+    const auto stored = device_received();
+
+    BOOST_REQUIRE_EQUAL( stored.size(), 1u );
+    BOOST_CHECK( std::vector< std::uint8_t >( stored[ 0 ].data.begin(), stored[ 0 ].data.begin() + stored[ 0 ].size ) == b1 );
+}
