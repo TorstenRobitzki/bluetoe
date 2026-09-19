@@ -1,0 +1,115 @@
+#include "host/central.hpp"
+
+#include <algorithm>
+#include <cassert>
+
+namespace bluetoe {
+namespace test_rig {
+
+    namespace {
+        constexpr std::uint8_t nesn_mask    = 0x04;
+        constexpr std::uint8_t sn_mask      = 0x08;
+        constexpr std::uint8_t md_mask      = 0x10;
+
+        std::vector< std::uint8_t > data_channel_pdu(
+            llid kind, bool sn, bool nesn, bool md, std::span< const std::uint8_t > payload )
+        {
+            std::vector< std::uint8_t > result( 2 + payload.size() );
+            result[ 0 ] = static_cast< std::uint8_t >( kind )
+                | ( nesn ? nesn_mask : 0 )
+                | ( sn ? sn_mask : 0 )
+                | ( md ? md_mask : 0 );
+            result[ 1 ] = static_cast< std::uint8_t >( payload.size() );
+            std::copy( payload.begin(), payload.end(), result.begin() + 2 );
+
+            return result;
+        }
+    }
+
+    std::vector< std::uint8_t > central::send( std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
+    {
+        if ( sent_ )
+        {
+            sn_   = !sn_;
+            nesn_ = !nesn_;
+        }
+
+        return build( payload, md, kind );
+    }
+
+    std::vector< std::uint8_t > central::resend()
+    {
+        assert( sent_ );
+
+        nesn_ = !nesn_;
+
+        last_[ 0 ] = ( last_[ 0 ] & ~nesn_mask ) | ( nesn_ ? nesn_mask : 0 );
+
+        return last_;
+    }
+
+    std::vector< std::uint8_t > central::send_nack( std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
+    {
+        assert( sent_ );
+
+        sn_ = !sn_;
+
+        return build( payload, md, kind );
+    }
+
+    std::vector< std::uint8_t > central::build( std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
+    {
+        sent_ = true;
+        last_ = data_channel_pdu( kind, sn_, nesn_, md, payload );
+
+        return last_;
+    }
+
+    bool sequence_number( std::span< const std::uint8_t > pdu )
+    {
+        return pdu[ 0 ] & sn_mask;
+    }
+
+    bool next_expected_sequence_number( std::span< const std::uint8_t > pdu )
+    {
+        return pdu[ 0 ] & nesn_mask;
+    }
+
+    bool has_more_data( std::span< const std::uint8_t > pdu )
+    {
+        return pdu[ 0 ] & md_mask;
+    }
+
+    std::vector< std::uint8_t > data_pdu( llid kind, std::span< const std::uint8_t > payload )
+    {
+        return data_channel_pdu( kind, false, false, false, payload );
+    }
+
+    std::vector< std::uint8_t > reply_to(
+        std::span< const std::uint8_t > sent, std::span< const std::uint8_t > payload, more_data_flag md, llid kind )
+    {
+        return data_channel_pdu( kind, next_expected_sequence_number( sent ), !sequence_number( sent ), md, payload );
+    }
+
+    std::vector< std::uint8_t > nack_reply( std::span< const std::uint8_t > last_received )
+    {
+        return last_received.empty()
+            ? data_channel_pdu( llid::continuation, false, false, false, {} )
+            : reply_to( last_received );
+    }
+
+    bool acknowledges( const captured_pdu& reply, std::span< const std::uint8_t > sent )
+    {
+        const std::span< const std::uint8_t > bytes( reply.data.data.data(), reply.data.size );
+
+        return next_expected_sequence_number( bytes ) != sequence_number( sent );
+    }
+
+    bool is_new( const captured_pdu& reply, std::span< const std::uint8_t > sent )
+    {
+        const std::span< const std::uint8_t > bytes( reply.data.data.data(), reply.data.size );
+
+        return sequence_number( bytes ) == next_expected_sequence_number( sent );
+    }
+}
+}

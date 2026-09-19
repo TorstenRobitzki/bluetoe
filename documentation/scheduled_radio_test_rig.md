@@ -100,18 +100,35 @@ establish time without ever exercising the times the interface hands out.
 
 ## 6. Half duplex, with the host always initiating
 
-The device under test never speaks unsolicited. A call that has a result becomes a call followed by
-polling for that result. Callbacks are queued and collected by polling.
+The device under test never speaks unsolicited. Every request is answered by exactly one response,
+which may take as long as the call takes. Callbacks are queued and collected by polling, and the
+host polls state, `program_finished()` and the collections, never the result of a call.
 
 This buys the property that matters most: the device under test never waits on the host. Its main
-loop becomes "answer a pending request, otherwise call `run()`", with no blocking read anywhere, so
-it can never be parked in a receive while a radio event needs servicing. That failure mode would
-quietly invalidate the timing results the rig exists to produce.
+loop becomes "answer a complete request if one is buffered, otherwise call `run()`", with no
+blocking read anywhere, so it can never be parked in a receive while a radio event needs servicing.
+That failure mode would quietly invalidate the timing results the rig exists to produce.
 
 It also removes any question of both ends transmitting at once, lets one implementation serve both
 endpoints, and keeps the rig contract portable to transports that are genuinely half duplex. Since
 all timing information travels in the payload rather than in the arrival of a message, polling
 costs bench time and nothing else.
+
+**Amended.** The first form of this decision said that a call with a result becomes a call followed
+by polling for that result. That prescribed a protocol shape in the name of a property the frames of
+decision 16 already provide, and the one long call there is shows the shape buys nothing. `p256()`
+takes hundreds of milliseconds in the rig's application context, and for that time neither the link
+nor `run()` is serviced whatever the protocol, because they live in the same loop; an "accepted"
+response followed by polls does not shorten that, it only sits the first poll in the receive buffer
+until the computation ends, and doubles every call for it. The delay to `run()` is not a rig
+artefact either: it is what a single context radio does when the security manager computes a key
+during a connection, and a radio with its own link layer context is what keeps the events on time
+meanwhile. A test of that property issues the call, lets it take its time, and checks that the
+events kept their interval, which needs the single response form. A dead device is still detected,
+by the host's timeout on the response.
+
+**Rejected:** the two phase form, for the reason above. If a computation ever moves into a context
+of its own, the state polling pattern of decision 14 covers it: start it, poll a status function.
 
 ## 7. The callback queue must make loss detectable
 
@@ -126,6 +143,14 @@ and dropped: it would be a second way of saying what the numbers already say.
 The depth is not part of the contract. Under decision 14 the host collects once, after a program
 finished, so the depth bounds the length of a program and nothing else; a program that outgrows it
 shows up as a gap, and the remedy is a larger array. The host never needs to know the number.
+
+**Amended.** The records carry no number each. What has to be detected is a loss between the rig
+and the host, not a gap inside the rig's own history, and a count does that: the rig counts every
+record it produces, whether it could keep it or not, and a batch of records names the index of its
+first record and that count. A record with an index below the count that never arrives was dropped,
+and the host voids the test. This is the same information with four bytes per batch instead of four
+per record, and the queue drops the newest record when full rather than the oldest, so that what
+the host receives is the beginning of what happened, up to the point where the rig ran out of room.
 
 ## 8. A session token in every response
 
@@ -165,6 +190,13 @@ Together with the interface specification this forms a conformance kit: a new po
 interface, satisfies the rig contract, and the existing test suite runs against it unchanged. The
 design considerations document notes that the proof that the abstraction is implementable on other
 hardware is still outstanding. This is how that proof gets produced.
+
+Where the contract is written down is this document and the code that carries it: each rig's
+`functions` list names what the host may call, `link/program.hpp` and `link/tester_program.hpp` the
+types those calls take, and the decisions here say what each has to do. It was once a set of header
+files of declarations that nothing compiled, `instrument.hpp`, `dut_rig.hpp` and `tester.hpp`; they
+drifted from the implementation, as a specification nothing checks does, and describing a contract
+twice is what let them.
 
 ## 10. Every interface function states its observable effect
 
@@ -275,13 +307,19 @@ each, a sequence of steps the instrument executes on its own, starts both, waits
 that they finished, and then collects what was recorded on either side and asserts over it.
 
 On the device under test a step is "on this callback, make these calls", with every time expressed
-relative to the time that callback carried. The rig executes the step inside the callback, and
-records the callback, the calls it made with their resolved arguments, and their return values. On
-the tester a step is one of its operations, run for a stated duration from the moment the previous
-one ended. Nothing on the tester is placed at a point in time: the tester has no origin that means
-anything to a test, and the origin of the device under test only becomes visible to it when a PDU
-arrives, so an operation that has to transmit at a particular moment will be expressed relative to
-a received PDU.
+relative to the time that callback carried. It is loaded call by call, and the steps of a program
+share one pool of calls, so that a step makes as many as it needs. The rig executes the step inside
+the callback, and records the callback, the calls it made with their resolved arguments, and their
+return values. On the tester a step is one of its operations, run from the moment the previous one
+ended until what it waits for has happened: a stated number of PDUs, for an answer the reply to it,
+for a connection event the reply to its last PDU, or, for an operation that waits for nothing, its
+window. The window bounds every operation; one that waited for PDUs that did not come times out and
+ends the program, since what follows would wait in vain as well, and the host reports which
+operation that was. Nothing on the tester is placed at a point in time: the tester has no origin
+that means anything to a test, and the origin of the device under test only becomes visible to it
+when a PDU arrives, so an operation that has to transmit at a particular moment is expressed
+relative to a received PDU, or to the anchor of the connection event before it, which the tester
+placed itself (decision 27).
 
 The order in which the host does this is fixed: reset the device under test, wait until it reports
 `radio_ready`, load the tester's program, load the device's program, start the tester, start the
@@ -361,7 +399,7 @@ which is the same on every platform; and a serial port, which is written once pe
 rig is everything that is not the radio and not the port: framing, the request and response
 protocol, the program interpreter, the records, the session token.
 
-The port's contract is event driven and stated in `tests/scheduled_radio/serial_port.hpp`. The
+The port's contract is event driven and stated in `tests/scheduled_radio/link/serial_port.hpp`. The
 port is constructed on two ring buffers the rig owns, pushes what it receives into one and pops
 what it transmits from the other, both from a context below the radio's priority. It owns no
 buffer and makes no decision, so on most parts it is a UART setup and an interrupt handler with
@@ -397,6 +435,12 @@ responsible for buffering whatever arrives between two polls, so the buffer is w
 platform, and whether bytes are lost depends on how long `run()` takes on that platform, which
 is exactly the variability the rig should not have.
 
+**Amended.** The port is constructed on a third thing, a reference to an object with `wake_up()`,
+and calls it after it pushed received bytes. The rig's main loop sleeps in the radio's `run()`, and
+decision 17 makes `wake_up()` the only guaranteed way to make that return; the port is the
+"interrupt of the application" that decision speaks of. Without this a request could sit in the
+receive buffer until the radio returned for a reason of its own. The rig passes the radio.
+
 ## 17. Three contexts, and one meaning of `run()`
 
 Three contexts exist, named by who lives in them. The *radio context* is the implementation's own
@@ -406,6 +450,8 @@ where the GATT layer delivers its callbacks. A radio without a context of its ow
 callbacks from inside `run()`, so the last two are the same; a radio that advertises
 `hardware_supports_link_layer_context` provides the link layer context itself, as an interrupt
 below the radio's priority and above the application's. The contract is identical in both cases.
+The radio context is interrupted by neither of the others, the link layer context by the radio
+context only, and the application context by both.
 
 `run()` has one meaning everywhere: sleep until there is something for the application context to
 do, then return. `wake_up()`, callable from any context including interrupts, guarantees that it
@@ -425,7 +471,8 @@ Every function and callback of the interface belongs to one of four words:
 |---|---|
 | `run()` | application |
 | `wake_up()` | any, including interrupts |
-| `lock_guard` | application |
+| `radio_lock_guard` | application or link layer |
+| `link_layer_lock_guard` | application |
 | `start_advertising()` | application or link layer; the radio makes it safe |
 | `set_*`, `schedule_*`, `cancel_*` | link layer |
 | the constants | any |
@@ -439,12 +486,14 @@ for its own sake. The one exception is `start_advertising()`: switching advertis
 the application context while the radio is idle, and rather than make the caller prove that
 nothing is in flight, the radio is made responsible for that, since only it can see.
 
-`lock_guard` exists for the link layer, not for the radio. It excludes the link layer context and
+The two locks exist for the link layer, not for the radio, and each excludes the contexts above the
+one that holds it. `radio_lock_guard` excludes the radio context, and with it the link layer context
+below it; it protects the PDU buffer, which the radio reads and writes from its own context while
+the link layer fills and drains it. `link_layer_lock_guard` excludes the link layer context and
 protects the state the link layer shares between its two halves: data on its way from the
 application to the PDU buffer, and received data on its way up. How the link layer splits its work
 across the line, and in particular where L2CAP reassembly happens, is step 4 of decision 11 and not
-the radio's concern; the radio provides the lock and `wake_up()`, and the PDU buffer is the
-structure already built to be written from one side and read by the radio.
+the radio's concern; the radio provides the locks and `wake_up()`.
 
 Two callbacks are not in the link layer context and the interface says so loudly.
 `link_layer_pdu_buffer()` is called between the PDUs of a connection event, with the inter frame
@@ -471,13 +520,411 @@ request all reach the air through the PDU buffer and the connection event that i
 scheduled, with no scheduling call at all. The only application context need is starting
 advertising while idle, which the rule above covers.
 
-**Rejected:** allowing the scheduling functions from the application context while a `lock_guard`
-is held. It would work, but it makes the caller responsible for a collision that only the radio
-can see, and it lets the lock's purpose blur from "the link layer's state" into "anything".
+**Rejected:** allowing the scheduling functions from the application context while a
+`link_layer_lock_guard` is held. It would work, but it makes the caller responsible for a collision
+that only the radio can see, and it lets the lock's purpose blur from "the link layer's state" into
+"anything".
+
+## 18. The C++ interfaces are concepts; the wire contracts stay prose
+
+`scheduled_radio2.hpp` and `serial_port.hpp` state their requirements as C++20 concepts:
+`scheduled_radio_callbacks`, `lesc_pairing_toolbox`, `scheduled_radio_features`, `scheduled_radio`,
+`byte_ring_buffer` and `serial_port`. The instruments have no prose contracts of their own any
+more: what the host can ask of either is its rig's `functions` list and the wire types of
+`link/program.hpp` and `link/tester_program.hpp`, all C++ that the host instantiates and the
+compiler checks, and the reasoning behind them is this document.
+
+The distinction is whether anything is generic over the type. A radio has several implementations,
+the nRF52, the simulated radio, the next port, and two generic consumers, the link layer and the
+rig. A serial port has one implementation per platform and one consumer. For those a class
+declaration used as documentation is checked by nobody until a link layer is instantiated against
+a port and the compiler reports a missing member somewhere inside the link layer's code; a concept
+checks at the point of use and names the missing requirement. The conditional parts fit as well:
+the toolbox is required only where `hardware_supports_lesc_pairing` is true, which a concept
+states directly and a class declaration could only say in a comment. The instruments, by
+contrast, exist once each and are reached over a link; nothing is generic over them as C++ types,
+and their requirements, the token in every response, the counts that make a dropped entry visible,
+are wire behaviour that no concept can express.
+
+A concept checks syntax. Everything decision 10 and decision 17 ask for, the observable effect,
+the tolerance, the context, is semantics and stays as prose next to each requirement, which is
+what the rig checks. What changes is that the two headers now have to compile: a concept that
+does not is worthless. `tests/scheduled_radio/self_tests/concept_tests.cpp` instantiates each concept
+against a model, the smallest type that satisfies it, and against a model with one requirement
+removed, so that a concept nobody can satisfy and a concept that checks nothing are both found at
+compile time. The test target sets C++20 itself, as decision 13 requires.
+
+One consequence for the shape of the interface. It was a class template
+`scheduled_radio2< CallBacks, Options... >` with the callbacks and the toolbox as base classes. A
+concept is over a type, so the interface becomes `scheduled_radio< Radio >`, and how an
+implementation receives its callbacks and its options is the implementation's business, not the
+interface's.
+
+**Amended.** `scheduled_radio` is a concept of a template and a type, `scheduled_radio< Radio,
+CallBacks >`, not of a type. A radio is a template over the type it delivers its callbacks to,
+because that is the only way it can call them without indirection, and it reaches that type through
+the base class relation, as the bindings do today. A concept over the instantiated type alone hid
+that, and it left the callbacks type unchecked: neither side of the pair can check the other in its
+own declaration, since the radio sees its parameter incomplete when it is instantiated as a base
+class, and the callbacks type cannot name itself in a constraint. The consumer that owns the pair
+checks both at once; the rig and the link layer, which both pass themselves, do so in a member
+function.
+
+In the same step `scheduled_radio_callbacks` is split: the callbacks of advertising and of the
+timer, which every callbacks type provides, and `scheduled_radio_connection_callbacks`, required of a
+type that schedules connection events. The rig's link layer half satisfies the first before it
+implements connections, and the concept tracks what exists instead of demanding a placeholder PDU
+buffer.
+
+## 19. The wire carries the rig's interface, not the radio's
+
+What is serialised between the host and the device under test are calls to the rig: its own
+functions, the program actions, and one wrapper per toolbox function. The radio's interface is
+never on the wire.
+
+The reason is the pointer arguments of the toolbox. `f4()` takes `const std::uint8_t*` for the two
+public key coordinates, and stays that way because a coordinate is a part of a larger key and an
+array parameter would force a copy on every call. A serialiser cannot size a pointer from the
+signature. Rather than teach it sizes per function, the rig's wrapper takes `std::array` parameters,
+which carry their size, and forwards to the radio with `.data()`. The same move settles the other
+awkward cases without a mechanism: a program action is a rig function whose time parameter is a
+`delta_time` by declaration, and the buffers of an advertising event are rig functions taking bytes
+the rig copies into its own storage. Every serialised function is then an ordinary C++ function
+whose parameters the serialiser understands from the signature alone, and the mapping in
+`dut_rig.hpp` is code rather than convention.
+
+The serialiser itself is type driven: fixed width integers little endian, arrays and tuples element
+by element, `abs_time` and `delta_time` as their microseconds, a variable length byte sequence with
+a length prefix. Deserialising from a truncated frame fails rather than reads past the end, and
+serialising into a full buffer fails rather than truncates, both reported as a result rather than
+thrown, because the device has no exceptions and a malformed request is a link error the host
+should see, not a crash.
+
+**Amended.** Only the toolbox functions with pointer parameters, `p256()`, `f4()` and `g2()`, are
+wrapped. The rig is the radio's callbacks type and derives from the radio, so the other four are in
+the list as the radio's own members; a member pointer to an inherited function is a pointer to a
+member of the base that declares it, and the dispatcher finds the object for it by base class.
+
+The list is the same on both sides of the link whatever the device is, because a list that
+depended on the device's features would have to be agreed anew for every device the tests are
+pointed at. A radio without a toolbox does not shorten it: the rig names, at the toolbox's
+positions, the functions of a class with the wire signatures that none of its dispatcher's objects
+is, and the dispatcher answers those opcodes with `unsupported_function` without looking at the
+arguments. The host reads `properties()` before it asks. Zeros from a dummy were rejected, since a
+zero is a result and a missing feature is not.
+
+**Amended.** Program actions are not rig functions on the wire. A step reaches the rig through
+`add_step()` and carries its calls as data, a `call_kind` with its parameters (`link/program.hpp`),
+which the rig executes with a switch. The dispatcher takes a request as one call, while a step holds
+several, resolves each one's time against the callback it runs in, and hands the radio buffers that
+have to outlive the call.
+
+## 20. The host names the rig's function list by instantiating the rig with dummies
+
+The wire is keyed on member function pointers (decision 19, `link/function_list.hpp`): the
+dispatcher on the device and the proxy on the host have to agree on one `function_list`, and that
+list is made of pointers to members of the rig, which is a template over the radio and the port.
+The host cannot name the device's instantiation, and does not have to. It instantiates the same
+template with a dummy radio and a dummy port (`host/dut_functions.hpp`) and takes the list from that.
+An opcode is a position in the list, and the arguments and results are taken from the signatures;
+neither mentions the radio, so both instantiations produce the same wire.
+
+Two consequences. No function in the list may carry a type of the radio: whatever the radio
+defines, such as `ccm_counter_t`, is translated by the rig's wrapper before it reaches the wire,
+which is the rule decision 19 already made for pointers. And the rig compiles on the host, which
+is what decision 16 asked for so that the rig can be unit tested; the unit tests instantiate it
+with instrumented versions of the two dummies.
+
+The dummy radio claims every feature, so that every wrapper the rig has is in the host's list.
+
+**Rejected:** a non-template interface class for the wire-facing functions, implemented by the rig
+through virtual functions, so that the host could name it directly. It works, but it splits the
+rig into a part that holds the state and a part that reaches the radio, with an indirection whose
+only purpose is to let the host spell a type it never has an object of.
+
+## 21. Two kinds of tests, in two directories
+
+The tests under `tests/scheduled_radio/self_tests/` are the instruments testing themselves: the
+concepts, the link, the protocol, the rig, the host's transport, with dummies and sockets in place
+of hardware. They run on every platform and every CI job, and `ctest` runs them like any other
+unit test. The tests under `tests/scheduled_radio/radio_tests/` are the purpose of the work: they
+test a scheduled radio implementation through the instruments, need a device under test and a
+tester on two serial ports, and run on demand against the device the command line names. `ctest`
+does not run them.
+
+The two have different readers as well as different runners. An implementer of a radio runs the
+second kind against their implementation and never needs the first; a change to the rig is proven
+by the first kind before it can touch the second. "Self test" is what a test instrument calls
+testing itself, which is exactly what the first kind is.
+
+The sketch `toolbox_tests.cpp` became the first file of `radio_tests/`. The device under
+test is named by the environment variable `BLUETOE_DUT`, so that one build of the tests runs
+against any device and the only thing that changes between two devices is the port.
+
+## 22. A DUT rig is one platform times one radio configuration
+
+A device under test is a firmware, and there will be several: for every platform a scheduled radio
+implementation exists on, and for every configuration of that implementation worth testing on its
+own, such as a radio with and without its own link layer context. What such a firmware needs splits
+into what belongs to the platform and what belongs to the rig. The platform provides the toolchain,
+CPU flags, startup code, linker script and C++ runtime, the serial port implementation, and the way
+to flash. The rig provides which radio implementation with which options, and the names it reports
+to the host. Nothing else differs between two rigs on the same platform.
+
+The firmwares live in `tests/scheduled_radio/dut_rigs/`, a firmware project of its own on
+`platforms/`, next to `examples/`, the other such project. Per platform there is a subdirectory with
+one `.cpp` file per rig, twenty lines. Every such file is a copy of `dut_rigs/template_dut_rig.cpp`,
+which is not a rig itself and is not built, with the radio and the names filled in; a new rig starts
+from that template. The radio is bound with an alias template,
+`template < typename CallBacks > using radio = nrf52_radio2< CallBacks, options... >;`, so that a
+second configuration of the same radio is a second file with a different alias. A rig's target is
+named after its file, `nrf52_dut` and later `nrf52_dut_<configuration>`, and gets the `.artifacts`
+and `.flash` targets every firmware has. The tester is not one of these, see decision 23.
+
+The build identifier a rig reports is `git describe --always --dirty` at configure time, handed to
+the compile as `DUT_BUILD_IDENTIFIER`: the nearest tag and the commit, with `-dirty` when the tree
+had uncommitted changes, so that a test log names the exact source of the firmware it talked to. It
+is stale between a commit and the next configure, which a rig, flashed after `cmake` and `ninja`,
+does not suffer from in practice; regenerating it on every build is machinery for later.
+
+The first rig, `nrf52_dut`, runs on the nRF52 development kits, whose UART is routed to the J-Link's
+virtual COM port, so the same probe flashes the rig and connects the host. The port is built on the
+legacy `UART0`, one byte per interrupt, which is the port contract of decision 16 word for word, with
+RTS/CTS for the back pressure it asks for; the DMA based `UARTE` would need chunked buffers for no
+gain at these data rates, and is left for the nRF52820, which has no `UART0`. Its radio is the nRF52
+scheduled radio of step 3, which began as the security toolbox alone, with `run()` as wait for event,
+`wake_up()`, and every scheduling function present but declining, so that the toolbox tests of
+decision 11 step 2 ran over a real link before any radio code existed; the advertising slice
+followed, with the time base on the high frequency crystal kept running throughout, since a test
+rig has no power budget and the sleep clock is a later slice with tests of its own. Configurations
+of the radio appear as rigs when the radio has options.
+
+**Rejected:** building the rigs from the examples project. It had everything a rig needs, but the two
+have different lifecycles, a rig build would always build the examples as well, and "example" would
+come to mean two things; moving the platform support into `platforms/` (PR #150) made it unnecessary.
+
+**Rejected:** one shared `main.cpp` per platform with a per-rig header selected by include path. It
+saves the twenty lines per rig at the cost of an indirection that hides which radio a firmware runs;
+a rig file that names its radio is what the template is for.
+
+## 23. The tester is one firmware on one platform
+
+A device under test is a family of firmwares: one per platform a scheduled radio implementation
+exists on, times the configurations of that implementation, every one of them built on the concrete
+radio binding of the library it tests. The tester is the opposite. It is one firmware for one board,
+today an nRF52 development kit next to the device under test, and it does not use Bluetoe: it will
+need a radio too, but it uses it in a way no scheduled radio does, and nothing of the link layer.
+What the two have in common is the wire protocol, and the types that protocol carries are all the
+tester takes from the library.
+
+So the tester is not a rig project parametrised by platform. It lives in
+`tests/scheduled_radio/tester/`, a flat firmware project on `platforms/` for the toolchain, the
+startup code and the flash target, with its board preset, the tester's file, and the code the board
+needs for the reset line of decision 4 and for idling. It shares with the devices under test the
+link code and the nRF52 serial port, which is the same code on both boards and lives in
+`tests/scheduled_radio/nrf52/`, and nothing else; reuse where something is genuinely the same, no
+shared shape where it is not.
+
+What the tester is, as an instrument, follows from what it is for. It holds no protocol state: it
+transmits when it is told to, receives when it is told to, and reports what it saw and when. The
+one thing it does on its own is keep the inter frame space: it answers a received PDU, or sends the
+next PDU of a connection event, one inter frame space after the device's PDU ended, because no host
+can meet that deadline. That is the whole vocabulary for testing a radio, because a radio has no
+protocol state either; testing a link layer over the air later will need the tester to hold a
+connection, which means adding to this vocabulary rather than moving the tests into the tester.
+Its program is a sequence of operations, each run from the moment the previous one ended until it
+received what it waits for or its window closed (decision 14), and none of them placed at a point in
+time: the tester has no origin that means anything to a test, and the device's origin becomes
+visible to it only when a PDU arrives, so an operation that has to transmit at a particular moment
+is expressed relative to a received PDU, or to the anchor of the connection event before it.
+Likewise its clock is not a function the host can call: every time the host sees is attached to
+something that was observed (decision 24).
+
+**Rejected:** a `tester_rigs/` project on the pattern of `dut_rigs/`, with the CMake both had in
+common factored into a shared file, which is what the first cut did. It framed the tester as a
+family it is not, and coupled the two projects' builds in exchange for a dozen lines.
+
+## 24. The tester keeps time in its own ticks, not the device's microseconds
+
+The device under test reports `abs_time`, which the interface fixes at microseconds. The tester
+does not use it. Its timestamps are the measurement reference for the whole setup, so they are taken
+at the finest resolution the hardware offers, the 62.5 nanosecond tick of the nRF52 timer at its
+peripheral clock, and a `received_pdu` carries a 64 bit count of those ticks rather than an
+`abs_time`. The count is 64 bit so that it never wraps within a run and the host takes plain
+differences; the device stays at 32 bit microseconds, which is the resolution at which it is asked
+to place a transmission, not the resolution at which the error is observed.
+
+That the two instruments now differ in unit as well as in origin is the honest form of decision 3:
+they never shared a clock, and a shared unit would have implied one. The conversion lives on the
+host, in the radio test, which turns a tick interval into a time through the tester's nominal rate
+and compares it with the device's requested interval; neither `abs_time` nor `delta_time` enters,
+because both are microsecond grained and would round away what the fine tick bought.
+
+What makes the fine resolution worth taking is the oscillator. A stock development kit crystal is
+tens of parts per million, no better than the device it measures, so the tester would be as
+uncertain as its subject. The tester's board is therefore reworked to drive its high frequency clock
+from a temperature compensated oscillator accurate to 50 parts per billion; over a hundred
+millisecond interval that is five nanoseconds of error against the device's four microseconds of
+drift, so the tester stops contributing to the measurement and becomes the reference it has to be.
+This is the accuracy being bought rather than proven, which decision 11 places before the first
+timing assertion; the tester's code runs on the stock crystal meanwhile, only less accurately, so
+it is built and the tests are written before the oscillator is swapped.
+
+A timestamp is the capture of the timer at the radio's ADDRESS event, moved back by the preamble and
+the access address to the packet's first bit. For a received packet the event comes later than for a
+transmitted one, by the time the receiver takes to detect the address, 172 ticks or about 10.75 µs,
+which the tester subtracts as well; without it every interval from a transmission to a reception
+reads long by that much. The value was measured against the device's scan response, taken to start
+exactly one inter frame space after the tester's request (decision 26), so it is only as good as that
+assumption until the tester is checked against an independent reference.
+
+## 25. Each instrument answers only the other, by an acceptance filter
+
+Even with the two boards coupled by a cable the tester hears the advertisers around it, and the
+device's own receive window now and then catches a stranger's advertising and reports `adv_received`
+where the program awaited `adv_timeout`, stalling that run. The fix is the device filtering of the
+Core Specification, Vol 6, Part B, section 4.3: each instrument matches the address of what it
+receives against a set and ignores what is not in it. The device is given the tester's address and
+answers only the tester, so a stray in its window is no longer taken for a response; the tester is
+given the device's address and reports only the device, so what it hands the host is the device's
+and not the air's. An empty set matches every sender, the state a radio starts in, so the filter is
+opt in and changes nothing until an address is loaded.
+
+This is deliberately not the test looking away from a stray, which was refused: a step that advanced
+on either callback could not tell a real reception from a stray, nor later check scan-request
+handling. The acceptance filter is instead what a real controller does, the same address match a link
+layer applies through its filter accept list, so the rig drives the radio as it will be used rather
+than working around it. It lives in the radio interface for that reason (`scheduled_radio2.hpp`): a
+radio without filtering hardware is asked per reception through `is_in_acceptance_filter()`, and one
+that filters on air is loaded with the set and never woken for what it drops, the two chosen by
+`radio_maximum_acceptance_filter_entries`. The tester, which is not a `scheduled_radio`, carries the
+same match on its own receiver, and its RSSI limit stays as an orthogonal option for a setup where
+address alone does not separate the device.
+
+A filter applied to a packet after it was received does not keep the receiver free, though: while
+the tester receives a stranger's packet to its end, a PDU of the device that starts meanwhile is lost,
+about one test in seventy. The tester's radio therefore matches the advertiser address in hardware as
+well and abandons a stranger's packet once its address is received, restarting the reception without
+a ramp up; the radio does not abandon it by itself, it only reports the miss. That leaves the time
+from a stranger's access address to its advertiser address in which the device can be missed, about
+one test in five hundred, and a run of the radio tests is repeated when one fails (`ctest --repeat
+until-pass:3`, see the radio tests README). A real fault fails every attempt; only a fault that
+comes and goes could hide behind a repeat. Ruling out the air is therefore no longer a precondition of
+the tests that assert a PDU did not appear, which is where decision 11 had left it open.
+
+**Rejected:** moving both instruments to an access address no other device uses, which would have
+kept strangers off the receiver altogether. A radio may be unable to advertise on anything but the
+advertising access address, and the tests must not depend on what the radio under test can do beyond
+its interface.
+
+## 26. An answer at the inter frame space is placed by hardware, armed before the packet ends
+
+A scan response has to start one inter frame space, 150 µs, after the scan request ended. Software
+cannot meet that, so the radio does: the nRF52 keeps its TIFS between the end of a received packet
+and the start of the transmission that follows, but only when the shorts from END to DISABLE and from
+DISABLED to TXEN are in place before the packet ends, and only with the default ramp up. The first cut
+armed the short in the END interrupt, which is too late, since the receiver is disabled before that
+interrupt runs, and the transmission never started; with the shorts armed in time but the fast ramp
+up, the response started about 50 µs after the request instead of 150 µs.
+
+The device's radio therefore uses the default ramp up and arms the answer when a packet's address is
+received in the window of a scannable advertising: the transmitter follows the packet by itself, and
+the END interrupt either points it at the response or disables it again before it went on air. That
+is also how the library's earlier nRF52 radio did it.
+
+The tester answers differently. It stays on the fast ramp up, so that its receiver is back in time to
+hear the reply to its own answer, and starts its transmitter by a timer compare set in the END
+interrupt, one ramp up before the inter frame space after the received packet; the interrupt has more
+than a hundred microseconds for that, and an answer whose compare is already past is given up rather
+than sent late. A timer also leaves the delay open to be a parameter, which a connection event makes
+it (decision 27).
+
+## 27. A connection event of the tester is a script, run from the radio's interrupts
+
+In a connection test the tester is the central: it sends the first PDU of every event at the event's
+anchor, one connection interval after the anchor before, and each further PDU of the event one inter
+frame space after the device's reply ended. Two choices follow from that.
+
+The tester does not react to what the device sends. A test builds the PDUs of an event on the host
+with the central model (`host/central.hpp`), with the SN, NESN and MD bits of the flow the test
+expects, and `reply_to()` builds the reply the device should send to each. A device that deviates
+shows in the replies the tester captured, which is what the test observes; a tester that kept the
+sequence numbers itself would follow a deviating device and hide the deviation.
+
+The operation is `connection_event`: up to four PDUs on one channel, the first with its first bit
+`delay` after the previous event's anchor, or, for the first event, after the PDU captured last,
+which is the advertising the connection starts from. Every further PDU follows the device's reply
+after a T_IFS the test gives, 150 µs unless it moves it to the edges of the ±2 µs the Core
+Specification allows. The operation ends with the reply to its last PDU, or, if a reply does not
+come, with its window, not with a timeout: a device that does not answer, to a PDU outside its
+receive window or after a second CRC error, is what such a test observes, and the captured PDUs show
+it. It replaced `transmit`, which placed one PDU from the PDU captured last and is an event of one
+PDU.
+
+That the main loop cannot place a PDU 150 µs after a reception suggested moving the program
+interpreter into interrupt context. It was not needed. The platform already arms the transmissions
+that have a deadline from its interrupts (decision 26), so it runs the whole event there, and the
+interpreter only starts the next event before its anchor, milliseconds later. A timer compare starts
+the transmitter through PPI; the transmitter's READY adds the short from DISABLED to RXEN, so that
+the receiver for the reply follows the PDU; the reply's END arms the next PDU. The short waits for
+READY because the radio is still disabling after a reply when the next PDU is armed, and the short
+would start the receiver instead of waiting for the compare.
+
+A PDU of an event can be sent with an invalid CRC, for the tests of CRC errors: the tester's radio
+sends it with another CRC init, which the PDU's END restores before the receiver for the reply
+starts, so that the reply is still received with the connection's.
+
+On the device a step fills the PDU buffer with `queue_pdu`, as a link layer does from its callbacks,
+so that data goes out in a later event, and `read_received` takes out what the buffer received, so
+that it has room again; `queue_device_pdus()` fills the buffer before the start, and
+`device_received()` hands over what the device received. The rig holds a second buffer, and
+`switch_pdu_buffer` hands it to the radio between two events, as a link layer with two connections
+does; that is what shows that the sequence numbers are kept in the buffer and not in the radio.
+
+The first tests with more than one PDU in an event found the device's radio closing every event
+after the first exchange: the address of its own answer switched the address interrupt off, and the
+central's next PDU went unanswered. No earlier test sent a second PDU.
+
+The limits come from the wire. A request carries at most 255 bytes, which holds an operation with
+four PDUs of 39 bytes; a device step is loaded call by call, so it makes as many calls as the
+program's 32 have room for. A program holds 16 operations and 16 steps, about a dozen connection
+events per test.
+
+**Rejected:** running the program interpreter in interrupt context, as above; and a tester that
+keeps the connection's sequence numbers itself.
+
+## Changes once the new interface is in use
+
+What the library has to change when the link layer is built on `scheduled_radio2.hpp`, collected
+while the rig finds it:
+
+- `link_layer::link_layer<>` is built on the new interface: its callbacks, `start_advertising()` for
+  a sequence without a time, and `cancel_radio_event()` for any pending action.
+- `ll_data_pdu_buffer` is written to be a base of the radio. With the new interface the link layer
+  owns it and hands it to the radio, so the radio's side of it becomes public, and the lock and the
+  CCM counters no longer come from a downcast to the radio; the lock it takes is the radio's
+  `radio_lock_guard`. Until then the device rig wraps it (`instrument/dut_rig.hpp`).
+- The concept names the functions a radio calls on that buffer, and how a radio with a PDU layout of
+  its own states it; `pdu_layout_by_radio` is keyed on the radio today. `acknowledge()` is not among
+  them: a PDU the buffer has no room for is answered with `next_transmit()`, taking nothing from it,
+  as the PDU sent before must go out again unchanged. `ll_data_pdu_buffer::acknowledge()` advances
+  the expected sequence number, which suits only the old binding's use for a PDU whose MIC failed.
+- The old radio bindings, `nrf51.cpp` and `nrf52.cpp`, are removed once `nrf52_radio` replaces them.
+- `scheduled_radio2.hpp` carries its "2" only to live beside the old `scheduled_radio.hpp` while the
+  old radio is still there. Once the old implementation is removed, the header is renamed to
+  `scheduled_radio.hpp` and the old one deleted.
 
 ## Open questions
 
-- How the tester itself is validated. Its timestamps and its T_IFS response are the measurement, so
-  an error there presents as a fault in the device under test. Checking it against a known good
-  device or against a sniffer has to happen before the first timing assertion is believed; decision
-  11 places it there, and defers the how.
+- How the tester itself is validated. Its timestamps and its answer are the measurement, so an error
+  there presents as a fault in the device under test. Its receive timestamps are calibrated against
+  the device's TIFS (decision 24), so an inter frame space it measures on that device is correct by
+  construction. Checking it against a known good device or against a sniffer has to happen before
+  the first timing assertion is believed; decision 11 places it there, and defers the how.
+- Whether the tester's answer to an advertising is placed at a variable delay, as the PDUs of a
+  connection event already are (decision 27). It is started by a timer compare (decision 26), so the
+  delay can become a parameter of the answer operation when a test that answers early or late, to
+  find the edges of the device's receive window, is written.
+- Two scan request cases the tester cannot produce yet: a second request within the same advertising
+  event, since the tester answers once per operation, and a request with a CRC error, which only a
+  connection event's PDU can have so far (decision 27).

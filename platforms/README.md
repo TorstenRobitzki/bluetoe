@@ -17,8 +17,9 @@ Bluetoe uses CMake for building and GCC as compiler. Different platform bindings
 additional libraries. Building for Nordic microcontrollers requires a Nordic SDK to be installed on
 the build computer.
 
-To flash a firmware directly from the build, using a J-Link debug probe, the nRF Command Line Tools
-must be installed (`nrfjprog`).
+To flash a firmware directly from the build, using a J-Link debug probe, the SEGGER J-Link software
+and Nordic's `nrfutil` with its `device` command (`nrfutil install device`) must be installed. `nrfutil`
+replaces the nRF Command Line Tools (`nrfjprog`), which Nordic no longer maintains.
 
 The build tries to find the required `arm-none-eabi-gcc` on its own. If you want to use a specific
 version of `arm-none-eabi-gcc`, set the CMake cache variable `ARM_GCC_TOOL_PATH` to point to the local
@@ -56,6 +57,17 @@ which selects the toolchain and checks the hardware variables, and `cmake/firmwa
 which applies the options every firmware is built with, adds this directory and the library, and
 defines `add_bluetoe_firmware( target sources... )`. `examples/CMakeLists.txt` is the smallest
 example of such a project.
+
+## Build types
+
+`CMAKE_BUILD_TYPE` chooses the optimisation and whether assertions are kept, `Release` if none is
+given:
+
+| build type | flags | assertions |
+|---|---|---|
+| `Debug` | `-Og` | kept |
+| `Release`, `MinSizeRel` | `-Os` | removed |
+| `RelWithDebInfo` | `-O2` | removed |
 
 ## The build container
 
