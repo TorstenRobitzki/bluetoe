@@ -22,6 +22,7 @@
 #include <bluetoe/address.hpp>
 #include <bluetoe/connection_events.hpp>
 #include <bluetoe/delta_time.hpp>
+#include <bluetoe/phy_encodings.hpp>
 
 #include <array>
 #include <cstddef>
@@ -63,7 +64,8 @@ namespace test_rig {
         schedule_connection_event,
         queue_pdu,
         read_received,
-        switch_pdu_buffer
+        switch_pdu_buffer,
+        set_phy
     };
 
     /**
@@ -76,7 +78,8 @@ namespace test_rig {
      * would; a read_received takes what the buffer received out of it, as the link layer would,
      * and the rig keeps it for the host; a switch_pdu_buffer hands the radio the rig's other PDU
      * buffer from then on, as a link layer with a second connection would; `address`,
-     * `access_address` and `crc_init` are what the two setup calls set.
+     * `access_address` and `crc_init` are what the two setup calls set, and `phy` what a set_phy
+     * sets for both directions of the connection events that follow.
      */
     struct call
     {
@@ -89,6 +92,7 @@ namespace test_rig {
         link_layer::device_address  address         = {};
         std::uint32_t               access_address  = 0;
         std::uint32_t               crc_init        = 0;
+        link_layer::phy_ll_encoding::phy_ll_encoding_t phy = link_layer::phy_ll_encoding::le_1m_phy;
 
         friend bool operator==( const call&, const call& ) = default;
     };
@@ -193,14 +197,14 @@ namespace test_rig {
     bool serialize( Sink& out, const call& value )
     {
         return serialize( out, std::tie( value.kind, value.channel, value.delay, value.end_delay, value.transmit, value.response,
-            value.address, value.access_address, value.crc_init ) );
+            value.address, value.access_address, value.crc_init, value.phy ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, call& value )
     {
         auto fields = std::tie( value.kind, value.channel, value.delay, value.end_delay, value.transmit, value.response,
-            value.address, value.access_address, value.crc_init );
+            value.address, value.access_address, value.crc_init, value.phy );
 
         return deserialize( in, fields );
     }

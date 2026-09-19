@@ -24,6 +24,9 @@ using namespace bluetoe::test_rig::self_test;
 using bluetoe::link_layer::abs_time;
 using bluetoe::link_layer::delta_time;
 using bluetoe::link_layer::device_address;
+using bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t;
+using bluetoe::link_layer::phy_ll_encoding::le_1m_phy;
+using bluetoe::link_layer::phy_ll_encoding::le_2m_phy;
 
 namespace {
 
@@ -45,6 +48,8 @@ namespace {
         device_address                  address = {};
         std::uint32_t                   access_address = 0;
         std::uint32_t                   crc_init = 0;
+        phy_ll_encoding_t               receiving = le_1m_phy;
+        phy_ll_encoding_t               transmitting = le_1m_phy;
     };
 
     template < typename CallBacks >
@@ -64,6 +69,11 @@ namespace {
         void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
         {
             calls.push_back( { .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init } );
+        }
+
+        void set_phy( phy_ll_encoding_t receiving, phy_ll_encoding_t transmitting )
+        {
+            calls.push_back( { .kind = call_kind::set_phy, .receiving = receiving, .transmitting = transmitting } );
         }
 
         void start_advertising( std::uint32_t channel, const bluetoe::link_layer::write_buffer& transmit,
@@ -554,6 +564,22 @@ BOOST_FIXTURE_TEST_CASE( a_setup_call_reaches_the_radio_and_schedules_nothing, f
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
 }
 
+// the one PHY of a set_phy call is used in both directions
+BOOST_FIXTURE_TEST_CASE( a_set_phy_call_reaches_the_radio_for_both_directions, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start, call{ .kind = call_kind::set_phy, .phy = le_2m_phy } ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_REQUIRE_EQUAL( radio.calls.size(), 1u );
+    BOOST_CHECK( radio.calls[ 0 ].kind == call_kind::set_phy );
+    BOOST_CHECK( radio.calls[ 0 ].receiving == le_2m_phy );
+    BOOST_CHECK( radio.calls[ 0 ].transmitting == le_2m_phy );
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+}
+
 /*
  * A call goes in one request behind a one byte opcode, so the largest a call can be has to
  * fit: every parameter at its largest.
@@ -570,7 +596,8 @@ BOOST_AUTO_TEST_CASE( the_largest_call_fits_into_one_request )
         .response       = pdu( largest_pdu ),
         .address        = device_address{ { 1, 2, 3, 4, 5, 6 }, true },
         .access_address = 0xffffffff,
-        .crc_init       = 0xffffff };
+        .crc_init       = 0xffffff,
+        .phy            = le_2m_phy };
 
     std::array< std::uint8_t, default_max_payload - 1 > request;
     buffer_sink out( request );

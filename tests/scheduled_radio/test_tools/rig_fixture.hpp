@@ -207,6 +207,14 @@ namespace test_rig {
     }
 
     /**
+     * @brief use `phy` in both directions for the connection events scheduled from now on
+     */
+    inline call set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t phy )
+    {
+        return call{ .kind = call_kind::set_phy, .phy = phy };
+    }
+
+    /**
      * @brief put `data` into the PDU buffer, as the link layer would, for a later connection event
      */
     inline call queue_pdu( std::span< const std::uint8_t > data )
