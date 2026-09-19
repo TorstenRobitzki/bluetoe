@@ -284,8 +284,9 @@ namespace bluetoe
             bool                        last_transmitted_more_data_;
 
             /*
-             * Kept across events: the last PDU sent that was not empty, and its sequence number,
-             * until a PDU received acknowledges it.
+             * The last PDU sent in this event that was not empty, and its sequence number, until
+             * a PDU received acknowledges it; reset with every event, as the event's report is
+             * about that event, and the next event may be another connection's.
              */
             bool                        unacknowledged_;
             bool                        unacknowledged_sn_;

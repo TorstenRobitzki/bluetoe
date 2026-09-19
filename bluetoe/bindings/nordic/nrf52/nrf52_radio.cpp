@@ -504,6 +504,7 @@ namespace bluetoe
             received_any_               = false;
             continues_                  = false;
             crc_errors_in_a_row_        = 0;
+            unacknowledged_             = false;
             connection_end_             = end;
             last_transmitted_more_data_ = false;
             connection_events_          = link_layer::connection_event_events();
