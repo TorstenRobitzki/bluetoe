@@ -90,7 +90,7 @@ namespace {
      * A port that keeps its instance and exposes its buffers, like the one of the rig
      * tests; the buffer type is fixed here, since the rig's default is known.
      */
-    using buffer_t = ring_buffer< std::uint8_t, 256 + frame_overhead >;
+    using buffer_t = ring_buffer< std::uint8_t, default_max_payload + frame_overhead >;
 
     template < typename Buffer, typename Wake >
     class observed_port : public dummy_port< Buffer, Wake >
@@ -116,8 +116,8 @@ namespace {
     {
         rig_t                                   rig{ "software toolbox on the host", "unit test build" };
         observed_port< buffer_t, rig_t >&       port = *observed_port< buffer_t, rig_t >::instance;
-        frame_sender< buffer_t >                sender{ port.receive };
-        frame_receiver< 256, buffer_t >         receiver{ port.transmit };
+        frame_sender< buffer_t >                        sender{ port.receive };
+        frame_receiver< default_max_payload, buffer_t > receiver{ port.transmit };
 
         std::vector< std::uint8_t > transact( std::span< const std::uint8_t > request )
         {

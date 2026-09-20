@@ -141,8 +141,8 @@ namespace {
         rig_t                                   rig{ "scripted radio on the host", "unit test build" };
         scripted_radio< rig_t >&                radio = *scripted_radio< rig_t >::instance;
         observed_port_base&                     port  = *observed_port_base::instance;
-        frame_sender< erased_buffer >           sender{ port.receive() };
-        frame_receiver< 256, erased_buffer >    receiver{ port.transmit() };
+        frame_sender< erased_buffer >                           sender{ port.receive() };
+        frame_receiver< default_max_payload, erased_buffer >     receiver{ port.transmit() };
 
         std::vector< std::uint8_t > transact( std::span< const std::uint8_t > request )
         {

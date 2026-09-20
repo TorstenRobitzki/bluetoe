@@ -190,8 +190,8 @@ namespace {
         rig_t                                   rig{ "scripted tester on the host", "unit test build" };
         scripted_platform&                      platform = *scripted_platform::instance;
         observed_port_base&                     port     = *observed_port_base::instance;
-        frame_sender< erased_buffer >           sender{ port.receive() };
-        frame_receiver< 256, erased_buffer >    receiver{ port.transmit() };
+        frame_sender< erased_buffer >                           sender{ port.receive() };
+        frame_receiver< default_max_payload, erased_buffer >     receiver{ port.transmit() };
 
         std::vector< std::uint8_t > transact( std::span< const std::uint8_t > request )
         {
