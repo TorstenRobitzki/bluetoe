@@ -17,21 +17,18 @@ namespace test_rig {
 
         /*
          * Requests the device may not answer after a reset; each one costs the poll timeout,
-         * so this bounds the wait for a device that does not come back.
-         *
-         * A request around a reset is lost now and then, and measurably often: the line
-         * carries noise while the device is held in reset, the device reads a length from it,
-         * and the request that follows is dropped with that frame, since a receiver that finds
-         * a bad length forgets everything it holds (decision 16). Ending the frame first
-         * (resynchronise()) leaves a few per cent, so the poll is repeated rather than waited
-         * out.
+         * so this bounds the wait for a device that does not come back. One is enough while
+         * the reset returns only once the device runs (decision 4); the others are for a
+         * device that was reset while a frame of the host was still on its way, whose tail it
+         * reads as a length and whose poll it then drops with that frame (decision 30). The
+         * first poll that goes unanswered ends that frame, so the next one is answered.
          */
-        constexpr int requests_after_reset = 6;
+        constexpr int requests_after_reset = 3;
 
         /*
-         * A device that has booted answers a poll within a millisecond; one that has not, or
-         * whose request was dropped, does not answer at all. Nothing is gained by waiting the
-         * timeout of a request that may take time.
+         * A device that has booted answers a poll within a millisecond; one whose poll was
+         * dropped does not answer at all. Nothing is gained by waiting the timeout of a
+         * request that may take time.
          */
         constexpr std::chrono::milliseconds poll_timeout{ 250 };
 
@@ -105,10 +102,6 @@ namespace test_rig {
     void dut_connection::restart( tester_connection& tester )
     {
         tester.call< &test_rig::tester::reset_device_under_test >();
-
-        // the reset leaves the line floating, and what the device reads from that noise may
-        // be the length of a frame that never comes
-        transport_.resynchronise();
 
         const std::uint32_t token = random_session_token();
         const polling       polls( transport_ );

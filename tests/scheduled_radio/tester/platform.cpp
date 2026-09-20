@@ -26,6 +26,14 @@ namespace test_rig {
         constexpr std::uint32_t cpu_ticks_per_ms = 64000;
         constexpr std::uint32_t reset_hold_ms    = 5;
 
+        /*
+         * What the device needs after the line is released before it answers on its link. It is
+         * well under a millisecond on the nRF52840: a request sent at once is lost in about
+         * three of five resets, one sent a millisecond later in none of fifty. The wait is part
+         * of the reset, so that a host which has the answer has a device that runs.
+         */
+        constexpr std::uint32_t start_up_ms      = 5;
+
         void wait_ms( std::uint32_t ms )
         {
             SysTick->LOAD = cpu_ticks_per_ms - 1;
@@ -216,6 +224,7 @@ namespace test_rig {
         NRF_P0->OUTCLR = 1u << pin_reset;
         wait_ms( reset_hold_ms );
         NRF_P0->OUTSET = 1u << pin_reset;
+        wait_ms( start_up_ms );
     }
 
     void platform::run()
