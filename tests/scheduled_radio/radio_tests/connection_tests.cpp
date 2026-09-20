@@ -679,14 +679,20 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_without_room_in_the_buffer_is_refused_until_the_b
 {
     static_assert( received_pdus_until_full == max_event_pdus, "the first event fills the buffer" );
 
+    // the buffer holds this many PDUs of the largest payload, whatever a PDU carries
+    constexpr std::size_t payload = largest_data_pdu_size - 2;
+
+    // four exchanges of the largest PDUs take about 10 ms, so the events are further apart
+    interval = 30ms;
+
     const auto advertisement = advertising( 6, 0x01 );
 
     central tester_side;
-    const auto first   = tester_side.send( payload_of( 27, 0x10 ), more_data, llid::start );
-    const auto second  = tester_side.send( payload_of( 27, 0x20 ), more_data, llid::start );
-    const auto third   = tester_side.send( payload_of( 27, 0x30 ), more_data, llid::start );
-    const auto fourth  = tester_side.send( payload_of( 27, 0x40 ), no_more_data, llid::start );
-    const auto refused = tester_side.send( payload_of( 27, 0x50 ), no_more_data, llid::start );
+    const auto first   = tester_side.send( payload_of( payload, 0x10 ), more_data, llid::start );
+    const auto second  = tester_side.send( payload_of( payload, 0x20 ), more_data, llid::start );
+    const auto third   = tester_side.send( payload_of( payload, 0x30 ), more_data, llid::start );
+    const auto fourth  = tester_side.send( payload_of( payload, 0x40 ), no_more_data, llid::start );
+    const auto refused = tester_side.send( payload_of( payload, 0x50 ), no_more_data, llid::start );
 
     program_device( {
         on_start(

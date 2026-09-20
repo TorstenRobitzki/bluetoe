@@ -723,7 +723,8 @@ BOOST_FIXTURE_TEST_CASE( a_step_queues_a_pdu, fixture )
 
 namespace {
 
-    // what the radio does with a PDU received with a valid CRC, `sn` alternating as for new PDUs
+    // what the radio does with a PDU of the largest size received with a valid CRC, `sn`
+    // alternating as for new PDUs
     bool receive_largest_pdu( rig_t& rig, bool sn )
     {
         auto& buffer = rig.link_layer_pdu_buffer();
@@ -732,7 +733,8 @@ namespace {
         if ( room.size == 0 )
             return false;
 
-        std::array< std::uint8_t, 29 > largest = { static_cast< std::uint8_t >( 0x02 | ( sn ? 0x08 : 0 ) ), 27 };
+        std::array< std::uint8_t, largest_data_pdu_size > largest = {
+            static_cast< std::uint8_t >( 0x02 | ( sn ? 0x08 : 0 ) ), largest_data_pdu_size - 2 };
         std::copy( largest.begin(), largest.end(), room.buffer );
         buffer.received( room );
 
@@ -853,13 +855,12 @@ BOOST_FIXTURE_TEST_CASE( the_pdus_received_into_both_buffers_are_collected, fixt
 
 BOOST_FIXTURE_TEST_CASE( a_full_buffer_refuses_a_queued_pdu, fixture )
 {
-    const std::array< std::uint8_t, 29 > largest = { 0x02, 27 };
+    const std::array< std::uint8_t, largest_data_pdu_size > largest = { 0x02, largest_data_pdu_size - 2 };
 
-    bool queued = true;
-    for ( std::size_t i = 0; queued && i != 10; ++i )
-        queued = remote.call< &rig_t::queue_pdu >( pdu( largest ) );
+    for ( std::size_t queued = 0; queued != received_pdus_until_full; ++queued )
+        BOOST_REQUIRE( remote.call< &rig_t::queue_pdu >( pdu( largest ) ) );
 
-    BOOST_CHECK( !queued );
+    BOOST_CHECK( !remote.call< &rig_t::queue_pdu >( pdu( largest ) ) );
 }
 
 // what the radio stored is handed over in the order it was received, and is gone afterwards

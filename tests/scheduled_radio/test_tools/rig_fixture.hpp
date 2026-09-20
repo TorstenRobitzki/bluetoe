@@ -397,8 +397,8 @@ namespace test_rig {
         std::initializer_list< event_pdu > pdus,
         std::chrono::nanoseconds t_ifs = std::chrono::microseconds( 150 ) )
     {
-        // an exchange of the largest PDUs at 1 Mbit takes about 1 ms
-        constexpr std::chrono::milliseconds per_exchange( 2 );
+        // an exchange of the largest PDUs at 1 Mbit takes about 4.3 ms, one each way
+        constexpr std::chrono::milliseconds per_exchange( 5 );
 
         if ( pdus.size() == 0 || pdus.size() > max_event_pdus )
             throw std::invalid_argument( "a connection event sends one to max_event_pdus PDUs" );
