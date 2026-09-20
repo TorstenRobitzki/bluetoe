@@ -55,6 +55,7 @@ The tests are here; what they are written with is in `../test_tools`.
 | `reset_tests.cpp` | the reset line: the device answers with a zero session token after the tester pulled it; skipped without a tester |
 | `advertising_tests.cpp` | start_advertising() and schedule_advertising_event() over the air: payload sizes, channels, intervals, the access address, and scan requests with the acceptance filter and T_IFS; skipped without a tester |
 | `connection_tests.cpp` | schedule_connection_event() over the air, with the tester as the central: rows of events, PDU sizes, MD on either side, T_IFS at its edges, the receive window, CRC errors, a full receive buffer, cancelling, the reported times and flags, and two connections on one radio; skipped without a tester |
+| `phy_tests.cpp` | set_phy() over the air: connection events at 2 Mbit, the largest PDU each way, the interval, a central on the other PHY, a PHY changed between events, advertising staying at 1 Mbit and the window edges; skipped without a tester and on a device without 2 Mbit |
 | `cancel_tests.cpp` | cancel_radio_event() on advertising events: in time, too late and with nothing pending; skipped without a tester |
 | `timer_tests.cpp` | schedule_timer() and cancel_timer(), made visible by an advertising scheduled from user_timer(); skipped without a tester |
 

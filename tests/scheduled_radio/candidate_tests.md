@@ -90,12 +90,10 @@ test, not one per entry.
 **One PDU each way, both empty.** The DUT answers the tester's empty PDU with an empty one, the event
 closes as neither has MD set, and `connection_end_event` carries the anchor.
 
-**PDU sizes.** Vary the payload in both directions: empty, a middle size, 27 bytes, and up to
-`radio_max_supported_payload_length`. Expect the bytes on both sides and the answer at T_IFS after
-the end of a PDU of each length. Written for 1, 13 and 27 bytes. More than 27 is the data length
-extension and more than the setup carries: a PDU on the wire holds 39 bytes, the tester's radio 37
-of payload, the rig's buffer 27, and a PDU of 251 bytes would not fit into one request, so it would
-have to be generated on the instrument rather than carried to it.
+**PDU sizes.** Vary the payload in both directions: empty, a middle size, 27 bytes, and 251, the
+largest the Core Specification allows. Expect the bytes on both sides and the answer at T_IFS after
+the end of a PDU of each length. Written for 1, 13, 27 and 251 bytes; the rigs carry a PDU of any
+length since decision 29.
 
 **The MD flag.** Both MD clear closes the event after one exchange; the tester's MD set keeps the
 DUT listening; the DUT's MD set, with more queued, keeps the event going while the tester transmits.
@@ -105,8 +103,10 @@ DUT listening; the DUT's MD set, with more queued, keeps the event going while t
 **The access address is used and can be changed.** A tester on the connection's access address gets
 answers, one on another address none; after the DUT switches, the tester follows.
 
-**2 Mbit.** Sending and receiving at 2 Mbit, on a DUT that supports it. Not written: needs 2 Mbit in
-the tester and in the DUT's radio.
+**2 Mbit.** Sending and receiving at 2 Mbit, on a DUT that supports it. Written, in
+`radio_tests/phy_tests.cpp` behind a precondition on `hardware_supports_2mbit` (decision 28): an
+empty exchange and the largest PDU each way, the interval between events, a central on the other
+PHY, a PHY changed between events, advertising staying on 1 Mbit, and the window edges.
 
 **The times reported are correct.** The next event is scheduled from the time `connection_end_event`
 or `connection_timeout` carried, and the tester measures the distance of the anchors.

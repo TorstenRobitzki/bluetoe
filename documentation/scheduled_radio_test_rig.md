@@ -772,11 +772,12 @@ it is built and the tests are written before the oscillator is swapped.
 
 A timestamp is the capture of the timer at the radio's ADDRESS event, moved back by the preamble and
 the access address to the packet's first bit. For a received packet the event comes later than for a
-transmitted one, by the time the receiver takes to detect the address, 172 ticks or about 10.75 µs,
-which the tester subtracts as well; without it every interval from a transmission to a reception
-reads long by that much. The value was measured against the device's scan response, taken to start
-exactly one inter frame space after the tester's request (decision 26), so it is only as good as that
-assumption until the tester is checked against an independent reference.
+transmitted one, by the time the receiver takes to detect the address, 172 ticks or about 10.75 µs at
+1 Mbit, which the tester subtracts as well; without it every interval from a transmission to a
+reception reads long by that much. The value was measured against the device's scan response, taken
+to start exactly one inter frame space after the tester's request (decision 26), so it is only as
+good as that assumption until the tester is checked against an independent reference. It depends on
+the PHY: at 2 Mbit it is 96 ticks, about 6 µs, measured the same way (decision 28).
 
 ## 25. Each instrument answers only the other, by an acceptance filter
 
@@ -885,13 +886,123 @@ The first tests with more than one PDU in an event found the device's radio clos
 after the first exchange: the address of its own answer switched the address interrupt off, and the
 central's next PDU went unanswered. No earlier test sent a second PDU.
 
-The limits come from the wire. A request carries at most 255 bytes, which holds an operation with
-four PDUs of 39 bytes; a device step is loaded call by call, so it makes as many calls as the
-program's 32 have room for. A program holds 16 operations and 16 steps, about a dozen connection
-events per test.
+The limits come from what an instrument keeps, not from the wire: a request carries one operation,
+one call or one PDU, and the PDUs of an event are loaded after it, one request each (decision 29).
+An event sends at most four PDUs, a program holds eight of them altogether, 16 operations and 16
+steps, and a step makes as many calls as the program's 32 have room for; that is about a dozen
+connection events per test.
 
 **Rejected:** running the program interpreter in interrupt context, as above; and a tester that
 keeps the connection's sequence numbers itself.
+
+## 28. The PHY belongs to a connection event, and the tester is told it separately
+
+`set_phy( receiving, transmitting )` takes effect with the next connection event scheduled. Nothing
+else changes: advertising stays on 1 Mbit, which is what legacy advertising is, so a device that
+runs its connection at 2 Mbit still advertises at 1 Mbit and is found by a scanner that knows
+nothing of the connection. A direction given as `le_unchanged_coding` keeps the PHY it had.
+
+Only a symmetric PHY is implemented. The nRF52 radio asserts that both directions name the same one,
+because its `MODE` register is one setting for the whole radio and switching it between the packet
+and its answer, which the hardware places at the inter frame space, is work nothing asks for yet.
+The coded PHY is not implemented either.
+
+Nothing on air says which PHY a packet is on: a receiver on the other one hears noise. The tester
+therefore has a `use_phy` operation of its own, selecting the PHY for the operations that follow,
+and a program starts at 1 Mbit, since the tester is not reset between tests. A test that runs an
+event at 2 Mbit says so twice, once in the device's program and once in the tester's, which is also
+what makes the test of a central on the other PHY possible: the device hears nothing and its event
+times out.
+
+The timing of a packet depends on the PHY on both instruments, and both keep a small table of it:
+the preamble and the access address are 8 + 32 bits at 1 Mbit, 40 µs, and 16 + 32 bits at 2 Mbit,
+24 µs; a byte takes 8 µs and 4 µs. Three things are computed from that: the first bit of a packet
+from its address event, the end of a connection event's receive window, and the anchor a device
+reports.
+
+The receiver's address detection is measured, as decision 24 describes for 1 Mbit: 10.75 µs there
+and 6.0 µs at 2 Mbit on the nRF52840, about eleven bit times and twelve. Two independent
+measurements agree on the second value: the inter frame space the tester measures on the device's
+reply, which is 150 µs by the device's hardware, and the position at which the device's receive
+window stops accepting a packet, compared between the two PHYs so that the drift of the two crystals
+cancels. Both rest on the same assumption as decision 24, that the device's radio keeps the inter
+frame space exactly; they are as good as that assumption and no better.
+
+What is assumed rather than measured: that the radio's ramp up is the same 140 µs at 2 Mbit, and
+that its TIFS register keeps 150 µs there as well. A test that found either wrong would show as an
+inter frame space off by that much.
+
+## 29. A PDU may carry the largest payload, and a rig pays for it once
+
+A data channel PDU carries up to 251 bytes (Core Specification, Vol 6, Part B, section 2.4), which
+is what the rigs must be able to send, receive and carry over the wire. Reserving that room in every
+place a PDU can appear costs more RAM than a rig may spend: it would have taken the device rig from
+9 KB to 37 KB. The device rig runs on the same chip as the radio under test, so its footprint
+decides which platforms a radio can be tested on, and that is what keeps it small.
+
+Three things keep it small. A second type, `adv_pdu`, holds an advertising PDU, 2 + 37 bytes, and is
+what the fields that can hold nothing else are: a call's scan response, a record's reception, the
+tester's answer. The PDUs that are large live in a pool per program, one per request, and an
+operation or a call keeps only their place: a connection event names a range of the tester's pool,
+which `add_event_pdu` fills after the operation, exactly as a device step is loaded call by call
+(decision 14), and a `queue_pdu` call names one entry of the device's. A response hands over one
+received or captured PDU at a time.
+
+The frames then follow the largest single message, which is one PDU and little else, and are 512
+bytes. That is not a free choice: the frame limit is what a receiver compares a length against, so
+it is also the rig's only defence against a length read from noise (decision 30).
+
+The device rig keeps calls in a form of its own, with the advertising PDUs inline and the place of
+the data channel PDU, rather than storing the wire call. The wire and the store are different
+problems: one is a request that exists for a moment, the other is 32 entries that exist for the
+whole program.
+
+The PDU buffer is sized for the largest PDU as well, and the rig sets `max_rx_size` and
+`max_tx_size` to it at startup, which is what a link layer does once it has agreed the length with
+its central. It holds `received_pdus_until_full` PDUs of that size, which is what the tests of a
+full buffer rely on. Making that work needed a fix in the library:
+`ll_data_pdu_buffer::max_buffer_size` was 251 where every other size there counts the two header
+bytes as well, so the receive side could never be set up for the largest payload; it is 2 + 251 now.
+
+The tester is different. It is an instrument tied to one nRF52840-DK and never runs on a device
+under test, so its RAM constrains nothing, and it uses the board's. A firmware states that by
+setting `BLUETOE_RAM_SIZE` before it is added; everything else, the examples and the device rig
+among them, links against the memory of the smallest part of the family, so that a firmware which
+links has proved it fits.
+
+**Rejected:** giving every firmware the nRF52840's memory, which would have hidden what a rig costs;
+and keeping the worst case in every field while trimming the counts, which buys less and takes away
+what a program can hold.
+
+## 30. A frame receiver cannot resynchronise, so the host ends a frame that will not come
+
+A frame is a length, a payload and a checksum, with nothing marking its start (decision 16), because
+exactly one request is in flight (decision 6). That leaves one failure the design did not cover: a
+receiver that reads a length out of noise waits for a frame nobody will send. Every later request
+feeds that frame instead of being answered, so the link is dead until the instrument is reset, and
+the reset itself does not help, because the host's next request meets the same state.
+
+It was found when the frames grew. At 256 bytes almost every length read from noise is above the
+limit and is discarded at once, so the limit had been holding the link together; at 1536 most junk
+lengths are accepted and the link died within a test run. The evidence was on the board: the device
+alive and listening, its receive ring filling with the host's requests, and its frame receiver
+waiting for 1437 bytes.
+
+The host ends such a frame. It writes one frame's worth of `0xff` after a request that went
+unanswered, since that request may itself have been swallowed, and after every reset of the device,
+which is when the line floats and noise is expected. Whatever the receiver held is then discarded:
+either the frame completes and fails its checksum, or the next length reads `0xffff`, which is
+beyond what a frame may carry. It costs nothing while the link is healthy.
+
+The alternative was a timeout in the receiver, which is where such a rule belongs. The rig has no
+clock: the radio interface has no function that returns the current time (decision 15), and the rig
+is platform independent, so a timeout would mean a new obligation for every port, a timer beside the
+ones the radio uses. The host already has a clock and already knows something went wrong, so it is
+the host that acts.
+
+**Rejected:** framing with a start marker and escaping, which is properly self synchronising but
+changes the wire on both ends; and keeping the frames small, which leaves the fragility in place and
+makes every long PDU a fragmented message.
 
 ## Changes once the new interface is in use
 
@@ -925,6 +1036,12 @@ while the rig finds it:
   connection event already are (decision 27). It is started by a timer compare (decision 26), so the
   delay can become a parameter of the answer operation when a test that answers early or late, to
   find the edges of the device's receive window, is written.
+- Why a device sometimes does not answer after a reset. The host resets it through the tester, ends
+  any frame the noise of the reset announced (decision 30) and then asks a few times; in roughly one
+  radio run in five, every one of those requests goes unanswered and the test reports it. Ending the
+  frame made it rarer but did not remove it, so the cause is elsewhere: the reset pulse itself, or
+  the device's start up.
+
 - Two scan request cases the tester cannot produce yet: a second request within the same advertising
   event, since the tester answers once per operation, and a request with a CRC error, which only a
   connection event's PDU can have so far (decision 27).

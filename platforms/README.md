@@ -58,6 +58,22 @@ which applies the options every firmware is built with, adds this directory and 
 defines `add_bluetoe_firmware( target sources... )`. `examples/CMakeLists.txt` is the smallest
 example of such a project.
 
+## The memory a firmware links against
+
+A firmware links against the memory of the smallest part of its family, so that one which links has
+proved it fits every board the binding supports. A firmware that is an instrument rather than a
+product, and is built for one board, sets `BLUETOE_RAM_SIZE` before `add_bluetoe_firmware()` and
+gets a linker script of its own with that much RAM:
+
+```cmake
+set(BLUETOE_RAM_SIZE 256K)
+
+add_bluetoe_firmware(tester test_rig::nrf52_uart tester.cpp platform.cpp)
+```
+
+The test rig's tester does this (`tests/scheduled_radio/tester/CMakeLists.txt`); nothing else
+should, since the memory a firmware needs is what decides the parts it runs on.
+
 ## Build types
 
 `CMAKE_BUILD_TYPE` chooses the optimisation and whether assertions are kept, `Release` if none is
