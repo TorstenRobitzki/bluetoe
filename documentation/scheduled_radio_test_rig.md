@@ -1000,9 +1000,30 @@ is platform independent, so a timeout would mean a new obligation for every port
 ones the radio uses. The host already has a clock and already knows something went wrong, so it is
 the host that acts.
 
+A bad length costs more than the frame it announces. The receiver forgets everything it holds, and
+what it holds may be a request that has already arrived, so that request is lost as well. That is
+what happens around a reset, where the line carries noise while the device is held low: the device
+reads a length from the noise and drops the poll that follows it. The device was caught in that
+state, with 522 bytes consumed, which is the 516 of the burst and the six of the poll, an empty ring
+and nothing sent.
+
+It is frequent enough to design for. Measured over a hundred resets each, alternating so that both
+see the same conditions: without the burst 56 of 100 polls were lost, with it 23; a two byte clear
+in place of the burst left 15 and 24 against 2 and 5 for the burst, so the noise is usually longer
+than one byte and the burst is the right length. The rate varies with the day, between about 2 and
+35 per cent.
+
+What is left is the cost of a lost poll, and that is the host's to choose. A device that has booted
+answers within a millisecond, so the polls after a reset run with a timeout of their own, 250 ms,
+and there are six of them; a loss costs a repeat rather than the timeout of a request that may take
+time. Measured the same way: 14 seconds per hundred resets instead of 54.
+
 **Rejected:** framing with a start marker and escaping, which is properly self synchronising but
-changes the wire on both ends; and keeping the frames small, which leaves the fragility in place and
-makes every long PDU a fragmented message.
+changes the wire on both ends; keeping the frames small, which leaves the fragility in place and
+makes every long PDU a fragmented message; and discarding only the frame whose length was bad
+instead of everything held, which saves the request that follows only when the noise is exactly two
+bytes long, and otherwise leaves the receiver parsing the middle of a frame, the state that kills
+the link.
 
 ## Changes once the new interface is in use
 
@@ -1036,11 +1057,10 @@ while the rig finds it:
   connection event already are (decision 27). It is started by a timer compare (decision 26), so the
   delay can become a parameter of the answer operation when a test that answers early or late, to
   find the edges of the device's receive window, is written.
-- Why a device sometimes does not answer after a reset. The host resets it through the tester, ends
-  any frame the noise of the reset announced (decision 30) and then asks a few times; in roughly one
-  radio run in five, every one of those requests goes unanswered and the test reports it. Ending the
-  frame made it rarer but did not remove it, so the cause is elsewhere: the reset pulse itself, or
-  the device's start up.
+- Why the rate at which a poll after a reset is lost varies so much, between about 2 and 35 per cent
+  from one hour to the next, on the same boards and the same firmware (decision 30). The mechanism
+  is understood; how much noise the line carries around a reset is not, and it is the difference
+  between a test run that repeats a poll twice and one that repeats it eighty times.
 
 - Two scan request cases the tester cannot produce yet: a second request within the same advertising
   event, since the tester answers once per operation, and a request with a CRC error, which only a
