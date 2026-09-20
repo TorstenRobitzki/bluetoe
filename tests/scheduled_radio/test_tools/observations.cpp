@@ -48,9 +48,15 @@ namespace test_rig {
             time_of( later.when ) - time_of( earlier.when ) );
     }
 
-    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later )
+    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later,
+        link_layer::phy_ll_encoding::phy_ll_encoding_t phy )
     {
-        const std::chrono::microseconds air_time( ( 1 + 4 + earlier.data.size + 3 ) * 8 );
+        const bool two_mbit = phy == link_layer::phy_ll_encoding::le_2m_phy;
+
+        // preamble, access address, header, payload and CRC; the preamble is one byte at
+        // 1 Mbit and two at 2 Mbit, and a byte takes 8 µs there and 4 µs at 2 Mbit
+        const std::chrono::microseconds air_time(
+            ( ( two_mbit ? 2 : 1 ) + 4 + earlier.data.size + 3 ) * ( two_mbit ? 4 : 8 ) );
 
         return time_of( later.when ) - time_of( earlier.when ) - air_time;
     }

@@ -70,9 +70,13 @@ namespace test_rig {
 
     /**
      * @brief the time from the end of `earlier` to the first bit of `later`, by the tester's
-     *        clock: preamble, access address, the PDU and its CRC at 1 Mbit are 8 µs a byte
+     *        clock
+     *
+     * How long `earlier` was on air follows from `phy`: preamble, access address, the PDU and
+     * its CRC, 8 µs a byte at 1 Mbit and 4 µs at 2 Mbit.
      */
-    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later );
+    tester_duration inter_frame_space( const captured_pdu& earlier, const captured_pdu& later,
+        link_layer::phy_ll_encoding::phy_ll_encoding_t phy = link_layer::phy_ll_encoding::le_1m_phy );
 
     /**
      * @brief the time from `earlier` to `later`, by the device's clock
