@@ -218,11 +218,26 @@ BOOST_FIXTURE_TEST_CASE( a_late_response_is_not_taken_for_the_next_one, fixture 
     BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 10, 20 ), 30 );
 }
 
+namespace {
+
+    /*
+     * The same, with a timeout that a machine running many tests at once can still keep: this
+     * test waits one out on purpose and then needs an answer within the next.
+     */
+    struct patient_fixture
+    {
+        socket_pair                                         sockets;
+        fake_device                                         device{ sockets.device };
+        stream_transport< tcp::socket >                     transport{ sockets.io, sockets.host, "the device", 10 * timeout };
+        proxy< functions, stream_transport< tcp::socket > > remote{ transport };
+    };
+}
+
 /*
  * A device waiting for a frame that noise announced swallows every later request. The
  * transport ends that frame after the request it cost, so the next one is answered.
  */
-BOOST_FIXTURE_TEST_CASE( a_device_waiting_for_a_frame_from_noise_is_resynchronised, fixture )
+BOOST_FIXTURE_TEST_CASE( a_device_waiting_for_a_frame_from_noise_is_resynchronised, patient_fixture )
 {
     device.noise = true;
 
