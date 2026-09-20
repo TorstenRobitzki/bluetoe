@@ -87,6 +87,11 @@ of what is being tested, including whatever the radio does before it reports its
 Mechanism belongs in the tester, policy on the host: the tester owns the pin and exposes a reset
 command, the host decides when to use it.
 
+The command returns once the device runs, not once the line is released: it holds the line for five
+milliseconds and waits five more afterwards. A device needs well under a millisecond to answer on
+its link, and a request that arrives before that is simply lost, which cost about three resets in
+five until the wait was there (decision 30).
+
 ## 5. The rig owns the serial link only; the radio owns the rest of the hardware
 
 The rig on the device under test gets access to the scheduled radio implementation and a serial
@@ -1002,21 +1007,17 @@ the host that acts.
 
 A bad length costs more than the frame it announces. The receiver forgets everything it holds, and
 what it holds may be a request that has already arrived, so that request is lost as well. That is
-what happens around a reset, where the line carries noise while the device is held low: the device
-reads a length from the noise and drops the poll that follows it. The device was caught in that
-state, with 522 bytes consumed, which is the 516 of the burst and the six of the poll, an empty ring
-and nothing sent.
+the reason a device is polled more than once after a reset: a device reset while a frame of the host
+was still on its way reads the tail of that frame as a length, and drops the poll that follows it
+with that frame. The first poll that goes unanswered ends the frame, so the next one is answered.
 
-It is frequent enough to design for. Measured over a hundred resets each, alternating so that both
-see the same conditions: without the burst 56 of 100 polls were lost, with it 23; a two byte clear
-in place of the burst left 15 and 24 against 2 and 5 for the burst, so the noise is usually longer
-than one byte and the burst is the right length. The rate varies with the day, between about 2 and
-35 per cent.
-
-What is left is the cost of a lost poll, and that is the host's to choose. A device that has booted
-answers within a millisecond, so the polls after a reset run with a timeout of their own, 250 ms,
-and there are six of them; a loss costs a repeat rather than the timeout of a request that may take
-time. Measured the same way: 14 seconds per hundred resets instead of 54.
+Sending the burst after a reset as well looked as if it helped and did not. The polls were lost
+because they were sent before the device had started, not because anything was out of step: a poll
+sent at once is lost in about three resets in five, one sent a millisecond later in none of fifty.
+The burst only delayed the poll by the 45 ms it takes on the wire, and while it did that, it could
+swallow the poll itself: the device was caught having consumed 522 bytes, the 516 of the burst and
+the six of the poll, with an empty ring and nothing sent. The reset now returns once the device runs
+(decision 4) and the burst is not sent there, which leaves no poll lost in 200 resets.
 
 **Rejected:** framing with a start marker and escaping, which is properly self synchronising but
 changes the wire on both ends; keeping the frames small, which leaves the fragility in place and
@@ -1057,11 +1058,6 @@ while the rig finds it:
   connection event already are (decision 27). It is started by a timer compare (decision 26), so the
   delay can become a parameter of the answer operation when a test that answers early or late, to
   find the edges of the device's receive window, is written.
-- Why the rate at which a poll after a reset is lost varies so much, between about 2 and 35 per cent
-  from one hour to the next, on the same boards and the same firmware (decision 30). The mechanism
-  is understood; how much noise the line carries around a reset is not, and it is the difference
-  between a test run that repeats a poll twice and one that repeats it eighty times.
-
 - Two scan request cases the tester cannot produce yet: a second request within the same advertising
   event, since the tester answers once per operation, and a request with a CRC error, which only a
   connection event's PDU can have so far (decision 27).
