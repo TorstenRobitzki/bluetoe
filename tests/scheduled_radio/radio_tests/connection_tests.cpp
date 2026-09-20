@@ -498,8 +498,9 @@ BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_longest_inter_frame
 }
 
 /*
- * Payloads of one byte, a middle size and 27 bytes, the largest without the data length
- * extension, in both directions (candidate_tests.md).
+ * Payloads of one byte, a middle size, 27 bytes, the largest without the data length
+ * extension, and the largest the Core Specification allows, in both directions
+ * (candidate_tests.md).
  */
 BOOST_FIXTURE_TEST_CASE( the_smallest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
 {
@@ -511,9 +512,14 @@ BOOST_FIXTURE_TEST_CASE( a_middle_sized_data_pdu_of_the_central_is_received, con
     a_data_pdu_of_the_central_is_received( *this, 13 );
 }
 
-BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
+BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_without_length_extension_of_the_central_is_received, connection_fixture, *if_tester )
 {
     a_data_pdu_of_the_central_is_received( *this, 27 );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_central_is_received( *this, largest_data_pdu_size - 2 );
 }
 
 BOOST_FIXTURE_TEST_CASE( the_smallest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
@@ -526,9 +532,14 @@ BOOST_FIXTURE_TEST_CASE( a_middle_sized_data_pdu_of_the_device_is_sent, connecti
     a_data_pdu_of_the_device_is_sent( *this, 13 );
 }
 
-BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
+BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_without_length_extension_of_the_device_is_sent, connection_fixture, *if_tester )
 {
     a_data_pdu_of_the_device_is_sent( *this, 27 );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
+{
+    a_data_pdu_of_the_device_is_sent( *this, largest_data_pdu_size - 2 );
 }
 
 /*
