@@ -36,6 +36,10 @@ message("TESTER_BUILD_IDENTIFIER: ${TESTER_BUILD_IDENTIFIER}")
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../link ${CMAKE_BINARY_DIR}/link)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../nrf52 ${CMAKE_BINARY_DIR}/port)
 
+# The tester is an instrument on one nRF52840-DK and never runs on a device under test, so it
+# uses the RAM of that board; the rig stays within the memory of the smallest nRF52.
+set(BLUETOE_RAM_SIZE 256K)
+
 add_bluetoe_firmware(tester test_rig::nrf52_uart tester.cpp platform.cpp)
 target_compile_definitions(tester PRIVATE TESTER_BUILD_IDENTIFIER="${TESTER_BUILD_IDENTIFIER}")
 set_target_properties(tester PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)

@@ -50,9 +50,29 @@ if(CMAKE_CROSSCOMPILING)
     # The function is called from the firmware's directory, so the script's path is recorded
     # here, where it is known.
     set_property(GLOBAL PROPERTY BLUETOE_LINKER_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/linker_script.ld)
+    set(BLUETOE_NRF52_LINKER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nrf52.ld CACHE INTERNAL "the linker script a firmware's own memory is generated from")
 
+    # A firmware that sets BLUETOE_RAM_SIZE before it is added gets a script of its own with
+    # that much RAM; everything else links against the shared one and its conservative memory.
     function(add_linker_script target)
         get_property(script GLOBAL PROPERTY BLUETOE_LINKER_SCRIPT)
+
+        if (DEFINED BLUETOE_RAM_SIZE)
+            set(script ${CMAKE_CURRENT_BINARY_DIR}/linker_script_${target}.ld)
+
+            add_custom_command(OUTPUT ${script}
+                COMMAND ${CMAKE_C_COMPILER} -E -P -x c
+                -DBLUETOE_RAM_SIZE=${BLUETOE_RAM_SIZE}
+                -MMD -MP -MT ${script} -MF ${script}.d
+                -o ${script}
+                ${BLUETOE_NRF52_LINKER_SOURCE}
+                DEPENDS ${BLUETOE_NRF52_LINKER_SOURCE})
+
+            add_custom_target(${target}_linker_script DEPENDS ${script})
+            add_dependencies(${target} ${target}_linker_script)
+        else()
+            add_dependencies(${target} linker_script)
+        endif()
 
         set_property(
             TARGET ${target}
@@ -62,8 +82,6 @@ if(CMAKE_CROSSCOMPILING)
 
         target_link_options(${target}
             PRIVATE -T ${script})
-
-        add_dependencies(${target} linker_script)
     endfunction()
 
     if (DEFINED BLUETOE_JLINK)
