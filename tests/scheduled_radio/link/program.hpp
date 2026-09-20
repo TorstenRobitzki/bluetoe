@@ -75,8 +75,8 @@ namespace test_rig {
      * the end of a connection event's receive window; `transmit` and
      * `response` are the advertising PDU and the scan response of an advertising event, and
      * `transmit` the data channel PDU a queue_pdu puts into the PDU buffer, as the link layer
-     * would; a read_received takes what the buffer received out of it, as the link layer would,
-     * and the rig keeps it for the host; a switch_pdu_buffer hands the radio the rig's other PDU
+     * would, which is why it is the only field that can hold one; a read_received takes what
+     * the buffer received out of it, as the link layer would, and the rig keeps it for the host; a switch_pdu_buffer hands the radio the rig's other PDU
      * buffer from then on, as a link layer with a second connection would; `address`,
      * `access_address` and `crc_init` are what the two setup calls set, and `phy` what a set_phy
      * sets for both directions of the connection events that follow.
@@ -88,7 +88,7 @@ namespace test_rig {
         link_layer::delta_time      delay           = {};
         link_layer::delta_time      end_delay       = {};
         pdu                         transmit        = {};
-        pdu                         response        = {};
+        adv_pdu                     response        = {};
         link_layer::device_address  address         = {};
         std::uint32_t               access_address  = 0;
         std::uint32_t               crc_init        = 0;
@@ -115,8 +115,9 @@ namespace test_rig {
     /**
      * @brief one thing that happened: a callback the radio made, or a call a step made
      *
-     * For a callback, `when` is the time it carried, `data` what adv_received() received,
-     * and `events` what connection_end_event() reported. For a call, `when` is the resolved
+     * For a callback, `when` is the time it carried, `data` what adv_received() received, an
+     * advertising PDU since no other callback carries one, and `events` what
+     * connection_end_event() reported. For a call, `when` is the resolved
      * time it passed, `channel` its channel, and `result` what it returned; start_advertising(), the cancels and the setup calls
      * carry no time, and start_advertising() and the setup calls no result.
      */
@@ -128,13 +129,16 @@ namespace test_rig {
         link_layer::abs_time                when;
         std::uint32_t                       channel     = 0;
         bool                                result      = false;
-        pdu                                 data;
+        adv_pdu                             data;
         link_layer::connection_event_events events;
     };
 
     constexpr std::size_t records_per_batch = 4;
 
-    constexpr std::size_t received_per_batch = 4;
+    /**
+     * @brief PDUs a response carries; one, since a PDU of the largest payload is most of a frame
+     */
+    constexpr std::size_t received_per_batch = 1;
 
     /**
      * @brief the PDUs received in connection events that the rig hands over in one response

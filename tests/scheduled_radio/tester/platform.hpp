@@ -67,9 +67,9 @@ namespace test_rig {
         void receive( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
             std::uint32_t operation_id );
         void answer( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-            const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id );
+            const link_layer::device_address& target, const adv_pdu& response, std::uint32_t operation_id );
         bool connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-            std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
+            std::uint32_t at, const pdu* pdus, std::uint32_t count, std::uint32_t t_ifs,
             std::uint32_t crc_errors, std::uint32_t operation_id );
         void stop();
         void accept_advertiser( std::uint32_t slot, const link_layer::device_address& address );
@@ -111,7 +111,7 @@ namespace test_rig {
         volatile std::uint32_t                  event_tail_;
         volatile std::uint32_t                  operation_id_   = 0;
 
-        std::uint8_t                            receive_buffer_[ max_advertising_pdu_size ];
+        std::uint8_t                            receive_buffer_[ max_pdu_size ];
 
         // whether the radio matches advertisers, which is when it reports a miss, and the
         // access address, on which it only does for advertising
@@ -132,7 +132,7 @@ namespace test_rig {
         volatile bool                           answered_       = false;
         volatile bool                           transmitting_   = false;
         link_layer::device_address              target_;
-        std::uint8_t                            response_buffer_[ max_advertising_pdu_size ];
+        std::uint8_t                            response_buffer_[ max_pdu_size ];
 
         /*
          * A connection event's state, shared between connection_event() and the radio
@@ -141,7 +141,7 @@ namespace test_rig {
          * CRC. `transmitting_` tells the END of one of its PDUs from a reply's, as for an answer.
          */
         volatile bool                           connecting_     = false;
-        std::uint8_t                            event_pdus_[ max_event_pdus ][ max_advertising_pdu_size ];
+        std::uint8_t                            event_pdus_[ max_event_pdus ][ max_pdu_size ];
         std::uint32_t                           event_count_    = 0;
         volatile std::uint32_t                  event_next_     = 0;
         std::uint32_t                           event_t_ifs_        = 0;

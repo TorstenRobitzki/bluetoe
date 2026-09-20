@@ -71,6 +71,14 @@ namespace test_rig {
     constexpr std::size_t max_event_pdus = 4;
 
     /**
+     * @brief data channel PDUs the connection events of a program hold, all of them together
+     *
+     * An operation keeps only the place of its PDUs here, so that the room of a PDU of the
+     * largest payload is reserved once per PDU of the program and not once per operation.
+     */
+    constexpr std::size_t max_program_pdus = 8;
+
+    /**
      * @brief one operation of a tester program
      *
      * `window` is how long it runs, from the end of the previous one. A receive listens on
@@ -86,7 +94,9 @@ namespace test_rig {
      * at 1 Mbit.
      *
      * A connection_event is one connection event on `channel`, with the tester as the central.
-     * It sends the first of its `pdu_count` `pdus` so that its first bit, the event's anchor, is
+     * Its PDUs are the ones added after it with add_event_pdu(); `first_pdu` and `pdu_count`
+     * are where they are in the program's PDUs, which the tester fills in and the wire does
+     * not carry. It sends the first of them so that its first bit, the event's anchor, is
      * on air `delay` after the anchor of the previous connection_event, or, before the first,
      * after the first bit of the PDU the program captured last. After each PDU it listens for the
      * device's reply and sends the next one `t_ifs` after the reply ended; it ends with the reply
@@ -107,12 +117,12 @@ namespace test_rig {
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy             = link_layer::phy_ll_encoding::le_1m_phy;
         link_layer::delta_time                          window          = {};
         link_layer::device_address                      target          = {};
-        pdu                                             response        = {};
+        adv_pdu                                         response        = {};
         std::uint32_t                                   count           = 0;
         link_layer::delta_time                          delay           = {};
         std::uint32_t                                   access_address  = 0;
         std::uint32_t                                   crc_init        = 0;
-        std::array< pdu, max_event_pdus >               pdus            = {};
+        std::uint8_t                                    first_pdu       = 0;
         std::uint8_t                                    pdu_count       = 0;
         link_layer::delta_time                          t_ifs           = {};
         std::uint8_t                                    crc_errors      = 0;
@@ -156,7 +166,11 @@ namespace test_rig {
         pdu                     data;
     };
 
-    constexpr std::size_t captured_per_batch = 4;
+    /**
+     * @brief captured PDUs a response carries; one, since a PDU of the largest payload is most
+     *        of a frame
+     */
+    constexpr std::size_t captured_per_batch = 1;
 
     /**
      * @brief the PDUs the tester hands over in one response
@@ -189,16 +203,16 @@ namespace test_rig {
     bool serialize( Sink& out, const operation& value )
     {
         return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
-            value.pdus, value.pdu_count, value.t_ifs, value.crc_errors ) );
+            value.t_ifs, value.crc_errors ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
         auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
-            value.pdus, value.pdu_count, value.t_ifs, value.crc_errors );
+            value.t_ifs, value.crc_errors );
 
-        return deserialize( in, fields ) && value.pdu_count <= max_event_pdus;
+        return deserialize( in, fields );
     }
 
     template < sink Sink >

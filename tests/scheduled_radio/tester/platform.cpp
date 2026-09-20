@@ -151,7 +151,7 @@ namespace test_rig {
                 | ( RADIO_PCNF1_ENDIAN_Little << RADIO_PCNF1_ENDIAN_Pos )
                 | ( 3 << RADIO_PCNF1_BALEN_Pos )
                 | ( 0 << RADIO_PCNF1_STATLEN_Pos )
-                | ( ( max_advertising_pdu_size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
+                | ( ( max_pdu_size - 2 ) << RADIO_PCNF1_MAXLEN_Pos );
 
             NRF_RADIO->RXADDRESSES = 1 << 0;
 
@@ -374,7 +374,7 @@ namespace test_rig {
      * receiver for the reply starts.
      */
     bool platform::connection_event( std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-        std::uint32_t at, const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs,
+        std::uint32_t at, const pdu* pdus, std::uint32_t count, std::uint32_t t_ifs,
         std::uint32_t crc_errors, std::uint32_t operation_id )
     {
         prepare( channel, phy, ticks, operation_id );
@@ -468,7 +468,7 @@ namespace test_rig {
             NRF_RADIO->CRCINIT   = crc_init_;
 
             const std::uint8_t* sent   = event_pdus_[ event_next_ ];
-            const std::size_t   size   = std::min< std::size_t >( sent[ 1 ] + 2, max_advertising_pdu_size );
+            const std::size_t   size   = std::min< std::size_t >( sent[ 1 ] + 2, max_pdu_size );
             const bool          crc_ok = !crc_error( event_next_ );
 
             event_next_ = event_next_ + 1;
@@ -499,7 +499,7 @@ namespace test_rig {
         if ( event_next_ != event_count_ )
             arm_event_transmission( first_bit + air_ticks( timing( two_mbit_ ), receive_buffer_[ 1 ] ) + event_t_ifs_ );
 
-        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
+        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_pdu_size );
 
         const tester_happened event{
             .kind   = tester_event::received,
@@ -527,7 +527,7 @@ namespace test_rig {
      */
     void platform::answer(
         std::uint32_t channel, link_layer::phy_ll_encoding::phy_ll_encoding_t phy, std::uint64_t ticks,
-        const link_layer::device_address& target, const pdu& response, std::uint32_t operation_id )
+        const link_layer::device_address& target, const adv_pdu& response, std::uint32_t operation_id )
     {
         receive( channel, phy, ticks, operation_id );
 
@@ -567,7 +567,7 @@ namespace test_rig {
             // the answer is out; DISABLED re-arms the receiver, which answers no second time
             NRF_PPI->CHENCLR = 1u << ppi_answer_txen;
 
-            const std::size_t size = std::min< std::size_t >( response_buffer_[ 1 ] + 2, max_advertising_pdu_size );
+            const std::size_t size = std::min< std::size_t >( response_buffer_[ 1 ] + 2, max_pdu_size );
 
             const tester_happened event{
                 .kind   = tester_event::transmitted,
@@ -599,7 +599,7 @@ namespace test_rig {
             NRF_RADIO->TASKS_START = 1;
         }
 
-        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_advertising_pdu_size );
+        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_pdu_size );
 
         const tester_happened event{
             .kind   = tester_event::received,

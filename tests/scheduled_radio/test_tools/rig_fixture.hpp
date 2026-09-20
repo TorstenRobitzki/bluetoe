@@ -113,6 +113,21 @@ namespace test_rig {
         std::vector< call > calls;
     };
 
+    /**
+     * @brief one operation of a tester program, with the PDUs a connection event sends
+     *
+     * The PDUs are loaded one request each, after the operation; every other operation is
+     * one of these on its own, which is what the conversion is for.
+     */
+    struct tester_step
+    {
+        operation           op;
+        std::vector< pdu >  pdus;
+
+        tester_step( const operation& only ) : op( only ) {}
+        tester_step( const operation& with_pdus, std::vector< pdu > pdus ) : op( with_pdus ), pdus( std::move( pdus ) ) {}
+    };
+
     /** @cond HIDDEN_SYMBOLS */
     namespace details {
 
@@ -143,7 +158,7 @@ namespace test_rig {
             .kind     = call_kind::start_advertising,
             .channel  = channel,
             .transmit = pdu( transmit ),
-            .response = pdu( response ) };
+            .response = adv_pdu( response ) };
     }
 
     inline call schedule_advertising_event(
@@ -165,7 +180,7 @@ namespace test_rig {
             .channel  = channel,
             .delay    = as_delta_time( delay ),
             .transmit = pdu( transmit ),
-            .response = pdu( response ) };
+            .response = adv_pdu( response ) };
     }
 
     /**
@@ -319,7 +334,7 @@ namespace test_rig {
             .channel  = channel,
             .window   = as_delta_time( window.window ),
             .target   = target,
-            .response = pdu( response ) };
+            .response = adv_pdu( response ) };
     }
 
     /**
@@ -377,7 +392,7 @@ namespace test_rig {
      *
      * @throw std::invalid_argument for more PDUs than an event holds
      */
-    inline operation connection_event(
+    inline tester_step connection_event(
         std::uint32_t channel, std::chrono::nanoseconds after,
         std::initializer_list< event_pdu > pdus,
         std::chrono::nanoseconds t_ifs = std::chrono::microseconds( 150 ) )
@@ -393,19 +408,19 @@ namespace test_rig {
             .channel   = channel,
             .window    = as_delta_time( after + per_exchange * pdus.size() ),
             .delay     = as_delta_time( after ),
-            .pdu_count = static_cast< std::uint8_t >( pdus.size() ),
             .t_ifs     = as_delta_time( t_ifs ) };
 
+        tester_step step( result );
         std::size_t index = 0;
 
         for ( const event_pdu& next : pdus )
         {
-            result.pdus[ index ] = pdu( next.data );
-            result.crc_errors   |= next.crc_error ? 1u << index : 0u;
+            step.pdus.push_back( pdu( next.data ) );
+            step.op.crc_errors |= next.crc_error ? 1u << index : 0u;
             ++index;
         }
 
-        return result;
+        return step;
     }
 
     /**
@@ -443,10 +458,15 @@ namespace test_rig {
             }
         }
 
-        void program_tester( std::initializer_list< operation > operations )
+        void program_tester( std::initializer_list< tester_step > operations )
         {
-            for ( const operation& o : operations )
-                BOOST_REQUIRE( observer.call< &tester::add_operation >( o ) );
+            for ( const tester_step& s : operations )
+            {
+                BOOST_REQUIRE( observer.call< &tester::add_operation >( s.op ) );
+
+                for ( const pdu& p : s.pdus )
+                    BOOST_REQUIRE( observer.call< &tester::add_event_pdu >( p ) );
+            }
         }
 
         /**

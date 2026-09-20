@@ -256,7 +256,7 @@ BOOST_FIXTURE_TEST_CASE( a_response_that_does_not_fit_waits_for_room, fixture )
     transport.rig.run();
     BOOST_CHECK_EQUAL( transport.port.transmissions, 1 );
     BOOST_CHECK( transport.receiver.receive() == receive_result::frame );
-    BOOST_TEST( transport.receiver.payload() == std::vector< std::uint8_t >( { 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 } ),
+    BOOST_TEST( transport.receiver.payload() == std::vector< std::uint8_t >( { 0x00, 0x00, 0x00, 0x00, 0x00, dut_protocol_version, 0x00 } ),
         boost::test_tools::per_element() );
 }
 

@@ -60,17 +60,17 @@ namespace {
         }
 
         void answer( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks,
-            const bluetoe::link_layer::device_address& target, const pdu& response, std::uint32_t id )
+            const bluetoe::link_layer::device_address& target, const adv_pdu& response, std::uint32_t id )
         {
             answers.push_back( { channel, p, ticks, target, response } );
             operation_id = id;
         }
 
         bool connection_event( std::uint32_t channel, phy::phy_ll_encoding_t p, std::uint64_t ticks, std::uint32_t at,
-            const std::array< pdu, max_event_pdus >& pdus, std::uint32_t count, std::uint32_t t_ifs, std::uint32_t crc_errors,
+            const pdu* pdus, std::uint32_t count, std::uint32_t t_ifs, std::uint32_t crc_errors,
             std::uint32_t id )
         {
-            connection_events.push_back( { channel, p, ticks, at, std::vector< pdu >( pdus.begin(), pdus.begin() + count ), t_ifs, crc_errors } );
+            connection_events.push_back( { channel, p, ticks, at, std::vector< pdu >( pdus, pdus + count ), t_ifs, crc_errors } );
             operation_id = id;
 
             return event_in_time;
@@ -151,7 +151,7 @@ namespace {
             phy::phy_ll_encoding_t                  phy;
             std::uint64_t                           ticks;
             bluetoe::link_layer::device_address     target;
-            pdu                                     response;
+            adv_pdu                                 response;
         };
 
         struct connection_event_call
@@ -232,24 +232,24 @@ namespace {
             .count   = count };
     }
 
-    // the largest a connection event can be: every PDU at its largest
-    operation largest_event_op()
+    // the largest an operation can be: an answer, which carries a scan response
+    operation largest_op()
     {
-        const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
+        const std::array< std::uint8_t, max_advertising_pdu_size > largest_response = {};
 
-        operation result{
-            .kind      = operation_kind::connection_event,
-            .channel   = 36,
-            .phy       = phy::le_1m_phy,
-            .window    = delta_time::msec( 100 ),
-            .delay     = delta_time::usec( 7500 ),
-            .pdu_count  = max_event_pdus,
-            .t_ifs      = delta_time::usec( 148 ),
-            .crc_errors = 0x0f };
-
-        result.pdus.fill( pdu( largest_pdu ) );
-
-        return result;
+        return operation{
+            .kind           = operation_kind::answer,
+            .channel        = 39,
+            .phy            = phy::le_2m_phy,
+            .window         = delta_time::msec( 100 ),
+            .target         = bluetoe::link_layer::device_address{ { 1, 2, 3, 4, 5, 6 }, true },
+            .response       = adv_pdu( largest_response ),
+            .count          = 1,
+            .delay          = delta_time::usec( 7500 ),
+            .access_address = 0xffffffff,
+            .crc_init       = 0xffffff,
+            .t_ifs          = delta_time::usec( 148 ),
+            .crc_errors     = 0x0f };
     }
 
     operation address_op( std::uint32_t access_address, std::uint32_t crc_init )
@@ -268,7 +268,7 @@ namespace {
             .phy      = phy::le_1m_phy,
             .window   = window,
             .target   = target,
-            .response = pdu( adv_ind ) };
+            .response = adv_pdu( adv_ind ) };
     }
 
     struct fixture
@@ -413,13 +413,12 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_weaker_than_the_rssi_limit_is_dropped_not_lost, f
     platform.push_received( at( 3ms ), adv_ind, true, 40 );   // exactly at the limit, kept
     rig.run();
 
-    const captured_batch batch = remote.call< &rig_t::collect_captured >();
+    const std::vector< captured_pdu > captured = collect_all();
 
     // the two strong PDUs are kept; the weak one is not counted as produced either
-    BOOST_REQUIRE_EQUAL( batch.count, 2u );
-    BOOST_CHECK_EQUAL( batch.produced, 2u );
-    BOOST_CHECK_EQUAL( batch.captured[ 0 ].rssi, 17 );
-    BOOST_CHECK_EQUAL( batch.captured[ 1 ].rssi, 40 );
+    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
+    BOOST_CHECK_EQUAL( captured[ 0 ].rssi, 17 );
+    BOOST_CHECK_EQUAL( captured[ 1 ].rssi, 40 );
 }
 
 BOOST_FIXTURE_TEST_CASE( an_empty_acceptance_filter_keeps_every_advertiser, fixture )
@@ -512,10 +511,11 @@ BOOST_FIXTURE_TEST_CASE( captured_come_in_batches_with_continuing_indices, fixtu
 
     const captured_batch second = remote.call< &rig_t::collect_captured >();
     BOOST_CHECK_EQUAL( second.first, captured_per_batch );
+    BOOST_CHECK_EQUAL( second.count, captured_per_batch );
 
-    const captured_batch third = remote.call< &rig_t::collect_captured >();
-    BOOST_CHECK_EQUAL( third.first, 2 * captured_per_batch );
-    BOOST_CHECK_EQUAL( third.count, 1u );
+    // the rest, and then a batch that carries none and still counts what was produced
+    for ( std::size_t left = 9 - 2 * captured_per_batch; left != 0; --left )
+        BOOST_REQUIRE_EQUAL( remote.call< &rig_t::collect_captured >().count, captured_per_batch );
 
     const captured_batch empty = remote.call< &rig_t::collect_captured >();
     BOOST_CHECK_EQUAL( empty.count, 0u );
@@ -565,7 +565,7 @@ BOOST_AUTO_TEST_CASE( an_answer_operation_round_trips_with_its_target_and_respon
         .channel  = 38,
         .window   = delta_time::msec( 100 ),
         .target   = bluetoe::link_layer::device_address{ { 0x11, 0x22, 0x33, 0x44, 0x55, 0xc0 }, false },
-        .response = pdu( adv_ind ) };
+        .response = adv_pdu( adv_ind ) };
 
     std::array< std::uint8_t, 128 > storage = {};
     buffer_sink out( storage );
@@ -639,7 +639,7 @@ BOOST_FIXTURE_TEST_CASE( starting_an_answer_begins_it_on_the_platform_with_its_t
     BOOST_CHECK_EQUAL( platform.answers[ 0 ].channel, 37u );
     BOOST_CHECK( tester_duration( platform.answers[ 0 ].ticks ) == 100ms );
     BOOST_CHECK( platform.answers[ 0 ].target == target );
-    BOOST_CHECK( platform.answers[ 0 ].response == pdu( adv_ind ) );
+    BOOST_CHECK( platform.answers[ 0 ].response == adv_pdu( adv_ind ) );
 }
 
 BOOST_AUTO_TEST_CASE( an_operation_round_trips_with_its_count )
@@ -946,9 +946,9 @@ BOOST_FIXTURE_TEST_CASE( the_acceptance_filter_does_not_apply_on_another_access_
     BOOST_CHECK_EQUAL( collect_all().size(), 1u );
 }
 
-BOOST_AUTO_TEST_CASE( a_connection_event_operation_round_trips_with_its_pdus_and_t_ifs )
+BOOST_AUTO_TEST_CASE( an_operation_round_trips_with_every_field_it_carries )
 {
-    const operation sent = largest_event_op();
+    const operation sent = largest_op();
 
     std::array< std::uint8_t, default_max_payload > storage = {};
     buffer_sink out( storage );
@@ -964,29 +964,25 @@ BOOST_AUTO_TEST_CASE( a_connection_event_operation_round_trips_with_its_pdus_and
 
 /*
  * An operation goes in one request behind a one byte opcode, so the largest it can be has to
- * fit: a connection event with every PDU at its largest.
+ * fit: an answer, which carries a scan response.
  */
 BOOST_AUTO_TEST_CASE( the_largest_operation_fits_into_one_request )
 {
     std::array< std::uint8_t, default_max_payload - 1 > request;
     buffer_sink out( request );
 
-    BOOST_CHECK( serialize( out, largest_event_op() ) );
+    BOOST_CHECK( serialize( out, largest_op() ) );
 }
 
-BOOST_AUTO_TEST_CASE( more_pdus_than_an_event_holds_are_refused_on_the_wire )
+// a PDU of a connection event goes in a request of its own, behind a one byte opcode
+BOOST_AUTO_TEST_CASE( the_largest_event_pdu_fits_into_one_request )
 {
-    operation sent = largest_event_op();
-    sent.pdu_count = max_event_pdus + 1;
+    const std::array< std::uint8_t, max_pdu_size > largest_pdu = {};
 
-    std::array< std::uint8_t, default_max_payload > storage = {};
-    buffer_sink out( storage );
-    BOOST_REQUIRE( serialize( out, sent ) );
+    std::array< std::uint8_t, default_max_payload - 1 > request;
+    buffer_sink out( request );
 
-    buffer_source in( storage.data(), out.size() );
-    operation     decoded;
-
-    BOOST_CHECK( !deserialize( in, decoded ) );
+    BOOST_CHECK( serialize( out, pdu( largest_pdu ) ) );
 }
 
 namespace {
@@ -994,20 +990,29 @@ namespace {
     const std::uint8_t empty_pdu[] = { 0x01, 0x00 };
     const std::uint8_t reply_pdu[] = { 0x05, 0x00 };
 
-    operation event_op( std::uint32_t channel, delta_time delay, std::uint8_t pdu_count )
+    operation event_op( std::uint32_t channel, delta_time delay )
     {
-        operation result{
+        return operation{
             .kind      = operation_kind::connection_event,
             .channel   = channel,
             .phy       = phy::le_1m_phy,
             .window    = delta_time::msec( 20 ),
             .delay     = delay,
-            .pdu_count = pdu_count,
             .t_ifs     = delta_time::usec( 148 ) };
+    }
 
-        result.pdus.fill( pdu( empty_pdu ) );
+    // a connection event as the host loads it: the operation, then a PDU per request
+    template < typename Remote >
+    bool add_event( Remote& remote, std::uint32_t channel, delta_time delay, std::uint8_t pdu_count )
+    {
+        if ( !remote.template call< &rig_t::add_operation >( event_op( channel, delay ) ) )
+            return false;
 
-        return result;
+        for ( std::uint8_t sent = 0; sent != pdu_count; ++sent )
+            if ( !remote.template call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) )
+                return false;
+
+        return true;
     }
 }
 
@@ -1015,7 +1020,7 @@ namespace {
 BOOST_FIXTURE_TEST_CASE( the_first_connection_event_is_placed_from_the_pdu_captured_last, fixture )
 {
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) ) );
+    BOOST_REQUIRE( add_event( remote, 5, delta_time::msec( 50 ), 2 ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1036,8 +1041,8 @@ BOOST_FIXTURE_TEST_CASE( the_first_connection_event_is_placed_from_the_pdu_captu
 BOOST_FIXTURE_TEST_CASE( a_later_connection_event_is_placed_from_the_anchor_before, fixture )
 {
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );
-    remote.call< &rig_t::add_operation >( event_op( 12, delta_time::msec( 10 ), 1 ) );
+    add_event( remote, 5, delta_time::msec( 50 ), 1 );
+    add_event( remote, 12, delta_time::msec( 10 ), 1 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1055,7 +1060,7 @@ BOOST_FIXTURE_TEST_CASE( a_later_connection_event_is_placed_from_the_anchor_befo
 BOOST_FIXTURE_TEST_CASE( a_connection_event_ends_with_the_reply_to_its_last_pdu, fixture )
 {
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) );
+    add_event( remote, 5, delta_time::msec( 50 ), 2 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1075,18 +1080,21 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_ends_with_the_reply_to_its_last_pdu,
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
     BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
 
-    const captured_batch batch = remote.call< &rig_t::collect_captured >();
+    const std::vector< captured_pdu > captured = collect_all();
 
-    BOOST_REQUIRE_EQUAL( batch.count, 4u );
-    BOOST_CHECK( batch.captured[ 1 ].direction == pdu_direction::transmitted );
-    BOOST_CHECK( batch.captured[ 2 ].direction == pdu_direction::received );
+    // the advertisement, then the two PDUs of the event and the reply to each
+    BOOST_REQUIRE_EQUAL( captured.size(), 5u );
+    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( captured[ 2 ].direction == pdu_direction::received );
+    BOOST_CHECK( captured[ 3 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( captured[ 4 ].direction == pdu_direction::received );
 }
 
 // a device that does not answer is what a test observes, in the captured PDUs; the program goes on
 BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_ends_with_its_window, fixture )
 {
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 2 ) );
+    add_event( remote, 5, delta_time::msec( 50 ), 2 );
     remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
@@ -1103,14 +1111,49 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_ends_with_it
     BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
 }
 
+// an event holds max_event_pdus PDUs, and the program max_program_pdus of them
+BOOST_FIXTURE_TEST_CASE( more_pdus_than_an_event_holds_are_refused, fixture )
+{
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ) ) ) );
+
+    for ( std::size_t added = 0; added != max_event_pdus; ++added )
+        BOOST_CHECK( remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) );
+
+    BOOST_CHECK( !remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( more_pdus_than_the_program_holds_are_refused, fixture )
+{
+    for ( std::size_t added = 0; added != max_program_pdus / max_event_pdus; ++added )
+        BOOST_REQUIRE( add_event( remote, 5, delta_time::msec( 50 ), max_event_pdus ) );
+
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ) ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) );
+}
+
+// a PDU belongs to the connection event before it, and nothing else takes one
+BOOST_FIXTURE_TEST_CASE( a_pdu_for_an_operation_that_is_not_a_connection_event_is_refused, fixture )
+{
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) ) );
+
+    BOOST_CHECK( !remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_pdu_before_any_operation_is_refused, fixture )
+{
+    BOOST_CHECK( !remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) );
+}
+
 // the radio sends them with an invalid CRC and says so, and the captured PDU shows it
 BOOST_FIXTURE_TEST_CASE( a_connection_event_sends_the_pdus_it_marks_with_an_invalid_crc, fixture )
 {
-    operation event = event_op( 5, delta_time::msec( 50 ), 2 );
+    operation event = event_op( 5, delta_time::msec( 50 ) );
     event.crc_errors = 0x01;
 
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
     remote.call< &rig_t::add_operation >( event );
+    remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) );
+    remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1122,11 +1165,11 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_sends_the_pdus_it_marks_with_an_inva
     platform.push_transmitted( at( 55ms ), empty_pdu, false );
     rig.run();
 
-    const captured_batch batch = remote.call< &rig_t::collect_captured >();
+    const std::vector< captured_pdu > captured = collect_all();
 
-    BOOST_REQUIRE_EQUAL( batch.count, 2u );
-    BOOST_CHECK( batch.captured[ 1 ].direction == pdu_direction::transmitted );
-    BOOST_CHECK( !batch.captured[ 1 ].crc_ok );
+    BOOST_REQUIRE_EQUAL( captured.size(), 2u );
+    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( !captured[ 1 ].crc_ok );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture )
@@ -1134,7 +1177,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture
     platform.event_in_time = false;
 
     remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );
+    add_event( remote, 5, delta_time::msec( 50 ), 1 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1147,7 +1190,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture
 // with nothing captured before it, there is nothing to place the first event from
 BOOST_FIXTURE_TEST_CASE( a_connection_event_without_a_pdu_to_place_it_from_times_out, fixture )
 {
-    remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ), 1 ) );
+    add_event( remote, 5, delta_time::msec( 50 ), 1 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_CHECK( platform.connection_events.empty() );

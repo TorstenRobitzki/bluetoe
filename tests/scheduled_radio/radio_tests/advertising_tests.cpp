@@ -114,7 +114,7 @@ namespace {
             sent( request ),
             received( response ) } );
 
-        BOOST_CHECK( the_only( callbacks_of( rig.device_records(), adv_received ) ).data == pdu( request ) );
+        BOOST_CHECK( the_only( callbacks_of( rig.device_records(), adv_received ) ).data == adv_pdu( request ) );
 
         return captured;
     }
@@ -382,7 +382,7 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
 
     check_callbacks( records, { adv_timeout, adv_received, adv_timeout } );
 
-    BOOST_CHECK( the_only( callbacks_of( records, adv_received ) ).data == pdu( request ) );
+    BOOST_CHECK( the_only( callbacks_of( records, adv_received ) ).data == adv_pdu( request ) );
 }
 
 /*

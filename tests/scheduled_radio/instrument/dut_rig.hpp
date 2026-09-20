@@ -50,7 +50,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * dut_rig::functions changes after a device was flashed with the current one.
      */
-    constexpr std::uint16_t dut_protocol_version = 1;
+    constexpr std::uint16_t dut_protocol_version = 2;
 
     /**
      * @brief records the rig keeps until the host collects them
@@ -85,6 +85,14 @@ namespace test_rig {
      *        side of the PDU buffer holds before it has no room
      */
     constexpr std::size_t received_pdus_until_full = 4;
+
+    /**
+     * @brief data channel PDUs the calls of a program queue, all its steps together
+     *
+     * A call keeps only the place of its PDU here, so that the room of a PDU of the largest
+     * payload is reserved once per queue_pdu of the program and not once per call.
+     */
+    constexpr std::size_t max_queued_pdus = 4;
 
     /**
      * @brief PDUs a program's read_received() takes out of the PDU buffer and the rig keeps until
@@ -222,7 +230,7 @@ namespace test_rig {
             radio_event_pending_ = false;
 
             assert( received.size <= max_advertising_pdu_size );
-            on_callback( callback_kind::adv_received, when, pdu( std::span< const std::uint8_t >( received.buffer, received.size ) ) );
+            on_callback( callback_kind::adv_received, when, adv_pdu( std::span< const std::uint8_t >( received.buffer, received.size ) ) );
         }
 
         void adv_timeout( link_layer::abs_time when )
@@ -331,9 +339,11 @@ namespace test_rig {
         /**
          * @brief appends a call to the step added last
          *
-         * The steps share max_calls calls. Refused, and not appended, if no step was added yet,
-         * if the program's calls are all used, or if the step waits for start and the call
-         * needs a time, since none exists then.
+         * The steps share max_calls calls, and the queue_pdu calls share max_queued_pdus PDUs.
+         * Refused, and not appended, if no step was added yet, if the program's calls or PDUs
+         * are all used, if the step waits for start and the call needs a time, since none
+         * exists then, or if an advertising PDU of the call is larger than an advertising
+         * channel allows.
          */
         bool add_call( const call& next )
         {
@@ -347,7 +357,38 @@ namespace test_rig {
                 || next.kind == call_kind::schedule_connection_event ) )
                 return false;
 
-            calls_[ call_count_ ] = next;
+            const bool queues = next.kind == call_kind::queue_pdu;
+
+            if ( queues && program_pdu_count_ == max_queued_pdus )
+                return false;
+
+            if ( !queues && next.transmit.size > max_advertising_pdu_size )
+                return false;
+
+            stored_call& stored = calls_[ call_count_ ];
+
+            stored = stored_call{
+                .kind           = next.kind,
+                .channel        = next.channel,
+                .delay          = next.delay,
+                .end_delay      = next.end_delay,
+                .response       = next.response,
+                .address        = next.address,
+                .access_address = next.access_address,
+                .crc_init       = next.crc_init,
+                .phy            = next.phy };
+
+            if ( queues )
+            {
+                program_pdus_[ program_pdu_count_ ] = next.transmit;
+                stored.pdu                          = program_pdu_count_;
+                ++program_pdu_count_;
+            }
+            else
+            {
+                stored.transmit = adv_pdu( next.transmit.span() );
+            }
+
             ++call_count_;
             ++last.call_count;
 
@@ -526,6 +567,26 @@ namespace test_rig {
 
     private:
         /*
+         * A call as the program keeps it: what the wire call carries, with the advertising PDUs
+         * it can hold and the place of the data channel PDU of a queue_pdu, which lives in the
+         * program's pool.
+         */
+        struct stored_call
+        {
+            call_kind                                       kind            = call_kind::cancel_radio_event;
+            std::uint32_t                                   channel         = 0;
+            link_layer::delta_time                          delay           = {};
+            link_layer::delta_time                          end_delay       = {};
+            adv_pdu                                         transmit        = {};
+            adv_pdu                                         response        = {};
+            link_layer::device_address                      address         = {};
+            std::uint32_t                                   access_address  = 0;
+            std::uint32_t                                   crc_init        = 0;
+            link_layer::phy_ll_encoding::phy_ll_encoding_t  phy             = link_layer::phy_ll_encoding::le_1m_phy;
+            std::uint8_t                                    pdu             = 0;
+        };
+
+        /*
          * The library's PDU buffer is written to be a base of the radio. The rig owns it
          * instead and hands it to the radio, so this makes the radio's side of it public and
          * provides what the buffer asks of its radio: the lock, and the CCM counters, which
@@ -547,7 +608,7 @@ namespace test_rig {
             void increment_transmit_packet_counter() {}
         };
 
-        void on_callback( callback_kind kind, link_layer::abs_time when, const pdu& data, link_layer::connection_event_events events = {} )
+        void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )
         {
             record entry;
             entry.kind      = record_kind::callback;
@@ -576,7 +637,7 @@ namespace test_rig {
          * The PDUs stay where the program keeps them, since the radio uses them until the
          * event is over; the receive buffer is the rig's own.
          */
-        void execute( const call& what, link_layer::abs_time when )
+        void execute( const stored_call& what, link_layer::abs_time when )
         {
             const link_layer::write_buffer transmit{ what.transmit.data.data(), what.transmit.size };
             const link_layer::write_buffer response{ what.response.data.data(), what.response.size };
@@ -628,7 +689,7 @@ namespace test_rig {
                 radio_t::set_phy( what.phy, what.phy );
                 break;
             case call_kind::queue_pdu:
-                entry.result = queue_pdu( what.transmit );
+                entry.result = queue_pdu( program_pdus_[ what.pdu ] );
                 break;
             case call_kind::read_received:
                 read_received();
@@ -670,12 +731,15 @@ namespace test_rig {
 
         std::array< program_step, max_steps >           steps_;
         std::uint8_t                                    step_count_             = 0;
-        std::array< call, max_calls >                   calls_;
+        std::array< stored_call, max_calls >            calls_;
         std::uint8_t                                    call_count_             = 0;
         std::uint8_t                                    cursor_                 = 0;
         bool                                            running_                = false;
         bool                                            radio_event_pending_    = false;
         bool                                            timer_pending_          = false;
+
+        std::array< pdu, max_queued_pdus >              program_pdus_;
+        std::uint8_t                                    program_pdu_count_      = 0;
 
         std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
         std::array< pdu_buffer, pdu_buffers >           pdu_buffers_;

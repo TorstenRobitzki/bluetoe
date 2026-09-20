@@ -167,7 +167,7 @@ namespace {
         result.kind     = call_kind::start_advertising;
         result.channel  = channel;
         result.transmit = pdu( transmit );
-        result.response = pdu( response );
+        result.response = adv_pdu( response );
 
         return result;
     }
@@ -424,7 +424,7 @@ BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_recorded_with_its_bytes, fixture )
     BOOST_REQUIRE_EQUAL( records.size(), 2u );
     BOOST_CHECK( records[ 1 ].callback == callback_kind::adv_received );
     BOOST_CHECK_EQUAL( records[ 1 ].when.data(), 4242u );
-    BOOST_CHECK( records[ 1 ].data == pdu( scan_req ) );
+    BOOST_CHECK( records[ 1 ].data == adv_pdu( scan_req ) );
     BOOST_CHECK( remote.call< &rig_t::program_finished >() );
 }
 
@@ -586,14 +586,15 @@ BOOST_FIXTURE_TEST_CASE( a_set_phy_call_reaches_the_radio_for_both_directions, f
  */
 BOOST_AUTO_TEST_CASE( the_largest_call_fits_into_one_request )
 {
-    const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
+    const std::array< std::uint8_t, max_pdu_size >             largest_pdu = {};
+    const std::array< std::uint8_t, max_advertising_pdu_size > largest_advertising_pdu = {};
 
     const call largest{
         .kind           = call_kind::schedule_advertising_event,
         .channel        = 39,
         .delay          = delta_time::msec( 10 ),
         .transmit       = pdu( largest_pdu ),
-        .response       = pdu( largest_pdu ),
+        .response       = adv_pdu( largest_advertising_pdu ),
         .address        = device_address{ { 1, 2, 3, 4, 5, 6 }, true },
         .access_address = 0xffffffff,
         .crc_init       = 0xffffff,
@@ -739,6 +740,26 @@ namespace {
     }
 }
 
+namespace {
+
+    // a response hands over one PDU, so a test that expects several asks until none is left
+    template < typename Remote >
+    std::vector< pdu > collect_all_received( Remote& remote )
+    {
+        std::vector< pdu > result;
+
+        for ( ;; )
+        {
+            const received_batch batch = remote.template call< &rig_t::collect_received >();
+
+            if ( batch.count == 0 )
+                return result;
+
+            result.insert( result.end(), batch.pdus.begin(), batch.pdus.begin() + batch.count );
+        }
+    }
+}
+
 // the radio tests of a full receive buffer are written against this number
 BOOST_FIXTURE_TEST_CASE( the_receive_buffer_holds_received_pdus_until_full, fixture )
 {
@@ -760,11 +781,7 @@ BOOST_FIXTURE_TEST_CASE( a_step_reads_the_received_pdus_and_the_host_collects_th
 
     BOOST_CHECK( receive_largest_pdu( rig, received_pdus_until_full % 2 ) );
 
-    const received_batch first  = remote.call< &rig_t::collect_received >();
-    const received_batch second = remote.call< &rig_t::collect_received >();
-
-    BOOST_CHECK_EQUAL( first.count + second.count, received_pdus_until_full + 1 );
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
+    BOOST_CHECK_EQUAL( collect_all_received( remote ).size(), received_pdus_until_full + 1 );
 }
 
 namespace {
@@ -831,8 +848,7 @@ BOOST_FIXTURE_TEST_CASE( the_pdus_received_into_both_buffers_are_collected, fixt
 
     BOOST_REQUIRE( receive_largest_pdu( rig, false ) );
 
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 2u );
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
+    BOOST_CHECK_EQUAL( collect_all_received( remote ).size(), 2u );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_full_buffer_refuses_a_queued_pdu, fixture )
@@ -862,21 +878,20 @@ BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_collected, fixture )
         buffer.received( room );
     }
 
-    const received_batch batch = remote.call< &rig_t::collect_received >();
+    const std::vector< pdu > collected = collect_all_received( remote );
 
-    BOOST_REQUIRE_EQUAL( batch.count, 2u );
-    BOOST_CHECK_EQUAL( batch.pdus[ 0 ].data[ 2 ], 0 );
-    BOOST_CHECK_EQUAL( batch.pdus[ 1 ].data[ 2 ], 1 );
-
-    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_received >().count, 0u );
+    BOOST_REQUIRE_EQUAL( collected.size(), 2u );
+    BOOST_CHECK_EQUAL( collected[ 0 ].data[ 2 ], 0 );
+    BOOST_CHECK_EQUAL( collected[ 1 ].data[ 2 ], 1 );
 }
 
 BOOST_AUTO_TEST_CASE( a_full_record_batch_and_a_full_received_batch_fit_into_one_response )
 {
-    const std::array< std::uint8_t, max_advertising_pdu_size > largest_pdu = {};
+    const std::array< std::uint8_t, max_pdu_size >             largest_pdu = {};
+    const std::array< std::uint8_t, max_advertising_pdu_size > largest_advertising_pdu = {};
 
     record largest;
-    largest.data = pdu( largest_pdu );
+    largest.data = adv_pdu( largest_advertising_pdu );
 
     record_batch records;
     records.count = records_per_batch;

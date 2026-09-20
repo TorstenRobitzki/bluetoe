@@ -42,11 +42,11 @@ namespace test_rig {
     /**
      * @brief the payload bound the rig and the host agree on unless told otherwise
      *
-     * It follows the largest message either end sends, which is a tester operation: a
-     * connection event carries a scan response and the PDUs of the event, five PDUs of the
-     * largest payload in all. A batch of records or of captured PDUs is smaller.
+     * It follows the largest message either end sends, which is a PDU of the largest payload:
+     * a program loads one per request, and a response hands over one at a time. Every other
+     * message, a call, an operation or a batch of records, is smaller.
      */
-    constexpr std::size_t default_max_payload = 1536;
+    constexpr std::size_t default_max_payload = 512;
 
     enum class receive_result
     {

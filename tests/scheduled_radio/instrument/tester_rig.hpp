@@ -46,7 +46,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * tester_rig::functions changes after a tester was flashed with the current one.
      */
-    constexpr std::uint16_t tester_protocol_version = 1;
+    constexpr std::uint16_t tester_protocol_version = 2;
 
     /**
      * @brief PDUs the tester keeps until the host collects them
@@ -122,7 +122,8 @@ namespace test_rig {
         std::uint64_t                                   ticks,
         const link_layer::device_address&               address,
         const pdu&                                      data,
-        const std::array< pdu, max_event_pdus >&        pdus )
+        const adv_pdu&                                  response,
+        const pdu*                                      pdus )
     {
         /*
          * Holds the reset input of the device under test asserted for as long as that
@@ -160,7 +161,7 @@ namespace test_rig {
          * keeps listening for the rest of the window without answering again. Stops and
          * tags like receive().
          */
-        platform.answer( value, phy, ticks, address, data, value );
+        platform.answer( value, phy, ticks, address, response, value );
 
         /*
          * One connection event as its central: transmits the first `value` of `pdus` on `value`
@@ -343,13 +344,40 @@ namespace test_rig {
                 cursor_          = 0;
                 started_         = false;
                 timed_out_       = no_operation_timed_out;
+                program_pdu_count_ = 0;
             }
 
             if ( operation_count_ == max_operations )
                 return false;
 
-            operations_[ operation_count_ ] = next;
+            operations_[ operation_count_ ]           = next;
+            operations_[ operation_count_ ].first_pdu = program_pdu_count_;
+            operations_[ operation_count_ ].pdu_count = 0;
             ++operation_count_;
+
+            return true;
+        }
+
+        /**
+         * @brief appends a PDU to the connection event added last
+         *
+         * The operations share max_program_pdus PDUs, and an event takes at most
+         * max_event_pdus of them. Refused, and nothing appended, if no operation was added
+         * yet, if the last one is not a connection event, or if either bound is reached.
+         */
+        bool add_event_pdu( const pdu& data )
+        {
+            if ( operation_count_ == 0 || program_pdu_count_ == max_program_pdus )
+                return false;
+
+            operation& last = operations_[ operation_count_ - 1 ];
+
+            if ( last.kind != operation_kind::connection_event || last.pdu_count == max_event_pdus )
+                return false;
+
+            program_pdus_[ program_pdu_count_ ] = data;
+            ++program_pdu_count_;
+            ++last.pdu_count;
 
             return true;
         }
@@ -442,6 +470,7 @@ namespace test_rig {
             &tester_rig::set_rssi_limit,
             &tester_rig::add_to_acceptance_filter,
             &tester_rig::add_operation,
+            &tester_rig::add_event_pdu,
             &tester_rig::start_program,
             &tester_rig::program_finished,
             &tester_rig::collect_captured,
@@ -645,7 +674,7 @@ namespace test_rig {
                 const std::uint32_t t_ifs = op.t_ifs.usec() * ( tester_ticks_per_second / 1'000'000 );
 
                 if ( !( has_anchor_ || has_reference_ )
-                  || !platform_.connection_event( op.channel, phy_, ticks, at, op.pdus, op.pdu_count, t_ifs, op.crc_errors, operation_id_ ) )
+                  || !platform_.connection_event( op.channel, phy_, ticks, at, &program_pdus_[ op.first_pdu ], op.pdu_count, t_ifs, op.crc_errors, operation_id_ ) )
                     time_out();
             }
             else
@@ -689,6 +718,9 @@ namespace test_rig {
         tester_time                                     anchor_;
         bool                                            has_anchor_         = false;
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy_                = link_layer::phy_ll_encoding::le_1m_phy;
+
+        std::array< pdu, max_program_pdus >             program_pdus_;
+        std::uint8_t                                    program_pdu_count_  = 0;
 
         std::array< captured_pdu, captured_queue_size > captured_;
         std::size_t                                     head_               = 0;
