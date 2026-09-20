@@ -75,7 +75,41 @@ namespace test_rig {
             discard_stale();
             write( request );
 
-            return read_response();
+            try
+            {
+                return read_response();
+            }
+            catch ( const link_error& )
+            {
+                // a request that went unanswered may have been swallowed by a frame the
+                // instrument is still waiting for; see resynchronise()
+                resynchronise();
+
+                throw;
+            }
+        }
+
+        /**
+         * @brief ends a frame the instrument may be waiting for, and forgets what arrived
+         *
+         * An instrument that read a length from noise on the line waits for a frame that
+         * nobody sends: every later request feeds that frame instead of being answered, and
+         * the link stays dead. A run of 0xff bytes, one frame's worth, ends any such state,
+         * since it either completes the frame, whose checksum then fails, or is read as a
+         * length of 0xffff, which is beyond what a frame may carry. Both leave the receiver
+         * with nothing held.
+         *
+         * Sent after a request went unanswered, and after the instrument was reset, which is
+         * when the line carries noise.
+         */
+        void resynchronise()
+        {
+            const std::vector< std::uint8_t > flush( default_max_payload + frame_overhead, 0xff );
+
+            boost::system::error_code failed;
+            boost::asio::write( stream_, boost::asio::buffer( flush ), failed );
+
+            discard_stale();
         }
 
     private:

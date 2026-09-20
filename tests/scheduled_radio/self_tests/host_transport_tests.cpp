@@ -101,6 +101,10 @@ namespace {
         std::atomic< behaviour >    mode{ behaviour::answer };
         std::atomic< int >          answered{ 0 };
 
+        // makes the receiver read a length from noise, as a device does when the line
+        // carries anything but a frame
+        std::atomic< bool >         noise{ false };
+
     private:
         void run()
         {
@@ -121,6 +125,13 @@ namespace {
 
                 if ( error )
                     return;
+
+                if ( noise.exchange( false ) )
+                {
+                    // a length of 200, which the receiver then waits for
+                    const std::uint8_t junk[] = { 200, 0 };
+                    in.push( junk, sizeof( junk ) );
+                }
 
                 in.push( chunk, count );
 
@@ -205,6 +216,18 @@ BOOST_FIXTURE_TEST_CASE( a_late_response_is_not_taken_for_the_next_one, fixture 
 
     device.mode = behaviour::answer;
     BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 10, 20 ), 30 );
+}
+
+/*
+ * A device waiting for a frame that noise announced swallows every later request. The
+ * transport ends that frame after the request it cost, so the next one is answered.
+ */
+BOOST_FIXTURE_TEST_CASE( a_device_waiting_for_a_frame_from_noise_is_resynchronised, fixture )
+{
+    device.noise = true;
+
+    BOOST_CHECK_THROW( remote.call< &instrument::add >( 40, 2 ), link_error );
+    BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 40, 2 ), 42 );
 }
 
 BOOST_AUTO_TEST_CASE( a_serial_device_that_does_not_exist_cannot_be_opened )

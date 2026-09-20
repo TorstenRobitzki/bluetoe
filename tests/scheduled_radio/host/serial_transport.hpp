@@ -35,6 +35,11 @@ namespace test_rig {
          */
         std::vector< std::uint8_t > transact( std::span< const std::uint8_t > request );
 
+        /**
+         * @brief stream_transport::resynchronise() on the port
+         */
+        void resynchronise();
+
     private:
         struct impl;
         std::unique_ptr< impl > impl_;

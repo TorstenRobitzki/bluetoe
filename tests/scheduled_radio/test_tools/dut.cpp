@@ -66,6 +66,10 @@ namespace test_rig {
     {
         tester.call< &test_rig::tester::reset_device_under_test >();
 
+        // the reset leaves the line floating, and what the device reads from that noise may
+        // be the length of a frame that never comes
+        transport_.resynchronise();
+
         const std::uint32_t token = random_session_token();
 
         for ( int request = 0; request != requests_after_reset; ++request )

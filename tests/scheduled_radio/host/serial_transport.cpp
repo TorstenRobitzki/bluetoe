@@ -47,5 +47,10 @@ namespace test_rig {
     {
         return impl_->transport.transact( request );
     }
+
+    void serial_transport::resynchronise()
+    {
+        impl_->transport.resynchronise();
+    }
 }
 }
