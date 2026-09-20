@@ -90,6 +90,17 @@ namespace test_rig {
         }
 
         /**
+         * @brief the timeout of the requests that follow
+         *
+         * For a caller that knows an answer is due at once, and repeats a request rather than
+         * waiting the timeout of a request that may take time: the polls after a reset.
+         */
+        void set_timeout( std::chrono::milliseconds value )
+        {
+            timeout_ = value;
+        }
+
+        /**
          * @brief ends a frame the instrument may be waiting for, and forgets what arrived
          *
          * An instrument that read a length from noise on the line waits for a frame that

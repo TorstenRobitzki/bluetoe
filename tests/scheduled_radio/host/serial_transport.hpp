@@ -40,6 +40,11 @@ namespace test_rig {
          */
         void resynchronise();
 
+        /**
+         * @brief stream_transport::set_timeout() on the port
+         */
+        void set_timeout( std::chrono::milliseconds value );
+
     private:
         struct impl;
         std::unique_ptr< impl > impl_;

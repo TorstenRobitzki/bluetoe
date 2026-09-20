@@ -6,6 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <chrono>
 #include <optional>
 #include <string>
 
@@ -15,10 +16,49 @@ namespace test_rig {
     namespace {
 
         /*
-         * Requests the device may not answer while it boots after a reset; each one costs
-         * the timeout, so this bounds the wait for a device that does not come back.
+         * Requests the device may not answer after a reset; each one costs the poll timeout,
+         * so this bounds the wait for a device that does not come back.
+         *
+         * A request around a reset is lost now and then, and measurably often: the line
+         * carries noise while the device is held in reset, the device reads a length from it,
+         * and the request that follows is dropped with that frame, since a receiver that finds
+         * a bad length forgets everything it holds (decision 16). Ending the frame first
+         * (resynchronise()) leaves a few per cent, so the poll is repeated rather than waited
+         * out.
          */
-        constexpr int requests_after_reset = 3;
+        constexpr int requests_after_reset = 6;
+
+        /*
+         * A device that has booted answers a poll within a millisecond; one that has not, or
+         * whose request was dropped, does not answer at all. Nothing is gained by waiting the
+         * timeout of a request that may take time.
+         */
+        constexpr std::chrono::milliseconds poll_timeout{ 250 };
+
+        /*
+         * The polls after a reset run with that timeout, and the connection's own returns
+         * whichever way restart() leaves.
+         */
+        class polling
+        {
+        public:
+            explicit polling( serial_transport& transport )
+                : transport_( transport )
+            {
+                transport_.set_timeout( poll_timeout );
+            }
+
+            ~polling()
+            {
+                transport_.set_timeout( request_timeout() );
+            }
+
+            polling( const polling& ) = delete;
+            polling& operator=( const polling& ) = delete;
+
+        private:
+            serial_transport& transport_;
+        };
 
         std::string as_text( const bytes< dut::name_size >& name )
         {
@@ -71,6 +111,7 @@ namespace test_rig {
         transport_.resynchronise();
 
         const std::uint32_t token = random_session_token();
+        const polling       polls( transport_ );
 
         for ( int request = 0; request != requests_after_reset; ++request )
         {

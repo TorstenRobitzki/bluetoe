@@ -52,5 +52,10 @@ namespace test_rig {
     {
         impl_->transport.resynchronise();
     }
+
+    void serial_transport::set_timeout( std::chrono::milliseconds value )
+    {
+        impl_->transport.set_timeout( value );
+    }
 }
 }
