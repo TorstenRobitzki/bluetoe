@@ -61,8 +61,11 @@ namespace link_layer {
 
         /**
          * @brief the maximum size an element in the buffer can have (header size + payload size).
+         *
+         * The Core Specification, Vol 6, Part B, section 2.4 bounds the payload of a data
+         * channel PDU at 251 octets.
          */
-        static constexpr std::size_t    max_buffer_size = 251;
+        static constexpr std::size_t    max_buffer_size = 2 + 251;
 
         /**
          * @brief 16 bit header size of a link layer PDU
