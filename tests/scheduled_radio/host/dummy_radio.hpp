@@ -7,7 +7,8 @@
  * A scheduled radio for the host, where none exists: what lets the host instantiate the
  * rig template, see dut_functions.hpp and documentation/scheduled_radio_test_rig.md,
  * decision 20. Nothing in it ever runs; the rig's unit tests derive an instrumented
- * version to observe the rig.
+ * version to observe the rig, and the concept tests build their models from its parts,
+ * which are the parts the concepts are in.
  */
 
 #include <bluetoe/scheduled_radio2.hpp>
@@ -20,15 +21,10 @@ namespace bluetoe {
 namespace test_rig {
 
     /**
-     * @brief a radio that exists only so that the rig can be instantiated on the host
-     *
-     * It satisfies scheduled_radio and does nothing. It claims every feature, so that
-     * every wrapper the rig has is in the host's list.
+     * @brief every feature claimed, so that every wrapper the rig has is in the host's list
      */
-    template < typename CallBacks >
-    class dummy_radio
+    struct dummy_features
     {
-    public:
         static constexpr bool           hardware_supports_encryption                = true;
         static constexpr bool           hardware_supports_lesc_pairing              = true;
         static constexpr bool           hardware_supports_legacy_pairing            = true;
@@ -39,7 +35,62 @@ namespace test_rig {
         static constexpr std::uint32_t  radio_max_supported_payload_length          = 251;
         static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 250;
         static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
+    };
 
+    /**
+     * @brief the LESC pairing toolbox, answering nothing
+     */
+    struct dummy_toolbox
+    {
+        std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys()
+        {
+            return {};
+        }
+
+        bluetoe::details::uint128_t select_random_nonce()
+        {
+            return {};
+        }
+
+        bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t*, const std::uint8_t* )
+        {
+            return {};
+        }
+
+        bluetoe::details::uint128_t f4( const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, std::uint8_t )
+        {
+            return {};
+        }
+
+        std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
+            const bluetoe::details::ecdh_shared_secret_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
+            const link_layer::device_address&, const link_layer::device_address& )
+        {
+            return {};
+        }
+
+        bluetoe::details::uint128_t f6(
+            const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
+            const bluetoe::details::io_capabilities_t&, const link_layer::device_address&, const link_layer::device_address& )
+        {
+            return {};
+        }
+
+        std::uint32_t g2( const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
+        {
+            return 0;
+        }
+    };
+
+    /**
+     * @brief everything scheduled_radio asks for but the toolbox, doing nothing
+     *
+     * A radio is a template over its callbacks type; the dummy never calls them.
+     */
+    template < typename CallBacks >
+    class dummy_radio_base : public dummy_features
+    {
+    public:
         struct ccm_counter_t {};
         // a constructor of its own, as the PDU buffer never names the lock it holds
         struct radio_lock_guard
@@ -84,46 +135,16 @@ namespace test_rig {
         {
             return false;
         }
+    };
 
-        std::pair< bluetoe::details::ecdh_public_key_t, bluetoe::details::ecdh_private_key_t > generate_keys()
-        {
-            return {};
-        }
-
-        bluetoe::details::uint128_t select_random_nonce()
-        {
-            return {};
-        }
-
-        bluetoe::details::ecdh_shared_secret_t p256( const std::uint8_t*, const std::uint8_t* )
-        {
-            return {};
-        }
-
-        bluetoe::details::uint128_t f4( const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, std::uint8_t )
-        {
-            return {};
-        }
-
-        std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
-            const bluetoe::details::ecdh_shared_secret_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
-            const link_layer::device_address&, const link_layer::device_address& )
-        {
-            return {};
-        }
-
-        bluetoe::details::uint128_t f6(
-            const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
-            const bluetoe::details::io_capabilities_t&, const link_layer::device_address&, const link_layer::device_address& )
-        {
-            return {};
-        }
-
-        std::uint32_t g2( const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
-        {
-            return 0;
-        }
-
+    /**
+     * @brief a radio that exists only so that the rig can be instantiated on the host
+     *
+     * It satisfies scheduled_radio and does nothing.
+     */
+    template < typename CallBacks >
+    class dummy_radio : public dummy_radio_base< CallBacks >, public dummy_toolbox
+    {
     };
 }
 }

@@ -15,12 +15,12 @@
 
 #include <bluetoe/scheduled_radio2.hpp>
 
+#include "host/dummy_radio.hpp"
 #include "link/serial_port.hpp"
 
 namespace {
 
     using namespace bluetoe::link_layer;
-    namespace details = bluetoe::details;
 
     /*
      * The callbacks a scheduled radio delivers to, in parts, so that a model can leave one
@@ -88,35 +88,6 @@ namespace {
         buffer_without_next_transmit incomplete_;
     };
 
-    struct model_toolbox
-    {
-        std::pair< details::ecdh_public_key_t, details::ecdh_private_key_t > generate_keys() { return {}; }
-        details::uint128_t select_random_nonce() { return {}; }
-        details::ecdh_shared_secret_t p256( const std::uint8_t*, const std::uint8_t* ) { return {}; }
-        details::uint128_t f4( const std::uint8_t*, const std::uint8_t*, const details::uint128_t&, std::uint8_t ) { return {}; }
-        std::pair< details::uint128_t, details::uint128_t > f5(
-            const details::ecdh_shared_secret_t&, const details::uint128_t&, const details::uint128_t&,
-            const device_address&, const device_address& ) { return {}; }
-        details::uint128_t f6(
-            const details::uint128_t&, const details::uint128_t&, const details::uint128_t&, const details::uint128_t&,
-            const details::io_capabilities_t&, const device_address&, const device_address& ) { return {}; }
-        std::uint32_t g2( const std::uint8_t*, const std::uint8_t*, const details::uint128_t&, const details::uint128_t& ) { return 0; }
-    };
-
-    struct model_features
-    {
-        static constexpr bool           hardware_supports_encryption = true;
-        static constexpr bool           hardware_supports_lesc_pairing = true;
-        static constexpr bool           hardware_supports_legacy_pairing = false;
-        static constexpr bool           hardware_supports_2mbit = true;
-        static constexpr bool           hardware_supports_synchronized_user_timer = false;
-        static constexpr bool           hardware_supports_link_layer_context = false;
-        static constexpr std::size_t    radio_package_overhead = 0;
-        static constexpr std::uint32_t  radio_max_supported_payload_length = 255;
-        static constexpr std::uint32_t  sleep_time_accuracy_ppm = 20;
-        static constexpr std::size_t    radio_maximum_acceptance_filter_entries = 0;
-    };
-
     struct model_acceptance_filter
     {
         bool add_to_acceptance_filter( const device_address& ) { return true; }
@@ -133,45 +104,25 @@ namespace {
     };
 
     /*
-     * Everything scheduled_radio asks for except the toolbox, so that the toolbox can be
-     * added or left out. A radio is a template over its callbacks type; the models never
-     * call them.
+     * The radio models are the host's dummy radio, in the parts the concepts are in, so
+     * that a model can leave the toolbox out or claim what it does not have.
      */
-    template < typename CallBacks >
-    struct model_radio_base : model_features
-    {
-        struct ccm_counter_t {};
-        struct radio_lock_guard {};
-        struct link_layer_lock_guard {};
-
-        void run() {}
-        void wake_up() {}
-        void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
-        void set_ccm_counter( ccm_counter_t&, ccm_counter_t& ) {}
-        void set_phy( phy_ll_encoding::phy_ll_encoding_t, phy_ll_encoding::phy_ll_encoding_t ) {}
-        void set_local_address( const device_address& ) {}
-        void start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) {}
-        bool schedule_advertising_event( std::uint32_t, abs_time, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
-        bool schedule_connection_event( std::uint32_t, abs_time, abs_time ) { return true; }
-        bool cancel_radio_event() { return true; }
-        bool schedule_timer( abs_time ) { return true; }
-        bool cancel_timer() { return true; }
-    };
+    using bluetoe::test_rig::dummy_features;
+    using bluetoe::test_rig::dummy_toolbox;
+    using bluetoe::test_rig::dummy_radio_base;
+    using bluetoe::test_rig::dummy_radio;
 
     template < typename CallBacks >
-    struct model_radio : model_radio_base< CallBacks >, model_toolbox {};
-
-    template < typename CallBacks >
-    struct radio_without_lesc_pairing : model_radio_base< CallBacks >
+    struct radio_without_lesc_pairing : dummy_radio_base< CallBacks >
     {
         static constexpr bool hardware_supports_lesc_pairing = false;
     };
 
     template < typename CallBacks >
-    struct radio_claiming_lesc_pairing_without_the_toolbox : model_radio_base< CallBacks > {};
+    struct radio_claiming_lesc_pairing_without_the_toolbox : dummy_radio_base< CallBacks > {};
 
     template < typename CallBacks >
-    struct radio_with_a_void_cancel : model_radio< CallBacks >
+    struct radio_with_a_void_cancel : dummy_radio< CallBacks >
     {
         void cancel_radio_event() {}
     };
@@ -181,31 +132,31 @@ namespace {
      * runtime condition; the concept asks for void and so rejects one that answers.
      */
     template < typename CallBacks >
-    struct radio_whose_start_advertising_answers : model_radio< CallBacks >
+    struct radio_whose_start_advertising_answers : dummy_radio< CallBacks >
     {
         bool start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
     };
 
     template < typename CallBacks >
-    struct radio_without_a_radio_lock : model_radio< CallBacks >
+    struct radio_without_a_radio_lock : dummy_radio< CallBacks >
     {
         using radio_lock_guard = void;
     };
 
     template < typename CallBacks >
-    struct radio_without_a_link_layer_lock : model_radio< CallBacks >
+    struct radio_without_a_link_layer_lock : dummy_radio< CallBacks >
     {
         using link_layer_lock_guard = void;
     };
 
     template < typename CallBacks >
-    struct radio_with_a_hardware_acceptance_filter : model_radio< CallBacks >, model_acceptance_filter
+    struct radio_with_a_hardware_acceptance_filter : dummy_radio< CallBacks >, model_acceptance_filter
     {
         static constexpr std::size_t radio_maximum_acceptance_filter_entries = 4;
     };
 
     template < typename CallBacks >
-    struct radio_claiming_a_hardware_acceptance_filter_without_it : model_radio< CallBacks >
+    struct radio_claiming_a_hardware_acceptance_filter_without_it : dummy_radio< CallBacks >
     {
         static constexpr std::size_t radio_maximum_acceptance_filter_entries = 4;
     };
@@ -266,25 +217,25 @@ namespace {
 
     static_assert( scheduled_radio_pdu_buffer< connection_callbacks::pdu_buffer > );
 
-    static_assert( lesc_pairing_toolbox< model_toolbox > );
-    static_assert( !lesc_pairing_toolbox< model_radio_base< model_callbacks > > );
+    static_assert( lesc_pairing_toolbox< dummy_toolbox > );
+    static_assert( !lesc_pairing_toolbox< dummy_radio_base< model_callbacks > > );
 
-    static_assert( scheduled_radio_features< model_features > );
-    static_assert( !scheduled_radio_features< model_toolbox > );
+    static_assert( scheduled_radio_features< dummy_features > );
+    static_assert( !scheduled_radio_features< dummy_toolbox > );
 
-    static_assert( scheduled_radio< model_radio, model_callbacks > );
+    static_assert( scheduled_radio< dummy_radio, model_callbacks > );
     static_assert( scheduled_radio< radio_without_lesc_pairing, model_callbacks > );
     static_assert( !scheduled_radio< radio_claiming_lesc_pairing_without_the_toolbox, model_callbacks > );
     static_assert( !scheduled_radio< radio_with_a_void_cancel, model_callbacks > );
     static_assert( !scheduled_radio< radio_whose_start_advertising_answers, model_callbacks > );
     static_assert( !scheduled_radio< radio_without_a_radio_lock, model_callbacks > );
     static_assert( !scheduled_radio< radio_without_a_link_layer_lock, model_callbacks > );
-    static_assert( !scheduled_radio< model_radio, callbacks_without_the_timer > );
+    static_assert( !scheduled_radio< dummy_radio, callbacks_without_the_timer > );
     static_assert( scheduled_radio< radio_with_a_hardware_acceptance_filter, model_callbacks > );
     static_assert( !scheduled_radio< radio_claiming_a_hardware_acceptance_filter_without_it, model_callbacks > );
     // a radio that filters in hardware does not need the callback; one without it does
     static_assert( scheduled_radio< radio_with_a_hardware_acceptance_filter, callbacks_without_the_acceptance_filter > );
-    static_assert( !scheduled_radio< model_radio, callbacks_without_the_acceptance_filter > );
+    static_assert( !scheduled_radio< dummy_radio, callbacks_without_the_acceptance_filter > );
 
     static_assert( byte_ring_buffer< model_buffer > );
     static_assert( !byte_ring_buffer< buffer_with_a_non_const_free > );
@@ -303,5 +254,5 @@ namespace {
  */
 BOOST_AUTO_TEST_CASE( the_concepts_are_satisfiable_and_selective )
 {
-    BOOST_CHECK( ( scheduled_radio< model_radio, model_callbacks > ) );
+    BOOST_CHECK( ( scheduled_radio< dummy_radio, model_callbacks > ) );
 }
