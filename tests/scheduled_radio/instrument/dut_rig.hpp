@@ -87,7 +87,7 @@ namespace test_rig {
     /**
      * @brief the PDU buffers of the rig, one for each connection a test runs on the radio
      */
-    constexpr std::size_t pdu_buffers = 2;
+    constexpr std::size_t pdu_buffer_count = 2;
 
     /**
      * @brief data channel PDUs the calls of a program queue, all its steps together
@@ -677,7 +677,7 @@ namespace test_rig {
                 break;
             case call_kind::switch_pdu_buffer:
                 // between events: the radio takes the buffer anew for every event
-                active_buffer_ = ( active_buffer_ + 1 ) % pdu_buffers;
+                active_buffer_ = ( active_buffer_ + 1 ) % pdu_buffer_count;
                 break;
             }
 
@@ -725,7 +725,7 @@ namespace test_rig {
         std::uint8_t                                    program_pdu_count_      = 0;
 
         std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
-        std::array< pdu_buffer, pdu_buffers >           pdu_buffers_;
+        std::array< pdu_buffer, pdu_buffer_count >      pdu_buffers_;
         std::size_t                                     active_buffer_          = 0;
 
         std::array< pdu, read_queue_size >              read_;
