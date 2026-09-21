@@ -24,11 +24,6 @@ using namespace std::chrono_literals;
 
 namespace {
 
-    const auto if_tester = boost::unit_test::precondition( tester_present{} );
-
-    // how long a tester operation may wait for what it waits for
-    const time_out operation_timeout{ 300ms };
-
     /*
      * The tester hears `first` and then, for a window past the cancelled event's time,
      * nothing; the cancel records true, and no callback follows `first`'s adv_timeout.

@@ -83,6 +83,13 @@ namespace test_rig {
     {
         boost::test_tools::assertion_result operator()( boost::unit_test::test_unit_id ) const;
     };
+
+    /**
+     * @brief the decorator of a test that needs the tester: `*if_tester` after its name
+     *
+     * Without one the test is skipped and reported as such, not passed.
+     */
+    inline const auto if_tester = boost::unit_test::precondition( tester_present{} );
 }
 }
 

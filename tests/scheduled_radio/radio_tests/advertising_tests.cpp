@@ -28,11 +28,6 @@ using namespace std::chrono_literals;
 
 namespace {
 
-    const auto if_tester = boost::unit_test::precondition( tester_present{} );
-
-    // how long a tester operation may wait for what it waits for
-    const time_out operation_timeout{ 300ms };
-
     // a scanner the device's acceptance filter does not hold: the tester's address, one byte off
     const bluetoe::link_layer::device_address stranger_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02 }, false };
 

@@ -21,7 +21,6 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
 #include <vector>
 
 using namespace bluetoe::test_rig;
@@ -29,38 +28,11 @@ using namespace std::chrono_literals;
 
 namespace {
 
-    const auto if_tester = boost::unit_test::precondition( tester_present{} );
-
     const auto if_2mbit = boost::unit_test::precondition(
         dut_supports{ &bluetoe::link_layer::radio_properties::hardware_supports_2mbit } );
 
     using bluetoe::link_layer::phy_ll_encoding::le_1m_phy;
     using bluetoe::link_layer::phy_ll_encoding::le_2m_phy;
-
-    // how long a tester operation may wait for what it waits for
-    const time_out operation_timeout{ 300ms };
-
-    constexpr std::uint32_t connection_access_address = 0x71764129;
-    constexpr std::uint32_t connection_crc_init       = 0x7a8f23;
-    constexpr std::uint32_t data_channel              = 5;
-
-    // the connection event starts this long after the advertising, and receives until
-    // `receive_window` later without a reception
-    constexpr auto event_start    = 50ms;
-    constexpr auto receive_window = 2ms;
-
-    // the tester's first PDU of the event begins this long after the advertising, 500 µs into
-    // the receive window
-    constexpr auto first_pdu_after_advertising = event_start + 500us;
-
-    // `size` bytes, each one different, so that a byte out of place shows
-    std::vector< std::uint8_t > payload_of( std::size_t size, std::uint8_t first = 1 )
-    {
-        std::vector< std::uint8_t > result( size );
-        std::iota( result.begin(), result.end(), first );
-
-        return result;
-    }
 }
 
 BOOST_AUTO_TEST_SUITE( two_mbit, *if_tester *if_2mbit )

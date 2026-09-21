@@ -19,8 +19,6 @@ using namespace bluetoe::test_rig;
 
 namespace {
 
-    const auto if_tester = boost::unit_test::precondition( tester_present{} );
-
     std::string as_text( const bytes< dut::name_size >& name )
     {
         return { reinterpret_cast< const char* >( name.data.data() ), name.size };

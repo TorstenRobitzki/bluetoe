@@ -21,7 +21,6 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
 #include <vector>
 
 using namespace bluetoe::test_rig;
@@ -29,29 +28,10 @@ using namespace std::chrono_literals;
 
 namespace {
 
-    const auto if_tester = boost::unit_test::precondition( tester_present{} );
-
-    // how long a tester operation may wait for what it waits for
-    const time_out operation_timeout{ 300ms };
-
-    constexpr std::uint32_t connection_access_address = 0x71764129;
-    constexpr std::uint32_t connection_crc_init       = 0x7a8f23;
-    constexpr std::uint32_t data_channel              = 5;
-
     // an access address of another connection
     constexpr std::uint32_t other_access_address      = 0x2f6c9d31;
 
-    // the connection event starts this long after the advertising, and receives until
-    // `receive_window` later without a reception
-    constexpr auto event_start    = 50ms;
-    constexpr auto receive_window = 2ms;
-
-    // the tester's first PDU of the event begins this long after the advertising, 500 µs into
-    // the receive window
-    constexpr auto first_pdu_after_advertising = event_start + 500us;
-
     const std::uint8_t some_data[] = { 0x01, 0x02, 0x03 };
-
 
     /*
      * The central's first PDU has its first bit on air `at` after the advertising, which the
@@ -134,15 +114,6 @@ namespace {
         const auto timeout         = the_only( callbacks_of( records, connection_timeout ) );
 
         BOOST_CHECK_EQUAL( time_between( advertising_end, timeout ), std::chrono::microseconds( event_start + receive_window ) );
-    }
-
-    // `size` bytes, each one different, so that a byte out of place shows
-    std::vector< std::uint8_t > payload_of( std::size_t size, std::uint8_t first = 1 )
-    {
-        std::vector< std::uint8_t > result( size );
-        std::iota( result.begin(), result.end(), first );
-
-        return result;
     }
 
     /*

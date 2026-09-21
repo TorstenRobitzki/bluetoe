@@ -21,14 +21,6 @@
 using namespace bluetoe::test_rig;
 using namespace std::chrono_literals;
 
-namespace {
-
-    const auto if_tester = boost::unit_test::precondition( tester_present{} );
-
-    // how long a tester operation may wait for what it waits for
-    const time_out operation_timeout{ 300ms };
-}
-
 /*
  * user_timer() carries the time the timer was scheduled for, and a step on it places an
  * advertising from that time.

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
+#include <numeric>
 
 namespace bluetoe {
 namespace test_rig {
@@ -18,6 +19,14 @@ namespace test_rig {
         result[ 0 ] = type | ( advertiser.is_random() ? tx_add : 0 );
         result[ 1 ] = static_cast< std::uint8_t >( payload_size );
         std::copy( advertiser.begin(), advertiser.end(), result.begin() + 2 );
+
+        return result;
+    }
+
+    std::vector< std::uint8_t > payload_of( std::size_t size, std::uint8_t first )
+    {
+        std::vector< std::uint8_t > result( size );
+        std::iota( result.begin(), result.end(), first );
 
         return result;
     }

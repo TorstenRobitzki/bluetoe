@@ -54,6 +54,11 @@ namespace test_rig {
         const link_layer::device_address& advertiser = dut_address );
 
     /**
+     * @brief `size` bytes of payload, each one different, so that a byte out of place shows
+     */
+    std::vector< std::uint8_t > payload_of( std::size_t size, std::uint8_t first = 1 );
+
+    /**
      * @brief a SCAN_REQ from `scanner` to `advertiser`, as the tester transmits it
      *
      * Header type 0x03, TxAdd the scanner's address kind and RxAdd the advertiser's, then

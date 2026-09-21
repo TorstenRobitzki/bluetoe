@@ -60,6 +60,11 @@ namespace test_rig {
     const link_layer::device_address tester_address{ { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01 }, false };
 
     /**
+     * @brief how long a tester operation may wait for what it waits for
+     */
+    inline const time_out operation_timeout{ std::chrono::milliseconds( 300 ) };
+
+    /**
      * @brief the rig with the device's acceptance filter left to the test
      *
      * For the tests of the filter itself; everything else runs on rig_fixture.
@@ -204,6 +209,25 @@ namespace test_rig {
             BOOST_REQUIRE( device.call< &dut::add_to_acceptance_filter >( tester_address ) );
         }
     };
+
+    /**
+     * @brief the connection the connection tests run, in numbers both programs are built from
+     * @{
+     */
+    constexpr std::uint32_t connection_access_address = 0x71764129;
+    constexpr std::uint32_t connection_crc_init       = 0x7a8f23;
+    constexpr std::uint32_t data_channel              = 5;
+
+    // the connection event starts this long after the advertising, and receives until
+    // `receive_window` later without a reception
+    constexpr std::chrono::milliseconds event_start( 50 );
+    constexpr std::chrono::milliseconds receive_window( 2 );
+
+    // the tester's first PDU of the event begins this long after the advertising, 500 µs into
+    // the receive window
+    constexpr std::chrono::microseconds first_pdu_after_advertising =
+        event_start + std::chrono::microseconds( 500 );
+    /** @} */
 
     /**
      * @brief the rig for connection tests, with the parameters of the connection
