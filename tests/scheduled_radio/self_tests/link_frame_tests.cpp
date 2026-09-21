@@ -145,6 +145,33 @@ BOOST_FIXTURE_TEST_CASE( the_receiver_recovers_after_a_corrupt_frame, link )
     BOOST_TEST( payload() == std::vector< std::uint8_t >( { 0xaa, 0xbb, 0xcc } ), boost::test_tools::per_element() );
 }
 
+/*
+ * What the host's resynchronise() rests on (decision 30): a receiver waiting for a frame that
+ * a length read from noise announced is freed by one frame's worth of 0xff, whatever length it
+ * read, since that either completes the frame, whose checksum then fails, or is read as a
+ * length of 0xffff, which is beyond what a frame may carry. Fed one byte at a time with a
+ * receive() between, as an instrument takes them from its port.
+ */
+BOOST_FIXTURE_TEST_CASE( a_frame_announced_by_noise_is_ended_by_a_frames_worth_of_ones, link )
+{
+    arrives( { 0x0a, 0x00 } );
+    BOOST_REQUIRE_EQUAL( receiver.receive(), receive_result::incomplete );
+
+    for ( std::size_t sent = 0; sent != 16 + frame_overhead; ++sent )
+    {
+        arrives( { 0xff } );
+        receiver.receive();
+    }
+
+    BOOST_CHECK_EQUAL( buffer.available(), 0u );
+
+    // and what follows is a frame again
+    buffer.push( frame_aabbcc.data(), frame_aabbcc.size() );
+
+    BOOST_REQUIRE_EQUAL( receiver.receive(), receive_result::frame );
+    BOOST_TEST( payload() == std::vector< std::uint8_t >( { 0xaa, 0xbb, 0xcc } ), boost::test_tools::per_element() );
+}
+
 BOOST_FIXTURE_TEST_CASE( a_frame_that_does_not_fit_is_not_sent_at_all, link )
 {
     const std::uint8_t filler[ 20 ] = {};

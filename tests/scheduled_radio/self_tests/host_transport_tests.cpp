@@ -23,10 +23,13 @@
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <functional>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
@@ -68,6 +71,117 @@ namespace {
         tcp::acceptor           acceptor;
         tcp::socket             host;
         tcp::socket             device;
+    };
+
+    /*
+     * A stream the test drives in place of a port: nothing arrives unless the test says so,
+     * what the transport writes is kept, and a read stays pending until the test answers it
+     * or the transport cancels it, as a port's read does. Everything happens on the test's
+     * thread, so what a test asserts does not depend on when anything is scheduled.
+     */
+    class driven_stream
+    {
+    public:
+        using executor_type = boost::asio::io_context::executor_type;
+
+        explicit driven_stream( boost::asio::io_context& io )
+            : io_( io )
+        {
+        }
+
+        executor_type get_executor()
+        {
+            return io_.get_executor();
+        }
+
+        template < typename ConstBufferSequence >
+        std::size_t write_some( const ConstBufferSequence& buffers, boost::system::error_code& error )
+        {
+            error = {};
+
+            const std::size_t size = boost::asio::buffer_size( buffers );
+            const std::size_t at   = written_.size();
+
+            written_.resize( at + size );
+            boost::asio::buffer_copy( boost::asio::buffer( written_.data() + at, size ), buffers );
+
+            // a device answers what it was asked, so the answer arrives with the request and
+            // not before it, where the transport would drop it as stale
+            if ( !answer_.empty() )
+            {
+                const std::vector< std::uint8_t > answer = std::move( answer_ );
+                answer_ = {};
+
+                arrives( answer );
+            }
+
+            return size;
+        }
+
+        template < typename MutableBufferSequence, typename Handler >
+        void async_read_some( const MutableBufferSequence& buffers, Handler handler )
+        {
+            pending_ = [ this, buffers, handler ]( const boost::system::error_code& error ) {
+                const std::size_t size = error ? 0 : std::min( boost::asio::buffer_size( buffers ), arrived_.size() );
+
+                boost::asio::buffer_copy( buffers, boost::asio::buffer( arrived_.data(), size ) );
+                arrived_.erase( arrived_.begin(), arrived_.begin() + size );
+
+                handler( error, size );
+            };
+
+            if ( !arrived_.empty() )
+                finish( {} );
+        }
+
+        void cancel()
+        {
+            if ( pending_ )
+                finish( boost::asio::error::operation_aborted );
+        }
+
+        /**
+         * @brief what the device answers the next request with
+         */
+        void answers( std::vector< std::uint8_t > bytes )
+        {
+            answer_ = std::move( bytes );
+        }
+
+        /**
+         * @brief what the device would have sent, for the reads that follow
+         */
+        void arrives( std::span< const std::uint8_t > bytes )
+        {
+            arrived_.insert( arrived_.end(), bytes.begin(), bytes.end() );
+
+            if ( pending_ )
+                finish( {} );
+        }
+
+        /**
+         * @brief everything the transport has written so far
+         */
+        const std::vector< std::uint8_t >& written() const
+        {
+            return written_;
+        }
+
+    private:
+        void finish( boost::system::error_code error )
+        {
+            boost::asio::post( io_, [ error, done = std::move( pending_ ) ]() {
+                done( error );
+            } );
+
+            pending_ = {};
+        }
+
+        boost::asio::io_context&                                    io_;
+        std::vector< std::uint8_t >                                 answer_;
+        std::vector< std::uint8_t >                                 arrived_;
+        std::vector< std::uint8_t >                                 written_;
+        std::function< void( const boost::system::error_code& ) >   pending_;
     };
 
     enum class behaviour
@@ -218,35 +332,59 @@ BOOST_FIXTURE_TEST_CASE( a_late_response_is_not_taken_for_the_next_one, fixture 
     BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 10, 20 ), 30 );
 }
 
-/*
- * A device waiting for a frame that noise announced swallows every request that follows: each
- * one feeds that frame instead of being answered. The transport ends the frame after the
- * request it cost, and the link works again.
- *
- * A request may still be lost with the bytes that ended the frame, since the two can reach
- * the device together and a bad length takes everything the receiver holds with it, so the
- * test asks a few times, as a caller that resets a device does.
- */
-BOOST_FIXTURE_TEST_CASE( a_device_waiting_for_a_frame_from_noise_is_resynchronised, fixture )
-{
-    device.noise = true;
+namespace {
 
-    BOOST_CHECK_THROW( remote.call< &instrument::add >( 40, 2 ), link_error );
-
-    for ( int attempt = 0; attempt != 3; ++attempt )
+    struct driven
     {
-        try
-        {
-            BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 40, 2 ), 42 );
+        boost::asio::io_context                 io;
+        driven_stream                           stream{ io };
+        stream_transport< driven_stream >       transport{ io, stream, "the device", timeout };
+    };
 
-            return;
-        }
-        catch ( const link_error& )
-        {
-        }
+    // `payload` in a frame, as a device would send it
+    std::vector< std::uint8_t > frame_of( std::initializer_list< std::uint8_t > payload )
+    {
+        using buffer_t = ring_buffer< std::uint8_t, 64 >;
+
+        buffer_t                 buffer;
+        frame_sender< buffer_t > sender( buffer );
+
+        BOOST_REQUIRE( sender.send( { std::data( payload ), payload.size() } ) );
+
+        std::vector< std::uint8_t > bytes( buffer.available() );
+        buffer.pop( bytes.data(), bytes.size() );
+
+        return bytes;
     }
 
-    BOOST_FAIL( "the link did not come back" );
+    const std::uint8_t a_request[] = { 0x07, 0x11, 0x22 };
+}
+
+/*
+ * A request that goes unanswered may have been swallowed by a frame the device is waiting for,
+ * which a length read from noise announced; the transport ends that frame, so that the link is
+ * usable again (decision 30). What ends it is one frame's worth of 0xff, which
+ * link_frame_tests.cpp shows frees a receiver whatever length it read.
+ */
+BOOST_FIXTURE_TEST_CASE( a_request_that_goes_unanswered_ends_a_frame_with_ones, driven )
+{
+    BOOST_CHECK_THROW( transport.transact( a_request ), link_error );
+
+    const std::vector< std::uint8_t >& written = stream.written();
+    const std::size_t                  ones    = default_max_payload + frame_overhead;
+
+    BOOST_REQUIRE_GE( written.size(), ones );
+    BOOST_CHECK( std::all_of( written.end() - ones, written.end(), []( std::uint8_t byte ) { return byte == 0xff; } ) );
+}
+
+// a link that answers is left alone
+BOOST_FIXTURE_TEST_CASE( a_request_that_is_answered_ends_no_frame, driven )
+{
+    stream.answers( frame_of( { 0xaa, 0xbb } ) );
+
+    BOOST_TEST( transport.transact( a_request ) == std::vector< std::uint8_t >( { 0xaa, 0xbb } ),
+        boost::test_tools::per_element() );
+    BOOST_CHECK_EQUAL( stream.written().size(), sizeof( a_request ) + frame_overhead );
 }
 
 BOOST_AUTO_TEST_CASE( a_serial_device_that_does_not_exist_cannot_be_opened )
