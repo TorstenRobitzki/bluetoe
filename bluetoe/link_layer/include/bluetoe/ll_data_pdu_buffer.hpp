@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include <bluetoe/default_pdu_layout.hpp>
+#include <bluetoe/ll_constants.hpp>
 #include "ring_buffer.hpp"
 
 namespace bluetoe {
@@ -61,8 +62,11 @@ namespace link_layer {
 
         /**
          * @brief the maximum size an element in the buffer can have (header size + payload size).
+         *
+         * The Core Specification, Vol 6, Part B, section 2.4 bounds the payload of a data
+         * channel PDU at 251 octets.
          */
-        static constexpr std::size_t    max_buffer_size = 251;
+        static constexpr std::size_t    max_buffer_size = pdu_header_size + max_data_payload_size;
 
         /**
          * @brief 16 bit header size of a link layer PDU
@@ -88,7 +92,7 @@ namespace link_layer {
         /**
          * @brief returns the maximum value that can be used as maximum receive size.
          *
-         * The result is equal to ReceiveSize.
+         * The result is ReceiveSize without the overhead of the radio's layout.
          */
         constexpr std::size_t max_max_rx_size() const
         {
@@ -98,14 +102,16 @@ namespace link_layer {
         /**
          * @brief the current maximum receive size
          *
-         * No PDU with larger size can be receive. This will always return at least 29 plus the Radio's layout overhead.
+         * No PDU with larger size can be receive. This will always return at least 29, the
+         * size counted without the overhead of the radio's layout.
          */
         std::size_t max_rx_size() const;
 
         /**
          * @brief set the maximum receive size
          *
-         * The used size must be smaller or equal to ReceiveSize - layout_overhead / max_max_rx_size(), smaller than 251 and larger or equal to 29.
+         * The used size must be smaller or equal to max_max_rx_size() and within min_buffer_size
+         * and max_buffer_size.
          * The memory is best used, when ReceiveSize divided by max_size + layout_overhead results in an integer. That integer is
          * then the number of PDUs that can be buffered on the receivin side.
          *
@@ -116,9 +122,9 @@ namespace link_layer {
         void max_rx_size( std::size_t max_size );
 
         /**
-         * @brief returns the maximum value that can be used as maximum receive size.
+         * @brief returns the maximum value that can be used as maximum transmit size.
          *
-         * The result is equal to TransmitSize.
+         * The result is TransmitSize without the overhead of the radio's layout.
          */
         constexpr std::size_t max_max_tx_size() const
         {
@@ -128,15 +134,17 @@ namespace link_layer {
         /**
          * @brief the current maximum transmit size
          *
-         * No PDU with larger size can be transmitted. This will always return at least 29.
+         * No PDU with larger size can be transmitted. This will always return at least 29, the
+         * size counted without the overhead of the radio's layout.
          */
         std::size_t max_tx_size() const;
 
         /**
          * @brief set the maximum transmit size
          *
-         * The used size must be smaller or equal to TransmitSize / max_max_tx_size(), smaller than 251 and larger or equal to 29.
-         * The memory is best used, when TransmitSize divided by max_size results in an integer. That integer is
+         * The used size must be smaller or equal to max_max_tx_size() and within min_buffer_size
+         * and max_buffer_size.
+         * The memory is best used, when TransmitSize divided by max_size + layout_overhead results in an integer. That integer is
          * then the number of PDUs that can be buffered on the transmitting side.
          *
          * By default the function will return 29.
@@ -192,11 +200,13 @@ namespace link_layer {
          *
          * If not enough memory is available, the function will return an empty buffer (size == 0).
          * To indicate that the allocated memory is filled with data to be send, commit_transmit_buffer() must be called.
-         * The size parameter is the sum of the payload + header.
+         * The size parameter is the memory a PDU occupies: the header, the payload and the
+         * overhead of the radio's layout, which layout::data_channel_pdu_memory_size() adds
+         * to a payload size.
          *
          * @post r = allocate_transmit_buffer( n ); r.size == 0 || r.size == n
          * @pre  buffer is in running mode
-         * @pre size <= max_tx_size()
+         * @pre size <= max_tx_size() + layout_overhead
          */
         read_buffer allocate_transmit_buffer( std::size_t size );
 

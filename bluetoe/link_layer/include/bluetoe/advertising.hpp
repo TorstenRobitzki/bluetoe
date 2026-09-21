@@ -6,6 +6,7 @@
 #include <bluetoe/address.hpp>
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>
+#include <bluetoe/ll_constants.hpp>
 #include <bluetoe/ll_meta_types.hpp>
 
 /**
@@ -1016,8 +1017,8 @@ namespace link_layer {
 
         struct advertiser_base_base
         {
-            static constexpr std::uint32_t  advertising_radio_access_address = 0x8E89BED6;
-            static constexpr std::uint32_t  advertising_crc_init             = 0x555555;
+            static constexpr std::uint32_t  advertising_radio_access_address = link_layer::advertising_access_address;
+            static constexpr std::uint32_t  advertising_crc_init             = link_layer::advertising_crc_init;
         };
 
         template < typename LinkLayer, typename ... Options >

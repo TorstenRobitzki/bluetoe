@@ -32,6 +32,15 @@ set(CMAKE_SIZE          ${tools_prefix}size)
 # for init check
 set(CMAKE_EXE_LINKER_FLAGS_INIT --specs=nosys.specs)
 
+# Flags per build type. Debug is -Og, not -O0, as the radio has microsecond deadlines. Cache
+# entries rather than _INIT variables, to which CMake would append -O3.
+foreach(lang C CXX ASM)
+    set(CMAKE_${lang}_FLAGS_DEBUG           "-Og"           CACHE STRING "")
+    set(CMAKE_${lang}_FLAGS_RELEASE         "-Os -DNDEBUG"  CACHE STRING "")
+    set(CMAKE_${lang}_FLAGS_MINSIZEREL      "-Os -DNDEBUG"  CACHE STRING "")
+    set(CMAKE_${lang}_FLAGS_RELWITHDEBINFO  "-O2 -DNDEBUG"  CACHE STRING "")
+endforeach()
+
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)

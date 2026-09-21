@@ -253,6 +253,26 @@ BOOST_FIXTURE_TEST_CASE( an_allocated_transmit_buffer_must_be_max_tx_in_size, ru
     BOOST_CHECK_EQUAL( pdu.size, max_tx_size() );
 }
 
+/*
+ * The largest data channel PDU of the Core Specification, Vol 6, Part B, section 2.4: a two byte
+ * header and 251 bytes of payload.
+ */
+using largest_pdu_mode = running_mode_impl< 2 + 251, 2 + 251, mock_radio >;
+
+BOOST_FIXTURE_TEST_CASE( the_largest_pdu_can_be_received, largest_pdu_mode )
+{
+    max_rx_size( 2 + 251 );
+
+    BOOST_CHECK_EQUAL( allocate_receive_buffer().size, 253u );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_largest_pdu_can_be_transmitted, largest_pdu_mode )
+{
+    max_tx_size( 2 + 251 );
+
+    BOOST_CHECK_EQUAL( allocate_transmit_buffer().size, 253u );
+}
+
 
 BOOST_FIXTURE_TEST_CASE( if_only_empty_pdus_are_received_the_buffer_will_never_overflow, running_mode )
 {

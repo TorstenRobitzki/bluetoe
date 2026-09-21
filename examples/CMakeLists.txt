@@ -11,7 +11,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../platforms/cmake/firmware.cmake)
 add_subdirectory(spl)
 
 function(add_bluetoe_example target_name)
-    add_bluetoe_firmware(${target_name} ${target_name}.cpp)
+    add_bluetoe_firmware(${target_name} bluetoe::bindings::${BINDING} ${target_name}.cpp)
     target_link_libraries(${target_name} PRIVATE spl)
 endfunction()
 
