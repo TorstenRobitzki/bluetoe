@@ -2,8 +2,7 @@
 
 A device under test is a firmware around a scheduled radio implementation: the rig of
 `instrument/dut_rig.hpp`, the platform's serial port, and the radio. There is one per platform
-and radio configuration; `documentation/scheduled_radio_test_rig.md`, decision 22, says how they
-are laid out and why.
+and radio configuration; `../README.md` describes the setup they are part of.
 
 This is a firmware project on `platforms/`, like `examples/`; what it needs, the toolchain, the
 Nordic SDK headers and the board variables, is described in `platforms/README.md`.

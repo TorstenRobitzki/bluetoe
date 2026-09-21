@@ -6,7 +6,7 @@
  *
  * The functions of the tester, as the host calls them: the tester's function list,
  * obtained the way dut_functions.hpp obtains the device's, by instantiating the rig
- * template with dummies. See documentation/scheduled_radio_test_rig.md, decision 20.
+ * template with dummies.
  */
 
 #include "host/dummy_platform.hpp"

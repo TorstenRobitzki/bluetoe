@@ -4,8 +4,7 @@
 /**
  * @file status.hpp
  *
- * The status byte of every response. See documentation/scheduled_radio_test_rig.md,
- * decision 6.
+ * The status byte of every response.
  */
 
 #include <cstdint>

@@ -4,13 +4,11 @@
 /**
  * @file tester_rig.hpp
  *
- * The platform independent half of the tester: the instrument of decision 23, everything
- * that is neither the port nor the pin, on top of what instrument/instrument.hpp provides
- * to both instruments. See documentation/scheduled_radio_test_rig.md, decisions 4, 22
- * and 23.
+ * The platform independent half of the tester: everything that is neither the port nor the
+ * pin, on top of what instrument/instrument.hpp provides to both instruments.
  *
  * Besides the reset of the device under test, the tester runs a program of operations and
- * queues the PDUs it receives, the program interpreter of decision 14 for the tester: an
+ * queues the PDUs it receives, the tester's program interpreter: an
  * operation runs for the duration it names, until it received the PDUs it counts, or, for
  * an answer, until the reply to its answer arrived, and the next begins when it ends. An
  * operation that waits for PDUs that do not come within its window times out and ends the
@@ -111,7 +109,7 @@ namespace test_rig {
     /**
      * @brief what a platform provides to the tester besides the serial port
      *
-     * The reset line of decision 4, the idling and wake-up of decision 17, and the radio:
+     * The reset line to the device under test, the idling and wake-up, and the radio:
      * a receiver that listens on a channel for a number of ticks and reports what it hears
      * and when the window ends. All of it is the tester's own hardware, none reaches the
      * wire.
@@ -297,7 +295,7 @@ namespace test_rig {
          * A PDU below the limit is not queued and does not count as one produced, because
          * it was rejected on purpose, not lost. The default limit accepts every PDU; a test
          * that observes over a cable sets it above the air leaking in, so the tester keeps
-         * only the device under test. See documentation/scheduled_radio_test_rig.md.
+         * only the device under test.
          */
         void set_rssi_limit( std::uint8_t limit )
         {

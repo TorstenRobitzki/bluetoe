@@ -2,9 +2,8 @@
 
 The tests in this directory are the purpose of the test rig: they test a scheduled radio
 implementation through the instruments, against a real device. They need a device under test on
-a serial port, and later a tester on a second one, so `ctest` does not run them by default. See
-`documentation/scheduled_radio_test_rig.md`, decision 21; the tests of the instruments themselves
-are in `../self_tests/`.
+a serial port and a tester on a second one, so `ctest` does not run them by default. The tests of
+the instruments themselves are in `../self_tests/`; `../README.md` describes the setup.
 
 ## Running them
 
@@ -85,7 +84,7 @@ Even with the two boards coupled by a cable, the tester hears the advertisers ar
 per test. An acceptance filter on each side keeps them off the record: the device answers only the
 tester, so a stray in its window does not stall a run, and the tester reports only the device, so
 what it hands back is the device's. That is the device filtering of the Core Specification,
-Vol 6 Part B 4.3, set up by the fixture; see `documentation/scheduled_radio_test_rig.md`, decision 25.
+Vol 6 Part B 4.3, set up by the fixture.
 The tester's radio abandons a stranger's packet as soon as its address is received, but while it
 still receives one, a PDU of the device that starts at the same time is lost, and a test that expects
 it fails. That is what the repeat above is for.

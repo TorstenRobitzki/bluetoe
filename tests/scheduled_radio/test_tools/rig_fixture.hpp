@@ -7,9 +7,9 @@
  * The fixture the timing tests run on: the device under test and the tester, both opened by
  * the global fixture of dut.cpp. Each test resets the device through the tester, loads a
  * program into each instrument, built with host/program_builders.hpp, starts the tester and
- * then the device (decision 14), waits for both to finish, and hands over what each recorded.
+ * then the device, waits for both to finish, and hands over what each recorded.
  *
- * The device and the tester count time on unrelated clocks (decision 3, 24), so a test
+ * The device and the tester count time on unrelated clocks, so a test
  * never compares a device time with a tester time. It compares an interval the device
  * requested with the same interval the tester observed. The tester's acceptance filter,
  * set to the device's address, keeps the air off the record, so what the tester reports is

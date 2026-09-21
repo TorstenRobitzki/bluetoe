@@ -5,10 +5,9 @@
  * @file dummy_radio.hpp
  *
  * A scheduled radio for the host, where none exists: what lets the host instantiate the
- * rig template, see dut_functions.hpp and documentation/scheduled_radio_test_rig.md,
- * decision 20. Nothing in it ever runs; the rig's unit tests derive an instrumented
- * version to observe the rig, and the concept tests build their models from its parts,
- * which are the parts the concepts are in.
+ * rig template, see dut_functions.hpp. Nothing in it ever runs; the rig's unit tests derive
+ * an instrumented version to observe the rig, and the concept tests build their models from
+ * its parts, which are the parts the concepts are in.
  */
 
 #include <bluetoe/scheduled_radio2.hpp>

@@ -4,14 +4,13 @@
 /**
  * @file frame.hpp
  *
- * The frames of the link, see documentation/scheduled_radio_test_rig.md, decision 16. A
- * frame is
+ * The frames of the link. A frame is
  *
  *     length | payload | crc
  *
  * with the length of the payload as 16 bits little endian, and a CRC-16 over the length
- * and the payload, little endian. Nothing marks the start of a frame: under decision 6
- * exactly one request is in flight, so after a corrupt frame the receiver discards
+ * and the payload, little endian. Nothing marks the start of a frame: exactly one
+ * request is in flight, so after a corrupt frame the receiver discards
  * everything it holds, the host sees a link error, and its next request arrives into an
  * empty buffer.
  *

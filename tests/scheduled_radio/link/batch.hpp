@@ -5,8 +5,7 @@
  * @file batch.hpp
  *
  * How an instrument hands over what it reported, a few items per response, so that the
- * host notices what a full queue dropped. See documentation/scheduled_radio_test_rig.md,
- * decision 7.
+ * host notices what a full queue dropped.
  */
 
 #include "link/serialize.hpp"

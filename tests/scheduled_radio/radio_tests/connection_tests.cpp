@@ -456,7 +456,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_of_the_central_keeps_the_event_open, connecti
  * The tester places a PDU to one tick of its clock, but finds the end of the device's reply
  * from a receive offset calibrated against this device's own T_IFS; until the tester is
  * validated against an independent reference, this shows that the device follows at 148 µs
- * and 152 µs as the tester measures them (candidate_tests.md).
+ * and 152 µs as the tester measures them.
  */
 BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_shortest_inter_frame_space, connection_fixture, *if_tester )
 {
@@ -470,8 +470,7 @@ BOOST_FIXTURE_TEST_CASE( the_device_follows_a_central_at_the_longest_inter_frame
 
 /*
  * Payloads of one byte, a middle size, 27 bytes, the largest without the data length
- * extension, and the largest the Core Specification allows, in both directions
- * (candidate_tests.md).
+ * extension, and the largest the Core Specification allows, in both directions.
  */
 BOOST_FIXTURE_TEST_CASE( the_smallest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
 {

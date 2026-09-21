@@ -4,9 +4,9 @@
 /**
  * @file serialize.hpp
  *
- * The serialisation of the rig's interface, see documentation/scheduled_radio_test_rig.md,
- * decision 19. Type driven: what goes on the wire is determined by the C++ type alone,
- * so a function is serialisable if every parameter and its result is.
+ * The serialisation of the rig's interface. Type driven: what goes on the wire is
+ * determined by the C++ type alone, so a function is serialisable if every parameter and
+ * its result is.
  *
  * Integers are little endian at their fixed width; bool is one byte; an enum is its
  * underlying integer; abs_time and delta_time are their microseconds as 32 bits; arrays,

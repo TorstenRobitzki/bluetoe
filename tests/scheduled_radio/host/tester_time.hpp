@@ -4,8 +4,8 @@
 /**
  * @file tester_time.hpp
  *
- * The conversion between the tester's clock ticks and a time, which decision 24 places on
- * the host: the tester reports a tester_time, a count of its 62.5 ns ticks, and a test
+ * The conversion between the tester's clock ticks and a time, done on the host and nowhere
+ * else: the tester reports a tester_time, a count of its 62.5 ns ticks, and a test
  * reads and writes it as a std::chrono duration rather than as a bare number.
  */
 

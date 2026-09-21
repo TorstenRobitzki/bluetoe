@@ -6,7 +6,7 @@
  *
  * The platform independent half of a device under test: everything that is neither the
  * radio nor the serial port, on top of what instrument/instrument.hpp provides to both
- * instruments. See documentation/scheduled_radio_test_rig.md, decisions 9, 16, 17 and 20.
+ * instruments.
  *
  * The rig is a template over the scheduled radio implementation and over the platform's
  * serial port; dut_rigs/template_dut_rig.cpp shows how a platform binds the two. The
@@ -19,7 +19,7 @@
  * opcodes are answered with status::unsupported_function, and the host reads properties()
  * before it asks.
  *
- * The rig is the program interpreter of decision 14: a step waits for the callback it
+ * The rig is the device's program interpreter: a step waits for the callback it
  * names and runs inside it, and everything the radio reports or the rig calls is recorded
  * in one queue, in the order it happened.
  */
@@ -170,8 +170,8 @@ namespace test_rig {
      * Radio is the implementation under test, a template over the type that receives its
      * callbacks; a platform binds the implementation's options with an alias template
      * and passes that. The rig is that type: it derives from the radio and passes itself,
-     * as the link layer does, and it receives the callbacks in the link layer context of
-     * decision 17. Port is the platform's serial port, a template over the buffer type
+     * as the link layer does, and it receives the callbacks in the link layer context.
+     * Port is the platform's serial port, a template over the buffer type
      * and the type it wakes, which is the rig, whose wake_up() is the radio's. MaxPayload
      * bounds a request and a response, and thereby the buffers.
      *
@@ -494,9 +494,9 @@ namespace test_rig {
          * @name Pairing toolbox
          *
          * The functions of lesc_pairing_toolbox that take a pointer, with the array the
-         * pointer denotes as the parameter (decision 19). The other four are the radio's
-         * own members, reached as toolbox_t. Only instantiated if the radio has a
-         * toolbox, since only then does the list name them.
+         * pointer denotes as the parameter, since a serialiser cannot size a pointer. The
+         * other four are the radio's own members, reached as toolbox_t. Only instantiated
+         * if the radio has a toolbox, since only then does the list name them.
          * @{
          */
 

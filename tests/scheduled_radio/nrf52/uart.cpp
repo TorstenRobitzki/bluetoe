@@ -20,7 +20,7 @@ namespace nrf52 {
         constexpr std::uint32_t pin_rts = 5;
 
         /*
-         * Below the radio's interrupts, as decision 16 requires; the radio uses the highest
+         * Below the radio's interrupts, as the port contract requires; the radio uses the highest
          * priorities.
          */
         constexpr std::uint32_t interrupt_priority = 6;

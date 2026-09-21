@@ -7,7 +7,7 @@
  * What the two instruments have in common, the device under test and the tester, leaving
  * the programs and the queues to each: the names an instrument reports, the session token,
  * the two ring buffers the platform's port works on, the framing, and the step that answers
- * a request. See documentation/scheduled_radio_test_rig.md, decisions 6, 8 and 16.
+ * a request.
  *
  * An instrument derives from this class and passes itself: it is what the port wakes, and
  * its function list is what requests are dispatched against. The list names the functions
@@ -115,7 +115,7 @@ namespace test_rig {
          *
          * Never waits for the port. A response that does not fit into the transmit buffer
          * is kept and handed over on a later call, before the next request is read; the
-         * host does not send one before it has the answer anyway (decision 6). A corrupt
+         * host does not send one before it has the answer anyway. A corrupt
          * frame is dropped without an answer, and the host times out.
          */
         void serve()

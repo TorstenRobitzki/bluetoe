@@ -4,8 +4,7 @@
 /**
  * @file function_list.hpp
  *
- * The request and response protocol on top of the frames, as both ends see it. See
- * documentation/scheduled_radio_test_rig.md, decisions 6, 8 and 19.
+ * The request and response protocol on top of the frames, as both ends see it.
  *
  * Both sides share a function_list of member function pointers. A function's opcode is
  * its position in the list; its arguments and result are taken from its signature and
@@ -14,7 +13,7 @@
  *     request:  opcode | arguments
  *     response: token | status | result
  *
- * The opcode is one byte. The token is the session token of decision 8, four bytes. The
+ * The opcode is one byte. The token is the session token, four bytes. The
  * status is one byte. The result is present only for status::ok and only if the function
  * returns something.
  *

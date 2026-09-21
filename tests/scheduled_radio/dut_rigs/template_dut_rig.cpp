@@ -52,7 +52,7 @@ namespace template_platform {
 
     /*
      * Constructed at startup by the runtime, before main(), so that the session token reads
-     * as zero after every reset (decision 8). A namespace scope
+     * as zero after every reset. A namespace scope
      * object rather than a static in main(): the latter needs the runtime's guards and
      * destructor registration, which a firmware without a C++ runtime does not have.
      */

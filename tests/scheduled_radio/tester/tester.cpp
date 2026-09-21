@@ -3,7 +3,7 @@
  *
  * The tester: the rig of instrument/tester_rig.hpp on an nRF52 development kit, over the
  * UART the devices under test use as well, with the reset line of platform.hpp to the device
- * under test (decisions 4 and 23).
+ * under test.
  */
 
 #include "instrument/tester_rig.hpp"
@@ -26,7 +26,7 @@ namespace bluetoe_tester {
 
     /*
      * Constructed at startup by the runtime, before main(), so that the session token reads
-     * as zero after every reset (decision 8); a namespace scope
+     * as zero after every reset; a namespace scope
      * object for the reasons dut_rigs/template_dut_rig.cpp gives.
      */
     rig_t rig( "tester on nRF52840-DK", TESTER_BUILD_IDENTIFIER );

@@ -4,7 +4,7 @@
 /**
  * @file program_builders.hpp
  *
- * How a test writes the programs of the two instruments (decision 14): a device program as
+ * How a test writes the programs of the two instruments: a device program as
  * steps of calls, a tester program as operations, each built by a function named after what
  * it does, with times as std::chrono durations. What comes out is the wire type of
  * link/program.hpp and link/tester_program.hpp, which the host loads one request at a time.

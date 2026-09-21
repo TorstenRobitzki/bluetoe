@@ -1,7 +1,7 @@
 /**
  * @file instrument_reported_queue_tests.cpp
  *
- * The queue both instruments report through (decision 7): what it hands over, in what
+ * The queue both instruments report through: what it hands over, in what
  * order, and how a host sees what a full queue dropped.
  */
 

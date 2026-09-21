@@ -2,8 +2,7 @@
 
 The tester is one firmware for one board: the rig of `instrument/tester_rig.hpp`, the UART, and
 what else the tester needs from the board, today the reset line to the device under test.
-`documentation/scheduled_radio_test_rig.md`, decisions 4 and 23, say what it is for and why it is
-laid out like this; decisions 24 to 27 describe its radio.
+`../README.md` says what it is for; `platform.hpp` describes what its radio does.
 
 It runs on an nRF52840-DK, PCA10056, next to the device under test. This is a firmware project on
 `platforms/` for the toolchain, the startup code and the flash target; the board is preset, so only

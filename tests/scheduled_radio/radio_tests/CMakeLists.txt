@@ -2,7 +2,7 @@ find_package(Boost REQUIRED)
 
 # A radio test needs a device under test on the serial port BLUETOE_DUT names. The label keeps
 # ctest from running it unless asked for: `ctest -L radio` runs the radio tests only, the CI
-# runs `ctest -LE radio` (decision 21). The target is prefixed with radio_, since the library's own
+# runs `ctest -LE radio`. The target is prefixed with radio_, since the library's own
 # tests take the plain names, advertising_tests among them.
 function(add_radio_test name)
     set(test_runner radio_${name})

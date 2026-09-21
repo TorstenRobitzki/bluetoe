@@ -18,9 +18,9 @@ namespace test_rig {
         /*
          * Requests the device may not answer after a reset; each one costs the poll timeout,
          * so this bounds the wait for a device that does not come back. One is enough while
-         * the reset returns only once the device runs (decision 4); the others are for a
+         * the reset returns only once the device runs; the others are for a
          * device that was reset while a frame of the host was still on its way, whose tail it
-         * reads as a length and whose poll it then drops with that frame (decision 30). The
+         * reads as a length and whose poll it then drops with that frame. The
          * first poll that goes unanswered ends that frame, so the next one is answered.
          */
         constexpr int requests_after_reset = 3;

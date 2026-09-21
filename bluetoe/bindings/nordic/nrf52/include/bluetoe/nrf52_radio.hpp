@@ -7,11 +7,10 @@
  * The scheduled radio of the nRF52, as bluetoe/scheduled_radio2.hpp requires it. Consumers
  * name it through <bluetoe/radio.hpp>.
  *
- * This is the advertising slice of decision 11, step 3: the time base, radio_ready(),
- * start_advertising() and schedule_advertising_event() with their receive window and the
- * scan response, the timer, and the callbacks, delivered from run(); and connection events
- * without encryption, at 1 Mbit. Encryption and PHY changes are present and ignored.
- * See documentation/scheduled_radio_test_rig.md.
+ * What is implemented: the time base, radio_ready(), start_advertising() and
+ * schedule_advertising_event() with their receive window and the scan response, the timer,
+ * the callbacks, delivered from run(), and connection events at 1 or 2 Mbit, without
+ * encryption; set_ccm_counter() is present and ignored.
  *
  * @section timebase The time base
  *
@@ -116,7 +115,7 @@ namespace bluetoe
              *
              * Wait-for-event returns on an interrupt and on wake_up(); the event register
              * latches a wake_up() that came before the sleep, which is what makes the
-             * guarantee of decision 17 hold.
+             * guarantee hold that wake_up() makes run() return.
              */
             void sleep();
 

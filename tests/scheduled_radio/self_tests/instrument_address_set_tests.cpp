@@ -1,7 +1,7 @@
 /**
  * @file instrument_address_set_tests.cpp
  *
- * The acceptance filter set both instruments keep (decision 25).
+ * The acceptance filter set both instruments keep.
  */
 
 #define BOOST_TEST_MODULE

@@ -332,7 +332,7 @@ namespace {
 /*
  * A request that goes unanswered may have been swallowed by a frame the device is waiting for,
  * which a length read from noise announced; the transport ends that frame, so that the link is
- * usable again (decision 30). What ends it is one frame's worth of 0xff, which
+ * usable again. What ends it is one frame's worth of 0xff, which
  * link_frame_tests.cpp shows frees a receiver whatever length it read.
  */
 BOOST_FIXTURE_TEST_CASE( a_request_that_goes_unanswered_ends_a_frame_with_ones, driven )

@@ -5,8 +5,7 @@
  * @file serial_port.hpp
  *
  * Requirements of the one platform dependent part of an instrument: the serial port the
- * rig talks to the host through, as C++20 concepts. See
- * documentation/scheduled_radio_test_rig.md, decision 16.
+ * rig talks to the host through, as C++20 concepts.
  *
  * An instrument has three parts. The scheduled radio implementation, which is the subject.
  * The rig, which is the same on every platform: framing, the request and response protocol,
@@ -32,8 +31,8 @@
  * how; on a part with prioritised interrupts it is the priority of the UART interrupt.
  *
  * The port is also what wakes the rig. The rig's main loop sleeps in the radio's run(),
- * and wake_up() is the guaranteed way to make that return (decision 17); the port is the
- * interrupt of the application that decision speaks of. It is therefore constructed on a
+ * and wake_up() is the guaranteed way to make that return; the port is an interrupt of
+ * the application, in the radio interface's terms. It is therefore constructed on a
  * third thing, the object to wake, and calls wake_up() on it after it pushed what arrived.
  *
  * The same port serves the tester, whose link is the same code.

@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-# The firmwares of the devices under test, one per platform and radio configuration
-# (documentation/scheduled_radio_test_rig.md, decision 22). A firmware project on platforms/,
-# like examples/; see README.md for building and flashing.
+# The firmwares of the devices under test, one per platform and radio configuration. A firmware
+# project on platforms/, like examples/; see README.md for building and flashing.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../platforms/cmake/firmware_project.cmake)
 
 project(bluetoe_dut_rigs CXX C)

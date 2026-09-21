@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-# The tester: one firmware for one board (documentation/scheduled_radio_test_rig.md, decision 23).
+# The tester: one firmware for one board.
 # A firmware project on platforms/ for the toolchain, the startup code and the flash target; it
 # shares the link code and the UART with the devices under test and nothing else. See README.md
 # for wiring, building and flashing.
@@ -19,7 +19,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../../platforms/cmake/firmware.cmake)
 add_compile_options(-fvisibility=hidden)
 
 # The build identifier the tester reports to the host: the source state it was built from, as
-# for a device under test (decision 22).
+# for a device under test.
 execute_process(
     COMMAND git describe --always --dirty
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}

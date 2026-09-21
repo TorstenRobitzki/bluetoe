@@ -5,9 +5,8 @@
  * @file dummy_port.hpp
  *
  * A serial port for the host, where the rig has none: what lets the host instantiate an
- * instrument's rig template, see dut_functions.hpp and
- * documentation/scheduled_radio_test_rig.md, decision 20. Nothing in it ever runs; the
- * rig's unit tests derive an instrumented version to observe the rig.
+ * instrument's rig template, see dut_functions.hpp. Nothing in it ever runs; the rig's
+ * unit tests derive an instrumented version to observe the rig.
  */
 
 namespace bluetoe {

@@ -51,7 +51,7 @@ namespace test_rig {
 
         /*
          * TIMER0 counts the tester's ticks: prescaler 0 gives the full 16 MHz of the
-         * peripheral clock, 62.5 ns a tick (decision 24). It free runs from boot, so a
+         * peripheral clock, 62.5 ns a tick. It free runs from boot, so a
          * capture is a time since boot; 32 bit wraps every 268 s, far beyond any run.
          */
         constexpr std::uint32_t prescaler_for_16mhz = 0;
@@ -588,7 +588,7 @@ namespace test_rig {
     /*
      * What both packet ends report, from the timer's capture at the packet's ADDRESS event:
      * a transmitted PDU's first bit was one preamble and access address before it, a
-     * received one's the receiver's address detection earlier still (decision 24).
+     * received one's the receiver's address detection earlier still.
      */
     std::uint32_t platform::received_first_bit( std::uint32_t address ) const
     {

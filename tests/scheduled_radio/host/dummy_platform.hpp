@@ -5,9 +5,8 @@
  * @file dummy_platform.hpp
  *
  * A tester platform for the host, where the tester has none: what lets the host
- * instantiate the tester's rig template, see tester_functions.hpp and
- * documentation/scheduled_radio_test_rig.md, decision 20. Nothing in it ever runs; the
- * tester's unit tests derive an instrumented version to observe the tester.
+ * instantiate the tester's rig template, see tester_functions.hpp. Nothing in it ever
+ * runs; the tester's unit tests derive an instrumented version to observe the tester.
  */
 
 #include "instrument/tester_rig.hpp"

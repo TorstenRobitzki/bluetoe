@@ -6,8 +6,8 @@ with dummies and sockets in place of hardware. Nothing here needs a board, and `
 of them like any other unit test, on every platform and every CI job.
 
 The tests of a scheduled radio implementation are a different kind: they run through the
-instruments against a real device and live in `../radio_tests/`. See
-`documentation/scheduled_radio_test_rig.md`, decision 21.
+instruments against a real device and live in `../radio_tests/`; `../README.md` describes the
+setup both belong to.
 
 ## What each file covers
 

@@ -5,8 +5,7 @@
  * @file program.hpp
  *
  * What a program of the device under test and its records look like on the wire, shared by
- * the rig and the host. See documentation/scheduled_radio_test_rig.md, decisions 7, 9
- * and 14.
+ * the rig and the host.
  *
  * A program is loaded one request at a time: a step, the callback it waits for, and then each
  * of its calls, as a call with its PDUs is what fits into one request. The steps share one pool

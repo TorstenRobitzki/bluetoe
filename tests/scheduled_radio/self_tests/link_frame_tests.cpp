@@ -146,7 +146,7 @@ BOOST_FIXTURE_TEST_CASE( the_receiver_recovers_after_a_corrupt_frame, link )
 }
 
 /*
- * What the host's resynchronise() rests on (decision 30): a receiver waiting for a frame that
+ * What the host's resynchronise() rests on: a receiver waiting for a frame that
  * a length read from noise announced is freed by one frame's worth of 0xff, whatever length it
  * read, since that either completes the frame, whose checksum then fails, or is read as a
  * length of 0xffff, which is beyond what a frame may carry. Fed one byte at a time with a

@@ -3,7 +3,7 @@
  *
  * The device under test on the nRF52 development kits: the rig around the platform's
  * scheduled radio without options, over the UART. This is dut_rigs/template_dut_rig.cpp
- * with the two types and the names filled in (decision 22).
+ * with the two types and the names filled in.
  */
 
 #include "instrument/dut_rig.hpp"
@@ -31,7 +31,7 @@ namespace nrf52_dut {
 
     /*
      * Constructed at startup by the runtime, before main(), so that the session token reads
-     * as zero after every reset (decision 8). A namespace scope
+     * as zero after every reset. A namespace scope
      * object rather than a static in main(): the latter needs the runtime's guards and
      * destructor registration, which a firmware without a C++ runtime does not have.
      */

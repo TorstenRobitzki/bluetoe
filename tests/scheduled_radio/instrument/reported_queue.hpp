@@ -4,9 +4,9 @@
 /**
  * @file reported_queue.hpp
  *
- * The queue an instrument keeps what it reports in until the host collects it, the loss
- * detection of decision 7 (documentation/scheduled_radio_test_rig.md): both instruments
- * report through one of these, and hand it over in batches (link/batch.hpp).
+ * The queue an instrument keeps what it reports in until the host collects it, and what
+ * makes a loss detectable: both instruments report through one of these, and hand it over
+ * in batches (link/batch.hpp).
  */
 
 #include "link/batch.hpp"

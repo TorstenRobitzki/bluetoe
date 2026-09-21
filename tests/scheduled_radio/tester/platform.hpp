@@ -15,14 +15,14 @@
  *
  * The radio listens on a channel, captures the timer at the moment the access address is
  * received, and reports each PDU with the time its first bit was on air in the tester's
- * ticks (decision 24); a timer compare ends the window and is reported as well. An answer
+ * ticks; a timer compare ends the window and is reported as well. An answer
  * operation also answers the first advertising PDU from a named target one inter frame
  * space after it ended, started by a timer compare rather than by software, and
  * reports that transmission with its time from the same capture. A connection event
  * transmits its PDUs the same way, each one inter frame space after the device's reply to
  * the one before, and lets the radio switch to receive on its own after each. The radio
  * keeps nothing of the device's binding, which it must not: the tester observes a radio, it
- * is not one (decision 23).
+ * is not one.
  */
 
 #include "instrument/tester_rig.hpp"

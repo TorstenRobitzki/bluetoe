@@ -4,7 +4,7 @@
 /**
  * @file address_set.hpp
  *
- * The acceptance filter of both instruments (decision 25): the addresses they accept, a
+ * The acceptance filter of both instruments: the addresses they accept, a
  * set that is only ever added to, since a reset or the next program is what empties it.
  */
 

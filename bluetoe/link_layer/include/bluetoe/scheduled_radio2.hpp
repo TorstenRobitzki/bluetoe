@@ -25,8 +25,7 @@
  * A concept checks syntax: that the functions exist with these signatures and these
  * results. Everything else this interface promises, what appears on air, at what time,
  * within what tolerance, and from which context, is stated in the comments next to each
- * requirement, and is what the test rig in tests/scheduled_radio/ checks. See
- * documentation/scheduled_radio_test_rig.md for the reasoning behind the decisions.
+ * requirement, and is what the test rig in tests/scheduled_radio/ checks.
  *
  * @section time Time
  *

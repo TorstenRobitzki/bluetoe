@@ -1,8 +1,8 @@
 /**
  * @file reset_tests.cpp
  *
- * The reset line from the tester to the device under test (decision 4), proven the way
- * decision 8 describes: the device carries a session token, the tester pulls the line,
+ * The reset line from the tester to the device under test, proven by the session token:
+ * the device carries one, the tester pulls the line,
  * and the device answers with a zero token afterwards. These are the first tests that
  * need the tester, and they are skipped without one.
  */

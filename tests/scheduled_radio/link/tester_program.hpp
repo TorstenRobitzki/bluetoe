@@ -5,13 +5,13 @@
  * @file tester_program.hpp
  *
  * What a program of the tester and the PDUs it captures look like on the wire, shared by the
- * tester and the host. See documentation/scheduled_radio_test_rig.md, decisions 14, 23 and 24.
+ * tester and the host.
  *
  * A program is a sequence of operations, each run for the duration it names, or until it
- * received the PDUs it counts, from the moment the previous one ended (decision 14). The
+ * received the PDUs it counts, from the moment the previous one ended. The
  * PDUs received during it, and the one an answer sends, come back in batches, each naming
  * the index of its first PDU and the number produced so far, the same loss detection the
- * device under test's records use (decision 7).
+ * device under test's records use.
  */
 
 #include "link/batch.hpp"
@@ -35,7 +35,7 @@ namespace test_rig {
      *
      * The tester timestamps a reception at the resolution of this clock, 62.5 ns, and a
      * reworked board holds it to 50 ppb, so that the tester is the reference the setup is
-     * measured against (decision 24). The host converts a tick interval to a time with
+     * measured against. The host converts a tick interval to a time with
      * this rate; the tester never does, and never reports a time in any other unit.
      */
     constexpr std::uint32_t tester_ticks_per_second = 16'000'000;
@@ -45,7 +45,7 @@ namespace test_rig {
      *
      * 64 bit, so that it never wraps within a run and the host takes plain differences.
      * Unrelated to the device under test's abs_time, which is microseconds: the two
-     * instruments do not share a clock, and now not even a unit (decision 3).
+     * instruments do not share a clock, nor a unit.
      */
     struct tester_time
     {

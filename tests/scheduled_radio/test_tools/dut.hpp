@@ -14,8 +14,7 @@
  * a small core.
  *
  * The same fixture opens the tester of tester.hpp if BLUETOE_TESTER names one, and then
- * restarts the device through it, so that a run with a tester begins from a reset
- * (decision 4).
+ * restarts the device through it, so that a run with a tester begins from a reset.
  */
 
 #include "host/dut_functions.hpp"

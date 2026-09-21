@@ -8,8 +8,7 @@
  * rig's function list to talk to a device, and the list is a member of the rig template,
  * so the host instantiates the template with a dummy radio and a dummy port and takes the
  * list from that: an opcode is a position in the list and the signatures carry nothing of
- * the radio, so the list agrees with the one the device was built with. See
- * documentation/scheduled_radio_test_rig.md, decision 20.
+ * the radio, so the list agrees with the one the device was built with.
  */
 
 #include "host/dummy_port.hpp"
