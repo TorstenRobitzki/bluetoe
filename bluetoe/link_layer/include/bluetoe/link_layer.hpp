@@ -121,6 +121,58 @@ namespace link_layer {
             std::uint16_t   instant_ = 0;
         };
 
+        /*
+         * The response timeout of the link layer procedure that is running (Core
+         * Specification, Vol 6, Part B, 5.2): a procedure whose response does not come
+         * within it brings the connection down.
+         *
+         * Stopped means that nothing is waiting for a response. The link layer has no clock
+         * of its own, so what is left runs down by the time between two connection events.
+         */
+        class procedure_timeout
+        {
+        public:
+            void start()
+            {
+                timeout_ = delta_time( default_timeout_us );
+            }
+
+            /*
+             * Until the link is down rather than until a response comes: the termination is
+             * bounded by the connection's supervision timeout.
+             */
+            void start( delta_time within )
+            {
+                timeout_ = within;
+            }
+
+            void stop()
+            {
+                timeout_ = delta_time();
+            }
+
+            bool running() const
+            {
+                return !timeout_.zero();
+            }
+
+            bool expired( delta_time since_last_event ) const
+            {
+                return running() && timeout_ <= since_last_event;
+            }
+
+            void passed( delta_time since_last_event )
+            {
+                if ( running() )
+                    timeout_ -= since_last_event;
+            }
+
+        private:
+            static constexpr std::uint32_t default_timeout_us = 40 * 1000 * 1000;
+
+            delta_time  timeout_;
+        };
+
         template < typename SecurityFunctions, typename Server, typename ... Options >
         struct security_manager {
             using default_sm = typename bluetoe::details::select_type<
@@ -827,8 +879,6 @@ namespace link_layer {
         static constexpr std::uint8_t   connection_ll_response_timeout = 0x22;
         static constexpr std::uint8_t   connection_instant_passed   = 0x28;
 
-        static constexpr std::uint32_t  default_procedure_timeout_us= 40 * 1000 * 1000;
-
         struct link_layer_feature {
             enum : std::uint16_t {
                 le_encryption                           = 0x001,
@@ -862,7 +912,7 @@ namespace link_layer {
 
         device_address                  address_;
         details::connection_parameters  parameters_;
-        delta_time                      procedure_timeout_;
+        details::procedure_timeout      procedure_timeout_;
         details::deferred_control_pdu   deferred_pdu_;
         connection_data_t               connection_data_;
         bool                            termination_send_;
@@ -999,7 +1049,7 @@ namespace link_layer {
                 remote_versions_request_pending_        = false;
                 version_indication_received_            = false;
                 disconnecting_reason_                   = connection_timeout;
-                procedure_timeout_                      = delta_time();
+                procedure_timeout_.stop();
 
                 this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
 
@@ -1039,7 +1089,7 @@ namespace link_layer {
         {
             force_disconnect();
         }
-        else if ( !procedure_timeout_.zero() && procedure_timeout_ <= time_since_last_event )
+        else if ( procedure_timeout_.expired( time_since_last_event ) )
         {
             force_disconnect( connection_ll_response_timeout );
         }
@@ -1108,10 +1158,10 @@ namespace link_layer {
         else
         {
             const auto time_since_last_event = this->time_since_last_event();
-            const bool procedure_timed_out = !procedure_timeout_.zero() && procedure_timeout_ <= time_since_last_event;
+            const bool procedure_timed_out = procedure_timeout_.expired( time_since_last_event );
 
-            if ( !procedure_timeout_.zero() && !procedure_timed_out )
-                procedure_timeout_ -= time_since_last_event;
+            if ( !procedure_timed_out )
+                procedure_timeout_.passed( time_since_last_event );
 
             if ( procedure_timed_out )
             {
@@ -1203,7 +1253,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::initiating_connection_parameter_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
     {
-        if ( connection_parameters_request_pending_ || !procedure_timeout_.zero() )
+        if ( connection_parameters_request_pending_ || procedure_timeout_.running() )
             return false;
 
         proposed_interval_min_  = interval_min;
@@ -1242,7 +1292,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::remote_versions_request()
     {
-        if ( remote_versions_request_pending_ || !procedure_timeout_.zero() )
+        if ( remote_versions_request_pending_ || procedure_timeout_.running() )
             return false;
 
         remote_versions_request_pending_ = true;
@@ -1263,7 +1313,7 @@ namespace link_layer {
         connection_state_     = connection_state::disconnecting;
         termination_send_     = false;
         disconnecting_reason_ = reason;
-        procedure_timeout_    = parameters_.timeout();
+        procedure_timeout_.start( parameters_.timeout() );
 
         this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
@@ -1325,7 +1375,7 @@ namespace link_layer {
 
         if ( connection_parameters_request_pending_ )
         {
-            procedure_timeout_ = delta_time( default_procedure_timeout_us );
+            procedure_timeout_.start();
             connection_parameters_request_pending_ = false;
             connection_parameters_request_running_ = true;
 
@@ -1358,7 +1408,7 @@ namespace link_layer {
         }
         else if ( remote_versions_request_pending_ )
         {
-            procedure_timeout_ = delta_time( default_procedure_timeout_us );
+            procedure_timeout_.start();
             remote_versions_request_pending_ = false;
 
             fill< layout_t >( out_buffer, {
@@ -1575,7 +1625,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_VERSION_IND && size == 6 && !version_indication_received_ )
             {
-                procedure_timeout_ = delta_time();
+                procedure_timeout_.stop();
 
                 if ( body[ 1 ] <= LL_VERSION_40 )
                     used_features_ = used_features_ & ~link_layer_feature::connection_parameters_request_procedure;
@@ -1634,7 +1684,7 @@ namespace link_layer {
 
                 if ( !opcode_contains_request || ( opcode_contains_request && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
                 {
-                    procedure_timeout_ = delta_time();
+                    procedure_timeout_.stop();
 
                     if ( connection_parameters_request_running_ && connection_parameters_request_use_signaling_channel_ )
                     {
@@ -1715,7 +1765,7 @@ namespace link_layer {
             }
             else if ( opcode == LL_CONNECTION_UPDATE_IND )
             {
-                procedure_timeout_ = delta_time();
+                procedure_timeout_.stop();
 
                 if ( parameters_.from_connection_update( body ) )
                 {
