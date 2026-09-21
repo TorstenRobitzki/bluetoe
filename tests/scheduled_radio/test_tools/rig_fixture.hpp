@@ -64,6 +64,10 @@ namespace test_rig {
      */
     inline const time_out operation_timeout{ std::chrono::milliseconds( 300 ) };
 
+    // the longest the programs of one test may run, and how often the fixture asks whether they did
+    constexpr std::chrono::seconds      program_time_limit( 2 );
+    constexpr std::chrono::milliseconds poll_interval( 10 );
+
     /**
      * @brief the rig with the device's acceptance filter left to the test
      *
@@ -118,19 +122,22 @@ namespace test_rig {
             BOOST_REQUIRE( observer.call< &tester::start_program >() );
             device.call< &dut::start_program >();
 
-            for ( int i = 0; i != 200; ++i )
-            {
-                if ( device.call< &dut::program_finished >() && observer.call< &tester::program_finished >() )
-                    break;
+            const auto deadline = std::chrono::steady_clock::now() + program_time_limit;
 
-                std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
+            while ( std::chrono::steady_clock::now() < deadline
+                && !( device.call< &dut::program_finished >() && observer.call< &tester::program_finished >() ) )
+            {
+                std::this_thread::sleep_for( poll_interval );
             }
 
+            // a tester operation that timed out is the likelier cause of a device program that did not finish
             const std::uint8_t timed_out = observer.call< &tester::timed_out_operation >();
             BOOST_REQUIRE_MESSAGE( timed_out == no_operation_timed_out, "tester operation " << int( timed_out ) << " timed out" );
 
-            BOOST_REQUIRE( device.call< &dut::program_finished >() );
-            BOOST_REQUIRE( observer.call< &tester::program_finished >() );
+            BOOST_REQUIRE_MESSAGE( device.call< &dut::program_finished >(),
+                "the device's program did not finish within " << program_time_limit.count() << " s" );
+            BOOST_REQUIRE_MESSAGE( observer.call< &tester::program_finished >(),
+                "the tester's program did not finish within " << program_time_limit.count() << " s" );
         }
 
         std::vector< record > device_records()
