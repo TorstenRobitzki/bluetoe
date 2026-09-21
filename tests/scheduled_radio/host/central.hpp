@@ -51,7 +51,8 @@ namespace test_rig {
         /**
          * @brief the next PDU: the previous one acknowledged, the device's reply to it new
          */
-        std::vector< std::uint8_t > send( std::span< const std::uint8_t > payload = {}, more_data_flag md = no_more_data, llid kind = llid::continuation );
+        std::vector< std::uint8_t > send(
+            std::span< const std::uint8_t > payload = {}, more_data_flag md = no_more_data, llid kind = llid::continuation );
 
         /**
          * @brief the previous PDU again, as it was not acknowledged; the device's reply to it new
@@ -62,7 +63,8 @@ namespace test_rig {
          * @brief the next PDU, the previous one acknowledged, but the device's reply to it not
          *        accepted, for example as it had an invalid CRC
          */
-        std::vector< std::uint8_t > send_nack( std::span< const std::uint8_t > payload = {}, more_data_flag md = no_more_data, llid kind = llid::continuation );
+        std::vector< std::uint8_t > send_nack(
+            std::span< const std::uint8_t > payload = {}, more_data_flag md = no_more_data, llid kind = llid::continuation );
 
     private:
         std::vector< std::uint8_t > build( std::span< const std::uint8_t > payload, more_data_flag md, llid kind );

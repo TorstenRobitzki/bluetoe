@@ -127,7 +127,9 @@ namespace bluetoe
 
             void set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init );
 
-            void set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting );
+            void set_phy(
+                link_layer::phy_ll_encoding::phy_ll_encoding_t receiving,
+                link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting );
 
             /**
              * @brief registers the acceptance filter the template calls into
@@ -221,7 +223,10 @@ namespace bluetoe
             };
 
             link_layer::abs_time now() const;
-            void schedule( std::uint32_t channel, link_layer::abs_time when, const link_layer::write_buffer& transmit, const link_layer::write_buffer& response, const link_layer::read_buffer& receive );
+            void schedule(
+                std::uint32_t channel, link_layer::abs_time when,
+                const link_layer::write_buffer& transmit, const link_layer::write_buffer& response,
+                const link_layer::read_buffer& receive );
             bool sender_in_acceptance_filter();
             bool is_scan_request_for_us() const;
             bool can_answer() const;

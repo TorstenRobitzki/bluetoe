@@ -156,15 +156,25 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const link_layer::connection_event_events& value )
     {
-        return serialize( out, std::tie( value.unacknowledged_data, value.last_received_not_empty, value.last_transmitted_not_empty,
-            value.last_received_had_more_data, value.pending_outgoing_data, value.error_occured ) );
+        return serialize( out, std::tie(
+            value.unacknowledged_data,
+            value.last_received_not_empty,
+            value.last_transmitted_not_empty,
+            value.last_received_had_more_data,
+            value.pending_outgoing_data,
+            value.error_occured ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, link_layer::connection_event_events& value )
     {
-        auto fields = std::tie( value.unacknowledged_data, value.last_received_not_empty, value.last_transmitted_not_empty,
-            value.last_received_had_more_data, value.pending_outgoing_data, value.error_occured );
+        auto fields = std::tie(
+            value.unacknowledged_data,
+            value.last_received_not_empty,
+            value.last_transmitted_not_empty,
+            value.last_received_had_more_data,
+            value.pending_outgoing_data,
+            value.error_occured );
 
         return deserialize( in, fields );
     }
@@ -191,15 +201,33 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const call& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.delay, value.end_delay, value.transmit, value.response,
-            value.address, value.access_address, value.crc_init, value.phy ) );
+        return serialize( out, std::tie(
+            value.kind,
+            value.channel,
+            value.delay,
+            value.end_delay,
+            value.transmit,
+            value.response,
+            value.address,
+            value.access_address,
+            value.crc_init,
+            value.phy ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, call& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.delay, value.end_delay, value.transmit, value.response,
-            value.address, value.access_address, value.crc_init, value.phy );
+        auto fields = std::tie(
+            value.kind,
+            value.channel,
+            value.delay,
+            value.end_delay,
+            value.transmit,
+            value.response,
+            value.address,
+            value.access_address,
+            value.crc_init,
+            value.phy );
 
         return deserialize( in, fields );
     }
@@ -207,13 +235,29 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const record& value )
     {
-        return serialize( out, std::tie( value.kind, value.callback, value.call, value.when, value.channel, value.result, value.data, value.events ) );
+        return serialize( out, std::tie(
+            value.kind,
+            value.callback,
+            value.call,
+            value.when,
+            value.channel,
+            value.result,
+            value.data,
+            value.events ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, record& value )
     {
-        auto fields = std::tie( value.kind, value.callback, value.call, value.when, value.channel, value.result, value.data, value.events );
+        auto fields = std::tie(
+            value.kind,
+            value.callback,
+            value.call,
+            value.when,
+            value.channel,
+            value.result,
+            value.data,
+            value.events );
 
         return deserialize( in, fields );
     }

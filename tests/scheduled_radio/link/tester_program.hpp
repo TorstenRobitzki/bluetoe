@@ -193,15 +193,37 @@ namespace test_rig {
     template < sink Sink >
     bool serialize( Sink& out, const operation& value )
     {
-        return serialize( out, std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
-            value.t_ifs, value.crc_errors ) );
+        return serialize( out, std::tie(
+            value.kind,
+            value.channel,
+            value.phy,
+            value.window,
+            value.target,
+            value.response,
+            value.count,
+            value.delay,
+            value.access_address,
+            value.crc_init,
+            value.t_ifs,
+            value.crc_errors ) );
     }
 
     template < source Source >
     bool deserialize( Source& in, operation& value )
     {
-        auto fields = std::tie( value.kind, value.channel, value.phy, value.window, value.target, value.response, value.count, value.delay, value.access_address, value.crc_init,
-            value.t_ifs, value.crc_errors );
+        auto fields = std::tie(
+            value.kind,
+            value.channel,
+            value.phy,
+            value.window,
+            value.target,
+            value.response,
+            value.count,
+            value.delay,
+            value.access_address,
+            value.crc_init,
+            value.t_ifs,
+            value.crc_errors );
 
         return deserialize( in, fields );
     }

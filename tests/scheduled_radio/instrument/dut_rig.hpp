@@ -140,7 +140,8 @@ namespace test_rig {
             }
 
             std::pair< bluetoe::details::uint128_t, bluetoe::details::uint128_t > f5(
-                const bluetoe::details::ecdh_shared_secret_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
+                const bluetoe::details::ecdh_shared_secret_t&,
+                const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
                 const link_layer::device_address&, const link_layer::device_address& )
             {
                 return {};
@@ -155,7 +156,8 @@ namespace test_rig {
             }
 
             std::uint32_t g2(
-                const coordinate_t&, const coordinate_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
+                const coordinate_t&, const coordinate_t&,
+                const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
             {
                 return 0;
             }

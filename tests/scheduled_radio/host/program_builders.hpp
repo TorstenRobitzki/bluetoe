@@ -154,7 +154,8 @@ namespace test_rig {
      * @brief a connection event on `channel`, receiving from `start` and until `end` without a
      *        reception, both relative to the callback
      */
-    inline call schedule_connection_event( std::uint32_t channel, std::chrono::nanoseconds start, std::chrono::nanoseconds end )
+    inline call schedule_connection_event(
+        std::uint32_t channel, std::chrono::nanoseconds start, std::chrono::nanoseconds end )
     {
         return call{
             .kind      = call_kind::schedule_connection_event,

@@ -57,7 +57,8 @@ namespace test_rig {
             return {};
         }
 
-        bluetoe::details::uint128_t f4( const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, std::uint8_t )
+        bluetoe::details::uint128_t f4(
+            const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, std::uint8_t )
         {
             return {};
         }
@@ -70,13 +71,15 @@ namespace test_rig {
         }
 
         bluetoe::details::uint128_t f6(
-            const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
-            const bluetoe::details::io_capabilities_t&, const link_layer::device_address&, const link_layer::device_address& )
+            const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t&,
+            const bluetoe::details::uint128_t&, const bluetoe::details::io_capabilities_t&,
+            const link_layer::device_address&, const link_layer::device_address& )
         {
             return {};
         }
 
-        std::uint32_t g2( const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
+        std::uint32_t g2(
+            const std::uint8_t*, const std::uint8_t*, const bluetoe::details::uint128_t&, const bluetoe::details::uint128_t& )
         {
             return 0;
         }
@@ -104,14 +107,18 @@ namespace test_rig {
 
         void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
         void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
-        void set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
+        void set_phy(
+            link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
         void set_local_address( const link_layer::device_address& ) {}
 
-        void start_advertising( std::uint32_t, const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
+        void start_advertising(
+            std::uint32_t, const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
         {
         }
 
-        bool schedule_advertising_event( std::uint32_t, link_layer::abs_time, const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
+        bool schedule_advertising_event(
+            std::uint32_t, link_layer::abs_time,
+            const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
         {
             return false;
         }
