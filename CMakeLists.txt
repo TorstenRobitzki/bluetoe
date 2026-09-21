@@ -17,9 +17,6 @@ target_include_directories(bluetoe_iface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 # Link Layer implementation based on radio hardware
 add_subdirectory(bluetoe/link_layer)
 
-# Link Layer implementation based on HCI over some serial interface
-add_subdirectory(bluetoe/hci)
-
 # Utilities
 add_subdirectory(bluetoe/utility)
 

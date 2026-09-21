@@ -39,7 +39,6 @@ must be able to review and understand.
 - `bluetoe/utility/` – meta-programming tools, attribute table, bit helpers
 - `bluetoe/services/` – predefined services (DIS, BAS, CSC, HID, bootloader)
 - `bluetoe/bindings/nordic/` – nRF51/nRF52 radio bindings, vendored micro-ecc
-- `bluetoe/hci/` – HCI-based link layer (currently a stub)
 - `tests/` – Boost.Test unit and protocol tests, host-only, with a simulated radio in `tests/test_tools/`
 - `platforms/` – what every firmware is built on: the ARM toolchain file, per-binding startup code,
   linker scripts and flash commands, the C++ runtime, `assert()`, the build container
