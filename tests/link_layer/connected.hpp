@@ -163,7 +163,7 @@ public:
     void ll_function_call( std::function< void() > func )
     {
         std::function< test::pdu_list_t () > callback =
-            [=]() -> test::pdu_list_t
+            [=, this]() -> test::pdu_list_t
             {
                 func();
                 const test::pdu_t empty{

@@ -762,7 +762,7 @@ namespace link_layer {
 
                 if ( count_ )
                 {
-                    --count_;
+                    count_ = count_ - 1;
                     if ( count_ == 0 )
                         enabled_ = false;
                 }
@@ -777,7 +777,7 @@ namespace link_layer {
 
                 if ( count_ )
                 {
-                    --count_;
+                    count_ = count_ - 1;
                     if ( count_ == 0 )
                         enabled_ = false;
                 }

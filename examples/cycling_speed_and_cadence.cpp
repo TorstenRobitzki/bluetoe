@@ -76,21 +76,21 @@ static volatile std::uint16_t last_now  = 0;
 extern "C" void TIMER2_IRQHandler()
 {
     nrf_timer->EVENTS_COMPARE[ 0 ] = 0;
-    now += timer_devider;
+    now = now + timer_devider;
 }
 
 extern "C" void GPIOTE_IRQHandler()
 {
     if ( nrf_gpiote->EVENTS_IN[ wheel_channel_nr ] )
     {
-        ++server.wheel_revolutions_;
+        server.wheel_revolutions_ = server.wheel_revolutions_ + 1;
         server.last_wheel_event_time_ = now;
         nrf_gpiote->EVENTS_IN[ wheel_channel_nr ] = 0;
     }
 
     if ( nrf_gpiote->EVENTS_IN[ cadence_channel_nr ] )
     {
-        ++server.crank_revolutions_;
+        server.crank_revolutions_ = server.crank_revolutions_ + 1;
         server.last_crank_event_time_ = now;
         nrf_gpiote->EVENTS_IN[ cadence_channel_nr ] = 0;
     }
