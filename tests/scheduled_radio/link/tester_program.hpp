@@ -77,7 +77,7 @@ namespace test_rig {
      * An operation keeps only the place of its PDUs here, so that the room of a PDU of the
      * largest payload is reserved once per PDU of the program and not once per operation.
      */
-    constexpr std::size_t max_program_pdus = 8;
+    constexpr std::size_t max_sent_pdus = 8;
 
     /**
      * @brief one operation of a tester program

@@ -1072,7 +1072,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_ends_with_it
     BOOST_CHECK_EQUAL( platform.receives.size(), 2u );
 }
 
-// an event holds max_event_pdus PDUs, and the program max_program_pdus of them
+// an event holds max_event_pdus PDUs, and the program max_sent_pdus of them
 BOOST_FIXTURE_TEST_CASE( more_pdus_than_an_event_holds_are_refused, fixture )
 {
     BOOST_REQUIRE( remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ) ) ) );
@@ -1085,7 +1085,7 @@ BOOST_FIXTURE_TEST_CASE( more_pdus_than_an_event_holds_are_refused, fixture )
 
 BOOST_FIXTURE_TEST_CASE( more_pdus_than_the_program_holds_are_refused, fixture )
 {
-    for ( std::size_t added = 0; added != max_program_pdus / max_event_pdus; ++added )
+    for ( std::size_t added = 0; added != max_sent_pdus / max_event_pdus; ++added )
         BOOST_REQUIRE( add_event( remote, 5, delta_time::msec( 50 ), max_event_pdus ) );
 
     BOOST_REQUIRE( remote.call< &rig_t::add_operation >( event_op( 5, delta_time::msec( 50 ) ) ) );

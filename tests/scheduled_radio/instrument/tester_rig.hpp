@@ -359,13 +359,13 @@ namespace test_rig {
         /**
          * @brief appends a PDU to the connection event added last
          *
-         * The operations share max_program_pdus PDUs, and an event takes at most
+         * The operations share max_sent_pdus PDUs, and an event takes at most
          * max_event_pdus of them. Refused, and nothing appended, if no operation was added
          * yet, if the last one is not a connection event, or if either bound is reached.
          */
         bool add_event_pdu( const pdu& data )
         {
-            if ( operation_count_ == 0 || program_pdu_count_ == max_program_pdus )
+            if ( operation_count_ == 0 || program_pdu_count_ == max_sent_pdus )
                 return false;
 
             operation& last = operations_[ operation_count_ - 1 ];
@@ -680,7 +680,7 @@ namespace test_rig {
         bool                                            has_anchor_         = false;
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy_                = link_layer::phy_ll_encoding::le_1m_phy;
 
-        std::array< pdu, max_program_pdus >             program_pdus_;
+        std::array< pdu, max_sent_pdus >                program_pdus_;
         std::uint8_t                                    program_pdu_count_  = 0;
 
         reported_queue< captured_pdu, captured_queue_size > captured_;
