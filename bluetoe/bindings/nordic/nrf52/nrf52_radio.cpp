@@ -64,6 +64,13 @@ namespace bluetoe
                 return ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos );
             }
 
+            // whether the packet just received had a valid CRC
+            bool received_crc_ok()
+            {
+                return ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
+                    == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+            }
+
             /*
              * The receive window after an advertising PDU: the inter frame space, the
              * longest legacy response (CONNECT_IND: preamble, access address, header, 34
@@ -741,7 +748,7 @@ namespace bluetoe
             if ( state_ != state::receiving )
                 return;
 
-            const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+            const bool crc_ok = received_crc_ok();
 
             if ( !crc_ok || !is_scan_request_for_us() || !sender_in_acceptance_filter() )
             {
@@ -951,7 +958,7 @@ namespace bluetoe
             if ( state_ != state::connection_receiving )
                 return;
 
-            const bool          crc_ok       = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk ) == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+            const bool          crc_ok       = received_crc_ok();
             const std::uint8_t  header       = reception_.buffer[ 0 ];
             const std::uint32_t payload_size = reception_.buffer[ 1 ];
 

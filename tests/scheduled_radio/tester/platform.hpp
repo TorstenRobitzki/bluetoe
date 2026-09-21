@@ -89,6 +89,9 @@ namespace test_rig {
             std::uint32_t operation_id );
         void on_packet_end();
         void on_event_packet_end();
+        std::uint32_t received_first_bit( std::uint32_t address ) const;
+        void report_transmitted( const std::uint8_t* sent, bool crc_ok, std::uint32_t address );
+        void report_received( std::uint32_t first_bit, bool crc_ok );
         void on_radio_ready();
         void on_radio_disabled();
         bool arm_event_transmission( std::uint32_t at );

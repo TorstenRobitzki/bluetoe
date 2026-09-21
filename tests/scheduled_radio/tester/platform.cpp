@@ -121,6 +121,13 @@ namespace test_rig {
             return ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos );
         }
 
+        // whether the packet just received had a valid CRC
+        bool received_crc_ok()
+        {
+            return ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
+                == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+        }
+
         std::uint32_t frequency_from_channel( std::uint32_t channel )
         {
             assert( channel < 40 );
@@ -476,21 +483,10 @@ namespace test_rig {
             NRF_RADIO->PACKETPTR = reinterpret_cast< std::uint32_t >( receive_buffer_ );
             NRF_RADIO->CRCINIT   = crc_init_;
 
-            const std::uint8_t* sent   = event_pdus_[ event_next_ ];
-            const std::size_t   size   = std::min< std::size_t >( sent[ 1 ] + 2, max_pdu_size );
-            const bool          crc_ok = !crc_error( event_next_ );
-
+            const std::uint32_t sent = event_next_;
             event_next_ = event_next_ + 1;
 
-            const tester_happened event{
-                .kind   = tester_event::transmitted,
-                .when   = tester_time{ address - timing( two_mbit_ ).preamble_and_access_address_ticks },
-                .data   = pdu( std::span< const std::uint8_t >( sent, size ) ),
-                .crc_ok = crc_ok,
-                .rssi   = 0 };
-
-            enqueue( event );
-            __SEV();
+            report_transmitted( event_pdus_[ sent ], !crc_error( sent ), address );
 
             return;
         }
@@ -499,27 +495,14 @@ namespace test_rig {
         // receiver later, as it would for a stranger's advertising
         NRF_RADIO->EVENTS_DEVMISS = 0;
 
-        const std::uint32_t first_bit = address - timing( two_mbit_ ).preamble_and_access_address_ticks - timing( two_mbit_ ).address_detection_ticks;
-
-        const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
-            == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+        const std::uint32_t first_bit = received_first_bit( address );
+        const bool          crc_ok    = received_crc_ok();
 
         // decided first, as the next PDU's deadline runs from the end of this one
         if ( event_next_ != event_count_ )
             arm_event_transmission( first_bit + air_ticks( timing( two_mbit_ ), receive_buffer_[ 1 ] ) + event_t_ifs_ );
 
-        const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_pdu_size );
-
-        const tester_happened event{
-            .kind   = tester_event::received,
-            .when   = tester_time{ first_bit },
-            .data   = pdu( std::span< const std::uint8_t >( receive_buffer_, size ) ),
-            .crc_ok = crc_ok,
-            .rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE ) };
-
-        enqueue( event );
-
-        __SEV();
+        report_received( first_bit, crc_ok );
     }
 
     /*
@@ -576,25 +559,13 @@ namespace test_rig {
             // the answer is out; DISABLED re-arms the receiver, which answers no second time
             NRF_PPI->CHENCLR = 1u << ppi_answer_txen;
 
-            const std::size_t size = std::min< std::size_t >( response_buffer_[ 1 ] + 2, max_pdu_size );
-
-            const tester_happened event{
-                .kind   = tester_event::transmitted,
-                .when   = tester_time{ address - timing( two_mbit_ ).preamble_and_access_address_ticks },
-                .data   = pdu( std::span< const std::uint8_t >( response_buffer_, size ) ),
-                .crc_ok = true,
-                .rssi   = 0 };
-
-            enqueue( event );
-            __SEV();
+            report_transmitted( response_buffer_, true, address );
 
             return;
         }
 
-        const std::uint32_t first_bit = address - timing( two_mbit_ ).preamble_and_access_address_ticks - timing( two_mbit_ ).address_detection_ticks;
-
-        const bool crc_ok = ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
-            == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
+        const std::uint32_t first_bit = received_first_bit( address );
+        const bool          crc_ok    = received_crc_ok();
 
         if ( answering_ )
         {
@@ -608,6 +579,38 @@ namespace test_rig {
             NRF_RADIO->TASKS_START = 1;
         }
 
+        report_received( first_bit, crc_ok );
+    }
+
+    /*
+     * What both packet ends report, from the timer's capture at the packet's ADDRESS event:
+     * a transmitted PDU's first bit was one preamble and access address before it, a
+     * received one's the receiver's address detection earlier still (decision 24).
+     */
+    std::uint32_t platform::received_first_bit( std::uint32_t address ) const
+    {
+        const phy_timing& phy = timing( two_mbit_ );
+
+        return address - phy.preamble_and_access_address_ticks - phy.address_detection_ticks;
+    }
+
+    void platform::report_transmitted( const std::uint8_t* sent, bool crc_ok, std::uint32_t address )
+    {
+        const std::size_t size = std::min< std::size_t >( sent[ 1 ] + 2, max_pdu_size );
+
+        const tester_happened event{
+            .kind   = tester_event::transmitted,
+            .when   = tester_time{ address - timing( two_mbit_ ).preamble_and_access_address_ticks },
+            .data   = pdu( std::span< const std::uint8_t >( sent, size ) ),
+            .crc_ok = crc_ok,
+            .rssi   = 0 };
+
+        enqueue( event );
+        __SEV();
+    }
+
+    void platform::report_received( std::uint32_t first_bit, bool crc_ok )
+    {
         const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_pdu_size );
 
         const tester_happened event{
@@ -618,7 +621,6 @@ namespace test_rig {
             .rssi   = static_cast< std::uint8_t >( NRF_RADIO->RSSISAMPLE ) };
 
         enqueue( event );
-
         __SEV();
     }
 
