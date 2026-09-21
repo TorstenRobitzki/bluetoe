@@ -871,15 +871,29 @@ namespace link_layer {
         volatile bool                   restart_user_timer_requested_;
         std::uint8_t                    disconnecting_reason_;
 
-        enum class state
+        /*
+         * What the link layer is doing. Everything a connection needs beside this is
+         * connection_state_, which is meaningful while this is state::connected.
+         */
+        enum class state : std::uint8_t
         {
             initial,
             advertising,
-            connecting,
-            connected,
-            disconnecting,
-            connection_changed
+            connected
         }                               state_;
+
+        /*
+         * Where the one connection stands: connecting until its first connection event
+         * happened, changing while a connection update is being applied, disconnecting once
+         * the link is being brought down.
+         */
+        enum class connection_state : std::uint8_t
+        {
+            connecting,
+            established,
+            changing,
+            disconnecting
+        }                               connection_state_;
 
         std::uint16_t                   proposed_interval_min_;
         std::uint16_t                   proposed_interval_max_;
@@ -921,6 +935,7 @@ namespace link_layer {
         , used_features_( supported_features )
         , restart_user_timer_requested_( false )
         , state_( state::initial )
+        , connection_state_( connection_state::connecting )
         , connection_parameters_request_pending_( false )
         , connection_parameters_request_running_( false )
         , phy_update_request_pending_( false )
@@ -973,7 +988,8 @@ namespace link_layer {
             {
                 this->reset_connection_state();
 
-                state_                                  = state::connecting;
+                state_                                  = state::connected;
+                connection_state_                       = connection_state::connecting;
                 used_features_                          = supported_features;
                 connection_parameters_request_pending_  = false;
                 connection_parameters_request_running_  = false;
@@ -1015,11 +1031,11 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
+        assert( state_ == state::connected );
 
         const auto time_since_last_event = this->time_since_last_event();
 
-        if ( state_ == state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
+        if ( connection_state_ == connection_state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
         {
             force_disconnect();
         }
@@ -1028,7 +1044,7 @@ namespace link_layer {
             force_disconnect( connection_ll_response_timeout );
         }
         else if ( time_since_last_event < parameters_.timeout()
-            && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * parameters_.interval() ) )
+            && !( connection_state_ == connection_state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * parameters_.interval() ) )
         {
             this->plan_next_connection_event_after_timeout( parameters_.interval() );
 
@@ -1054,26 +1070,26 @@ namespace link_layer {
     {
         pending_event_ = false;
 
-        assert( state_ == state::connecting || state_ == state::connected || state_ == state::disconnecting || state_ == state::connection_changed );
+        assert( state_ == state::connected );
 
-        if ( state_ == state::connecting || restart_user_timer_requested_ )
+        if ( connection_state_ == connection_state::connecting || restart_user_timer_requested_ )
         {
             this->synchronized_connection_event_callback_new_connection( parameters_.interval() );
             restart_user_timer_requested_ = false;
         }
 
-        if ( state_ == state::connecting )
+        if ( connection_state_ == connection_state::connecting )
         {
             this->connection_established( details(), connection_data_, static_cast< radio_t& >( *this ) );
         }
-        else if ( state_ == state::connection_changed )
+        else if ( connection_state_ == connection_state::changing )
         {
             this->synchronized_connection_event_callback_connection_changed( parameters_.interval() );
         }
 
-        if ( state_ != state::disconnecting )
+        if ( connection_state_ != connection_state::disconnecting )
         {
-            state_ = state::connected;
+            connection_state_ = connection_state::established;
             parameters_.transmit_window_passed();
         }
 
@@ -1083,7 +1099,7 @@ namespace link_layer {
          * and has to be offset by 1 to see if there is a pending instant at this connection
          * event.
          */
-        if ( ( state_ == state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
+        if ( ( connection_state_ == connection_state::disconnecting && termination_send_ && !this->pending_outgoing_data_available() )
           || handle_received_data() == ll_result::disconnect
           || send_control_pdus() == ll_result::disconnect )
         {
@@ -1124,7 +1140,7 @@ namespace link_layer {
             }
         }
 
-        if ( state_ == state::connected || state_ == state::connecting )
+        if ( connection_state_ == connection_state::established || connection_state_ == connection_state::connecting )
         {
             transmit_pending_control_pdus();
             this->transmit_pending_l2cap_output( connection_data_ );
@@ -1148,7 +1164,8 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::try_event_cancelation()
     {
-        if ( ( state_ == state::connected || state_ == state::connecting )
+        if ( state_ == state::connected
+          && ( connection_state_ == connection_state::established || connection_state_ == connection_state::connecting )
           && pending_event_ && this->reschedule_on_pending_data( *this, parameters_.interval() ) )
         {
             setup_next_connection_event();
@@ -1243,7 +1260,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::disconnect( std::uint8_t reason )
     {
-        state_                = state::disconnecting;
+        connection_state_     = connection_state::disconnecting;
         termination_send_     = false;
         disconnecting_reason_ = reason;
         procedure_timeout_    = parameters_.timeout();
@@ -1409,7 +1426,7 @@ namespace link_layer {
         this->reset_encryption();
         this->reset_phy( *this );
 
-        if ( state_ != state::connecting )
+        if ( connection_state_ != connection_state::connecting )
         {
             this->synchronized_connection_event_callback_disconnect();
             this->connection_closed( disconnecting_reason_, connection_data_, static_cast< radio_t& >( *this ) );
@@ -1478,7 +1495,7 @@ namespace link_layer {
                     pdu.size = 0;
                 }
             }
-            else if ( llid == lld_data_pdu_code && state_ != state::disconnecting
+            else if ( llid == lld_data_pdu_code && connection_state_ != connection_state::disconnecting
                    && this->handle_l2cap_input( body.first, body.second - body.first, connection_data_ ) )
             {
                 this->free_ll_l2cap_received();
@@ -1496,7 +1513,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::ll_result link_layer< Server, ScheduledRadio, Options... >::send_control_pdus()
     {
-        if ( state_ == state::disconnecting && !termination_send_ )
+        if ( connection_state_ == connection_state::disconnecting && !termination_send_ )
         {
             auto output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
 
@@ -1702,7 +1719,7 @@ namespace link_layer {
 
                 if ( parameters_.from_connection_update( body ) )
                 {
-                    state_ = state::connection_changed;
+                    connection_state_ = connection_state::changing;
                     this->synchronized_connection_event_callback_start_changing_connection();
                     this->connection_changed( details(), connection_data_, static_cast< radio_t& >( *this ) );
                 }
