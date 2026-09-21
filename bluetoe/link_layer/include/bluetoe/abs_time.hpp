@@ -101,6 +101,22 @@ namespace link_layer {
         }
 
         /**
+         * @brief whether two times are the same point in time
+         *
+         * Unlike an ordering, equality is well defined on a ring, so this is an ordinary
+         * comparison and not a question about proximity; see is_in_near_past().
+         */
+        bool operator==( const abs_time& rhs ) const
+        {
+            return rep_ == rhs.rep_;
+        }
+
+        bool operator!=( const abs_time& rhs ) const
+        {
+            return rep_ != rhs.rep_;
+        }
+
+        /**
          * @brief returns the internal representation value
          */
         representation_type data() const
