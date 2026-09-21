@@ -61,6 +61,66 @@ namespace link_layer {
             static constexpr std::size_t rx_size = s_type::receive_buffer_size;
         };
 
+        /*
+         * The LL control PDU of a procedure that takes effect at an instant, kept until that
+         * connection event is reached.
+         *
+         * The bytes are copied out of the receive buffer rather than pointed at, so that the
+         * buffer is free while the instant is pending. Holding the buffer stops every PDU
+         * behind that one, for as many connection events as the central placed the instant
+         * ahead (#6).
+         */
+        class deferred_control_pdu
+        {
+        public:
+            void defer( const std::uint8_t* body, std::uint8_t size, std::uint16_t instant )
+            {
+                assert( !pending() );
+                assert( size != 0 );
+                assert( size <= sizeof( body_ ) );
+
+                std::copy( body, body + size, &body_[ 0 ] );
+                size_    = size;
+                instant_ = instant;
+            }
+
+            bool pending() const
+            {
+                return size_ != 0;
+            }
+
+            std::uint16_t instant() const
+            {
+                return instant_;
+            }
+
+            std::uint8_t opcode() const
+            {
+                assert( pending() );
+
+                return body_[ 0 ];
+            }
+
+            const std::uint8_t* body() const
+            {
+                assert( pending() );
+
+                return &body_[ 0 ];
+            }
+
+            void clear()
+            {
+                size_    = 0;
+                instant_ = 0;
+            }
+
+        private:
+            // the largest PDU that names an instant is LL_CONNECTION_UPDATE_IND
+            std::uint8_t    body_[ 12 ];
+            std::uint8_t    size_ = 0;
+            std::uint16_t   instant_ = 0;
+        };
+
         template < typename SecurityFunctions, typename Server, typename ... Options >
         struct security_manager {
             using default_sm = typename bluetoe::details::select_type<
@@ -268,8 +328,6 @@ namespace link_layer {
             template < class LL >
             bool handle_phy_request( std::uint8_t opcode, std::uint8_t size, const write_buffer& pdu, read_buffer& write, LL& link_layer, bool& commit )
             {
-                assert( link_layer.defered_ll_control_pdu_.buffer == nullptr );
-
                 using layout_t = typename pdu_layout_by_radio< typename LL::radio_t >::pdu_layout;
 
                 if ( opcode == LL::LL_PHY_REQ && size == 3 )
@@ -302,8 +360,7 @@ namespace link_layer {
                         return true;
                     }
 
-                    link_layer.defered_ll_control_pdu_     = pdu;
-                    link_layer.defered_conn_event_counter_ = ::bluetoe::details::read_16bit( pdu_body + 3 );
+                    link_layer.defer_control_pdu( pdu_body, size, ::bluetoe::details::read_16bit( pdu_body + 3 ) );
 
                     return true;
                 }
@@ -312,22 +369,16 @@ namespace link_layer {
             }
 
             template < class LL >
-            bool handle_pending_phy_request( std::uint8_t opcode, LL& link_layer )
+            bool handle_pending_phy_request( std::uint8_t opcode, const std::uint8_t* body, LL& link_layer )
             {
-                assert( link_layer.defered_ll_control_pdu_.buffer );
-
-                using layout_t = typename pdu_layout_by_radio< typename LL::radio_t >::pdu_layout;
-
                 if ( opcode == LL::LL_PHY_UPDATE_IND )
                 {
-                    const std::uint8_t* const pdu_body = layout_t::body( link_layer.defered_ll_control_pdu_ ).first;
+                    const auto c_to_p = static_cast< phy_ll_encoding::phy_ll_encoding_t >( body[ 1 ] );
+                    const auto p_to_c = static_cast< phy_ll_encoding::phy_ll_encoding_t >( body[ 2 ] );
 
-                    const auto c_to_p = static_cast< phy_ll_encoding::phy_ll_encoding_t >( pdu_body[ 1 ] );
-                    const auto p_to_c = static_cast< phy_ll_encoding::phy_ll_encoding_t >( pdu_body[ 2 ] );
-                    link_layer.defered_ll_control_pdu_ = { nullptr, 0 };
                     link_layer.radio_set_phy( c_to_p, p_to_c );
-
                     link_layer.phy_update( c_to_p, p_to_c, link_layer.connection_data_, link_layer );
+
                     return true;
                 }
 
@@ -358,7 +409,7 @@ namespace link_layer {
             }
 
             template < class LL >
-            bool handle_pending_phy_request( std::uint8_t, LL& )
+            bool handle_pending_phy_request( std::uint8_t, const std::uint8_t*, LL& )
             {
                 return false;
             }
@@ -717,6 +768,7 @@ namespace link_layer {
 
         void force_disconnect();
         void force_disconnect( std::uint8_t new_reason );
+        void defer_control_pdu( const std::uint8_t* body, std::uint8_t size, std::uint16_t instant );
         void start_advertising_impl();
         delta_time setup_next_connection_event();
         void transmit_pending_control_pdus();
@@ -811,8 +863,7 @@ namespace link_layer {
         device_address                  address_;
         details::connection_parameters  parameters_;
         delta_time                      procedure_timeout_;
-        std::uint16_t                   defered_conn_event_counter_;
-        write_buffer                    defered_ll_control_pdu_;
+        details::deferred_control_pdu   deferred_pdu_;
         connection_data_t               connection_data_;
         bool                            termination_send_;
         std::uint16_t                   used_features_;
@@ -867,7 +918,6 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : address_( local_device_address::address( *this ) )
-        , defered_ll_control_pdu_{ nullptr, 0 }
         , used_features_( supported_features )
         , restart_user_timer_requested_( false )
         , state_( state::initial )
@@ -1055,7 +1105,7 @@ namespace link_layer {
             {
                 this->transmit_pending_security_pdus();
 
-                const std::pair< bool, std::uint16_t > pending_instant = { !defered_ll_control_pdu_.empty(), defered_conn_event_counter_ };
+                const std::pair< bool, std::uint16_t > pending_instant = { deferred_pdu_.pending(), deferred_pdu_.instant() };
 
                 evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
                 this->plan_next_connection_event(
@@ -1380,11 +1430,17 @@ namespace link_layer {
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
+    void link_layer< Server, ScheduledRadio, Options... >::defer_control_pdu( const std::uint8_t* body, std::uint8_t size, std::uint16_t instant )
+    {
+        deferred_pdu_.defer( body, size, instant );
+    }
+
+    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     void link_layer< Server, ScheduledRadio, Options... >::start_advertising_impl()
     {
         state_ = state::advertising;
 
-        defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
+        deferred_pdu_.clear();
 
         this->handle_start_advertising();
     }
@@ -1394,17 +1450,22 @@ namespace link_layer {
     {
         ll_result result = ll_result::go_ahead;
 
-        if ( !defered_ll_control_pdu_.empty() )
-            return result;
-
-        for ( auto pdu = this->next_ll_l2cap_received(); pdu.size != 0 && result == ll_result::go_ahead && defered_ll_control_pdu_.empty(); )
+        for ( auto pdu = this->next_ll_l2cap_received(); pdu.size != 0 && result == ll_result::go_ahead; )
         {
             const auto llid = layout_t::header( pdu ) & 0x03;
             const auto body = layout_t::body( pdu );
 
             if ( llid == ll_control_pdu_code )
             {
-                const read_buffer output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
+                /*
+                 * One procedure at a time: a control PDU that arrives while an instant is
+                 * pending is left in the receive buffer until that instant is reached. Data
+                 * that arrived before it is answered meanwhile, which is what a pending
+                 * instant used to stop (#6).
+                 */
+                const read_buffer output = deferred_pdu_.pending()
+                    ? read_buffer{ nullptr, 0 }
+                    : this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
 
                 if ( output.size )
                 {
@@ -1475,18 +1536,18 @@ namespace link_layer {
 
             if ( opcode == LL_CONNECTION_UPDATE_IND && size == 12 )
             {
-                defered_conn_event_counter_ = read_16bit( &body[ 10 ] );
+                const std::uint16_t instant = read_16bit( &body[ 10 ] );
                 commit = false;
 
-                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() + 1 ) & 0x8000
-                    || defered_conn_event_counter_ == this->connection_event_counter() + 1 )
+                if ( static_cast< std::uint16_t >( instant - this->connection_event_counter() + 1 ) & 0x8000
+                    || instant == this->connection_event_counter() + 1 )
                 {
                     disconnecting_reason_ = connection_instant_passed;
                     result = ll_result::disconnect;
                 }
                 else
                 {
-                    defered_ll_control_pdu_ = pdu;
+                    deferred_pdu_.defer( body, size, instant );
                 }
             }
             else if ( opcode == LL_TERMINATE_IND && size == 2 )
@@ -1515,17 +1576,17 @@ namespace link_layer {
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
             {
-                defered_conn_event_counter_ = read_16bit( &body[ 6 ] );
+                const std::uint16_t instant = read_16bit( &body[ 6 ] );
                 commit = false;
 
-                if ( static_cast< std::uint16_t >( defered_conn_event_counter_ - this->connection_event_counter() ) & 0x8000 )
+                if ( static_cast< std::uint16_t >( instant - this->connection_event_counter() ) & 0x8000 )
                 {
                     disconnecting_reason_ = connection_instant_passed;
                     result = ll_result::disconnect;
                 }
                 else
                 {
-                    defered_ll_control_pdu_ = pdu;
+                    deferred_pdu_.defer( body, size, instant );
                 }
             }
             else if ( opcode == LL_PING_REQ && size == 1 )
@@ -1626,10 +1687,10 @@ namespace link_layer {
     {
         ll_result result = ll_result::go_ahead;
 
-        if ( !defered_ll_control_pdu_.empty() && defered_conn_event_counter_ == instance )
+        if ( deferred_pdu_.pending() && deferred_pdu_.instant() == instance )
         {
-            const std::uint8_t* body   = layout_t::body( defered_ll_control_pdu_ ).first;
-            const std::uint8_t  opcode = body[ 0 ];
+            const std::uint8_t* body   = deferred_pdu_.body();
+            const std::uint8_t  opcode = deferred_pdu_.opcode();
 
             if ( opcode == LL_CHANNEL_MAP_REQ )
             {
@@ -1650,7 +1711,7 @@ namespace link_layer {
                     result = ll_result::disconnect;
                 }
             }
-            else if ( this->handle_pending_phy_request( opcode, *this ) )
+            else if ( this->handle_pending_phy_request( opcode, body, *this ) )
             {
             }
             else
@@ -1659,7 +1720,7 @@ namespace link_layer {
                 assert( !"invalid opcode" );
             }
 
-            defered_ll_control_pdu_ = write_buffer{ nullptr, 0 };
+            deferred_pdu_.clear();
         }
 
         return result;
