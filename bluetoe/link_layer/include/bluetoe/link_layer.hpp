@@ -173,6 +173,59 @@ namespace link_layer {
             delta_time  timeout_;
         };
 
+        /*
+         * What the application asked the link layer to do and what has not gone out yet,
+         * with the parameters each request carries.
+         *
+         * Every one of them is written in the application context and read and cleared in
+         * the link layer context without a lock, which is the race of #7 and #151; this is
+         * the one place it has to be fixed in. The three are independent, as they were as
+         * separate members: transmit_pending_control_pdus() sends one per connection event,
+         * in the order they stand here. Refusing a request while a procedure is running is
+         * #123 and #131.
+         */
+        struct procedure_requests
+        {
+            /*
+             * LL_CONNECTION_PARAM_REQ; over_signaling_channel if it stands in for a
+             * connection parameter update request of the signaling channel.
+             *
+             * Only the flags start out defined: what a request carries is written by the
+             * function that sets its flag, and read only while that flag stands.
+             */
+            std::uint16_t   interval_min;
+            std::uint16_t   interval_max;
+            std::uint16_t   latency;
+            std::uint16_t   timeout;
+            bool            connection_parameters_pending               = false;
+            bool            connection_parameters_running               = false;
+            bool            connection_parameters_over_signaling_channel = false;
+
+            // LL_PHY_REQ
+            std::uint8_t    phy_transmit;
+            std::uint8_t    phy_receive;
+            bool            phy_update_pending                          = false;
+
+            // LL_VERSION_IND
+            bool            remote_version_pending                      = false;
+
+            bool any_pending() const
+            {
+                return connection_parameters_pending
+                    || phy_update_pending
+                    || remote_version_pending;
+            }
+
+            void reset()
+            {
+                connection_parameters_pending                = false;
+                connection_parameters_running                = false;
+                connection_parameters_over_signaling_channel = false;
+                phy_update_pending                           = false;
+                remote_version_pending                       = false;
+            }
+        };
+
         template < typename SecurityFunctions, typename Server, typename ... Options >
         struct security_manager {
             using default_sm = typename bluetoe::details::select_type<
@@ -945,17 +998,7 @@ namespace link_layer {
             disconnecting
         }                               connection_state_;
 
-        std::uint16_t                   proposed_interval_min_;
-        std::uint16_t                   proposed_interval_max_;
-        std::uint16_t                   proposed_latency_;
-        std::uint16_t                   proposed_timeout_;
-        bool                            connection_parameters_request_pending_;
-        bool                            connection_parameters_request_running_;
-        bool                            connection_parameters_request_use_signaling_channel_;
-        bool                            phy_update_request_pending_;
-        std::uint8_t                    phy_update_request_transmit_;
-        std::uint8_t                    phy_update_request_receive_;
-        bool                            remote_versions_request_pending_;
+        details::procedure_requests     requests_;
         bool                            version_indication_received_;
 
         // default configuration parameters
@@ -986,10 +1029,6 @@ namespace link_layer {
         , restart_user_timer_requested_( false )
         , state_( state::initial )
         , connection_state_( connection_state::connecting )
-        , connection_parameters_request_pending_( false )
-        , connection_parameters_request_running_( false )
-        , phy_update_request_pending_( false )
-        , remote_versions_request_pending_( false )
         , version_indication_received_( false )
     {
         using user_timer_t = typename bluetoe::details::find_by_meta_type<
@@ -1041,12 +1080,8 @@ namespace link_layer {
                 state_                                  = state::connected;
                 connection_state_                       = connection_state::connecting;
                 used_features_                          = supported_features;
-                connection_parameters_request_pending_  = false;
-                connection_parameters_request_running_  = false;
-                connection_parameters_request_use_signaling_channel_ = false;
-                phy_update_request_pending_             = false;
+                requests_.reset();
                 pending_event_                          = false;
-                remote_versions_request_pending_        = false;
                 version_indication_received_            = false;
                 disconnecting_reason_                   = connection_timeout;
                 procedure_timeout_.stop();
@@ -1227,15 +1262,15 @@ namespace link_layer {
     {
         if ( used_features_ & link_layer_feature::connection_parameters_request_procedure )
         {
-            if ( connection_parameters_request_pending_ )
+            if ( requests_.connection_parameters_pending )
                 return false;
 
-            proposed_interval_min_  = interval_min;
-            proposed_interval_max_  = interval_max;
-            proposed_latency_       = latency;
-            proposed_timeout_       = timeout;
-            connection_parameters_request_pending_ = true;
-            connection_parameters_request_use_signaling_channel_ = true;
+            requests_.interval_min  = interval_min;
+            requests_.interval_max  = interval_max;
+            requests_.latency       = latency;
+            requests_.timeout       = timeout;
+            requests_.connection_parameters_pending = true;
+            requests_.connection_parameters_over_signaling_channel = true;
 
             this->wake_up();
 
@@ -1253,14 +1288,14 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::initiating_connection_parameter_request( std::uint16_t interval_min, std::uint16_t interval_max, std::uint16_t latency, std::uint16_t timeout )
     {
-        if ( connection_parameters_request_pending_ || procedure_timeout_.running() )
+        if ( requests_.connection_parameters_pending || procedure_timeout_.running() )
             return false;
 
-        proposed_interval_min_  = interval_min;
-        proposed_interval_max_  = interval_max;
-        proposed_latency_       = latency;
-        proposed_timeout_       = timeout;
-        connection_parameters_request_pending_ = true;
+        requests_.interval_min  = interval_min;
+        requests_.interval_max  = interval_max;
+        requests_.latency       = latency;
+        requests_.timeout       = timeout;
+        requests_.connection_parameters_pending = true;
 
         this->wake_up();
 
@@ -1278,12 +1313,12 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::phy_update_request( std::uint8_t transmit, std::uint8_t receive )
     {
-        if ( phy_update_request_pending_ )
+        if ( requests_.phy_update_pending )
             return false;
 
-        phy_update_request_pending_  = true;
-        phy_update_request_transmit_ = transmit;
-        phy_update_request_receive_  = receive;
+        requests_.phy_update_pending = true;
+        requests_.phy_transmit       = transmit;
+        requests_.phy_receive        = receive;
         this->wake_up();
 
         return true;
@@ -1292,10 +1327,10 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::remote_versions_request()
     {
-        if ( remote_versions_request_pending_ || procedure_timeout_.running() )
+        if ( requests_.remote_version_pending || procedure_timeout_.running() )
             return false;
 
-        remote_versions_request_pending_ = true;
+        requests_.remote_version_pending = true;
         this->wake_up();
 
         return true;
@@ -1358,10 +1393,7 @@ namespace link_layer {
     {
         static constexpr std::uint8_t connection_param_req_size = 24u;
 
-        if ( !connection_parameters_request_pending_
-          && !phy_update_request_pending_
-          && !remote_versions_request_pending_
-          && !this->connection_parameters_response_pending() )
+        if ( !requests_.any_pending() && !this->connection_parameters_response_pending() )
             return;
 
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
@@ -1373,22 +1405,22 @@ namespace link_layer {
             return;
         }
 
-        if ( connection_parameters_request_pending_ )
+        if ( requests_.connection_parameters_pending )
         {
             procedure_timeout_.start();
-            connection_parameters_request_pending_ = false;
-            connection_parameters_request_running_ = true;
+            requests_.connection_parameters_pending = false;
+            requests_.connection_parameters_running = true;
 
             fill< layout_t >( out_buffer, {
                 ll_control_pdu_code, connection_param_req_size, LL_CONNECTION_PARAM_REQ,
-                static_cast< std::uint8_t >( proposed_interval_min_ ),
-                static_cast< std::uint8_t >( proposed_interval_min_ >> 8 ),
-                static_cast< std::uint8_t >( proposed_interval_max_ ),
-                static_cast< std::uint8_t >( proposed_interval_max_ >> 8 ),
-                static_cast< std::uint8_t >( proposed_latency_ ),
-                static_cast< std::uint8_t >( proposed_latency_ >> 8 ),
-                static_cast< std::uint8_t >( proposed_timeout_ ),
-                static_cast< std::uint8_t >( proposed_timeout_ >> 8 ),
+                static_cast< std::uint8_t >( requests_.interval_min ),
+                static_cast< std::uint8_t >( requests_.interval_min >> 8 ),
+                static_cast< std::uint8_t >( requests_.interval_max ),
+                static_cast< std::uint8_t >( requests_.interval_max >> 8 ),
+                static_cast< std::uint8_t >( requests_.latency ),
+                static_cast< std::uint8_t >( requests_.latency >> 8 ),
+                static_cast< std::uint8_t >( requests_.timeout ),
+                static_cast< std::uint8_t >( requests_.timeout >> 8 ),
                 0x00,                                   // PreferredPeriodicity (none)
                 0x00, 0x00,                             // ReferenceConnEventCount
                 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -1396,20 +1428,20 @@ namespace link_layer {
 
             this->commit_ll_transmit_buffer( out_buffer );
         }
-        else if ( phy_update_request_pending_ )
+        else if ( requests_.phy_update_pending )
         {
-            phy_update_request_pending_ = false;
+            requests_.phy_update_pending = false;
 
             fill< layout_t >( out_buffer, {
                 ll_control_pdu_code, 3, LL_PHY_REQ,
-                phy_update_request_transmit_, phy_update_request_receive_ } );
+                requests_.phy_transmit, requests_.phy_receive } );
 
             this->commit_ll_transmit_buffer( out_buffer );
         }
-        else if ( remote_versions_request_pending_ )
+        else if ( requests_.remote_version_pending )
         {
             procedure_timeout_.start();
-            remote_versions_request_pending_ = false;
+            requests_.remote_version_pending = false;
 
             fill< layout_t >( out_buffer, {
                 ll_control_pdu_code, 6, LL_VERSION_IND,
@@ -1686,16 +1718,16 @@ namespace link_layer {
                 {
                     procedure_timeout_.stop();
 
-                    if ( connection_parameters_request_running_ && connection_parameters_request_use_signaling_channel_ )
+                    if ( requests_.connection_parameters_running && requests_.connection_parameters_over_signaling_channel )
                     {
-                        connection_parameters_request_use_signaling_channel_ = false;
-                        connection_parameters_request_running_ = false;
+                        requests_.connection_parameters_over_signaling_channel = false;
+                        requests_.connection_parameters_running = false;
 
                         if ( signaling_channel_t::connection_parameter_update_request(
-                            proposed_interval_min_,
-                            proposed_interval_max_,
-                            proposed_latency_,
-                            proposed_timeout_ ) )
+                            requests_.interval_min,
+                            requests_.interval_max,
+                            requests_.latency,
+                            requests_.timeout ) )
                         {
                             this->wake_up();
                         }
