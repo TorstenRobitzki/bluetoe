@@ -336,13 +336,13 @@ namespace test_rig {
          */
         bool add_operation( const operation& next )
         {
+            // the program and its result; where a run stands is start_program()'s to reset
             if ( program_finished() )
             {
-                operation_count_ = 0;
-                cursor_          = 0;
-                started_         = false;
-                timed_out_       = no_operation_timed_out;
+                operation_count_   = 0;
                 program_pdu_count_ = 0;
+                started_           = false;
+                timed_out_         = no_operation_timed_out;
             }
 
             if ( operation_count_ == max_operations )
@@ -393,7 +393,6 @@ namespace test_rig {
 
             cursor_        = 0;
             started_       = true;
-            timed_out_     = no_operation_timed_out;
             has_reference_ = false;
             has_anchor_    = false;
             phy_           = link_layer::phy_ll_encoding::le_1m_phy;
