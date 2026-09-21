@@ -89,14 +89,7 @@ namespace {
 
             // a device answers what it was asked, so the answer arrives with the request and
             // not before it, where the transport would drop it as stale
-            if ( !answer_.empty() )
-            {
-                const std::vector< std::uint8_t > answer = std::move( answer_ );
-                answer_ = {};
-
-                arrives( answer );
-            }
-            else if ( answering_ )
+            if ( answering_ )
             {
                 const std::vector< std::uint8_t > answer = answering_( { written_.data() + at, size } );
 
@@ -138,14 +131,6 @@ namespace {
         }
 
         /**
-         * @brief what the device answers the next request with, in place of a device
-         */
-        void answers( std::vector< std::uint8_t > bytes )
-        {
-            answer_ = std::move( bytes );
-        }
-
-        /**
          * @brief what the device would have sent, for the reads that follow
          */
         void arrives( std::span< const std::uint8_t > bytes )
@@ -176,7 +161,6 @@ namespace {
 
         boost::asio::io_context&                                    io_;
         answering                                                   answering_;
-        std::vector< std::uint8_t >                                 answer_;
         std::vector< std::uint8_t >                                 arrived_;
         std::vector< std::uint8_t >                                 written_;
         std::function< void( const boost::system::error_code& ) >   pending_;
@@ -365,7 +349,7 @@ BOOST_FIXTURE_TEST_CASE( a_request_that_goes_unanswered_ends_a_frame_with_ones, 
 // a link that answers is left alone
 BOOST_FIXTURE_TEST_CASE( a_request_that_is_answered_ends_no_frame, driven )
 {
-    stream.answers( frame_of( { 0xaa, 0xbb } ) );
+    stream.answers_with( []( std::span< const std::uint8_t > ) { return frame_of( { 0xaa, 0xbb } ); } );
 
     BOOST_TEST( transport.transact( a_request ) == std::vector< std::uint8_t >( { 0xaa, 0xbb } ),
         boost::test_tools::per_element() );
