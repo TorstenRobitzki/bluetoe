@@ -7,8 +7,9 @@ if(CMAKE_CROSSCOMPILING)
     # requires the hardware specific options need only to depend on this target
     add_library(toolchain_nrf52 INTERFACE)
     add_library(toolchain::nrf52 ALIAS toolchain_nrf52)
-    target_include_directories(toolchain_nrf52 INTERFACE ${NRF5_SDK_ROOT}/modules/nrfx/mdk)
-    target_include_directories(toolchain_nrf52 INTERFACE ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include)
+    # system headers: the SDK's warnings are not ours to fix, and CI compiles with -Werror
+    target_include_directories(toolchain_nrf52 SYSTEM INTERFACE ${NRF5_SDK_ROOT}/modules/nrfx/mdk)
+    target_include_directories(toolchain_nrf52 SYSTEM INTERFACE ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include)
     target_include_directories(toolchain_nrf52 INTERFACE .)
 #    target_compile_definitions(toolchain_nrf52 INTERFACE NRF52 NRF52832_XXAA)
     target_compile_definitions(toolchain_nrf52 INTERFACE NRF52820_XXAA)

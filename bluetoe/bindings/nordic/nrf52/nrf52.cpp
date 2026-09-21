@@ -663,7 +663,7 @@ namespace nrf52_details
             // immediately start the radio
             nrf_timer->TASKS_START = 1;
             nrf_timer->TASKS_CAPTURE[ tim_cc_timeout ]  = 1;
-            nrf_timer->CC[ tim_cc_timeout ]            += us_radio_tx_startup_time + read_timeout_us;
+            nrf_timer->CC[ tim_cc_timeout ]             = nrf_timer->CC[ tim_cc_timeout ] + us_radio_tx_startup_time + read_timeout_us;
 
             nrf_radio->TASKS_TXEN                       = 1;
         }
