@@ -3,6 +3,7 @@ add_library(bluetoe_linklayer STATIC
             abs_time.cpp
             channel_map.cpp
             connection_details.cpp
+            connection_parameters.cpp
             radio_properties.cpp)
 
 add_library(bluetoe::link_layer ALIAS bluetoe_linklayer)

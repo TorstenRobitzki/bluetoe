@@ -11,6 +11,7 @@
 #include <bluetoe/notification_queue.hpp>
 #include <bluetoe/connection_callbacks.hpp>
 #include <bluetoe/connection_event_callback.hpp>
+#include <bluetoe/connection_parameters.hpp>
 #include <bluetoe/l2cap_signaling_channel.hpp>
 #include <bluetoe/white_list.hpp>
 #include <bluetoe/advertising.hpp>
@@ -714,10 +715,6 @@ namespace link_layer {
         using advertising_t = details::select_advertiser_implementation<
             link_layer< Server, ScheduledRadio, Options... >, Options... >;
 
-        unsigned sleep_clock_accuracy( const std::uint8_t* received_body ) const;
-        bool check_timing_paremeters() const;
-        bool parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body );
-        bool parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_connect_request );
         void force_disconnect();
         void force_disconnect( std::uint8_t new_reason );
         void start_advertising_impl();
@@ -740,7 +737,6 @@ namespace link_layer {
 
         static constexpr unsigned       first_advertising_channel   = 37;
         static constexpr unsigned       num_windows_til_timeout     = 6;
-        static constexpr auto           us_per_digits               = 1250;
 
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
         static constexpr std::uint8_t   lld_data_pdu_code           = 2;
@@ -813,14 +809,7 @@ namespace link_layer {
         static constexpr std::size_t    maximum_ll_payload_size = 27u;
 
         device_address                  address_;
-        channel_map                     channels_;
-        unsigned                        cumulated_sleep_clock_accuracy_;
-        delta_time                      transmit_window_offset_;
-        delta_time                      transmit_window_size_;
-        delta_time                      connection_interval_;
-        std::uint16_t                   peripheral_latency_;
-        std::uint16_t                   timeout_value_;
-        delta_time                      connection_timeout_;
+        details::connection_parameters  parameters_;
         delta_time                      procedure_timeout_;
         std::uint16_t                   defered_conn_event_counter_;
         write_buffer                    defered_ll_control_pdu_;
@@ -930,13 +919,11 @@ namespace link_layer {
         {
             const std::uint8_t* const body = layout_t::body( receive ).first;
 
-            if ( channels_.reset( &body[ 28 ], body[ 33 ] & 0x1f )
-              && parse_timing_parameters_from_connect_request( body ) )
+            if ( parameters_.from_connect_request( body, device_sleep_clock_accuracy::accuracy_ppm ) )
             {
                 this->reset_connection_state();
 
                 state_                                  = state::connecting;
-                cumulated_sleep_clock_accuracy_         = sleep_clock_accuracy( body ) + device_sleep_clock_accuracy::accuracy_ppm;
                 used_features_                          = supported_features;
                 connection_parameters_request_pending_  = false;
                 connection_parameters_request_running_  = false;
@@ -990,10 +977,10 @@ namespace link_layer {
         {
             force_disconnect( connection_ll_response_timeout );
         }
-        else if ( time_since_last_event < connection_timeout_
-            && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * connection_interval_ ) )
+        else if ( time_since_last_event < parameters_.timeout()
+            && !( state_ == state::connecting && time_since_last_event >= ( num_windows_til_timeout - 1 ) * parameters_.interval() ) )
         {
-            this->plan_next_connection_event_after_timeout( connection_interval_ );
+            this->plan_next_connection_event_after_timeout( parameters_.interval() );
 
             if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
             {
@@ -1021,7 +1008,7 @@ namespace link_layer {
 
         if ( state_ == state::connecting || restart_user_timer_requested_ )
         {
-            this->synchronized_connection_event_callback_new_connection( connection_interval_ );
+            this->synchronized_connection_event_callback_new_connection( parameters_.interval() );
             restart_user_timer_requested_ = false;
         }
 
@@ -1031,13 +1018,13 @@ namespace link_layer {
         }
         else if ( state_ == state::connection_changed )
         {
-            this->synchronized_connection_event_callback_connection_changed( connection_interval_ );
+            this->synchronized_connection_event_callback_connection_changed( parameters_.interval() );
         }
 
         if ( state_ != state::disconnecting )
         {
-            state_                = state::connected;
-            transmit_window_size_ = delta_time();
+            state_ = state::connected;
+            parameters_.transmit_window_passed();
         }
 
         /*
@@ -1072,7 +1059,7 @@ namespace link_layer {
 
                 evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
                 this->plan_next_connection_event(
-                    peripheral_latency_, evts, connection_interval_, pending_instant );
+                    parameters_.latency(), evts, parameters_.interval(), pending_instant );
 
                 // Handle pending LL control PDUs that will affect the _next_ connection event
                 if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
@@ -1112,7 +1099,7 @@ namespace link_layer {
     void link_layer< Server, ScheduledRadio, Options... >::try_event_cancelation()
     {
         if ( ( state_ == state::connected || state_ == state::connecting )
-          && pending_event_ && this->reschedule_on_pending_data( *this, connection_interval_ ) )
+          && pending_event_ && this->reschedule_on_pending_data( *this, parameters_.interval() ) )
         {
             setup_next_connection_event();
         }
@@ -1209,7 +1196,7 @@ namespace link_layer {
         state_                = state::disconnecting;
         termination_send_     = false;
         disconnecting_reason_ = reason;
-        procedure_timeout_    = connection_timeout_;
+        procedure_timeout_    = parameters_.timeout();
 
         this->synchronized_connection_event_callback_disconnect();
         this->reset_encryption();
@@ -1226,27 +1213,27 @@ namespace link_layer {
         const delta_time time_since_last_event = this->time_since_last_event();
 
         // optimization to calculate the deviation only once for the symetrical case
-        if ( !transmit_window_size_.zero() )
+        if ( parameters_.transmit_window_pending() )
         {
-            window_start = time_since_last_event + transmit_window_offset_;
-            window_end   = window_start + transmit_window_size_;
+            window_start = time_since_last_event + parameters_.transmit_window_offset();
+            window_end   = window_start + parameters_.transmit_window_size();
 
-            window_start -= window_start.ppm( cumulated_sleep_clock_accuracy_ );
-            window_end   += window_end.ppm( cumulated_sleep_clock_accuracy_ );
+            window_start -= window_start.ppm( parameters_.sleep_clock_accuracy_ppm() );
+            window_end   += window_end.ppm( parameters_.sleep_clock_accuracy_ppm() );
         }
         else
         {
-            const delta_time window_size   = time_since_last_event.ppm( cumulated_sleep_clock_accuracy_ );
+            const delta_time window_size   = time_since_last_event.ppm( parameters_.sleep_clock_accuracy_ppm() );
 
             window_start  = time_since_last_event - window_size;
             window_end    = time_since_last_event + window_size;
         }
 
         return this->schedule_connection_event(
-                channels_.data_channel( this->current_channel_index() ),
+                parameters_.channels().data_channel( this->current_channel_index() ),
                 window_start,
                 window_end,
-                connection_interval_ );
+                parameters_.interval() );
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1364,63 +1351,6 @@ namespace link_layer {
             static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->request_event_cancelation();
 
         return new_data;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    unsigned link_layer< Server, ScheduledRadio, Options... >::sleep_clock_accuracy( const std::uint8_t* received_body ) const
-    {
-        static constexpr std::uint16_t inaccuracy_ppm[ 8 ] = {
-            500, 250, 150, 100, 75, 50, 30, 20
-        };
-
-        return inaccuracy_ppm[ ( received_body[ 33 ] >> 5 & 0x7 )  ];
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::check_timing_paremeters() const
-    {
-        static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
-        static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
-        static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
-
-        return transmit_window_size_ <= maximum_transmit_window_offset
-            && transmit_window_size_ <= connection_interval_
-            && connection_timeout_ >= minimum_connection_timeout
-            && connection_timeout_ <= maximum_connection_timeout
-            && connection_timeout_ >= ( peripheral_latency_ + 1 ) * 2 * connection_interval_
-            && peripheral_latency_ <= maximum_link_layer_peripheral_latency;
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connect_request( const std::uint8_t* valid_connect_request_body )
-    {
-        using namespace ::bluetoe::details;
-
-        const delta_time transmit_window_offset = delta_time( read_16bit( &valid_connect_request_body[ 20 ] ) * us_per_digits );
-
-        transmit_window_size_   = delta_time( valid_connect_request_body[ 19 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16bit( &valid_connect_request_body[ 20 ] ) * us_per_digits + us_per_digits );
-        connection_interval_    = delta_time( read_16bit( &valid_connect_request_body[ 22 ] ) * us_per_digits );
-        peripheral_latency_     = read_16bit( &valid_connect_request_body[ 24 ] );
-        timeout_value_          = read_16bit( &valid_connect_request_body[ 26 ] );
-        connection_timeout_     = delta_time( timeout_value_ * 10000 );
-
-        return transmit_window_offset <= connection_interval_ && check_timing_paremeters();
-    }
-
-    template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::parse_timing_parameters_from_connection_update_request( const std::uint8_t* valid_update_request )
-    {
-        using namespace ::bluetoe::details;
-
-        transmit_window_size_   = delta_time( valid_update_request[ 1 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16bit( &valid_update_request[ 2 ] ) * us_per_digits );
-        connection_interval_    = delta_time( read_16bit( &valid_update_request[ 4 ] ) * us_per_digits );
-        peripheral_latency_     = read_16bit( &valid_update_request[ 6 ] );
-        timeout_value_          = read_16bit( &valid_update_request[ 8 ] );
-        connection_timeout_     = delta_time( timeout_value_ * 10000 );
-
-        return transmit_window_offset_ <= connection_interval_ && check_timing_paremeters();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
@@ -1703,13 +1633,13 @@ namespace link_layer {
 
             if ( opcode == LL_CHANNEL_MAP_REQ )
             {
-                channels_.reset( &body[ 1 ] );
+                parameters_.channels( &body[ 1 ] );
             }
             else if ( opcode == LL_CONNECTION_UPDATE_IND )
             {
                 procedure_timeout_ = delta_time();
 
-                if ( parse_timing_parameters_from_connection_update_request( body ) )
+                if ( parameters_.from_connection_update( body ) )
                 {
                     state_ = state::connection_changed;
                     this->synchronized_connection_event_callback_start_changing_connection();
@@ -1738,12 +1668,7 @@ namespace link_layer {
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
     connection_details link_layer< Server, ScheduledRadio, Options... >::details() const
     {
-        return connection_details(
-            channels_,
-            connection_interval_.usec() / us_per_digits,
-            peripheral_latency_,
-            timeout_value_,
-            cumulated_sleep_clock_accuracy_ );
+        return parameters_.details();
     }
 
     template < class Server, template < std::size_t, std::size_t, class > class ScheduledRadio, typename ... Options >
