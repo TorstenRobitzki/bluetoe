@@ -218,31 +218,35 @@ BOOST_FIXTURE_TEST_CASE( a_late_response_is_not_taken_for_the_next_one, fixture 
     BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 10, 20 ), 30 );
 }
 
-namespace {
-
-    /*
-     * The same, with a timeout that a machine running many tests at once can still keep: this
-     * test waits one out on purpose and then needs an answer within the next.
-     */
-    struct patient_fixture
-    {
-        socket_pair                                         sockets;
-        fake_device                                         device{ sockets.device };
-        stream_transport< tcp::socket >                     transport{ sockets.io, sockets.host, "the device", 10 * timeout };
-        proxy< functions, stream_transport< tcp::socket > > remote{ transport };
-    };
-}
-
 /*
- * A device waiting for a frame that noise announced swallows every later request. The
- * transport ends that frame after the request it cost, so the next one is answered.
+ * A device waiting for a frame that noise announced swallows every request that follows: each
+ * one feeds that frame instead of being answered. The transport ends the frame after the
+ * request it cost, and the link works again.
+ *
+ * A request may still be lost with the bytes that ended the frame, since the two can reach
+ * the device together and a bad length takes everything the receiver holds with it, so the
+ * test asks a few times, as a caller that resets a device does.
  */
-BOOST_FIXTURE_TEST_CASE( a_device_waiting_for_a_frame_from_noise_is_resynchronised, patient_fixture )
+BOOST_FIXTURE_TEST_CASE( a_device_waiting_for_a_frame_from_noise_is_resynchronised, fixture )
 {
     device.noise = true;
 
     BOOST_CHECK_THROW( remote.call< &instrument::add >( 40, 2 ), link_error );
-    BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 40, 2 ), 42 );
+
+    for ( int attempt = 0; attempt != 3; ++attempt )
+    {
+        try
+        {
+            BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 40, 2 ), 42 );
+
+            return;
+        }
+        catch ( const link_error& )
+        {
+        }
+    }
+
+    BOOST_FAIL( "the link did not come back" );
 }
 
 BOOST_AUTO_TEST_CASE( a_serial_device_that_does_not_exist_cannot_be_opened )
