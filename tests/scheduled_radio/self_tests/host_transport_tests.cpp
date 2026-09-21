@@ -1,10 +1,11 @@
 /**
  * @file host_transport_tests.cpp
  *
- * The stream transport against a device on the other end of a pair of loopback sockets:
- * a thread on the device's socket runs a real dispatcher behind real frames, with a
- * switch for what a misbehaving device would do. The serial transport adds only the
- * opening of a port, which is checked with a device that does not exist.
+ * The stream transport against a device the test drives: a stream that delivers what the test
+ * says and keeps what the transport wrote, and behind it a real dispatcher behind real frames,
+ * with a switch for what a misbehaving device would do. Everything runs on the test's thread,
+ * so no assertion here depends on when anything is scheduled. The serial transport adds only
+ * the opening of a port, which is checked with a device that does not exist.
  */
 
 #define BOOST_TEST_MODULE
@@ -19,27 +20,22 @@
 #include "link/ring_buffer.hpp"
 
 #include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/read.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/write.hpp>
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <functional>
 #include <span>
 #include <string>
-#include <thread>
 #include <vector>
 
 using namespace bluetoe::test_rig;
 using namespace std::chrono_literals;
 
 namespace {
-
-    using boost::asio::ip::tcp;
 
     struct instrument
     {
@@ -54,26 +50,6 @@ namespace {
     const auto timeout = 100ms;
 
     /*
-     * Two connected sockets on the loopback interface, one for each end.
-     */
-    struct socket_pair
-    {
-        socket_pair()
-            : acceptor( io, tcp::endpoint( boost::asio::ip::make_address( "127.0.0.1" ), 0 ) )
-            , host( io )
-            , device( io )
-        {
-            host.connect( acceptor.local_endpoint() );
-            acceptor.accept( device );
-        }
-
-        boost::asio::io_context io;
-        tcp::acceptor           acceptor;
-        tcp::socket             host;
-        tcp::socket             device;
-    };
-
-    /*
      * A stream the test drives in place of a port: nothing arrives unless the test says so,
      * what the transport writes is kept, and a read stays pending until the test answers it
      * or the transport cancels it, as a port's read does. Everything happens on the test's
@@ -83,6 +59,12 @@ namespace {
     {
     public:
         using executor_type = boost::asio::io_context::executor_type;
+
+        /**
+         * @brief a device behind the stream: what it answers a frame the transport wrote with,
+         *        or nothing
+         */
+        using answering = std::function< std::vector< std::uint8_t >( std::span< const std::uint8_t > ) >;
 
         explicit driven_stream( boost::asio::io_context& io )
             : io_( io )
@@ -114,6 +96,13 @@ namespace {
 
                 arrives( answer );
             }
+            else if ( answering_ )
+            {
+                const std::vector< std::uint8_t > answer = answering_( { written_.data() + at, size } );
+
+                if ( !answer.empty() )
+                    arrives( answer );
+            }
 
             return size;
         }
@@ -141,7 +130,15 @@ namespace {
         }
 
         /**
-         * @brief what the device answers the next request with
+         * @brief the device behind the stream: what it answers what the transport writes with
+         */
+        void answers_with( answering device )
+        {
+            answering_ = std::move( device );
+        }
+
+        /**
+         * @brief what the device answers the next request with, in place of a device
          */
         void answers( std::vector< std::uint8_t > bytes )
         {
@@ -178,6 +175,7 @@ namespace {
         }
 
         boost::asio::io_context&                                    io_;
+        answering                                                   answering_;
         std::vector< std::uint8_t >                                 answer_;
         std::vector< std::uint8_t >                                 arrived_;
         std::vector< std::uint8_t >                                 written_;
@@ -188,105 +186,94 @@ namespace {
     {
         answer,
         swallow,
-        corrupt,
-        answer_late
+        corrupt
     };
 
     /*
-     * The device at its end of the pair. Boost.Test macros are not used in its thread;
-     * the thread ends when the socket is shut down.
+     * The device at the far end of a driven stream, on the test's thread: it takes what the
+     * transport wrote, and answers a complete frame with what the dispatcher makes of it.
+     * `mode` makes it misbehave the way a test needs; what it swallowed is kept, so that a
+     * test can deliver it later, as a device that answers after the host gave up does.
      */
-    class fake_device
+    class scripted_device
     {
     public:
-        explicit fake_device( tcp::socket& socket )
-            : socket_( socket )
-            , thread_( [ this ]() { run(); } )
+        std::vector< std::uint8_t > operator()( std::span< const std::uint8_t > written )
         {
+            received_.push( written.data(), written.size() );
+
+            if ( receiver_.receive() != receive_result::frame )
+                return {};
+
+            std::array< std::uint8_t, 64 >  storage = {};
+            buffer_sink                     response( storage );
+
+            if ( !dispatch_.dispatch( receiver_.payload(), 0, response ) )
+                return {};
+
+            std::vector< std::uint8_t > frame = framed( { storage.data(), response.size() } );
+
+            if ( mode == behaviour::corrupt )
+                frame.back() ^= 0xff;
+
+            if ( mode == behaviour::swallow )
+            {
+                swallowed_ = std::move( frame );
+
+                return {};
+            }
+
+            return frame;
         }
 
-        ~fake_device()
+        /**
+         * @brief the answer the device kept to itself while it swallowed
+         */
+        const std::vector< std::uint8_t >& swallowed() const
         {
-            boost::system::error_code ignored;
-            socket_.shutdown( tcp::socket::shutdown_both, ignored );
-            thread_.join();
+            return swallowed_;
         }
 
-        std::atomic< behaviour >    mode{ behaviour::answer };
-        std::atomic< int >          answered{ 0 };
-
-        // makes the receiver read a length from noise, as a device does when the line
-        // carries anything but a frame
-        std::atomic< bool >         noise{ false };
+        behaviour mode = behaviour::answer;
 
     private:
-        void run()
+        using buffer_t = ring_buffer< std::uint8_t, 2 * ( default_max_payload + frame_overhead ) >;
+
+        static std::vector< std::uint8_t > framed( std::span< const std::uint8_t > payload )
         {
-            using buffer_t = ring_buffer< std::uint8_t, 1024 >;
+            buffer_t                 buffer;
+            frame_sender< buffer_t > sender( buffer );
 
-            instrument                              device;
-            buffer_t                                in;
-            buffer_t                                out;
-            frame_receiver< 256, buffer_t >         receiver( in );
-            frame_sender< buffer_t >                sender( out );
-            dispatcher< functions, instrument >     dispatch( device );
+            BOOST_REQUIRE( sender.send( payload ) );
 
-            for ( ;; )
-            {
-                std::uint8_t                chunk[ 256 ];
-                boost::system::error_code   error;
-                const std::size_t           count = socket_.read_some( boost::asio::buffer( chunk ), error );
+            std::vector< std::uint8_t > bytes( buffer.available() );
+            buffer.pop( bytes.data(), bytes.size() );
 
-                if ( error )
-                    return;
-
-                if ( noise.exchange( false ) )
-                {
-                    // a length of 200, which the receiver then waits for
-                    const std::uint8_t junk[] = { 200, 0 };
-                    in.push( junk, sizeof( junk ) );
-                }
-
-                in.push( chunk, count );
-
-                if ( receiver.receive() != receive_result::frame )
-                    continue;
-
-                if ( mode == behaviour::swallow )
-                    continue;
-
-                if ( mode == behaviour::answer_late )
-                    std::this_thread::sleep_for( 3 * timeout );
-
-                std::array< std::uint8_t, 64 > storage = {};
-                buffer_sink                    response( storage );
-
-                if ( !dispatch.dispatch( receiver.payload(), 0, response ) )
-                    continue;
-
-                sender.send( { storage.data(), response.size() } );
-
-                std::vector< std::uint8_t > bytes( out.available() );
-                out.pop( bytes.data(), bytes.size() );
-
-                if ( mode == behaviour::corrupt )
-                    bytes.back() ^= 0xff;
-
-                boost::asio::write( socket_, boost::asio::buffer( bytes ), error );
-                ++answered;
-            }
+            return bytes;
         }
 
-        tcp::socket&    socket_;
-        std::thread     thread_;
+        instrument                                      device_;
+        dispatcher< functions, instrument >             dispatch_{ device_ };
+        buffer_t                                        received_;
+        frame_receiver< default_max_payload, buffer_t > receiver_{ received_ };
+        std::vector< std::uint8_t >                     swallowed_;
     };
 
+    /*
+     * The host end on a driven stream, with that device behind it.
+     */
     struct fixture
     {
-        socket_pair                                     sockets;
-        fake_device                                     device{ sockets.device };
-        stream_transport< tcp::socket >                 transport{ sockets.io, sockets.host, "the device", timeout };
-        proxy< functions, stream_transport< tcp::socket > > remote{ transport };
+        boost::asio::io_context                                 io;
+        driven_stream                                           stream{ io };
+        scripted_device                                         device;
+        stream_transport< driven_stream >                       transport{ io, stream, "the device", timeout };
+        proxy< functions, stream_transport< driven_stream > >   remote{ transport };
+
+        fixture()
+        {
+            stream.answers_with( [ this ]( std::span< const std::uint8_t > written ) { return device( written ); } );
+        }
     };
 }
 
@@ -320,13 +307,11 @@ BOOST_FIXTURE_TEST_CASE( a_corrupt_response_is_a_link_error_and_the_next_call_wo
  */
 BOOST_FIXTURE_TEST_CASE( a_late_response_is_not_taken_for_the_next_one, fixture )
 {
-    device.mode = behaviour::answer_late;
+    device.mode = behaviour::swallow;
     BOOST_CHECK_THROW( remote.call< &instrument::add >( 1, 2 ), link_error );
 
-    for ( int waited = 0; device.answered == 0 && waited < 100; ++waited )
-        std::this_thread::sleep_for( 10ms );
-
-    BOOST_REQUIRE_EQUAL( device.answered, 1 );
+    // the answer to that request, on the line after the host gave up on it
+    stream.arrives( device.swallowed() );
 
     device.mode = behaviour::answer;
     BOOST_CHECK_EQUAL( remote.call< &instrument::add >( 10, 20 ), 30 );
