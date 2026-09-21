@@ -691,6 +691,23 @@ namespace test_rig {
         }
 
         /*
+         * Takes what the buffer received out of it, as a link layer would, so that it has room
+         * again; the rig keeps the PDUs for the host.
+         */
+        void read_received()
+        {
+            pdu_buffer& buffer = link_layer_pdu_buffer();
+
+            for ( auto next = buffer.next_received(); next.size != 0; next = buffer.next_received() )
+            {
+                if ( read_count_ != read_queue_size )
+                    read_[ read_count_++ ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+
+                buffer.free_received();
+            }
+        }
+
+        /*
          * A step of the program: the callback it waits for, and its calls, a range of calls_,
          * which all steps share.
          */
@@ -716,23 +733,6 @@ namespace test_rig {
         std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
         std::array< pdu_buffer, pdu_buffers >           pdu_buffers_;
         std::size_t                                     active_buffer_          = 0;
-
-        /*
-         * Takes what the buffer received out of it, as a link layer would, so that it has room
-         * again; the rig keeps the PDUs for the host.
-         */
-        void read_received()
-        {
-            pdu_buffer& buffer = link_layer_pdu_buffer();
-
-            for ( auto next = buffer.next_received(); next.size != 0; next = buffer.next_received() )
-            {
-                if ( read_count_ != read_queue_size )
-                    read_[ read_count_++ ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
-
-                buffer.free_received();
-            }
-        }
 
         std::array< pdu, read_queue_size >              read_;
         std::size_t                                     read_head_              = 0;
