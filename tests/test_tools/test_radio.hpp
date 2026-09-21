@@ -887,7 +887,7 @@ namespace test {
                     layout::header( receive_buffer, header );
                 }
 
-                auto response = this->received( receive_buffer );
+                auto response = this->received( receive_buffer ).transmit;
 
                 more_data = more_data || ( layout::header( response ) & more_data_flag );
                 central_ne_sequence_number_ ^= nesn_flag;

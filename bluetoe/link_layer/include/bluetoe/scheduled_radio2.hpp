@@ -121,9 +121,12 @@ namespace link_layer {
 
         /*
          * A PDU received with a valid CRC into the room allocate_receive_buffer() gave; stores
-         * it, and returns the PDU to answer with.
+         * it, and reports the PDU to answer with and whether the packet counters of the
+         * encryption have to advance (link_layer::reception_result). Only the buffer can tell
+         * a PDU that is new from one that is a repeat, and only the radio knows whose counters
+         * are meant, so the buffer reports and the radio acts.
          */
-        { buffer.received( pdu ) } -> std::same_as< write_buffer >;
+        { buffer.received( pdu ) } -> std::same_as< reception_result >;
 
         /*
          * The next PDU to send, without taking anything received: after a PDU with an invalid

@@ -282,12 +282,10 @@ namespace link_layer {
         /**
          * @brief This function will be called by the scheduled radio when a PDU was received without error.
          *
-         * The function returns the next buffer to be transmitted.
-         *
-         * This function will call increment_receive_packet_counter() and increment_transmit_packet_counter() on
-         * the Radio if the counter part of the encryption IV part have to be incremented.
+         * The result carries the next buffer to be transmitted, and whether the counter part
+         * of the encryption IV has to be incremented; see reception_result.
          */
-        write_buffer received( read_buffer );
+        reception_result received( read_buffer );
 
         /**
          * @brief This function will be called, instead of received(), when the CRC of a received
@@ -297,7 +295,7 @@ namespace link_layer {
          * the last send message can be acknowlaged, but the received PDU should not be queued in
          * the buffer.
          */
-        write_buffer acknowledge( read_buffer );
+        reception_result acknowledge( read_buffer );
 
         /**
          * @brief returns the next PDU to be transmitted
@@ -354,7 +352,8 @@ namespace link_layer {
 
         write_buffer set_next_expected_sequence_number( read_buffer ) const;
 
-        void acknowledge( bool sequence_number );
+        // true if a transmitted PDU was acknowledged by this sequence number
+        bool acknowledge( bool sequence_number );
     };
 
     // implementation
@@ -524,7 +523,7 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( bool nesn )
+    bool ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( bool nesn )
     {
         if ( next_empty_ )
         {
@@ -537,15 +536,18 @@ namespace link_layer {
 
             // the transmit buffer could be empty if we receive without sending prior. That happens during testing
             if ( next.empty() )
-                return;
+                return false;
 
             const std::uint16_t header = layout::header( next );
             if ( static_cast< bool >( header & sn_flag ) != nesn )
             {
                 transmit_buffer_.pop_end( transmit_buffer() );
-                static_cast< Radio* >( this )->increment_transmit_packet_counter();
+
+                return true;
             }
         }
+
+        return false;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
@@ -577,11 +579,13 @@ namespace link_layer {
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::received( read_buffer pdu )
+    reception_result ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::received( read_buffer pdu )
     {
         const std::uint16_t header = layout::header( pdu );
 
-        acknowledge( header & nesn_flag );
+        reception_result result;
+
+        result.acknowledged_pdu = acknowledge( header & nesn_flag );
 
         // resent PDU?
         if ( static_cast< bool >( header & sn_flag ) == next_expected_sequence_number_ )
@@ -594,22 +598,26 @@ namespace link_layer {
                 if ( ( header & 0x3 ) != 0 )
                     receive_buffer_.push_front( receive_buffer(), pdu );
 
-                static_cast< Radio* >( this )->increment_receive_packet_counter();
+                result.received_new_pdu = true;
             }
         }
 
-        return next_transmit();
+        result.transmit = next_transmit();
+
+        return result;
     }
 
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
-    write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( read_buffer pdu )
+    reception_result ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::acknowledge( read_buffer pdu )
     {
         const std::uint16_t header = layout::header( pdu );
+
+        reception_result result;
 
         // invalid LLID
         if ( ( header & 0x3 ) != 0 )
         {
-            acknowledge( header & nesn_flag );
+            result.acknowledged_pdu = acknowledge( header & nesn_flag );
 
             // resent PDU?
             if ( static_cast< bool >( header & sn_flag ) == next_expected_sequence_number_ )
@@ -618,7 +626,9 @@ namespace link_layer {
             }
         }
 
-        return next_transmit();
+        result.transmit = next_transmit();
+
+        return result;
     }
 
 }

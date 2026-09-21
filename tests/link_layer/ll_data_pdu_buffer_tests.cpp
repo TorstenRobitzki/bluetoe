@@ -71,6 +71,21 @@ using buffer = mock_radio< 100, 100 >;
 template < std::size_t TransmitSize, std::size_t ReceiveSize, template < std::size_t, std::size_t > class Radio >
 struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
 {
+    /*
+     * What a radio does with what the buffer reports: the buffer tells a PDU that is new
+     * from one that is a repeat, the radio advances the packet counters of its encryption.
+     */
+    bluetoe::link_layer::write_buffer count( const bluetoe::link_layer::reception_result& result )
+    {
+        if ( result.received_new_pdu )
+            this->increment_receive_packet_counter();
+
+        if ( result.acknowledged_pdu )
+            this->increment_transmit_packet_counter();
+
+        return result.transmit;
+    }
+
     using layout = typename bluetoe::link_layer::pdu_layout_by_radio< Radio< TransmitSize, ReceiveSize > >::pdu_layout;
 
     running_mode_impl()
@@ -116,7 +131,7 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
         layout::header( pdu, header );
         std::copy( begin, end, layout::body( pdu ).first );
 
-        return this->received( pdu );
+        return this->count( this->received( pdu ) );
     }
 
     bluetoe::link_layer::write_buffer receive_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn, std::uint8_t llid = 1 )
@@ -141,7 +156,7 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
         layout::header( pdu, header );
         std::copy( begin, end, layout::body( pdu ).first );
 
-        return this->acknowledge( pdu );
+        return this->count( this->acknowledge( pdu ) );
     }
 
     bluetoe::link_layer::write_buffer acknowledge_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn )
@@ -587,7 +602,7 @@ BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowlad
     auto incomming = allocate_receive_buffer();
     incomming.buffer[ 0 ] = 1 | 4;
     incomming.buffer[ 1 ] = 0;
-    received( incomming );
+    count( received( incomming ) );
 
     // now the next pdu to be transmitted
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 2u );
@@ -596,7 +611,7 @@ BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowlad
     incomming = allocate_receive_buffer();
     incomming.buffer[ 0 ] = 1;
     incomming.buffer[ 1 ] = 25;
-    received( incomming );
+    count( received( incomming ) );
 
     // now the next pdu to be transmitted
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 3u );
@@ -611,7 +626,7 @@ BOOST_FIXTURE_TEST_CASE( pending_transmit_pdu_is_oberservable, running_mode )
     auto incomming = allocate_receive_buffer();
     incomming.buffer[ 0 ] = 1 | 4;
     incomming.buffer[ 1 ] = 0;
-    received( incomming );
+    count( received( incomming ) );
 
     BOOST_CHECK( !pending_outgoing_data_available() );
 }
@@ -1028,7 +1043,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         auto incomming = allocate_receive_buffer();
         incomming.buffer[ 0 ] = 1 | 4;
         incomming.buffer[ 1 ] = 0;
-        received( incomming );
+        count( received( incomming ) );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
     }
@@ -1043,7 +1058,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         auto incomming = allocate_receive_buffer();
         incomming.buffer[ 0 ] = 1 | 4;
         incomming.buffer[ 1 ] = 0;
-        received( incomming );
+        count( received( incomming ) );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
     }
@@ -1058,7 +1073,7 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         auto incomming = allocate_receive_buffer();
         incomming.buffer[ 0 ] = 1;
         incomming.buffer[ 1 ] = 0;
-        received( incomming );
+        count( received( incomming ) );
 
         transmit_pdu( { 1 } );
 

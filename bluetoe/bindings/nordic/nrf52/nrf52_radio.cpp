@@ -982,7 +982,11 @@ namespace bluetoe
                     if ( connection_.unacknowledged && static_cast< bool >( header & nesn_mask ) != connection_.unacknowledged_sn )
                         connection_.unacknowledged = false;
 
-                    answer = buffer_.received( this, reception_ );
+                    /*
+                     * The buffer reports whether the packet counters of the encryption have
+                     * to advance; this radio has no encryption, so only the answer is used.
+                     */
+                    answer = buffer_.received( this, reception_ ).transmit;
                 }
             }
             else

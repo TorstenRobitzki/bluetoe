@@ -176,7 +176,7 @@ namespace bluetoe
             struct pdu_buffer_access
             {
                 link_layer::read_buffer  ( *allocate_receive_buffer )( radio_base* );
-                link_layer::write_buffer ( *received )( radio_base*, link_layer::read_buffer );
+                link_layer::reception_result ( *received )( radio_base*, link_layer::read_buffer );
                 link_layer::write_buffer ( *next_transmit )( radio_base* );
                 bool                     ( *pending_outgoing_data_available )( radio_base* );
             };

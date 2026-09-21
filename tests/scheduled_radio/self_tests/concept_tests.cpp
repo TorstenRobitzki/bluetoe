@@ -43,7 +43,7 @@ namespace {
         struct pdu_buffer
         {
             read_buffer allocate_receive_buffer() { return {}; }
-            write_buffer received( read_buffer ) { return {}; }
+            reception_result received( read_buffer ) { return {}; }
             write_buffer next_transmit() { return {}; }
             bool pending_outgoing_data_available() { return false; }
         };
@@ -77,7 +77,7 @@ namespace {
     struct buffer_without_next_transmit
     {
         read_buffer allocate_receive_buffer() { return {}; }
-        write_buffer received( read_buffer ) { return {}; }
+        reception_result received( read_buffer ) { return {}; }
         bool pending_outgoing_data_available() { return false; }
     };
 

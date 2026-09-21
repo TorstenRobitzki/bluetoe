@@ -682,12 +682,13 @@ namespace bluetoe
 
                     if ( valid_anchor && ( valid_pdu || valid_crc ) )
                     {
-                        // switch to transmission
+                        // switch to transmission; this binding is replaced by nrf52_radio,
+                        // so it no longer advances the packet counters of its encryption
                         const auto trans = ( receive_buffer_.buffer == &empty_receive_[ 0 ] || !valid_crc )
                             ? this->next_transmit()
                             : ( valid_pdu
-                                ? this->received( receive_buffer_ )
-                                : this->acknowledge( receive_buffer_ ) );
+                                ? this->received( receive_buffer_ ).transmit
+                                : this->acknowledge( receive_buffer_ ).transmit );
 
                         // TODO: Hack to disable the more data flag, because this radio implementation is currently
                         // not able to do this (but it should be possible with the given hardware).
