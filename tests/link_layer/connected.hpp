@@ -32,6 +32,9 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
 template < typename Server, template < std::size_t, std::size_t, typename > class Radio, typename ... Options >
 class unconnected_base_t : public bluetoe::link_layer::link_layer< Server, Radio, Options... >
 {
+    // the link layer is what the l2cap layer requires of it
+    static_assert( bluetoe::details::l2cap_link_layer< bluetoe::link_layer::link_layer< Server, Radio, Options... > > );
+
 public:
     typedef bluetoe::link_layer::link_layer< Server, Radio, Options... > base;
 
