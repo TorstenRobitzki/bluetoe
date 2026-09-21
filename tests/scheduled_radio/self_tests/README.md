@@ -18,6 +18,8 @@ instruments against a real device and live in `../radio_tests/`. See
 | `link_serialize_tests.cpp` | the byte layout of every type that crosses the wire |
 | `link_frame_tests.cpp` | frames on the ring buffers: length prefix, CRC, corrupt and incomplete frames |
 | `instrument_dispatcher_tests.cpp` | the device's side of the protocol: opcodes, arguments, results, the status of a request it cannot serve |
+| `instrument_reported_queue_tests.cpp` | the queue both instruments report through: order, continuing batch indices, and what a full queue drops and counts |
+| `instrument_address_set_tests.cpp` | the acceptance filter set of both instruments |
 | `host_proxy_tests.cpp` | the host's side of the protocol, and one call through proxy, frames, buffers and dispatcher |
 | `instrument_dut_rig_tests.cpp` | the rig around a scheduled radio: its main loop, the session token, the instrument functions, a radio without a toolbox |
 | `instrument_tester_rig_tests.cpp` | the tester's rig: its main loop, the session token, the reset of the device under test |

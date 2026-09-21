@@ -64,10 +64,14 @@ The tests are here; what they are written with is in `../test_tools`.
 | `dut.hpp`, `dut.cpp` | the connection every test uses: opened once per run by a global fixture, protocol version checked, a fresh session token set, the properties read; the restart of the device through the tester; `dut_fixture` and the `dut_supports` predicate for `precondition` |
 | `tester.hpp`, `tester.cpp` | the connection to the tester, opened by the same fixture when `BLUETOE_TESTER` is set; `the_tester()` and the `tester_present` predicate |
 | `environment.hpp`, `environment.cpp` | the environment variables the tests are configured by, one function each |
-| `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; the program builders; `connection_fixture` with the parameters of a connection |
+| `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; `connection_fixture` with the parameters of a connection |
 | `observations.hpp` | the PDUs a test builds, the tolerance of an observed interval and the intervals themselves |
 | `timeline.hpp` | what a test expects of the PDUs a tester program captured |
 | `records.hpp` | what a test expects of the device's records: the callbacks it made and the calls a step made |
+
+The programs themselves are written with `../host/program_builders.hpp`: a call, a step or an
+operation per function, with times as `std::chrono` durations. It is shared with the self tests of
+the two program interpreters.
 
 `timeline` and `records` need no instrument and are unit tested on the host, in `../self_tests`.
 

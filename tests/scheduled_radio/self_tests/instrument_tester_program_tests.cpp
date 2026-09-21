@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
+#include "host/program_builders.hpp"
 #include "host/proxy.hpp"
 #include "host/tester_functions.hpp"
 #include "host/tester_time.hpp"
@@ -211,27 +212,6 @@ namespace {
     // the same shape from another advertiser: the six address bytes after the header differ
     const std::uint8_t other_adv[] = { 0x00, 0x08, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x01, 0x06 };
 
-    operation recv( std::uint32_t channel, delta_time window )
-    {
-        operation o;
-        o.kind    = operation_kind::receive;
-        o.channel = channel;
-        o.phy     = phy::le_1m_phy;
-        o.window  = window;
-
-        return o;
-    }
-
-    operation recv_count( std::uint32_t channel, delta_time window, std::uint32_t count )
-    {
-        return operation{
-            .kind    = operation_kind::receive,
-            .channel = channel,
-            .phy     = phy::le_1m_phy,
-            .window  = window,
-            .count   = count };
-    }
-
     // the largest an operation can be: an answer, which carries a scan response
     operation largest_op()
     {
@@ -250,25 +230,6 @@ namespace {
             .crc_init       = 0xffffff,
             .t_ifs          = delta_time::usec( 148 ),
             .crc_errors     = 0x0f };
-    }
-
-    operation address_op( std::uint32_t access_address, std::uint32_t crc_init )
-    {
-        return operation{
-            .kind           = operation_kind::set_access_address_and_crc_init,
-            .access_address = access_address,
-            .crc_init       = crc_init };
-    }
-
-    operation answer_op( std::uint32_t channel, delta_time window, const bluetoe::link_layer::device_address& target )
-    {
-        return operation{
-            .kind     = operation_kind::answer,
-            .channel  = channel,
-            .phy      = phy::le_1m_phy,
-            .window   = window,
-            .target   = target,
-            .response = adv_pdu( adv_ind ) };
     }
 
     struct fixture
@@ -303,7 +264,7 @@ BOOST_FIXTURE_TEST_CASE( no_program_is_not_finished, fixture )
 
 BOOST_FIXTURE_TEST_CASE( starting_begins_the_first_operation, fixture )
 {
-    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( listen( 37, 100ms ) ) );
 
     BOOST_CHECK( platform.receives.empty() );
 
@@ -318,8 +279,8 @@ BOOST_FIXTURE_TEST_CASE( starting_begins_the_first_operation, fixture )
 
 BOOST_FIXTURE_TEST_CASE( a_window_end_begins_the_next_operation, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 50 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 50ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_window_ended();
@@ -333,7 +294,7 @@ BOOST_FIXTURE_TEST_CASE( a_window_end_begins_the_next_operation, fixture )
 
 BOOST_FIXTURE_TEST_CASE( the_program_is_finished_when_the_last_window_ended, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
@@ -357,8 +318,8 @@ BOOST_FIXTURE_TEST_CASE( an_empty_program_does_not_start, fixture )
 
 BOOST_FIXTURE_TEST_CASE( starting_a_running_program_again_is_refused, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     // while the first operation is still running, a second start begins nothing
@@ -368,14 +329,14 @@ BOOST_FIXTURE_TEST_CASE( starting_a_running_program_again_is_refused, fixture )
 
 BOOST_FIXTURE_TEST_CASE( a_new_program_can_be_built_after_the_last_one_ended, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
     platform.push_window_ended();
     rig.run();
     BOOST_REQUIRE( remote.call< &rig_t::program_finished >() );
 
     // adding an operation now empties the finished program and begins a new one
-    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 50 ) ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( listen( 38, 50ms ) ) );
     BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
@@ -385,7 +346,7 @@ BOOST_FIXTURE_TEST_CASE( a_new_program_can_be_built_after_the_last_one_ended, fi
 
 BOOST_FIXTURE_TEST_CASE( a_captured_pdu_is_queued_with_its_time_and_bytes, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 12345us ), adv_ind, true, 42 );
@@ -405,7 +366,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_weaker_than_the_rssi_limit_is_dropped_not_lost, f
     // keep only signals of -40 dBm or stronger (rssi 40 or less)
     remote.call< &rig_t::set_rssi_limit >( 40 );
 
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true, 17 );   // strong, kept
@@ -423,7 +384,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_weaker_than_the_rssi_limit_is_dropped_not_lost, f
 
 BOOST_FIXTURE_TEST_CASE( an_empty_acceptance_filter_keeps_every_advertiser, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true );
@@ -439,7 +400,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_from_outside_the_acceptance_filter_is_dropped_not
     const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
     BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
 
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true, 30 );     // the accepted advertiser, kept
@@ -483,7 +444,7 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_beyond_the_filter_does_not_reach_the_radi
 
 BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, false );
@@ -497,7 +458,7 @@ BOOST_FIXTURE_TEST_CASE( a_crc_error_is_reported_not_dropped, fixture )
 
 BOOST_FIXTURE_TEST_CASE( captured_come_in_batches_with_continuing_indices, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     for ( int i = 0; i != 9; ++i )
@@ -524,7 +485,7 @@ BOOST_FIXTURE_TEST_CASE( captured_come_in_batches_with_continuing_indices, fixtu
 
 BOOST_FIXTURE_TEST_CASE( a_full_queue_drops_the_newest_and_counts_them, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     for ( std::size_t i = 0; i != captured_queue_size + 5; ++i )
@@ -549,9 +510,9 @@ BOOST_FIXTURE_TEST_CASE( the_access_address_and_crc_init_reach_the_platform, fix
 BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_operation, fixture )
 {
     for ( std::size_t i = 0; i != max_operations; ++i )
-        BOOST_CHECK( remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 1 ) ) ) );
+        BOOST_CHECK( remote.call< &rig_t::add_operation >( listen( 37, 1ms ) ) );
 
-    BOOST_CHECK( !remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 1 ) ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_operation >( listen( 37, 1ms ) ) );
 }
 
 /*
@@ -609,7 +570,7 @@ BOOST_AUTO_TEST_CASE( a_transmitted_entry_round_trips_with_its_direction )
  */
 BOOST_FIXTURE_TEST_CASE( a_transmission_is_captured_with_its_direction_and_time, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true );
@@ -631,7 +592,7 @@ BOOST_FIXTURE_TEST_CASE( starting_an_answer_begins_it_on_the_platform_with_its_t
 {
     const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
 
-    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 100 ), target ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( answer( 37, target, adv_ind, time_out{ 100ms } ) ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_CHECK( platform.receives.empty() );
@@ -644,7 +605,7 @@ BOOST_FIXTURE_TEST_CASE( starting_an_answer_begins_it_on_the_platform_with_its_t
 
 BOOST_AUTO_TEST_CASE( an_operation_round_trips_with_its_count )
 {
-    const operation counted = recv_count( 39, delta_time::msec( 500 ), 3 );
+    const operation counted = receive( 39, 3, time_out{ 500ms } );
 
     std::array< std::uint8_t, 128 > storage = {};
     buffer_sink out( storage );
@@ -660,8 +621,8 @@ BOOST_AUTO_TEST_CASE( an_operation_round_trips_with_its_count )
 
 BOOST_FIXTURE_TEST_CASE( a_counted_operation_ends_with_its_last_pdu, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 2 ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 2, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true );
@@ -677,9 +638,9 @@ BOOST_FIXTURE_TEST_CASE( a_counted_operation_ends_with_its_last_pdu, fixture )
 
 BOOST_FIXTURE_TEST_CASE( a_counted_operation_that_times_out_ends_the_program, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 2 ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 2, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_window_ended();
@@ -697,8 +658,8 @@ BOOST_FIXTURE_TEST_CASE( a_counted_operation_that_times_out_ends_the_program, fi
 
 BOOST_FIXTURE_TEST_CASE( a_program_that_ran_through_reports_no_timeout, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 500ms } ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_window_ended();
@@ -714,14 +675,14 @@ BOOST_FIXTURE_TEST_CASE( a_program_that_ran_through_reports_no_timeout, fixture 
 // a new program starts without the timeout of the one before
 BOOST_FIXTURE_TEST_CASE( a_timeout_is_cleared_with_the_next_program, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 500ms } ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_window_ended();
     rig.run();
     BOOST_REQUIRE_EQUAL( remote.call< &rig_t::timed_out_operation >(), 0u );
 
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
     BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
 }
 
@@ -731,8 +692,8 @@ BOOST_FIXTURE_TEST_CASE( a_crc_error_or_a_filtered_pdu_is_not_counted, fixture )
     const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
     BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
 
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, false );
@@ -745,7 +706,7 @@ BOOST_FIXTURE_TEST_CASE( a_crc_error_or_a_filtered_pdu_is_not_counted, fixture )
 
 BOOST_FIXTURE_TEST_CASE( a_counted_last_operation_finishes_the_program_and_stops_the_radio, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 500ms } ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true );
@@ -761,9 +722,9 @@ BOOST_FIXTURE_TEST_CASE( a_counted_last_operation_finishes_the_program_and_stops
  */
 BOOST_FIXTURE_TEST_CASE( a_window_end_of_an_earlier_operation_is_ignored, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
-    remote.call< &rig_t::add_operation >( recv( 39, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
+    remote.call< &rig_t::add_operation >( listen( 39, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     const std::uint32_t first = platform.operation_id;
@@ -779,9 +740,9 @@ BOOST_FIXTURE_TEST_CASE( a_window_end_of_an_earlier_operation_is_ignored, fixtur
 // a PDU received before the next operation began is captured, but counts for none
 BOOST_FIXTURE_TEST_CASE( a_pdu_of_an_earlier_operation_does_not_count_for_the_next, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 500 ), 1 ) );
-    remote.call< &rig_t::add_operation >( recv_count( 38, delta_time::msec( 500 ), 1 ) );
-    remote.call< &rig_t::add_operation >( recv( 39, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( receive( 38, 1, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 39, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     const std::uint32_t first = platform.operation_id;
@@ -805,8 +766,8 @@ BOOST_FIXTURE_TEST_CASE( an_answer_operation_ends_with_the_reply_to_its_answer, 
 {
     const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
 
-    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), target ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( answer( 37, target, adv_ind, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     // what came before the answer does not end it
@@ -832,8 +793,8 @@ BOOST_FIXTURE_TEST_CASE( an_answer_operation_without_a_reply_ends_with_its_windo
 {
     const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
 
-    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), target ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( answer( 37, target, adv_ind, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true );
@@ -849,8 +810,8 @@ BOOST_FIXTURE_TEST_CASE( an_answer_operation_that_never_answered_times_out, fixt
 {
     const bluetoe::link_layer::device_address target{ { 1, 2, 3, 4, 5, 6 }, false };
 
-    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), target ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( answer( 37, target, adv_ind, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), other_adv, true );
@@ -868,8 +829,8 @@ BOOST_FIXTURE_TEST_CASE( a_filtered_pdu_after_an_answer_does_not_end_it, fixture
     const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
     BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
 
-    remote.call< &rig_t::add_operation >( answer_op( 37, delta_time::msec( 500 ), accepted ) );
-    remote.call< &rig_t::add_operation >( recv( 38, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( answer( 37, accepted, adv_ind, time_out{ 500ms } ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), adv_ind, true );
@@ -882,7 +843,7 @@ BOOST_FIXTURE_TEST_CASE( a_filtered_pdu_after_an_answer_does_not_end_it, fixture
 
 BOOST_AUTO_TEST_CASE( an_access_address_operation_round_trips_with_its_values )
 {
-    const operation sent = address_op( 0x71764129, 0x7a8f23 );
+    const operation sent = use_access_address( 0x71764129, 0x7a8f23 );
 
     std::array< std::uint8_t, 128 > storage = {};
     buffer_sink out( storage );
@@ -899,9 +860,9 @@ BOOST_AUTO_TEST_CASE( an_access_address_operation_round_trips_with_its_values )
 // the radio is stopped before the change, and the next operation begins without waiting
 BOOST_FIXTURE_TEST_CASE( an_access_address_operation_changes_the_address_and_goes_on, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
-    remote.call< &rig_t::add_operation >( address_op( 0x71764129, 0x7a8f23 ) );
-    remote.call< &rig_t::add_operation >( recv( 12, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    remote.call< &rig_t::add_operation >( use_access_address( 0x71764129, 0x7a8f23 ) );
+    remote.call< &rig_t::add_operation >( listen( 12, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -919,8 +880,8 @@ BOOST_FIXTURE_TEST_CASE( an_access_address_operation_changes_the_address_and_goe
 // several in a row take effect in order, and one at the end finishes the program
 BOOST_FIXTURE_TEST_CASE( access_address_operations_in_a_row_and_at_the_end, fixture )
 {
-    remote.call< &rig_t::add_operation >( address_op( 1, 2 ) );
-    remote.call< &rig_t::add_operation >( address_op( 3, 4 ) );
+    remote.call< &rig_t::add_operation >( use_access_address( 1, 2 ) );
+    remote.call< &rig_t::add_operation >( use_access_address( 3, 4 ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_CHECK_EQUAL( platform.access_address, 3u );
@@ -936,8 +897,8 @@ BOOST_FIXTURE_TEST_CASE( the_acceptance_filter_does_not_apply_on_another_access_
     const bluetoe::link_layer::device_address accepted{ { 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 }, false };
     BOOST_REQUIRE( remote.call< &rig_t::add_to_acceptance_filter >( accepted ) );
 
-    remote.call< &rig_t::add_operation >( address_op( 0x71764129, 0x7a8f23 ) );
-    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 100 ) ) );
+    remote.call< &rig_t::add_operation >( use_access_address( 0x71764129, 0x7a8f23 ) );
+    remote.call< &rig_t::add_operation >( listen( 5, 100ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 1ms ), other_adv, true );
@@ -1019,7 +980,7 @@ namespace {
 // the first event has no anchor before it, so it is placed like a transmit
 BOOST_FIXTURE_TEST_CASE( the_first_connection_event_is_placed_from_the_pdu_captured_last, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
     BOOST_REQUIRE( add_event( remote, 5, delta_time::msec( 50 ), 2 ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
@@ -1040,7 +1001,7 @@ BOOST_FIXTURE_TEST_CASE( the_first_connection_event_is_placed_from_the_pdu_captu
 // the anchor is the first bit of the event's first PDU, not the reply after it
 BOOST_FIXTURE_TEST_CASE( a_later_connection_event_is_placed_from_the_anchor_before, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
     add_event( remote, 5, delta_time::msec( 50 ), 1 );
     add_event( remote, 12, delta_time::msec( 10 ), 1 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
@@ -1059,7 +1020,7 @@ BOOST_FIXTURE_TEST_CASE( a_later_connection_event_is_placed_from_the_anchor_befo
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_ends_with_the_reply_to_its_last_pdu, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
     add_event( remote, 5, delta_time::msec( 50 ), 2 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
@@ -1093,9 +1054,9 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_ends_with_the_reply_to_its_last_pdu,
 // a device that does not answer is what a test observes, in the captured PDUs; the program goes on
 BOOST_FIXTURE_TEST_CASE( a_connection_event_without_all_its_replies_ends_with_its_window, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
     add_event( remote, 5, delta_time::msec( 50 ), 2 );
-    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 5, 10ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_received( at( 5ms ), adv_ind, true );
@@ -1134,7 +1095,7 @@ BOOST_FIXTURE_TEST_CASE( more_pdus_than_the_program_holds_are_refused, fixture )
 // a PDU belongs to the connection event before it, and nothing else takes one
 BOOST_FIXTURE_TEST_CASE( a_pdu_for_an_operation_that_is_not_a_connection_event_is_refused, fixture )
 {
-    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 100 ) ) ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_operation >( listen( 37, 100ms ) ) );
 
     BOOST_CHECK( !remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) ) );
 }
@@ -1150,7 +1111,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_sends_the_pdus_it_marks_with_an_inva
     operation event = event_op( 5, delta_time::msec( 50 ) );
     event.crc_errors = 0x01;
 
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
     remote.call< &rig_t::add_operation >( event );
     remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) );
     remote.call< &rig_t::add_event_pdu >( pdu( empty_pdu ) );
@@ -1176,7 +1137,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_too_late_to_place_times_out, fixture
 {
     platform.event_in_time = false;
 
-    remote.call< &rig_t::add_operation >( recv_count( 37, delta_time::msec( 300 ), 1 ) );
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
     add_event( remote, 5, delta_time::msec( 50 ), 1 );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
@@ -1199,18 +1160,14 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_without_a_pdu_to_place_it_from_times
 
 namespace {
 
-    operation phy_op( phy::phy_ll_encoding_t selected )
-    {
-        return operation{ .kind = operation_kind::set_phy, .phy = selected };
-    }
 }
 
 // a set_phy takes no time: the operation after it begins right away, with the PHY selected
 BOOST_FIXTURE_TEST_CASE( a_set_phy_operation_selects_the_phy_for_what_follows, fixture )
 {
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 10 ) ) );
-    remote.call< &rig_t::add_operation >( phy_op( phy::le_2m_phy ) );
-    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 10ms ) );
+    remote.call< &rig_t::add_operation >( use_phy( phy::le_2m_phy ) );
+    remote.call< &rig_t::add_operation >( listen( 5, 10ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_REQUIRE_EQUAL( platform.receives.size(), 1u );
@@ -1226,8 +1183,8 @@ BOOST_FIXTURE_TEST_CASE( a_set_phy_operation_selects_the_phy_for_what_follows, f
 // the tester is not reset between tests, so a program must not inherit the PHY of the one before
 BOOST_FIXTURE_TEST_CASE( every_program_starts_at_1_mbit, fixture )
 {
-    remote.call< &rig_t::add_operation >( phy_op( phy::le_2m_phy ) );
-    remote.call< &rig_t::add_operation >( recv( 5, delta_time::msec( 10 ) ) );
+    remote.call< &rig_t::add_operation >( use_phy( phy::le_2m_phy ) );
+    remote.call< &rig_t::add_operation >( listen( 5, 10ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     platform.push_window_ended();
@@ -1235,7 +1192,7 @@ BOOST_FIXTURE_TEST_CASE( every_program_starts_at_1_mbit, fixture )
 
     BOOST_REQUIRE( remote.call< &rig_t::program_finished >() );
 
-    remote.call< &rig_t::add_operation >( recv( 37, delta_time::msec( 10 ) ) );
+    remote.call< &rig_t::add_operation >( listen( 37, 10ms ) );
     BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
 
     BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );

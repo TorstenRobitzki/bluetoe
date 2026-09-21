@@ -3,6 +3,7 @@
 
 #include "host/dummy_radio.hpp"
 #include "host/dut_functions.hpp"
+#include "host/program_builders.hpp"
 #include "host/proxy.hpp"
 #include "instrument/dut_rig.hpp"
 #include "link/frame.hpp"
@@ -21,6 +22,7 @@
 
 using namespace bluetoe::test_rig;
 using namespace bluetoe::test_rig::self_test;
+using namespace std::chrono_literals;
 using bluetoe::link_layer::abs_time;
 using bluetoe::link_layer::delta_time;
 using bluetoe::link_layer::device_address;
@@ -161,73 +163,6 @@ namespace {
     const std::uint8_t adv_ind[] = { 0x00, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0, 0x01, 0x06 };
     const std::uint8_t scan_rsp[] = { 0x04, 0x06, 0x01, 0x02, 0x03, 0x04, 0x05, 0xc0 };
 
-    call start_advertising( std::uint32_t channel, std::span< const std::uint8_t > transmit, std::span< const std::uint8_t > response = {} )
-    {
-        call result;
-        result.kind     = call_kind::start_advertising;
-        result.channel  = channel;
-        result.transmit = pdu( transmit );
-        result.response = adv_pdu( response );
-
-        return result;
-    }
-
-    call schedule_advertising_event( std::uint32_t channel, delta_time delay, std::span< const std::uint8_t > transmit )
-    {
-        call result;
-        result.kind     = call_kind::schedule_advertising_event;
-        result.channel  = channel;
-        result.delay    = delay;
-        result.transmit = pdu( transmit );
-
-        return result;
-    }
-
-    call schedule_timer( delta_time delay )
-    {
-        call result;
-        result.kind  = call_kind::schedule_timer;
-        result.delay = delay;
-
-        return result;
-    }
-
-    call schedule_connection_event( std::uint32_t channel, delta_time start, delta_time end )
-    {
-        return call{ .kind = call_kind::schedule_connection_event, .channel = channel, .delay = start, .end_delay = end };
-    }
-
-    call cancel_radio_event()
-    {
-        call result;
-        result.kind = call_kind::cancel_radio_event;
-
-        return result;
-    }
-
-    call set_local_address( const device_address& address )
-    {
-        return call{ .kind = call_kind::set_local_address, .address = address };
-    }
-
-    call set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
-    {
-        return call{ .kind = call_kind::set_access_address_and_crc_init, .access_address = access_address, .crc_init = crc_init };
-    }
-
-    // a step as the host builds it, loaded as the step and then its calls
-    struct step
-    {
-        callback_kind       on;
-        std::vector< call > calls;
-    };
-
-    template < typename... Calls >
-    step on( callback_kind kind, Calls... calls )
-    {
-        return step{ .on = kind, .calls = { calls... } };
-    }
-
     struct fixture
     {
         rig_transport                               transport;
@@ -308,8 +243,8 @@ BOOST_FIXTURE_TEST_CASE( a_timed_call_is_placed_relative_to_the_callback, fixtur
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_advertising_event( 37, delta_time::msec( 100 ), adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_timer( delta_time::usec( 500 ) ) ) };
+        on( callback_kind::adv_timeout, schedule_advertising_event( 37, 100ms, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_timer( 500us ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -335,7 +270,7 @@ BOOST_FIXTURE_TEST_CASE( a_callback_of_another_kind_is_recorded_and_leaves_the_s
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::user_timer,  schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) };
+        on( callback_kind::user_timer,  schedule_advertising_event( 37, 1ms, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -356,7 +291,7 @@ BOOST_FIXTURE_TEST_CASE( the_program_is_finished_when_the_last_scheduled_action_
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) };
+        on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -379,7 +314,7 @@ BOOST_FIXTURE_TEST_CASE( a_refused_call_leaves_nothing_pending, fixture )
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) };
+        on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -393,7 +328,7 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_that_succeeds_ends_the_pending_action, fixture
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ), cancel_radio_event() ) };
+        on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ), cancel_radio_event() ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -500,8 +435,8 @@ BOOST_FIXTURE_TEST_CASE( a_timed_call_on_start_is_refused, fixture )
 {
     BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start ) );
 
-    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_advertising_event( 37, delta_time::msec( 1 ), adv_ind ) ) );
-    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_timer( delta_time::msec( 1 ) ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_advertising_event( 37, 1ms, adv_ind ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_timer( 1ms ) ) );
     BOOST_CHECK( remote.call< &rig_t::add_call >( cancel_radio_event() ) );
 }
 
@@ -610,7 +545,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, 
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) };
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -633,7 +568,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_on_start_is_refused, fixture )
 {
     BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start ) );
-    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_connection_event( 5, 10ms, 12ms ) ) );
 }
 
 // the program is finished once the connection event reported its end, with the events recorded
@@ -641,7 +576,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_end_is_recorded_with_its_events, fix
 {
     const step program[] = {
         on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout, schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ) };
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -671,8 +606,8 @@ BOOST_FIXTURE_TEST_CASE( a_step_runs_on_a_connection_timeout, fixture )
 {
     const step program[] = {
         on( callback_kind::start,              start_advertising( 37, adv_ind ) ),
-        on( callback_kind::adv_timeout,        schedule_connection_event( 5, delta_time::msec( 10 ), delta_time::msec( 12 ) ) ),
-        on( callback_kind::connection_timeout, schedule_connection_event( 6, delta_time::msec( 30 ), delta_time::msec( 32 ) ) ) };
+        on( callback_kind::adv_timeout,        schedule_connection_event( 5, 10ms, 12ms ) ),
+        on( callback_kind::connection_timeout, schedule_connection_event( 6, 30ms, 32ms ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
