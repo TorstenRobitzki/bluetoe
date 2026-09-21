@@ -87,12 +87,12 @@ namespace {
             accepted.push_back( { slot, address } );
         }
 
-        std::optional< tester_happened > next_event()
+        std::optional< tester_event > next_event()
         {
             if ( events.empty() )
                 return std::nullopt;
 
-            const tester_happened result = events.front();
+            const tester_event result = events.front();
             events.pop_front();
 
             return result;
@@ -100,8 +100,8 @@ namespace {
 
         void push_received( tester_time when, std::span< const std::uint8_t > bytes, bool crc_ok, std::uint8_t rssi = 60 )
         {
-            tester_happened e;
-            e.kind         = tester_event::received;
+            tester_event e;
+            e.kind         = tester_event_kind::received;
             e.when         = when;
             e.data         = pdu( bytes );
             e.crc_ok       = crc_ok;
@@ -113,8 +113,8 @@ namespace {
 
         void push_transmitted( tester_time when, std::span< const std::uint8_t > bytes, bool crc_ok = true )
         {
-            tester_happened e;
-            e.kind         = tester_event::transmitted;
+            tester_event e;
+            e.kind         = tester_event_kind::transmitted;
             e.when         = when;
             e.data         = pdu( bytes );
             e.crc_ok       = crc_ok;
@@ -132,8 +132,8 @@ namespace {
 
         void push_window_ended( std::uint32_t id )
         {
-            tester_happened e{};
-            e.kind         = tester_event::window_ended;
+            tester_event e{};
+            e.kind         = tester_event_kind::window_ended;
             e.operation_id = id;
 
             events.push_back( e );
@@ -170,7 +170,7 @@ namespace {
         std::vector< connection_event_call > connection_events;
         bool                            event_in_time = true;
         std::vector< answer_call >      answers;
-        std::deque< tester_happened >   events;
+        std::deque< tester_event >   events;
         std::uint32_t                   access_address          = 0;
         std::uint32_t                   crc_init                = 0;
         std::uint32_t                   operation_id            = 0;
@@ -750,8 +750,8 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_of_an_earlier_operation_does_not_count_for_the_ne
     platform.push_received( at( 1ms ), adv_ind, true );
     rig.run();
 
-    tester_happened late{};
-    late.kind         = tester_event::received;
+    tester_event late{};
+    late.kind         = tester_event_kind::received;
     late.data         = pdu( adv_ind );
     late.crc_ok       = true;
     late.operation_id = first;

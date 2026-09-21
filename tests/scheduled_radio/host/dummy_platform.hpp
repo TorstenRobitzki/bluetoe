@@ -38,7 +38,7 @@ namespace test_rig {
         void stop() {}
         void accept_advertiser( std::uint32_t, const link_layer::device_address& ) {}
 
-        std::optional< tester_happened > next_event()
+        std::optional< tester_event > next_event()
         {
             return std::nullopt;
         }

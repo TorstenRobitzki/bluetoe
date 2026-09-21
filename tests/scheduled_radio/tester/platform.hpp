@@ -73,7 +73,7 @@ namespace test_rig {
             std::uint32_t crc_errors, std::uint32_t operation_id );
         void stop();
         void accept_advertiser( std::uint32_t slot, const link_layer::device_address& address );
-        std::optional< tester_happened > next_event();
+        std::optional< tester_event > next_event();
         /** @} */
 
         /**
@@ -100,7 +100,7 @@ namespace test_rig {
         void on_device_address_miss();
         bool from_target() const;
         void arm_answer( std::uint32_t first_bit );
-        void enqueue( const tester_happened& event );
+        void enqueue( const tester_event& event );
 
         /*
          * The events the radio produced and run() has not drained yet, a single producer,
@@ -109,7 +109,7 @@ namespace test_rig {
          * happen while run() drains on every wake.
          */
         static constexpr std::size_t            event_ring_size = 16;
-        tester_happened                         events_[ event_ring_size ];
+        tester_event                         events_[ event_ring_size ];
         volatile std::uint32_t                  event_head_;
         volatile std::uint32_t                  event_tail_;
         volatile std::uint32_t                  operation_id_   = 0;

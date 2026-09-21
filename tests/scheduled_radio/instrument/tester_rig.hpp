@@ -91,21 +91,21 @@ namespace test_rig {
      * that an event still queued from an operation that ended early is told from the
      * current one's.
      */
-    enum class tester_event
+    enum class tester_event_kind
     {
         received,
         transmitted,
         window_ended
     };
 
-    struct tester_happened
+    struct tester_event
     {
-        tester_event    kind;
-        tester_time     when;
-        pdu             data;
-        bool            crc_ok;
-        std::uint8_t    rssi;
-        std::uint32_t   operation_id = 0;
+        tester_event_kind   kind;
+        tester_time         when;
+        pdu                 data;
+        bool                crc_ok;
+        std::uint8_t        rssi;
+        std::uint32_t       operation_id = 0;
     };
 
     /**
@@ -194,7 +194,7 @@ namespace test_rig {
         /*
          * The oldest event the radio has for the interpreter, and it is forgotten.
          */
-        { platform.next_event() } -> std::same_as< std::optional< tester_happened > >;
+        { platform.next_event() } -> std::same_as< std::optional< tester_event > >;
     };
 
     /**
@@ -459,9 +459,9 @@ namespace test_rig {
     private:
         void handle_events()
         {
-            for ( std::optional< tester_happened > next = platform_.next_event(); next; next = platform_.next_event() )
+            for ( std::optional< tester_event > next = platform_.next_event(); next; next = platform_.next_event() )
             {
-                if ( next->kind == tester_event::received )
+                if ( next->kind == tester_event_kind::received )
                 {
                     // a PDU dropped by a filter is not counted as one produced, since it
                     // was rejected on purpose, not lost between the radio and the host
@@ -499,7 +499,7 @@ namespace test_rig {
                     else if ( next->crc_ok )
                         count_received();
                 }
-                else if ( next->kind == tester_event::transmitted )
+                else if ( next->kind == tester_event_kind::transmitted )
                 {
                     // what the tester sent is captured beside what it heard; no filter
                     // applies, since the rig itself decided to send it

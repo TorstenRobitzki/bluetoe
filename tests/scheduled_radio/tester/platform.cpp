@@ -601,8 +601,8 @@ namespace test_rig {
     {
         const std::size_t size = std::min< std::size_t >( sent[ 1 ] + 2, max_pdu_size );
 
-        const tester_happened event{
-            .kind   = tester_event::transmitted,
+        const tester_event event{
+            .kind   = tester_event_kind::transmitted,
             .when   = tester_time{ address - timing( two_mbit_ ).preamble_and_access_address_ticks },
             .data   = pdu( std::span< const std::uint8_t >( sent, size ) ),
             .crc_ok = crc_ok,
@@ -616,8 +616,8 @@ namespace test_rig {
     {
         const std::size_t size = std::min< std::size_t >( receive_buffer_[ 1 ] + 2, max_pdu_size );
 
-        const tester_happened event{
-            .kind   = tester_event::received,
+        const tester_event event{
+            .kind   = tester_event_kind::received,
             .when   = tester_time{ first_bit },
             .data   = pdu( std::span< const std::uint8_t >( receive_buffer_, size ) ),
             .crc_ok = crc_ok,
@@ -718,15 +718,15 @@ namespace test_rig {
         NRF_PPI->CHENCLR         = 1u << ppi_answer_txen;
         NRF_RADIO->TASKS_DISABLE = 1;
 
-        tester_happened event{};
-        event.kind = tester_event::window_ended;
+        tester_event event{};
+        event.kind = tester_event_kind::window_ended;
 
         enqueue( event );
 
         __SEV();
     }
 
-    void platform::enqueue( const tester_happened& event )
+    void platform::enqueue( const tester_event& event )
     {
         if ( event_tail_ - event_head_ == event_ring_size )
             return;
@@ -737,12 +737,12 @@ namespace test_rig {
         event_tail_ = event_tail_ + 1;
     }
 
-    std::optional< tester_happened > platform::next_event()
+    std::optional< tester_event > platform::next_event()
     {
         if ( event_head_ == event_tail_ )
             return std::nullopt;
 
-        const tester_happened event = events_[ event_head_ % event_ring_size ];
+        const tester_event event = events_[ event_head_ % event_ring_size ];
         __DMB();
         event_head_ = event_head_ + 1;
 
