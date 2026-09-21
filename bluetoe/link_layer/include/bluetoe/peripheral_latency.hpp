@@ -3,6 +3,15 @@
 
 #include <bluetoe/ll_meta_types.hpp>
 #include <bluetoe/connection_events.hpp>
+#include <bluetoe/delta_time.hpp>
+#include <bluetoe/meta_tools.hpp>
+
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 /**
  * @file bluetoe/peripheral_latency.hpp
