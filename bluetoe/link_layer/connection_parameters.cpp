@@ -60,51 +60,6 @@ namespace details {
         channels_.reset( map );
     }
 
-    const channel_map& connection_parameters::channels() const
-    {
-        return channels_;
-    }
-
-    delta_time connection_parameters::interval() const
-    {
-        return interval_;
-    }
-
-    std::uint16_t connection_parameters::latency() const
-    {
-        return latency_;
-    }
-
-    delta_time connection_parameters::timeout() const
-    {
-        return timeout_;
-    }
-
-    unsigned connection_parameters::sleep_clock_accuracy_ppm() const
-    {
-        return cumulated_sleep_clock_accuracy_;
-    }
-
-    bool connection_parameters::transmit_window_pending() const
-    {
-        return !transmit_window_size_.zero();
-    }
-
-    delta_time connection_parameters::transmit_window_offset() const
-    {
-        return transmit_window_offset_;
-    }
-
-    delta_time connection_parameters::transmit_window_size() const
-    {
-        return transmit_window_size_;
-    }
-
-    void connection_parameters::transmit_window_passed()
-    {
-        transmit_window_size_ = delta_time();
-    }
-
     connection_details connection_parameters::details() const
     {
         return connection_details(

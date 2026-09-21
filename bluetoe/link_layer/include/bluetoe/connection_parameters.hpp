@@ -14,6 +14,10 @@ namespace details {
     /**
      * @brief the timing of a connection and its channel map: what a CONNECT_IND set, and
      *        what an LL_CONNECTION_UPDATE_IND or an LL_CHANNEL_MAP_REQ changes at its instant
+     *
+     * What a request changes is parsed out of line; what every connection event asks for is
+     * defined here, because a call per parameter and per event is Flash the link layer did
+     * not spend while these were its own members.
      */
     class connection_parameters
     {
@@ -39,22 +43,59 @@ namespace details {
          */
         void channels( const std::uint8_t* map );
 
-        const channel_map& channels() const;
-        delta_time interval() const;
-        std::uint16_t latency() const;
-        delta_time timeout() const;
-        unsigned sleep_clock_accuracy_ppm() const;
+        /**
+         * @brief what the callbacks above the link layer are told about the connection
+         */
+        connection_details details() const;
+
+        const channel_map& channels() const
+        {
+            return channels_;
+        }
+
+        delta_time interval() const
+        {
+            return interval_;
+        }
+
+        std::uint16_t latency() const
+        {
+            return latency_;
+        }
+
+        delta_time timeout() const
+        {
+            return timeout_;
+        }
+
+        unsigned sleep_clock_accuracy_ppm() const
+        {
+            return cumulated_sleep_clock_accuracy_;
+        }
 
         /**
          * @brief whether the next connection event is the first after a request: placed in
          *        the transmit window the request named, not an interval after the anchor
          */
-        bool transmit_window_pending() const;
-        delta_time transmit_window_offset() const;
-        delta_time transmit_window_size() const;
-        void transmit_window_passed();
+        bool transmit_window_pending() const
+        {
+            return !transmit_window_size_.zero();
+        }
 
-        connection_details details() const;
+        delta_time transmit_window_offset() const
+        {
+            return transmit_window_offset_;
+        }
+
+        delta_time transmit_window_size() const
+        {
+            return transmit_window_size_;
+        }
+
+        void transmit_window_passed()
+        {
+            transmit_window_size_ = delta_time();
+        }
 
     private:
         bool valid() const;
