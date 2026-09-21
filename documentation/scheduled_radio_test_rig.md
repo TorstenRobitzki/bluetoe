@@ -581,6 +581,14 @@ type that schedules connection events. The rig's link layer half satisfies the f
 implements connections, and the concept tracks what exists instead of demanding a placeholder PDU
 buffer.
 
+**Amended.** The split is undone: the two are one `scheduled_radio_callbacks` again. It was there
+for the state the rig passed through, a link layer half that advertised before it had connections,
+and that state is gone. What it left behind was one contract under two names and a radio that had
+to ask `if constexpr` whether its callbacks type had the connection callbacks before delivering
+each of them. A radio that has connection events to deliver needs a callbacks type that takes
+them; a caller that never schedules one is not served by a concept that lets it compile without
+them.
+
 ## 19. The wire carries the rig's interface, not the radio's
 
 What is serialised between the host and the device under test are calls to the rig: its own

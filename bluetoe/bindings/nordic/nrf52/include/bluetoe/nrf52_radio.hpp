@@ -365,14 +365,11 @@ namespace bluetoe
             {
                 radio_base::set_acceptance_filter( &apply_acceptance_filter );
 
-                if constexpr ( link_layer::scheduled_radio_connection_callbacks< CallBacks > )
-                {
-                    radio_base::set_pdu_buffer_access( {
-                        .allocate_receive_buffer         = []( radio_base* base ) { return buffer( base ).allocate_receive_buffer(); },
-                        .received                        = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).received( pdu ); },
-                        .next_transmit                   = []( radio_base* base ) { return buffer( base ).next_transmit(); },
-                        .pending_outgoing_data_available = []( radio_base* base ) { return buffer( base ).pending_outgoing_data_available(); } } );
-                }
+                radio_base::set_pdu_buffer_access( {
+                    .allocate_receive_buffer         = []( radio_base* base ) { return buffer( base ).allocate_receive_buffer(); },
+                    .received                        = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).received( pdu ); },
+                    .next_transmit                   = []( radio_base* base ) { return buffer( base ).next_transmit(); },
+                    .pending_outgoing_data_available = []( radio_base* base ) { return buffer( base ).pending_outgoing_data_available(); } } );
             }
 
             /**
@@ -403,12 +400,10 @@ namespace bluetoe
                         callbacks.user_timer( next->when );
                         break;
                     case event::connection_timeout:
-                        if constexpr ( link_layer::scheduled_radio_connection_callbacks< CallBacks > )
-                            callbacks.connection_timeout( next->when );
+                        callbacks.connection_timeout( next->when );
                         break;
                     case event::connection_end_event:
-                        if constexpr ( link_layer::scheduled_radio_connection_callbacks< CallBacks > )
-                            callbacks.connection_end_event( next->when, next->events );
+                        callbacks.connection_end_event( next->when, next->events );
                         break;
                     }
                 }

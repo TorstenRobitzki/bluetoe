@@ -206,7 +206,6 @@ namespace test_rig {
             : instrument_t( implementation_name, build_identifier )
         {
             static_assert( link_layer::scheduled_radio< Radio, dut_rig > );
-            static_assert( link_layer::scheduled_radio_connection_callbacks< dut_rig > );
 
             // what a link layer does once it agreed the length of a PDU with its central; the
             // rig agrees the largest, so that a test can send and receive one

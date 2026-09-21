@@ -22,32 +22,23 @@ namespace {
     using namespace bluetoe::link_layer;
     namespace details = bluetoe::details;
 
-    struct model_callbacks
+    /*
+     * The callbacks a scheduled radio delivers to, in parts, so that a model can leave one
+     * out and fail the concept for that reason alone.
+     */
+    struct advertising_callbacks
     {
         void radio_ready() {}
         void adv_received( abs_time, const read_buffer& ) {}
         void adv_timeout( abs_time ) {}
-        bool is_in_acceptance_filter( const device_address& ) { return true; }
+    };
+
+    struct timer_callback
+    {
         void user_timer( abs_time ) {}
     };
 
-    struct callbacks_without_the_timer
-    {
-        void radio_ready() {}
-        void adv_received( abs_time, const read_buffer& ) {}
-        void adv_timeout( abs_time ) {}
-        bool is_in_acceptance_filter( const device_address& ) { return true; }
-    };
-
-    struct callbacks_without_the_acceptance_filter
-    {
-        void radio_ready() {}
-        void adv_received( abs_time, const read_buffer& ) {}
-        void adv_timeout( abs_time ) {}
-        void user_timer( abs_time ) {}
-    };
-
-    struct model_connection_callbacks : model_callbacks
+    struct connection_callbacks
     {
         struct pdu_buffer
         {
@@ -65,7 +56,20 @@ namespace {
         pdu_buffer buffer_;
     };
 
-    struct callbacks_returning_the_buffer_by_value : model_connection_callbacks
+    struct software_filter
+    {
+        bool is_in_acceptance_filter( const device_address& ) { return true; }
+    };
+
+    struct model_callbacks : advertising_callbacks, timer_callback, connection_callbacks, software_filter {};
+
+    struct callbacks_without_the_timer : advertising_callbacks, connection_callbacks, software_filter {};
+
+    struct callbacks_without_the_connection_callbacks : advertising_callbacks, timer_callback, software_filter {};
+
+    struct callbacks_without_the_acceptance_filter : advertising_callbacks, timer_callback, connection_callbacks {};
+
+    struct callbacks_returning_the_buffer_by_value : model_callbacks
     {
         pdu_buffer link_layer_pdu_buffer() { return {}; }
     };
@@ -77,7 +81,7 @@ namespace {
         bool pending_outgoing_data_available() { return false; }
     };
 
-    struct callbacks_with_an_incomplete_buffer : model_connection_callbacks
+    struct callbacks_with_an_incomplete_buffer : model_callbacks
     {
         buffer_without_next_transmit& link_layer_pdu_buffer() { return incomplete_; }
 
@@ -250,6 +254,9 @@ namespace {
 
     static_assert( scheduled_radio_callbacks< model_callbacks > );
     static_assert( !scheduled_radio_callbacks< callbacks_without_the_timer > );
+    static_assert( !scheduled_radio_callbacks< callbacks_without_the_connection_callbacks > );
+    static_assert( !scheduled_radio_callbacks< callbacks_returning_the_buffer_by_value > );
+    static_assert( !scheduled_radio_callbacks< callbacks_with_an_incomplete_buffer > );
 
     static_assert( software_acceptance_filter< model_callbacks > );
     static_assert( !software_acceptance_filter< callbacks_without_the_acceptance_filter > );
@@ -257,11 +264,7 @@ namespace {
     static_assert( hardware_acceptance_filter< model_acceptance_filter > );
     static_assert( !hardware_acceptance_filter< acceptance_filter_without_clear > );
 
-    static_assert( scheduled_radio_connection_callbacks< model_connection_callbacks > );
-    static_assert( !scheduled_radio_connection_callbacks< model_callbacks > );
-    static_assert( !scheduled_radio_connection_callbacks< callbacks_returning_the_buffer_by_value > );
-    static_assert( !scheduled_radio_connection_callbacks< callbacks_with_an_incomplete_buffer > );
-    static_assert( scheduled_radio_pdu_buffer< model_connection_callbacks::pdu_buffer > );
+    static_assert( scheduled_radio_pdu_buffer< connection_callbacks::pdu_buffer > );
 
     static_assert( lesc_pairing_toolbox< model_toolbox > );
     static_assert( !lesc_pairing_toolbox< model_radio_base< model_callbacks > > );
@@ -270,7 +273,6 @@ namespace {
     static_assert( !scheduled_radio_features< model_toolbox > );
 
     static_assert( scheduled_radio< model_radio, model_callbacks > );
-    static_assert( scheduled_radio< model_radio, model_connection_callbacks > );
     static_assert( scheduled_radio< radio_without_lesc_pairing, model_callbacks > );
     static_assert( !scheduled_radio< radio_claiming_lesc_pairing_without_the_toolbox, model_callbacks > );
     static_assert( !scheduled_radio< radio_with_a_void_cancel, model_callbacks > );

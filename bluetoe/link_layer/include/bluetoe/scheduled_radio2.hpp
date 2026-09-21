@@ -76,47 +76,6 @@ namespace bluetoe {
 namespace link_layer {
 
     /**
-     * @brief the callbacks of advertising and of the timer
-     *
-     * What every type a scheduled radio delivers to provides. Context: link layer.
-     */
-    template < typename T >
-    concept scheduled_radio_callbacks = requires (
-        T                               callbacks,
-        abs_time                        when,
-        const read_buffer&              received )
-    {
-        /*
-         * Called exactly once, when the radio is ready to operate; the delay before it
-         * lets the implementation wait for PLLs to settle or entropy to be collected
-         * without polling. No scheduling function is called before it.
-         *
-         * Carries no time. Nothing has happened on the radio yet, and the link layer's
-         * first action is start_advertising(), which needs none, so an implementation
-         * is not required to run a clock before the radio is used.
-         */
-        callbacks.radio_ready();
-
-        /*
-         * An advertising event received a response. `when` is the time the first bit of
-         * the response was on air; `received` is the buffer passed to the scheduling
-         * function, filled.
-         */
-        callbacks.adv_received( when, received );
-
-        /*
-         * An advertising event received no response within its window.
-         */
-        callbacks.adv_timeout( when );
-
-        /*
-         * The timer scheduled with schedule_timer() expired. `when` is the time it was
-         * scheduled for, which may differ from the time it is delivered at.
-         */
-        callbacks.user_timer( when );
-    };
-
-    /**
      * @brief the acceptance filter a radio without filtering hardware asks the caller for
      *
      * Required of the CallBacks of a scheduled_radio whose radio_maximum_acceptance_filter_entries
@@ -181,19 +140,50 @@ namespace link_layer {
     };
 
     /**
-     * @brief the callbacks of connection events
+     * @brief the callbacks of a scheduled radio
      *
-     * Required, in addition to scheduled_radio_callbacks, of a type that schedules
-     * connection events; a link layer checks it where it does. Context: link layer, except
-     * link_layer_pdu_buffer(), which is called from the radio context and has to return
-     * immediately.
+     * What every type a scheduled radio delivers to provides: the callbacks of advertising,
+     * of the timer and of connection events, and the PDU buffer of the current connection.
+     *
+     * Context: link layer, except link_layer_pdu_buffer(), which is called from the radio
+     * context and has to return immediately.
      */
     template < typename T >
-    concept scheduled_radio_connection_callbacks = requires (
+    concept scheduled_radio_callbacks = requires (
         T                               callbacks,
         abs_time                        when,
+        const read_buffer&              received,
         connection_event_events         events )
     {
+        /*
+         * Called exactly once, when the radio is ready to operate; the delay before it
+         * lets the implementation wait for PLLs to settle or entropy to be collected
+         * without polling. No scheduling function is called before it.
+         *
+         * Carries no time. Nothing has happened on the radio yet, and the link layer's
+         * first action is start_advertising(), which needs none, so an implementation
+         * is not required to run a clock before the radio is used.
+         */
+        callbacks.radio_ready();
+
+        /*
+         * An advertising event received a response. `when` is the time the first bit of
+         * the response was on air; `received` is the buffer passed to the scheduling
+         * function, filled.
+         */
+        callbacks.adv_received( when, received );
+
+        /*
+         * An advertising event received no response within its window.
+         */
+        callbacks.adv_timeout( when );
+
+        /*
+         * The timer scheduled with schedule_timer() expired. `when` is the time it was
+         * scheduled for, which may differ from the time it is delivered at.
+         */
+        callbacks.user_timer( when );
+
         /*
          * A connection event received nothing between its start and end times.
          */
