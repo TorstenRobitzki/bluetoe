@@ -457,77 +457,85 @@ namespace test_rig {
             &tester_rig::timed_out_operation >;
 
     private:
+        /*
+         * Drains what the radio reported: a PDU it heard or sent is captured, and one that
+         * belongs to the current operation moves the program on.
+         */
         void handle_events()
         {
             for ( std::optional< tester_event > next = platform_.next_event(); next; next = platform_.next_event() )
             {
                 if ( next->kind == tester_event_kind::received )
-                {
-                    // a PDU dropped by a filter is not counted as one produced, since it
-                    // was rejected on purpose, not lost between the radio and the host
-                    if ( next->rssi > rssi_limit_ )
-                        continue;
-
-                    // only a PDU on the advertising access address carries an advertiser's address
-                    if ( access_address_ == advertising_access_address && !in_acceptance_filter( next->data ) )
-                        continue;
-
-                    captured_pdu entry;
-                    entry.when   = next->when;
-                    entry.crc_ok = next->crc_ok;
-                    entry.rssi   = next->rssi;
-                    entry.data   = next->data;
-
-                    captured_.push( entry );
-
-                    // what the first connection event is placed from
-                    reference_     = entry.when;
-                    has_reference_ = true;
-
-                    if ( next->operation_id != operation_id_ )
-                        continue;
-
-                    // a connection event ends with the reply to its last PDU, whatever its CRC
-                    if ( current_is( operation_kind::connection_event ) )
-                    {
-                        if ( ++received_ == operations_[ cursor_ ].pdu_count )
-                            advance();
-                    }
-                    // the PDU after an answer is the reply to it, whatever its CRC
-                    else if ( answered_ )
-                        advance();
-                    else if ( next->crc_ok )
-                        count_received();
-                }
+                    on_received( *next );
                 else if ( next->kind == tester_event_kind::transmitted )
-                {
-                    // what the tester sent is captured beside what it heard; no filter
-                    // applies, since the rig itself decided to send it
-                    captured_pdu entry;
-                    entry.direction = pdu_direction::transmitted;
-                    entry.when      = next->when;
-                    entry.crc_ok    = next->crc_ok;
-                    entry.data      = next->data;
-
-                    captured_.push( entry );
-
-                    if ( next->operation_id != operation_id_ )
-                        continue;
-
-                    // the first PDU of a connection event is its anchor, which the next is placed from
-                    if ( current_is( operation_kind::connection_event ) && !answered_ )
-                    {
-                        anchor_     = entry.when;
-                        has_anchor_ = true;
-                    }
-
-                    answered_ = true;
-                }
+                    on_transmitted( *next );
                 else if ( next->operation_id == operation_id_ )
-                {
                     window_ended();
-                }
             }
+        }
+
+        void on_received( const tester_event& event )
+        {
+            // a PDU dropped by a filter is not counted as one produced, since it was
+            // rejected on purpose, not lost between the radio and the host
+            if ( event.rssi > rssi_limit_ )
+                return;
+
+            // only a PDU on the advertising access address carries an advertiser's address
+            if ( access_address_ == advertising_access_address && !in_acceptance_filter( event.data ) )
+                return;
+
+            captured_pdu entry;
+            entry.when   = event.when;
+            entry.crc_ok = event.crc_ok;
+            entry.rssi   = event.rssi;
+            entry.data   = event.data;
+
+            captured_.push( entry );
+
+            // what the first connection event is placed from
+            reference_     = entry.when;
+            has_reference_ = true;
+
+            if ( event.operation_id != operation_id_ )
+                return;
+
+            // a connection event ends with the reply to its last PDU, whatever its CRC
+            if ( current_is( operation_kind::connection_event ) )
+            {
+                if ( ++received_ == operations_[ cursor_ ].pdu_count )
+                    advance();
+            }
+            // the PDU after an answer is the reply to it, whatever its CRC
+            else if ( answered_ )
+                advance();
+            else if ( event.crc_ok )
+                count_received();
+        }
+
+        void on_transmitted( const tester_event& event )
+        {
+            // what the tester sent is captured beside what it heard; no filter applies,
+            // since the rig itself decided to send it
+            captured_pdu entry;
+            entry.direction = pdu_direction::transmitted;
+            entry.when      = event.when;
+            entry.crc_ok    = event.crc_ok;
+            entry.data      = event.data;
+
+            captured_.push( entry );
+
+            if ( event.operation_id != operation_id_ )
+                return;
+
+            // the first PDU of a connection event is its anchor, which the next is placed from
+            if ( current_is( operation_kind::connection_event ) && !answered_ )
+            {
+                anchor_     = event.when;
+                has_anchor_ = true;
+            }
+
+            answered_ = true;
         }
 
         /*
