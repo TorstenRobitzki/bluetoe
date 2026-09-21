@@ -3,7 +3,6 @@ function(add_scheduled_radio_test test_runner)
 
     target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
     target_link_libraries(${test_runner} PRIVATE bluetoe::iface bluetoe::sm bluetoe::utility scheduled_radio::link scheduled_radio::host)
-    set_target_properties(${test_runner} PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
 
     add_test(${test_runner} ./${test_runner})
 endfunction()

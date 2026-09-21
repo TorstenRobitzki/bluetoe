@@ -5,13 +5,17 @@ set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(lib_bluetoe CXX)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 option(BLUETOE_BUILD_UNIT_TESTS "If true, unit test targets are added are build.")
 
 # Libray required by everything in Bluetoe. If there is need to add build options,
 # add them on bluetoe::iface.
 add_library(bluetoe_iface INTERFACE)
 add_library(bluetoe::iface ALIAS bluetoe_iface)
-target_compile_features(bluetoe_iface INTERFACE cxx_std_11)
+target_compile_features(bluetoe_iface INTERFACE cxx_std_20)
 target_include_directories(bluetoe_iface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Link Layer implementation based on radio hardware

@@ -42,4 +42,3 @@ set(BLUETOE_RAM_SIZE 256K)
 
 add_bluetoe_firmware(tester test_rig::nrf52_uart tester.cpp platform.cpp)
 target_compile_definitions(tester PRIVATE TESTER_BUILD_IDENTIFIER="${TESTER_BUILD_IDENTIFIER}")
-set_target_properties(tester PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)

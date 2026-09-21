@@ -1,6 +1,6 @@
 # Bluetoe
 
-Bluetoe is a C++11 Bluetooth Low Energy peripheral stack for very small microcontrollers:
+Bluetoe is a C++20 Bluetooth Low Energy peripheral stack for very small microcontrollers:
 a template-based GATT server, ATT/L2CAP, a link layer that runs directly on the radio,
 a security manager (legacy and LESC pairing), and hardware bindings for the Nordic nRF52.
 Everything that can be decided at compile time is; RAM and Flash Memory usage footprint is the primary design driver.
@@ -24,12 +24,10 @@ must be able to review and understand.
   shell command: a failure in the middle (e.g. a stash conflict) does not stop the rest, and
   `git add` on a conflicted file silently commits the conflict markers. Check `git status` between steps.
 - Explain the "why" of a change in plain language, not only the diff.
-- Stay on C++11. Modernisation (C++14/17 features, simplifying the meta-programming) is a
-  deliberate, separate project for a later session. Do not propose or sneak in newer language
-  features as part of unrelated changes.
-- The exception is the scheduled radio 2 work: the new radio interface, `abs_time`, the test rig,
-  the tester and their host side tooling may use any standard that helps. It does not extend to the
-  existing link layer, the GATT layer or the current bindings. See `tests/scheduled_radio/README.md`.
+- The project compiles as C++20, everywhere. Most of the library was written for C++11 and is
+  not rewritten for its own sake: use C++20 where code is refactored or extended and it makes the
+  code clearer (concepts for interfaces, `if constexpr`, `std::span`), not as a modernisation pass
+  over code that is otherwise untouched.
 
 ## Layout
 
@@ -47,7 +45,7 @@ must be able to review and understand.
 
 ## Building and testing
 
-Host build with unit tests (requires CMake, Boost headers, a C++11 compiler). The primary test
+Host build with unit tests (requires CMake, Boost headers, a C++20 compiler). The primary test
 configuration is **Debug**: the library contains several hundred `assert()` calls that are the
 first line of defence against protocol and buffer errors, and a Release build defines `NDEBUG`,
 which compiles all of them out.
@@ -84,10 +82,9 @@ that only works because a check fired first. Both configurations must pass.
 
 - Unit tests on Linux with GCC and Clang, each in Debug and Release, and on macOS in Debug.
   Linux is the strict platform: Apple's standard library includes more headers transitively,
-  so missing includes only show up there. CI compiles with `-std=c++11` (no GNU extensions)
-  and `-Werror`; without the pin, CMake accepts the compiler's default standard, which is newer
-  than C++11 on every current compiler and would hide C++11 violations. The build keeps going after the first error
-  (`ninja -k 0`) so one run lists every failing file.
+  so missing includes only show up there. Every project sets `-std=c++20` (no GNU extensions)
+  itself, and CI adds `-Werror`. The build keeps going after the first error (`ninja -k 0`) so
+  one run lists every failing file.
 - The nRF52 examples are cross compiled with the same arm-none-eabi-gcc as `platforms/docker/`.
   The Nordic SDK headers come from the public nrfx and CMSIS repositories, because Nordic's
   SDK download rejects scripted access. Flash and RAM size of every example are recorded in
@@ -100,8 +97,8 @@ job log: `gh run view <run id> --log` or `gh api repos/TorstenRobitzki/bluetoe/a
 
 ## Code conventions
 
-- C++11 only. No exceptions, no RTTI, no dynamic allocation in library code. Firmware is built
-  with `-fno-exceptions -fno-rtti -nostdlib`.
+- No exceptions, no RTTI, no dynamic allocation in library code. Firmware is built with
+  `-fno-exceptions -fno-rtti -nostdlib`.
 - Indentation: 4 spaces for every file type, including YAML, CMake and shell scripts
   (see `.editorconfig`). Braces on their own line. Spaces inside parentheses: `foo( a, b )`, `if ( x )`.
 - Naming: `snake_case` for everything; private members end in an underscore (`receive_size_`);

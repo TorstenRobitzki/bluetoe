@@ -25,7 +25,7 @@ target_link_libraries(bluetoe_bindings_nrf52
         toolchain::${BINDING}
 )
 
-target_compile_features(bluetoe_bindings_nrf52 INTERFACE cxx_std_11)
+target_compile_features(bluetoe_bindings_nrf52 INTERFACE cxx_std_20)
 target_compile_options(bluetoe_bindings_nrf52 INTERFACE -Wall -pedantic -Wextra -Wfatal-errors -Wno-parentheses)
 
 # The scheduled radio of bluetoe/scheduled_radio2.hpp, developed beside the binding above. A
@@ -58,5 +58,4 @@ target_link_libraries(bluetoe_bindings_nrf52_radio
         toolchain::${BINDING}
 )
 
-set_target_properties(bluetoe_bindings_nrf52_radio PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
 target_compile_options(bluetoe_bindings_nrf52_radio INTERFACE -Wall -pedantic -Wextra -Wfatal-errors -Wno-parentheses)

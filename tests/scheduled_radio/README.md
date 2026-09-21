@@ -87,8 +87,7 @@ before anything is flashed, since a bug in the rig would present as a bug in the
 
 **The interfaces are concepts.** `scheduled_radio< Radio, CallBacks >` and `serial_port` are C++20
 concepts, checked where a rig is instantiated and tested against models in
-`self_tests/concept_tests.cpp`. This directory is not bound to the C++11 of the library; its targets
-set their own standard.
+`self_tests/concept_tests.cpp`.
 
 ## Layout
 

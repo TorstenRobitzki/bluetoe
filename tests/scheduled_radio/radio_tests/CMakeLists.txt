@@ -11,7 +11,6 @@ function(add_radio_test name)
     target_include_directories(${test_runner} SYSTEM PRIVATE ${Boost_INCLUDE_DIR})
     target_include_directories(${test_runner} PRIVATE ${CMAKE_SOURCE_DIR}/tests)
     target_link_libraries(${test_runner} PRIVATE scheduled_radio::test_tools test::tools)
-    set_target_properties(${test_runner} PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
 
     add_test(${test_runner} ./${test_runner})
     set_tests_properties(${test_runner} PROPERTIES LABELS radio)

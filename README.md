@@ -148,7 +148,7 @@ Feature Support|LE Encryption|implemented
 
 - Boost for Unit tests
 - CMake for build
-- A decent C++ compiler supporting C++11
+- A decent C++ compiler supporting C++20
 
 # Current Measurements
 
