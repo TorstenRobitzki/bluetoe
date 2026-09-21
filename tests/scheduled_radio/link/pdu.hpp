@@ -23,6 +23,12 @@ namespace test_rig {
     constexpr std::size_t max_advertising_pdu_size = 2 + 37;
 
     /**
+     * @brief the largest data channel PDU: two bytes of header and the payload of the Core
+     *        Specification, Vol 6, Part B, section 2.4
+     */
+    constexpr std::size_t max_data_pdu_size = 2 + 251;
+
+    /**
      * @brief the largest PDU of any channel: two bytes of header and the length field's
      *        largest payload
      */

@@ -77,7 +77,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_at_2_mbit, connection_fixture 
 BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received_at_2_mbit, connection_fixture )
 {
     const auto advertisement = advertising( 6, 0x01 );
-    const auto payload       = payload_of( largest_data_pdu_size - 2 );
+    const auto payload       = payload_of( max_data_pdu_size - 2 );
 
     central tester_side;
     const auto data = tester_side.send( payload, no_more_data, llid::start );
@@ -117,7 +117,7 @@ BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received_at_2_mb
 BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent_at_2_mbit, connection_fixture )
 {
     const auto advertisement = advertising( 6, 0x01 );
-    const auto payload       = payload_of( largest_data_pdu_size - 2 );
+    const auto payload       = payload_of( max_data_pdu_size - 2 );
 
     central tester_side;
     const auto from_central = tester_side.send();

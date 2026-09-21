@@ -71,12 +71,6 @@ namespace test_rig {
     constexpr std::size_t max_acceptance_filter_entries = 4;
 
     /**
-     * @brief the largest data channel PDU: two bytes of header and the payload of the Core
-     *        Specification, Vol 6, Part B, section 2.4
-     */
-    constexpr std::size_t largest_data_pdu_size = 2 + 251;
-
-    /**
      * @brief how many PDUs of the largest size the receive side of the PDU buffer holds
      *        before it has no room, and the transmit side takes
      */
@@ -88,7 +82,7 @@ namespace test_rig {
      * The rig is a link layer that negotiated the largest PDU, so the buffer reserves that
      * much room per PDU whatever a PDU carries; this many of them fit.
      */
-    constexpr std::size_t pdu_buffer_size = received_pdus_until_full * largest_data_pdu_size;
+    constexpr std::size_t pdu_buffer_size = received_pdus_until_full * max_data_pdu_size;
 
     /**
      * @brief the PDU buffers of the rig, one for each connection a test runs on the radio
@@ -213,8 +207,8 @@ namespace test_rig {
             // rig agrees the largest, so that a test can send and receive one
             for ( pdu_buffer& buffer : pdu_buffers_ )
             {
-                buffer.max_rx_size( largest_data_pdu_size );
-                buffer.max_tx_size( largest_data_pdu_size );
+                buffer.max_rx_size( max_data_pdu_size );
+                buffer.max_tx_size( max_data_pdu_size );
             }
 
             instrument_t::start();

@@ -490,7 +490,7 @@ BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_without_length_extension_of_the_ce
 
 BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received, connection_fixture, *if_tester )
 {
-    a_data_pdu_of_the_central_is_received( *this, largest_data_pdu_size - 2 );
+    a_data_pdu_of_the_central_is_received( *this, max_data_pdu_size - 2 );
 }
 
 BOOST_FIXTURE_TEST_CASE( the_smallest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
@@ -510,7 +510,7 @@ BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_without_length_extension_of_the_de
 
 BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent, connection_fixture, *if_tester )
 {
-    a_data_pdu_of_the_device_is_sent( *this, largest_data_pdu_size - 2 );
+    a_data_pdu_of_the_device_is_sent( *this, max_data_pdu_size - 2 );
 }
 
 /*
@@ -662,7 +662,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_without_room_in_the_buffer_is_refused_until_the_b
     static_assert( received_pdus_until_full == max_event_pdus, "the first event fills the buffer" );
 
     // the buffer holds this many PDUs of the largest payload, whatever a PDU carries
-    constexpr std::size_t payload = largest_data_pdu_size - 2;
+    constexpr std::size_t payload = max_data_pdu_size - 2;
 
     // four exchanges of the largest PDUs take about 10 ms, so the events are further apart
     interval = 30ms;
