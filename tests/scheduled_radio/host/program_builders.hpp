@@ -14,6 +14,7 @@
 #include "link/tester_program.hpp"
 
 #include <bluetoe/address.hpp>
+#include <bluetoe/ll_constants.hpp>
 
 #include <chrono>
 #include <concepts>
@@ -361,7 +362,7 @@ namespace test_rig {
     inline tester_step connection_event(
         std::uint32_t channel, std::chrono::nanoseconds after,
         std::initializer_list< event_pdu > pdus,
-        std::chrono::nanoseconds t_ifs = std::chrono::microseconds( 150 ) )
+        std::chrono::nanoseconds t_ifs = std::chrono::microseconds( link_layer::inter_frame_space_us ) )
     {
         // an exchange of the largest PDUs at 1 Mbit takes about 4.3 ms, one each way
         constexpr std::chrono::milliseconds per_exchange( 5 );

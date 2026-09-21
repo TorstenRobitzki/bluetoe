@@ -12,27 +12,27 @@
 
 #include "link/serialize.hpp"
 
+#include <bluetoe/ll_constants.hpp>
+
 #include <cstddef>
 
 namespace bluetoe {
 namespace test_rig {
 
     /**
-     * @brief a legacy advertising PDU: two bytes of header and up to 37 of payload
+     * @brief a legacy advertising PDU: the header and the largest advertising payload
      */
-    constexpr std::size_t max_advertising_pdu_size = 2 + 37;
+    constexpr std::size_t max_advertising_pdu_size = link_layer::pdu_header_size + link_layer::max_advertising_payload_size;
 
     /**
-     * @brief the largest data channel PDU: two bytes of header and the payload of the Core
-     *        Specification, Vol 6, Part B, section 2.4
+     * @brief the largest data channel PDU: the header and the largest data payload
      */
-    constexpr std::size_t max_data_pdu_size = 2 + 251;
+    constexpr std::size_t max_data_pdu_size = link_layer::pdu_header_size + link_layer::max_data_payload_size;
 
     /**
-     * @brief the largest PDU of any channel: two bytes of header and the length field's
-     *        largest payload
+     * @brief the largest PDU of any channel: the header and the length field's largest payload
      */
-    constexpr std::size_t max_pdu_size = 2 + 255;
+    constexpr std::size_t max_pdu_size = link_layer::pdu_header_size + link_layer::max_payload_size;
 
     using pdu = bytes< max_pdu_size >;
 

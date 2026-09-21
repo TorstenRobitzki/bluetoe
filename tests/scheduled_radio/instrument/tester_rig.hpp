@@ -30,6 +30,7 @@
 #include "link/tester_program.hpp"
 
 #include <bluetoe/address.hpp>
+#include <bluetoe/ll_constants.hpp>
 
 #include <array>
 #include <concepts>
@@ -74,8 +75,8 @@ namespace test_rig {
      * filter applies to it; a PDU on any other access address carries none, and the filter
      * does not apply.
      */
-    constexpr std::uint32_t advertising_access_address = 0x8E89BED6;
-    constexpr std::uint32_t advertising_crc_init       = 0x555555;
+    using link_layer::advertising_access_address;
+    using link_layer::advertising_crc_init;
 
     /**
      * @brief what the tester's radio reports to the program interpreter

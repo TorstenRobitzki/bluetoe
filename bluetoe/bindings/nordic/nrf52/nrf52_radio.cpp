@@ -1,4 +1,5 @@
 #include <bluetoe/nrf52_radio.hpp>
+#include <bluetoe/ll_constants.hpp>
 
 #include <nrf.h>
 
@@ -76,7 +77,8 @@ namespace bluetoe
              * longest legacy response (CONNECT_IND: preamble, access address, header, 34
              * bytes, CRC, at 1 Mbit) and a margin for the receiver's ramp up.
              */
-            constexpr std::uint32_t inter_frame_space_us    = 150;
+            using link_layer::inter_frame_space_us;
+
             constexpr std::uint32_t longest_response_us     = ( 1 + 4 + 2 + 34 + 3 ) * 8;
             constexpr std::uint32_t response_window_us      = inter_frame_space_us + longest_response_us + 50;
 
@@ -132,8 +134,8 @@ namespace bluetoe
             constexpr std::uint8_t  sn_mask                     = 0x08;
             constexpr std::uint8_t  md_mask                     = 0x10;
 
-            constexpr std::uint32_t advertising_access_address  = 0x8E89BED6;
-            constexpr std::uint32_t advertising_crc_init        = 0x555555;
+            using link_layer::advertising_access_address;
+            using link_layer::advertising_crc_init;
 
             /*
              * The TxAdd bit of an advertising channel PDU header: set when the sender's

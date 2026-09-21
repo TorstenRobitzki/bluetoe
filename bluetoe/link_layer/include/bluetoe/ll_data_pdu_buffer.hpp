@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include <bluetoe/default_pdu_layout.hpp>
+#include <bluetoe/ll_constants.hpp>
 #include "ring_buffer.hpp"
 
 namespace bluetoe {
@@ -65,7 +66,7 @@ namespace link_layer {
          * The Core Specification, Vol 6, Part B, section 2.4 bounds the payload of a data
          * channel PDU at 251 octets.
          */
-        static constexpr std::size_t    max_buffer_size = 2 + 251;
+        static constexpr std::size_t    max_buffer_size = pdu_header_size + max_data_payload_size;
 
         /**
          * @brief 16 bit header size of a link layer PDU

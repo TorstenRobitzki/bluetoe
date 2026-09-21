@@ -59,6 +59,7 @@
 #include <bluetoe/address.hpp>
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/connection_events.hpp>
+#include <bluetoe/ll_constants.hpp>
 #include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/phy_encodings.hpp>
 
@@ -275,7 +276,7 @@ namespace bluetoe
              * on after the answer being sent.
              */
             pdu_buffer_access           buffer_;
-            std::uint8_t                scratch_[ 2 + 255 ];
+            std::uint8_t                scratch_[ link_layer::pdu_header_size + link_layer::max_payload_size ];
             link_layer::read_buffer     reception_;
             volatile bool               into_scratch_;
             volatile bool               received_any_;

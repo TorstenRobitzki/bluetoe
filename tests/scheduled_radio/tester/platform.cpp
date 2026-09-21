@@ -1,5 +1,7 @@
 #include "tester/platform.hpp"
 
+#include <bluetoe/ll_constants.hpp>
+
 #include <nrf.h>
 
 #include <algorithm>
@@ -101,8 +103,9 @@ namespace test_rig {
          * to the first bit of the answer. The radio's TIFS does not keep it with fast ramp
          * up, so the timer starts the transmitter one ramp up earlier.
          */
-        constexpr std::uint32_t inter_frame_space_us = 150;
-        constexpr std::uint32_t fast_ramp_up_us      = 40;
+        using link_layer::inter_frame_space_us;
+
+        constexpr std::uint32_t fast_ramp_up_us = 40;
 
         // the ticks from the first bit of a packet to its last: preamble, access address,
         // header, payload and CRC
