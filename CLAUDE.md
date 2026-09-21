@@ -29,8 +29,7 @@ must be able to review and understand.
   features as part of unrelated changes.
 - The exception is the scheduled radio 2 work: the new radio interface, `abs_time`, the test rig,
   the tester and their host side tooling may use any standard that helps. It does not extend to the
-  existing link layer, the GATT layer or the current bindings. See
-  `documentation/scheduled_radio_test_rig.md`.
+  existing link layer, the GATT layer or the current bindings. See `tests/scheduled_radio/README.md`.
 
 ## Layout
 
