@@ -7,6 +7,5 @@ target_link_libraries(bluetoe_bindings_nordic
         toolchain::${BINDING})
 
 add_subdirectory(uECC)
-add_subdirectory(nrf51)
 add_subdirectory(nrf52)
 

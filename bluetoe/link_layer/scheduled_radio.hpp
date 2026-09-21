@@ -447,7 +447,7 @@ namespace link_layer {
      * @brief type that provides types and functions to access the differnt parts of a receiving PDU.
      *
      * There might be technical reasons, why an in memory PDU might differ in layout from an over the air PDU.
-     * This indirection is supposed to resolve such cases. (Currently, it's nrf51/52 that requires this).
+     * This indirection is supposed to resolve such cases. (Currently, it's the nrf52 that requires this).
      *
      * By default, bluetoe::link_layer::default_pdu_layout is used. To override this for a radio R, specialize
      * bluetoe::link_layer::pdu_layout_by_radio for R to define an alias to the layout type to be used:

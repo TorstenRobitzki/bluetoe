@@ -15,7 +15,7 @@ namespace bluetoe
     }
 
     /**
-     * @brief namespace with nRF51/52 specific configuration options
+     * @brief namespace with nRF52 specific configuration options
      */
     namespace nrf
     {
