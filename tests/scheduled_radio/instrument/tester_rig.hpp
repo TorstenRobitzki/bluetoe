@@ -22,14 +22,15 @@
  * carries a type of the platform.
  */
 
+#include "instrument/address_set.hpp"
 #include "instrument/instrument.hpp"
+#include "instrument/reported_queue.hpp"
 #include "link/frame.hpp"
 #include "link/function_list.hpp"
 #include "link/tester_program.hpp"
 
 #include <bluetoe/address.hpp>
 
-#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -314,17 +315,14 @@ namespace test_rig {
          */
         bool add_to_acceptance_filter( const link_layer::device_address& address )
         {
-            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
-
-            if ( std::find( acceptance_filter_.begin(), end, address ) != end )
+            if ( acceptance_filter_.contains( address ) )
                 return true;
 
-            if ( acceptance_filter_count_ == max_acceptance_filter_entries )
+            if ( !acceptance_filter_.add( address ) )
                 return false;
 
-            acceptance_filter_[ acceptance_filter_count_ ] = address;
-            platform_.accept_advertiser( acceptance_filter_count_, address );
-            ++acceptance_filter_count_;
+            // the radio matches the same addresses, one slot each, in the order added
+            platform_.accept_advertiser( acceptance_filter_.size() - 1, address );
 
             return true;
         }
@@ -402,10 +400,7 @@ namespace test_rig {
 
             // a program's received PDUs are numbered from zero; unlike the device under
             // test the tester is not reset between tests, so start clears the queue
-            head_      = 0;
-            queued_    = 0;
-            produced_  = 0;
-            collected_ = 0;
+            captured_.clear();
 
             begin_current();
 
@@ -441,22 +436,7 @@ namespace test_rig {
          */
         captured_batch collect_captured()
         {
-            captured_batch batch;
-
-            batch.first    = collected_;
-            batch.produced = produced_;
-
-            while ( batch.count != captured_per_batch && queued_ != 0 )
-            {
-                batch.captured[ batch.count ] = captured_[ head_ ];
-
-                head_ = ( head_ + 1 ) % captured_queue_size;
-                --queued_;
-                ++collected_;
-                ++batch.count;
-            }
-
-            return batch;
+            return captured_.collect< captured_per_batch >();
         }
         /** @} */
 
@@ -498,7 +478,7 @@ namespace test_rig {
                     entry.rssi   = next->rssi;
                     entry.data   = next->data;
 
-                    enqueue( entry );
+                    captured_.push( entry );
 
                     // what the first connection event is placed from
                     reference_     = entry.when;
@@ -529,7 +509,7 @@ namespace test_rig {
                     entry.crc_ok    = next->crc_ok;
                     entry.data      = next->data;
 
-                    enqueue( entry );
+                    captured_.push( entry );
 
                     if ( next->operation_id != operation_id_ )
                         continue;
@@ -558,7 +538,7 @@ namespace test_rig {
          */
         bool in_acceptance_filter( const pdu& data ) const
         {
-            if ( acceptance_filter_count_ == 0 )
+            if ( acceptance_filter_.empty() )
                 return true;
 
             constexpr std::uint8_t tx_add_mask = 0x40;
@@ -566,9 +546,7 @@ namespace test_rig {
             const bool is_random = data.data[ 0 ] & tx_add_mask;
             const link_layer::device_address advertiser( &data.data[ 2 ], is_random );
 
-            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
-
-            return std::find( acceptance_filter_.begin(), end, advertiser ) != end;
+            return acceptance_filter_.contains( advertiser );
         }
 
         bool current_is( operation_kind kind ) const
@@ -683,26 +661,10 @@ namespace test_rig {
             }
         }
 
-        /*
-         * A full queue drops the newest PDU and counts it anyway, so that the host sees
-         * the gap in the count rather than a rewritten history.
-         */
-        void enqueue( const captured_pdu& entry )
-        {
-            ++produced_;
-
-            if ( queued_ == captured_queue_size )
-                return;
-
-            captured_[ ( head_ + queued_ ) % captured_queue_size ] = entry;
-            ++queued_;
-        }
-
         Platform                                        platform_;
         std::uint8_t                                    rssi_limit_         = accept_any_rssi;
 
-        std::array< link_layer::device_address, max_acceptance_filter_entries >  acceptance_filter_;
-        std::size_t                                                             acceptance_filter_count_ = 0;
+        address_set< max_acceptance_filter_entries >    acceptance_filter_;
 
         std::array< operation, max_operations >         operations_;
         std::uint8_t                                    operation_count_    = 0;
@@ -722,11 +684,7 @@ namespace test_rig {
         std::array< pdu, max_program_pdus >             program_pdus_;
         std::uint8_t                                    program_pdu_count_  = 0;
 
-        std::array< captured_pdu, captured_queue_size > captured_;
-        std::size_t                                     head_               = 0;
-        std::size_t                                     queued_             = 0;
-        std::uint32_t                                   produced_           = 0;
-        std::uint32_t                                   collected_          = 0;
+        reported_queue< captured_pdu, captured_queue_size > captured_;
     };
 }
 }

@@ -14,6 +14,7 @@
  * device under test's records use (decision 7).
  */
 
+#include "link/batch.hpp"
 #include "link/pdu.hpp"
 #include "link/serialize.hpp"
 
@@ -173,19 +174,9 @@ namespace test_rig {
     constexpr std::size_t captured_per_batch = 1;
 
     /**
-     * @brief the PDUs the tester hands over in one response
-     *
-     * `first` is the index of captured[ 0 ] among all PDUs of the program, `produced` how
-     * many it captured so far; a PDU with an index below `produced` that never arrives was
-     * dropped by a full queue.
+     * @brief the PDUs the tester hands over in one response, counted since the program started
      */
-    struct captured_batch
-    {
-        std::uint32_t                                   first       = 0;
-        std::uint32_t                                   produced    = 0;
-        std::uint8_t                                    count       = 0;
-        std::array< captured_pdu, captured_per_batch >  captured;
-    };
+    using captured_batch = batch< captured_pdu, captured_per_batch >;
 
     template < sink Sink >
     bool serialize( Sink& out, const tester_time& value )
@@ -229,19 +220,6 @@ namespace test_rig {
         return deserialize( in, fields );
     }
 
-    template < sink Sink >
-    bool serialize( Sink& out, const captured_batch& value )
-    {
-        return serialize( out, std::tie( value.first, value.produced, value.count, value.captured ) );
-    }
-
-    template < source Source >
-    bool deserialize( Source& in, captured_batch& value )
-    {
-        auto fields = std::tie( value.first, value.produced, value.count, value.captured );
-
-        return deserialize( in, fields ) && value.count <= captured_per_batch;
-    }
 }
 }
 

@@ -255,7 +255,7 @@ namespace {
                 const record_batch batch = remote.call< &rig_t::collect_records >();
 
                 BOOST_REQUIRE_EQUAL( batch.first, result.size() );
-                result.insert( result.end(), batch.records.begin(), batch.records.begin() + batch.count );
+                result.insert( result.end(), batch.items.begin(), batch.items.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;
@@ -455,7 +455,7 @@ BOOST_FIXTURE_TEST_CASE( records_come_in_batches_with_continuing_indices, fixtur
     const record_batch third = remote.call< &rig_t::collect_records >();
     BOOST_CHECK_EQUAL( third.first, 2 * records_per_batch );
     BOOST_CHECK_EQUAL( third.count, 1u );
-    BOOST_CHECK_EQUAL( third.records[ 0 ].when.data(), 8u );
+    BOOST_CHECK_EQUAL( third.items[ 0 ].when.data(), 8u );
 
     const record_batch empty = remote.call< &rig_t::collect_records >();
     BOOST_CHECK_EQUAL( empty.first, 9u );
@@ -474,7 +474,7 @@ BOOST_FIXTURE_TEST_CASE( a_full_queue_drops_the_newest_and_counts_them, fixture 
     do
     {
         batch = remote.call< &rig_t::collect_records >();
-        kept.insert( kept.end(), batch.records.begin(), batch.records.begin() + batch.count );
+        kept.insert( kept.end(), batch.items.begin(), batch.items.begin() + batch.count );
     }
     while ( batch.count != 0 );
 
@@ -896,7 +896,7 @@ BOOST_AUTO_TEST_CASE( a_full_record_batch_and_a_full_received_batch_fit_into_one
 
     record_batch records;
     records.count = records_per_batch;
-    records.records.fill( largest );
+    records.items.fill( largest );
 
     received_batch received;
     received.count = received_per_batch;

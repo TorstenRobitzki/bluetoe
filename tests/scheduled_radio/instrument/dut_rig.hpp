@@ -24,7 +24,9 @@
  * in one queue, in the order it happened.
  */
 
+#include "instrument/address_set.hpp"
 #include "instrument/instrument.hpp"
+#include "instrument/reported_queue.hpp"
 #include "link/frame.hpp"
 #include "link/function_list.hpp"
 #include "link/program.hpp"
@@ -290,10 +292,7 @@ namespace test_rig {
          */
         bool is_in_acceptance_filter( const link_layer::device_address& sender ) const
         {
-            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
-
-            return acceptance_filter_count_ == 0
-                || std::find( acceptance_filter_.begin(), end, sender ) != end;
+            return acceptance_filter_.empty() || acceptance_filter_.contains( sender );
         }
         /** @} */
 
@@ -427,22 +426,7 @@ namespace test_rig {
          */
         record_batch collect_records()
         {
-            record_batch batch;
-
-            batch.first    = collected_;
-            batch.produced = produced_;
-
-            while ( batch.count != records_per_batch && queued_ != 0 )
-            {
-                batch.records[ batch.count ] = records_[ head_ ];
-
-                head_ = ( head_ + 1 ) % record_queue_size;
-                --queued_;
-                ++collected_;
-                ++batch.count;
-            }
-
-            return batch;
+            return records_.collect< records_per_batch >();
         }
 
         /**
@@ -506,18 +490,7 @@ namespace test_rig {
          */
         bool add_to_acceptance_filter( const link_layer::device_address& address )
         {
-            const auto end = acceptance_filter_.begin() + acceptance_filter_count_;
-
-            if ( std::find( acceptance_filter_.begin(), end, address ) != end )
-                return true;
-
-            if ( acceptance_filter_count_ == max_acceptance_filter_entries )
-                return false;
-
-            acceptance_filter_[ acceptance_filter_count_ ] = address;
-            ++acceptance_filter_count_;
-
-            return true;
+            return acceptance_filter_.add( address );
         }
         /** @} */
 
@@ -630,7 +603,7 @@ namespace test_rig {
             entry.when      = when;
             entry.data      = data;
             entry.events    = events;
-            add_record( entry );
+            records_.push( entry );
 
             run_step_if_waiting_for( kind, when );
         }
@@ -714,22 +687,7 @@ namespace test_rig {
                 break;
             }
 
-            add_record( entry );
-        }
-
-        /*
-         * A full queue drops the newest record and counts it anyway, so that the host
-         * sees the gap in the count rather than a rewritten history.
-         */
-        void add_record( const record& entry )
-        {
-            ++produced_;
-
-            if ( queued_ == record_queue_size )
-                return;
-
-            records_[ ( head_ + queued_ ) % record_queue_size ] = entry;
-            ++queued_;
+            records_.push( entry );
         }
 
         /*
@@ -780,14 +738,9 @@ namespace test_rig {
         std::size_t                                     read_head_              = 0;
         std::size_t                                     read_count_             = 0;
 
-        std::array< record, record_queue_size >         records_;
-        std::size_t                                     head_                   = 0;
-        std::size_t                                     queued_                 = 0;
-        std::uint32_t                                   produced_               = 0;
-        std::uint32_t                                   collected_              = 0;
+        reported_queue< record, record_queue_size >     records_;
 
-        std::array< link_layer::device_address, max_acceptance_filter_entries >  acceptance_filter_;
-        std::size_t                                                              acceptance_filter_count_ = 0;
+        address_set< max_acceptance_filter_entries >    acceptance_filter_;
     };
 }
 }

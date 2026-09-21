@@ -15,6 +15,7 @@
  * the host notices that the rig had to drop some.
  */
 
+#include "link/batch.hpp"
 #include "link/pdu.hpp"
 #include "link/serialize.hpp"
 
@@ -183,19 +184,9 @@ namespace test_rig {
     }
 
     /**
-     * @brief the records the rig hands over in one response
-     *
-     * `first` is the index of records[ 0 ] among all records since the rig started,
-     * `produced` how many exist so far. A record with an index below `produced` that
-     * never arrives was dropped by a full queue.
+     * @brief the records the rig hands over in one response, counted since the rig started
      */
-    struct record_batch
-    {
-        std::uint32_t                                   first       = 0;
-        std::uint32_t                                   produced    = 0;
-        std::uint8_t                                    count       = 0;
-        std::array< record, records_per_batch >         records;
-    };
+    using record_batch = batch< record, records_per_batch >;
 
     template < sink Sink >
     bool serialize( Sink& out, const call& value )
@@ -227,19 +218,6 @@ namespace test_rig {
         return deserialize( in, fields );
     }
 
-    template < sink Sink >
-    bool serialize( Sink& out, const record_batch& value )
-    {
-        return serialize( out, std::tie( value.first, value.produced, value.count, value.records ) );
-    }
-
-    template < source Source >
-    bool deserialize( Source& in, record_batch& value )
-    {
-        auto fields = std::tie( value.first, value.produced, value.count, value.records );
-
-        return deserialize( in, fields ) && value.count <= records_per_batch;
-    }
 }
 }
 

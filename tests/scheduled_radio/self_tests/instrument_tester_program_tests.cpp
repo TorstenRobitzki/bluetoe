@@ -287,7 +287,7 @@ namespace {
                 const captured_batch batch = remote.call< &rig_t::collect_captured >();
 
                 BOOST_REQUIRE_EQUAL( batch.first, result.size() );
-                result.insert( result.end(), batch.captured.begin(), batch.captured.begin() + batch.count );
+                result.insert( result.end(), batch.items.begin(), batch.items.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;
@@ -451,7 +451,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_from_outside_the_acceptance_filter_is_dropped_not
     // only the accepted advertiser is kept, and the other is not counted as produced
     BOOST_REQUIRE_EQUAL( batch.count, 1u );
     BOOST_CHECK_EQUAL( batch.produced, 1u );
-    BOOST_CHECK( batch.captured[ 0 ].data == pdu( adv_ind ) );
+    BOOST_CHECK( batch.items[ 0 ].data == pdu( adv_ind ) );
 }
 
 // the radio matches the same advertisers, one slot each, in the order they were added

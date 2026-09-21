@@ -499,7 +499,7 @@ namespace test_rig {
             for ( ;; )
             {
                 const record_batch batch = device.call< &dut::collect_records >();
-                result.insert( result.end(), batch.records.begin(), batch.records.begin() + batch.count );
+                result.insert( result.end(), batch.items.begin(), batch.items.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;
@@ -551,7 +551,7 @@ namespace test_rig {
             for ( ;; )
             {
                 const captured_batch batch = observer.call< &tester::collect_captured >();
-                result.insert( result.end(), batch.captured.begin(), batch.captured.begin() + batch.count );
+                result.insert( result.end(), batch.items.begin(), batch.items.begin() + batch.count );
 
                 if ( batch.count == 0 )
                     return result;
