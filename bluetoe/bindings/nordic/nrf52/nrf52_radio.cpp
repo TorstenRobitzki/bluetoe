@@ -306,15 +306,7 @@ namespace bluetoe
             , scratch_{}
             , reception_{ nullptr, 0 }
             , into_scratch_( false )
-            , received_any_( false )
-            , continues_( false )
-            , crc_errors_in_a_row_( 0 )
-            , anchor_()
-            , connection_end_()
-            , last_transmitted_more_data_( false )
-            , unacknowledged_( false )
-            , unacknowledged_sn_( false )
-            , connection_events_()
+            , connection_()
             , connection_2mbit_( false )
         {
             assert( instance_ == nullptr );
@@ -558,13 +550,8 @@ namespace bluetoe
             // pending lasts until the callback is delivered; see next_event()
             assert( state_ == state::idle );
 
-            received_any_               = false;
-            continues_                  = false;
-            crc_errors_in_a_row_        = 0;
-            unacknowledged_             = false;
-            connection_end_             = end;
-            last_transmitted_more_data_ = false;
-            connection_events_          = link_layer::connection_event_events();
+            connection_     = connection_event_state();
+            connection_.end = end;
 
             configure_phy( connection_2mbit_ );
 
@@ -604,7 +591,7 @@ namespace bluetoe
             const interrupts_off no_interruption;
 
             // a connection event that has not started, the same way, with the receiver
-            if ( state_ == state::connection_receiving && !received_any_ )
+            if ( state_ == state::connection_receiving && !connection_.received_any )
             {
                 NRF_PPI->CHENCLR = ppi_compare0_rxen;
 
@@ -707,7 +694,7 @@ namespace bluetoe
                 radio_event_pending_ = false;
                 state_               = state::idle;
 
-                return happened{ radio_event_, radio_event_time_, { receive_.buffer, received_size_ }, connection_events_ };
+                return happened{ radio_event_, radio_event_time_, { receive_.buffer, received_size_ }, connection_.events };
             }
 
             if ( timer_event_pending_ )
@@ -940,7 +927,7 @@ namespace bluetoe
         {
             if ( state_ == state::connection_transmitting )
             {
-                if ( !continues_ )
+                if ( !connection_.continues )
                 {
                     state_ = state::connection_closing;
                     return;
@@ -965,10 +952,10 @@ namespace bluetoe
             const std::uint32_t payload_size = reception_.buffer[ 1 ];
 
             // the anchor is the first bit of the first packet, whatever its CRC
-            if ( !received_any_ )
+            if ( !connection_.received_any )
             {
-                anchor_       = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( timing( connection_2mbit_ ), payload_size ) );
-                received_any_ = true;
+                connection_.anchor       = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( timing( connection_2mbit_ ), payload_size ) );
+                connection_.received_any = true;
             }
 
             // the window closed before the address, and the disable ends the event
@@ -979,10 +966,10 @@ namespace bluetoe
 
             if ( crc_ok )
             {
-                crc_errors_in_a_row_ = 0;
+                connection_.crc_errors_in_a_row = 0;
 
-                connection_events_.last_received_not_empty     = payload_size != 0;
-                connection_events_.last_received_had_more_data = header & md_mask;
+                connection_.events.last_received_not_empty     = payload_size != 0;
+                connection_.events.last_received_had_more_data = header & md_mask;
 
                 // without room nothing is taken from the PDU, not even its acknowledgement, so
                 // the PDU sent before goes out again unchanged
@@ -992,17 +979,17 @@ namespace bluetoe
                 }
                 else
                 {
-                    if ( unacknowledged_ && static_cast< bool >( header & nesn_mask ) != unacknowledged_sn_ )
-                        unacknowledged_ = false;
+                    if ( connection_.unacknowledged && static_cast< bool >( header & nesn_mask ) != connection_.unacknowledged_sn )
+                        connection_.unacknowledged = false;
 
                     answer = buffer_.received( this, reception_ );
                 }
             }
             else
             {
-                connection_events_.error_occured = true;
+                connection_.events.error_occured = true;
 
-                if ( ++crc_errors_in_a_row_ == 2 )
+                if ( ++connection_.crc_errors_in_a_row == 2 )
                 {
                     NRF_RADIO->SHORTS        = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
                     NRF_RADIO->TASKS_DISABLE = 1;
@@ -1019,17 +1006,17 @@ namespace bluetoe
 
             const std::uint8_t answer_header = answer.buffer[ 0 ];
 
-            last_transmitted_more_data_                   = answer_header & md_mask;
-            connection_events_.last_transmitted_not_empty = answer.buffer[ 1 ] != 0;
+            connection_.last_transmitted_more_data        = answer_header & md_mask;
+            connection_.events.last_transmitted_not_empty = answer.buffer[ 1 ] != 0;
 
             if ( answer.buffer[ 1 ] != 0 )
             {
-                unacknowledged_    = true;
-                unacknowledged_sn_ = answer_header & sn_mask;
+                connection_.unacknowledged    = true;
+                connection_.unacknowledged_sn = answer_header & sn_mask;
             }
 
             // the MD bit of a PDU with an invalid CRC is unknown; the central decides with its next
-            continues_ = !crc_ok || ( header & md_mask ) || last_transmitted_more_data_;
+            connection_.continues = !crc_ok || ( header & md_mask ) || connection_.last_transmitted_more_data;
             state_     = state::connection_transmitting;
         }
 
@@ -1045,7 +1032,7 @@ namespace bluetoe
             if ( state_ == state::connection_transmitting )
             {
                 NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk
-                    | ( continues_ ? RADIO_SHORTS_DISABLED_RXEN_Msk : 0 );
+                    | ( connection_.continues ? RADIO_SHORTS_DISABLED_RXEN_Msk : 0 );
 
                 return;
             }
@@ -1071,20 +1058,20 @@ namespace bluetoe
             NRF_RADIO->SHORTS   = 0;
             NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk | RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
 
-            if ( received_any_ )
+            if ( connection_.received_any )
             {
                 // more to send: the last answer said so, or data came after an empty one
-                connection_events_.unacknowledged_data   = unacknowledged_;
-                connection_events_.pending_outgoing_data = last_transmitted_more_data_
-                    || ( !connection_events_.last_transmitted_not_empty && buffer_.pending_outgoing_data_available( this ) );
+                connection_.events.unacknowledged_data   = connection_.unacknowledged;
+                connection_.events.pending_outgoing_data = connection_.last_transmitted_more_data
+                    || ( !connection_.events.last_transmitted_not_empty && buffer_.pending_outgoing_data_available( this ) );
 
                 radio_event_      = event::connection_end_event;
-                radio_event_time_ = anchor_;
+                radio_event_time_ = connection_.anchor;
             }
             else
             {
                 radio_event_      = event::connection_timeout;
-                radio_event_time_ = connection_end_;
+                radio_event_time_ = connection_.end;
             }
 
             received_size_       = 0;

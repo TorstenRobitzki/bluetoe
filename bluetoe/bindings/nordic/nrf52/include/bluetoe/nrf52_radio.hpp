@@ -271,30 +271,35 @@ namespace bluetoe
             volatile bool               scannable_;
 
             /*
-             * A connection event: where the PDU being received goes, the room of the buffer or
-             * the scratch when it has none; what happened so far; and whether the event goes
-             * on after the answer being sent.
+             * A connection: the PDU buffer, and where the PDU being received goes, the room of
+             * the buffer or the scratch when it has none.
              */
             pdu_buffer_access           buffer_;
             std::uint8_t                scratch_[ link_layer::pdu_header_size + link_layer::max_payload_size ];
             link_layer::read_buffer     reception_;
             volatile bool               into_scratch_;
-            volatile bool               received_any_;
-            volatile bool               continues_;
-            std::uint8_t                crc_errors_in_a_row_;
-            link_layer::abs_time        anchor_;
-            link_layer::abs_time        connection_end_;
-            bool                        last_transmitted_more_data_;
 
             /*
-             * The last PDU sent in this event that was not empty, and its sequence number, until
-             * a PDU received acknowledges it; reset with every event, as the event's report is
-             * about that event, and the next event may be another connection's.
+             * What one connection event accumulates, fresh with every event, as the event's
+             * report is about that event, and the next event may be another connection's:
+             * what happened so far, whether the event goes on after the answer being sent,
+             * and the last PDU sent that was not empty, with its sequence number, until a PDU
+             * received acknowledges it.
              */
-            bool                        unacknowledged_;
-            bool                        unacknowledged_sn_;
+            struct connection_event_state
+            {
+                volatile bool                       received_any                = false;
+                volatile bool                       continues                   = false;
+                std::uint8_t                        crc_errors_in_a_row         = 0;
+                link_layer::abs_time                anchor;
+                link_layer::abs_time                end;
+                bool                                last_transmitted_more_data  = false;
+                bool                                unacknowledged              = false;
+                bool                                unacknowledged_sn           = false;
+                link_layer::connection_event_events events;
+            };
 
-            link_layer::connection_event_events connection_events_;
+            connection_event_state      connection_;
 
             // the PHY of the connection events; advertising is always on 1 Mbit
             bool                        connection_2mbit_;
