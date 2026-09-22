@@ -426,6 +426,7 @@ namespace bluetoe
             const bool transmit_2mbit = transmitting == le_unchanged_coding ? connection_2mbit_ : transmitting == le_2m_phy;
 
             assert( receive_2mbit == transmit_2mbit );
+            static_cast< void >( transmit_2mbit );
 
             connection_2mbit_ = receive_2mbit;
         }
