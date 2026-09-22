@@ -76,7 +76,6 @@ namespace {
         static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 500;
         static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
 
-        struct ccm_counter_t {};
         // a constructor of its own, as the PDU buffer never names the lock it holds
         struct radio_lock_guard
         {
@@ -88,7 +87,6 @@ namespace {
         void wake_up() {}
 
         void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
-        void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
         void set_phy( bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t, bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
         void set_local_address( const bluetoe::link_layer::device_address& ) {}
 

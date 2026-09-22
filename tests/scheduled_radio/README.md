@@ -132,9 +132,9 @@ the reset line; and the pairing toolbox, against the vectors of the Core Specifi
 
 Not covered:
 
-- Encryption and the CCM counters. `set_ccm_counter()` is not on the wire, as its counter type is
-  the radio's own, and no test runs an encrypted connection; the nRF52 radio reports
-  `hardware_supports_encryption` as false. Left for a later change.
+- Encryption. The contract, `scheduled_radio_encryption`, is stated; its `encryption_t` is the
+  radio's own and not on the wire, no test runs an encrypted connection, and the nRF52 radio
+  reports `hardware_supports_encryption` as false. Left for a later change.
 - The tester's own accuracy. Its receive timestamps are calibrated against the inter frame space the
   device's hardware keeps, so an inter frame space it measures on that device is right by
   construction; it has not been checked against an independent reference, and it runs on the

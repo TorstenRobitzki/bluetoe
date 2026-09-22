@@ -10,7 +10,7 @@
  * What is implemented: the time base, radio_ready(), start_advertising_event() and
  * schedule_advertising_event() with their receive window and the scan response, the timer,
  * the callbacks, delivered from run(), and connection events at 1 or 2 Mbit, without
- * encryption; set_ccm_counter() is present and ignored.
+ * encryption.
  *
  * @section timebase The time base
  *
@@ -359,11 +359,6 @@ namespace bluetoe
              */
             static constexpr std::size_t    radio_maximum_acceptance_filter_entries     = 0;
 
-            struct ccm_counter_t
-            {
-                std::uint64_t value = 0;
-            };
-
             /**
              * @brief the radio's interrupt is excluded with all others
              */
@@ -441,15 +436,6 @@ namespace bluetoe
             using radio_base::cancel_radio_event;
             using radio_base::schedule_timer;
             using radio_base::cancel_timer;
-
-            /**
-             * @name Not implemented in this slice
-             *
-             * Present so that the class satisfies the concept, and ignored.
-             * @{
-             */
-            void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
-            /** @} */
 
         private:
             static auto& buffer( radio_base* base )
