@@ -13,28 +13,28 @@
 
 static bool radio_locked = false;
 
-class lock_guard
+class radio_lock_guard
 {
 public:
-    lock_guard()
+    radio_lock_guard()
     {
         assert( !radio_locked );
         radio_locked = true;
     }
 
-    ~lock_guard()
+    ~radio_lock_guard()
     {
         radio_locked = false;
     }
 
 private:
-    lock_guard( const lock_guard& ) = delete;
-    lock_guard& operator=( const lock_guard& ) = delete;
+    radio_lock_guard( const radio_lock_guard& ) = delete;
+    radio_lock_guard& operator=( const radio_lock_guard& ) = delete;
 };
 
 template < std::size_t TransmitSize, std::size_t ReceiveSize >
 struct mock_radio : bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, mock_radio< TransmitSize, ReceiveSize > > {
-    using lock_guard = ::lock_guard;
+    using radio_lock_guard = ::radio_lock_guard;
 
     void increment_receive_packet_counter()
     {
@@ -775,7 +775,7 @@ namespace changed_pdu_layout
     template < std::size_t TransmitSize, std::size_t ReceiveSize >
     struct mock_radio : bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, ReceiveSize, mock_radio< TransmitSize, ReceiveSize > >
     {
-        using lock_guard = ::lock_guard;
+        using radio_lock_guard = ::radio_lock_guard;
 
         void increment_receive_packet_counter() {}
 

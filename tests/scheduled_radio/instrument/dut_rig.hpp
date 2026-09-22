@@ -569,16 +569,8 @@ namespace test_rig {
             std::uint8_t                                    pdu             = 0;
         };
 
-        /*
-         * The rig owns the library's PDU buffer and hands it to the radio. The buffer takes
-         * its layout and its lock from a radio type; this stands in for one, with the lock
-         * that excludes the radio context.
-         */
-        class pdu_buffer : public link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >
-        {
-        public:
-            using lock_guard = typename radio_t::radio_lock_guard;
-        };
+        // the library's PDU buffer, laid out and locked for the radio the rig hands it to
+        using pdu_buffer = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, radio_t >;
 
         void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )
         {

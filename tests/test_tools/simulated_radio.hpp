@@ -76,8 +76,32 @@ namespace test {
 
         struct ccm_counter_t {};
 
-        // the simulation runs in one context, so neither lock excludes anything
-        struct radio_lock_guard {};
+        /*
+         * The simulation runs in one context, so neither lock excludes anything; the radio's
+         * lock checks that it is never taken twice, which a real lock would deadlock on or
+         * silently allow.
+         */
+        class radio_lock_guard
+        {
+        public:
+            radio_lock_guard()
+            {
+                assert( !locked_ );
+                locked_ = true;
+            }
+
+            ~radio_lock_guard()
+            {
+                locked_ = false;
+            }
+
+            radio_lock_guard( const radio_lock_guard& ) = delete;
+            radio_lock_guard& operator=( const radio_lock_guard& ) = delete;
+
+        private:
+            static inline bool locked_ = false;
+        };
+
         struct link_layer_lock_guard {};
 
         void run();

@@ -15,15 +15,19 @@ function(add_bluetoe_example target_name)
     target_link_libraries(${target_name} PRIVATE spl)
 endfunction()
 
-add_bluetoe_example(blinky)
-add_bluetoe_example(blinky_with_oob)
 add_bluetoe_example(blinky_without_encryption)
-add_bluetoe_example(blinky_with_lesc_and_legacy_pairing)
 add_bluetoe_example(thermometer)
 add_bluetoe_example(cycling_speed_and_cadence)
 add_bluetoe_example(bootloader)
-add_bluetoe_example(keyboard)
-add_bluetoe_example(nrf52_high_cpu_load)
 add_bluetoe_example(custom_advertising)
-add_bluetoe_example(gpio)
-add_bluetoe_example(synchronized_callbacks)
+
+# The radio of bluetoe/scheduled_radio2.hpp encrypts nothing yet, and does not announce the
+# synchronized user timer; the examples that need either wait for that.
+#
+# add_bluetoe_example(blinky)
+# add_bluetoe_example(blinky_with_oob)
+# add_bluetoe_example(blinky_with_lesc_and_legacy_pairing)
+# add_bluetoe_example(keyboard)
+# add_bluetoe_example(nrf52_high_cpu_load)
+# add_bluetoe_example(gpio)
+# add_bluetoe_example(synchronized_callbacks)

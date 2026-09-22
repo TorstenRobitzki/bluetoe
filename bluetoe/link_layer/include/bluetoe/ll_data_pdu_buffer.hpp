@@ -26,9 +26,9 @@ namespace link_layer {
      * - one to access the receive buffer from the link layer
      * - one to access the both buffers from the radio hardware
      *
-     * This type is intendet to be inherited by the scheduled radio so that the
-     * ll_data_pdu_buffer can access the nessary radio interface by casting this to Radio*
-     * and to allow Radio to access the protected interface.
+     * The link layer owns the buffer and hands it to the radio, which uses the third
+     * interface from its own context. Radio names the radio type, for the layout it
+     * stores PDUs in and for the lock that excludes its context.
      *
      * TransmitSize and ReceiveSize are the total size of memory for the receiving and
      * transmitting buffer. Depending on the layout of the used Radio, there might be
@@ -430,7 +430,7 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     read_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::allocate_transmit_buffer( std::size_t size )
     {
-        typename Radio::lock_guard lock;
+        typename Radio::radio_lock_guard lock;
 
         return transmit_buffer_.alloc_front( transmit_buffer(), size );
     }
@@ -448,7 +448,7 @@ namespace link_layer {
         std::uint16_t header = layout::header( pdu );
         assert( ( header & header_rfu_mask ) == 0 );
 
-        typename Radio::lock_guard lock;
+        typename Radio::radio_lock_guard lock;
 
         // add sequence number
         if ( sequence_number_ )
@@ -560,7 +560,7 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     write_buffer ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::next_received() const
     {
-        typename Radio::lock_guard lock;
+        typename Radio::radio_lock_guard lock;
 
         return write_buffer( receive_buffer_.next_end() );
     }
@@ -568,7 +568,7 @@ namespace link_layer {
     template < std::size_t TransmitSize, std::size_t ReceiveSize, typename Radio >
     void ll_data_pdu_buffer< TransmitSize, ReceiveSize, Radio >::free_received()
     {
-        typename Radio::lock_guard lock;
+        typename Radio::radio_lock_guard lock;
 
         receive_buffer_.pop_end( receive_buffer() );
     }

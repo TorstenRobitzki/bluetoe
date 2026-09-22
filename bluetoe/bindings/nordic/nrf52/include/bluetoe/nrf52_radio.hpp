@@ -148,6 +148,11 @@ namespace bluetoe
              */
             void set_local_address( const link_layer::device_address& address );
 
+            /**
+             * @brief what a static random address of this device is generated from
+             */
+            std::uint32_t static_random_address_seed() const;
+
             void start_advertising_event(
                 std::uint32_t                       channel,
                 const link_layer::write_buffer&     transmit,
@@ -425,6 +430,7 @@ namespace bluetoe
             using radio_base::set_access_address_and_crc_init;
             using radio_base::set_phy;
             using radio_base::set_local_address;
+            using radio_base::static_random_address_seed;
             using radio_base::start_advertising_event;
             using radio_base::schedule_advertising_event;
             using radio_base::schedule_connection_event;

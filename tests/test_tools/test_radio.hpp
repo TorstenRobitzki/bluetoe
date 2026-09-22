@@ -308,20 +308,6 @@ namespace test {
 
         void end_of_simulation( bluetoe::link_layer::delta_time );
 
-        class lock_guard
-        {
-        public:
-            lock_guard();
-            ~lock_guard();
-
-            lock_guard( const lock_guard& ) = delete;
-            lock_guard& operator=( const lock_guard& ) = delete;
-        private:
-            static bool locked_;
-        };
-
-        static constexpr std::size_t radio_maximum_white_list_entries = 0;
-
         void increment_receive_packet_counter() {}
         void increment_transmit_packet_counter() {}
 

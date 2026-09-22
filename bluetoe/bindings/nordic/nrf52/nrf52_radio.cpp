@@ -447,6 +447,11 @@ namespace bluetoe
             schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
         }
 
+        std::uint32_t radio_base::static_random_address_seed() const
+        {
+            return NRF_FICR->DEVICEID[ 0 ];
+        }
+
         bool radio_base::schedule_advertising_event(
             std::uint32_t                       channel,
             link_layer::abs_time                when,

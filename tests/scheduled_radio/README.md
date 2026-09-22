@@ -149,9 +149,8 @@ Not covered:
 - The coded PHY, and a PHY that differs between the two directions; the nRF52 radio implements
   `set_phy()` symmetric only.
 
-## When the link layer moves to this interface
+## The link layer on this interface
 
-The link layer is still built on the old `scheduled_radio.hpp`, which is why the new header carries
-its `2`. Once the link layer uses it, the link layer owns the PDU buffer and hands it to the radio,
-which the device rig does today by wrapping `ll_data_pdu_buffer`; the old radio bindings go, the
-header is renamed, and the old one deleted.
+The link layer is built on this interface: it owns the PDU buffer and hands it to the radio, the
+way the device rig does, and `device.hpp` names the radio of `nrf52_radio.hpp`. The old radio
+binding and its contract header are gone; the header still carries its `2` in the name.
