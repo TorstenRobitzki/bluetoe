@@ -25,13 +25,14 @@
  *
  * An advertising event transmits with its first bit on air at the requested time, then
  * opens the receiver for the inter frame space plus the longest legacy response. What is
- * reported with adv_received() is a scan request with a valid CRC that follows a scannable
- * advertisement, carries this device's address as the one it is addressed to, and comes
- * from a sender the acceptance filter passes (scheduled_radio2.hpp); it carries the time
- * its first bit was on air, computed back from the end of the packet. Anything else, a bad
- * CRC, another kind of PDU, one addressed elsewhere, a sender the filter rejects, or no PDU
- * at all, is reported with adv_timeout(), carrying the time the event's own transmission
- * began, so that a caller can chain intervals from it without knowing the window.
+ * reported with adv_received() is a scan request that follows a scannable advertisement,
+ * or a connect request that follows a connectable one, with a valid CRC, carrying this
+ * device's address as the one it is addressed to, and from a sender the acceptance filter
+ * passes (scheduled_radio2.hpp); it carries the time its first bit was on air, computed
+ * back from the end of the packet. Anything else, a bad CRC, another kind of PDU, one
+ * addressed elsewhere, a sender the filter rejects, or no PDU at all, is reported with
+ * adv_timeout(), carrying the time the event's own transmission began, so that a caller
+ * can chain intervals from it without knowing the window.
  *
  * A request that is accepted is answered with the scan response one inter frame space
  * after it ended, placed by the radio's TIFS rather than by software. TIFS holds only when
@@ -41,7 +42,8 @@
  * adv_received() is reported once the answer is out, which is what makes the event's end
  * mean the air is quiet again.
  *
- * A connection request is not recognised as a response yet.
+ * A connect request is not answered; the event ends with it, and the link layer takes it
+ * from there.
  *
  * A connection event receives from its start and answers every PDU received one inter
  * frame space later, with a PDU from the link layer's buffer, the same way: the shorts to
@@ -233,6 +235,7 @@ namespace bluetoe
                 const link_layer::read_buffer& receive );
             bool sender_in_acceptance_filter();
             bool is_scan_request_for_us() const;
+            bool is_connect_request_for_us() const;
             bool can_answer() const;
             bool answer_armed() const;
             void on_address();
@@ -272,12 +275,13 @@ namespace bluetoe
             bool ( *acceptance_filter_ )( radio_base*, const link_layer::device_address& );
 
             /*
-             * Set before an event and read by the receive interrupt: the address a scan
-             * request has to be addressed to, and whether the advertisement this event
-             * transmitted could be scanned at all.
+             * Set before an event and read by the receive interrupt: the address a scan or
+             * connect request has to be addressed to, and whether the advertisement this
+             * event transmitted could be scanned, or connected to, at all.
              */
             link_layer::device_address  local_address_;
             volatile bool               scannable_;
+            volatile bool               connectable_;
 
             /*
              * A connection: the PDU buffer, and where the PDU being received goes, the room of

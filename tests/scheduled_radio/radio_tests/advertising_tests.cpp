@@ -518,3 +518,56 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_an_adv_direct_ind_is_ignored, rig_fix
 {
     a_scan_request_is_ignored( *this, scan_request( tester_address, dut_address ), adv_direct_ind, 12 );
 }
+
+/*
+ * A connect request to a connectable advertising is reported with adv_received() and not
+ * answered: the event ends with it, though a scan response was given.
+ */
+BOOST_FIXTURE_TEST_CASE( a_connect_request_to_an_adv_ind_is_reported_and_not_answered, rig_fixture, *if_tester )
+{
+    const auto advertisement = advertising( 6, 0x01, adv_ind );
+    const auto response      = advertising( 10, 0x02, scan_rsp );
+    const auto request       = connect_request( tester_address, dut_address );
+
+    program_device( {
+        on_start(
+            set_local_address( dut_address ),
+            start_advertising_event( 37, advertisement, response ) ) } );
+
+    // the request gets no reply and the answer runs to its window
+    program_tester( {
+        answer( 37, dut_address, request, time_out( 50ms ) ) } );
+
+    run();
+
+    check_captured( {
+        received( advertisement ),
+        sent( request ) } );
+
+    BOOST_CHECK( the_only( callbacks_of( device_records(), adv_received ) ).data == adv_pdu( request ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connect_request_to_an_adv_scan_ind_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, connect_request( tester_address, dut_address ), adv_scan_ind );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connect_request_to_an_adv_nonconn_ind_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, connect_request( tester_address, dut_address ), adv_nonconn_ind );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connect_request_from_outside_the_acceptance_filter_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, connect_request( stranger_address, dut_address ), adv_ind );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connect_request_to_another_advertiser_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, connect_request( tester_address, other_advertiser ), adv_ind );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_connect_request_that_is_too_short_is_ignored, rig_fixture, *if_tester )
+{
+    a_scan_request_is_ignored( *this, with_length( connect_request( tester_address, dut_address ), 33 ), adv_ind );
+}

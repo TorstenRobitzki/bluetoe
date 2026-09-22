@@ -51,6 +51,38 @@ namespace test_rig {
         return result;
     }
 
+    std::array< std::uint8_t, 36 > connect_request(
+        const link_layer::device_address& initiator, const link_layer::device_address& advertiser )
+    {
+        constexpr std::uint8_t connect_ind = 0x05;
+        constexpr std::uint8_t tx_add      = 0x40;
+        constexpr std::uint8_t rx_add      = 0x80;
+
+        std::array< std::uint8_t, 36 > result = {
+            0, 34,
+            0, 0, 0, 0, 0, 0,                   // InitA
+            0, 0, 0, 0, 0, 0,                   // AdvA
+            0x5a, 0xb3, 0x9a, 0xaf,             // access address
+            0x08, 0x81, 0xf6,                   // CRC init
+            0x03,                               // transmit window size: 3.75 ms
+            0x0b, 0x00,                         // transmit window offset: 13.75 ms
+            0x18, 0x00,                         // interval: 30 ms
+            0x00, 0x00,                         // latency
+            0x48, 0x00,                         // timeout: 720 ms
+            0xff, 0xff, 0xff, 0xff, 0x1f,       // channel map
+            0x25                                // hop 5, sleep clock accuracy 51-150 ppm
+        };
+
+        result[ 0 ] = connect_ind
+            | ( initiator.is_random() ? tx_add : 0 )
+            | ( advertiser.is_random() ? rx_add : 0 );
+
+        std::copy( initiator.begin(), initiator.end(), result.begin() + 2 );
+        std::copy( advertiser.begin(), advertiser.end(), result.begin() + 8 );
+
+        return result;
+    }
+
     std::chrono::microseconds time_between( const captured_pdu& earlier, const captured_pdu& later )
     {
         return std::chrono::duration_cast< std::chrono::microseconds >(
