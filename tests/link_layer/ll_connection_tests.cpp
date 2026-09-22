@@ -461,9 +461,13 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_at_instant, uncon
     // connIntervalOLD      = 30ms
     // connIntervalnew      = 7.5ms
 
-    // connIntervalOLD + transmitWindowOffset + connIntervalnew
-    bluetoe::link_layer::delta_time window_start( 3750 + 7500 + 30000 );
-    // connIntervalOLD + transmitWindowOffset + connIntervalnew + transmitWindowSize
+    /*
+     * The window one connIntervalnew after the missed one starts 2 * 550ppm before that one
+     * ended, which no radio can be set up in; the radio refuses it, and that is the second
+     * event missed. So: connIntervalOLD + transmitWindowOffset + 2 * connIntervalnew
+     */
+    bluetoe::link_layer::delta_time window_start( 3750 + 2 * 7500 + 30000 );
+    // ... + transmitWindowSize
     bluetoe::link_layer::delta_time window_end = window_start + bluetoe::link_layer::delta_time( 7500 );
 
     window_start -= window_start.ppm( 550 );
@@ -516,8 +520,12 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_ins
     BOOST_CHECK_EQUAL( at_instant.start_receive, window_start - window_start.ppm( 550 ) );
     BOOST_CHECK_EQUAL( at_instant.end_receive, window_end + window_end.ppm( 550 ) );
 
-    // the event after the missing event at instant is moved further by connIntervalnew
-    window_start += bluetoe::link_layer::delta_time( 7500 );
+    /*
+     * The event after the missed one at the instant is moved further by connIntervalnew, and
+     * that window starts 2 * 550ppm before the missed one ended, which no radio can be set
+     * up in: the radio refuses it, and the next is one more connIntervalnew on.
+     */
+    window_start += bluetoe::link_layer::delta_time( 2 * 7500 );
     window_end   = window_start + bluetoe::link_layer::delta_time( 7500 );
 
     BOOST_CHECK_EQUAL( behind.start_receive, window_start - window_start.ppm( 550 ) );

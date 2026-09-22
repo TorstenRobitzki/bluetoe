@@ -128,13 +128,18 @@ namespace test {
          * @brief the anchor of the connection event simulated last
          */
         bluetoe::link_layer::abs_time last_anchor() const;
+
+        /**
+         * @brief how many scheduled events were cancelled before they were simulated
+         */
+        unsigned cancelled_events() const;
         /** @} */
 
     private:
         using radio_t = simulated_radio< CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >;
         using layout  = typename bluetoe::link_layer::pdu_layout_by_radio< radio_t >::pdu_layout;
 
-        CallBack& callbacks()
+        CallBack& deliver_to()
         {
             return static_cast< CallBack& >( *this );
         }
@@ -142,7 +147,7 @@ namespace test {
         // the PDU buffer of the current connection, which the radio touches during an event only
         auto& connection_buffer()
         {
-            return callbacks().link_layer_pdu_buffer();
+            return deliver_to().link_layer_pdu_buffer();
         }
 
         // a time as a test reads it: counted from the start of the simulation
@@ -173,6 +178,7 @@ namespace test {
         bool                            advertising_response_;
         bool                            connection_event_response_;
         int                             wake_ups_;
+        unsigned                        cancelled_events_;
         bool                            radio_ready_pending_;
 
         bool                            timer_set_;
@@ -194,6 +200,7 @@ namespace test {
         , advertising_response_( false )
         , connection_event_response_( false )
         , wake_ups_( 0 )
+        , cancelled_events_( 0 )
         , radio_ready_pending_( true )
         , timer_set_( false )
         , reception_encrypted_( false )
@@ -211,6 +218,12 @@ namespace test {
     bluetoe::link_layer::abs_time simulated_radio< CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::last_anchor() const
     {
         return last_anchor_;
+    }
+
+    template < typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
+    unsigned simulated_radio< CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::cancelled_events() const
+    {
+        return cancelled_events_;
     }
 
     template < typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
@@ -298,14 +311,12 @@ namespace test {
         connection_event_response_  = true;
         idle_                       = false;
 
+        // recorded from the last anchor, which is what the link layer measures the window from
         const connection_event data{
             since_start( now_ ),
             channel,
-            start_receive - now_,
-            end_receive - now_,
-            // the interval is no longer told to the radio; a test reads it from the spacing
-            // of two events
-            bluetoe::link_layer::delta_time(),
+            start_receive - last_anchor_,
+            end_receive - last_anchor_,
             receiving_encoding_,
             transmiting_encoding_,
             access_address_,
@@ -341,6 +352,7 @@ namespace test {
         }
 
         idle_ = true;
+        ++cancelled_events_;
 
         return true;
     }
@@ -393,12 +405,10 @@ namespace test {
         if ( radio_ready_pending_ )
         {
             radio_ready_pending_ = false;
-            callbacks().radio_ready();
+            deliver_to().radio_ready();
         }
 
         bool new_scheduling_added = false;
-        central_sequence_number_    = 0;
-        central_ne_sequence_number_ = 0;
 
         do
         {
@@ -443,21 +453,25 @@ namespace test {
             if ( response.second.has_crc_error )
             {
                 idle_ = true;
-                callbacks().adv_timeout( now_ );
+                deliver_to().adv_timeout( now_ );
             }
             else
             {
                 if ( current.receive_buffer.size > 0 )
                     copy_air_to_memory( response.second.received_data, current.receive_buffer );
 
+                last_anchor_                = now_;
+                central_sequence_number_    = 0;
+                central_ne_sequence_number_ = 0;
+
                 idle_ = true;
-                callbacks().adv_received( now_, current.receive_buffer );
+                deliver_to().adv_received( now_, current.receive_buffer );
             }
         }
         else
         {
             idle_ = true;
-            callbacks().adv_timeout( now_ );
+            deliver_to().adv_timeout( now_ );
         }
     }
 
@@ -474,20 +488,21 @@ namespace test {
         if ( !connection_events_response_.empty() )
             connection_events_response_.erase( connection_events_response_.begin() );
 
-        const auto window_start = now_ + event.start_receive;
-        const auto window_end   = now_ + event.end_receive;
+        const auto window_start = last_anchor_ + event.start_receive;
+        const auto window_end   = last_anchor_ + event.end_receive;
 
         if ( response.timeout )
         {
             now_  = simulate_user_timer_response( window_end );
             idle_ = true;
 
-            callbacks().connection_timeout( window_end );
+            deliver_to().connection_timeout( window_end );
         }
         else
         {
-            last_anchor_ = window_start;
+            // timers that expire before the event are delivered while the anchor is still the last one
             now_         = simulate_user_timer_response( window_start );
+            last_anchor_ = window_start;
 
             static constexpr std::uint8_t sn_flag        = 0x8;
             static constexpr std::uint8_t nesn_flag      = 0x4;
@@ -555,7 +570,7 @@ namespace test {
 
             idle_ = true;
 
-            callbacks().connection_end_event( last_anchor_, events );
+            deliver_to().connection_end_event( last_anchor_, events );
         }
     }
 
@@ -568,7 +583,7 @@ namespace test {
             now_       = timer_at_;
             timer_set_ = false;
 
-            callbacks().user_timer( timer_at_ );
+            deliver_to().user_timer( timer_at_ );
         }
 
         return end;
@@ -604,16 +619,152 @@ namespace test {
     }
 }
 
+namespace test {
+    /*
+     * The radios the link layer tests are written against.
+     */
+    template < class CallBack >
+    using radio = simulated_radio< CallBack, false, false >;
+
+    template < class CallBack >
+    using radio_no_2mbit = simulated_radio< CallBack, false, false >;
+
+    template < class CallBack >
+    using radio_with_2mbit = simulated_radio< CallBack, true, false >;
+
+    template < class CallBack >
+    using radio_with_user_timer = simulated_radio< CallBack, false, true >;
+
+    template < class CallBack >
+    using radio_without_user_timer = simulated_radio< CallBack, false, false >;
+
+    /*
+     * A radio that answers the link layer's encryption calls, as far as the tests need
+     * them, until the scheduled radio 2 interface says how a connection is encrypted.
+     */
+    template < class CallBack >
+    class radio_with_encryption : public radio< CallBack >
+    {
+    public:
+        static constexpr bool hardware_supports_encryption = true;
+
+        radio_with_encryption()
+            : key_( { { 0x00 } } )
+            , skdm_( 0u )
+            , ivm_( 0u )
+            , skds_( 0x3fac22107855aa56ul )
+            , ivs_( 0x78563412 )
+        {
+        }
+
+        // Security functions
+        bluetoe::details::uint128_t create_srand()
+        {
+            const bluetoe::details::uint128_t r{{
+                0xE0, 0x2E, 0x70, 0xC6,
+                0x4E, 0x27, 0x88, 0x63,
+                0x0E, 0x6F, 0xAD, 0x56,
+                0x21, 0xD5, 0x83, 0x57
+            }};
+
+            return r;
+        }
+
+        bluetoe::details::uint128_t c1(
+            const bluetoe::details::uint128_t& temp_key,
+            const bluetoe::details::uint128_t& /* srand */,
+            const bluetoe::details::uint128_t& /* p1 */,
+            const bluetoe::details::uint128_t& /* p2 */ ) const
+        {
+            return temp_key;
+        }
+
+        bluetoe::details::uint128_t s1(
+            const bluetoe::details::uint128_t& stk,
+            const bluetoe::details::uint128_t& /* srand */,
+            const bluetoe::details::uint128_t& /* mrand */)
+        {
+            return stk;
+        }
+
+        void setup_encryption_response( std::uint64_t SKDs, std::uint32_t IVs)
+        {
+            skds_ = SKDs;
+            ivs_  = IVs;
+        }
+
+        std::pair< std::uint64_t, std::uint32_t > setup_encryption( bluetoe::details::uint128_t k, std::uint64_t skdm, std::uint32_t ivm )
+        {
+            skdm_ = skdm;
+            ivm_  = ivm;
+
+            key_ = k;
+
+            return { skds_, ivs_ };
+        }
+
+        void start_receive_encrypted()
+        {
+            this->reception_encrypted_ = true;
+        }
+
+        void start_transmit_encrypted()
+        {
+            this->transmition_encrypted_ = true;
+        }
+
+        void stop_receive_encrypted()
+        {
+            this->reception_encrypted_ = false;
+        }
+
+        void stop_transmit_encrypted()
+        {
+            this->transmition_encrypted_ = false;
+        }
+
+        // access to data provided for testing
+        bluetoe::details::uint128_t encryption_key() const
+        {
+            return key_;
+        }
+
+        std::uint64_t skdm() const
+        {
+            return skdm_;
+        }
+
+        std::uint32_t ivm() const
+        {
+            return ivm_;
+        }
+
+    private:
+        bluetoe::details::uint128_t key_;
+        std::uint64_t               skdm_;
+        std::uint32_t               ivm_;
+        std::uint64_t               skds_;
+        std::uint32_t               ivs_;
+    };
+
+    // implementation
+}
+
 /*
- * The same layout the other simulated radio uses: header inverted and a gap of two octets
- * between header and payload, so that every part of the library has to take the layout into
- * account.
+ * Header inverted and a gap of two octets between header and payload, so that every part of
+ * the library has to take the layout into account.
  */
 namespace bluetoe {
     namespace link_layer {
 
         template < typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
         struct pdu_layout_by_radio< test::simulated_radio< CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported > >
+        {
+            using pdu_layout = test::pdu_layout;
+        };
+
+        template < typename CallBack >
+        struct pdu_layout_by_radio< test::radio_with_encryption< CallBack > >
         {
             using pdu_layout = test::pdu_layout;
         };

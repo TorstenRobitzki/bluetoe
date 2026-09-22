@@ -9,14 +9,14 @@
 #include <algorithm>
 
 struct radio_without_white_list_support {
-    static constexpr std::size_t radio_maximum_white_list_entries = 0;
+    static constexpr std::size_t radio_maximum_acceptance_filter_entries = 0;
 };
 
 template < std::size_t Size >
 class mock_radio_with_white_list_support
 {
 public:
-    static constexpr std::size_t radio_maximum_white_list_entries = Size;
+    static constexpr std::size_t radio_maximum_acceptance_filter_entries = Size;
 
     mock_radio_with_white_list_support()
         : free_size_( Size )

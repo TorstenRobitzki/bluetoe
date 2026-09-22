@@ -643,17 +643,17 @@ struct listen_if_pending_transmit_data : bluetoe::link_layer::details::periphera
 >
 {
     listen_if_pending_transmit_data()
-        : disarm_connection_event_result( false, bluetoe::link_layer::delta_time() )
+        : cancel_radio_event_result( false )
     {
         reset_connection_state();
     }
 
-    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event()
+    bool cancel_radio_event()
     {
-        return disarm_connection_event_result;
+        return cancel_radio_event_result;
     }
 
-    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event_result;
+    bool cancel_radio_event_result = false;
 };
 
 BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data )
@@ -701,7 +701,7 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
 
     BOOST_AUTO_TEST_CASE( initial_connection_event_can_not_be_rescheduled )
     {
-        disarm_connection_event_result = { true, half_typical_connection_interval };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
     }
 
@@ -715,13 +715,13 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( connection_event_counter() == 8u );
         BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
 
-        // now it's moved to 4th
-        disarm_connection_event_result = { true, 3 * typical_connection_interval + half_typical_connection_interval };
+        // now it's moved to the first one after the anchor
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
+        BOOST_TEST( current_channel_index() == 1u );
+        BOOST_TEST( connection_event_counter() == 1u );
+        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
     }
 
     BOOST_AUTO_TEST_CASE( just_after_setting_up_the_connection_event )
@@ -734,8 +734,8 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( connection_event_counter() == 8u );
         BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
 
-        // now it's moved to 4th
-        disarm_connection_event_result = { true, bluetoe::link_layer::delta_time() };
+        // now it's moved to the first one after the anchor
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
         BOOST_TEST( current_channel_index() == 1u );
@@ -754,7 +754,7 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
 
         // won't move
-        disarm_connection_event_result = { true, bluetoe::link_layer::delta_time() };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
     }
 
@@ -775,7 +775,7 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
 
         // now, new outgoing data became pending
-        disarm_connection_event_result = { true, half_typical_connection_interval };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
         BOOST_TEST( current_channel_index() == 9u );
@@ -794,7 +794,7 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
 
         // now, new outgoing data became pending
-        disarm_connection_event_result = { true, half_typical_connection_interval };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
         BOOST_TEST( current_channel_index() == 2u );
@@ -813,12 +813,12 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
 
         // now, new outgoing data became pending
-        disarm_connection_event_result = { true, 3 * typical_connection_interval + half_typical_connection_interval };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
-        BOOST_TEST( current_channel_index() == 36u );
-        BOOST_TEST( connection_event_counter() == 36u );
-        BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
+        BOOST_TEST( current_channel_index() == 33u );
+        BOOST_TEST( connection_event_counter() == 33u );
+        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
     }
 
     // see #97 for more context
@@ -831,12 +831,12 @@ BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data
         BOOST_TEST( time_since_last_event() == 101 * typical_connection_interval );
 
         // now, new outgoing data became pending
-        disarm_connection_event_result = { true, 3 * typical_connection_interval + half_typical_connection_interval };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
+        BOOST_TEST( current_channel_index() == 1u );
+        BOOST_TEST( connection_event_counter() == 1u );
+        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
     }
 
     BOOST_AUTO_TEST_CASE( take_next_event_on_error )
@@ -859,7 +859,7 @@ struct listen_on_multiple_events : bluetoe::link_layer::details::peripheral_late
 >
 {
     listen_on_multiple_events()
-        : disarm_connection_event_result( false, bluetoe::link_layer::delta_time() )
+        : cancel_radio_event_result( false )
     {
         reset_connection_state();
 
@@ -870,12 +870,12 @@ struct listen_on_multiple_events : bluetoe::link_layer::details::peripheral_late
         all_but.last_received_had_more_data = true;
     }
 
-    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event()
+    bool cancel_radio_event()
     {
-        return disarm_connection_event_result;
+        return cancel_radio_event_result;
     }
 
-    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event_result;
+    bool cancel_radio_event_result = false;
     bluetoe::link_layer::connection_event_events all_but;
 };
 
@@ -982,12 +982,12 @@ struct runtime_configurable : bluetoe::link_layer::details::peripheral_latency_s
         reset_connection_state();
     }
 
-    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event()
+    bool cancel_radio_event()
     {
-        return disarm_connection_event_result;
+        return cancel_radio_event_result;
     }
 
-    std::pair< bool, bluetoe::link_layer::delta_time > disarm_connection_event_result;
+    bool cancel_radio_event_result = false;
 };
 
 BOOST_FIXTURE_TEST_SUITE( switch_behaviour_at_runtime, runtime_configurable )
@@ -1087,7 +1087,7 @@ BOOST_FIXTURE_TEST_SUITE( switch_behaviour_at_runtime, runtime_configurable )
         BOOST_TEST( connection_event_counter() == 3u );
         BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
 
-        disarm_connection_event_result = { true, half_typical_connection_interval };
+        cancel_radio_event_result = true;
         BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
 
         BOOST_TEST( current_channel_index() == 1u );

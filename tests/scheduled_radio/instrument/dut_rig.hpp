@@ -570,25 +570,14 @@ namespace test_rig {
         };
 
         /*
-         * The library's PDU buffer is written to be a base of the radio. The rig owns it
-         * instead and hands it to the radio, so this makes the radio's side of it public and
-         * provides what the buffer asks of its radio: the lock, and the CCM counters, which
-         * stay unused without encryption.
+         * The rig owns the library's PDU buffer and hands it to the radio. The buffer takes
+         * its layout and its lock from a radio type; this stands in for one, with the lock
+         * that excludes the radio context.
          */
         class pdu_buffer : public link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >
         {
         public:
-            using base_t     = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >;
-
-            // excludes the radio context, which uses the buffer
             using lock_guard = typename radio_t::radio_lock_guard;
-
-            using base_t::allocate_receive_buffer;
-            using base_t::received;
-            using base_t::next_transmit;
-
-            void increment_receive_packet_counter() {}
-            void increment_transmit_packet_counter() {}
         };
 
         void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )

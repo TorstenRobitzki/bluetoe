@@ -9,7 +9,7 @@
 
 #include <bluetoe/link_layer.hpp>
 
-#include "test_radio.hpp"
+#include "simulated_radio.hpp"
 #include "test_servers.hpp"
 
 
@@ -29,7 +29,7 @@ static const std::initializer_list< std::uint8_t > valid_connection_request_pdu 
     0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
 };
 
-template < typename Server, template < std::size_t, std::size_t, typename > class Radio, typename ... Options >
+template < typename Server, template < typename > class Radio, typename ... Options >
 class unconnected_base_t : public bluetoe::link_layer::link_layer< Server, Radio, Options... >
 {
     // the link layer is what the l2cap layer requires of it

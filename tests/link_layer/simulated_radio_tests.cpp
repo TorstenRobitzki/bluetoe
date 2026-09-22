@@ -26,18 +26,10 @@ namespace {
     using radio_t = test::simulated_radio< model_link_layer >;
 
     /*
-     * The PDU buffer as the link layer will own it: laid out and locked for the radio, with
-     * the functions the radio calls made public. That the buffer needs to be a base of the
-     * radio no longer holds, which is what lets the link layer own it.
+     * The PDU buffer as the link layer owns it: laid out and locked for the radio, which is
+     * handed it rather than deriving from it.
      */
-    struct pdu_buffer : ll_data_pdu_buffer< 100, 100, radio_t >
-    {
-        using base_t = ll_data_pdu_buffer< 100, 100, radio_t >;
-
-        using base_t::allocate_receive_buffer;
-        using base_t::received;
-        using base_t::next_transmit;
-    };
+    using pdu_buffer = ll_data_pdu_buffer< 100, 100, radio_t >;
 
     /*
      * What the radio delivers to. A link layer in the shape of the concept and nothing more:

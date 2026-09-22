@@ -130,7 +130,7 @@ namespace link_layer {
         struct impl :
             details::white_list_implementation<
                 Size,
-                ( Size > Radio::radio_maximum_white_list_entries ),
+                ( Size > Radio::radio_maximum_acceptance_filter_entries ),
                 Radio,
                 LinkLayer
             >

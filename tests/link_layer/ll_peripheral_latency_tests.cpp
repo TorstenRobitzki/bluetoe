@@ -4,6 +4,7 @@
 #include "connected.hpp"
 
 std::uint16_t temperature_value = 0;
+std::uint16_t indicated_value   = 0;
 
 // We test with a relative small hop of 5 for easier calculations
 static const std::initializer_list< std::uint8_t > five_hop_connection_request_pdu =
@@ -30,6 +31,12 @@ using server_t = bluetoe::server<
             bluetoe::bind_characteristic_value< decltype( temperature_value ), &temperature_value >,
             bluetoe::no_write_access,
             bluetoe::notify
+        >,
+        bluetoe::characteristic<
+            bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAB >,
+            bluetoe::bind_characteristic_value< decltype( indicated_value ), &indicated_value >,
+            bluetoe::no_write_access,
+            bluetoe::indicate
         >
     >,
     bluetoe::no_gap_service_for_gatt_servers
@@ -83,6 +90,104 @@ BOOST_FIXTURE_TEST_CASE( planned_connection_event_is_rescheduled_when_l2cap_laye
     // the forth connection event happens at channel 15 + 4 * 5 == 35u, as the next connection
     // event contains no data
     BOOST_TEST( connection_events()[ 3 ].channel == 35u );
+}
+
+/*
+ * A notification queued by the application while an event with latency is planned: the
+ * planned event is cancelled on the radio and the first event after the anchor is taken
+ * instead. Channels here are 5 apart per event, with a latency of 3.
+ */
+BOOST_FIXTURE_TEST_CASE( a_notification_from_the_application_moves_the_planned_event_forward, fixture_with_listen_if_pending_transmit_data_option )
+{
+    respond_to( 37, five_hop_connection_request_pdu );
+
+    ll_data_pdu( {
+        0x05, 0x00,         // length
+        0x04, 0x00,         // Channel
+        0x12,               // ATT_WRITE_REQ PDU
+        0x04, 0x00,         // CCCD handle
+        0x01, 0x00          // Enable notifications
+    } );
+    ll_empty_pdu();
+    ll_empty_pdu();
+    ll_function_call( [this]() {
+        BOOST_CHECK( this->notify( temperature_value ) );
+    } );
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    BOOST_REQUIRE( connection_events().size() >= 5u );
+    BOOST_TEST( connection_events()[ 3 ].channel == 35u );
+
+    // planned with latency at 35 + 20, cancelled, and taken at the next event instead
+    BOOST_TEST( cancelled_events() == 1u );
+    BOOST_TEST( connection_events()[ 4 ].channel == 40u % 37u );
+}
+
+/*
+ * A notification that is queued already is refused and asks for nothing.
+ */
+BOOST_FIXTURE_TEST_CASE( a_notification_queued_twice_is_refused, fixture_with_listen_if_pending_transmit_data_option )
+{
+    respond_to( 37, five_hop_connection_request_pdu );
+
+    ll_data_pdu( {
+        0x05, 0x00,         // length
+        0x04, 0x00,         // Channel
+        0x12,               // ATT_WRITE_REQ PDU
+        0x04, 0x00,         // CCCD handle
+        0x01, 0x00          // Enable notifications
+    } );
+    ll_empty_pdu();
+    ll_empty_pdu();
+    ll_function_call( [this]() {
+        BOOST_CHECK( this->notify( temperature_value ) );
+        BOOST_CHECK( !this->notify( temperature_value ) );
+    } );
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    BOOST_REQUIRE( connection_events().size() >= 5u );
+    BOOST_TEST( cancelled_events() == 1u );
+    BOOST_TEST( connection_events()[ 4 ].channel == 40u % 37u );
+}
+
+/*
+ * The confirmation of an indication arrives from the central and asks for nothing: the one
+ * cancellation is the indication's own.
+ */
+BOOST_FIXTURE_TEST_CASE( a_confirmation_asks_for_no_cancellation, fixture_with_listen_if_pending_transmit_data_option )
+{
+    respond_to( 37, five_hop_connection_request_pdu );
+
+    ll_data_pdu( {
+        0x05, 0x00,         // length
+        0x04, 0x00,         // Channel
+        0x12,               // ATT_WRITE_REQ PDU
+        0x07, 0x00,         // CCCD handle
+        0x02, 0x00          // Enable indications
+    } );
+    ll_empty_pdu();
+    ll_empty_pdu();
+    ll_function_call( [this]() {
+        BOOST_CHECK( this->indicate( indicated_value ) );
+    } );
+    ll_data_pdu( {
+        0x01, 0x00,         // length
+        0x04, 0x00,         // Channel
+        0x1e                // ATT_HANDLE_VALUE_CFM PDU
+    } );
+    ll_empty_pdu();
+    ll_empty_pdu();
+
+    run();
+
+    BOOST_REQUIRE( connection_events().size() >= 6u );
+    BOOST_TEST( cancelled_events() == 1u );
 }
 
 BOOST_FIXTURE_TEST_CASE( timeout, fixture_with_listen_if_pending_transmit_data_option )

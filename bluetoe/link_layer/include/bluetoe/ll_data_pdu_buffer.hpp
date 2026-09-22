@@ -260,10 +260,11 @@ namespace link_layer {
 
         /**@}*/
 
-    protected:
         /**@{*/
         /**
          * @name Interface to the radio hardware
+         *
+         * The radio is handed the buffer by reference and calls these from its own context.
          */
 
         /**
