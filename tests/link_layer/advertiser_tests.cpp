@@ -7,7 +7,10 @@
 #include <bluetoe/advertising.hpp>
 #include <bluetoe/white_list.hpp>
 
-#include "test_radio.hpp"
+#include "simulated_radio.hpp"
+
+#include <optional>
+#include <vector>
 
 template < bool Connect, bool Respond >
 struct link_layer_base
@@ -33,12 +36,41 @@ struct link_layer_base
         return false;
     }
 
-    void schedule_advertisment(
-        unsigned,
+    /*
+     * What the advertiser asks the radio for is recorded: the channel, and the time for an
+     * event that names one.
+     */
+    struct scheduled_event
+    {
+        unsigned                                        channel;
+        std::optional< bluetoe::link_layer::abs_time >  when;
+    };
+
+    void start_advertising_event(
+        unsigned channel,
         const bluetoe::link_layer::write_buffer&,
         const bluetoe::link_layer::write_buffer&,
-        bluetoe::link_layer::delta_time,
         const bluetoe::link_layer::read_buffer& )
+    {
+        events.push_back( { channel, std::nullopt } );
+    }
+
+    bool schedule_advertising_event(
+        unsigned channel,
+        bluetoe::link_layer::abs_time when,
+        const bluetoe::link_layer::write_buffer&,
+        const bluetoe::link_layer::write_buffer&,
+        const bluetoe::link_layer::read_buffer& )
+    {
+        if ( refuse_scheduled_events )
+            return false;
+
+        events.push_back( { channel, when } );
+
+        return true;
+    }
+
+    void set_access_address_and_crc_init( std::uint32_t, std::uint32_t )
     {
     }
 
@@ -67,7 +99,10 @@ struct link_layer_base
     std::uint8_t buffer_[ 1024 ];
     bool advertisment_scheduled;
 
-    using radio_t = test::radio< 100, 100, link_layer_base< Connect, Respond > >;
+    std::vector< scheduled_event > events;
+    bool                           refuse_scheduled_events = false;
+
+    using radio_t = test::radio< link_layer_base< Connect, Respond > >;
 };
 
 struct single_advertiser_without_white_list :
@@ -121,7 +156,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( empty_request, Advertiser, all_fixtures )
 {
     bluetoe::link_layer::device_address remote_address;
     Advertiser advertiser;
-    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::read_buffer{ nullptr, 0 }, remote_address );
+    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::abs_time(), bluetoe::link_layer::read_buffer{ nullptr, 0 }, remote_address );
 
     BOOST_CHECK( !result );
     BOOST_CHECK_EQUAL( remote_address, bluetoe::link_layer::device_address() );
@@ -161,7 +196,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( accept_connection_request_in_white_list, Advertis
     bluetoe::link_layer::device_address remote;
     Advertiser advertiser;
 
-    const bool result = advertiser.handle_adv_receive( valid_connection_request(), remote );
+    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::abs_time(), valid_connection_request(), remote );
 
     BOOST_CHECK( result );
     BOOST_CHECK_EQUAL( remote, remote_address );
@@ -177,7 +212,61 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_with_white_list, Advertiser, all_wi
     bluetoe::link_layer::device_address remote;
     Advertiser advertiser;
 
-    const bool result = advertiser.handle_adv_receive( valid_connection_request(), remote );
+    const bool result = advertiser.handle_adv_receive( bluetoe::link_layer::abs_time(), valid_connection_request(), remote );
 
     BOOST_CHECK( !result );
+}
+
+/*
+ * An advertising event puts its PDU on each channel as soon as the radio can; the next event
+ * is scheduled one interval and a delay of up to 10 ms after the time the last one was on air.
+ */
+BOOST_AUTO_TEST_CASE_TEMPLATE( the_next_event_is_scheduled_from_the_time_of_the_last, Advertiser, all_without_white_list )
+{
+    using bluetoe::link_layer::abs_time;
+    using bluetoe::link_layer::delta_time;
+
+    Advertiser advertiser;
+    const abs_time on_air( 0x10000 );
+
+    advertiser.handle_start_advertising();
+    advertiser.handle_adv_timeout( on_air );
+    advertiser.handle_adv_timeout( on_air );
+    advertiser.handle_adv_timeout( on_air );
+
+    BOOST_REQUIRE_EQUAL( advertiser.events.size(), 4u );
+
+    // one event: channels 37, 38 and 39, each without naming a time
+    BOOST_CHECK_EQUAL( advertiser.events[ 0 ].channel, 37u );
+    BOOST_CHECK( !advertiser.events[ 0 ].when );
+    BOOST_CHECK_EQUAL( advertiser.events[ 1 ].channel, 38u );
+    BOOST_CHECK( !advertiser.events[ 1 ].when );
+    BOOST_CHECK_EQUAL( advertiser.events[ 2 ].channel, 39u );
+    BOOST_CHECK( !advertiser.events[ 2 ].when );
+
+    // the next event, 100 ms is the default interval
+    BOOST_CHECK_EQUAL( advertiser.events[ 3 ].channel, 37u );
+    BOOST_REQUIRE( advertiser.events[ 3 ].when );
+
+    const delta_time distance = *advertiser.events[ 3 ].when - on_air;
+    BOOST_CHECK( distance >= delta_time::msec( 100 ) );
+    BOOST_CHECK( distance <= delta_time::msec( 110 ) );
+}
+
+/*
+ * A radio that can not meet the time any more is asked to advertise right away instead.
+ */
+BOOST_AUTO_TEST_CASE_TEMPLATE( an_event_the_radio_refuses_is_started_instead, Advertiser, all_without_white_list )
+{
+    Advertiser advertiser;
+    advertiser.refuse_scheduled_events = true;
+
+    advertiser.handle_start_advertising();
+    advertiser.handle_adv_timeout( bluetoe::link_layer::abs_time() );
+    advertiser.handle_adv_timeout( bluetoe::link_layer::abs_time() );
+    advertiser.handle_adv_timeout( bluetoe::link_layer::abs_time() );
+
+    BOOST_REQUIRE_EQUAL( advertiser.events.size(), 4u );
+    BOOST_CHECK_EQUAL( advertiser.events[ 3 ].channel, 37u );
+    BOOST_CHECK( !advertiser.events[ 3 ].when );
 }

@@ -155,19 +155,29 @@ namespace bluetoe
              * scan request answers it; its payload is the scanner's address followed by
              * the advertiser's, which is the one it is addressed to.
              */
-            constexpr std::uint8_t  pdu_type_mask               = 0x0f;
-            constexpr std::uint8_t  adv_ind_type                = 0x00;
-            constexpr std::uint8_t  adv_scan_ind_type           = 0x06;
-            constexpr std::uint8_t  scan_request_type           = 0x03;
-            constexpr std::uint8_t  scan_request_payload_size   = 12;
-            constexpr std::size_t   address_size                = 6;
-            constexpr std::size_t   addressed_to_offset         = 2 + address_size;
+            constexpr std::uint8_t  pdu_type_mask                = 0x0f;
+            constexpr std::uint8_t  adv_ind_type                 = 0x00;
+            constexpr std::uint8_t  adv_direct_ind_type          = 0x01;
+            constexpr std::uint8_t  adv_scan_ind_type            = 0x06;
+            constexpr std::uint8_t  scan_request_type            = 0x03;
+            constexpr std::uint8_t  connect_request_type         = 0x05;
+            constexpr std::uint8_t  scan_request_payload_size    = 12;
+            constexpr std::uint8_t  connect_request_payload_size = 34;
+            constexpr std::size_t   address_size                 = 6;
+            constexpr std::size_t   addressed_to_offset          = 2 + address_size;
 
             bool is_scannable( std::uint8_t header )
             {
                 const std::uint8_t type = header & pdu_type_mask;
 
                 return type == adv_ind_type || type == adv_scan_ind_type;
+            }
+
+            bool is_connectable( std::uint8_t header )
+            {
+                const std::uint8_t type = header & pdu_type_mask;
+
+                return type == adv_ind_type || type == adv_direct_ind_type;
             }
 
             /*
@@ -302,6 +312,7 @@ namespace bluetoe
             , acceptance_filter_( nullptr )
             , local_address_()
             , scannable_( false )
+            , connectable_( false )
             , buffer_{}
             , scratch_{}
             , reception_{ nullptr, 0 }
@@ -402,21 +413,35 @@ namespace bluetoe
          * is this device's. Whether that scanner may be answered is then the acceptance
          * filter's decision, not this one's.
          */
+        /*
+         * A scan or connect request is addressed to this device when its AdvA, the second
+         * address it carries, is the local address of the same kind.
+         */
+        static bool addressed_to( const link_layer::read_buffer& received, const link_layer::device_address& local_address )
+        {
+            if ( received.size < addressed_to_offset + address_size )
+                return false;
+
+            const bool is_random = received.buffer[ 0 ] & rx_add_mask;
+
+            return is_random == local_address.is_random()
+                && std::equal( local_address.begin(), local_address.end(), &received.buffer[ addressed_to_offset ] );
+        }
+
         bool radio_base::is_scan_request_for_us() const
         {
-            if ( !scannable_ || receive_.size < addressed_to_offset + address_size )
-                return false;
+            return scannable_
+                && ( receive_.buffer[ 0 ] & pdu_type_mask ) == scan_request_type
+                && receive_.buffer[ 1 ] == scan_request_payload_size
+                && addressed_to( receive_, local_address_ );
+        }
 
-            if ( ( receive_.buffer[ 0 ] & pdu_type_mask ) != scan_request_type )
-                return false;
-
-            if ( receive_.buffer[ 1 ] != scan_request_payload_size )
-                return false;
-
-            const bool is_random = receive_.buffer[ 0 ] & rx_add_mask;
-
-            return is_random == local_address_.is_random()
-                && std::equal( local_address_.begin(), local_address_.end(), &receive_.buffer[ addressed_to_offset ] );
+        bool radio_base::is_connect_request_for_us() const
+        {
+            return connectable_
+                && ( receive_.buffer[ 0 ] & pdu_type_mask ) == connect_request_type
+                && receive_.buffer[ 1 ] == connect_request_payload_size
+                && addressed_to( receive_, local_address_ );
         }
 
         /*
@@ -436,7 +461,7 @@ namespace bluetoe
             return acceptance_filter_( this, sender );
         }
 
-        void radio_base::start_advertising(
+        void radio_base::start_advertising_event(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
             const link_layer::write_buffer&     response,
@@ -445,6 +470,11 @@ namespace bluetoe
             const interrupts_off no_interruption;
 
             schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
+        }
+
+        std::uint32_t radio_base::static_random_address_seed() const
+        {
+            return NRF_FICR->DEVICEID[ 0 ];
         }
 
         bool radio_base::schedule_advertising_event(
@@ -497,6 +527,7 @@ namespace bluetoe
             response_       = response;
             transmit_time_  = when;
             scannable_      = is_scannable( transmit.buffer[ 0 ] );
+            connectable_    = is_connectable( transmit.buffer[ 0 ] );
             accepted_       = false;
             answering_      = false;
 
@@ -737,9 +768,11 @@ namespace bluetoe
             if ( state_ != state::receiving )
                 return;
 
-            const bool crc_ok = received_crc_ok();
+            const bool crc_ok          = received_crc_ok();
+            const bool scan_request    = crc_ok && is_scan_request_for_us();
+            const bool connect_request = crc_ok && is_connect_request_for_us();
 
-            if ( !crc_ok || !is_scan_request_for_us() || !sender_in_acceptance_filter() )
+            if ( !( scan_request || connect_request ) || !sender_in_acceptance_filter() )
             {
                 cancel_answer();
                 return;
@@ -752,6 +785,13 @@ namespace bluetoe
             received_size_    = std::min< std::size_t >( payload_size + 2, receive_.size );
             radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( le_1m_timing, payload_size ) );
             accepted_         = true;
+
+            // a connect request is reported and not answered; the event ends with it
+            if ( connect_request )
+            {
+                cancel_answer();
+                return;
+            }
 
             if ( !answer_armed() )
                 return;
@@ -982,7 +1022,11 @@ namespace bluetoe
                     if ( connection_.unacknowledged && static_cast< bool >( header & nesn_mask ) != connection_.unacknowledged_sn )
                         connection_.unacknowledged = false;
 
-                    answer = buffer_.received( this, reception_ );
+                    /*
+                     * The buffer reports whether the packet counters of the encryption have
+                     * to advance; this radio has no encryption, so only the answer is used.
+                     */
+                    answer = buffer_.received( this, reception_ ).transmit;
                 }
             }
             else

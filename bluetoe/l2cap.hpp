@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
+#include <concepts>
+#include <utility>
 
 #include <bluetoe/codes.hpp>
 #include <bluetoe/meta_tools.hpp>
@@ -74,27 +76,37 @@ namespace details {
     static constexpr std::size_t l2cap_layer_header_size = 4u;
 
     /**
+     * @brief what the l2cap layer requires of the link layer it is a base of
+     *
+     * The interface between link layer and l2cap is designed so that both could run in
+     * different CPU contexts: the response to an incoming PDU must be deferrable, which is
+     * why the functions do not return the result of an L2CAP request but allocate and commit
+     * output buffers.
+     *
+     * allocate_l2cap_output_buffer( payload_size ) allocates outgoing capacity. If the link
+     * layer can not provide the requested size, it returns { 0, nullptr }; otherwise the
+     * buffer is large enough to take an L2CAP PDU with a payload of the requested size, so
+     * that a size that is not zero is all the l2cap layer has to check. How much room the
+     * link layer requires for its own purpose is not visible to the l2cap layer.
+     * commit_l2cap_output_buffer() hands a buffer so allocated, and filled, back for
+     * transmission.
+     */
+    template < typename LinkLayer >
+    concept l2cap_link_layer = requires (
+        LinkLayer                                   link_layer,
+        std::size_t                                 payload_size,
+        std::pair< std::size_t, std::uint8_t* >     buffer )
+    {
+        { link_layer.allocate_l2cap_output_buffer( payload_size ) } -> std::same_as< std::pair< std::size_t, std::uint8_t* > >;
+        link_layer.commit_l2cap_output_buffer( buffer );
+    };
+
+    /**
      * @brief l2cap layer, as list of l2cap channels
      *
-     * The interface between link_layer and l2cap is designed, so that
-     * both parts could be run in different CPU contexts. This basically means,
-     * that the reponse to an incomming PDU must be able to be defered. That's
-     * why the functions do not directly return the result of the L2CAP request,
-     * but use the output parameters to allocate buffers and commit that buffers.
-     *
-     * LinkLayer derives from l2cap<> and provides following functions:
-     *
-     * - std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t payload_size )
-     *
-     *   This function is used to allocate outgoing capacity. If the function can not provide
-     *   the requested size, it has to provide { 0, nullptr }. Otherwise, the returned buffer
-     *   has to be large enough to take an L2CAP PDU with a payload of the requested size, so
-     *   that a returned size that is not zero is all the l2cap layer has to check. How much
-     *   room the link layer requires for its own purpose, is not visible to the l2cap layer.
-     *
-     * - void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > )
-     *
-     *   This function is used to commit the allocated output buffer.
+     * LinkLayer derives from l2cap<> and satisfies l2cap_link_layer; the requirement is checked
+     * where the l2cap layer reaches for it, since a class can not name itself in a constraint
+     * of its base.
      */
     template < class LinkLayer, class ChannelData, class ... Channels >
     class l2cap : public derive_from< std::tuple< Channels... > >
@@ -209,7 +221,7 @@ namespace details {
             ConnectionDetails&  connection;
         };
 
-        LinkLayer& link_layer()
+        LinkLayer& link_layer() requires l2cap_link_layer< LinkLayer >
         {
             return static_cast< LinkLayer&>( *this );
         }

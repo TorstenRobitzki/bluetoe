@@ -43,7 +43,7 @@ namespace {
         struct pdu_buffer
         {
             read_buffer allocate_receive_buffer() { return {}; }
-            write_buffer received( read_buffer ) { return {}; }
+            reception_result received( read_buffer ) { return {}; }
             write_buffer next_transmit() { return {}; }
             bool pending_outgoing_data_available() { return false; }
         };
@@ -77,7 +77,7 @@ namespace {
     struct buffer_without_next_transmit
     {
         read_buffer allocate_receive_buffer() { return {}; }
-        write_buffer received( read_buffer ) { return {}; }
+        reception_result received( read_buffer ) { return {}; }
         bool pending_outgoing_data_available() { return false; }
     };
 
@@ -128,13 +128,13 @@ namespace {
     };
 
     /*
-     * start_advertising() cannot refuse, so a bool would report a broken caller as a
+     * start_advertising_event() cannot refuse, so a bool would report a broken caller as a
      * runtime condition; the concept asks for void and so rejects one that answers.
      */
     template < typename CallBacks >
     struct radio_whose_start_advertising_answers : dummy_radio< CallBacks >
     {
-        bool start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
+        bool start_advertising_event( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
     };
 
     template < typename CallBacks >

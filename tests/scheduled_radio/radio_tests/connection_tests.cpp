@@ -47,7 +47,7 @@ namespace {
 
         rig.program_device( {
             on_start(
-                start_advertising( 37, advertisement ) ),
+                start_advertising_event( 37, advertisement ) ),
             on_adv_timeout(
                 set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
                 schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -89,7 +89,7 @@ namespace {
 
         rig.program_device( {
             on_start(
-                start_advertising( 37, advertisement ) ),
+                start_advertising_event( 37, advertisement ) ),
             on_adv_timeout(
                 set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
                 schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -130,7 +130,7 @@ namespace {
 
         rig.program_device( {
             on_start(
-                start_advertising( 37, advertisement ) ),
+                start_advertising_event( 37, advertisement ) ),
             on_adv_timeout(
                 set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
                 schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -174,7 +174,7 @@ namespace {
 
         rig.program_device( {
             on_start(
-                start_advertising( 37, advertisement ) ),
+                start_advertising_event( 37, advertisement ) ),
             on_adv_timeout(
                 set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
                 schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -214,7 +214,7 @@ namespace {
 
         rig.program_device( {
             on_start(
-                start_advertising( 37, advertisement ) ),
+                start_advertising_event( 37, advertisement ) ),
             on_adv_timeout(
                 set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
                 schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -251,7 +251,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ) } );
@@ -296,7 +296,7 @@ BOOST_FIXTURE_TEST_CASE( connection_events_follow_each_other_at_the_interval, co
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( 5, event_start, event_start + receive_window ) ),
@@ -351,7 +351,7 @@ BOOST_FIXTURE_TEST_CASE( data_queued_before_the_start_is_sent_in_the_first_event
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -389,7 +389,7 @@ BOOST_FIXTURE_TEST_CASE( data_queued_after_an_event_is_sent_in_the_next, connect
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -431,7 +431,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_of_the_central_keeps_the_event_open, connecti
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -558,7 +558,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_with_an_invalid_crc_is_not_acknowledged, connecti
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -590,7 +590,7 @@ BOOST_FIXTURE_TEST_CASE( a_second_invalid_crc_in_a_row_ends_the_event_without_an
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -627,7 +627,7 @@ BOOST_FIXTURE_TEST_CASE( invalid_crcs_that_are_not_in_a_row_are_answered, connec
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -677,7 +677,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_without_room_in_the_buffer_is_refused_until_the_b
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -735,7 +735,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_cancelled_in_time_is_not_held, conne
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ),
@@ -773,7 +773,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_cancelled_in_time_from_a_timer_is_no
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ),
@@ -815,7 +815,7 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_connection_event_proceed, co
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_timer( timer_delay ) ),
@@ -855,7 +855,7 @@ BOOST_FIXTURE_TEST_CASE( cancelling_after_the_connection_event_ended_is_refused,
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -897,7 +897,7 @@ BOOST_FIXTURE_TEST_CASE( the_next_event_is_placed_from_the_end_a_connection_time
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( 5, event_start, event_start + receive_window ) ),
@@ -951,7 +951,7 @@ BOOST_FIXTURE_TEST_CASE( data_left_in_the_buffer_is_reported_as_pending, connect
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -990,7 +990,7 @@ BOOST_FIXTURE_TEST_CASE( data_stays_unacknowledged_until_the_central_acknowledge
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -1041,7 +1041,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_of_the_device_keeps_the_event_open, connectio
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -1091,7 +1091,7 @@ BOOST_FIXTURE_TEST_CASE( the_sequence_numbers_are_the_buffers_not_the_radios, co
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -1156,7 +1156,7 @@ BOOST_FIXTURE_TEST_CASE( unacknowledged_data_of_one_connection_is_not_reported_f
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -1201,7 +1201,7 @@ BOOST_FIXTURE_TEST_CASE( the_access_address_can_be_changed_between_events, conne
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),

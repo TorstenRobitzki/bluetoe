@@ -299,8 +299,15 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_
 }
 
 /*
+ * The transmit window is measured from the end of the CONNECT_IND, whose 34 octets of
+ * payload with preamble, access address, header and CRC take 352µs on air; the radio
+ * reports the time its first bit was received.
+ */
+static constexpr unsigned connect_ind_air_time_us = 352;
+
+/*
  * The default devie sleep clock accuracy is 500ppm, the centrals sca is 50ppm.
- * The last T0 was the reception of the connect request. The transmit window offset is
+ * The last T0 was the end of the connect request. The transmit window offset is
  * ( 11 + 1 ) * 1.25ms, the window size is 3 * 1.25 ms. So the window starts at:
  * 15ms - 15ms * 550ppm = 14992µs; the window ends at 18.75ms + 18.75ms * 550ppm = 18760µs
  */
@@ -310,9 +317,8 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 
     const auto& event = connection_events().front();
 
-    BOOST_CHECK_EQUAL( event.start_receive.usec(), 14992u );
-    BOOST_CHECK_EQUAL( event.end_receive.usec(), 18760u );
-    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 30000u );
+    BOOST_CHECK_EQUAL( event.start_receive.usec(), connect_ind_air_time_us + 14992u );
+    BOOST_CHECK_EQUAL( event.end_receive.usec(), connect_ind_air_time_us + 18760u );
 }
 
 /*
@@ -351,11 +357,10 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_devic
 
     const auto& event = connection_events().front();
 
-    BOOST_CHECK( event.start_receive.usec() >= 1999300 -1 );
-    BOOST_CHECK( event.start_receive.usec() <= 1999300 +1 );
-    BOOST_CHECK( event.end_receive.usec() >= 2010703 -1 );
-    BOOST_CHECK( event.end_receive.usec() <= 2010703 +1 );
-    BOOST_CHECK_EQUAL( event.connection_interval.usec(), 2000000u );
+    BOOST_CHECK( event.start_receive.usec() >= connect_ind_air_time_us + 1999300 -1 );
+    BOOST_CHECK( event.start_receive.usec() <= connect_ind_air_time_us + 1999300 +1 );
+    BOOST_CHECK( event.end_receive.usec() >= connect_ind_air_time_us + 2010703 -1 );
+    BOOST_CHECK( event.end_receive.usec() <= connect_ind_air_time_us + 2010703 +1 );
 }
 
 /*
@@ -388,8 +393,8 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
         start -= start * 550 / 1000000;
         end   += end * 550 / 1000000;
 
-        BOOST_CHECK_EQUAL( ev.start_receive.usec(), start );
-        BOOST_CHECK_EQUAL( ev.end_receive.usec(), end );
+        BOOST_CHECK_EQUAL( ev.start_receive.usec(), connect_ind_air_time_us + start );
+        BOOST_CHECK_EQUAL( ev.end_receive.usec(), connect_ind_air_time_us + end );
     }
 }
 

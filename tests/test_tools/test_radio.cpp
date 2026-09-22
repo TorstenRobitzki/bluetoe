@@ -84,7 +84,7 @@ namespace test {
     std::ostream& operator<<( std::ostream& out, const connection_event& data )
     {
         out << "schedule_time: " << data.schedule_time << "; channel: " << data.channel
-            << "\nstart_receive: " << data.start_receive << "; end_receive: " << data.end_receive << "; connection_interval: " << data.connection_interval
+            << "\nstart_receive: " << data.start_receive << "; end_receive: " << data.end_receive
             << "\nc->p: " << data.receiving_encoding << "; p->: " << data.transmission_encoding
             << "; rx-encrypt: " << data.receive_encryption_at_start_of_event << "; tx-encrypt: " << data.transmit_encryption_at_start_of_event
             << "\nreceived_data:\n";
@@ -709,17 +709,4 @@ namespace test {
         eos_ = eos;
     }
 
-
-    radio_base::lock_guard::lock_guard()
-    {
-        assert( !locked_ );
-        locked_ = true;
-    }
-
-    radio_base::lock_guard::~lock_guard()
-    {
-        locked_ = false;
-    }
-
-    bool radio_base::lock_guard::locked_ = false;
 }

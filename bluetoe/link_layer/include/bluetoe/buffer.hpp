@@ -124,6 +124,32 @@ namespace link_layer {
         {
         }
     };
+
+    /**
+     * @brief what a PDU handed to the link layer's PDU buffer did to it
+     *
+     * Beside the PDU to answer with, whether the packet counters of the encryption have to
+     * advance. Only the buffer's sequence numbers can tell a PDU that is new from one that is
+     * a repeat, and only its caller knows whose counters are meant, so the buffer reports and
+     * the caller acts.
+     */
+    struct reception_result
+    {
+        /**
+         * @brief the PDU to transmit in answer
+         */
+        write_buffer    transmit;
+
+        /**
+         * @brief a PDU that was not a repeat was received
+         */
+        bool            received_new_pdu = false;
+
+        /**
+         * @brief a PDU that was transmitted was acknowledged by the peer
+         */
+        bool            acknowledged_pdu = false;
+    };
 }
 }
 

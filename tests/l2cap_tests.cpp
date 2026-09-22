@@ -202,6 +202,25 @@ private:
     std::vector< std::vector< std::uint8_t > > output_;
 };
 
+/*
+ * What the l2cap layer requires of the link layer, against the link layer above and against
+ * one that lacks a function or answers with the wrong type.
+ */
+struct link_layer_without_commit
+{
+    std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t );
+};
+
+struct link_layer_allocating_a_pointer
+{
+    std::uint8_t* allocate_l2cap_output_buffer( std::size_t );
+    void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > );
+};
+
+static_assert( bluetoe::details::l2cap_link_layer< link_layer > );
+static_assert( !bluetoe::details::l2cap_link_layer< link_layer_without_commit > );
+static_assert( !bluetoe::details::l2cap_link_layer< link_layer_allocating_a_pointer > );
+
 struct link_layer_with_free_buffer : link_layer
 {
     link_layer_with_free_buffer()

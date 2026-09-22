@@ -110,19 +110,19 @@ namespace test_rig {
      * @brief a call a step makes
      * @{
      */
-    inline call start_advertising( std::uint32_t channel, std::span< const std::uint8_t > transmit )
+    inline call start_advertising_event( std::uint32_t channel, std::span< const std::uint8_t > transmit )
     {
         return call{
-            .kind     = call_kind::start_advertising,
+            .kind     = call_kind::start_advertising_event,
             .channel  = channel,
             .transmit = pdu( transmit ) };
     }
 
-    inline call start_advertising(
+    inline call start_advertising_event(
         std::uint32_t channel, std::span< const std::uint8_t > transmit, std::span< const std::uint8_t > response )
     {
         return call{
-            .kind     = call_kind::start_advertising,
+            .kind     = call_kind::start_advertising_event,
             .channel  = channel,
             .transmit = pdu( transmit ),
             .response = adv_pdu( response ) };

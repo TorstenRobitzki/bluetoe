@@ -38,7 +38,7 @@
  * have a clock.
  *
  * The consequence for a caller is that a sequence of radio actions starts with an action
- * that names no time, start_advertising(), and continues with actions whose times are
+ * that names no time, start_advertising_event(), and continues with actions whose times are
  * relative to the callbacks the earlier ones produced. Decision 15.
  *
  * @section contexts Contexts
@@ -67,7 +67,7 @@
  * layer context only; it protects the link layer's own state shared between its two
  * contexts, data on its way from the application to the PDU buffer and received data on
  * its way up. The radio's state is never the caller's concern: every scheduling function
- * is called from one context only, except start_advertising(), which the radio makes safe
+ * is called from one context only, except start_advertising_event(), which the radio makes safe
  * itself. Decision 17.
  */
 
@@ -121,9 +121,12 @@ namespace link_layer {
 
         /*
          * A PDU received with a valid CRC into the room allocate_receive_buffer() gave; stores
-         * it, and returns the PDU to answer with.
+         * it, and reports the PDU to answer with and whether the packet counters of the
+         * encryption have to advance (link_layer::reception_result). Only the buffer can tell
+         * a PDU that is new from one that is a repeat, and only the radio knows whose counters
+         * are meant, so the buffer reports and the radio acts.
          */
-        { buffer.received( pdu ) } -> std::same_as< write_buffer >;
+        { buffer.received( pdu ) } -> std::same_as< reception_result >;
 
         /*
          * The next PDU to send, without taking anything received: after a PDU with an invalid
@@ -160,7 +163,7 @@ namespace link_layer {
          * without polling. No scheduling function is called before it.
          *
          * Carries no time. Nothing has happened on the radio yet, and the link layer's
-         * first action is start_advertising(), which needs none, so an implementation
+         * first action is start_advertising_event(), which needs none, so an implementation
          * is not required to run a clock before the radio is used.
          */
         callbacks.radio_ready();
@@ -489,7 +492,7 @@ namespace link_layer {
         /*
          * Scheduling.
          *
-         * Context: link layer, except start_advertising().
+         * Context: link layer, except start_advertising_event().
          */
 
         /*
@@ -513,7 +516,7 @@ namespace link_layer {
          * time, which is the whole reason this function exists, could do nothing with one
          * anyway. An implementation may assert the precondition.
          */
-        { radio.start_advertising( channel, transmit, transmit, receive ) } -> std::same_as< void >;
+        { radio.start_advertising_event( channel, transmit, transmit, receive ) } -> std::same_as< void >;
 
         /*
          * Schedules one advertising event: transmit `transmit` on `channel` so that its

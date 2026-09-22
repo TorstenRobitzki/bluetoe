@@ -196,6 +196,54 @@ BOOST_FIXTURE_TEST_CASE( Channel_Map_Update_procedure_With_Latency, unconnected 
     BOOST_CHECK_EQUAL( connection_events()[ 3 ].channel, 12u );
 }
 
+/*
+ * An instant based procedure must not stop the data flow. The PDU that carries the instant is
+ * kept until the instant is reached, which may be many connection events later, and while it is
+ * kept, no L2CAP input is processed at all, so a request of the central goes unanswered for that
+ * long (#6).
+ */
+BOOST_FIXTURE_TEST_CASE( data_is_answered_while_an_instant_is_pending, unconnected )
+{
+    static constexpr std::uint16_t instant = 20;
+
+    respond_to( 37, valid_connection_request_pdu );
+
+    ll_control_pdu(
+        {
+            0x01,                           // LL_CHANNEL_MAP_REQ
+            0xff, 0xf7, 0xff, 0xff, 0x1f,   // new channel map: all channels enabled except channel 11
+            static_cast< std::uint8_t >( instant ), 0x00
+        }
+    );
+
+    // an ATT request the server answers out of its own knowledge
+    ll_data_pdu(
+        {
+            0x03, 0x00,                     // L2CAP length
+            0x04, 0x00,                     // L2CAP channel: ATT
+            0x02, 0x17, 0x00                // ATT exchange MTU request, MTU 23
+        }
+    );
+
+    ll_empty_pdus( instant + 5 );
+
+    run();
+
+    // the first event that transmitted something that is not an empty PDU
+    unsigned answered_at = 0;
+    for ( ; answered_at != connection_events().size(); ++answered_at )
+    {
+        const auto& transmitted = connection_events()[ answered_at ].transmitted_data;
+
+        if ( std::any_of( transmitted.begin(), transmitted.end(),
+                []( const test::pdu_t& pdu ) { return pdu.size() > 2; } ) )
+            break;
+        }
+
+    BOOST_REQUIRE_LT( answered_at, connection_events().size() );
+    BOOST_CHECK_LT( answered_at, instant );
+}
+
 std::uint8_t notify_read_handler( std::size_t read_size, std::uint8_t* out_buffer, std::size_t& out_size );
 
 using constantly_fireing_notifications_server =
@@ -447,20 +495,20 @@ BOOST_AUTO_TEST_SUITE( disconnect )
 
         bluetoe::link_layer::read_buffer connection_request = this->advertising_receive_buffer();
         copy_air_to_mem< layout_t >( valid_connection_request_pdu, connection_request );
-        this->adv_received( connection_request );
+        this->adv_received( this->now(), connection_request );
 
         // first connection event,
         auto receive_buffer = this->allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid, 0x00 }, receive_buffer );
         this->received( receive_buffer );
-        this->end_event( no_special_event );
+        this->connection_end_event( this->now(), no_special_event );
 
         // second connection event, transmitting the LL_TERMINATE_IND
         this->disconnect( 0x13 );
         receive_buffer = this->allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid | sn | nesn, 0x00 }, receive_buffer );
         this->received( receive_buffer );
-        this->end_event( no_special_event );
+        this->connection_end_event( this->now(), no_special_event );
 
         // now, having connection events whithout acknowledging the transmitted LL_TERMINATE_IND
         // interval is 30ms, timeout is 720ms (see definition of valid_connection_request_pdu)
@@ -473,7 +521,7 @@ BOOST_AUTO_TEST_SUITE( disconnect )
                 static_cast< std::uint8_t >( llid | serial_num | nesn ),
                 0x00 }, receive_buffer );
             this->received( receive_buffer );
-            this->end_event( no_special_event );
+            this->connection_end_event( this->now(), no_special_event );
         }
 
         BOOST_CHECK( disconnect_cb.disconnected );
@@ -494,20 +542,20 @@ BOOST_AUTO_TEST_SUITE( disconnect )
 
         bluetoe::link_layer::read_buffer connection_request = this->advertising_receive_buffer();
         copy_air_to_mem< layout_t >( valid_connection_request_pdu, connection_request );
-        this->adv_received( connection_request );
+        this->adv_received( this->now(), connection_request );
 
         // first connection event,
         auto receive_buffer = this->allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid, 0x00 }, receive_buffer );
         this->received( receive_buffer );
-        this->end_event( no_special_event );
+        this->connection_end_event( this->now(), no_special_event );
 
         // second connection event, transmitting the LL_TERMINATE_IND
         this->disconnect( 0x13 );
         receive_buffer = this->allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid | sn | nesn, 0x00 }, receive_buffer );
         this->received( receive_buffer );
-        this->end_event( no_special_event );
+        this->connection_end_event( this->now(), no_special_event );
 
         // now, having connection events whithout acknowledging the transmitted LL_TERMINATE_IND
         // interval is 30ms, timeout is 720ms (see definition of valid_connection_request_pdu)
@@ -520,11 +568,11 @@ BOOST_AUTO_TEST_SUITE( disconnect )
                 static_cast< std::uint8_t >( llid | serial_num | nesn ),
                 0x00 }, receive_buffer );
             this->received( receive_buffer );
-            this->end_event( no_special_event );
+            this->connection_end_event( this->now(), no_special_event );
         }
 
-        this->timeout();
-        this->timeout();
+        this->connection_timeout( this->now() );
+        this->connection_timeout( this->now() );
 
         BOOST_CHECK( disconnect_cb.disconnected );
         BOOST_CHECK_EQUAL( disconnect_cb.reason, 0x22 );

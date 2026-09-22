@@ -569,27 +569,8 @@ namespace test_rig {
             std::uint8_t                                    pdu             = 0;
         };
 
-        /*
-         * The library's PDU buffer is written to be a base of the radio. The rig owns it
-         * instead and hands it to the radio, so this makes the radio's side of it public and
-         * provides what the buffer asks of its radio: the lock, and the CCM counters, which
-         * stay unused without encryption.
-         */
-        class pdu_buffer : public link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >
-        {
-        public:
-            using base_t     = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, pdu_buffer >;
-
-            // excludes the radio context, which uses the buffer
-            using lock_guard = typename radio_t::radio_lock_guard;
-
-            using base_t::allocate_receive_buffer;
-            using base_t::received;
-            using base_t::next_transmit;
-
-            void increment_receive_packet_counter() {}
-            void increment_transmit_packet_counter() {}
-        };
+        // the library's PDU buffer, laid out and locked for the radio the rig hands it to
+        using pdu_buffer = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, radio_t >;
 
         void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )
         {
@@ -633,10 +614,10 @@ namespace test_rig {
 
             switch ( what.kind )
             {
-            case call_kind::start_advertising:
+            case call_kind::start_advertising_event:
                 // it cannot refuse: the radio is idle whenever a step runs, and the time
                 // is the radio's own to choose, so there is no result to record
-                radio_t::start_advertising( what.channel, transmit, response, receive );
+                radio_t::start_advertising_event( what.channel, transmit, response, receive );
                 radio_event_pending_ = true;
                 break;
             case call_kind::schedule_advertising_event:

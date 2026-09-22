@@ -110,7 +110,7 @@ namespace test_rig {
             link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
         void set_local_address( const link_layer::device_address& ) {}
 
-        void start_advertising(
+        void start_advertising_event(
             std::uint32_t, const link_layer::write_buffer&, const link_layer::write_buffer&, const link_layer::read_buffer& )
         {
         }

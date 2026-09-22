@@ -68,6 +68,16 @@ namespace test_rig {
         const link_layer::device_address& scanner, const link_layer::device_address& advertiser );
 
     /**
+     * @brief a CONNECT_IND from `initiator` to `advertiser`, as the tester transmits it
+     *
+     * Header type 0x05, TxAdd the initiator's address kind and RxAdd the advertiser's, then
+     * the two addresses and the connection's parameters: a 30 ms interval, no latency, a
+     * 720 ms timeout, all data channels and a hop of 5.
+     */
+    std::array< std::uint8_t, 36 > connect_request(
+        const link_layer::device_address& initiator, const link_layer::device_address& advertiser );
+
+    /**
      * @brief the time from the first bit of `earlier` to the first bit of `later`, by the
      *        tester's clock
      */

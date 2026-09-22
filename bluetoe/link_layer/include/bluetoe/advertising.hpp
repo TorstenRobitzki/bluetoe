@@ -5,6 +5,7 @@
 #include <bluetoe/default_pdu_layout.hpp>
 #include <bluetoe/address.hpp>
 #include <bluetoe/buffer.hpp>
+#include <bluetoe/abs_time.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/ll_constants.hpp>
 #include <bluetoe/ll_meta_types.hpp>
@@ -1015,15 +1016,8 @@ namespace link_layer {
         template < typename LinkLayer, typename Options, typename ... Advertisings >
         class advertiser;
 
-        struct advertiser_base_base
-        {
-            static constexpr std::uint32_t  advertising_radio_access_address = link_layer::advertising_access_address;
-            static constexpr std::uint32_t  advertising_crc_init             = link_layer::advertising_crc_init;
-        };
-
         template < typename LinkLayer, typename ... Options >
         class advertiser_base :
-            public advertiser_base_base,
             public bluetoe::details::find_by_meta_type<
                     details::advertising_interval_meta_type,
                     Options..., advertising_interval< 100 > >::type,
@@ -1083,14 +1077,51 @@ namespace link_layer {
             {
             }
 
-            delta_time next_adv_event()
+            /*
+             * The first PDU of an advertising event, and every further channel of the same
+             * event, goes on air as soon as the radio can manage.
+             */
+            void advertise_now( const read_buffer& advertising_data, const read_buffer& response_data )
             {
-                if ( !this->first_channel_selected() )
-                    return delta_time::now();
+                base_link_layer().start_advertising_event(
+                    this->current_channel(),
+                    write_buffer( advertising_data ),
+                    write_buffer( response_data ),
+                    this->advertising_receive_buffer() );
+            }
 
-                adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
+            /*
+             * The next PDU after the one that was on air at last_event: on the next channel of
+             * the same event as soon as possible, or, with the channels of an event used up,
+             * a new event one interval and a delay of up to 10 ms after the last one
+             * (Vol 6, Part B, 4.4.2.2.1).
+             *
+             * The radio refuses a time it can not meet any more, which happens when this
+             * decision was delayed by more than an interval; advertising then goes on right
+             * away rather than not at all.
+             */
+            void advertise_after( abs_time last_event, const read_buffer& advertising_data, const read_buffer& response_data )
+            {
+                if ( this->first_channel_selected() )
+                {
+                    adv_perturbation_ = ( adv_perturbation_ + 7 ) % ( max_adv_perturbation_ + 1 );
 
-                return this->current_advertising_interval() + delta_time::msec( adv_perturbation_ );
+                    const abs_time next_event = last_event
+                        + this->current_advertising_interval()
+                        + delta_time::msec( adv_perturbation_ );
+
+                    const bool scheduled = base_link_layer().schedule_advertising_event(
+                        this->current_channel(),
+                        next_event,
+                        write_buffer( advertising_data ),
+                        write_buffer( response_data ),
+                        this->advertising_receive_buffer() );
+
+                    if ( scheduled )
+                        return;
+                }
+
+                advertise_now( advertising_data, response_data );
             }
 
             LinkLayer& base_link_layer()
@@ -1140,15 +1171,10 @@ namespace link_layer {
                 if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
                     this->base_link_layer().set_access_address_and_crc_init(
-                        this->advertising_radio_access_address,
-                        this->advertising_crc_init );
+                        link_layer::advertising_access_address,
+                        link_layer::advertising_crc_init );
 
-                    this->base_link_layer().schedule_advertisment(
-                        this->current_channel(),
-                        write_buffer( advertising_data ),
-                        write_buffer( response_data ),
-                        delta_time::now(),
-                        this->advertising_receive_buffer() );
+                    this->advertise_now( advertising_data, response_data );
                 }
             }
 
@@ -1160,7 +1186,7 @@ namespace link_layer {
             /*
              * handling incomming PDU
              */
-            bool handle_adv_receive( read_buffer receive, device_address& remote_address )
+            bool handle_adv_receive( abs_time when, read_buffer receive, device_address& remote_address )
             {
                 if ( this->is_valid_connect_request( receive ) )
                 {
@@ -1175,12 +1201,12 @@ namespace link_layer {
                         return true;
                 }
 
-                handle_adv_timeout();
+                handle_adv_timeout( when );
 
                 return false;
             }
 
-            void handle_adv_timeout()
+            void handle_adv_timeout( abs_time when )
             {
                 const read_buffer advertising_data = this->base_link_layer().l2cap_adverting_data_or_scan_response_data_changed()
                     ? this->fill_advertising_data()
@@ -1191,13 +1217,7 @@ namespace link_layer {
                 if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
-
-                    this->base_link_layer().schedule_advertisment(
-                        this->current_channel(),
-                        write_buffer( advertising_data ),
-                        write_buffer( response_data ),
-                        this->next_adv_event(),
-                        this->advertising_receive_buffer() );
+                    this->advertise_after( when, advertising_data, response_data );
                 }
             }
 
@@ -1322,15 +1342,10 @@ namespace link_layer {
                 if ( !advertising_data.empty() && this->begin_of_advertising_events() )
                 {
                     this->base_link_layer().set_access_address_and_crc_init(
-                        this->advertising_radio_access_address,
-                        this->advertising_crc_init );
+                        link_layer::advertising_access_address,
+                        link_layer::advertising_crc_init );
 
-                    this->base_link_layer().schedule_advertisment(
-                        this->current_channel(),
-                        write_buffer( advertising_data ),
-                        write_buffer( response_data ),
-                        delta_time::now(),
-                        this->advertising_receive_buffer() );
+                    this->advertise_now( advertising_data, response_data );
                 }
             }
 
@@ -1339,7 +1354,7 @@ namespace link_layer {
                 this->end_of_advertising_events();
             }
 
-            bool handle_adv_receive( read_buffer receive, device_address& remote_address )
+            bool handle_adv_receive( abs_time when, read_buffer receive, device_address& remote_address )
             {
                 if ( this->is_valid_connect_request( receive, selected_ ) )
                 {
@@ -1354,12 +1369,12 @@ namespace link_layer {
                         return true;
                 }
 
-                handle_adv_timeout();
+                handle_adv_timeout( when );
 
                 return false;
             }
 
-            void handle_adv_timeout()
+            void handle_adv_timeout( abs_time when )
             {
                 const bool fill_data = selected_ != proposal_
                     || this->base_link_layer().l2cap_adverting_data_or_scan_response_data_changed();
@@ -1374,13 +1389,7 @@ namespace link_layer {
                 if ( !advertising_data.empty() && this->continued_advertising_events() )
                 {
                     this->next_channel();
-
-                    this->base_link_layer().schedule_advertisment(
-                        this->current_channel(),
-                        write_buffer( advertising_data ),
-                        write_buffer( response_data ),
-                        this->next_adv_event(),
-                        this->advertising_receive_buffer() );
+                    this->advertise_after( when, advertising_data, response_data );
                 }
             }
 

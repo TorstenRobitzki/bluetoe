@@ -2,7 +2,17 @@
 #define BLUETOE_LINK_LAYER_PERIPHERAL_LATENCY_HPP
 
 #include <bluetoe/ll_meta_types.hpp>
+#include <bluetoe/abs_time.hpp>
 #include <bluetoe/connection_events.hpp>
+#include <bluetoe/delta_time.hpp>
+#include <bluetoe/meta_tools.hpp>
+
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 /**
  * @file bluetoe/peripheral_latency.hpp
@@ -307,6 +317,35 @@ namespace link_layer {
             }
 
             /**
+             * @brief the time the next, planned connection event is anchored at
+             */
+            abs_time      next_connection_event_anchor() const
+            {
+                return last_anchor_ + time_since_last_event_;
+            }
+
+            /**
+             * @brief the anchor of the last connection event that happened
+             */
+            abs_time      last_connection_event_anchor() const
+            {
+                return last_anchor_;
+            }
+
+            /**
+             * @brief a connection event took place, anchored at the given time
+             *
+             * Every later event is planned from this anchor, until the next one happens; a
+             * connection event that times out does not move it, which is what makes the time
+             * since the last event grow with every timeout.
+             */
+            void connection_event_happened( abs_time anchor )
+            {
+                last_anchor_           = anchor;
+                time_since_last_event_ = delta_time();
+            }
+
+            /**
              * @brief Plan next connection event after timeout
              */
             void plan_next_connection_event_after_timeout(
@@ -360,13 +399,13 @@ namespace link_layer {
             /**
              * @brief to be called, when pending data to be transmitted is detected
              *
-             * If listen_if_pending_transmit_data is given as one of the Options,
-             * the passed radio has to implement the disarm_connection_event()
-             * function. If the function returns true, the connection event was disarmed
-             * and a new connection event can be scheduled again.
+             * If listen_if_pending_transmit_data is given as one of the Options, the
+             * pending connection event is cancelled on the radio and the next event is
+             * planned as the first one after the last anchor; the caller schedules it and
+             * moves on an interval at a time when the radio refuses a time gone by.
              *
              * @pre there is a connection event pending on the radio
-             * @ret true: there was enough time to disarm the pending connection event
+             * @ret true: the pending connection event was cancelled and the next one planned
              */
             template < class Radio >
             bool reschedule_on_pending_data( Radio&, delta_time )
@@ -379,8 +418,9 @@ namespace link_layer {
              */
             void reset_connection_state()
             {
-                channel_index_         = 0;
-                event_counter_         = 0;
+                channel_index_ = 0;
+                event_counter_ = 0;
+                last_anchor_           = abs_time();
                 time_since_last_event_ = delta_time();
                 base().disarmable_connection_state_last_latency( 1 );
             }
@@ -404,6 +444,9 @@ namespace link_layer {
         private:
             unsigned        channel_index_;
             std::uint16_t   event_counter_;
+
+            // the last connection event that happened, and how far the next planned one is
+            abs_time        last_anchor_;
             delta_time      time_since_last_event_;
 
             Base& base()
@@ -434,22 +477,18 @@ namespace link_layer {
                 if ( last_latency_ == 1 )
                     return false;
 
-                const std::pair< bool, bluetoe::link_layer::delta_time > rc = radio.disarm_connection_event();
+                if ( !radio.cancel_radio_event() )
+                    return false;
 
-                if ( rc.first )
-                {
-                    assert( !connection_iterval.zero() );
+                /*
+                 * The time is not known here; the radio tells, when the event is scheduled,
+                 * whether the first event after the anchor is still ahead, and the caller
+                 * moves on from there.
+                 */
+                static_cast< State* >( this )->peripheral_latency_move_connection_event( 1 - last_latency_, connection_iterval );
+                last_latency_ = 1;
 
-                    const unsigned times = std::max( 1u, ( rc.second + connection_iterval - delta_time( 1 ) ) / connection_iterval );
-
-                    // only move the connection event further into direction of the current time
-                    const int moved = std::min< int >( times, last_latency_ );
-                    static_cast< State* >( this )->peripheral_latency_move_connection_event( moved - last_latency_, connection_iterval );
-
-                    last_latency_ = 1;
-                }
-
-                return rc.first;
+                return true;
             }
 
         private:
@@ -493,13 +532,13 @@ namespace link_layer {
             /**
              * @brief to be called, when pending data to be transmitted is detected
              *
-             * If listen_if_pending_transmit_data is given as one of the Options,
-             * the passed radio has to implement the disarm_connection_event()
-             * function. If the function returns true, the connection event was disarmed
-             * and a new connection event can be scheduled again.
+             * If listen_if_pending_transmit_data is given as one of the Options, the
+             * pending connection event is cancelled on the radio and the next event is
+             * planned as the first one after the last anchor; the caller schedules it and
+             * moves on an interval at a time when the radio refuses a time gone by.
              *
              * @pre there is a connection event pending on the radio
-             * @ret true: there was enough time to disarm the pending connection event
+             * @ret true: the pending connection event was cancelled and the next one planned
              */
             template < class Radio >
             bool reschedule_on_pending_data( Radio& radio, delta_time connection_iterval )

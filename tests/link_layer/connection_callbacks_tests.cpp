@@ -438,8 +438,11 @@ BOOST_FIXTURE_TEST_CASE( connection_not_lost, link_layer_only_disconnect_callbac
 {
     BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
 
+    // the central answers every connection event the simulation runs for; unanswered
+    // events after these would end the connection with the supervision timeout
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 120 );
+    end_of_simulation( bluetoe::link_layer::delta_time::seconds( 3 ) );
     run( 3 );
 
     BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
