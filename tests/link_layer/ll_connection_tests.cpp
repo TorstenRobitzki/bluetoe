@@ -390,6 +390,14 @@ BOOST_FIXTURE_TEST_CASE( connection_update_request_invalid_window_size, unconnec
     BOOST_CHECK_EQUAL( connection_events().size(), 6u );
 }
 
+// a window of the interval's size leaves no room before the next interval; the update is refused
+BOOST_FIXTURE_TEST_CASE( connection_update_request_window_size_equal_to_interval, unconnected )
+{
+    simulate_connection_update_request( *this, 8, 6, 8, 1, 25, 6 );
+
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
+}
+
 BOOST_FIXTURE_TEST_CASE( connection_update_request_window_size_0, unconnected )
 {
     simulate_connection_update_request( *this, 5, 0, 40, 0, 25, 6 );

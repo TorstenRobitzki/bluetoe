@@ -72,12 +72,13 @@ namespace details {
 
     bool connection_parameters::valid() const
     {
-        static constexpr delta_time maximum_transmit_window_offset( 10 * 1000 );
+        static constexpr delta_time maximum_transmit_window_size( 10 * 1000 );
         static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
         static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
 
-        return transmit_window_size_ <= maximum_transmit_window_offset
-            && transmit_window_size_ <= interval_
+        // the transmit window ends at least one unit before the interval (Vol 6, Part B, 2.3.3.1 and 2.4.2.1)
+        return transmit_window_size_ <= maximum_transmit_window_size
+            && transmit_window_size_ + delta_time( us_per_digits ) <= interval_
             && timeout_ >= minimum_connection_timeout
             && timeout_ <= maximum_connection_timeout
             && timeout_ >= ( latency_ + 1 ) * 2 * interval_
