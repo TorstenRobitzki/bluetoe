@@ -9,8 +9,12 @@
  *
  * What is implemented: the time base, radio_ready(), start_advertising_event() and
  * schedule_advertising_event() with their receive window and the scan response, the timer,
- * the callbacks, delivered from run(), and connection events at 1 or 2 Mbit, without
- * encryption.
+ * the callbacks, delivered from run(), connection events at 1 or 2 Mbit, and, with the
+ * option `encrypting`, their encryption (nrf52_ccm.hpp).
+ *
+ * Every PDU is stored with a spare byte between header and payload, encrypted_pdu_layout,
+ * which the CCM needs and the RADIO keeps in memory without sending it; a radio that does
+ * not encrypt stores PDUs the same way, so that it has one packet format.
  *
  * @section timebase The time base
  *
@@ -55,6 +59,8 @@
  */
 
 #include <bluetoe/security_tool_box.hpp>
+#include <bluetoe/nrf52_ccm.hpp>
+#include <bluetoe/nrf.hpp>
 
 #include <bluetoe/abs_time.hpp>
 #include <bluetoe/address.hpp>
@@ -67,6 +73,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <type_traits>
+#include <utility>
 
 namespace bluetoe
 {
@@ -89,14 +97,48 @@ namespace bluetoe
         };
 
         /**
+         * @brief a 39 bit packet counter of the CCM nonce
+         */
+        struct packet_counter
+        {
+            std::uint32_t   low  = 0;
+            std::uint8_t    high = 0;
+
+            void increment();
+        };
+
+        /**
+         * @brief the encryption of one connection; see scheduled_radio_encryption
+         *
+         * The switches are the link layer's. The session key is stored the way the CCM
+         * reads it, most significant byte first.
+         */
+        struct encryption_t
+        {
+            bool            receive_encrypted  = false;
+            bool            transmit_encrypted = false;
+
+            std::uint8_t    key[ 16 ]          = {};
+            std::uint8_t    iv[ 8 ]            = {};
+            packet_counter  receive_counter;
+            packet_counter  transmit_counter;
+        };
+
+        /**
          * @brief what does not depend on the callbacks type: the hardware and its state
          *
          * The interrupts write what happened into one slot per kind of event, and the
          * template's run() takes it from there and delivers it; the concepts' rule that
          * no second action of a kind is scheduled while one is pending is what makes one
          * slot enough.
+         *
+         * Encrypting is whether the connection events run through the CCM (nrf52_ccm.hpp).
+         * A radio that does not encrypt has the branches compiled out, and links no CCM
+         * code: both variants are instantiated in the source file, and the linker keeps the
+         * one a firmware uses.
          */
-        class radio_base
+        template < bool Encrypting >
+        class radio_base_t
         {
         public:
             /**
@@ -104,13 +146,14 @@ namespace bluetoe
              */
             static void radio_interrupt();
             static void timer_interrupt();
+            static void ccm_interrupt();
 
         protected:
             /**
              * @brief starts the crystal, the timers and the random number generator, and
              *        configures the radio for legacy advertising
              */
-            radio_base();
+            radio_base_t();
 
             /**
              * @brief sleeps until an interrupt happened or wake_up() was called
@@ -140,7 +183,7 @@ namespace bluetoe
              * is_in_acceptance_filter() (scheduled_radio2.hpp). A null thunk accepts every
              * sender, which is what an empty filter set means.
              */
-            void set_acceptance_filter( bool ( *filter )( radio_base*, const link_layer::device_address& ) );
+            void set_acceptance_filter( bool ( *filter )( radio_base_t*, const link_layer::device_address& ) );
 
             /**
              * @brief the address this device advertises from
@@ -154,6 +197,12 @@ namespace bluetoe
              * @brief what a static random address of this device is generated from
              */
             std::uint32_t static_random_address_seed() const;
+
+            /**
+             * @brief the encryption of the connection events to come
+             */
+            void set_encryption( encryption_t& encryption );
+
 
             void start_advertising_event(
                 std::uint32_t                       channel,
@@ -182,10 +231,11 @@ namespace bluetoe
              */
             struct pdu_buffer_access
             {
-                link_layer::read_buffer  ( *allocate_receive_buffer )( radio_base* );
-                link_layer::reception_result ( *received )( radio_base*, link_layer::read_buffer );
-                link_layer::write_buffer ( *next_transmit )( radio_base* );
-                bool                     ( *pending_outgoing_data_available )( radio_base* );
+                link_layer::read_buffer  ( *allocate_receive_buffer )( radio_base_t* );
+                link_layer::reception_result ( *received )( radio_base_t*, link_layer::read_buffer );
+                link_layer::reception_result ( *acknowledge )( radio_base_t*, link_layer::read_buffer );
+                link_layer::write_buffer ( *next_transmit )( radio_base_t* );
+                bool                     ( *pending_outgoing_data_available )( radio_base_t* );
             };
 
             void set_pdu_buffer_access( const pdu_buffer_access& access );
@@ -272,7 +322,7 @@ namespace bluetoe
             link_layer::abs_time        timer_when_;
             volatile bool               timer_event_pending_;
 
-            bool ( *acceptance_filter_ )( radio_base*, const link_layer::device_address& );
+            bool ( *acceptance_filter_ )( radio_base_t*, const link_layer::device_address& );
 
             /*
              * Set before an event and read by the receive interrupt: the address a scan or
@@ -288,9 +338,42 @@ namespace bluetoe
              * the buffer or the scratch when it has none.
              */
             pdu_buffer_access           buffer_;
-            std::uint8_t                scratch_[ link_layer::pdu_header_size + link_layer::max_payload_size ];
+
+            /*
+             * Where the RADIO receives when the buffer has no room, and, encrypted, always: the
+             * ciphertext of a reception or of the answer being sent. Three header bytes and the
+             * longest payload with its MIC.
+             */
+            std::uint8_t                scratch_[ 3 + link_layer::max_payload_size ];
             link_layer::read_buffer     reception_;
             volatile bool               into_scratch_;
+            // where the RADIO wrote the packet: the room, or the scratch
+            const std::uint8_t*         air_packet_;
+
+            /*
+             * The encryption of the connection, set by the link layer; null until it is. The
+             * switches are read once per event, at its start, and stay false on a radio that
+             * does not encrypt.
+             */
+            encryption_t*               encryption_;
+            bool                        receive_encrypted_;
+            bool                        transmit_encrypted_;
+
+            /*
+             * Whether the PDU last put on air was a ciphertext: an acknowledgement is for
+             * that PDU, and only an encrypted one used up a packet counter value. The
+             * transmit switch alone does not tell: the PDU before the switch is acknowledged
+             * after it, and an empty PDU goes out in plain either way.
+             */
+            bool                        transmitted_encrypted_;
+
+            /*
+             * A reception the CCM was still decrypting when its packet ended is judged from
+             * the CCM's interrupt; if the radio's disable came first, the answer's shorts are
+             * set with the judgement.
+             */
+            volatile bool               judgement_pending_;
+            volatile bool               disabled_before_answer_;
 
             /*
              * What one connection event accumulates, fresh with every event, as the event's
@@ -317,25 +400,46 @@ namespace bluetoe
             // the PHY of the connection events; advertising is always on 1 Mbit
             bool                        connection_2mbit_;
 
-            static radio_base*          instance_;
+            static radio_base_t*          instance_;
         };
+
+        /**
+         * @brief the interrupt handlers reach the radio through these; its constructor sets them
+         */
+        struct interrupt_entries
+        {
+            void ( *radio )();
+            void ( *timer )();
+            void ( *ccm )();
+        };
+
+        extern interrupt_entries interrupts;
+
+        /**
+         * @brief option of the radio: it encrypts connections, with the CCM (nrf52_ccm.hpp)
+         */
+        struct encrypting {};
 
         /**
          * @brief the scheduled radio of the nRF52
          *
          * CallBacks is the type the callbacks are delivered to, which derives from this class
-         * and is reached through that relation. Options are the radio's options; there are
-         * none yet.
+         * and is reached through that relation. Options are the radio's options: encrypting,
+         * or none.
          */
         template < typename CallBacks, typename... Options >
-        class radio : public radio_base, public security_tool_box
+        class radio : public radio_base_t< ( std::is_same_v< Options, encrypting > || ... ) >, public security_tool_box
         {
-            static_assert( sizeof...( Options ) == 0, "the nRF52 scheduled radio has no options yet" );
+            static_assert( ( std::is_same_v< Options, encrypting > && ... ), "the nRF52 scheduled radio knows the option encrypting only" );
+
+            static constexpr bool           encrypts = ( std::is_same_v< Options, encrypting > || ... );
+
+            using base_t = radio_base_t< encrypts >;
 
         public:
-            static constexpr bool           hardware_supports_encryption                = false;
+            static constexpr bool           hardware_supports_encryption                = encrypts;
             static constexpr bool           hardware_supports_lesc_pairing              = true;
-            static constexpr bool           hardware_supports_legacy_pairing            = false;
+            static constexpr bool           hardware_supports_legacy_pairing            = true;
             static constexpr bool           hardware_supports_2mbit                     = true;
             static constexpr bool           hardware_supports_synchronized_user_timer   = false;
             static constexpr bool           hardware_supports_link_layer_context        = false;
@@ -370,21 +474,36 @@ namespace bluetoe
             struct link_layer_lock_guard {};
 
             /**
-             * @brief hands the base a thunk to the callbacks' acceptance filter
+             * @brief hands the base a thunk to the callbacks' acceptance filter and to the
+             *        PDU buffer
              *
-             * The receive interrupt lives in radio_base, which does not know CallBacks;
-             * this gives it a way to reach is_in_acceptance_filter() (scheduled_radio2.hpp).
+             * The interrupts live in the base, which does not know CallBacks; this gives them
+             * a way to reach is_in_acceptance_filter() (scheduled_radio2.hpp) and the buffer.
              */
             radio()
             {
-                radio_base::set_acceptance_filter( &apply_acceptance_filter );
+                base_t::set_acceptance_filter( &apply_acceptance_filter );
 
-                radio_base::set_pdu_buffer_access( {
-                    .allocate_receive_buffer         = []( radio_base* base ) { return buffer( base ).allocate_receive_buffer(); },
-                    .received                        = []( radio_base* base, link_layer::read_buffer pdu ) { return buffer( base ).received( pdu ); },
-                    .next_transmit                   = []( radio_base* base ) { return buffer( base ).next_transmit(); },
-                    .pending_outgoing_data_available = []( radio_base* base ) { return buffer( base ).pending_outgoing_data_available(); } } );
+                base_t::set_pdu_buffer_access( {
+                    .allocate_receive_buffer         = []( base_t* base ) { return buffer( base ).allocate_receive_buffer(); },
+                    .received                        = []( base_t* base, link_layer::read_buffer pdu ) { return buffer( base ).received( pdu ); },
+                    .acknowledge                     = acknowledge_entry(),
+                    .next_transmit                   = []( base_t* base ) { return buffer( base ).next_transmit(); },
+                    .pending_outgoing_data_available = []( base_t* base ) { return buffer( base ).pending_outgoing_data_available(); } } );
             }
+
+            /**
+             * @brief see scheduled_radio_encryption
+             */
+            std::pair< std::uint64_t, std::uint32_t > setup_encryption(
+                encryption_t& encryption, const bluetoe::details::uint128_t& key, std::uint64_t skdm, std::uint32_t ivm )
+                requires encrypts
+            {
+                return ccm::setup_encryption( encryption, key, skdm, ivm );
+            }
+
+            using encryption_t = nrf52_details::encryption_t;
+            using base_t::set_encryption;
 
             /**
              * @brief delivers what happened, then sleeps until the next thing happens
@@ -395,50 +514,62 @@ namespace bluetoe
              */
             void run()
             {
-                for ( std::optional< happened > next = radio_base::next_event(); next; next = radio_base::next_event() )
+                for ( std::optional< typename base_t::happened > next = base_t::next_event(); next; next = base_t::next_event() )
                 {
                     CallBacks& callbacks = static_cast< CallBacks& >( *this );
 
                     switch ( next->kind )
                     {
-                    case event::radio_ready:
+                    case base_t::event::radio_ready:
                         callbacks.radio_ready();
                         break;
-                    case event::adv_received:
+                    case base_t::event::adv_received:
                         callbacks.adv_received( next->when, next->received );
                         break;
-                    case event::adv_timeout:
+                    case base_t::event::adv_timeout:
                         callbacks.adv_timeout( next->when );
                         break;
-                    case event::user_timer:
+                    case base_t::event::user_timer:
                         callbacks.user_timer( next->when );
                         break;
-                    case event::connection_timeout:
+                    case base_t::event::connection_timeout:
                         callbacks.connection_timeout( next->when );
                         break;
-                    case event::connection_end_event:
+                    case base_t::event::connection_end_event:
                         callbacks.connection_end_event( next->when, next->events );
                         break;
                     }
                 }
 
-                radio_base::sleep();
+                base_t::sleep();
             }
 
-            using radio_base::wake_up;
-            using radio_base::set_access_address_and_crc_init;
-            using radio_base::set_phy;
-            using radio_base::set_local_address;
-            using radio_base::static_random_address_seed;
-            using radio_base::start_advertising_event;
-            using radio_base::schedule_advertising_event;
-            using radio_base::schedule_connection_event;
-            using radio_base::cancel_radio_event;
-            using radio_base::schedule_timer;
-            using radio_base::cancel_timer;
+            using base_t::wake_up;
+            using base_t::set_access_address_and_crc_init;
+            using base_t::set_phy;
+            using base_t::set_local_address;
+            using base_t::static_random_address_seed;
+            using base_t::start_advertising_event;
+            using base_t::schedule_advertising_event;
+            using base_t::schedule_connection_event;
+            using base_t::cancel_radio_event;
+            using base_t::schedule_timer;
+            using base_t::cancel_timer;
 
         private:
-            static auto& buffer( radio_base* base )
+            /*
+             * Only a MIC that fails asks the buffer to acknowledge without taking; a radio
+             * that does not encrypt does not instantiate that.
+             */
+            static auto acknowledge_entry() -> link_layer::reception_result ( * )( base_t*, link_layer::read_buffer )
+            {
+                if constexpr ( encrypts )
+                    return []( base_t* base, link_layer::read_buffer pdu ) { return buffer( base ).acknowledge( pdu ); };
+                else
+                    return nullptr;
+            }
+
+            static auto& buffer( base_t* base )
             {
                 return static_cast< CallBacks& >( static_cast< radio& >( *base ) ).link_layer_pdu_buffer();
             }
@@ -447,10 +578,22 @@ namespace bluetoe
              * The thunk the base calls to apply the acceptance filter, the one thing the
              * receive interrupt needs from the callbacks type it cannot name itself.
              */
-            static bool apply_acceptance_filter( radio_base* base, const link_layer::device_address& address )
+            static bool apply_acceptance_filter( base_t* base, const link_layer::device_address& address )
             {
                 return static_cast< CallBacks& >( static_cast< radio& >( *base ) ).is_in_acceptance_filter( address );
             }
+        };
+    }
+
+    namespace link_layer
+    {
+        /**
+         * @brief the nRF52 radio stores every PDU the way the CCM reads it
+         */
+        template < typename CallBacks, typename... Options >
+        struct pdu_layout_by_radio< nrf52_details::radio< CallBacks, Options... > >
+        {
+            using pdu_layout = nrf_details::encrypted_pdu_layout;
         };
     }
 }

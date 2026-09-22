@@ -76,13 +76,6 @@ namespace test_rig {
      */
     constexpr std::size_t received_pdus_until_full = 4;
 
-    /**
-     * @brief bytes of the PDU buffer of connection events, for each direction
-     *
-     * The rig is a link layer that negotiated the largest PDU, so the buffer reserves that
-     * much room per PDU whatever a PDU carries; this many of them fit.
-     */
-    constexpr std::size_t pdu_buffer_size = received_pdus_until_full * max_data_pdu_size;
 
     /**
      * @brief the PDU buffers of the rig, one for each connection a test runs on the radio
@@ -241,8 +234,7 @@ namespace test_rig {
         {
             radio_event_pending_ = false;
 
-            assert( received.size <= max_advertising_pdu_size );
-            on_callback( callback_kind::adv_received, when, adv_pdu( std::span< const std::uint8_t >( received.buffer, received.size ) ) );
+            on_callback( callback_kind::adv_received, when, to_air< max_advertising_pdu_size >( link_layer::write_buffer( received ) ) );
         }
 
         void adv_timeout( link_layer::abs_time when )
@@ -435,12 +427,13 @@ namespace test_rig {
         bool queue_pdu( const pdu& data )
         {
             pdu_buffer&             buffer = link_layer_pdu_buffer();
-            link_layer::read_buffer room   = buffer.allocate_transmit_buffer( data.size );
+            link_layer::read_buffer room   = buffer.allocate_transmit_buffer(
+                layout::data_channel_pdu_memory_size( data.size - link_layer::pdu_header_size ) );
 
             if ( room.size == 0 )
                 return false;
 
-            std::copy( data.data.begin(), data.data.begin() + data.size, room.buffer );
+            to_memory( std::span< const std::uint8_t >( data.data.data(), data.size ), std::span< std::uint8_t >( room.buffer, room.size ) );
             buffer.commit_transmit_buffer( room );
 
             return true;
@@ -463,7 +456,7 @@ namespace test_rig {
             {
                 for ( auto next = buffer.next_received(); batch.count != received_per_batch && next.size != 0; next = buffer.next_received() )
                 {
-                    batch.pdus[ batch.count ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+                    batch.pdus[ batch.count ] = to_air< max_pdu_size >( next );
                     buffer.free_received();
                     ++batch.count;
                 }
@@ -569,8 +562,49 @@ namespace test_rig {
             std::uint8_t                                    pdu             = 0;
         };
 
+        using layout = typename link_layer::pdu_layout_by_radio< radio_t >::pdu_layout;
+
+        /**
+         * @brief bytes of the PDU buffer of connection events, for each direction
+         *
+         * The rig is a link layer that negotiated the largest PDU, so the buffer reserves that
+         * much room per PDU whatever a PDU carries; this many of them fit.
+         */
+        static constexpr std::size_t pdu_buffer_size =
+            received_pdus_until_full * layout::data_channel_pdu_memory_size( link_layer::max_data_payload_size );
+
         // the library's PDU buffer, laid out and locked for the radio the rig hands it to
         using pdu_buffer = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, radio_t >;
+
+        // the largest advertising PDU as the radio stores it
+        static constexpr std::size_t max_advertising_memory_size = layout::data_channel_pdu_memory_size( link_layer::max_advertising_payload_size );
+
+        /*
+         * The host speaks in bytes as they are on air; the radio stores a PDU in its own
+         * layout. A PDU goes from the one to the other on its way in and out.
+         */
+        static link_layer::read_buffer to_memory( std::span< const std::uint8_t > air, std::span< std::uint8_t > memory )
+        {
+            const link_layer::read_buffer result{ memory.data(), layout::data_channel_pdu_memory_size( air.size() - link_layer::pdu_header_size ) };
+
+            layout::header( result.buffer, bluetoe::details::read_16bit( air.data() ) );
+            std::copy( air.begin() + link_layer::pdu_header_size, air.end(), layout::body( result ).first );
+
+            return result;
+        }
+
+        template < std::size_t Size >
+        static bytes< Size > to_air( link_layer::write_buffer memory )
+        {
+            const auto body = layout::body( memory );
+            bytes< Size > result;
+
+            result.size = link_layer::pdu_header_size + ( body.second - body.first );
+            bluetoe::details::write_16bit( result.data.data(), layout::header( memory ) );
+            std::copy( body.first, body.second, result.data.begin() + link_layer::pdu_header_size );
+
+            return result;
+        }
 
         void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )
         {
@@ -603,8 +637,13 @@ namespace test_rig {
          */
         void execute( const stored_call& what, link_layer::abs_time when )
         {
-            const link_layer::write_buffer transmit{ what.transmit.data.data(), what.transmit.size };
-            const link_layer::write_buffer response{ what.response.data.data(), what.response.size };
+            // a call that carries no PDU has an empty one
+            const link_layer::write_buffer transmit( what.transmit.size
+                ? link_layer::write_buffer( to_memory( what.transmit.span(), transmit_memory_ ) )
+                : link_layer::write_buffer{ nullptr, 0 } );
+            const link_layer::write_buffer response( what.response.size
+                ? link_layer::write_buffer( to_memory( what.response.span(), response_memory_ ) )
+                : link_layer::write_buffer{ nullptr, 0 } );
             const link_layer::read_buffer  receive{ receive_.data(), receive_.size() };
 
             record entry;
@@ -678,7 +717,7 @@ namespace test_rig {
             for ( auto next = buffer.next_received(); next.size != 0; next = buffer.next_received() )
             {
                 if ( read_count_ != read_queue_size )
-                    read_[ read_count_++ ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+                    read_[ read_count_++ ] = to_air< max_pdu_size >( next );
 
                 buffer.free_received();
             }
@@ -707,7 +746,10 @@ namespace test_rig {
         std::array< pdu, max_queued_pdus >              program_pdus_;
         std::uint8_t                                    program_pdu_count_      = 0;
 
-        std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
+        // advertising PDUs in the radio's layout: what it sends, what it answers with, what it receives
+        std::array< std::uint8_t, max_advertising_memory_size >     transmit_memory_;
+        std::array< std::uint8_t, max_advertising_memory_size >     response_memory_;
+        std::array< std::uint8_t, max_advertising_memory_size >     receive_;
         std::array< pdu_buffer, pdu_buffer_count >      pdu_buffers_;
         std::size_t                                     active_buffer_          = 0;
 
