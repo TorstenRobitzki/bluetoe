@@ -431,7 +431,7 @@ BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minu
     this->respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
     add_connection_update_request(
-        0x08, 0x08, 0x08, 0, 100, 8 );
+        0x07, 0x08, 0x08, 0, 100, 8 );
     ll_empty_pdus( 30 );
     run();
 
@@ -545,7 +545,7 @@ BOOST_FIXTURE_TEST_CASE( update_callback, server_20ms_minus_100us_cbs )
     this->respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
     add_connection_update_request(
-        0x08, 0x08, 0x08, 0, 100, 8 );
+        0x07, 0x08, 0x08, 0, 100, 8 );
     ll_empty_pdus( 10 );
     run();
 

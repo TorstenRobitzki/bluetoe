@@ -222,7 +222,7 @@ BOOST_FIXTURE_TEST_CASE( connection_parameter_update, fixture_with_listen_if_pen
     respond_to( 37, five_hop_connection_request_pdu );
     ll_empty_pdu();
     add_connection_update_request(
-        6, 3, 6,
+        4, 3, 6,
         // latency: 66, timeout: 198, instance: 10
         66, 198, 10 );
     add_empty_pdus( 3 );
