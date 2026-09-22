@@ -11,8 +11,8 @@ if(CMAKE_CROSSCOMPILING)
     target_include_directories(toolchain_nrf52 SYSTEM INTERFACE ${NRF5_SDK_ROOT}/modules/nrfx/mdk)
     target_include_directories(toolchain_nrf52 SYSTEM INTERFACE ${NRF5_SDK_ROOT}/components/toolchain/cmsis/include)
     target_include_directories(toolchain_nrf52 INTERFACE .)
-#    target_compile_definitions(toolchain_nrf52 INTERFACE NRF52 NRF52832_XXAA)
-    target_compile_definitions(toolchain_nrf52 INTERFACE NRF52820_XXAA)
+    # The part the board carries, for the MDK's headers and system file
+    target_compile_definitions(toolchain_nrf52 INTERFACE ${BLUETOE_BINDING}_XXAA)
     target_compile_definitions(toolchain_nrf52 INTERFACE $<$<CONFIG:Debug>:BLUETOE_NRF52_RADIO_DEBUG>)
 
     # The reset pin of the part, for the UICR words in pin_reset.c
@@ -28,10 +28,12 @@ if(CMAKE_CROSSCOMPILING)
 
     # An object library rather than an archive: the linker takes from an archive only what
     # resolves a reference, and nothing references the UICR words.
+    string(TOLOWER ${BLUETOE_BINDING} part)
+
     enable_language(ASM)
     add_library(startup_nrf52 OBJECT
             gcc_startup_nrf52.s
-            system_nrf52.c
+            ${NRF5_SDK_ROOT}/modules/nrfx/mdk/system_${part}.c
             pin_reset.c
             )
     target_link_libraries(startup_nrf52 PRIVATE toolchain::nrf52)
