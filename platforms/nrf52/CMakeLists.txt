@@ -28,7 +28,11 @@ if(CMAKE_CROSSCOMPILING)
 
     # An object library rather than an archive: the linker takes from an archive only what
     # resolves a reference, and nothing references the UICR words.
+    # The SDK's system file of the part; the nRF52832's is named after the family
     string(TOLOWER ${BLUETOE_BINDING} part)
+    if (part STREQUAL nrf52832)
+        set(part nrf52)
+    endif()
 
     enable_language(ASM)
     add_library(startup_nrf52 OBJECT
