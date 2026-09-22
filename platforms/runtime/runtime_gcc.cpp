@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 
 extern "C" void __cxa_pure_virtual(void) {}
@@ -38,4 +39,90 @@ extern "C" void _start(void) {
     for ( vector* finit = &__fini_array_start[ 0 ]; finit != &__fini_array_end[ 0 ]; ++finit )
         (*finit)();
 
+}
+
+/*
+ * The memory functions the compiler emits calls to, in place of newlib's: newlib's are
+ * unrolled, half a kilobyte for the three of them. These copy a word at a time while both
+ * sides are aligned, which the copies of whole objects are, and bytes otherwise; a byte loop
+ * alone was too slow for the tester, which copies a PDU inside the inter frame space. The
+ * attribute keeps the compiler from recognising the loops and turning them back into calls
+ * to the very function they implement, and lets the word access alias the bytes.
+ */
+#define BLUETOE_MEMORY_FUNCTION __attribute__(( optimize( "no-tree-loop-distribute-patterns", "no-strict-aliasing" ) ))
+
+namespace {
+    bool word_aligned( const void* first, const void* second )
+    {
+        return ( ( reinterpret_cast< std::uintptr_t >( first ) | reinterpret_cast< std::uintptr_t >( second ) ) & 3 ) == 0;
+    }
+}
+
+extern "C" BLUETOE_MEMORY_FUNCTION void* memcpy( void* destination, const void* source, std::size_t size )
+{
+    std::uint8_t*       to   = static_cast< std::uint8_t* >( destination );
+    const std::uint8_t* from = static_cast< const std::uint8_t* >( source );
+
+    if ( word_aligned( to, from ) )
+    {
+        for ( ; size >= 4; size -= 4, to += 4, from += 4 )
+            *reinterpret_cast< std::uint32_t* >( to ) = *reinterpret_cast< const std::uint32_t* >( from );
+    }
+
+    for ( ; size; --size )
+        *to++ = *from++;
+
+    return destination;
+}
+
+extern "C" BLUETOE_MEMORY_FUNCTION void* memmove( void* destination, const void* source, std::size_t size )
+{
+    std::uint8_t*       to   = static_cast< std::uint8_t* >( destination );
+    const std::uint8_t* from = static_cast< const std::uint8_t* >( source );
+
+    // forward is safe unless the destination starts inside the source
+    if ( to <= from )
+        return memcpy( destination, source, size );
+
+    to   += size;
+    from += size;
+
+    if ( word_aligned( to, from ) )
+    {
+        for ( ; size >= 4; size -= 4 )
+        {
+            to   -= 4;
+            from -= 4;
+            *reinterpret_cast< std::uint32_t* >( to ) = *reinterpret_cast< const std::uint32_t* >( from );
+        }
+    }
+
+    for ( ; size; --size )
+        *--to = *--from;
+
+    return destination;
+}
+
+extern "C" BLUETOE_MEMORY_FUNCTION void* memset( void* destination, int value, std::size_t size )
+{
+    std::uint8_t* to = static_cast< std::uint8_t* >( destination );
+
+    for ( ; size; --size )
+        *to++ = static_cast< std::uint8_t >( value );
+
+    return destination;
+}
+
+extern "C" int memcmp( const void* first, const void* second, std::size_t size )
+{
+    const std::uint8_t* a = static_cast< const std::uint8_t* >( first );
+    const std::uint8_t* b = static_cast< const std::uint8_t* >( second );
+
+    for ( ; size; --size, ++a, ++b )
+    {
+        if ( *a != *b )
+            return *a < *b ? -1 : 1;
+    }
+
+    return 0;
 }
