@@ -2,6 +2,8 @@
 
 #include <nrf.h>
 
+#include <cassert>
+
 namespace bluetoe
 {
     namespace nrf52_details
@@ -16,14 +18,15 @@ namespace bluetoe
     }
 }
 
+// the radio's constructor fills the table before it enables the interrupts
 extern "C" void RADIO_IRQHandler()
 {
-    if ( bluetoe::nrf52_details::interrupts.radio )
-        bluetoe::nrf52_details::interrupts.radio();
+    assert( bluetoe::nrf52_details::interrupts.radio );
+    bluetoe::nrf52_details::interrupts.radio();
 }
 
 extern "C" void TIMER1_IRQHandler()
 {
-    if ( bluetoe::nrf52_details::interrupts.timer )
-        bluetoe::nrf52_details::interrupts.timer();
+    assert( bluetoe::nrf52_details::interrupts.timer );
+    bluetoe::nrf52_details::interrupts.timer();
 }

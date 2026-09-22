@@ -6,6 +6,7 @@
 #include <nrf.h>
 
 #include <algorithm>
+#include <cassert>
 
 namespace bluetoe
 {
@@ -214,6 +215,6 @@ extern "C" void CCM_AAR_IRQHandler()
 {
     NRF_CCM->INTENCLR = CCM_INTENCLR_ENDCRYPT_Msk;
 
-    if ( bluetoe::nrf52_details::interrupts.ccm )
-        bluetoe::nrf52_details::interrupts.ccm();
+    assert( bluetoe::nrf52_details::interrupts.ccm );
+    bluetoe::nrf52_details::interrupts.ccm();
 }
