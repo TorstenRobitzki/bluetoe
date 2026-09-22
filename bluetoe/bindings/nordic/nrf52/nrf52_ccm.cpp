@@ -1,5 +1,5 @@
 #include <bluetoe/nrf52_ccm.hpp>
-#include "nrf52_radio_base.hpp"
+#include <bluetoe/nrf52_radio.hpp>
 #include <bluetoe/security_tool_box.hpp>
 #include <bluetoe/bits.hpp>
 
@@ -207,15 +207,6 @@ namespace bluetoe
             NVIC_ClearPendingIRQ( CCM_AAR_IRQn );
             NVIC_EnableIRQ( CCM_AAR_IRQn );
         }
-    }
-}
-
-namespace bluetoe
-{
-    namespace nrf52_details
-    {
-        // the radio that encrypts, instantiated here so that only a firmware that encrypts links it
-        template class radio_base_t< true >;
     }
 }
 

@@ -1,4 +1,6 @@
-#include "nrf52_radio_base.hpp"
+#include <bluetoe/nrf52_radio.hpp>
+
+#include <nrf.h>
 
 namespace bluetoe
 {
@@ -22,9 +24,6 @@ namespace bluetoe
             if ( ++low == 0 )
                 high = ( high + 1 ) & 0x7f;
         }
-
-        // the radio of every firmware; the encrypting variant is nrf52_ccm.cpp's
-        template class radio_base_t< false >;
     }
 }
 

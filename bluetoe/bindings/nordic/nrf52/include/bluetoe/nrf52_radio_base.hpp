@@ -4,12 +4,8 @@
 /**
  * @file nrf52_radio_base.hpp
  *
- * The definitions of radio_base_t (nrf52_radio.hpp), for the two source files that
- * instantiate it: nrf52_radio.cpp the variant without encryption, nrf52_ccm.cpp the one
- * with. That is what keeps the CCM out of a firmware that does not encrypt: the object
- * file every firmware links never mentions it.
- *
- * Private to the binding; consumers include nrf52_radio.hpp.
+ * The definitions of radio_base_t, which nrf52_radio.hpp includes at its end; consumers
+ * include nrf52_radio.hpp.
  */
 
 #include <bluetoe/nrf52_radio.hpp>
@@ -24,6 +20,10 @@ namespace bluetoe
 {
     namespace nrf52_details
     {
+        /*
+         * The radio's constants and the helpers on the hardware; inline, as the binding's own
+         * source files include the radio without instantiating it.
+         */
         namespace {
 
             /*
@@ -79,13 +79,13 @@ namespace bluetoe
              */
             using interrupts_off = radio_lock_guard;
 
-            bool radio_disabled()
+            inline bool radio_disabled()
             {
                 return ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) == ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos );
             }
 
             // whether the packet just received had a valid CRC
-            bool received_crc_ok()
+            inline bool received_crc_ok()
             {
                 return ( NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk )
                     == ( RADIO_CRCSTATUS_CRCSTATUS_CRCOk << RADIO_CRCSTATUS_CRCSTATUS_Pos );
@@ -117,7 +117,7 @@ namespace bluetoe
             constexpr phy_timing le_1m_timing{ ( 1 + 4 ) * 8, 8, 11 };
             constexpr phy_timing le_2m_timing{ ( 2 + 4 ) * 4, 4, 6 };
 
-            const phy_timing& timing( bool two_mbit )
+            inline const phy_timing& timing( bool two_mbit )
             {
                 return two_mbit ? le_2m_timing : le_1m_timing;
             }
@@ -131,7 +131,7 @@ namespace bluetoe
              */
             constexpr std::uint32_t address_interrupt_us = 5;
 
-            std::uint32_t address_of_a_packet_at_end_us( const phy_timing& timing )
+            inline std::uint32_t address_of_a_packet_at_end_us( const phy_timing& timing )
             {
                 return timing.preamble_and_access_address_us + timing.address_detection_us + address_interrupt_us;
             }
@@ -141,7 +141,7 @@ namespace bluetoe
              * the preamble and access address of the next PDU, and a margin. Its address event
              * ends the window.
              */
-            std::uint32_t connection_answer_window_us( const phy_timing& timing )
+            inline std::uint32_t connection_answer_window_us( const phy_timing& timing )
             {
                 return inter_frame_space_us + timing.preamble_and_access_address_us + 50;
             }
@@ -185,14 +185,14 @@ namespace bluetoe
             constexpr std::size_t   address_size                 = 6;
             constexpr std::size_t   addressed_to_offset          = memory_header_size + address_size;
 
-            bool is_scannable( std::uint8_t header )
+            inline bool is_scannable( std::uint8_t header )
             {
                 const std::uint8_t type = header & pdu_type_mask;
 
                 return type == adv_ind_type || type == adv_scan_ind_type;
             }
 
-            bool is_connectable( std::uint8_t header )
+            inline bool is_connectable( std::uint8_t header )
             {
                 const std::uint8_t type = header & pdu_type_mask;
 
@@ -202,7 +202,7 @@ namespace bluetoe
             /*
              * The Core Specification's channel to frequency mapping, in MHz above 2400.
              */
-            std::uint32_t frequency_from_channel( std::uint32_t channel )
+            inline std::uint32_t frequency_from_channel( std::uint32_t channel )
             {
                 assert( channel < 40 );
 
@@ -224,20 +224,20 @@ namespace bluetoe
             /*
              * Time on air of a legacy PDU: preamble, access address, header, payload and CRC.
              */
-            std::uint32_t air_time_us( const phy_timing& timing, std::uint32_t payload_size )
+            inline std::uint32_t air_time_us( const phy_timing& timing, std::uint32_t payload_size )
             {
                 return timing.preamble_and_access_address_us + ( 2 + payload_size + 3 ) * timing.byte_us;
             }
 
             // the preamble is one byte at 1 Mbit and two at 2 Mbit
-            void configure_phy( bool two_mbit )
+            inline void configure_phy( bool two_mbit )
             {
                 NRF_RADIO->MODE  = ( two_mbit ? RADIO_MODE_MODE_Ble_2Mbit : RADIO_MODE_MODE_Ble_1Mbit ) << RADIO_MODE_MODE_Pos;
                 NRF_RADIO->PCNF0 = ( NRF_RADIO->PCNF0 & ~RADIO_PCNF0_PLEN_Msk )
                     | ( ( two_mbit ? RADIO_PCNF0_PLEN_16bit : RADIO_PCNF0_PLEN_8bit ) << RADIO_PCNF0_PLEN_Pos );
             }
 
-            void configure_timer( NRF_TIMER_Type& timer )
+            inline void configure_timer( NRF_TIMER_Type& timer )
             {
                 timer.TASKS_STOP    = 1;
                 timer.TASKS_CLEAR   = 1;
@@ -250,7 +250,7 @@ namespace bluetoe
                     compare = 0;
             }
 
-            void start_timers_together()
+            inline void start_timers_together()
             {
                 NRF_PPI->CH[ ppi_start_timers ].EEP = reinterpret_cast< std::uint32_t >( &NRF_EGU0->EVENTS_TRIGGERED[ 0 ] );
                 NRF_PPI->CH[ ppi_start_timers ].TEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER0->TASKS_START );
@@ -264,7 +264,7 @@ namespace bluetoe
                 NRF_EGU0->EVENTS_TRIGGERED[ 0 ] = 0;
             }
 
-            void configure_radio()
+            inline void configure_radio()
             {
                 NRF_RADIO->MODE     = RADIO_MODE_MODE_Ble_1Mbit << RADIO_MODE_MODE_Pos;
                 NRF_RADIO->MODECNF0 =
@@ -303,11 +303,11 @@ namespace bluetoe
 
 
 
-        template < bool Encrypting >
-        radio_base_t< Encrypting >* radio_base_t< Encrypting >::instance_ = nullptr;
+        template < typename CallBacks, bool Encrypting >
+        radio_base_t< CallBacks, Encrypting >* radio_base_t< CallBacks, Encrypting >::instance_ = nullptr;
 
-        template < bool Encrypting >
-        radio_base_t< Encrypting >::radio_base_t()
+        template < typename CallBacks, bool Encrypting >
+        radio_base_t< CallBacks, Encrypting >::radio_base_t()
             : state_( state::idle )
             , receive_{ nullptr, 0 }
             , response_{ nullptr, 0 }
@@ -322,11 +322,9 @@ namespace bluetoe
             , timer_scheduled_( false )
             , timer_when_()
             , timer_event_pending_( false )
-            , acceptance_filter_( nullptr )
             , local_address_()
             , scannable_( false )
             , connectable_( false )
-            , buffer_{}
             , scratch_{}
             , reception_{ nullptr, 0 }
             , into_scratch_( false )
@@ -373,28 +371,28 @@ namespace bluetoe
             NVIC_EnableIRQ( TIMER1_IRQn );
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::sleep()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::sleep()
         {
             __WFE();
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::wake_up()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::wake_up()
         {
             __SEV();
         }
 
-        template < bool Encrypting >
-        link_layer::abs_time radio_base_t< Encrypting >::now() const
+        template < typename CallBacks, bool Encrypting >
+        link_layer::abs_time radio_base_t< CallBacks, Encrypting >::now() const
         {
             NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
 
             return link_layer::abs_time( NRF_TIMER0->CC[ cc_now ] );
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
         {
             // changed only while no action is pending
             assert( state_ == state::idle );
@@ -408,8 +406,8 @@ namespace bluetoe
          * Taken over by the next connection event scheduled. Only a symmetric PHY is
          * implemented, both directions on the same one; an unchanged direction keeps its PHY.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting )
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting )
         {
             using namespace link_layer::phy_ll_encoding;
 
@@ -421,26 +419,14 @@ namespace bluetoe
             connection_2mbit_ = receive_2mbit;
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::set_acceptance_filter( bool ( *filter )( radio_base_t*, const link_layer::device_address& ) )
-        {
-            acceptance_filter_ = filter;
-        }
-
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::set_local_address( const link_layer::device_address& address )
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::set_local_address( const link_layer::device_address& address )
         {
             local_address_ = address;
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::set_pdu_buffer_access( const pdu_buffer_access& access )
-        {
-            buffer_ = access;
-        }
-
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::set_encryption( encryption_t& encryption )
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::set_encryption( encryption_t& encryption )
         {
             encryption_            = &encryption;
             transmitted_encrypted_ = false;
@@ -469,8 +455,8 @@ namespace bluetoe
                 && std::equal( local_address.begin(), local_address.end(), &received.buffer[ addressed_to_offset ] );
         }
 
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::is_scan_request_for_us() const
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::is_scan_request_for_us() const
         {
             return scannable_
                 && ( receive_.buffer[ 0 ] & pdu_type_mask ) == scan_request_type
@@ -478,8 +464,8 @@ namespace bluetoe
                 && addressed_to( receive_, local_address_ );
         }
 
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::is_connect_request_for_us() const
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::is_connect_request_for_us() const
         {
             return connectable_
                 && ( receive_.buffer[ 0 ] & pdu_type_mask ) == connect_request_type
@@ -490,23 +476,19 @@ namespace bluetoe
         /*
          * The acceptance filter of scheduled_radio2.hpp: the sender of an advertising
          * channel PDU is its first address field, the six bytes after the two byte header,
-         * public or random by the header's TxAdd bit. With no thunk registered the caller
-         * has no filter, and every sender is accepted.
+         * public or random by the header's TxAdd bit.
          */
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::sender_in_acceptance_filter()
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::sender_in_acceptance_filter()
         {
-            if ( acceptance_filter_ == nullptr )
-                return true;
-
             const bool is_random = receive_.buffer[ 0 ] & tx_add_mask;
             const link_layer::device_address sender( &receive_.buffer[ memory_header_size ], is_random );
 
-            return acceptance_filter_( this, sender );
+            return callbacks().is_in_acceptance_filter( sender );
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::start_advertising_event(
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::start_advertising_event(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
             const link_layer::write_buffer&     response,
@@ -517,14 +499,14 @@ namespace bluetoe
             schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
         }
 
-        template < bool Encrypting >
-        std::uint32_t radio_base_t< Encrypting >::static_random_address_seed() const
+        template < typename CallBacks, bool Encrypting >
+        std::uint32_t radio_base_t< CallBacks, Encrypting >::static_random_address_seed() const
         {
             return NRF_FICR->DEVICEID[ 0 ];
         }
 
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::schedule_advertising_event(
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::schedule_advertising_event(
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
@@ -557,8 +539,8 @@ namespace bluetoe
          *
          * It also keeps the radio's own interrupt out of the check of state_.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::schedule(
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::schedule(
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
@@ -614,12 +596,10 @@ namespace bluetoe
          * address received before the compare, and the address interrupt stops it. From there the
          * event runs in the interrupts, like an advertising event; see on_connection_packet_end().
          */
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end )
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end )
         {
             const interrupts_off no_interruption;
-
-            assert( buffer_.received != nullptr );
 
             // end lies after start; the comparison is on the ring of abs_time
             assert( !end.is_in_near_past( start + link_layer::delta_time::usec( 1 ) ) );
@@ -676,8 +656,8 @@ namespace bluetoe
          * start can no longer happen, or it has begun to ramp up, in which case the event
          * proceeds. The two reads a microsecond apart cover the cycle the task takes.
          */
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::cancel_radio_event()
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::cancel_radio_event()
         {
             const interrupts_off no_interruption;
 
@@ -723,8 +703,8 @@ namespace bluetoe
             return true;
         }
 
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::schedule_timer( link_layer::abs_time when )
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::schedule_timer( link_layer::abs_time when )
         {
             const interrupts_off no_interruption;
 
@@ -748,8 +728,8 @@ namespace bluetoe
          * the interrupt is off, the event tells whether the timer expired in the meantime;
          * if it did, the interrupt is turned on again and delivers it.
          */
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::cancel_timer()
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::cancel_timer()
         {
             const interrupts_off no_interruption;
 
@@ -770,8 +750,8 @@ namespace bluetoe
             return true;
         }
 
-        template < bool Encrypting >
-        std::optional< typename radio_base_t< Encrypting >::happened > radio_base_t< Encrypting >::next_event()
+        template < typename CallBacks, bool Encrypting >
+        std::optional< typename radio_base_t< CallBacks, Encrypting >::happened > radio_base_t< CallBacks, Encrypting >::next_event()
         {
             const interrupts_off no_interruption;
 
@@ -808,8 +788,8 @@ namespace bluetoe
          * that follows it, because the answer has to be armed while the radio is still
          * disabling for the radio's own inter frame spacing to place it.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::on_packet_end()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::on_packet_end()
         {
             NRF_RADIO->EVENTS_END = 0;
 
@@ -868,8 +848,8 @@ namespace bluetoe
             state_     = state::responding;
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::on_radio_disabled()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::on_radio_disabled()
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
 
@@ -909,14 +889,14 @@ namespace bluetoe
             }
         }
 
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::can_answer() const
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::can_answer() const
         {
             return scannable_ && response_.buffer != nullptr && response_.size >= 2;
         }
 
-        template < bool Encrypting >
-        bool radio_base_t< Encrypting >::answer_armed() const
+        template < typename CallBacks, bool Encrypting >
+        bool radio_base_t< CallBacks, Encrypting >::answer_armed() const
         {
             return NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk;
         }
@@ -928,8 +908,8 @@ namespace bluetoe
          * cancelled at the end if the packet is not one to answer. A window that closed
          * before this interrupt disabled the receiver already, and nothing is armed.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::on_address()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::on_address()
         {
             NRF_RADIO->EVENTS_ADDRESS = 0;
 
@@ -966,8 +946,8 @@ namespace bluetoe
          * The short is removed in case the receiver is still disabling, and a transmitter
          * it started already is ramping up and is disabled again.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::cancel_answer()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::cancel_answer()
         {
             if ( !answer_armed() )
                 return;
@@ -981,8 +961,8 @@ namespace bluetoe
          * received packet, or a timeout carrying the time this event's own transmission
          * began, so that a caller can chain intervals from it.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::end_event()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::end_event()
         {
             NRF_PPI->CHENCLR    = ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2;
             NRF_RADIO->SHORTS   = 0;
@@ -1008,10 +988,10 @@ namespace bluetoe
          * The room of the buffer for the next PDU, or the scratch if the buffer has none; a PDU
          * received into the scratch is not stored, and its sender gets no acknowledgement.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::allocate_connection_reception()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::allocate_connection_reception()
         {
-            reception_    = buffer_.allocate_receive_buffer( this );
+            reception_    = buffer().allocate_receive_buffer();
             into_scratch_ = reception_.size == 0;
 
             if ( into_scratch_ )
@@ -1048,8 +1028,8 @@ namespace bluetoe
          * receiver, which the DISABLED to RXEN short ramps up, for the answer window; otherwise
          * nothing, and the disable closes the event.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::on_connection_packet_end()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::on_connection_packet_end()
         {
             if ( state_ == state::connection_transmitting )
             {
@@ -1116,7 +1096,7 @@ namespace bluetoe
                 // the PDU sent before goes out again unchanged
                 if ( into_scratch_ )
                 {
-                    answer = buffer_.next_transmit( this );
+                    answer = buffer().next_transmit();
                 }
                 else
                 {
@@ -1135,8 +1115,8 @@ namespace bluetoe
                             || ccm::reception_authentic( reception_, air_packet_, payload_size );
 
                         const link_layer::reception_result result = authentic
-                            ? buffer_.received( this, reception_ )
-                            : buffer_.acknowledge( this, reception_ );
+                            ? buffer().received( reception_ )
+                            : buffer().acknowledge( reception_ );
 
                         ccm::advance( *encryption_,
                             receive_encrypted_ && payload_size != 0 && result.received_new_pdu,
@@ -1146,7 +1126,7 @@ namespace bluetoe
                     }
                     else
                     {
-                        answer = buffer_.received( this, reception_ ).transmit;
+                        answer = buffer().received( reception_ ).transmit;
                     }
                 }
             }
@@ -1163,7 +1143,7 @@ namespace bluetoe
                     return;
                 }
 
-                answer = buffer_.next_transmit( this );
+                answer = buffer().next_transmit();
             }
 
             // what goes on air: the answer, or its ciphertext from the scratch
@@ -1214,8 +1194,8 @@ namespace bluetoe
          * the radio disabled ends the event: the window closed, the last answer is out, or the
          * transmitter was cancelled.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::on_connection_disabled()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::on_connection_disabled()
         {
             if constexpr ( Encrypting )
             {
@@ -1250,8 +1230,8 @@ namespace bluetoe
          * Reports the connection event: its end with the anchor and what happened, or a
          * timeout carrying `end` if nothing was received.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::end_connection_event()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::end_connection_event()
         {
             NRF_PPI->CHENCLR    = ppi_compare0_rxen | ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2 | ppi_address_ccm_crypt;
             NRF_RADIO->SHORTS   = 0;
@@ -1262,7 +1242,7 @@ namespace bluetoe
                 // more to send: the last answer said so, or data came after an empty one
                 connection_.events.unacknowledged_data   = connection_.unacknowledged;
                 connection_.events.pending_outgoing_data = connection_.last_transmitted_more_data
-                    || ( !connection_.events.last_transmitted_not_empty && buffer_.pending_outgoing_data_available( this ) );
+                    || ( !connection_.events.last_transmitted_not_empty && buffer().pending_outgoing_data_available() );
 
                 radio_event_      = event::connection_end_event;
                 radio_event_time_ = connection_.anchor;
@@ -1279,8 +1259,8 @@ namespace bluetoe
             __SEV();
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::on_timer_expired()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::on_timer_expired()
         {
             NRF_TIMER1->EVENTS_COMPARE[ cc_user_timer ] = 0;
             NRF_TIMER1->INTENCLR = TIMER_INTENCLR_COMPARE0_Msk;
@@ -1293,8 +1273,8 @@ namespace bluetoe
          * END before DISABLED: the short between them can leave both pending together,
          * and what the end of the packet decided is what the disable then acts on.
          */
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::radio_interrupt()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::radio_interrupt()
         {
             if ( !instance_ )
                 return;
@@ -1309,8 +1289,8 @@ namespace bluetoe
                 instance_->on_radio_disabled();
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::ccm_interrupt()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::ccm_interrupt()
         {
             if ( !instance_ || !instance_->judgement_pending_ )
                 return;
@@ -1318,8 +1298,8 @@ namespace bluetoe
             instance_->on_connection_packet_end();
         }
 
-        template < bool Encrypting >
-        void radio_base_t< Encrypting >::timer_interrupt()
+        template < typename CallBacks, bool Encrypting >
+        void radio_base_t< CallBacks, Encrypting >::timer_interrupt()
         {
             if ( instance_ )
                 instance_->on_timer_expired();
