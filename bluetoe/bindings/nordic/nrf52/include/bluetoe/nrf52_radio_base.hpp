@@ -20,6 +20,17 @@ namespace bluetoe
 {
     namespace nrf52_details
     {
+        inline radio_lock_guard::radio_lock_guard()
+            : primask_( __get_PRIMASK() )
+        {
+            __disable_irq();
+        }
+
+        inline radio_lock_guard::~radio_lock_guard()
+        {
+            __set_PRIMASK( primask_ );
+        }
+
         /*
          * The radio's constants and the helpers on the hardware; inline, as the binding's own
          * source files include the radio without instantiating it.

@@ -8,17 +8,6 @@ namespace bluetoe
     {
         interrupt_entries interrupts = { nullptr, nullptr, nullptr };
 
-        radio_lock_guard::radio_lock_guard()
-            : primask_( __get_PRIMASK() )
-        {
-            __disable_irq();
-        }
-
-        radio_lock_guard::~radio_lock_guard()
-        {
-            __set_PRIMASK( primask_ );
-        }
-
         void packet_counter::increment()
         {
             if ( ++low == 0 )
