@@ -40,6 +40,47 @@ BOOST_FIXTURE_TEST_SUITE( no_peripheral_latency_applied, no_peripheral_latency )
         BOOST_TEST( time_since_last_event().zero() );
     }
 
+    /*
+     * Every planned event is placed from the anchor of the last event that happened, which
+     * is what the radio reports when a connection event took place.
+     */
+    BOOST_AUTO_TEST_CASE( the_next_event_is_planned_from_the_anchor )
+    {
+        const auto anchor = bluetoe::link_layer::abs_time( 0x1000 );
+
+        connection_event_happened( anchor );
+
+        BOOST_TEST( ( last_connection_event_anchor() == anchor ) );
+        BOOST_TEST( ( next_connection_event_anchor() == anchor ) );
+        BOOST_TEST( time_since_last_event().zero() );
+
+        plan_next_connection_event(
+            0, no_events, typical_connection_interval, no_pending_instance );
+
+        BOOST_TEST( ( next_connection_event_anchor() == anchor + typical_connection_interval ) );
+        BOOST_TEST( ( last_connection_event_anchor() == anchor ) );
+        BOOST_TEST( time_since_last_event() == typical_connection_interval );
+    }
+
+    /*
+     * A connection event that times out does not move the anchor, so the next event is
+     * planned one interval further from the same one.
+     */
+    BOOST_AUTO_TEST_CASE( a_timeout_leaves_the_anchor_where_it_was )
+    {
+        const auto anchor = bluetoe::link_layer::abs_time( 0x1000 );
+
+        connection_event_happened( anchor );
+
+        plan_next_connection_event(
+            0, no_events, typical_connection_interval, no_pending_instance );
+        plan_next_connection_event_after_timeout( typical_connection_interval );
+
+        BOOST_TEST( ( last_connection_event_anchor() == anchor ) );
+        BOOST_TEST( ( next_connection_event_anchor() == anchor + 2 * typical_connection_interval ) );
+        BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
+    }
+
     BOOST_AUTO_TEST_CASE( channel_index_is_incremented_by_one )
     {
         // without peripheral latency

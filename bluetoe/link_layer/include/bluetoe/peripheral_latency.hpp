@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_PERIPHERAL_LATENCY_HPP
 
 #include <bluetoe/ll_meta_types.hpp>
+#include <bluetoe/abs_time.hpp>
 #include <bluetoe/connection_events.hpp>
 #include <bluetoe/delta_time.hpp>
 #include <bluetoe/meta_tools.hpp>
@@ -316,6 +317,35 @@ namespace link_layer {
             }
 
             /**
+             * @brief the time the next, planned connection event is anchored at
+             */
+            abs_time      next_connection_event_anchor() const
+            {
+                return last_anchor_ + time_since_last_event_;
+            }
+
+            /**
+             * @brief the anchor of the last connection event that happened
+             */
+            abs_time      last_connection_event_anchor() const
+            {
+                return last_anchor_;
+            }
+
+            /**
+             * @brief a connection event took place, anchored at the given time
+             *
+             * Every later event is planned from this anchor, until the next one happens; a
+             * connection event that times out does not move it, which is what makes the time
+             * since the last event grow with every timeout.
+             */
+            void connection_event_happened( abs_time anchor )
+            {
+                last_anchor_           = anchor;
+                time_since_last_event_ = delta_time();
+            }
+
+            /**
              * @brief Plan next connection event after timeout
              */
             void plan_next_connection_event_after_timeout(
@@ -388,8 +418,9 @@ namespace link_layer {
              */
             void reset_connection_state()
             {
-                channel_index_         = 0;
-                event_counter_         = 0;
+                channel_index_ = 0;
+                event_counter_ = 0;
+                last_anchor_           = abs_time();
                 time_since_last_event_ = delta_time();
                 base().disarmable_connection_state_last_latency( 1 );
             }
@@ -413,6 +444,9 @@ namespace link_layer {
         private:
             unsigned        channel_index_;
             std::uint16_t   event_counter_;
+
+            // the last connection event that happened, and how far the next planned one is
+            abs_time        last_anchor_;
             delta_time      time_since_last_event_;
 
             Base& base()
