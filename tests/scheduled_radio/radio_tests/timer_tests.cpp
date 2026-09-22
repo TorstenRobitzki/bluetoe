@@ -34,7 +34,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
     const auto second = advertising( 7, 0x02 );
 
     program_device( {
-        on_start(       start_advertising( 37, first ) ),
+        on_start(       start_advertising_event( 37, first ) ),
         on_adv_timeout( schedule_timer( timer_delay ) ),
         on_user_timer(  schedule_advertising_event( 37, event_delay, second ) ) } );
 
@@ -72,7 +72,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
     const auto second = advertising( 7, 0x02 );
 
     program_device( {
-        on_start(       start_advertising( 37, first ) ),
+        on_start(       start_advertising_event( 37, first ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, second ),
                         schedule_timer( 50ms ) ),
         on_user_timer() } );
@@ -97,7 +97,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
 BOOST_FIXTURE_TEST_CASE( a_timer_for_a_time_gone_by_is_refused, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
+        on_start(       start_advertising_event( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( schedule_timer( 0ms ) ) } );
 
     // the listen only keeps the run going while a wrongly scheduled timer would expire
@@ -116,7 +116,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_for_a_time_gone_by_is_refused, rig_fixture, *if
 BOOST_FIXTURE_TEST_CASE( a_timer_cancelled_in_time_does_not_expire, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
+        on_start(       start_advertising_event( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( schedule_timer( 100ms ),
                         cancel_timer() ) } );
 
@@ -138,7 +138,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_cancelled_in_time_does_not_expire, rig_fixture,
 BOOST_FIXTURE_TEST_CASE( cancelling_without_a_scheduled_timer_is_refused, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
+        on_start(       start_advertising_event( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( cancel_timer(),
                         schedule_timer( 50ms ) ),
         on_user_timer(  cancel_timer() ) } );

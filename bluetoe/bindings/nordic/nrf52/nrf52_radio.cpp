@@ -436,7 +436,7 @@ namespace bluetoe
             return acceptance_filter_( this, sender );
         }
 
-        void radio_base::start_advertising(
+        void radio_base::start_advertising_event(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
             const link_layer::write_buffer&     response,

@@ -128,13 +128,13 @@ namespace {
     };
 
     /*
-     * start_advertising() cannot refuse, so a bool would report a broken caller as a
+     * start_advertising_event() cannot refuse, so a bool would report a broken caller as a
      * runtime condition; the concept asks for void and so rejects one that answers.
      */
     template < typename CallBacks >
     struct radio_whose_start_advertising_answers : dummy_radio< CallBacks >
     {
-        bool start_advertising( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
+        bool start_advertising_event( std::uint32_t, const write_buffer&, const write_buffer&, const read_buffer& ) { return true; }
     };
 
     template < typename CallBacks >

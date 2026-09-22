@@ -47,7 +47,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_at_2_mbit, connection_fixture 
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
@@ -84,7 +84,7 @@ BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received_at_2_mb
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
@@ -126,7 +126,7 @@ BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent_at_2_mbit, c
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
@@ -167,7 +167,7 @@ BOOST_FIXTURE_TEST_CASE( connection_events_at_2_mbit_follow_each_other_at_the_in
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
@@ -211,7 +211,7 @@ BOOST_FIXTURE_TEST_CASE( a_central_on_the_other_phy_is_not_received, connection_
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
@@ -243,7 +243,7 @@ BOOST_FIXTURE_TEST_CASE( the_phy_can_be_changed_between_events, connection_fixtu
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
@@ -282,14 +282,14 @@ BOOST_FIXTURE_TEST_CASE( advertising_stays_on_1_mbit, connection_fixture )
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
             schedule_connection_event( data_channel, event_start, event_start + receive_window ) ),
         on_connection_end_event(
             set_access_address_and_crc_init( advertising_access_address, advertising_crc_init ),
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout() } );
 
     program_tester( {
@@ -326,7 +326,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_just_before_the_receive_window_closes_is_received
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),
@@ -358,7 +358,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_after_the_receive_window_closed_is_not_received_a
 
     program_device( {
         on_start(
-            start_advertising( 37, advertisement ) ),
+            start_advertising_event( 37, advertisement ) ),
         on_adv_timeout(
             set_access_address_and_crc_init( connection_access_address, connection_crc_init ),
             set_phy( le_2m_phy ),

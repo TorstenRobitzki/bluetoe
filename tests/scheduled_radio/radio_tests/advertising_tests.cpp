@@ -1,7 +1,7 @@
 /**
  * @file advertising_tests.cpp
  *
- * start_advertising() and schedule_advertising_event() over the air, observed by the tester.
+ * start_advertising_event() and schedule_advertising_event() over the air, observed by the tester.
  * Needs the tester; skipped without one.
  */
 
@@ -56,7 +56,7 @@ namespace {
         const auto     second   = advertising( payload_size, 0x02 );
 
         rig.program_device( {
-            on_start(       start_advertising(          first_channel,              first ) ),
+            on_start(       start_advertising_event(          first_channel,              first ) ),
             on_adv_timeout( schedule_advertising_event( second_channel, interval,   second ) ) } );
 
         // the first goes out within milliseconds of the start, the second at the interval
@@ -97,7 +97,7 @@ namespace {
         rig.program_device( {
             on_start(
                 set_local_address( dut_address ),
-                start_advertising( 37, advertisement, response ) ) } );
+                start_advertising_event( 37, advertisement, response ) ) } );
 
         rig.program_tester( {
             answer( 37, dut_address, request, time_out( 100ms ) ) } );
@@ -130,7 +130,7 @@ namespace {
         rig.program_device( {
             on_start(
                 set_local_address( dut_address ),
-                start_advertising( 37, first, response ) ),
+                start_advertising_event( 37, first, response ) ),
             on_adv_timeout(
                 schedule_advertising_event( 37, 100ms, next, response ) ) } );
 
@@ -157,7 +157,7 @@ namespace {
         rig.program_device( {
             on_start(
                 set_access_address_and_crc_init( other_access_address, other_crc_init ),
-                start_advertising( 37, advertisement ) ),
+                start_advertising_event( 37, advertisement ) ),
             on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ) } );
         rig.program_tester( { listen( 37, 300ms ) } );
 
@@ -185,7 +185,7 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
     const auto advertisement = advertising( 6, 0 );
 
     program_device( {
-        on_start(       start_advertising(          37,                         advertisement ) ),
+        on_start(       start_advertising_event(          37,                         advertisement ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, advertisement ) ),
         on_adv_timeout( schedule_advertising_event( 37, 50ms,  advertisement ) ),
         on_adv_timeout( schedule_advertising_event( 37, 150ms, advertisement ) ) } );
@@ -220,7 +220,7 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
         sent.push_back( advertising( 7, fill ) );
 
     program_device( {
-        on_start(       start_advertising(          channels[ 0 ],           sent[ 0 ] ) ),
+        on_start(       start_advertising_event(          channels[ 0 ],           sent[ 0 ] ) ),
         on_adv_timeout( schedule_advertising_event( channels[ 1 ], interval, sent[ 1 ] ) ),
         on_adv_timeout( schedule_advertising_event( channels[ 2 ], interval, sent[ 2 ] ) ),
         on_adv_timeout( schedule_advertising_event( channels[ 3 ], interval, sent[ 3 ] ) ) } );
@@ -246,7 +246,7 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
 }
 
 /*
- * start_advertising() from the callback of an event restarts the sequence. The restart has no
+ * start_advertising_event() from the callback of an event restarts the sequence. The restart has no
  * required time, so only what follows it is measured: it is placed from the restart.
  */
 BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_the_first, rig_fixture, *if_tester )
@@ -256,8 +256,8 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_t
     const auto scheduled = advertising( 7, 3 );
 
     program_device( {
-        on_start(       start_advertising(          37,                         first ) ),
-        on_adv_timeout( start_advertising(          37,                         restarted ) ),
+        on_start(       start_advertising_event(          37,                         first ) ),
+        on_adv_timeout( start_advertising_event(          37,                         restarted ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, scheduled ) ) } );
     program_tester( { listen( 37, 400ms ) } );
 
@@ -279,10 +279,10 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
         sent.push_back( advertising( 7, fill ) );
 
     program_device( {
-        on_start(       start_advertising(          37,                         sent[ 0 ] ) ),
+        on_start(       start_advertising_event(          37,                         sent[ 0 ] ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 1 ] ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 2 ] ) ),
-        on_adv_timeout( start_advertising(          37,                         sent[ 3 ] ) ),
+        on_adv_timeout( start_advertising_event(          37,                         sent[ 3 ] ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, sent[ 4 ] ) ) } );
     program_tester( { listen( 37, 600ms ) } );
 
@@ -351,7 +351,7 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
     program_device( {
         on_start(
             set_local_address( dut_address ),
-            start_advertising( 37, first, response ) ),
+            start_advertising_event( 37, first, response ) ),
         on_adv_timeout(
             schedule_advertising_event( 37, 100ms, scheduled, response ) ),
         on_adv_received(
@@ -436,7 +436,7 @@ BOOST_FIXTURE_TEST_CASE( a_changed_local_address_is_respected, rig_fixture, *if_
     program_device( {
         on_start(
             set_local_address( dut_address ),
-            start_advertising( 37, old_advertising, old_response ) ),
+            start_advertising_event( 37, old_advertising, old_response ) ),
         on_adv_received(
             set_local_address( changed_address ),
             schedule_advertising_event( 37, 100ms, new_advertising, new_response ) ),

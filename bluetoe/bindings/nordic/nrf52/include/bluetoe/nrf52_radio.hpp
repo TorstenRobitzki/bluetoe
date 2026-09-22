@@ -7,7 +7,7 @@
  * The scheduled radio of the nRF52, as bluetoe/scheduled_radio2.hpp requires it. Consumers
  * name it through <bluetoe/radio.hpp>.
  *
- * What is implemented: the time base, radio_ready(), start_advertising() and
+ * What is implemented: the time base, radio_ready(), start_advertising_event() and
  * schedule_advertising_event() with their receive window and the scan response, the timer,
  * the callbacks, delivered from run(), and connection events at 1 or 2 Mbit, without
  * encryption; set_ccm_counter() is present and ignored.
@@ -148,7 +148,7 @@ namespace bluetoe
              */
             void set_local_address( const link_layer::device_address& address );
 
-            void start_advertising(
+            void start_advertising_event(
                 std::uint32_t                       channel,
                 const link_layer::write_buffer&     transmit,
                 const link_layer::write_buffer&     response,
@@ -425,7 +425,7 @@ namespace bluetoe
             using radio_base::set_access_address_and_crc_init;
             using radio_base::set_phy;
             using radio_base::set_local_address;
-            using radio_base::start_advertising;
+            using radio_base::start_advertising_event;
             using radio_base::schedule_advertising_event;
             using radio_base::schedule_connection_event;
             using radio_base::cancel_radio_event;

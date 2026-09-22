@@ -1,7 +1,7 @@
 /**
  * @file cancel_tests.cpp
  *
- * cancel_radio_event() on the advertising events of start_advertising() and
+ * cancel_radio_event() on the advertising events of start_advertising_event() and
  * schedule_advertising_event(). A step runs on a callback only, so a cancel in time is made
  * in the step that scheduled the event, or from a timer before it; a cancel too late from a
  * timer when the event goes on air. Needs the tester; skipped without one.
@@ -31,7 +31,7 @@ namespace {
     void cancelled_in_time( rig_fixture& rig, const call& schedule, const std::vector< std::uint8_t >& first )
     {
         rig.program_device( {
-            on_start(       start_advertising( 37, first ) ),
+            on_start(       start_advertising_event( 37, first ) ),
             on_adv_timeout( schedule, cancel_radio_event() ) } );
 
         rig.program_tester( {
@@ -63,14 +63,14 @@ BOOST_FIXTURE_TEST_CASE( a_started_advertising_cancelled_in_time_is_not_sent, ri
     const auto first     = advertising( 7, 0x01 );
     const auto cancelled = advertising( 7, 0x02 );
 
-    cancelled_in_time( *this, start_advertising( 37, cancelled ), first );
+    cancelled_in_time( *this, start_advertising_event( 37, cancelled ), first );
 }
 
 // once the callback was delivered, nothing is pending
 BOOST_FIXTURE_TEST_CASE( cancelling_with_nothing_pending_is_refused, rig_fixture, *if_tester )
 {
     program_device( {
-        on_start(       start_advertising( 37, advertising( 7, 0x01 ) ) ),
+        on_start(       start_advertising_event( 37, advertising( 7, 0x01 ) ) ),
         on_adv_timeout( cancel_radio_event() ) } );
 
     program_tester( {
@@ -91,7 +91,7 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
     const auto late  = advertising( 7, 0x02 );
 
     program_device( {
-        on_start(       start_advertising( 37, first ) ),
+        on_start(       start_advertising_event( 37, first ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, late ),
                         schedule_timer( 100ms ) ),
         on_user_timer(  cancel_radio_event() ) } );
@@ -126,11 +126,11 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_leaves_the_radio_free_for_the_next_action, rig
     const auto restarted = advertising( 7, 0x03 );
 
     program_device( {
-        on_start(       start_advertising( 37, first ) ),
+        on_start(       start_advertising_event( 37, first ) ),
         on_adv_timeout( schedule_advertising_event( 37, 100ms, cancelled ),
                         schedule_timer( 50ms ) ),
         on_user_timer(  cancel_radio_event(),
-                        start_advertising( 37, restarted ) ) } );
+                        start_advertising_event( 37, restarted ) ) } );
 
     // the listen covers the time the cancelled event was scheduled for
     program_tester( {

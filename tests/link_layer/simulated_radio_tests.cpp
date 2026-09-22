@@ -159,14 +159,14 @@ BOOST_FIXTURE_TEST_CASE( the_radio_reports_ready_only_once, fixture )
 }
 
 /*
- * start_advertising() names no time; what is scheduled is recorded and, with nobody
+ * start_advertising_event() names no time; what is scheduled is recorded and, with nobody
  * answering, times out.
  */
 BOOST_FIXTURE_TEST_CASE( an_advertising_without_a_response_times_out, fixture )
 {
     const auto pdu = advertising();
 
-    start_advertising( 37, write_buffer( pdu.data(), pdu.size() ), write_buffer(), read_buffer() );
+    start_advertising_event( 37, write_buffer( pdu.data(), pdu.size() ), write_buffer(), read_buffer() );
 
     run();
 
@@ -218,7 +218,7 @@ BOOST_FIXTURE_TEST_CASE( an_answered_advertising_reports_the_response, fixture )
 
     respond_to( 37, { 0x43, 0x02, 0x01, 0x02 } );
 
-    start_advertising(
+    start_advertising_event(
         37, write_buffer( pdu.data(), pdu.size() ), write_buffer(),
         read_buffer{ &receive[ 0 ], sizeof( receive ) } );
 

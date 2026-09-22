@@ -54,7 +54,7 @@ namespace test_rig {
      */
     enum class call_kind : std::uint8_t
     {
-        start_advertising,
+        start_advertising_event,
         schedule_advertising_event,
         schedule_timer,
         cancel_radio_event,
@@ -118,8 +118,8 @@ namespace test_rig {
      * For a callback, `when` is the time it carried, `data` what adv_received() received, an
      * advertising PDU since no other callback carries one, and `events` what
      * connection_end_event() reported. For a call, `when` is the resolved
-     * time it passed, `channel` its channel, and `result` what it returned; start_advertising(), the cancels and the setup calls
-     * carry no time, and start_advertising() and the setup calls no result.
+     * time it passed, `channel` its channel, and `result` what it returned; start_advertising_event(), the cancels and the setup calls
+     * carry no time, and start_advertising_event() and the setup calls no result.
      */
     struct record
     {

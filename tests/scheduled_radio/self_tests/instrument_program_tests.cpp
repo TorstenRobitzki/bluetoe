@@ -78,10 +78,10 @@ namespace {
             calls.push_back( { .kind = call_kind::set_phy, .receiving = receiving, .transmitting = transmitting } );
         }
 
-        void start_advertising( std::uint32_t channel, const bluetoe::link_layer::write_buffer& transmit,
+        void start_advertising_event( std::uint32_t channel, const bluetoe::link_layer::write_buffer& transmit,
             const bluetoe::link_layer::write_buffer& response, const bluetoe::link_layer::read_buffer& receive )
         {
-            remember( call_kind::start_advertising, channel, abs_time(), transmit, response, receive );
+            remember( call_kind::start_advertising_event, channel, abs_time(), transmit, response, receive );
         }
 
         bool schedule_advertising_event( std::uint32_t channel, abs_time when, const bluetoe::link_layer::write_buffer& transmit,
@@ -206,7 +206,7 @@ BOOST_FIXTURE_TEST_CASE( no_program_is_not_finished, fixture )
 
 BOOST_FIXTURE_TEST_CASE( the_start_step_runs_on_start, fixture )
 {
-    const step program[] = { on( callback_kind::start, start_advertising( 37, adv_ind, scan_rsp ) ) };
+    const step program[] = { on( callback_kind::start, start_advertising_event( 37, adv_ind, scan_rsp ) ) };
     load( program );
 
     BOOST_CHECK( radio.calls.empty() );
@@ -214,7 +214,7 @@ BOOST_FIXTURE_TEST_CASE( the_start_step_runs_on_start, fixture )
     remote.call< &rig_t::start_program >();
 
     BOOST_REQUIRE_EQUAL( radio.calls.size(), 1u );
-    BOOST_CHECK( radio.calls[ 0 ].kind == call_kind::start_advertising );
+    BOOST_CHECK( radio.calls[ 0 ].kind == call_kind::start_advertising_event );
     BOOST_CHECK_EQUAL( radio.calls[ 0 ].channel, 37u );
     BOOST_TEST( radio.calls[ 0 ].transmit == std::vector< std::uint8_t >( std::begin( adv_ind ), std::end( adv_ind ) ), boost::test_tools::per_element() );
     BOOST_TEST( radio.calls[ 0 ].response == std::vector< std::uint8_t >( std::begin( scan_rsp ), std::end( scan_rsp ) ), boost::test_tools::per_element() );
@@ -223,7 +223,7 @@ BOOST_FIXTURE_TEST_CASE( the_start_step_runs_on_start, fixture )
 
 BOOST_FIXTURE_TEST_CASE( the_call_is_recorded_with_its_result, fixture )
 {
-    const step program[] = { on( callback_kind::start, start_advertising( 38, adv_ind ) ) };
+    const step program[] = { on( callback_kind::start, start_advertising_event( 38, adv_ind ) ) };
     load( program );
     radio.answer = false;
 
@@ -234,7 +234,7 @@ BOOST_FIXTURE_TEST_CASE( the_call_is_recorded_with_its_result, fixture )
     // the start of a program is the host's doing, not the radio's, and is not recorded
     BOOST_REQUIRE_EQUAL( records.size(), 1u );
     BOOST_CHECK( records[ 0 ].kind == record_kind::call );
-    BOOST_CHECK( records[ 0 ].call == call_kind::start_advertising );
+    BOOST_CHECK( records[ 0 ].call == call_kind::start_advertising_event );
     BOOST_CHECK_EQUAL( records[ 0 ].channel, 38u );
     BOOST_CHECK( !records[ 0 ].result );
 }
@@ -242,7 +242,7 @@ BOOST_FIXTURE_TEST_CASE( the_call_is_recorded_with_its_result, fixture )
 BOOST_FIXTURE_TEST_CASE( a_timed_call_is_placed_relative_to_the_callback, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_advertising_event( 37, 100ms, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_timer( 500us ) ) };
     load( program );
@@ -269,7 +269,7 @@ BOOST_FIXTURE_TEST_CASE( a_timed_call_is_placed_relative_to_the_callback, fixtur
 BOOST_FIXTURE_TEST_CASE( a_callback_of_another_kind_is_recorded_and_leaves_the_step_waiting, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::user_timer,  schedule_advertising_event( 37, 1ms, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
@@ -290,7 +290,7 @@ BOOST_FIXTURE_TEST_CASE( a_callback_of_another_kind_is_recorded_and_leaves_the_s
 BOOST_FIXTURE_TEST_CASE( the_program_is_finished_when_the_last_scheduled_action_ended, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
@@ -307,13 +307,13 @@ BOOST_FIXTURE_TEST_CASE( the_program_is_finished_when_the_last_scheduled_action_
 }
 
 /*
- * start_advertising() cannot refuse, so the call that can is the one to check: a program
+ * start_advertising_event() cannot refuse, so the call that can is the one to check: a program
  * whose last step was refused waits for no callback, since none is coming.
  */
 BOOST_FIXTURE_TEST_CASE( a_refused_call_leaves_nothing_pending, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
@@ -327,7 +327,7 @@ BOOST_FIXTURE_TEST_CASE( a_refused_call_leaves_nothing_pending, fixture )
 BOOST_FIXTURE_TEST_CASE( a_cancel_that_succeeds_ends_the_pending_action, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ), cancel_radio_event() ) };
     load( program );
     remote.call< &rig_t::start_program >();
@@ -347,7 +347,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_program_is_finished_at_once, fixture )
 
 BOOST_FIXTURE_TEST_CASE( a_received_pdu_is_recorded_with_its_bytes, fixture )
 {
-    const step program[] = { on( callback_kind::start, start_advertising( 37, adv_ind ) ) };
+    const step program[] = { on( callback_kind::start, start_advertising_event( 37, adv_ind ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
 
@@ -467,7 +467,7 @@ BOOST_FIXTURE_TEST_CASE( a_step_makes_all_its_calls, fixture )
         on( callback_kind::start,
             set_local_address( address ),
             set_access_address_and_crc_init( 0x12345678, 0xabcdef ),
-            start_advertising( 37, adv_ind ) ),
+            start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout,
             cancel_radio_event() ) };
     load( program );
@@ -476,7 +476,7 @@ BOOST_FIXTURE_TEST_CASE( a_step_makes_all_its_calls, fixture )
     BOOST_REQUIRE_EQUAL( radio.calls.size(), 3u );
     BOOST_CHECK( radio.calls[ 0 ].kind == call_kind::set_local_address );
     BOOST_CHECK( radio.calls[ 1 ].kind == call_kind::set_access_address_and_crc_init );
-    BOOST_CHECK( radio.calls[ 2 ].kind == call_kind::start_advertising );
+    BOOST_CHECK( radio.calls[ 2 ].kind == call_kind::start_advertising_event );
     BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
 }
 
@@ -544,7 +544,7 @@ BOOST_AUTO_TEST_CASE( the_largest_call_fits_into_one_request )
 BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
@@ -575,7 +575,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_on_start_is_refused, fixture )
 BOOST_FIXTURE_TEST_CASE( a_connection_event_end_is_recorded_with_its_events, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ) };
     load( program );
     remote.call< &rig_t::start_program >();
@@ -605,7 +605,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_end_is_recorded_with_its_events, fix
 BOOST_FIXTURE_TEST_CASE( a_step_runs_on_a_connection_timeout, fixture )
 {
     const step program[] = {
-        on( callback_kind::start,              start_advertising( 37, adv_ind ) ),
+        on( callback_kind::start,              start_advertising_event( 37, adv_ind ) ),
         on( callback_kind::adv_timeout,        schedule_connection_event( 5, 10ms, 12ms ) ),
         on( callback_kind::connection_timeout, schedule_connection_event( 6, 30ms, 32ms ) ) };
     load( program );
@@ -740,7 +740,7 @@ BOOST_FIXTURE_TEST_CASE( a_step_hands_the_radio_the_other_pdu_buffer_and_back, f
     const auto* first = &rig.link_layer_pdu_buffer();
 
     const step program[] = {
-        on( callback_kind::start,       start_advertising( 37, adv_ind ), switch_buffer ),
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ), switch_buffer ),
         on( callback_kind::adv_timeout, switch_buffer ) };
     load( program );
     remote.call< &rig_t::start_program >();

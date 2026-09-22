@@ -10,7 +10,7 @@
  *
  * What differs is what the interface changed: every time is an abs_time rather than a delta
  * from the last event, the link layer owns the PDU buffer and the radio asks it for the one
- * of the current connection, advertising begins with start_advertising() and continues at a
+ * of the current connection, advertising begins with start_advertising_event() and continues at a
  * time, a connection event names its start and its end rather than a window and an interval,
  * and what a radio filters by is an acceptance filter rather than a white list.
  *
@@ -91,7 +91,7 @@ namespace test {
 
         void set_local_address( const bluetoe::link_layer::device_address& address );
 
-        void start_advertising(
+        void start_advertising_event(
             std::uint32_t                               channel,
             const bluetoe::link_layer::write_buffer&    transmit,
             const bluetoe::link_layer::write_buffer&    response,
@@ -258,7 +258,7 @@ namespace test {
     }
 
     template < typename CallBack, bool Phy2MBitSupported, bool SynchronizedUserTimerSupported >
-    void simulated_radio< CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::start_advertising(
+    void simulated_radio< CallBack, Phy2MBitSupported, SynchronizedUserTimerSupported >::start_advertising_event(
         std::uint32_t                               channel,
         const bluetoe::link_layer::write_buffer&    transmit,
         const bluetoe::link_layer::write_buffer&    /* response */,
