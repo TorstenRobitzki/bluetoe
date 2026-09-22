@@ -285,6 +285,20 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_connect
     check_not_connected( "no_connection_if_transmit_window_is_larger_than_connection_interval" );
 }
 
+// the transmit window has to end at least 1.25 ms before the interval does
+BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_equals_the_connection_interval, unconnected )
+{
+    respond_with_connection_request(
+        0x06, // window_size
+        0x00, // window_offset
+        0x06  // interval
+    );
+
+    run();
+
+    check_not_connected( "no_connection_if_transmit_window_equals_the_connection_interval" );
+}
+
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_connection_interval, unconnected )
 {
     respond_with_connection_request(
