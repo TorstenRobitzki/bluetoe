@@ -1,6 +1,10 @@
-/*
- * Example to prove, that the nrf52 binding is robust to miss some connection events due to
- * high CPU load.
+/**
+ * @example nrf52_high_cpu_load.cpp
+ *
+ * The nRF52 binding is robust against connection events it misses because the CPU is
+ * busy: blinky on the calibrated RC sleep clock, whose connection event callback burns
+ * more time than the connection interval every fifth event. Pin P0.30 is high while the
+ * callback runs, for a scope.
  */
 
 #include <bluetoe/server.hpp>
@@ -8,17 +12,15 @@
 #include <bluetoe/gatt_options.hpp>
 #include <nrf.h>
 
-using namespace bluetoe;
+#include "resources.hpp"
 
-// LED1 on a nRF52 eval board
-static constexpr int io_pin = 30;
+static examples::led output;
+
+using namespace bluetoe;
 
 static std::uint8_t io_pin_write_handler( bool state )
 {
-    // on an nRF52 eval board, the pin is connected to the LED's cathode, this inverts the logic.
-    NRF_GPIO->OUT = state
-        ? NRF_GPIO->OUT & ~( 1 << io_pin )
-        : NRF_GPIO->OUT | ( 1 << io_pin );
+    output.value( state );
 
     return error_codes::success;
 }
@@ -53,11 +55,6 @@ static void init_hardware()
 
     delay_timer.TASKS_STOP = 1;
     delay_timer.EVENTS_COMPARE[0] = 0;
-
-    // disable cache
-//    NRF_NVMC->ICACHECNF = 0;
-    // Disable Blockprotection
-//    NRF_BPROT->DISABLEINDEBUG = BPROT_DISABLEINDEBUG_DISABLEINDEBUG_Msk;
 }
 
 template < typename T >
@@ -91,6 +88,8 @@ void load_connection_event_callback< T >::call_connection_event_callback( const 
     // every once in a while lets consume more CPU time than time_till_next_event
     if ( count == 5 )
     {
+        count = 0;
+
         delay_timer.CC[ 0 ] = 80 * 1000;
         delay_timer.TASKS_START = 1;
 
@@ -99,26 +98,6 @@ void load_connection_event_callback< T >::call_connection_event_callback( const 
 
         delay_timer.EVENTS_COMPARE[0] = 0;
     }
-    // Or lets utilize / stop the CPU by eraseing a flash page
-    else if ( count == 100 )
-    {
-        count = 0;
-        gatt_srv.nrf_flash_memory_access_begin();
-
-        while ( NRF_NVMC->READY == NVMC_READY_READY_Busy )
-            ;
-
-        NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Een;
-        __ISB();
-        __DSB();
-
-        NRF_NVMC->ERASEPAGE = 0x20000;
-
-        while ( NRF_NVMC->READY == NVMC_READY_READY_Busy )
-            ;
-
-        gatt_srv.nrf_flash_memory_access_end();
-    }
 
     NRF_GPIO->OUTCLR = ( 1 << in_callback_io_pin );
 }
@@ -126,11 +105,6 @@ void load_connection_event_callback< T >::call_connection_event_callback( const 
 int main()
 {
     init_hardware();
-
-    // Init GPIO pin
-    NRF_GPIO->PIN_CNF[ io_pin ] =
-        ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos ) |
-        ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos );
 
     for ( ;; )
         gatt_srv.run();

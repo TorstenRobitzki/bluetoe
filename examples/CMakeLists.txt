@@ -26,8 +26,9 @@ add_bluetoe_example(keyboard)
 add_bluetoe_example(custom_advertising)
 add_bluetoe_example(gpio)
 
+add_bluetoe_example(nrf52_high_cpu_load)
+
 # The radio of bluetoe/scheduled_radio2.hpp does not announce the synchronized user timer
-# yet, and knows no sleep clock options; the examples that need them wait for that.
+# yet; the example that needs it waits for that.
 #
-# add_bluetoe_example(nrf52_high_cpu_load)
 # add_bluetoe_example(synchronized_callbacks)
