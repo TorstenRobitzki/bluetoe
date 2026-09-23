@@ -7,3 +7,4 @@ endfunction()
 
 add_nrf52_dut_rig(nrf52_dut)
 add_nrf52_dut_rig(nrf52_dut_lfxo)
+add_nrf52_dut_rig(nrf52_dut_lfrc)
