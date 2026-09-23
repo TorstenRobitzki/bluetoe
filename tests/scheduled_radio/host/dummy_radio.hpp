@@ -93,7 +93,15 @@ namespace test_rig {
     class dummy_radio_base : public dummy_features
     {
     public:
-        struct ccm_counter_t {};
+        /*
+         * The encryption contract, since every feature is claimed: an object with the two
+         * switches and nothing behind them.
+         */
+        struct encryption_t
+        {
+            bool receive_encrypted  = false;
+            bool transmit_encrypted = false;
+        };
         // a constructor of its own, as the PDU buffer never names the lock it holds
         struct radio_lock_guard
         {
@@ -105,7 +113,13 @@ namespace test_rig {
         void wake_up() {}
 
         void set_access_address_and_crc_init( std::uint32_t, std::uint32_t ) {}
-        void set_ccm_counter( const ccm_counter_t&, const ccm_counter_t& ) {}
+        std::pair< std::uint64_t, std::uint32_t > setup_encryption(
+            encryption_t&, const bluetoe::details::uint128_t&, std::uint64_t, std::uint32_t )
+        {
+            return { 0, 0 };
+        }
+
+        void set_encryption( encryption_t& ) {}
         void set_phy(
             link_layer::phy_ll_encoding::phy_ll_encoding_t, link_layer::phy_ll_encoding::phy_ll_encoding_t ) {}
         void set_local_address( const link_layer::device_address& ) {}

@@ -34,3 +34,9 @@ target_sources(test_tools_timeline_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../
 
 add_scheduled_radio_test(test_tools_records_tests)
 target_sources(test_tools_records_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../test_tools/records.cpp)
+
+# the host's CCM, against the sample data of the Core Specification; the AES is the security manager tests'
+add_scheduled_radio_test(test_tools_encryption_tests)
+target_sources(test_tools_encryption_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../test_tools/encryption.cpp)
+target_include_directories(test_tools_encryption_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+target_link_libraries(test_tools_encryption_tests PRIVATE test::tools)

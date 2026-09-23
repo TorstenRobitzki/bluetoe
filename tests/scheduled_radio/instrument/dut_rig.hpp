@@ -52,7 +52,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * dut_rig::functions changes after a device was flashed with the current one.
      */
-    constexpr std::uint16_t dut_protocol_version = 2;
+    constexpr std::uint16_t dut_protocol_version = 3;
 
     /**
      * @brief records the rig keeps until the host collects them
@@ -76,13 +76,6 @@ namespace test_rig {
      */
     constexpr std::size_t received_pdus_until_full = 4;
 
-    /**
-     * @brief bytes of the PDU buffer of connection events, for each direction
-     *
-     * The rig is a link layer that negotiated the largest PDU, so the buffer reserves that
-     * much room per PDU whatever a PDU carries; this many of them fit.
-     */
-    constexpr std::size_t pdu_buffer_size = received_pdus_until_full * max_data_pdu_size;
 
     /**
      * @brief the PDU buffers of the rig, one for each connection a test runs on the radio
@@ -162,6 +155,37 @@ namespace test_rig {
                 return 0;
             }
         };
+
+        /*
+         * The encryption as the wire sees it, for a rig around a radio that does not encrypt,
+         * like no_toolbox: the list names this function at the same position, and the
+         * dispatcher answers status::unsupported_function.
+         */
+        class no_encryption
+        {
+        public:
+            std::pair< std::uint64_t, std::uint32_t > setup_encryption(
+                const bluetoe::details::uint128_t&, std::uint64_t, std::uint32_t )
+            {
+                return {};
+            }
+        };
+
+        /*
+         * The radio's encryption_t, or nothing on a radio that has none, so that the rig
+         * can hold one without naming a type the radio does not have.
+         */
+        template < typename Radio, bool Supported >
+        struct encryption_of
+        {
+            struct type {};
+        };
+
+        template < typename Radio >
+        struct encryption_of< Radio, true >
+        {
+            using type = typename Radio::encryption_t;
+        };
     }
 
     /**
@@ -199,6 +223,11 @@ namespace test_rig {
          */
         using toolbox_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, radio_t, details::no_toolbox >;
         using wrapped_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, dut_rig, details::no_toolbox >;
+
+        /**
+         * @brief whose setup_encryption() the list names: the rig's, if the radio encrypts
+         */
+        using encryption_rig_t = std::conditional_t< radio_t::hardware_supports_encryption, dut_rig, details::no_encryption >;
 
         dut_rig( std::string_view implementation_name, std::string_view build_identifier )
             : instrument_t( implementation_name, build_identifier )
@@ -241,8 +270,7 @@ namespace test_rig {
         {
             radio_event_pending_ = false;
 
-            assert( received.size <= max_advertising_pdu_size );
-            on_callback( callback_kind::adv_received, when, adv_pdu( std::span< const std::uint8_t >( received.buffer, received.size ) ) );
+            on_callback( callback_kind::adv_received, when, to_air< max_advertising_pdu_size >( link_layer::write_buffer( received ) ) );
         }
 
         void adv_timeout( link_layer::abs_time when )
@@ -385,7 +413,9 @@ namespace test_rig {
                 .address        = next.address,
                 .access_address = next.access_address,
                 .crc_init       = next.crc_init,
-                .phy            = next.phy };
+                .phy            = next.phy,
+                .receive_encrypted  = next.receive_encrypted,
+                .transmit_encrypted = next.transmit_encrypted };
 
             if ( queues )
             {
@@ -435,12 +465,13 @@ namespace test_rig {
         bool queue_pdu( const pdu& data )
         {
             pdu_buffer&             buffer = link_layer_pdu_buffer();
-            link_layer::read_buffer room   = buffer.allocate_transmit_buffer( data.size );
+            link_layer::read_buffer room   = buffer.allocate_transmit_buffer(
+                layout::data_channel_pdu_memory_size( data.size - link_layer::pdu_header_size ) );
 
             if ( room.size == 0 )
                 return false;
 
-            std::copy( data.data.begin(), data.data.begin() + data.size, room.buffer );
+            to_memory( std::span< const std::uint8_t >( data.data.data(), data.size ), std::span< std::uint8_t >( room.buffer, room.size ) );
             buffer.commit_transmit_buffer( room );
 
             return true;
@@ -463,7 +494,7 @@ namespace test_rig {
             {
                 for ( auto next = buffer.next_received(); batch.count != received_per_batch && next.size != 0; next = buffer.next_received() )
                 {
-                    batch.pdus[ batch.count ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+                    batch.pdus[ batch.count ] = to_air< max_pdu_size >( next );
                     buffer.free_received();
                     ++batch.count;
                 }
@@ -526,6 +557,36 @@ namespace test_rig {
         }
         /** @} */
 
+        /**
+         * @name Encryption
+         * @{
+         */
+
+        /**
+         * @brief sets up the connection's encryption, as the link layer does on an LL_ENC_REQ
+         *
+         * The radio derives the session key from `key` and the diversifier and answers its
+         * halves of the diversifier and the IV, SKDs and IVs, and the events to come use this
+         * encryption, with both switches off until a program's switch_encryption. Only
+         * instantiated if the radio encrypts, since only then does the list name it.
+         */
+        std::pair< std::uint64_t, std::uint32_t > setup_encryption(
+            const bluetoe::details::uint128_t& key, std::uint64_t skdm, std::uint32_t ivm )
+        {
+            if constexpr ( radio_t::hardware_supports_encryption )
+            {
+                const auto result = radio_t::setup_encryption( encryption_, key, skdm, ivm );
+                radio_t::set_encryption( encryption_ );
+
+                return result;
+            }
+            else
+            {
+                return {};
+            }
+        }
+        /** @} */
+
         using functions = function_list<
             &dut_rig::protocol_version,
             &dut_rig::implementation_name,
@@ -546,7 +607,8 @@ namespace test_rig {
             &wrapped_t::f4,
             &toolbox_t::f5,
             &toolbox_t::f6,
-            &wrapped_t::g2 >;
+            &wrapped_t::g2,
+            &encryption_rig_t::setup_encryption >;
 
     private:
         /*
@@ -566,11 +628,54 @@ namespace test_rig {
             std::uint32_t                                   access_address  = 0;
             std::uint32_t                                   crc_init        = 0;
             link_layer::phy_ll_encoding::phy_ll_encoding_t  phy             = link_layer::phy_ll_encoding::le_1m_phy;
+            bool                                            receive_encrypted  = false;
+            bool                                            transmit_encrypted = false;
             std::uint8_t                                    pdu             = 0;
         };
 
+        using layout = typename link_layer::pdu_layout_by_radio< radio_t >::pdu_layout;
+
+        /**
+         * @brief bytes of the PDU buffer of connection events, for each direction
+         *
+         * The rig is a link layer that negotiated the largest PDU, so the buffer reserves that
+         * much room per PDU whatever a PDU carries; this many of them fit.
+         */
+        static constexpr std::size_t pdu_buffer_size =
+            received_pdus_until_full * layout::data_channel_pdu_memory_size( link_layer::max_data_payload_size );
+
         // the library's PDU buffer, laid out and locked for the radio the rig hands it to
         using pdu_buffer = link_layer::ll_data_pdu_buffer< pdu_buffer_size, pdu_buffer_size, radio_t >;
+
+        // the largest advertising PDU as the radio stores it
+        static constexpr std::size_t max_advertising_memory_size = layout::data_channel_pdu_memory_size( link_layer::max_advertising_payload_size );
+
+        /*
+         * The host speaks in bytes as they are on air; the radio stores a PDU in its own
+         * layout. A PDU goes from the one to the other on its way in and out.
+         */
+        static link_layer::read_buffer to_memory( std::span< const std::uint8_t > air, std::span< std::uint8_t > memory )
+        {
+            const link_layer::read_buffer result{ memory.data(), layout::data_channel_pdu_memory_size( air.size() - link_layer::pdu_header_size ) };
+
+            layout::header( result.buffer, bluetoe::details::read_16bit( air.data() ) );
+            std::copy( air.begin() + link_layer::pdu_header_size, air.end(), layout::body( result ).first );
+
+            return result;
+        }
+
+        template < std::size_t Size >
+        static bytes< Size > to_air( link_layer::write_buffer memory )
+        {
+            const auto body = layout::body( memory );
+            bytes< Size > result;
+
+            result.size = link_layer::pdu_header_size + ( body.second - body.first );
+            bluetoe::details::write_16bit( result.data.data(), layout::header( memory ) );
+            std::copy( body.first, body.second, result.data.begin() + link_layer::pdu_header_size );
+
+            return result;
+        }
 
         void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )
         {
@@ -603,8 +708,13 @@ namespace test_rig {
          */
         void execute( const stored_call& what, link_layer::abs_time when )
         {
-            const link_layer::write_buffer transmit{ what.transmit.data.data(), what.transmit.size };
-            const link_layer::write_buffer response{ what.response.data.data(), what.response.size };
+            // a call that carries no PDU has an empty one
+            const link_layer::write_buffer transmit( what.transmit.size
+                ? link_layer::write_buffer( to_memory( what.transmit.span(), transmit_memory_ ) )
+                : link_layer::write_buffer{ nullptr, 0 } );
+            const link_layer::write_buffer response( what.response.size
+                ? link_layer::write_buffer( to_memory( what.response.span(), response_memory_ ) )
+                : link_layer::write_buffer{ nullptr, 0 } );
             const link_layer::read_buffer  receive{ receive_.data(), receive_.size() };
 
             record entry;
@@ -662,6 +772,14 @@ namespace test_rig {
                 // between events: the radio takes the buffer anew for every event
                 active_buffer_ = ( active_buffer_ + 1 ) % pdu_buffer_count;
                 break;
+            case call_kind::switch_encryption:
+                // between events too: the radio reads the switches at the start of an event
+                if constexpr ( radio_t::hardware_supports_encryption )
+                {
+                    encryption_.receive_encrypted  = what.receive_encrypted;
+                    encryption_.transmit_encrypted = what.transmit_encrypted;
+                }
+                break;
             }
 
             records_.push( entry );
@@ -678,7 +796,7 @@ namespace test_rig {
             for ( auto next = buffer.next_received(); next.size != 0; next = buffer.next_received() )
             {
                 if ( read_count_ != read_queue_size )
-                    read_[ read_count_++ ] = pdu( std::span< const std::uint8_t >( next.buffer, next.size ) );
+                    read_[ read_count_++ ] = to_air< max_pdu_size >( next );
 
                 buffer.free_received();
             }
@@ -707,7 +825,10 @@ namespace test_rig {
         std::array< pdu, max_queued_pdus >              program_pdus_;
         std::uint8_t                                    program_pdu_count_      = 0;
 
-        std::array< std::uint8_t, max_advertising_pdu_size >        receive_;
+        // advertising PDUs in the radio's layout: what it sends, what it answers with, what it receives
+        std::array< std::uint8_t, max_advertising_memory_size >     transmit_memory_;
+        std::array< std::uint8_t, max_advertising_memory_size >     response_memory_;
+        std::array< std::uint8_t, max_advertising_memory_size >     receive_;
         std::array< pdu_buffer, pdu_buffer_count >      pdu_buffers_;
         std::size_t                                     active_buffer_          = 0;
 
@@ -718,6 +839,9 @@ namespace test_rig {
         reported_queue< record, record_queue_size >     records_;
 
         address_set< max_acceptance_filter_entries >    acceptance_filter_;
+
+        // the connection's encryption, the radio's to fill and to read, the rig's to switch
+        typename details::encryption_of< radio_t, radio_t::hardware_supports_encryption >::type encryption_;
     };
 }
 }

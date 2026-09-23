@@ -368,6 +368,65 @@ namespace link_layer {
     };
 
     /**
+     * @brief the encryption of connections, on a radio that has it
+     *
+     * Required of a scheduled_radio whose hardware_supports_encryption is true. The link
+     * layer owns one encryption_t per connection and the radio works on it: it fills the
+     * key and the IV in, advances the packet counters as PDUs are exchanged, and reads
+     * which direction is encrypted. That is what lets one radio serve more than one
+     * encrypted connection, each with its own state.
+     *
+     * Context: link layer.
+     */
+    template < typename T >
+    concept scheduled_radio_encryption = requires (
+        T                                   radio,
+        typename T::encryption_t&           encryption,
+        const bluetoe::details::uint128_t&  key,
+        std::uint64_t                       skdm,
+        std::uint32_t                       ivm )
+    {
+        /*
+         * The encryption of one connection. Default constructed, it encrypts nothing.
+         * Two members are the link layer's, the direction switches; the rest, the
+         * session key, the IV and the packet counters, is the implementation's and
+         * opaque.
+         */
+        typename T::encryption_t;
+        requires std::default_initializable< typename T::encryption_t >;
+        requires std::copyable< typename T::encryption_t >;
+
+        /*
+         * Whether PDUs received, and PDUs transmitted, are encrypted, from the next
+         * connection event on. The link layer switches them as the encryption procedures
+         * of Vol 6, Part B, 5.1.3 prescribe, one direction at a time.
+         */
+        { encryption.receive_encrypted } -> std::same_as< bool& >;
+        { encryption.transmit_encrypted } -> std::same_as< bool& >;
+
+        /*
+         * Sets a connection up for encryption: derives the session key from the long
+         * term key and the session key diversifier, whose central's half is `skdm` and
+         * whose peripheral's half the radio chooses, chooses the peripheral's half of the
+         * IV to go with `ivm`, and stores key, IV and zeroed packet counters in
+         * `encryption`. Returns SKDs and IVs, for the LL_ENC_RSP. Neither direction is
+         * encrypted by this; the switches are left as they are.
+         *
+         * Takes the time of one AES block on the hardware.
+         */
+        { radio.setup_encryption( encryption, key, skdm, ivm ) }
+            -> std::same_as< std::pair< std::uint64_t, std::uint32_t > >;
+
+        /*
+         * The encryption of the connection events to come. The radio keeps the reference
+         * and reads and changes the object through it, so it stays alive and in place
+         * until another one is set. Set before the connection's first event and changed
+         * only while no action is pending; until set, nothing is encrypted.
+         */
+        radio.set_encryption( encryption );
+    };
+
+    /**
      * @brief a radio hardware combined with a timer, as a link layer needs it
      *
      * A schedule radio is a template over the type it delivers its callbacks to, so that it can
@@ -388,6 +447,7 @@ namespace link_layer {
            scheduled_radio_callbacks< CallBacks >
         && scheduled_radio_features< Radio< CallBacks > >
         && ( !Radio< CallBacks >::hardware_supports_lesc_pairing || lesc_pairing_toolbox< Radio< CallBacks > > )
+        && ( !Radio< CallBacks >::hardware_supports_encryption || scheduled_radio_encryption< Radio< CallBacks > > )
         && ( Radio< CallBacks >::radio_maximum_acceptance_filter_entries == 0
                 || hardware_acceptance_filter< Radio< CallBacks > > )
         && ( Radio< CallBacks >::radio_maximum_acceptance_filter_entries != 0
@@ -403,8 +463,7 @@ namespace link_layer {
             const write_buffer&                     transmit,
             const read_buffer&                      receive,
             phy_ll_encoding::phy_ll_encoding_t      phy,
-            const device_address&                   address,
-            typename Radio< CallBacks >::ccm_counter_t& counter )
+            const device_address&                   address )
     {
         /*
          * Execution context.
@@ -467,17 +526,6 @@ namespace link_layer {
          * Changed only while no action is pending.
          */
         radio.set_access_address_and_crc_init( access_address, crc_init );
-
-        /*
-         * The CCM counters for receiving and transmitting, part of the nonce, changed
-         * by the radio when data was exchanged. The type is the implementation's; its
-         * only public requirements are default construction, copy and assignment, and
-         * a default constructed counter is zero.
-         */
-        typename Radio< CallBacks >::ccm_counter_t;
-        requires std::default_initializable< typename Radio< CallBacks >::ccm_counter_t >;
-        requires std::copyable< typename Radio< CallBacks >::ccm_counter_t >;
-        radio.set_ccm_counter( counter, counter );
 
         /*
          * The PHY for the next connection event, receiving and transmitting.
@@ -546,9 +594,8 @@ namespace link_layer {
          * and without an answer when the second PDU in a row was received with an invalid
          * CRC.
          *
-         * The access address, the CCM counters if the connection is encrypted, and the
-         * PHY have been set for this connection, and link_layer_pdu_buffer() returns its
-         * buffer.
+         * The access address, the PHY and, on a radio that encrypts, the encryption have
+         * been set for this connection, and link_layer_pdu_buffer() returns its buffer.
          *
          * `end` lies after `start`.
          *

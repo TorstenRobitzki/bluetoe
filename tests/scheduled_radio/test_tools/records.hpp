@@ -5,11 +5,13 @@
  * @file records.hpp
  *
  * What a test reads from the records of the device under test: the callbacks the radio made,
- * in the order it made them, and the calls a step made with the results they returned.
+ * in the order it made them, the calls a step made with the results they returned, and the
+ * PDUs its buffer received in connection events.
  */
 
 #include "link/program.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -100,6 +102,20 @@ namespace test_rig {
      * @brief require the callbacks a program caused to be exactly `expected`
      */
     void check_callbacks( const std::vector< record >& records, const std::vector< expected_callback >& expected );
+
+    /**
+     * @brief the PDUs the device's buffer received, one per line, numbered, as hex bytes
+     */
+    std::string as_text( const std::vector< pdu >& received );
+
+    /**
+     * @brief require the PDUs the device's buffer received to be exactly `expected`, in order
+     *
+     * Each is the PDU as the link layer reads it: the header as it was received, and behind
+     * it the payload, decrypted if the connection was encrypted. Every PDU that differs is
+     * reported with what was found and what was required, then the count is required to match.
+     */
+    void check_received( const std::vector< pdu >& received, const std::vector< std::vector< std::uint8_t > >& expected );
 }
 }
 

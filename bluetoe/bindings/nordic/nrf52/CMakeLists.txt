@@ -3,6 +3,7 @@ add_library(
     STATIC
     EXCLUDE_FROM_ALL
     nrf52_radio.cpp
+    nrf52_ccm.cpp
     security_tool_box.cpp
 )
 

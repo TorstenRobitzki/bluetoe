@@ -82,6 +82,27 @@ BOOST_AUTO_TEST_CASE( a_run_that_caused_the_expected_callbacks_passes )
     check_callbacks( a_run, { adv_timeout, user_timer, adv_timeout } );
 }
 
+BOOST_AUTO_TEST_SUITE( the_pdus_the_device_received )
+
+    const std::vector< std::uint8_t > first_bytes  = { 0x02, 0x03, 0x0a, 0x0b, 0x0c };
+    const std::vector< std::uint8_t > second_bytes = { 0x01, 0x00 };
+
+    const std::vector< pdu > two_received = { pdu( first_bytes ), pdu( second_bytes ) };
+
+    BOOST_AUTO_TEST_CASE( they_are_rendered_numbered_as_hex_lines )
+    {
+        BOOST_CHECK_EQUAL( as_text( two_received ), "    0: 02 03 0a 0b 0c\n    1: 01 00\n" );
+        BOOST_CHECK_EQUAL( as_text( std::vector< pdu >{} ), "" );
+    }
+
+    BOOST_AUTO_TEST_CASE( the_expected_pdus_pass )
+    {
+        check_received( two_received, { first_bytes, second_bytes } );
+        check_received( {}, {} );
+    }
+
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE( the_flags_of_a_connection_event )
 
     record an_end_event( const bluetoe::link_layer::connection_event_events& events )

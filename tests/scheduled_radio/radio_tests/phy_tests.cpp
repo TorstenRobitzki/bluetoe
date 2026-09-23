@@ -108,10 +108,7 @@ BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_central_is_received_at_2_mb
 
     BOOST_CHECK_LE( std::chrono::abs( inter_frame_space( captured[ 1 ], captured[ 2 ], le_2m_phy ) - 150us ), 2us );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 1u );
-    BOOST_CHECK( std::vector< std::uint8_t >( stored[ 0 ].data.begin(), stored[ 0 ].data.begin() + stored[ 0 ].size ) == data );
+    check_received( { data } );
 }
 
 BOOST_FIXTURE_TEST_CASE( the_largest_data_pdu_of_the_device_is_sent_at_2_mbit, connection_fixture )

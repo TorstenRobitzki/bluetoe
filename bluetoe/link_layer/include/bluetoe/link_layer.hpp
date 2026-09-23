@@ -275,7 +275,7 @@ namespace link_layer {
          */
         struct link_layer_security_impl
         {
-            template < class LinkLayer >
+            template < class LinkLayer, class Radio >
             class impl
             {
             public:
@@ -315,7 +315,7 @@ namespace link_layer {
                         std::tie( has_key_, key ) = that().connection_data_.find_key( ediv, rand );
 
                         // setup encryption
-                        std::tie( skds, ivs ) = that().setup_encryption( key, skdm, ivm );
+                        std::tie( skds, ivs ) = that().setup_encryption( encryption_, key, skdm, ivm );
 
                         std::uint8_t* write_body = layout_t::body( write ).first;
                         bluetoe::details::write_64bit( &write_body[ 1 ], skds );
@@ -324,7 +324,7 @@ namespace link_layer {
                     else if ( opcode == LinkLayer::LL_START_ENC_RSP && size == 1 )
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_RSP } );
-                        that().start_transmit_encrypted();
+                        encryption_.transmit_encrypted = true;
                         encryption_changed = that().connection_data_.is_encrypted( true );
 
                         if ( encryption_changed )
@@ -334,12 +334,12 @@ namespace link_layer {
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
                     {
                         fill< layout_t >( write, { LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_PAUSE_ENC_RSP } );
-                        that().stop_receive_encrypted();
+                        encryption_.receive_encrypted = false;
                         encryption_changed = that().connection_data_.is_encrypted( false );
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_RSP && size == 1 )
                     {
-                        that().stop_transmit_encrypted();
+                        encryption_.transmit_encrypted = false;
                         encryption_changed = that().connection_data_.is_encrypted( false );
 
                         commit = false;
@@ -374,7 +374,7 @@ namespace link_layer {
                         fill< layout_t >( out_buffer, {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
-                        that().start_receive_encrypted();
+                        encryption_.receive_encrypted = true;
                         that().commit_ll_transmit_buffer( out_buffer );
                     }
                     else
@@ -386,16 +386,21 @@ namespace link_layer {
                     encryption_in_progress_ = false;
                 }
 
+                /*
+                 * Nothing encrypted, and the radio told where this connection's encryption
+                 * lives: at the start of a connection, and at its end.
+                 */
                 void reset_encryption()
                 {
                     that().connection_data_.is_encrypted( false );
-                    that().stop_receive_encrypted();
-                    that().stop_transmit_encrypted();
+                    encryption_ = typename Radio::encryption_t();
+                    that().set_encryption( encryption_ );
                 }
 
             private:
-                bool has_key_;
-                bool encryption_in_progress_;
+                typename Radio::encryption_t    encryption_;
+                bool                            has_key_;
+                bool                            encryption_in_progress_;
             };
 
             using link_state = bluetoe::details::link_state;
@@ -403,7 +408,7 @@ namespace link_layer {
 
         struct link_layer_no_security_impl
         {
-            template < class LinkLayer >
+            template < class LinkLayer, class Radio >
             struct impl
             {
                 bool handle_encryption_pdus( std::uint8_t, std::uint8_t, write_buffer, read_buffer, bool& )
@@ -522,13 +527,13 @@ namespace link_layer {
             {}
         };
 
-        template < class Server, class LinkLayer >
+        template < class Server, class LinkLayer, class Radio >
         using select_link_layer_security_impl =
             typename bluetoe::details::select_type<
                 bluetoe::details::requires_encryption_support_t< Server >::value,
                 link_layer_security_impl,
                 link_layer_no_security_impl
-            >::type::template impl< LinkLayer >;
+            >::type::template impl< LinkLayer, Radio >;
 
         template < class Server >
         using select_link_layer_security_link_state =
@@ -644,7 +649,10 @@ namespace link_layer {
             Options... >,
         public details::l2cap_layer< Server, ScheduledRadio, Options... >::impl,
         private details::connection_callbacks< link_layer< Server, ScheduledRadio, Options... >, Options... >::type,
-        private details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >,
+        private details::select_link_layer_security_impl<
+            Server,
+            link_layer< Server, ScheduledRadio, Options... >,
+            ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > > >,
         public details::connection_latency_state_t< Options... >,
         private details::select_phy_update_impl<
             ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > > >,
@@ -825,7 +833,7 @@ namespace link_layer {
 
     private:
 
-        friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... > >;
+        friend details::select_link_layer_security_impl< Server, link_layer< Server, ScheduledRadio, Options... >, radio_t >;
         friend details::select_phy_update_impl< radio_t >;
 
         static_assert(
@@ -1137,6 +1145,7 @@ namespace link_layer {
 
                 this->reset_pdu_buffer();
                 this->reset_connection_parameter_request();
+                this->reset_encryption();
 
                 this->connection_request( connection_addresses( address_, remote_address ) );
                 this->handle_stop_advertising();

@@ -56,6 +56,7 @@ The tests are here; what they are written with is in `../test_tools`.
 | `connection_tests.cpp` | schedule_connection_event() over the air, with the tester as the central: rows of events, PDU sizes, MD on either side, T_IFS at its edges, the receive window, CRC errors, a full receive buffer, cancelling, the reported times and flags, and two connections on one radio; skipped without a tester |
 | `phy_tests.cpp` | set_phy() over the air: connection events at 2 Mbit, the largest PDU each way, the interval, a central on the other PHY, a PHY changed between events, advertising staying at 1 Mbit and the window edges; skipped without a tester and on a device without 2 Mbit |
 | `cancel_tests.cpp` | cancel_radio_event() on advertising events: in time, too late and with nothing pending; skipped without a tester |
+| `encryption_tests.cpp` | the encryption of connection events: the host computes the central's ciphertext and checks the device's with the CCM of `../test_tools/encryption.hpp`; an exchange in both directions, the switches turned one at a time, a wrong MIC, the packet counters across repeated and empty PDUs, and 2 Mbit; skipped without a tester and on a device whose radio does not encrypt |
 | `timer_tests.cpp` | schedule_timer() and cancel_timer(), made visible by an advertising scheduled from user_timer(); skipped without a tester |
 
 | file in `../test_tools` | subject |
@@ -66,7 +67,8 @@ The tests are here; what they are written with is in `../test_tools`.
 | `rig_fixture.hpp` | the fixture the timing tests share: resets the device, loads a program into each instrument, runs them, and hands over what each recorded; `connection_fixture` with the parameters of a connection |
 | `observations.hpp` | the PDUs a test builds, the tolerance of an observed interval and the intervals themselves |
 | `timeline.hpp` | what a test expects of the PDUs a tester program captured |
-| `records.hpp` | what a test expects of the device's records: the callbacks it made and the calls a step made |
+| `encryption.hpp`, `encryption.cpp` | the session key and the CCM of the Core Specification on the host, for the ciphertext the tester sends and checks; unit tested against the specification's sample data in `../self_tests` |
+| `records.hpp` | what a test expects of the device's records: the callbacks it made, the calls a step made, and the PDUs its buffer received |
 
 The programs themselves are written with `../host/program_builders.hpp`: a call, a step or an
 operation per function, with times as `std::chrono` durations. It is shared with the self tests of
