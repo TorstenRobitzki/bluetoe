@@ -85,8 +85,18 @@ namespace bluetoe
             NRF_CCM->MODE           = mode( CCM_MODE_MODE_Decryption, two_mbit );
             NRF_CCM->INPTR          = reinterpret_cast< std::uint32_t >( ciphertext.buffer );
             NRF_CCM->OUTPTR         = reinterpret_cast< std::uint32_t >( room.buffer );
-            NRF_CCM->MAXPACKETSIZE  = room.size - header_size;
             NRF_CCM->SHORTS         = 0;
+
+            /*
+             * The CCM decrypts as many bytes as the length byte of the ciphertext says, into
+             * the room, before the CRC has judged the packet; the RADIO's own limit stops only
+             * what the RADIO writes. On the parts that have it, MAXPACKETSIZE bounds the CCM to
+             * the room. The nRF52832 has no such register, so a packet whose length byte
+             * exceeds the room can overrun it there, a known exposure of that part.
+             */
+#if defined( CCM_MAXPACKETSIZE_MAXPACKETSIZE_Msk )
+            NRF_CCM->MAXPACKETSIZE  = room.size - header_size;
+#endif
 
             NRF_CCM->EVENTS_ENDKSGEN = 0;
             NRF_CCM->EVENTS_ENDCRYPT = 0;
