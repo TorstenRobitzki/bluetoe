@@ -2,8 +2,8 @@
  * @file nrf52_dut.cpp
  *
  * The device under test on the nRF52 development kits: the rig around the platform's
- * scheduled radio without options, over the UART. This is dut_rigs/template_dut_rig.cpp
- * with the two types and the names filled in.
+ * scheduled radio with its option encrypting, over the UART. This is
+ * dut_rigs/template_dut_rig.cpp with the two types and the names filled in.
  */
 
 #include "instrument/dut_rig.hpp"
@@ -22,10 +22,12 @@
 namespace nrf52_dut {
 
     /*
-     * The configuration this rig tests: the radio as it comes.
+     * The configuration this rig tests: the radio that encrypts, which is the one the
+     * examples with pairing run on; the one without is the same code with the encryption
+     * branches compiled out.
      */
     template < typename CallBacks >
-    using radio = bluetoe::radio< CallBacks >;
+    using radio = bluetoe::radio< CallBacks, bluetoe::nrf52_details::encrypting >;
 
     using rig_t = bluetoe::test_rig::dut_rig< radio, bluetoe::test_rig::nrf52::uart >;
 
@@ -35,7 +37,7 @@ namespace nrf52_dut {
      * object rather than a static in main(): the latter needs the runtime's guards and
      * destructor registration, which a firmware without a C++ runtime does not have.
      */
-    rig_t rig( "nrf52_radio on nRF52840-DK", DUT_BUILD_IDENTIFIER );
+    rig_t rig( "nrf52_radio, encrypting, on nRF52840-DK", DUT_BUILD_IDENTIFIER );
 }
 
 int main()

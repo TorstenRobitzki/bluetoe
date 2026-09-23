@@ -222,6 +222,15 @@ namespace test_rig {
     {
         return call{ .kind = call_kind::switch_pdu_buffer };
     }
+
+    /**
+     * @brief set the switches of the connection's encryption, as the link layer does at the steps
+     *        of the encryption start; the encryption itself is set up with dut::setup_encryption()
+     */
+    inline call switch_encryption( bool receive, bool transmit )
+    {
+        return call{ .kind = call_kind::switch_encryption, .receive_encrypted = receive, .transmit_encrypted = transmit };
+    }
     /** @} */
 
     /**

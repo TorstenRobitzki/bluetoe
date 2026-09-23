@@ -65,7 +65,8 @@ namespace test_rig {
         queue_pdu,
         read_received,
         switch_pdu_buffer,
-        set_phy
+        set_phy,
+        switch_encryption
     };
 
     /**
@@ -79,7 +80,10 @@ namespace test_rig {
      * the buffer received out of it, as the link layer would, and the rig keeps it for the host; a switch_pdu_buffer hands the radio the rig's other PDU
      * buffer from then on, as a link layer with a second connection would; `address`,
      * `access_address` and `crc_init` are what the two setup calls set, and `phy` what a set_phy
-     * sets for both directions of the connection events that follow.
+     * sets for both directions of the connection events that follow. `receive_encrypted` and
+     * `transmit_encrypted` are the switches a switch_encryption sets in the connection's
+     * encryption, which the rig's setup_encryption() set up, as the link layer does at the
+     * steps of the encryption start.
      */
     struct call
     {
@@ -93,6 +97,8 @@ namespace test_rig {
         std::uint32_t               access_address  = 0;
         std::uint32_t               crc_init        = 0;
         link_layer::phy_ll_encoding::phy_ll_encoding_t phy = link_layer::phy_ll_encoding::le_1m_phy;
+        bool                        receive_encrypted  = false;
+        bool                        transmit_encrypted = false;
 
         friend bool operator==( const call&, const call& ) = default;
     };
@@ -210,7 +216,9 @@ namespace test_rig {
             value.address,
             value.access_address,
             value.crc_init,
-            value.phy ) );
+            value.phy,
+            value.receive_encrypted,
+            value.transmit_encrypted ) );
     }
 
     template < source Source >
@@ -226,7 +234,9 @@ namespace test_rig {
             value.address,
             value.access_address,
             value.crc_init,
-            value.phy );
+            value.phy,
+            value.receive_encrypted,
+            value.transmit_encrypted );
 
         return deserialize( in, fields );
     }

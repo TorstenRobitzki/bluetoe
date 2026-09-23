@@ -52,7 +52,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * dut_rig::functions changes after a device was flashed with the current one.
      */
-    constexpr std::uint16_t dut_protocol_version = 2;
+    constexpr std::uint16_t dut_protocol_version = 3;
 
     /**
      * @brief records the rig keeps until the host collects them
@@ -155,6 +155,37 @@ namespace test_rig {
                 return 0;
             }
         };
+
+        /*
+         * The encryption as the wire sees it, for a rig around a radio that does not encrypt,
+         * like no_toolbox: the list names this function at the same position, and the
+         * dispatcher answers status::unsupported_function.
+         */
+        class no_encryption
+        {
+        public:
+            std::pair< std::uint64_t, std::uint32_t > setup_encryption(
+                const bluetoe::details::uint128_t&, std::uint64_t, std::uint32_t )
+            {
+                return {};
+            }
+        };
+
+        /*
+         * The radio's encryption_t, or nothing on a radio that has none, so that the rig
+         * can hold one without naming a type the radio does not have.
+         */
+        template < typename Radio, bool Supported >
+        struct encryption_of
+        {
+            struct type {};
+        };
+
+        template < typename Radio >
+        struct encryption_of< Radio, true >
+        {
+            using type = typename Radio::encryption_t;
+        };
     }
 
     /**
@@ -192,6 +223,11 @@ namespace test_rig {
          */
         using toolbox_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, radio_t, details::no_toolbox >;
         using wrapped_t = std::conditional_t< radio_t::hardware_supports_lesc_pairing, dut_rig, details::no_toolbox >;
+
+        /**
+         * @brief whose setup_encryption() the list names: the rig's, if the radio encrypts
+         */
+        using encryption_rig_t = std::conditional_t< radio_t::hardware_supports_encryption, dut_rig, details::no_encryption >;
 
         dut_rig( std::string_view implementation_name, std::string_view build_identifier )
             : instrument_t( implementation_name, build_identifier )
@@ -377,7 +413,9 @@ namespace test_rig {
                 .address        = next.address,
                 .access_address = next.access_address,
                 .crc_init       = next.crc_init,
-                .phy            = next.phy };
+                .phy            = next.phy,
+                .receive_encrypted  = next.receive_encrypted,
+                .transmit_encrypted = next.transmit_encrypted };
 
             if ( queues )
             {
@@ -519,6 +557,36 @@ namespace test_rig {
         }
         /** @} */
 
+        /**
+         * @name Encryption
+         * @{
+         */
+
+        /**
+         * @brief sets up the connection's encryption, as the link layer does on an LL_ENC_REQ
+         *
+         * The radio derives the session key from `key` and the diversifier and answers its
+         * halves of the diversifier and the IV, SKDs and IVs, and the events to come use this
+         * encryption, with both switches off until a program's switch_encryption. Only
+         * instantiated if the radio encrypts, since only then does the list name it.
+         */
+        std::pair< std::uint64_t, std::uint32_t > setup_encryption(
+            const bluetoe::details::uint128_t& key, std::uint64_t skdm, std::uint32_t ivm )
+        {
+            if constexpr ( radio_t::hardware_supports_encryption )
+            {
+                const auto result = radio_t::setup_encryption( encryption_, key, skdm, ivm );
+                radio_t::set_encryption( encryption_ );
+
+                return result;
+            }
+            else
+            {
+                return {};
+            }
+        }
+        /** @} */
+
         using functions = function_list<
             &dut_rig::protocol_version,
             &dut_rig::implementation_name,
@@ -539,7 +607,8 @@ namespace test_rig {
             &wrapped_t::f4,
             &toolbox_t::f5,
             &toolbox_t::f6,
-            &wrapped_t::g2 >;
+            &wrapped_t::g2,
+            &encryption_rig_t::setup_encryption >;
 
     private:
         /*
@@ -559,6 +628,8 @@ namespace test_rig {
             std::uint32_t                                   access_address  = 0;
             std::uint32_t                                   crc_init        = 0;
             link_layer::phy_ll_encoding::phy_ll_encoding_t  phy             = link_layer::phy_ll_encoding::le_1m_phy;
+            bool                                            receive_encrypted  = false;
+            bool                                            transmit_encrypted = false;
             std::uint8_t                                    pdu             = 0;
         };
 
@@ -701,6 +772,14 @@ namespace test_rig {
                 // between events: the radio takes the buffer anew for every event
                 active_buffer_ = ( active_buffer_ + 1 ) % pdu_buffer_count;
                 break;
+            case call_kind::switch_encryption:
+                // between events too: the radio reads the switches at the start of an event
+                if constexpr ( radio_t::hardware_supports_encryption )
+                {
+                    encryption_.receive_encrypted  = what.receive_encrypted;
+                    encryption_.transmit_encrypted = what.transmit_encrypted;
+                }
+                break;
             }
 
             records_.push( entry );
@@ -760,6 +839,9 @@ namespace test_rig {
         reported_queue< record, record_queue_size >     records_;
 
         address_set< max_acceptance_filter_entries >    acceptance_filter_;
+
+        // the connection's encryption, the radio's to fill and to read, the rig's to switch
+        typename details::encryption_of< radio_t, radio_t::hardware_supports_encryption >::type encryption_;
     };
 }
 }
