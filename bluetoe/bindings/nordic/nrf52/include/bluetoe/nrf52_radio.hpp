@@ -18,12 +18,20 @@
  *
  * @section timebase The time base
  *
- * abs_time is a 32 bit timer running at one microsecond from the 16 MHz peripheral
- * clock, and the high frequency crystal is started once and stays on: a test rig has no
- * power budget, and the sleep clock with its calibration and the handover between the
- * two clocks is a later slice with tests of its own. A second timer, started in the same
- * cycle as the first through a PPI fork, holds the user timer's compare, since the first
- * one's four registers are taken by the radio.
+ * Two clocks: the RTC on the 32.768 kHz sleep clock runs all the time, and TIMER0 on the
+ * 16 MHz peripheral clock runs during a radio event only. abs_time is microseconds since
+ * the RTC started, on a 32 bit ring: while the radio is idle it is the RTC's ticks
+ * converted, to the tick; during an event it is TIMER0's count from the tick the event
+ * was placed at, to the microsecond.
+ *
+ * A radio event is placed like this: the microsecond it needs TIMER0 from is split into
+ * a tick and a remainder; an RTC compare starts the high frequency crystal a startup
+ * time before that tick, a second compare starts TIMER0, cleared, at the tick, through
+ * PPI, and TIMER0's compares place the transmitter, the receiver and the window from
+ * the remainder on. When the event ends, TIMER0 stops and the crystal is switched off
+ * again, unless the sleep clock is synthesized from it (nrf.hpp), and the CPU can sleep
+ * with the sleep clock alone. The user timer is a third RTC compare. The sleep clock's
+ * source and the crystal's startup time are the options of nrf.hpp.
  *
  * @section events What the radio reports and when
  *
@@ -61,6 +69,7 @@
 #include <bluetoe/security_tool_box.hpp>
 #include <bluetoe/nrf52_ccm.hpp>
 #include <bluetoe/nrf.hpp>
+#include <bluetoe/meta_tools.hpp>
 
 #include <bluetoe/abs_time.hpp>
 #include <bluetoe/address.hpp>
@@ -125,6 +134,27 @@ namespace bluetoe
         };
 
         /**
+         * @brief the source of the sleep clock, the 32.768 kHz clock the RTC runs on; the
+         *        options of nrf.hpp name them
+         */
+        enum class sleep_clock
+        {
+            synthesized,
+            crystal,
+            rc
+        };
+
+        /**
+         * @brief what the options of a radio decide, as one value the base is instantiated on
+         */
+        struct radio_configuration
+        {
+            bool            encrypting;
+            sleep_clock     source;
+            std::uint32_t   hfxo_startup_us;
+        };
+
+        /**
          * @brief the hardware and its state; radio adds what the options decide
          *
          * CallBacks is the type the callbacks are delivered to, the link layer or a test rig,
@@ -135,11 +165,12 @@ namespace bluetoe
          * takes it from there and delivers it; the concepts' rule that no second action of a
          * kind is scheduled while one is pending is what makes one slot enough.
          *
-         * Encrypting is whether the connection events run through the CCM (nrf52_ccm.hpp).
-         * A radio that does not encrypt has the branches compiled out, so that nothing in the
-         * firmware names the CCM's code and the linker leaves it out.
+         * Configuration is what the options decided: whether the connection events run
+         * through the CCM (nrf52_ccm.hpp), which a radio that does not encrypt has compiled
+         * out, so that nothing in the firmware names the CCM's code and the linker leaves it
+         * out; and the sleep clock and the crystal's startup time, see the time base above.
          */
-        template < typename CallBacks, bool Encrypting >
+        template < typename CallBacks, radio_configuration Configuration >
         class radio_base_t
         {
         public:
@@ -147,13 +178,15 @@ namespace bluetoe
              * @brief for the interrupt handlers only
              */
             static void radio_interrupt();
-            static void timer_interrupt();
+            static void rtc_interrupt();
+            static void clock_interrupt();
             static void ccm_interrupt();
 
         protected:
             /**
-             * @brief starts the crystal, the timers and the random number generator, and
-             *        configures the radio for legacy advertising
+             * @brief starts the sleep clock and the random number generator, and configures
+             *        the radio for legacy advertising; radio_ready() follows once the sleep
+             *        clock runs
              */
             radio_base_t();
 
@@ -267,6 +300,18 @@ namespace bluetoe
                 return callbacks().link_layer_pdu_buffer();
             }
 
+            /*
+             * The two clocks: the RTC's ticks with the overflows counted, their microseconds,
+             * the placement of TIMER0 at a tick and its release with the crystal after an
+             * event; see the time base in the file's comment.
+             */
+            std::uint32_t ticks_now() const;
+            static std::uint32_t microseconds_of( std::uint64_t ticks );
+            void place_timer( link_layer::abs_time from );
+            void release_clocks();
+            void on_clock_event();
+            void on_rtc_event();
+
             link_layer::abs_time now() const;
             void schedule(
                 std::uint32_t channel, link_layer::abs_time when,
@@ -310,6 +355,10 @@ namespace bluetoe
             volatile bool               timer_scheduled_;
             link_layer::abs_time        timer_when_;
             volatile bool               timer_event_pending_;
+
+            // the RTC's overflows, for ticks beyond its 24 bits; abs_time at TIMER0's zero
+            volatile std::uint32_t      rtc_epoch_;
+            std::uint32_t               timer_base_;
 
             /*
              * Set before an event and read by the receive interrupt: the address a scan or
@@ -391,7 +440,8 @@ namespace bluetoe
         struct interrupt_entries
         {
             void ( *radio )();
-            void ( *timer )();
+            void ( *rtc )();
+            void ( *clock )();
             void ( *ccm )();
         };
 
@@ -402,21 +452,54 @@ namespace bluetoe
          */
         struct encrypting {};
 
+        /*
+         * The options a radio takes: encrypting, and those of nrf.hpp, the sleep clock's
+         * source and the crystal's startup time.
+         */
+        template < typename Option >
+        concept nrf_radio_option = std::is_same_v< Option, encrypting >
+            || std::is_base_of_v< nrf::nrf_details::radio_option_meta_type, typename Option::meta_type >;
+
+        template < typename Option >
+        constexpr sleep_clock sleep_clock_of()
+        {
+            if constexpr ( std::is_same_v< Option, nrf::sleep_clock_crystal_oscillator > )
+                return sleep_clock::crystal;
+            else if constexpr ( std::is_same_v< Option, nrf::calibrated_rc_sleep_clock > )
+                return sleep_clock::rc;
+            else
+                return sleep_clock::synthesized;
+        }
+
+        template < typename... Options >
+        constexpr radio_configuration configuration_of()
+        {
+            using source  = typename details::find_by_meta_type< nrf::nrf_details::sleep_clock_source_meta_type, Options..., nrf::synthesized_sleep_clock >::type;
+            using startup = typename details::find_by_meta_type< nrf::nrf_details::hfxo_startup_time_meta_type, Options..., nrf::high_frequency_crystal_oscillator_startup_time_default >::type;
+
+            return radio_configuration{
+                .encrypting      = ( std::is_same_v< Options, encrypting > || ... ),
+                .source          = sleep_clock_of< source >(),
+                .hfxo_startup_us = startup::value };
+        }
+
         /**
          * @brief the scheduled radio of the nRF52
          *
          * CallBacks is the type the callbacks are delivered to, which derives from this class
          * and is reached through that relation. Options are the radio's options: encrypting,
-         * or none.
+         * a sleep clock source of nrf.hpp and the crystal's startup time, or none of them.
          */
         template < typename CallBacks, typename... Options >
-        class radio : public radio_base_t< CallBacks, ( std::is_same_v< Options, encrypting > || ... ) >, public security_tool_box
+        class radio : public radio_base_t< CallBacks, configuration_of< Options... >() >, public security_tool_box
         {
-            static_assert( ( std::is_same_v< Options, encrypting > && ... ), "the nRF52 scheduled radio knows the option encrypting only" );
+            static_assert( ( nrf_radio_option< Options > && ... ),
+                "the nRF52 scheduled radio knows the options encrypting, a sleep clock source and the crystal's startup time only" );
 
-            static constexpr bool           encrypts = ( std::is_same_v< Options, encrypting > || ... );
+            static constexpr radio_configuration configuration = configuration_of< Options... >();
+            static constexpr bool                encrypts      = configuration.encrypting;
 
-            using base_t = radio_base_t< CallBacks, encrypts >;
+            using base_t = radio_base_t< CallBacks, configuration >;
 
         public:
             static constexpr bool           hardware_supports_encryption                = encrypts;
@@ -434,10 +517,10 @@ namespace bluetoe
             static constexpr std::uint32_t  radio_max_supported_payload_length          = 255;
 
             /**
-             * @brief the 32 MHz crystal of the development kits, which is the only clock
-             *        this slice runs on
+             * @brief the sleep clock's accuracy: the RC oscillator's after calibration as the
+             *        datasheet gives it, or the crystal's on the development kits
              */
-            static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = 20;
+            static constexpr std::uint32_t  sleep_time_accuracy_ppm                     = configuration.source == sleep_clock::rc ? 500 : 20;
 
             /**
              * @brief no acceptance filter hardware; the caller filters in software through

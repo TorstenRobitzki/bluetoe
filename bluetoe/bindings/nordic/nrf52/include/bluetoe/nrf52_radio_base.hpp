@@ -46,17 +46,50 @@ namespace bluetoe
             /*
              * TIMER0 belongs to the radio: compare 0 starts a transmission, compare 1 ends
              * the receive window, capture 2 takes the end of a packet, capture 3 reads the
-             * time. TIMER1, its twin, holds the user timer in compare 0.
+             * time. It runs during a radio event only; see the time base in nrf52_radio.hpp.
              */
             constexpr std::size_t cc_start          = 0;
             constexpr std::size_t cc_window_end     = 1;
             constexpr std::size_t cc_packet_end     = 2;
             constexpr std::size_t cc_now            = 3;
-            constexpr std::size_t cc_user_timer     = 0;
 
             /*
-             * The pre-programmed PPI channels of the nRF52, and one free channel that starts
-             * both timers in the same cycle from an event generator task.
+             * RTC0 on the sleep clock: compare 0 starts the high frequency crystal, compare 1
+             * starts TIMER0, both through PPI; compare 2 is the user timer, through the
+             * interrupt. Its 24 bits overflow every 512 s, counted in the interrupt.
+             */
+            constexpr std::size_t rtc_cc_hfxo       = 0;
+            constexpr std::size_t rtc_cc_timer      = 1;
+            constexpr std::size_t rtc_cc_user_timer = 2;
+            constexpr std::size_t rtc_bits          = 24;
+
+            /*
+             * A tick of the sleep clock is 1000000 / 32768 µs = 15625 / 512 µs, exactly; a
+             * radio event has to be placed to the tick at least this far ahead for the RTC
+             * to match a compare it is given now.
+             */
+            constexpr std::uint32_t us_per_tick_numerator   = 15625;
+            constexpr std::uint32_t us_per_tick_denominator = 512;
+            constexpr std::uint32_t tick_us                 = 31;
+            constexpr std::uint32_t rtc_compare_lead_ticks  = 2;
+
+            /*
+             * Microseconds ahead into ticks ahead, rounded down or up, without a 64 bit
+             * division: the quotient by the numerator first, then the remainder, which
+             * stays small.
+             */
+            inline std::uint32_t ticks_of( std::uint32_t microseconds, bool round_up )
+            {
+                const std::uint32_t whole = microseconds / us_per_tick_numerator;
+                const std::uint32_t rest  = microseconds % us_per_tick_numerator;
+                const std::uint32_t part  = rest * us_per_tick_denominator + ( round_up ? us_per_tick_numerator - 1 : 0 );
+
+                return whole * us_per_tick_denominator + part / us_per_tick_numerator;
+            }
+
+            /*
+             * The pre-programmed PPI channels of the nRF52, and two free channels for the
+             * RTC's compares.
              */
             constexpr std::uint32_t ppi_compare0_txen       = 1u << 20;
             constexpr std::uint32_t ppi_compare0_rxen       = 1u << 21;
@@ -65,9 +98,13 @@ namespace bluetoe
             // pre-programmed: the address of a packet starts the CCM; the encryption arms it
             constexpr std::uint32_t ppi_address_ccm_crypt   = 1u << 25;
 
+            constexpr std::size_t   ppi_rtc_hfxo_channel    = 1;
+            constexpr std::size_t   ppi_rtc_timer_channel   = 2;
+            constexpr std::uint32_t ppi_rtc_hfxo            = 1u << ppi_rtc_hfxo_channel;
+            constexpr std::uint32_t ppi_rtc_timer           = 1u << ppi_rtc_timer_channel;
+
             // a PDU in memory: S0, the length and the spare byte the CCM needs (encrypted_pdu_layout)
             constexpr std::size_t   memory_header_size      = 3;
-            constexpr std::size_t   ppi_start_timers        = 0;
 
             /*
              * The radio ramps up with the default ramp up, as TIFS is only kept with that
@@ -82,7 +119,19 @@ namespace bluetoe
              * arming of the start, so nothing can use that margin up in between and the
              * start can never slip past before the channel that forwards it is enabled.
              */
-            constexpr std::uint32_t earliest_us = ramp_up_us + 60;
+            constexpr std::uint32_t setup_us = 60;
+
+            /*
+             * With the crystal to start before the event, the ticks the RTC needs to match its
+             * compares, and the remainder TIMER0 has to have room for.
+             */
+            template < radio_configuration Configuration >
+            constexpr std::uint32_t earliest_us =
+                Configuration.hfxo_startup_us + ramp_up_us + ( rtc_compare_lead_ticks + 2 ) * tick_us + setup_us;
+
+            template < radio_configuration Configuration >
+            constexpr std::uint32_t hfxo_startup_ticks =
+                ( Configuration.hfxo_startup_us * us_per_tick_denominator + us_per_tick_numerator - 1 ) / us_per_tick_numerator + 1;
 
             /*
              * Interrupts off for the few microseconds of that setup, the mask restored
@@ -261,18 +310,30 @@ namespace bluetoe
                     compare = 0;
             }
 
-            inline void start_timers_together()
+            /*
+             * The RTC at the sleep clock's rate; its two compares reach the crystal and
+             * TIMER0 through PPI, so their events are routed, and the overflow and the
+             * user timer through the interrupt. It starts once the sleep clock runs.
+             */
+            inline void configure_rtc()
             {
-                NRF_PPI->CH[ ppi_start_timers ].EEP = reinterpret_cast< std::uint32_t >( &NRF_EGU0->EVENTS_TRIGGERED[ 0 ] );
-                NRF_PPI->CH[ ppi_start_timers ].TEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER0->TASKS_START );
-                NRF_PPI->FORK[ ppi_start_timers ].TEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER1->TASKS_START );
-                NRF_PPI->CHENSET = 1u << ppi_start_timers;
+                NRF_RTC0->TASKS_STOP    = 1;
+                NRF_RTC0->TASKS_CLEAR   = 1;
+                NRF_RTC0->PRESCALER     = 0;
+                NRF_RTC0->EVTENCLR      = 0xffffffff;
+                NRF_RTC0->INTENCLR      = 0xffffffff;
+                NRF_RTC0->EVTENSET      = RTC_EVTENSET_COMPARE0_Msk | RTC_EVTENSET_COMPARE1_Msk;
+                NRF_RTC0->INTENSET      = RTC_INTENSET_OVRFLW_Msk;
 
-                NRF_EGU0->EVENTS_TRIGGERED[ 0 ] = 0;
-                NRF_EGU0->TASKS_TRIGGER[ 0 ]    = 1;
+                for ( auto& compare : NRF_RTC0->EVENTS_COMPARE )
+                    compare = 0;
 
-                NRF_PPI->CHENCLR = 1u << ppi_start_timers;
-                NRF_EGU0->EVENTS_TRIGGERED[ 0 ] = 0;
+                NRF_RTC0->EVENTS_OVRFLW = 0;
+
+                NRF_PPI->CH[ ppi_rtc_hfxo_channel ].EEP  = reinterpret_cast< std::uint32_t >( &NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ] );
+                NRF_PPI->CH[ ppi_rtc_hfxo_channel ].TEP  = reinterpret_cast< std::uint32_t >( &NRF_CLOCK->TASKS_HFCLKSTART );
+                NRF_PPI->CH[ ppi_rtc_timer_channel ].EEP = reinterpret_cast< std::uint32_t >( &NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] );
+                NRF_PPI->CH[ ppi_rtc_timer_channel ].TEP = reinterpret_cast< std::uint32_t >( &NRF_TIMER0->TASKS_START );
             }
 
             inline void configure_radio()
@@ -314,18 +375,18 @@ namespace bluetoe
 
 
 
-        template < typename CallBacks, bool Encrypting >
-        radio_base_t< CallBacks, Encrypting >* radio_base_t< CallBacks, Encrypting >::instance_ = nullptr;
+        template < typename CallBacks, radio_configuration Configuration >
+        radio_base_t< CallBacks, Configuration >* radio_base_t< CallBacks, Configuration >::instance_ = nullptr;
 
-        template < typename CallBacks, bool Encrypting >
-        radio_base_t< CallBacks, Encrypting >::radio_base_t()
+        template < typename CallBacks, radio_configuration Configuration >
+        radio_base_t< CallBacks, Configuration >::radio_base_t()
             : state_( state::idle )
             , receive_{ nullptr, 0 }
             , response_{ nullptr, 0 }
             , transmit_time_()
             , accepted_( false )
             , answering_( false )
-            , ready_pending_( true )
+            , ready_pending_( false )
             , radio_event_pending_( false )
             , radio_event_( event::adv_timeout )
             , radio_event_time_()
@@ -333,6 +394,8 @@ namespace bluetoe
             , timer_scheduled_( false )
             , timer_when_()
             , timer_event_pending_( false )
+            , rtc_epoch_( 0 )
+            , timer_base_( 0 )
             , local_address_()
             , scannable_( false )
             , connectable_( false )
@@ -352,20 +415,13 @@ namespace bluetoe
             assert( instance_ == nullptr );
             instance_ = this;
 
-            interrupts = { &radio_base_t::radio_interrupt, &radio_base_t::timer_interrupt, &radio_base_t::ccm_interrupt };
+            interrupts = { &radio_base_t::radio_interrupt, &radio_base_t::rtc_interrupt, &radio_base_t::clock_interrupt, &radio_base_t::ccm_interrupt };
 
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
                 ccm::enable_interrupt();
 
-            NRF_CLOCK->EVENTS_HFCLKSTARTED  = 0;
-            NRF_CLOCK->TASKS_HFCLKSTART     = 1;
-            while ( !NRF_CLOCK->EVENTS_HFCLKSTARTED )
-                ;
-
             configure_timer( *NRF_TIMER0 );
-            configure_timer( *NRF_TIMER1 );
-            start_timers_together();
-
+            configure_rtc();
             configure_radio();
             set_access_address_and_crc_init( advertising_access_address, advertising_crc_init );
 
@@ -377,33 +433,183 @@ namespace bluetoe
             NVIC_ClearPendingIRQ( RADIO_IRQn );
             NVIC_EnableIRQ( RADIO_IRQn );
 
-            NVIC_SetPriority( TIMER1_IRQn, 1 );
-            NVIC_ClearPendingIRQ( TIMER1_IRQn );
-            NVIC_EnableIRQ( TIMER1_IRQn );
+            NVIC_SetPriority( RTC0_IRQn, 1 );
+            NVIC_ClearPendingIRQ( RTC0_IRQn );
+            NVIC_EnableIRQ( RTC0_IRQn );
+
+            NVIC_SetPriority( POWER_CLOCK_IRQn, 1 );
+            NVIC_ClearPendingIRQ( POWER_CLOCK_IRQn );
+            NVIC_EnableIRQ( POWER_CLOCK_IRQn );
+
+            /*
+             * The sleep clock, and the crystal it is synthesized from first if it is; the
+             * clock interrupt takes it from there to radio_ready(). The crystal of the other
+             * sources is started per event.
+             */
+            NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+            NRF_CLOCK->EVENTS_LFCLKSTARTED = 0;
+
+            if constexpr ( Configuration.source == sleep_clock::synthesized )
+            {
+                NRF_CLOCK->LFCLKSRC     = CLOCK_LFCLKSRC_SRC_Synth << CLOCK_LFCLKSRC_SRC_Pos;
+                NRF_CLOCK->INTENSET     = CLOCK_INTENSET_HFCLKSTARTED_Msk;
+                NRF_CLOCK->TASKS_HFCLKSTART = 1;
+            }
+            else
+            {
+                NRF_CLOCK->LFCLKSRC     = ( Configuration.source == sleep_clock::crystal ? CLOCK_LFCLKSRC_SRC_Xtal : CLOCK_LFCLKSRC_SRC_RC ) << CLOCK_LFCLKSRC_SRC_Pos;
+                NRF_CLOCK->INTENSET     = CLOCK_INTENSET_LFCLKSTARTED_Msk;
+                NRF_CLOCK->TASKS_LFCLKSTART = 1;
+            }
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::sleep()
+        /*
+         * The synthesized sleep clock needs the crystal running first; either way the RTC
+         * starts with the sleep clock, and the radio is ready then.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_clock_event()
+        {
+            if ( NRF_CLOCK->EVENTS_HFCLKSTARTED && ( NRF_CLOCK->INTENSET & CLOCK_INTENSET_HFCLKSTARTED_Msk ) )
+            {
+                NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
+                NRF_CLOCK->INTENCLR            = CLOCK_INTENCLR_HFCLKSTARTED_Msk;
+                NRF_CLOCK->INTENSET            = CLOCK_INTENSET_LFCLKSTARTED_Msk;
+                NRF_CLOCK->TASKS_LFCLKSTART    = 1;
+            }
+
+            if ( NRF_CLOCK->EVENTS_LFCLKSTARTED && ( NRF_CLOCK->INTENSET & CLOCK_INTENSET_LFCLKSTARTED_Msk ) )
+            {
+                NRF_CLOCK->EVENTS_LFCLKSTARTED = 0;
+                NRF_CLOCK->INTENCLR            = CLOCK_INTENCLR_LFCLKSTARTED_Msk;
+
+                NRF_RTC0->TASKS_START = 1;
+
+                ready_pending_ = true;
+                __SEV();
+            }
+        }
+
+        /*
+         * The overflow keeps the ticks counting past the RTC's 24 bits; the user timer's
+         * compare expires it.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_rtc_event()
+        {
+            if ( NRF_RTC0->EVENTS_OVRFLW )
+            {
+                NRF_RTC0->EVENTS_OVRFLW = 0;
+                rtc_epoch_ = rtc_epoch_ + 1;
+            }
+
+            if ( NRF_RTC0->EVENTS_COMPARE[ rtc_cc_user_timer ] && ( NRF_RTC0->INTENSET & RTC_INTENSET_COMPARE2_Msk ) )
+                on_timer_expired();
+        }
+
+        /*
+         * The counter with the overflows in front of it; an overflow the interrupt has not
+         * counted yet, because interrupts are off, shows as its event with a counter that
+         * wrapped.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        std::uint32_t radio_base_t< CallBacks, Configuration >::ticks_now() const
+        {
+            std::uint32_t epoch   = rtc_epoch_;
+            std::uint32_t counter = NRF_RTC0->COUNTER;
+
+            if ( NRF_RTC0->EVENTS_OVRFLW && counter < ( 1u << ( rtc_bits - 1 ) ) )
+                ++epoch;
+
+            return ( epoch << rtc_bits ) | counter;
+        }
+
+        // a multiplication and a shift, the denominator being a power of two
+        template < typename CallBacks, radio_configuration Configuration >
+        std::uint32_t radio_base_t< CallBacks, Configuration >::microseconds_of( std::uint64_t ticks )
+        {
+            return static_cast< std::uint32_t >( ( ticks * us_per_tick_numerator ) >> 9 );
+        }
+
+        /*
+         * TIMER0, cleared, starts at the last tick before `from`, and the crystal a startup
+         * time earlier; timer_base_ is that tick in microseconds, which is what TIMER0 then
+         * counts from. The caller keeps interrupts off from the reading of the clock the
+         * request was checked against, so the compares are in the future when written.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::place_timer( link_layer::abs_time from )
+        {
+            // the tick before `from` is this tick plus the whole ticks ahead, as this tick is whole
+            const std::uint32_t ticks = ticks_now();
+            const std::int32_t  ahead = static_cast< std::int32_t >( from.data() - microseconds_of( ticks ) );
+            assert( ahead > 0 );
+
+            const std::uint32_t target_tick = ticks + ticks_of( static_cast< std::uint32_t >( ahead ), false );
+            assert( target_tick - ticks >= rtc_compare_lead_ticks + hfxo_startup_ticks< Configuration > );
+
+            timer_base_ = microseconds_of( target_tick );
+
+            NRF_TIMER0->TASKS_STOP  = 1;
+            NRF_TIMER0->TASKS_CLEAR = 1;
+
+            NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ]  = 0;
+            NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] = 0;
+            NRF_RTC0->CC[ rtc_cc_hfxo ]  = ( target_tick - hfxo_startup_ticks< Configuration > ) & ( ( 1u << rtc_bits ) - 1 );
+            NRF_RTC0->CC[ rtc_cc_timer ] = target_tick & ( ( 1u << rtc_bits ) - 1 );
+
+            NRF_PPI->CHENSET = ppi_rtc_hfxo | ppi_rtc_timer;
+        }
+
+        /*
+         * The event is over: TIMER0 stops, and so does the crystal unless the sleep clock
+         * comes from it. The times of the event were taken before.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::release_clocks()
+        {
+            NRF_PPI->CHENCLR        = ppi_rtc_hfxo | ppi_rtc_timer;
+            NRF_TIMER0->TASKS_STOP  = 1;
+            NRF_TIMER0->TASKS_CLEAR = 1;
+
+            NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ]  = 0;
+            NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] = 0;
+
+            if constexpr ( Configuration.source != sleep_clock::synthesized )
+                NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+        }
+
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::sleep()
         {
             __WFE();
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::wake_up()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::wake_up()
         {
             __SEV();
         }
 
-        template < typename CallBacks, bool Encrypting >
-        link_layer::abs_time radio_base_t< CallBacks, Encrypting >::now() const
+        /*
+         * To the microsecond from TIMER0 while it runs, which the RTC's compare that started
+         * it tells; to the tick from the RTC otherwise.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        link_layer::abs_time radio_base_t< CallBacks, Configuration >::now() const
         {
-            NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
+            if ( NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] )
+            {
+                NRF_TIMER0->TASKS_CAPTURE[ cc_now ] = 1;
 
-            return link_layer::abs_time( NRF_TIMER0->CC[ cc_now ] );
+                return link_layer::abs_time( timer_base_ + NRF_TIMER0->CC[ cc_now ] );
+            }
+
+            return link_layer::abs_time( microseconds_of( ticks_now() ) );
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::set_access_address_and_crc_init( std::uint32_t access_address, std::uint32_t crc_init )
         {
             // changed only while no action is pending
             assert( state_ == state::idle );
@@ -417,8 +623,8 @@ namespace bluetoe
          * Taken over by the next connection event scheduled. Only a symmetric PHY is
          * implemented, both directions on the same one; an unchanged direction keeps its PHY.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting )
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::set_phy( link_layer::phy_ll_encoding::phy_ll_encoding_t receiving, link_layer::phy_ll_encoding::phy_ll_encoding_t transmitting )
         {
             using namespace link_layer::phy_ll_encoding;
 
@@ -431,14 +637,14 @@ namespace bluetoe
             connection_2mbit_ = receive_2mbit;
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::set_local_address( const link_layer::device_address& address )
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::set_local_address( const link_layer::device_address& address )
         {
             local_address_ = address;
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::set_encryption( encryption_t& encryption )
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::set_encryption( encryption_t& encryption )
         {
             encryption_            = &encryption;
             transmitted_encrypted_ = false;
@@ -467,8 +673,8 @@ namespace bluetoe
                 && std::equal( local_address.begin(), local_address.end(), &received.buffer[ addressed_to_offset ] );
         }
 
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::is_scan_request_for_us() const
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::is_scan_request_for_us() const
         {
             return scannable_
                 && ( receive_.buffer[ 0 ] & pdu_type_mask ) == scan_request_type
@@ -476,8 +682,8 @@ namespace bluetoe
                 && addressed_to( receive_, local_address_ );
         }
 
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::is_connect_request_for_us() const
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::is_connect_request_for_us() const
         {
             return connectable_
                 && ( receive_.buffer[ 0 ] & pdu_type_mask ) == connect_request_type
@@ -490,8 +696,8 @@ namespace bluetoe
          * channel PDU is its first address field, the six bytes after the two byte header,
          * public or random by the header's TxAdd bit.
          */
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::sender_in_acceptance_filter()
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::sender_in_acceptance_filter()
         {
             const bool is_random = receive_.buffer[ 0 ] & tx_add_mask;
             const link_layer::device_address sender( &receive_.buffer[ memory_header_size ], is_random );
@@ -499,8 +705,8 @@ namespace bluetoe
             return callbacks().is_in_acceptance_filter( sender );
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::start_advertising_event(
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::start_advertising_event(
             std::uint32_t                       channel,
             const link_layer::write_buffer&     transmit,
             const link_layer::write_buffer&     response,
@@ -508,17 +714,17 @@ namespace bluetoe
         {
             const interrupts_off no_interruption;
 
-            schedule( channel, now() + link_layer::delta_time::usec( earliest_us ), transmit, response, receive );
+            schedule( channel, now() + link_layer::delta_time::usec( earliest_us< Configuration > ), transmit, response, receive );
         }
 
-        template < typename CallBacks, bool Encrypting >
-        std::uint32_t radio_base_t< CallBacks, Encrypting >::static_random_address_seed() const
+        template < typename CallBacks, radio_configuration Configuration >
+        std::uint32_t radio_base_t< CallBacks, Configuration >::static_random_address_seed() const
         {
             return NRF_FICR->DEVICEID[ 0 ];
         }
 
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::schedule_advertising_event(
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::schedule_advertising_event(
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
@@ -527,7 +733,7 @@ namespace bluetoe
         {
             const interrupts_off no_interruption;
 
-            if ( when.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us ) ) )
+            if ( when.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us< Configuration > ) ) )
                 return false;
 
             schedule( channel, when, transmit, response, receive );
@@ -551,8 +757,8 @@ namespace bluetoe
          *
          * It also keeps the radio's own interrupt out of the check of state_.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::schedule(
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::schedule(
             std::uint32_t                       channel,
             link_layer::abs_time                when,
             const link_layer::write_buffer&     transmit,
@@ -590,9 +796,11 @@ namespace bluetoe
             NRF_RADIO->EVENTS_END       = 0;
             NRF_RADIO->EVENTS_DISABLED  = 0;
 
+            place_timer( when - link_layer::delta_time::usec( ramp_up_us + 1 ) );
+
             NRF_TIMER0->EVENTS_COMPARE[ cc_start ]      = 0;
             NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
-            NRF_TIMER0->CC[ cc_start ]                  = when.data() - ramp_up_us;
+            NRF_TIMER0->CC[ cc_start ]                  = when.data() - ramp_up_us - timer_base_;
 
             NRF_PPI->CHENCLR = ppi_compare0_rxen | ppi_compare1_disable;
             NRF_PPI->CHENSET = ppi_compare0_txen | ppi_end_capture2;
@@ -608,15 +816,15 @@ namespace bluetoe
          * address received before the compare, and the address interrupt stops it. From there the
          * event runs in the interrupts, like an advertising event; see on_connection_packet_end().
          */
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end )
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::schedule_connection_event( std::uint32_t channel, link_layer::abs_time start, link_layer::abs_time end )
         {
             const interrupts_off no_interruption;
 
             // end lies after start; the comparison is on the ring of abs_time
             assert( !end.is_in_near_past( start + link_layer::delta_time::usec( 1 ) ) );
 
-            if ( start.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us ) ) )
+            if ( start.is_in_near_past( now() + link_layer::delta_time::usec( earliest_us< Configuration > ) ) )
                 return false;
 
             // pending lasts until the callback is delivered; see next_event()
@@ -631,7 +839,7 @@ namespace bluetoe
             NRF_RADIO->DATAWHITEIV  = channel & 0x3f;
             NRF_RADIO->SHORTS       = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
 
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
             {
                 receive_encrypted_  = encryption_ && encryption_->receive_encrypted;
                 transmit_encrypted_ = encryption_ && encryption_->transmit_encrypted;
@@ -647,10 +855,12 @@ namespace bluetoe
             NRF_RADIO->EVENTS_END       = 0;
             NRF_RADIO->EVENTS_DISABLED  = 0;
 
+            place_timer( start - link_layer::delta_time::usec( ramp_up_us + 1 ) );
+
             NRF_TIMER0->EVENTS_COMPARE[ cc_start ]      = 0;
             NRF_TIMER0->EVENTS_COMPARE[ cc_window_end ] = 0;
-            NRF_TIMER0->CC[ cc_start ]                  = start.data() - ramp_up_us;
-            NRF_TIMER0->CC[ cc_window_end ]             = end.data() + address_of_a_packet_at_end_us( timing( connection_2mbit_ ) );
+            NRF_TIMER0->CC[ cc_start ]                  = start.data() - ramp_up_us - timer_base_;
+            NRF_TIMER0->CC[ cc_window_end ]             = end.data() + address_of_a_packet_at_end_us( timing( connection_2mbit_ ) ) - timer_base_;
 
             NRF_PPI->CHENCLR = ppi_compare0_txen;
             NRF_PPI->CHENSET = ppi_compare0_rxen | ppi_compare1_disable | ppi_end_capture2;
@@ -663,74 +873,82 @@ namespace bluetoe
         }
 
         /*
-         * Definitive against the start of the event: once the PPI channel that starts
-         * the transmission is off, the radio is either still disabled, in which case the
-         * start can no longer happen, or it has begun to ramp up, in which case the event
-         * proceeds. The two reads a microsecond apart cover the cycle the task takes.
+         * Definitive against the start of the event. Before TIMER0 started, the RTC's
+         * compare is the start: with its channel off and the compare's tick still ahead,
+         * nothing starts. From the tick on, the channel that starts the transmission or the
+         * receiver is the start: once it is off, the radio is either still disabled, in which
+         * case the start can no longer happen, or it has begun to ramp up, in which case the
+         * event proceeds; a few microseconds cover the cycle the task takes.
          */
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::cancel_radio_event()
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::cancel_radio_event()
         {
             const interrupts_off no_interruption;
 
-            // a connection event that has not started, the same way, with the receiver
-            if ( state_ == state::connection_receiving && !connection_.received_any )
+            const bool before_start = state_ == state::transmitting
+                || ( state_ == state::connection_receiving && !connection_.received_any );
+
+            if ( !before_start )
+                return false;
+
+            NRF_PPI->CHENCLR = ppi_rtc_timer;
+
+            const std::uint32_t ticks_ahead = ( NRF_RTC0->CC[ rtc_cc_timer ] - NRF_RTC0->COUNTER ) & ( ( 1u << rtc_bits ) - 1 );
+
+            if ( ticks_ahead > 1 && ticks_ahead < ( 1u << ( rtc_bits - 1 ) ) )
             {
-                NRF_PPI->CHENCLR = ppi_compare0_rxen;
-
-                const link_layer::abs_time start = now();
-                while ( now().data() - start.data() < 2 )
-                    ;
-
-                if ( !radio_disabled() )
-                    return false;
-
                 NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk | RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
                 NRF_RADIO->SHORTS   = 0;
-                NRF_PPI->CHENCLR    = ppi_compare1_disable | ppi_end_capture2;
+                NRF_PPI->CHENCLR    = ppi_compare0_txen | ppi_compare0_rxen | ppi_compare1_disable | ppi_end_capture2;
+                release_clocks();
 
                 state_ = state::idle;
 
                 return true;
             }
 
-            if ( state_ != state::transmitting )
+            // the tick is here or gone: TIMER0 starts, or started; the radio's start is the question
+            NRF_PPI->CHENSET = ppi_rtc_timer;
+            NRF_PPI->CHENCLR = ppi_compare0_txen | ppi_compare0_rxen;
+
+            for ( int cycles = 0; cycles != 256; ++cycles )
+                __NOP();
+
+            if ( !radio_disabled() )
                 return false;
 
-            NRF_PPI->CHENCLR = ppi_compare0_txen;
-
-            const link_layer::abs_time start = now();
-            while ( now().data() - start.data() < 2 )
-                ;
-
-            if ( ( NRF_RADIO->STATE & RADIO_STATE_STATE_Msk ) != ( RADIO_STATE_STATE_Disabled << RADIO_STATE_STATE_Pos ) )
-                return false;
-
-            NRF_RADIO->INTENCLR = RADIO_INTENCLR_DISABLED_Msk;
+            NRF_RADIO->INTENCLR = RADIO_INTENCLR_ADDRESS_Msk | RADIO_INTENCLR_END_Msk | RADIO_INTENCLR_DISABLED_Msk;
             NRF_RADIO->SHORTS   = 0;
-            NRF_PPI->CHENCLR    = ppi_end_capture2;
+            NRF_PPI->CHENCLR    = ppi_compare1_disable | ppi_end_capture2;
+            release_clocks();
 
             state_ = state::idle;
 
             return true;
         }
 
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::schedule_timer( link_layer::abs_time when )
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::schedule_timer( link_layer::abs_time when )
         {
             const interrupts_off no_interruption;
 
             assert( !timer_scheduled_ );
 
-            if ( when.is_in_near_past( now() + link_layer::delta_time::usec( 2 ) ) )
+            // the tick after `when`, and the RTC needs its compare ahead
+            const std::uint32_t ticks = ticks_now();
+            const std::int32_t  ahead = static_cast< std::int32_t >( when.data() - microseconds_of( ticks ) );
+
+            if ( ahead <= static_cast< std::int32_t >( ( rtc_compare_lead_ticks + 1 ) * tick_us ) )
                 return false;
+
+            const std::uint32_t tick = ticks + ticks_of( static_cast< std::uint32_t >( ahead ), true );
 
             timer_when_      = when;
             timer_scheduled_ = true;
 
-            NRF_TIMER1->EVENTS_COMPARE[ cc_user_timer ] = 0;
-            NRF_TIMER1->CC[ cc_user_timer ]             = when.data();
-            NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
+            NRF_RTC0->EVENTS_COMPARE[ rtc_cc_user_timer ] = 0;
+            NRF_RTC0->CC[ rtc_cc_user_timer ]             = tick & ( ( 1u << rtc_bits ) - 1 );
+            NRF_RTC0->INTENSET = RTC_INTENSET_COMPARE2_Msk;
 
             return true;
         }
@@ -740,19 +958,19 @@ namespace bluetoe
          * the interrupt is off, the event tells whether the timer expired in the meantime;
          * if it did, the interrupt is turned on again and delivers it.
          */
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::cancel_timer()
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::cancel_timer()
         {
             const interrupts_off no_interruption;
 
             if ( !timer_scheduled_ )
                 return false;
 
-            NRF_TIMER1->INTENCLR = TIMER_INTENCLR_COMPARE0_Msk;
+            NRF_RTC0->INTENCLR = RTC_INTENCLR_COMPARE2_Msk;
 
-            if ( NRF_TIMER1->EVENTS_COMPARE[ cc_user_timer ] || timer_event_pending_ )
+            if ( NRF_RTC0->EVENTS_COMPARE[ rtc_cc_user_timer ] || timer_event_pending_ )
             {
-                NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
+                NRF_RTC0->INTENSET = RTC_INTENSET_COMPARE2_Msk;
 
                 return false;
             }
@@ -762,8 +980,8 @@ namespace bluetoe
             return true;
         }
 
-        template < typename CallBacks, bool Encrypting >
-        std::optional< typename radio_base_t< CallBacks, Encrypting >::happened > radio_base_t< CallBacks, Encrypting >::next_event()
+        template < typename CallBacks, radio_configuration Configuration >
+        std::optional< typename radio_base_t< CallBacks, Configuration >::happened > radio_base_t< CallBacks, Configuration >::next_event()
         {
             const interrupts_off no_interruption;
 
@@ -800,8 +1018,8 @@ namespace bluetoe
          * that follows it, because the answer has to be armed while the radio is still
          * disabling for the radio's own inter frame spacing to place it.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::on_packet_end()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_packet_end()
         {
             NRF_RADIO->EVENTS_END = 0;
 
@@ -839,7 +1057,7 @@ namespace bluetoe
             const std::uint32_t payload_size = receive_.buffer[ 1 ];
 
             received_size_    = std::min< std::size_t >( payload_size + memory_header_size, receive_.size );
-            radio_event_time_ = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( le_1m_timing, payload_size ) );
+            radio_event_time_ = link_layer::abs_time( timer_base_ + NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( le_1m_timing, payload_size ) );
             accepted_         = true;
 
             // a connect request is reported and not answered; the event ends with it
@@ -860,8 +1078,8 @@ namespace bluetoe
             state_     = state::responding;
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::on_radio_disabled()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_radio_disabled()
         {
             NRF_RADIO->EVENTS_DISABLED = 0;
 
@@ -901,14 +1119,14 @@ namespace bluetoe
             }
         }
 
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::can_answer() const
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::can_answer() const
         {
             return scannable_ && response_.buffer != nullptr && response_.size >= 2;
         }
 
-        template < typename CallBacks, bool Encrypting >
-        bool radio_base_t< CallBacks, Encrypting >::answer_armed() const
+        template < typename CallBacks, radio_configuration Configuration >
+        bool radio_base_t< CallBacks, Configuration >::answer_armed() const
         {
             return NRF_RADIO->SHORTS & RADIO_SHORTS_DISABLED_TXEN_Msk;
         }
@@ -920,8 +1138,8 @@ namespace bluetoe
          * cancelled at the end if the packet is not one to answer. A window that closed
          * before this interrupt disabled the receiver already, and nothing is armed.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::on_address()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_address()
         {
             NRF_RADIO->EVENTS_ADDRESS = 0;
 
@@ -958,8 +1176,8 @@ namespace bluetoe
          * The short is removed in case the receiver is still disabling, and a transmitter
          * it started already is ramping up and is disabled again.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::cancel_answer()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::cancel_answer()
         {
             if ( !answer_armed() )
                 return;
@@ -973,8 +1191,8 @@ namespace bluetoe
          * received packet, or a timeout carrying the time this event's own transmission
          * began, so that a caller can chain intervals from it.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::end_event()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::end_event()
         {
             NRF_PPI->CHENCLR    = ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2;
             NRF_RADIO->SHORTS   = 0;
@@ -990,6 +1208,8 @@ namespace bluetoe
                 radio_event_      = event::adv_timeout;
             }
 
+            release_clocks();
+
             state_               = state::reporting;
             answering_           = false;
             radio_event_pending_ = true;
@@ -1000,8 +1220,8 @@ namespace bluetoe
          * The room of the buffer for the next PDU, or the scratch if the buffer has none; a PDU
          * received into the scratch is not stored, and its sender gets no acknowledgement.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::allocate_connection_reception()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::allocate_connection_reception()
         {
             reception_    = buffer().allocate_receive_buffer();
             into_scratch_ = reception_.size == 0;
@@ -1013,7 +1233,7 @@ namespace bluetoe
             // without room, the ciphertext stays what it is, and nothing is taken from it
             link_layer::read_buffer target = reception_;
 
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
             {
                 if ( receive_encrypted_ && !into_scratch_ )
                     target = ccm::prepare_reception( *encryption_, reception_, { scratch_, sizeof( scratch_ ) }, connection_2mbit_ );
@@ -1040,8 +1260,8 @@ namespace bluetoe
          * receiver, which the DISABLED to RXEN short ramps up, for the answer window; otherwise
          * nothing, and the disable closes the event.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::on_connection_packet_end()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_connection_packet_end()
         {
             if ( state_ == state::connection_transmitting )
             {
@@ -1075,7 +1295,7 @@ namespace bluetoe
             // the anchor is the first bit of the first packet, whatever its CRC
             if ( !connection_.received_any )
             {
-                connection_.anchor       = link_layer::abs_time( NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( timing( connection_2mbit_ ), payload_size ) );
+                connection_.anchor       = link_layer::abs_time( timer_base_ + NRF_TIMER0->CC[ cc_packet_end ] - air_time_us( timing( connection_2mbit_ ), payload_size ) );
                 connection_.received_any = true;
             }
 
@@ -1083,7 +1303,7 @@ namespace bluetoe
             if ( !answer_armed() && !judgement_pending_ )
                 return;
 
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
             {
                 // the CCM finishes after the packet; its interrupt gets here again
                 if ( crc_ok && receive_encrypted_ && !into_scratch_ && ccm::decryption_pending( payload_size ) )
@@ -1121,7 +1341,7 @@ namespace bluetoe
                      * the air, and a transmitted one the peer acknowledges; empty PDUs and
                      * the PDUs from before a switch went in plain.
                      */
-                    if constexpr ( Encrypting )
+                    if constexpr ( Configuration.encrypting )
                     {
                         const bool authentic = !receive_encrypted_
                             || ccm::reception_authentic( reception_, air_packet_, payload_size );
@@ -1161,7 +1381,7 @@ namespace bluetoe
             // what goes on air: the answer, or its ciphertext from the scratch
             link_layer::write_buffer sent = answer;
 
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
             {
                 if ( transmit_encrypted_ )
                     sent = ccm::prepare_transmission( *encryption_, answer, { scratch_, sizeof( scratch_ ) }, connection_2mbit_ );
@@ -1187,7 +1407,7 @@ namespace bluetoe
             connection_.continues = !crc_ok || ( header & md_mask ) || connection_.last_transmitted_more_data;
             state_     = state::connection_transmitting;
 
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
             {
                 // judged after the disable that started the answer: what that disable would have set
                 if ( disabled_before_answer_ )
@@ -1206,10 +1426,10 @@ namespace bluetoe
          * the radio disabled ends the event: the window closed, the last answer is out, or the
          * transmitter was cancelled.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::on_connection_disabled()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_connection_disabled()
         {
-            if constexpr ( Encrypting )
+            if constexpr ( Configuration.encrypting )
             {
                 // the transmitter is on its way while the reception is still being judged
                 if ( judgement_pending_ )
@@ -1242,8 +1462,8 @@ namespace bluetoe
          * Reports the connection event: its end with the anchor and what happened, or a
          * timeout carrying `end` if nothing was received.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::end_connection_event()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::end_connection_event()
         {
             NRF_PPI->CHENCLR    = ppi_compare0_rxen | ppi_compare0_txen | ppi_compare1_disable | ppi_end_capture2 | ppi_address_ccm_crypt;
             NRF_RADIO->SHORTS   = 0;
@@ -1265,17 +1485,19 @@ namespace bluetoe
                 radio_event_time_ = connection_.end;
             }
 
+            release_clocks();
+
             received_size_       = 0;
             state_               = state::reporting;
             radio_event_pending_ = true;
             __SEV();
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::on_timer_expired()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::on_timer_expired()
         {
-            NRF_TIMER1->EVENTS_COMPARE[ cc_user_timer ] = 0;
-            NRF_TIMER1->INTENCLR = TIMER_INTENCLR_COMPARE0_Msk;
+            NRF_RTC0->EVENTS_COMPARE[ rtc_cc_user_timer ] = 0;
+            NRF_RTC0->INTENCLR = RTC_INTENCLR_COMPARE2_Msk;
 
             timer_event_pending_ = true;
             __SEV();
@@ -1285,8 +1507,8 @@ namespace bluetoe
          * END before DISABLED: the short between them can leave both pending together,
          * and what the end of the packet decided is what the disable then acts on.
          */
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::radio_interrupt()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::radio_interrupt()
         {
             if ( !instance_ )
                 return;
@@ -1301,8 +1523,8 @@ namespace bluetoe
                 instance_->on_radio_disabled();
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::ccm_interrupt()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::ccm_interrupt()
         {
             if ( !instance_ || !instance_->judgement_pending_ )
                 return;
@@ -1310,11 +1532,18 @@ namespace bluetoe
             instance_->on_connection_packet_end();
         }
 
-        template < typename CallBacks, bool Encrypting >
-        void radio_base_t< CallBacks, Encrypting >::timer_interrupt()
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::rtc_interrupt()
         {
             if ( instance_ )
-                instance_->on_timer_expired();
+                instance_->on_rtc_event();
+        }
+
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::clock_interrupt()
+        {
+            if ( instance_ )
+                instance_->on_clock_event();
         }
     }
 }
