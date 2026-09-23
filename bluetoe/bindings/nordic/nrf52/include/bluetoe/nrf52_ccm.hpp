@@ -21,6 +21,12 @@
  * from, staying ahead of the transmitter at the data rate of the PHY. The scratch area is
  * free for that: a reception has ended and been decrypted before the answer is prepared.
  *
+ * The CCM decrypts as many bytes as the ciphertext's length byte says, before the CRC has
+ * judged the packet, so it has to be kept from writing past the room. The nRF52820, nRF52833
+ * and nRF52840 bound it with MAXPACKETSIZE; the nRF52832 has no such register, and there the
+ * CCM decrypts into a plaintext of the largest size that is copied into the room once the
+ * packet is judged authentic, at the price of that much RAM on that part.
+ *
  * @section counters The packet counters
  *
  * Each direction has a 39 bit packet counter that is part of the nonce. The counter of a
