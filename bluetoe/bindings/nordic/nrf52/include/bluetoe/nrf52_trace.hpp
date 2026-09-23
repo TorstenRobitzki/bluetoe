@@ -5,12 +5,13 @@
  * @file nrf52_trace.hpp
  *
  * The inner workings of the radio on pins, for a logic analyser: with
- * BLUETOE_NRF52_RADIO_DEBUG defined, which the platform's CMake option of that name does,
- * on by default in a Debug build, the hardware's events reach the pins through PPI and
- * GPIOTE, and the interrupts, the clock switches and run() mark themselves in software;
- * without it, every function here is empty and costs nothing. A Release build can carry
- * the traces as well: the hardware drives most of them, so the timing stays what is
- * measured.
+ * BLUETOE_NRF52_RADIO_DEBUG defined, which the platform's CMake option of that name does
+ * when asked for, the hardware's events reach the pins through PPI and GPIOTE, and the
+ * interrupts, the clock switches and run() mark themselves in software; without it, every
+ * function here is empty and costs nothing. It is never on by itself: the pins become
+ * outputs, which is safe on the development kit and on nothing else without looking. A
+ * Release build can carry the traces: the hardware drives most of them, so the timing
+ * stays what is measured.
  *
  * On a part with a second port, the nRF52840 and nRF52833, the pins are P1.01 to P1.07,
  * which the development kit has on one header; on the others P0.25 to P0.31, on the

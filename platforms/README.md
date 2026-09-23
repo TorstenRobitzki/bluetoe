@@ -90,8 +90,9 @@ given:
 The nRF52 radio can show its inner workings on pins for a logic analyser, the crystal, the
 RADIO, the packets, the CCM, the interrupts, TIMER0 and the time outside `run()`
 (`bluetoe/nrf52_trace.hpp` says which pins). The CMake option `BLUETOE_NRF52_RADIO_DEBUG` turns
-it on; it is on by default in a `Debug` build, and a `Release` build can carry it as well, since
-the hardware drives most of the traces through PPI and the timing stays what is measured:
+it on, in any build type; it is never on by itself, since the pins become outputs, which is safe
+on the development kit and on nothing else without looking. A `Release` build can carry the
+traces, since the hardware drives most of them through PPI and the timing stays what is measured:
 
 ```bash
 cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -DBLUETOE_NRF52_RADIO_DEBUG=ON ...
