@@ -99,6 +99,15 @@ namespace bluetoe
             // pre-programmed: the address of a packet starts the CCM; the encryption arms it
             constexpr std::uint32_t ppi_address_ccm_crypt   = 1u << 25;
 
+            /*
+             * The RC sleep clock is calibrated every four seconds, the datasheet's eight
+             * halved, since the calibration can only run while the crystal is on for an event
+             * and an advertising interval can be four seconds; and when the temperature moved
+             * by half a degree, the TEMP peripheral's unit being a quarter.
+             */
+            constexpr std::uint32_t calibration_interval_quarter_seconds = 4 * 4;
+            constexpr std::int32_t  calibration_temperature_change       = 2;
+
             constexpr std::size_t   ppi_rtc_hfxo_channel    = 1;
             constexpr std::size_t   ppi_rtc_timer_channel   = 2;
             constexpr std::uint32_t ppi_rtc_hfxo            = 1u << ppi_rtc_hfxo_channel;
@@ -397,6 +406,10 @@ namespace bluetoe
             , timer_event_pending_( false )
             , rtc_epoch_( 0 )
             , timer_base_( 0 )
+            , calibration_due_( false )
+            , calibrating_( false )
+            , first_calibration_( false )
+            , last_temperature_( 0 )
             , local_address_()
             , scannable_( false )
             , connectable_( false )
@@ -446,10 +459,13 @@ namespace bluetoe
             /*
              * The sleep clock, and the crystal it is synthesized from first if it is; the
              * clock interrupt takes it from there to radio_ready(). The crystal of the other
-             * sources is started per event.
+             * sources is started per event, and once at the start for the RC oscillator's
+             * first calibration.
              */
             NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
             NRF_CLOCK->EVENTS_LFCLKSTARTED = 0;
+            NRF_CLOCK->EVENTS_DONE         = 0;
+            NRF_CLOCK->EVENTS_CTTO         = 0;
 
             if constexpr ( Configuration.source == sleep_clock::synthesized )
             {
@@ -467,7 +483,10 @@ namespace bluetoe
 
         /*
          * The synthesized sleep clock needs the crystal running first; either way the RTC
-         * starts with the sleep clock, and the radio is ready then.
+         * starts with the sleep clock. The RC oscillator is calibrated once before the radio
+         * is ready, against the crystal started for that, and then whenever its timer or the
+         * temperature asks for it, during an event's crystal time; the crystal stays on until
+         * a calibration is done, and goes off then unless an event is running.
          */
         template < typename CallBacks, radio_configuration Configuration >
         void radio_base_t< CallBacks, Configuration >::on_clock_event()
@@ -476,8 +495,17 @@ namespace bluetoe
             {
                 NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
                 NRF_CLOCK->INTENCLR            = CLOCK_INTENCLR_HFCLKSTARTED_Msk;
-                NRF_CLOCK->INTENSET            = CLOCK_INTENSET_LFCLKSTARTED_Msk;
-                NRF_CLOCK->TASKS_LFCLKSTART    = 1;
+
+                if constexpr ( Configuration.source == sleep_clock::synthesized )
+                {
+                    NRF_CLOCK->INTENSET         = CLOCK_INTENSET_LFCLKSTARTED_Msk;
+                    NRF_CLOCK->TASKS_LFCLKSTART = 1;
+                }
+                else
+                {
+                    calibrating_         = true;
+                    NRF_CLOCK->TASKS_CAL = 1;
+                }
             }
 
             if ( NRF_CLOCK->EVENTS_LFCLKSTARTED && ( NRF_CLOCK->INTENSET & CLOCK_INTENSET_LFCLKSTARTED_Msk ) )
@@ -487,8 +515,50 @@ namespace bluetoe
 
                 NRF_RTC0->TASKS_START = 1;
 
-                ready_pending_ = true;
-                __SEV();
+                if constexpr ( Configuration.source == sleep_clock::rc )
+                {
+                    first_calibration_          = true;
+                    NRF_CLOCK->INTENSET         = CLOCK_INTENSET_HFCLKSTARTED_Msk | CLOCK_INTENSET_DONE_Msk | CLOCK_INTENSET_CTTO_Msk;
+                    NRF_CLOCK->TASKS_HFCLKSTART = 1;
+                }
+                else
+                {
+                    ready_pending_ = true;
+                    __SEV();
+                }
+            }
+
+            if constexpr ( Configuration.source == sleep_clock::rc )
+            {
+                if ( NRF_CLOCK->EVENTS_CTTO )
+                {
+                    NRF_CLOCK->EVENTS_CTTO = 0;
+                    calibration_due_       = true;
+                }
+
+                if ( NRF_CLOCK->EVENTS_DONE )
+                {
+                    NRF_CLOCK->EVENTS_DONE = 0;
+                    calibrating_           = false;
+
+                    NRF_CLOCK->CTIV          = calibration_interval_quarter_seconds;
+                    NRF_CLOCK->TASKS_CTSTART = 1;
+
+                    if ( first_calibration_ )
+                    {
+                        // the calibration before the radio is ready
+                        first_calibration_ = false;
+                        stop_crystal();
+
+                        ready_pending_ = true;
+                        __SEV();
+                    }
+                    else if ( state_ == state::idle && !NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] )
+                    {
+                        // one that outlasted its event, with none placed since
+                        stop_crystal();
+                    }
+                }
             }
         }
 
@@ -578,11 +648,47 @@ namespace bluetoe
             NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] = 0;
             trace::timer_released();
 
-            if constexpr ( Configuration.source != sleep_clock::synthesized )
+            if constexpr ( Configuration.source == sleep_clock::rc )
             {
-                NRF_CLOCK->TASKS_HFCLKSTOP = 1;
-                trace::hfxo_stopped();
+                // a calibration asked for runs now, with the crystal on anyway; the temperature
+                // taken at the last event says whether it moved enough to ask for one
+                if ( NRF_TEMP->EVENTS_DATARDY )
+                {
+                    NRF_TEMP->EVENTS_DATARDY = 0;
+
+                    const std::int32_t temperature = static_cast< std::int32_t >( NRF_TEMP->TEMP );
+                    const std::int32_t change      = temperature - last_temperature_;
+
+                    if ( change >= calibration_temperature_change || change <= -calibration_temperature_change )
+                    {
+                        last_temperature_ = temperature;
+                        calibration_due_  = true;
+                    }
+                }
+
+                NRF_TEMP->TASKS_START = 1;
+
+                if ( calibration_due_ && !calibrating_ )
+                {
+                    calibration_due_     = false;
+                    calibrating_         = true;
+                    NRF_CLOCK->TASKS_CAL = 1;
+                }
+
+                if ( !calibrating_ )
+                    stop_crystal();
             }
+            else if constexpr ( Configuration.source == sleep_clock::crystal )
+            {
+                stop_crystal();
+            }
+        }
+
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::stop_crystal()
+        {
+            NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+            trace::hfxo_stopped();
         }
 
         template < typename CallBacks, radio_configuration Configuration >

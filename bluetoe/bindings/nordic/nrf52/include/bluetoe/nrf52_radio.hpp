@@ -314,6 +314,7 @@ namespace bluetoe
             static std::uint32_t microseconds_of( std::uint64_t ticks );
             void place_timer( link_layer::abs_time from );
             void release_clocks();
+            void stop_crystal();
             void on_clock_event();
             void on_rtc_event();
 
@@ -364,6 +365,16 @@ namespace bluetoe
             // the RTC's overflows, for ticks beyond its 24 bits; abs_time at TIMER0's zero
             volatile std::uint32_t      rtc_epoch_;
             std::uint32_t               timer_base_;
+
+            /*
+             * The RC sleep clock's calibration: asked for by its timer or by a change of
+             * temperature, run while the crystal is on for an event anyway, and keeping
+             * the crystal on until it is done.
+             */
+            volatile bool               calibration_due_;
+            volatile bool               calibrating_;
+            volatile bool               first_calibration_;
+            std::int32_t                last_temperature_;
 
             /*
              * Set before an event and read by the receive interrupt: the address a scan or
