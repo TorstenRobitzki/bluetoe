@@ -6,24 +6,28 @@
  *
  * The inner workings of the radio on pins, for a logic analyser: with
  * BLUETOE_NRF52_RADIO_DEBUG defined, which the platform does for a Debug build, the
- * hardware's events reach six pins through PPI and GPIOTE, and the interrupts and the
- * clock switches mark themselves in software; without it, every function here is empty
- * and costs nothing.
+ * hardware's events reach the pins through PPI and GPIOTE, and the interrupts, the clock
+ * switches and run() mark themselves in software; without it, every function here is
+ * empty and costs nothing.
  *
- * The pins are free on the nRF52840-DK and the nRF52-DK alike, on their analog headers:
+ * On a part with a second port, the nRF52840 and nRF52833, the pins are P1.01 to P1.07,
+ * which the development kit has on one header; on the others P0.25 to P0.31, on the
+ * analog header. In that order:
  *
- * | pin   | high while                                                          |
- * |-------|---------------------------------------------------------------------|
- * | P0.26 | the high frequency crystal runs, from HFCLKSTARTED to its stop      |
- * | P0.27 | the RADIO is active, from READY to DISABLED                          |
- * | P0.28 | a packet is on air, from ADDRESS to END                              |
- * | P0.29 | the CCM works, from the end of its key stream to the end of the crypt |
- * | P0.30 | the radio's interrupts run, any of them                              |
- * | P0.31 | TIMER0 runs, from the RTC's compare that starts it to its release    |
+ * | pin | high while                                                            |
+ * |-----|-----------------------------------------------------------------------|
+ * | 1   | the high frequency crystal runs, from HFCLKSTARTED to its stop        |
+ * | 2   | the RADIO is active, from READY to DISABLED                            |
+ * | 3   | a packet is on air, from ADDRESS to END                                |
+ * | 4   | the CCM works, from the end of its key stream to the end of the crypt |
+ * | 5   | the radio's interrupts run, any of them                                |
+ * | 6   | TIMER0 runs, from the RTC's compare that starts it to its release      |
+ * | 7   | the application runs: run() was left and not entered again             |
  */
 
 #include <nrf.h>
 
+#include <cstddef>
 #include <cstdint>
 
 namespace bluetoe
@@ -33,14 +37,21 @@ namespace bluetoe
         namespace trace
         {
 #if defined( BLUETOE_NRF52_RADIO_DEBUG )
-            constexpr std::uint32_t pin_hfxo        = 26;
-            constexpr std::uint32_t pin_radio       = 27;
-            constexpr std::uint32_t pin_packet      = 28;
-            constexpr std::uint32_t pin_ccm         = 29;
-            constexpr std::uint32_t pin_interrupt   = 30;
-            constexpr std::uint32_t pin_timer       = 31;
+            // pins are numbered across the ports, 32 and up on the second
+#   if defined( NRF_P1 )
+            constexpr std::uint32_t first_pin = 32 + 1;
+#   else
+            constexpr std::uint32_t first_pin = 25;
+#   endif
+            constexpr std::uint32_t pin_hfxo        = first_pin + 0;
+            constexpr std::uint32_t pin_radio       = first_pin + 1;
+            constexpr std::uint32_t pin_packet      = first_pin + 2;
+            constexpr std::uint32_t pin_ccm         = first_pin + 3;
+            constexpr std::uint32_t pin_interrupt   = first_pin + 4;
+            constexpr std::uint32_t pin_timer       = first_pin + 5;
+            constexpr std::uint32_t pin_application = first_pin + 6;
 
-            // one GPIOTE channel per pin, but the interrupt pin, which software drives
+            // one GPIOTE channel per pin the hardware drives; software drives the other two
             constexpr std::size_t   gpiote_hfxo     = 0;
             constexpr std::size_t   gpiote_radio    = 1;
             constexpr std::size_t   gpiote_packet   = 2;
@@ -49,6 +60,20 @@ namespace bluetoe
 
             // the programmable PPI channels after the radio's own
             constexpr std::size_t   ppi_first       = 3;
+
+            inline NRF_GPIO_Type& port_of( std::uint32_t pin )
+            {
+#   if defined( NRF_P1 )
+                return pin < 32 ? *NRF_P0 : *NRF_P1;
+#   else
+                return *NRF_P0;
+#   endif
+            }
+
+            inline std::uint32_t bit_of( std::uint32_t pin )
+            {
+                return 1u << ( pin & 31 );
+            }
 
             inline void assign( std::size_t channel, volatile std::uint32_t& event, volatile std::uint32_t& task )
             {
@@ -61,9 +86,20 @@ namespace bluetoe
             {
                 NRF_GPIOTE->CONFIG[ gpiote ] =
                       ( GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos )
-                    | ( pin << GPIOTE_CONFIG_PSEL_Pos )
+                    | ( ( pin & 31 ) << GPIOTE_CONFIG_PSEL_Pos )
+#   if defined( GPIOTE_CONFIG_PORT_Pos )
+                    | ( ( pin >> 5 ) << GPIOTE_CONFIG_PORT_Pos )
+#   endif
                     | ( GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos )
                     | ( GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos );
+            }
+
+            inline void software_output( std::uint32_t pin )
+            {
+                port_of( pin ).OUTCLR = bit_of( pin );
+                port_of( pin ).PIN_CNF[ pin & 31 ] =
+                      ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos )
+                    | ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos );
             }
 
             /**
@@ -71,10 +107,8 @@ namespace bluetoe
              */
             inline void init()
             {
-                NRF_P0->OUTCLR = 1u << pin_interrupt;
-                NRF_P0->PIN_CNF[ pin_interrupt ] =
-                      ( GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos )
-                    | ( GPIO_PIN_CNF_DRIVE_S0H1 << GPIO_PIN_CNF_DRIVE_Pos );
+                software_output( pin_interrupt );
+                software_output( pin_application );
 
                 output( gpiote_hfxo,   pin_hfxo );
                 output( gpiote_radio,  pin_radio );
@@ -105,12 +139,22 @@ namespace bluetoe
 
             inline void interrupt_entered()
             {
-                NRF_P0->OUTSET = 1u << pin_interrupt;
+                port_of( pin_interrupt ).OUTSET = bit_of( pin_interrupt );
             }
 
             inline void interrupt_left()
             {
-                NRF_P0->OUTCLR = 1u << pin_interrupt;
+                port_of( pin_interrupt ).OUTCLR = bit_of( pin_interrupt );
+            }
+
+            inline void run_entered()
+            {
+                port_of( pin_application ).OUTCLR = bit_of( pin_application );
+            }
+
+            inline void run_left()
+            {
+                port_of( pin_application ).OUTSET = bit_of( pin_application );
             }
 #else
             inline void init() {}
@@ -118,6 +162,8 @@ namespace bluetoe
             inline void timer_released() {}
             inline void interrupt_entered() {}
             inline void interrupt_left() {}
+            inline void run_entered() {}
+            inline void run_left() {}
 #endif
 
             /**

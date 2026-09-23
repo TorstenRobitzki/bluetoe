@@ -35,8 +35,8 @@
  *
  * @section trace Watching it
  *
- * A Debug build puts the crystal, the RADIO, the packets, the CCM, the interrupts and
- * TIMER0 on six pins for a logic analyser; nrf52_trace.hpp says which.
+ * A Debug build puts the crystal, the RADIO, the packets, the CCM, the interrupts, TIMER0
+ * and the time outside run() on seven pins for a logic analyser; nrf52_trace.hpp says which.
  *
  * @section events What the radio reports and when
  *
@@ -73,6 +73,7 @@
 
 #include <bluetoe/security_tool_box.hpp>
 #include <bluetoe/nrf52_ccm.hpp>
+#include <bluetoe/nrf52_trace.hpp>
 #include <bluetoe/nrf.hpp>
 #include <bluetoe/meta_tools.hpp>
 
@@ -580,6 +581,8 @@ namespace bluetoe
              */
             void run()
             {
+                trace::run_entered();
+
                 for ( std::optional< typename base_t::happened > next = base_t::next_event(); next; next = base_t::next_event() )
                 {
                     CallBacks& callbacks = static_cast< CallBacks& >( *this );
@@ -608,6 +611,7 @@ namespace bluetoe
                 }
 
                 base_t::sleep();
+                trace::run_left();
             }
 
             using base_t::wake_up;
