@@ -35,8 +35,9 @@
  *
  * @section trace Watching it
  *
- * A Debug build puts the crystal, the RADIO, the packets, the CCM, the interrupts, TIMER0
- * and the time outside run() on seven pins for a logic analyser; nrf52_trace.hpp says which.
+ * With the CMake option BLUETOE_NRF52_RADIO_DEBUG, on by default in a Debug build, the
+ * crystal, the RADIO, the packets, the CCM, the interrupts, TIMER0 and the time outside
+ * run() show on seven pins for a logic analyser; nrf52_trace.hpp says which.
  *
  * @section events What the radio reports and when
  *

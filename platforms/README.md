@@ -85,6 +85,18 @@ given:
 | `Release`, `MinSizeRel` | `-Os` | removed |
 | `RelWithDebInfo` | `-O2` | removed |
 
+## Tracing the radio
+
+The nRF52 radio can show its inner workings on pins for a logic analyser, the crystal, the
+RADIO, the packets, the CCM, the interrupts, TIMER0 and the time outside `run()`
+(`bluetoe/nrf52_trace.hpp` says which pins). The CMake option `BLUETOE_NRF52_RADIO_DEBUG` turns
+it on; it is on by default in a `Debug` build, and a `Release` build can carry it as well, since
+the hardware drives most of the traces through PPI and the timing stays what is measured:
+
+```bash
+cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -DBLUETOE_NRF52_RADIO_DEBUG=ON ...
+```
+
 ## The build container
 
 `docker/` holds a container image with the toolchain and the SDK headers, and a Makefile that builds

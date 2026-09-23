@@ -13,7 +13,17 @@ if(CMAKE_CROSSCOMPILING)
     target_include_directories(toolchain_nrf52 INTERFACE .)
     # The part the board carries, for the MDK's headers and system file
     target_compile_definitions(toolchain_nrf52 INTERFACE ${BLUETOE_BINDING}_XXAA)
-    target_compile_definitions(toolchain_nrf52 INTERFACE $<$<CONFIG:Debug>:BLUETOE_NRF52_RADIO_DEBUG>)
+
+    # The radio's traces on pins for a logic analyser (bluetoe/nrf52_trace.hpp): on in a Debug
+    # build unless switched off, and available to a Release build, since the hardware drives
+    # most of them through PPI and the timing stays what is measured.
+    if (CMAKE_BUILD_TYPE STREQUAL Debug)
+        set(radio_debug_default ON)
+    else()
+        set(radio_debug_default OFF)
+    endif()
+    option(BLUETOE_NRF52_RADIO_DEBUG "trace the nrf52 radio's inner workings on pins" ${radio_debug_default})
+    target_compile_definitions(toolchain_nrf52 INTERFACE $<$<BOOL:${BLUETOE_NRF52_RADIO_DEBUG}>:BLUETOE_NRF52_RADIO_DEBUG>)
 
     # The reset pin of the part, for the UICR words in pin_reset.c
     set(reset_pin_mapping
