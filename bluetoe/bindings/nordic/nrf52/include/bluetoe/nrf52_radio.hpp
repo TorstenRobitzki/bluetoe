@@ -33,6 +33,11 @@
  * with the sleep clock alone. The user timer is a third RTC compare. The sleep clock's
  * source and the crystal's startup time are the options of nrf.hpp.
  *
+ * @section trace Watching it
+ *
+ * A Debug build puts the crystal, the RADIO, the packets, the CCM, the interrupts and
+ * TIMER0 on six pins for a logic analyser; nrf52_trace.hpp says which.
+ *
  * @section events What the radio reports and when
  *
  * An advertising event transmits with its first bit on air at the requested time, then

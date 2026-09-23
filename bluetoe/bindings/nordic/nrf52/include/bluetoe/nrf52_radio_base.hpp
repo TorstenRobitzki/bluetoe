@@ -9,6 +9,7 @@
  */
 
 #include <bluetoe/nrf52_radio.hpp>
+#include <bluetoe/nrf52_trace.hpp>
 #include <bluetoe/ll_constants.hpp>
 
 #include <nrf.h>
@@ -423,6 +424,7 @@ namespace bluetoe
             configure_timer( *NRF_TIMER0 );
             configure_rtc();
             configure_radio();
+            trace::init();
             set_access_address_and_crc_init( advertising_access_address, advertising_crc_init );
 
             // bias correction on, one value per start; the toolbox starts it per value it draws
@@ -574,9 +576,13 @@ namespace bluetoe
 
             NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ]  = 0;
             NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] = 0;
+            trace::timer_released();
 
             if constexpr ( Configuration.source != sleep_clock::synthesized )
+            {
                 NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+                trace::hfxo_stopped();
+            }
         }
 
         template < typename CallBacks, radio_configuration Configuration >
@@ -1510,6 +1516,8 @@ namespace bluetoe
         template < typename CallBacks, radio_configuration Configuration >
         void radio_base_t< CallBacks, Configuration >::radio_interrupt()
         {
+            const trace::in_interrupt marked;
+
             if ( !instance_ )
                 return;
 
@@ -1526,6 +1534,8 @@ namespace bluetoe
         template < typename CallBacks, radio_configuration Configuration >
         void radio_base_t< CallBacks, Configuration >::ccm_interrupt()
         {
+            const trace::in_interrupt marked;
+
             if ( !instance_ || !instance_->judgement_pending_ )
                 return;
 
@@ -1535,6 +1545,8 @@ namespace bluetoe
         template < typename CallBacks, radio_configuration Configuration >
         void radio_base_t< CallBacks, Configuration >::rtc_interrupt()
         {
+            const trace::in_interrupt marked;
+
             if ( instance_ )
                 instance_->on_rtc_event();
         }
@@ -1542,6 +1554,8 @@ namespace bluetoe
         template < typename CallBacks, radio_configuration Configuration >
         void radio_base_t< CallBacks, Configuration >::clock_interrupt()
         {
+            const trace::in_interrupt marked;
+
             if ( instance_ )
                 instance_->on_clock_event();
         }
