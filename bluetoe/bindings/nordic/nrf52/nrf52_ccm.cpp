@@ -43,6 +43,21 @@ namespace bluetoe
                 std::uint8_t data[ scratch_size ];
             } scratch;
 
+            /*
+             * The CCM decrypts as many bytes as the length byte of the ciphertext says, into
+             * its output, before the CRC has judged the packet, and the RADIO's own limit stops
+             * only what the RADIO writes. The parts with MAXPACKETSIZE bound the CCM to the
+             * room. The nRF52832 has no such register, so there the CCM decrypts into a
+             * plaintext of the largest size, and the plaintext moves into the room once the
+             * packet is judged.
+             */
+#if !defined( CCM_MAXPACKETSIZE_MAXPACKETSIZE_Msk )
+            struct alignas( 4 ) plaintext_t
+            {
+                std::uint8_t data[ header_size + link_layer::max_payload_size ];
+            } plaintext;
+#endif
+
             void set_counter( const packet_counter& counter, std::uint8_t direction )
             {
                 bluetoe::details::write_32bit( &data_structure.data[ counter_offset ], counter.low );
@@ -84,18 +99,14 @@ namespace bluetoe
             NRF_CCM->ENABLE         = CCM_ENABLE_ENABLE_Enabled << CCM_ENABLE_ENABLE_Pos;
             NRF_CCM->MODE           = mode( CCM_MODE_MODE_Decryption, two_mbit );
             NRF_CCM->INPTR          = reinterpret_cast< std::uint32_t >( ciphertext.buffer );
-            NRF_CCM->OUTPTR         = reinterpret_cast< std::uint32_t >( room.buffer );
             NRF_CCM->SHORTS         = 0;
 
-            /*
-             * The CCM decrypts as many bytes as the length byte of the ciphertext says, into
-             * the room, before the CRC has judged the packet; the RADIO's own limit stops only
-             * what the RADIO writes. On the parts that have it, MAXPACKETSIZE bounds the CCM to
-             * the room. The nRF52832 has no such register, so a packet whose length byte
-             * exceeds the room can overrun it there, a known exposure of that part.
-             */
+            // bounded to the room, or into the plaintext of the largest size; see plaintext_t
 #if defined( CCM_MAXPACKETSIZE_MAXPACKETSIZE_Msk )
+            NRF_CCM->OUTPTR         = reinterpret_cast< std::uint32_t >( room.buffer );
             NRF_CCM->MAXPACKETSIZE  = room.size - header_size;
+#else
+            NRF_CCM->OUTPTR         = reinterpret_cast< std::uint32_t >( &plaintext );
 #endif
 
             NRF_CCM->EVENTS_ENDKSGEN = 0;
@@ -146,7 +157,23 @@ namespace bluetoe
             if ( !NRF_CCM->EVENTS_ENDCRYPT || NRF_CCM->EVENTS_ERROR )
                 return false;
 
-            return ( NRF_CCM->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == ( CCM_MICSTATUS_MICSTATUS_CheckPassed << CCM_MICSTATUS_MICSTATUS_Pos );
+            const bool authentic =
+                ( NRF_CCM->MICSTATUS & CCM_MICSTATUS_MICSTATUS_Msk ) == ( CCM_MICSTATUS_MICSTATUS_CheckPassed << CCM_MICSTATUS_MICSTATUS_Pos );
+
+#if !defined( CCM_MAXPACKETSIZE_MAXPACKETSIZE_Msk )
+            /*
+             * The buffer takes the acknowledgement of a PDU whose MIC does not check, from the
+             * header in the room, so the header goes there either way; the payload only once
+             * the packet is judged. Nothing longer than the room gets here: the RADIO truncated
+             * it and the CRC rejected it.
+             */
+            const std::size_t size = header_size + ( authentic ? plaintext.data[ 1 ] : 0 );
+            assert( size <= room.size );
+
+            std::copy( plaintext.data, plaintext.data + size, room.buffer );
+#endif
+
+            return authentic;
         }
 
         link_layer::write_buffer ccm::prepare_transmission(
