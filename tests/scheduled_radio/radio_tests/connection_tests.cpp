@@ -152,10 +152,7 @@ namespace {
 
         BOOST_CHECK_LE( std::chrono::abs( inter_frame_space( captured[ 1 ], captured[ 2 ] ) - 150us ), 2us );
 
-        const auto stored = rig.device_received();
-
-        BOOST_REQUIRE_EQUAL( stored.size(), 1u );
-        BOOST_CHECK( std::vector< std::uint8_t >( stored[ 0 ].data.begin(), stored[ 0 ].data.begin() + stored[ 0 ].size ) == data );
+        rig.check_received( { data } );
     }
 
     /*
@@ -712,14 +709,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_without_room_in_the_buffer_is_refused_until_the_b
         connection_end_event{ .last_received_not_empty = true },
         connection_end_event{ .last_received_not_empty = true } } );
 
-    std::vector< std::vector< std::uint8_t > > stored;
-
-    for ( const pdu& received_by_device : device_received() )
-        stored.emplace_back( received_by_device.data.begin(), received_by_device.data.begin() + received_by_device.size );
-
-    const std::vector< std::vector< std::uint8_t > > expected = { first, second, third, fourth, refused };
-
-    BOOST_CHECK( stored == expected );
+    check_received( { first, second, third, fourth, refused } );
 }
 
 /*
@@ -1131,10 +1121,7 @@ BOOST_FIXTURE_TEST_CASE( the_sequence_numbers_are_the_buffers_not_the_radios, co
         connection_end_event{},
         connection_end_event{} } );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 1u );
-    BOOST_CHECK( std::vector< std::uint8_t >( stored[ 0 ].data.begin(), stored[ 0 ].data.begin() + stored[ 0 ].size ) == b1 );
+    check_received( { b1 } );
 }
 
 /*

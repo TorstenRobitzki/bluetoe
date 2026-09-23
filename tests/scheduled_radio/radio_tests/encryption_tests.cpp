@@ -83,23 +83,6 @@ namespace {
         {
             return encryption.encrypt( peripheral_to_central, counter, llid::start, payload );
         }
-
-        /**
-         * @brief the PDU the device's buffer stores for `sent`, an encrypted PDU of the central:
-         *        its header with the length of the plaintext, and the plaintext
-         */
-        static std::vector< std::uint8_t > stored_for( std::span< const std::uint8_t > sent, std::span< const std::uint8_t > plaintext )
-        {
-            std::vector< std::uint8_t > result = { sent[ 0 ], static_cast< std::uint8_t >( plaintext.size() ) };
-            result.insert( result.end(), plaintext.begin(), plaintext.end() );
-
-            return result;
-        }
-
-        static std::vector< std::uint8_t > bytes_of( const pdu& stored )
-        {
-            return std::vector< std::uint8_t >( stored.data.begin(), stored.data.begin() + stored.size );
-        }
     };
 }
 
@@ -145,10 +128,7 @@ BOOST_FIXTURE_TEST_CASE( an_encrypted_pdu_is_taken_and_answered_encrypted, encry
         adv_timeout,
         connection_end_event{ .unacknowledged_data = true, .last_received_not_empty = true, .last_transmitted_not_empty = true } } );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 1u );
-    BOOST_CHECK( bytes_of( stored[ 0 ] ) == stored_for( first, central_data ) );
+    check_received( { as_stored( first, central_data ) } );
 }
 
 /*
@@ -202,11 +182,7 @@ BOOST_FIXTURE_TEST_CASE( the_directions_switch_one_at_a_time, encryption_fixture
         sent( second ), received( reply_to( second, encrypted_by_device( 0, device_data ), no_more_data, llid::start ) ),
         sent( third ),  received( reply_to( third ) ) } );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 2u );
-    BOOST_CHECK( bytes_of( stored[ 0 ] ) == stored_for( first, central_data ) );
-    BOOST_CHECK( bytes_of( stored[ 1 ] ) == stored_for( third, more_central ) );
+    check_received( { as_stored( first, central_data ), as_stored( third, more_central ) } );
 }
 
 /*
@@ -256,11 +232,7 @@ BOOST_FIXTURE_TEST_CASE( a_pdu_with_a_wrong_mic_is_acknowledged_but_not_taken, e
         sent( second ), received( reply_to( second ) ),
         sent( third ),  received( reply_to( third ) ) } );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 2u );
-    BOOST_CHECK( bytes_of( stored[ 0 ] ) == stored_for( first, first_data ) );
-    BOOST_CHECK( bytes_of( stored[ 1 ] ) == stored_for( third, third_data ) );
+    check_received( { as_stored( first, first_data ), as_stored( third, third_data ) } );
 }
 
 /*
@@ -313,11 +285,7 @@ BOOST_FIXTURE_TEST_CASE( a_repeated_pdu_of_the_central_is_not_taken_again, encry
         sent( third ),  received( reply_to( third ) ),
         sent( fourth ), received( reply_to( fourth ) ) } );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 2u );
-    BOOST_CHECK( bytes_of( stored[ 0 ] ) == stored_for( first, central_data ) );
-    BOOST_CHECK( bytes_of( stored[ 1 ] ) == stored_for( fourth, more_central ) );
+    check_received( { as_stored( first, central_data ), as_stored( fourth, more_central ) } );
 }
 
 /*
@@ -375,7 +343,7 @@ BOOST_FIXTURE_TEST_CASE( the_device_repeats_an_unacknowledged_pdu_unchanged, enc
         sent( third ),  received( reply_to( third ) ),
         sent( fourth ), received( reply_to( fourth, encrypted_by_device( 1, more_device ), no_more_data, llid::start ) ) } );
 
-    BOOST_CHECK( device_received().empty() );
+    check_received( {} );
 }
 
 /*
@@ -416,10 +384,7 @@ BOOST_FIXTURE_TEST_CASE( an_encrypted_pdu_is_taken_and_answered_at_2_mbit, encry
         sent( first ),
         received( reply_to( first, encrypted_by_device( 0, device_data ), no_more_data, llid::start ) ) } );
 
-    const auto stored = device_received();
-
-    BOOST_REQUIRE_EQUAL( stored.size(), 1u );
-    BOOST_CHECK( bytes_of( stored[ 0 ] ) == stored_for( first, central_data ) );
+    check_received( { as_stored( first, central_data ) } );
 }
 
 BOOST_AUTO_TEST_SUITE_END()
