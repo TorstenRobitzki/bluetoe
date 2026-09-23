@@ -12,17 +12,17 @@
  *
  * On a part with a second port, the nRF52840 and nRF52833, the pins are P1.01 to P1.07,
  * which the development kit has on one header; on the others P0.25 to P0.31, on the
- * analog header. In that order:
+ * analog header.
  *
- * | pin | high while                                                            |
- * |-----|-----------------------------------------------------------------------|
- * | 1   | the high frequency crystal runs, from HFCLKSTARTED to its stop        |
- * | 2   | the RADIO is active, from READY to DISABLED                            |
- * | 3   | a packet is on air, from ADDRESS to END                                |
- * | 4   | the CCM works, from the end of its key stream to the end of the crypt |
- * | 5   | the radio's interrupts run, any of them                                |
- * | 6   | TIMER0 runs, from the RTC's compare that starts it to its release      |
- * | 7   | the application runs: run() was left and not entered again             |
+ * | nRF52840, nRF52833 | other parts | high while                                                            |
+ * |--------------------|-------------|-----------------------------------------------------------------------|
+ * | P1.01              | P0.25       | the high frequency crystal runs, from HFCLKSTARTED to its stop        |
+ * | P1.02              | P0.26       | the RADIO is active, from READY to DISABLED                            |
+ * | P1.03              | P0.27       | a packet is on air, from ADDRESS to END                                |
+ * | P1.04              | P0.28       | the CCM works, from the end of its key stream to the end of the crypt |
+ * | P1.05              | P0.29       | the radio's interrupts run, any of them                                |
+ * | P1.06              | P0.30       | TIMER0 runs, from the RTC's compare that starts it to its release      |
+ * | P1.07              | P0.31       | the application runs: run() was left and not entered again             |
  */
 
 #include <nrf.h>
