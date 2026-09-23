@@ -28,6 +28,20 @@ add_bluetoe_example(gpio)
 
 add_bluetoe_example(nrf52_high_cpu_load)
 
+# blinky with and without encryption on each sleep clock of the radio: the firmware the power
+# figures in the README are measured on. The plain examples run on the default, the sleep clock
+# synthesized from the crystal; the variants name the other two through a definition.
+function(add_blinky_variant target_name source sleep_clock)
+    add_bluetoe_firmware(${target_name} bluetoe::bindings::${BINDING} ${source}.cpp)
+    target_link_libraries(${target_name} PRIVATE spl)
+    target_compile_definitions(${target_name} PRIVATE BLUETOE_EXAMPLE_SLEEP_CLOCK=${sleep_clock})
+endfunction()
+
+add_blinky_variant(blinky_lfxo blinky sleep_clock_crystal_oscillator)
+add_blinky_variant(blinky_lfrc blinky calibrated_rc_sleep_clock)
+add_blinky_variant(blinky_without_encryption_lfxo blinky_without_encryption sleep_clock_crystal_oscillator)
+add_blinky_variant(blinky_without_encryption_lfrc blinky_without_encryption calibrated_rc_sleep_clock)
+
 # The radio of bluetoe/scheduled_radio2.hpp does not announce the synchronized user timer
 # yet; the example that needs it waits for that.
 #

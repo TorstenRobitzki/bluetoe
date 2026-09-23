@@ -36,8 +36,19 @@ using blinky_server = server<
     max_mtu_size< 65 >
 >;
 
+/*
+ * The sleep clock of the radio: the default, synthesized from the high frequency crystal,
+ * or the one CMake names for the variants the power figures are measured on.
+ */
+#if defined( BLUETOE_EXAMPLE_SLEEP_CLOCK )
+    using sleep_clock = bluetoe::nrf::BLUETOE_EXAMPLE_SLEEP_CLOCK;
+#else
+    using sleep_clock = bluetoe::nrf::synthesized_sleep_clock;
+#endif
+
 device<
     blinky_server,
+    sleep_clock,
     link_layer::buffer_sizes< 200, 200 >
 > gatt_srv;
 
