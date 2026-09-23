@@ -68,7 +68,7 @@ The tests are here; what they are written with is in `../test_tools`.
 | `observations.hpp` | the PDUs a test builds, the tolerance of an observed interval and the intervals themselves |
 | `timeline.hpp` | what a test expects of the PDUs a tester program captured |
 | `encryption.hpp`, `encryption.cpp` | the session key and the CCM of the Core Specification on the host, for the ciphertext the tester sends and checks; unit tested against the specification's sample data in `../self_tests` |
-| `records.hpp` | what a test expects of the device's records: the callbacks it made and the calls a step made |
+| `records.hpp` | what a test expects of the device's records: the callbacks it made, the calls a step made, and the PDUs its buffer received |
 
 The programs themselves are written with `../host/program_builders.hpp`: a call, a step or an
 operation per function, with times as `std::chrono` durations. It is shared with the self tests of

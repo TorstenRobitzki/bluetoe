@@ -203,5 +203,13 @@ namespace test_rig {
 
         return result;
     }
+
+    std::vector< std::uint8_t > as_stored( std::span< const std::uint8_t > sent, std::span< const std::uint8_t > plaintext )
+    {
+        std::vector< std::uint8_t > result = { sent[ 0 ], static_cast< std::uint8_t >( plaintext.size() ) };
+        result.insert( result.end(), plaintext.begin(), plaintext.end() );
+
+        return result;
+    }
 }
 }

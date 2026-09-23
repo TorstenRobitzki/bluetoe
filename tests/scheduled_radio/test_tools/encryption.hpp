@@ -76,6 +76,13 @@ namespace test_rig {
         std::array< std::uint8_t, 16 > key_;
         std::array< std::uint8_t, 8 >  iv_;
     };
+
+    /**
+     * @brief the PDU the device's buffer stores for `sent`, an encrypted PDU: its header as
+     *        sent, with the length of the plaintext in place of the ciphertext's, then the
+     *        plaintext; for check_received()
+     */
+    std::vector< std::uint8_t > as_stored( std::span< const std::uint8_t > sent, std::span< const std::uint8_t > plaintext );
 }
 }
 

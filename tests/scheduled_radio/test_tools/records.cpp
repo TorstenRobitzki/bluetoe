@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iomanip>
 #include <iterator>
+#include <span>
+#include <sstream>
 #include <utility>
 
 namespace bluetoe {
@@ -137,6 +140,51 @@ namespace test_rig {
     void check_callbacks( const std::vector< record >& records, const std::vector< expected_callback >& expected )
     {
         BOOST_CHECK_EQUAL( as_text( records, expected ), as_text( expected ) );
+    }
+
+    namespace {
+
+        std::string as_hex( std::span< const std::uint8_t > bytes )
+        {
+            std::ostringstream out;
+            out << std::hex << std::setfill( '0' );
+
+            for ( std::size_t i = 0; i != bytes.size(); ++i )
+                out << ( i ? " " : "" ) << std::setw( 2 ) << static_cast< unsigned >( bytes[ i ] );
+
+            return out.str();
+        }
+
+        std::span< const std::uint8_t > bytes_of( const pdu& received )
+        {
+            return { received.data.data(), received.size };
+        }
+    }
+
+    std::string as_text( const std::vector< pdu >& received )
+    {
+        std::string result;
+
+        for ( std::size_t index = 0; index != received.size(); ++index )
+            result += "    " + std::to_string( index ) + ": " + as_hex( bytes_of( received[ index ] ) ) + '\n';
+
+        return result;
+    }
+
+    void check_received( const std::vector< pdu >& received, const std::vector< std::vector< std::uint8_t > >& expected )
+    {
+        BOOST_TEST_CONTEXT( "received:\n" << as_text( received ) )
+        {
+            for ( std::size_t index = 0; index != std::min( received.size(), expected.size() ); ++index )
+            {
+                const auto found = bytes_of( received[ index ] );
+
+                if ( !std::equal( found.begin(), found.end(), expected[ index ].begin(), expected[ index ].end() ) )
+                    BOOST_ERROR( "PDU " << index << ": found " << as_hex( found ) << ", required " << as_hex( expected[ index ] ) );
+            }
+
+            BOOST_REQUIRE_EQUAL( received.size(), expected.size() );
+        }
     }
 }
 }

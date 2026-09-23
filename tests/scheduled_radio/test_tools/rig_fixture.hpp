@@ -17,6 +17,7 @@
  */
 
 #include "test_tools/dut.hpp"
+#include "test_tools/records.hpp"
 #include "test_tools/tester.hpp"
 #include "test_tools/timeline.hpp"
 
@@ -178,6 +179,15 @@ namespace test_rig {
                 if ( batch.count == 0 )
                     return result;
             }
+        }
+
+        /**
+         * @brief the PDUs the device received in connection events, required to be exactly
+         *        `expected`, in order; see records.hpp
+         */
+        void check_received( const std::vector< std::vector< std::uint8_t > >& expected )
+        {
+            test_rig::check_received( device_received(), expected );
         }
 
         /**
