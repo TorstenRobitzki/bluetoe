@@ -27,10 +27,17 @@ namespace bluetoe {
 namespace test_rig {
 
     /**
-     * @brief how far an observed interval may be off the requested one: the placement of both
-     *        events and the drift of two stock crystals over an interval
+     * @brief how far an observed interval may be off the requested one, before the drift:
+     *        the placement of both events
      */
-    constexpr std::chrono::microseconds tolerance{ 50 };
+    constexpr std::chrono::microseconds placement_tolerance{ 50 };
+
+    /**
+     * @brief how far an observed `interval` may be off the requested one: the placement of
+     *        both events, and the drift of the device's sleep clock over the interval at the
+     *        accuracy its radio claims, sleep_time_accuracy_ppm (scheduled_radio2.hpp)
+     */
+    std::chrono::microseconds tolerance_for( std::chrono::nanoseconds interval );
 
     /**
      * @brief advertising channel PDU types

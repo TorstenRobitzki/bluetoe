@@ -58,8 +58,8 @@ BOOST_FIXTURE_TEST_CASE( advertising_events_placed_from_timers_over_long_idle_st
         received( advertisement ),
         received( advertisement ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - ( idle + event_delay ) ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - ( idle + event_delay ) ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - ( idle + event_delay ) ), tolerance_for( idle + event_delay ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - ( idle + event_delay ) ), tolerance_for( idle + event_delay ) );
 
     check_callbacks( device_records(), { adv_timeout, user_timer, adv_timeout, user_timer, adv_timeout } );
 }
@@ -162,8 +162,8 @@ BOOST_FIXTURE_TEST_CASE( connection_events_with_timers_between_them_keep_their_i
         sent( second ), received( reply_to( second ) ),
         sent( third ),  received( reply_to( third ) ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 5 ] ) - interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance_for( interval ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 5 ] ) - interval ), tolerance_for( interval ) );
 
     check_callbacks( device_records(), {
         adv_timeout,

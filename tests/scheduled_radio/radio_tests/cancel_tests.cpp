@@ -106,7 +106,7 @@ BOOST_FIXTURE_TEST_CASE( a_cancel_too_late_lets_the_event_proceed, rig_fixture, 
         received( first ),
         received( late ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance_for( 100ms ) );
 
     const auto records = device_records();
 

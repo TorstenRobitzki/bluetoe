@@ -70,7 +70,7 @@ namespace {
             received( first ),
             received( second ) } );
 
-        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - interval ), tolerance );
+        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - interval ), tolerance_for( interval ) );
     }
 
     // a scan request with its length field set to `length`, its payload cut or padded to match
@@ -202,7 +202,7 @@ BOOST_FIXTURE_TEST_CASE( the_interval_can_change_while_advertising, rig_fixture,
     const std::chrono::milliseconds requested[] = { 100ms, 50ms, 150ms };
 
     for ( std::size_t i = 0; i != std::size( requested ); ++i )
-        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i ], captured[ i + 1 ] ) - requested[ i ] ), tolerance );
+        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i ], captured[ i + 1 ] ) - requested[ i ] ), tolerance_for( requested[ i ] ) );
 }
 
 /*
@@ -242,7 +242,7 @@ BOOST_FIXTURE_TEST_CASE( an_advertiser_can_be_followed_over_all_channels, rig_fi
     const auto captured = check_captured( expected );
 
     for ( std::size_t i = 1; i != captured.size(); ++i )
-        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i - 1 ], captured[ i ] ) - interval ), tolerance );
+        BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ i - 1 ], captured[ i ] ) - interval ), tolerance_for( interval ) );
 }
 
 /*
@@ -268,7 +268,7 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_from_the_callback_of_t
         received( restarted ),
         received( scheduled ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance_for( 100ms ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events, rig_fixture, *if_tester )
@@ -296,9 +296,9 @@ BOOST_FIXTURE_TEST_CASE( advertising_can_be_started_again_after_scheduled_events
     const auto captured = check_captured( expected );
 
     // placed from the start before them; the restart itself has no required time
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 4 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance_for( 100ms ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 2 ] ) - 100ms ), tolerance_for( 100ms ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 4 ] ) - 100ms ), tolerance_for( 100ms ) );
 }
 
 // a tester that follows the device to its access address hears both with a valid CRC
@@ -371,7 +371,7 @@ BOOST_FIXTURE_TEST_CASE( a_scan_request_to_a_scheduled_advertising_is_answered, 
         received( response ),
         received( last ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 2 ], captured[ 4 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 2 ], captured[ 4 ] ) - 100ms ), tolerance_for( 100ms ) );
 
     const auto records = device_records();
 
