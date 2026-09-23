@@ -128,13 +128,14 @@ scan requests and the response at the inter frame space, with the acceptance fil
 events with the tester as the central, with PDUs up to the largest payload, the more data bits, the
 inter frame space at its edges, the receive window, CRC errors, a full receive buffer and two
 connections on one radio; `set_phy()` with the 2 Mbit PHY; `cancel_radio_event()` and the timer;
-the reset line; and the pairing toolbox, against the vectors of the Core Specification.
+the reset line; and the pairing toolbox, against the vectors of the Core Specification; and
+the encryption of connection events, with the host computing the CCM of the Core Specification
+(`test_tools/encryption.hpp`, checked against its sample data): an exchange in both directions, the
+switches turned one at a time, a MIC that does not check, the packet counters across repeated and
+empty PDUs, and 2 Mbit.
 
 Not covered:
 
-- Encryption on the air. The nRF52 radio encrypts with its option `encrypting` (`nrf52_ccm.hpp`),
-  but the rig does not use it, no test runs an encrypted connection, and `encryption_t` is not on
-  the wire. Left for a later change.
 - The tester's own accuracy. Its receive timestamps are calibrated against the inter frame space the
   device's hardware keeps, so an inter frame space it measures on that device is right by
   construction; it has not been checked against an independent reference, and it runs on the
