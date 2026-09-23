@@ -7,6 +7,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <chrono>
+#include <thread>
 #include <optional>
 #include <string>
 
@@ -90,6 +91,24 @@ namespace test_rig {
         implementation_name_ = as_text( remote_.call< &dut::implementation_name >() );
         build_identifier_    = as_text( remote_.call< &dut::build_identifier >() );
         properties_          = remote_.call< &dut::properties >();
+
+        wait_until_ready();
+    }
+
+    void dut_connection::wait_until_ready()
+    {
+        constexpr auto poll_interval = std::chrono::milliseconds( 20 );
+        constexpr int  polls         = 150;
+
+        for ( int poll = 0; poll != polls; ++poll )
+        {
+            if ( remote_.call< &dut::radio_is_ready >() )
+                return;
+
+            std::this_thread::sleep_for( poll_interval );
+        }
+
+        throw rig_error( "the device's radio did not get ready within " + std::to_string( polls * poll_interval.count() ) + " ms" );
     }
 
     /*
@@ -120,6 +139,7 @@ namespace test_rig {
                     throw rig_error( "the device answered with a foreign session token after the reset" );
 
                 remote_.expect_token( token );
+                wait_until_ready();
 
                 return;
             }

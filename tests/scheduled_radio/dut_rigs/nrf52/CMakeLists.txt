@@ -6,3 +6,4 @@ function(add_nrf52_dut_rig rig)
 endfunction()
 
 add_nrf52_dut_rig(nrf52_dut)
+add_nrf52_dut_rig(nrf52_dut_lfxo)

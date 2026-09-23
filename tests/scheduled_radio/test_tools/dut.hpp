@@ -58,13 +58,22 @@ namespace test_rig {
          *
          * Decision 8's fixture: the device carries this connection's session token, the
          * tester pulls its reset line, the connection polls until the device answers and
-         * requires that answer to carry a zero token, then sets a new one. Waiting for
-         * radio_ready() follows once the rig records callbacks.
+         * requires that answer to carry a zero token, then sets a new one, and waits until
+         * the radio reported radio_ready(), which a sleep clock crystal delays by hundreds
+         * of milliseconds.
          *
          * @throws rig_error the device did not answer within a few requests, or answered
-         *                   with the old token, that is it never reset
+         *                   with the old token, that is it never reset, or its radio did
+         *                   not get ready
          */
         void restart( tester_connection& tester );
+
+        /**
+         * @brief polls until the radio reported radio_ready()
+         *
+         * @throws rig_error it did not within a few seconds
+         */
+        void wait_until_ready();
 
         const link_layer::radio_properties& properties() const
         {
