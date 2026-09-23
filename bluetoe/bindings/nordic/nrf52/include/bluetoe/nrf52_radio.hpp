@@ -511,6 +511,10 @@ namespace bluetoe
         {
             static_assert( ( nrf_radio_option< Options > && ... ),
                 "the nRF52 scheduled radio knows the options encrypting, a sleep clock source and the crystal's startup time only" );
+            static_assert( details::count_by_meta_type< nrf::nrf_details::sleep_clock_source_meta_type, Options... >::count <= 1,
+                "more than one sleep clock source given to the nRF52 scheduled radio" );
+            static_assert( details::count_by_meta_type< nrf::nrf_details::hfxo_startup_time_meta_type, Options... >::count <= 1,
+                "more than one crystal startup time given to the nRF52 scheduled radio" );
 
             static constexpr radio_configuration configuration = configuration_of< Options... >();
             static constexpr bool                encrypts      = configuration.encrypting;
