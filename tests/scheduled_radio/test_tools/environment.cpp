@@ -60,5 +60,20 @@ namespace test_rig {
 
         return limit;
     }
+
+    std::chrono::seconds soak_duration()
+    {
+        const auto value = variable( "BLUETOE_SOAK_SECONDS" );
+
+        if ( !value )
+            return std::chrono::minutes( 10 );
+
+        const long seconds = std::stol( *value );
+
+        if ( seconds < 1 )
+            throw rig_error( "BLUETOE_SOAK_SECONDS has to be at least 1: " + *value );
+
+        return std::chrono::seconds( seconds );
+    }
 }
 }

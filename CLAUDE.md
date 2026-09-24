@@ -61,6 +61,8 @@ labelled `unit_tests` run on the host alone; `cmake --build build --target unit_
 them. The tests labelled `radio_tests` are the tests of a scheduled radio implementation in
 `tests/scheduled_radio/radio_tests/`; they need a device on a serial port named by `BLUETOE_DUT`
 and are run on demand with `ctest -L radio_tests` after `--target radio_tests` (see the README there).
+The tests labelled `soak_tests` hold a connection against the device for minutes to days
+(`tests/scheduled_radio/soak_tests/`), `BLUETOE_SOAK_SECONDS` says how long.
 
 Before declaring a change done, also build and run the tests once in **Release**
 (`-DCMAKE_BUILD_TYPE=Release`, e.g. in a `build_release` directory). This proves that no behaviour
