@@ -100,13 +100,17 @@ namespace bluetoe
             constexpr std::uint32_t ppi_address_ccm_crypt   = 1u << 25;
 
             /*
-             * The RC sleep clock is calibrated every four seconds, the datasheet's eight
-             * halved, since the calibration can only run while the crystal is on for an event
-             * and an advertising interval can be four seconds; and when the temperature moved
-             * by half a degree, the TEMP peripheral's unit being a quarter.
+             * The RC sleep clock's calibration timer runs every four seconds, and a
+             * calibration follows at the end of the next event, while the crystal is on for
+             * it anyway, if the temperature moved by half a degree since the last one, the
+             * TEMP peripheral's unit being a quarter, and in any case at the second timer
+             * without one: the datasheet's eight seconds, checked at half of it. Read at every
+             * event, the temperature's noise of a quarter degree asked for a calibration many
+             * times a second.
              */
             constexpr std::uint32_t calibration_interval_quarter_seconds = 4 * 4;
             constexpr std::int32_t  calibration_temperature_change       = 2;
+            constexpr std::uint8_t  intervals_between_calibrations       = 2;
 
             constexpr std::size_t   ppi_rtc_hfxo_channel    = 1;
             constexpr std::size_t   ppi_rtc_timer_channel   = 2;
@@ -409,7 +413,10 @@ namespace bluetoe
             , calibration_due_( false )
             , calibrating_( false )
             , first_calibration_( false )
+            , temperature_due_( false )
+            , intervals_since_calibration_( 0 )
             , last_temperature_( 0 )
+            , temperature_( 0 )
             , local_address_()
             , scannable_( false )
             , connectable_( false )
@@ -537,10 +544,16 @@ namespace bluetoe
 
             if constexpr ( Configuration.source == sleep_clock::rc )
             {
+                // the timer runs on; whether to calibrate is decided at the end of the next
+                // event, from the temperature read there
                 if ( NRF_CLOCK->EVENTS_CTTO )
                 {
-                    NRF_CLOCK->EVENTS_CTTO = 0;
-                    calibration_due_       = true;
+                    NRF_CLOCK->EVENTS_CTTO   = 0;
+                    NRF_CLOCK->TASKS_CTSTART = 1;
+                    temperature_due_         = true;
+
+                    if ( intervals_since_calibration_ != intervals_between_calibrations )
+                        intervals_since_calibration_ = intervals_since_calibration_ + 1;
                 }
 
                 if ( NRF_CLOCK->EVENTS_DONE )
@@ -548,16 +561,16 @@ namespace bluetoe
                     NRF_CLOCK->EVENTS_DONE = 0;
                     calibrating_           = false;
 
-                    NRF_CLOCK->CTIV          = calibration_interval_quarter_seconds;
-                    NRF_CLOCK->TASKS_CTSTART = 1;
-
                     if ( first_calibration_ )
                     {
-                        // the calibration before the radio is ready; a later one is asked for
-                        // when the temperature moved away from this one's
+                        // the calibration before the radio is ready, and the start of the
+                        // timer; a later one is asked for when the temperature moved away
+                        // from this one's
                         first_calibration_       = false;
                         last_temperature_        = static_cast< std::int32_t >( NRF_TEMP->TEMP );
                         NRF_TEMP->EVENTS_DATARDY = 0;
+                        NRF_CLOCK->CTIV          = calibration_interval_quarter_seconds;
+                        NRF_CLOCK->TASKS_CTSTART = 1;
                         stop_crystal();
 
                         ready_pending_ = true;
@@ -660,19 +673,22 @@ namespace bluetoe
 
             if constexpr ( Configuration.source == sleep_clock::rc )
             {
-                // a calibration asked for runs now, with the crystal on anyway; the temperature
-                // taken at the last event says whether it moved enough to ask for one
-                if ( NRF_TEMP->EVENTS_DATARDY )
+                // the timer asked for a look at the temperature, taken at the last event: a
+                // calibration runs now, with the crystal on anyway, if it moved enough since
+                // the last calibration, or if the timer asked twice without one
+                if ( temperature_due_ && NRF_TEMP->EVENTS_DATARDY )
                 {
+                    temperature_due_         = false;
                     NRF_TEMP->EVENTS_DATARDY = 0;
 
-                    const std::int32_t temperature = static_cast< std::int32_t >( NRF_TEMP->TEMP );
-                    const std::int32_t change      = temperature - last_temperature_;
+                    temperature_ = static_cast< std::int32_t >( NRF_TEMP->TEMP );
 
-                    if ( change >= calibration_temperature_change || change <= -calibration_temperature_change )
+                    const std::int32_t change = temperature_ - last_temperature_;
+
+                    if ( change >= calibration_temperature_change || change <= -calibration_temperature_change
+                      || intervals_since_calibration_ == intervals_between_calibrations )
                     {
-                        last_temperature_ = temperature;
-                        calibration_due_  = true;
+                        calibration_due_ = true;
                     }
                 }
 
@@ -680,9 +696,11 @@ namespace bluetoe
 
                 if ( calibration_due_ && !calibrating_ )
                 {
-                    calibration_due_     = false;
-                    calibrating_         = true;
-                    NRF_CLOCK->TASKS_CAL = 1;
+                    calibration_due_             = false;
+                    calibrating_                 = true;
+                    last_temperature_            = temperature_;
+                    intervals_since_calibration_ = 0;
+                    NRF_CLOCK->TASKS_CAL         = 1;
                 }
 
                 if ( !calibrating_ )
