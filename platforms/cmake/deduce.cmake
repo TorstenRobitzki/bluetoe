@@ -1,6 +1,7 @@
 set(board_controller_mapping
     PCA10056 NRF52840
-    PCA10040 NRF52832)
+    PCA10040 NRF52832
+    LP_EM_CC2340R5 CC2340R5)
 
 # Map given in the form "key1 value1 key2 value2..."
 function(map_lookup result_var map key)
@@ -24,8 +25,14 @@ function(deduce_binding result_var board)
     set(${result_var} ${result} PARENT_SCOPE)
 endfunction()
 
+# the platform directory and the binding target of a part: nrf52 for the Nordic parts, cc23x0
+# for the TI CC2340 family
 function(deduce_bluetoe_binding result_var controller)
-    set(${result_var} nrf52 PARENT_SCOPE)
+    if (controller MATCHES "^CC23")
+        set(${result_var} cc23x0 PARENT_SCOPE)
+    else()
+        set(${result_var} nrf52 PARENT_SCOPE)
+    endif()
 endfunction()
 
 function(set_preprocessore_macros)
