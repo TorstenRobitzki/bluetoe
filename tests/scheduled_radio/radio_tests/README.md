@@ -43,7 +43,8 @@ is answered from inside the device's dispatcher, so it has to cover a point mult
 device.
 
 Without a device, run everything else with `ctest -L unit_tests`, as the CI does. The build target
-`radio_tests` builds the radio tests alone, `unit_tests` the rest.
+`radio_tests` builds the radio tests alone, `unit_tests` the rest. The tests that hold a connection
+for minutes to days are in `../soak_tests/`, labelled `soak_tests`.
 
 ## What each file covers
 

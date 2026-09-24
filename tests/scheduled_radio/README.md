@@ -79,6 +79,12 @@ builds the PDUs of a connection event on the host, with the sequence numbers and
 it expects (`host/central.hpp`), and the tester sends them as told. A device that deviates shows in
 the replies the tester captured, where a tester that followed the device would hide it.
 
+**A long run is counted, not recorded.** A step or an operation that runs many times is recorded
+once and counted from then on, in a summary each instrument keeps: the callbacks by kind, the
+calls refused, the anchor error of every event placed from an anchor, the replies and their delay.
+A connection held for days fits into the instruments' memory that way, and what a test asserts on
+is a count and an extreme, not a history (`soak_tests/README.md`).
+
 **The rig is the same on every platform; the port is not.** An instrument is the radio, the rig,
 and a serial port. The port is constructed on two ring buffers the rig owns, moves bytes between
 them and the hardware from below the radio's priority, and holds the host off by flow control, so
@@ -99,6 +105,7 @@ concepts, checked where a rig is instantiated and tested against models in
 | `test_tools/` | what the radio tests are written with: the connections to the instruments, the fixture, the environment variables, the timeline and record matchers |
 | `self_tests/` | the instruments testing themselves, on the host, run by `ctest`; see its README |
 | `radio_tests/` | the tests of a radio implementation, against a device, run on demand with `ctest -L radio_tests`; see its README |
+| `soak_tests/` | a connection held for minutes to days against a device, run on demand with `ctest -L soak_tests`; see its README |
 | `dut_rigs/` | the firmware of the devices under test, one per platform and radio configuration; see its README |
 | `tester/` | the tester's firmware, one board; see its README |
 | `nrf52/` | the UART port the nRF52 rigs and the tester share |
@@ -116,6 +123,8 @@ has to act as one; on the nRF52 that is `PSELRESET` in the UICR, which `platform
    toolbox.
 3. With the tester wired to the device (`tester/README.md`):
    `BLUETOE_DUT=<port> BLUETOE_TESTER=<port> ctest -L radio_tests --repeat until-pass:3`, everything.
+4. Before a release, or after a change to the clocks: `ctest -L soak_tests`, ten minutes of one
+   connection, or days with `BLUETOE_SOAK_SECONDS` (`soak_tests/README.md`).
 
 A test that needs what the radio may lack is skipped and reported as such, not failed: the pairing
 toolbox and the 2 Mbit PHY are read from the radio's properties (`dut_supports`), the tester from

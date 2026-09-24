@@ -26,7 +26,7 @@ namespace nrf52_dut_lfxo {
      * after it.
      */
     template < typename CallBacks >
-    using radio = bluetoe::radio< CallBacks, bluetoe::nrf52_details::encrypting, bluetoe::nrf::sleep_clock_crystal_oscillator >;
+    using radio = bluetoe::radio< CallBacks, bluetoe::nrf52_details::encrypting, bluetoe::nrf::sleep_clock_crystal_oscillator, bluetoe::nrf::clock_statistics >;
 
     using rig_t = bluetoe::test_rig::dut_rig< radio, bluetoe::test_rig::nrf52::uart >;
 

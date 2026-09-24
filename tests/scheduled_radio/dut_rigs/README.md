@@ -24,7 +24,9 @@ event across the two clocks and the switching of the high frequency crystal are 
 have to see: `nrf52_dut` on the sleep clock synthesized from the crystal, the default, `nrf52_dut_lfxo` on
 the 32.768 kHz crystal, and `nrf52_dut_lfrc` on the calibrated RC oscillator. A full run flashes
 and tests each in turn; the radio's accuracy the tests derive their tolerances from comes from
-the rig's properties.
+the rig's properties. Every rig builds its radio with `bluetoe::nrf::clock_statistics`, so that
+the soak test reads how often the crystal was started, how long it ran and how often the RC
+oscillator was calibrated (`../soak_tests/README.md`).
 
 The rig reports the source state it was built from, `git describe --always --dirty` at configure
 time, so a test log names the firmware it talked to. Reconfigure after a commit to update it.
@@ -35,7 +37,7 @@ The development kit's UART is routed to the J-Link's virtual COM port, so the pr
 the rig is also the host's serial device:
 
 ```bash
-BLUETOE_DUT=/dev/tty.usbmodem<serial number>1 ctest --test-dir build -L radio --output-on-failure
+BLUETOE_DUT=/dev/tty.usbmodem<serial number>1 ctest --test-dir build -L radio_tests --output-on-failure
 ```
 
 See `../radio_tests/README.md`.

@@ -8,7 +8,7 @@
  * determined by the C++ type alone, so a function is serialisable if every parameter and
  * its result is.
  *
- * Integers are little endian at their fixed width; bool is one byte; an enum is its
+ * Integers are little endian at their fixed width, a signed one as its two's complement; bool is one byte; an enum is its
  * underlying integer; abs_time and delta_time are their microseconds as 32 bits; arrays,
  * pairs and tuples are their elements in order; a variable length byte sequence is a
  * 16 bit length followed by the bytes.
@@ -28,6 +28,7 @@
 #include <cassert>
 #include <concepts>
 #include <cstddef>
+#include <type_traits>
 #include <cstdint>
 #include <span>
 #include <tuple>
@@ -125,6 +126,25 @@ namespace test_rig {
         value = 0;
         for ( std::size_t i = 0; i != sizeof( T ); ++i )
             value = static_cast< T >( value | ( static_cast< T >( buffer[ i ] ) << ( 8 * i ) ) );
+
+        return true;
+    }
+
+    template < sink Sink, std::signed_integral T >
+    bool serialize( Sink& out, T value )
+    {
+        return serialize( out, static_cast< std::make_unsigned_t< T > >( value ) );
+    }
+
+    template < source Source, std::signed_integral T >
+    bool deserialize( Source& in, T& value )
+    {
+        std::make_unsigned_t< T > as_unsigned;
+
+        if ( !deserialize( in, as_unsigned ) )
+            return false;
+
+        value = static_cast< T >( as_unsigned );
 
         return true;
     }

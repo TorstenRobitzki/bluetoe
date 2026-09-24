@@ -519,6 +519,7 @@ namespace bluetoe
                 {
                     calibrating_         = true;
                     NRF_CLOCK->TASKS_CAL = 1;
+                    note_calibration();
                 }
             }
 
@@ -534,6 +535,7 @@ namespace bluetoe
                     first_calibration_          = true;
                     NRF_CLOCK->INTENSET         = CLOCK_INTENSET_HFCLKSTARTED_Msk | CLOCK_INTENSET_DONE_Msk | CLOCK_INTENSET_CTTO_Msk;
                     NRF_CLOCK->TASKS_HFCLKSTART = 1;
+                    note_crystal_started( ticks_now() );
                 }
                 else
                 {
@@ -654,6 +656,8 @@ namespace bluetoe
             NRF_RTC0->CC[ rtc_cc_timer ] = target_tick & ( ( 1u << rtc_bits ) - 1 );
 
             NRF_PPI->CHENSET = ppi_rtc_hfxo | ppi_rtc_timer;
+
+            note_crystal_started( target_tick - hfxo_startup_ticks< Configuration > );
         }
 
         /*
@@ -701,6 +705,7 @@ namespace bluetoe
                     last_temperature_            = temperature_;
                     intervals_since_calibration_ = 0;
                     NRF_CLOCK->TASKS_CAL         = 1;
+                    note_calibration();
                 }
 
                 if ( !calibrating_ )
@@ -717,6 +722,56 @@ namespace bluetoe
         {
             NRF_CLOCK->TASKS_HFCLKSTOP = 1;
             trace::hfxo_stopped();
+
+            if constexpr ( Configuration.statistics )
+            {
+                // a stop before the planned start, a cancelled event's, was no start
+                if ( counters_.crystal_on )
+                {
+                    const std::int32_t ran = static_cast< std::int32_t >( ticks_now() - counters_.started_tick );
+
+                    if ( ran > 0 )
+                    {
+                        counters_.crystal_starts = counters_.crystal_starts + 1;
+                        counters_.crystal_ticks  = counters_.crystal_ticks + static_cast< std::uint32_t >( ran );
+                    }
+
+                    counters_.crystal_on = false;
+                }
+            }
+        }
+
+        /*
+         * The statistics: the tick the crystal starts at, for its running time at the stop,
+         * unless it runs already, and a calibration. Nothing without the option.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::note_crystal_started( [[maybe_unused]] std::uint32_t tick )
+        {
+            if constexpr ( Configuration.statistics )
+            {
+                if ( !counters_.crystal_on )
+                {
+                    counters_.started_tick = tick;
+                    counters_.crystal_on   = true;
+                }
+            }
+        }
+
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::note_calibration()
+        {
+            if constexpr ( Configuration.statistics )
+                counters_.calibrations = counters_.calibrations + 1;
+        }
+
+        template < typename CallBacks, radio_configuration Configuration >
+        clock_statistics_t radio_base_t< CallBacks, Configuration >::clock_statistics() const requires ( Configuration.statistics )
+        {
+            return clock_statistics_t{
+                .crystal_starts = counters_.crystal_starts,
+                .crystal_ticks  = counters_.crystal_ticks,
+                .calibrations   = counters_.calibrations };
         }
 
         /*
@@ -729,14 +784,15 @@ namespace bluetoe
         template < typename CallBacks, radio_configuration Configuration >
         void radio_base_t< CallBacks, Configuration >::stop_crystal_unless_needed()
         {
-            const bool placed = state_ != state::idle && state_ != state::reporting;
+            const bool          placed      = state_ != state::idle && state_ != state::reporting;
+            std::uint32_t       ticks_ahead = 0;
 
             if ( placed )
             {
                 if ( NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ] )
                     return;
 
-                const std::uint32_t ticks_ahead = ( NRF_RTC0->CC[ rtc_cc_hfxo ] - NRF_RTC0->COUNTER ) & ( ( 1u << rtc_bits ) - 1 );
+                ticks_ahead = ( NRF_RTC0->CC[ rtc_cc_hfxo ] - NRF_RTC0->COUNTER ) & ( ( 1u << rtc_bits ) - 1 );
 
                 if ( ticks_ahead < hfxo_startup_ticks< Configuration > + rtc_compare_lead_ticks || ticks_ahead >= ( 1u << ( rtc_bits - 1 ) ) )
                     return;
@@ -744,8 +800,20 @@ namespace bluetoe
 
             stop_crystal();
 
-            if ( placed && NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ] )
+            if ( !placed )
+                return;
+
+            // the placed event's start is a start of its own now, at its compare or, if that
+            // matched between the look and the stop, right away
+            if ( NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ] )
+            {
                 NRF_CLOCK->TASKS_HFCLKSTART = 1;
+                note_crystal_started( ticks_now() );
+            }
+            else
+            {
+                note_crystal_started( ticks_now() + ticks_ahead );
+            }
         }
 
         template < typename CallBacks, radio_configuration Configuration >
