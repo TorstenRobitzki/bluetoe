@@ -377,7 +377,10 @@ namespace bluetoe
             volatile bool               calibration_due_;
             volatile bool               calibrating_;
             volatile bool               first_calibration_;
+            volatile bool               temperature_due_;
+            volatile std::uint8_t       intervals_since_calibration_;
             std::int32_t                last_temperature_;
+            std::int32_t                temperature_;
 
             /*
              * Set before an event and read by the receive interrupt: the address a scan or

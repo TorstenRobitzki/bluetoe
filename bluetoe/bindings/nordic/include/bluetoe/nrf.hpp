@@ -89,9 +89,11 @@ namespace bluetoe
          *        frequency crystal
          *
          * Like sleep_clock_crystal_oscillator, for a device without a 32.768 kHz crystal.
-         * The RC oscillator is calibrated periodically while the high frequency crystal
-         * runs for a radio event anyway; according to the datasheet the accuracy is then
-         * 500 ppm.
+         * The RC oscillator is calibrated while the high frequency crystal runs for a radio
+         * event anyway: every four seconds if the temperature moved by half a degree since
+         * the last calibration, and every eight seconds in any case; according to the
+         * datasheet the accuracy is then 500 ppm. A calibration keeps the crystal on for
+         * some 32 ms.
          *
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::synthesized_sleep_clock
