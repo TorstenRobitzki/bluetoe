@@ -478,6 +478,13 @@ namespace bluetoe
                 NRF_CLOCK->LFCLKSRC     = ( Configuration.source == sleep_clock::crystal ? CLOCK_LFCLKSRC_SRC_Xtal : CLOCK_LFCLKSRC_SRC_RC ) << CLOCK_LFCLKSRC_SRC_Pos;
                 NRF_CLOCK->INTENSET     = CLOCK_INTENSET_LFCLKSTARTED_Msk;
                 NRF_CLOCK->TASKS_LFCLKSTART = 1;
+
+                if constexpr ( Configuration.source == sleep_clock::rc )
+                {
+                    // read at the end of the first calibration, as the temperature it was made at
+                    NRF_TEMP->EVENTS_DATARDY = 0;
+                    NRF_TEMP->TASKS_START    = 1;
+                }
             }
         }
 
@@ -546,8 +553,11 @@ namespace bluetoe
 
                     if ( first_calibration_ )
                     {
-                        // the calibration before the radio is ready
-                        first_calibration_ = false;
+                        // the calibration before the radio is ready; a later one is asked for
+                        // when the temperature moved away from this one's
+                        first_calibration_       = false;
+                        last_temperature_        = static_cast< std::int32_t >( NRF_TEMP->TEMP );
+                        NRF_TEMP->EVENTS_DATARDY = 0;
                         stop_crystal();
 
                         ready_pending_ = true;
