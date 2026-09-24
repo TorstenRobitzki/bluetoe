@@ -426,7 +426,10 @@ namespace bluetoe
             volatile bool               calibration_due_;
             volatile bool               calibrating_;
             volatile bool               first_calibration_;
+            volatile bool               temperature_due_;
+            volatile std::uint8_t       intervals_since_calibration_;
             std::int32_t                last_temperature_;
+            std::int32_t                temperature_;
 
             [[no_unique_address]] std::conditional_t< Configuration.statistics, clock_counters, no_clock_counters > counters_;
 
