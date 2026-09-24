@@ -53,12 +53,14 @@ which compiles all of them out.
 ```bash
 cmake -S . -B build -DBLUETOE_BUILD_UNIT_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j8
-ctest --test-dir build -j8 --label-exclude radio
+ctest --test-dir build -j8 -L unit_tests
 ```
 
-The tests labelled `radio` are the tests of a scheduled radio implementation in
+Every test carries a label, and every label has a build target of its executables. The tests
+labelled `unit_tests` run on the host alone; `cmake --build build --target unit_tests` builds just
+them. The tests labelled `radio_tests` are the tests of a scheduled radio implementation in
 `tests/scheduled_radio/radio_tests/`; they need a device on a serial port named by `BLUETOE_DUT`
-and are run on demand with `ctest -L radio` (see the README there).
+and are run on demand with `ctest -L radio_tests` after `--target radio_tests` (see the README there).
 
 Before declaring a change done, also build and run the tests once in **Release**
 (`-DCMAKE_BUILD_TYPE=Release`, e.g. in a `build_release` directory). This proves that no behaviour
