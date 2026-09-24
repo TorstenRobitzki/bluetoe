@@ -8,7 +8,7 @@ namespace bluetoe
 {
     namespace nrf52_details
     {
-        interrupt_entries interrupts = { nullptr, nullptr, nullptr };
+        interrupt_entries interrupts = { nullptr, nullptr, nullptr, nullptr };
 
         void packet_counter::increment()
         {
@@ -25,8 +25,14 @@ extern "C" void RADIO_IRQHandler()
     bluetoe::nrf52_details::interrupts.radio();
 }
 
-extern "C" void TIMER1_IRQHandler()
+extern "C" void RTC0_IRQHandler()
 {
-    assert( bluetoe::nrf52_details::interrupts.timer );
-    bluetoe::nrf52_details::interrupts.timer();
+    assert( bluetoe::nrf52_details::interrupts.rtc );
+    bluetoe::nrf52_details::interrupts.rtc();
+}
+
+extern "C" void POWER_CLOCK_IRQHandler()
+{
+    assert( bluetoe::nrf52_details::interrupts.clock );
+    bluetoe::nrf52_details::interrupts.clock();
 }

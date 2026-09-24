@@ -52,7 +52,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * dut_rig::functions changes after a device was flashed with the current one.
      */
-    constexpr std::uint16_t dut_protocol_version = 3;
+    constexpr std::uint16_t dut_protocol_version = 4;
 
     /**
      * @brief records the rig keeps until the host collects them
@@ -263,6 +263,7 @@ namespace test_rig {
          */
         void radio_ready()
         {
+            ready_ = true;
             on_callback( callback_kind::radio_ready, link_layer::abs_time(), {} );
         }
 
@@ -330,6 +331,17 @@ namespace test_rig {
         std::uint16_t protocol_version() const
         {
             return dut_protocol_version;
+        }
+
+        /**
+         * @brief whether the radio reported radio_ready() since the reset
+         *
+         * A radio on a sleep clock crystal takes hundreds of milliseconds to get there; the
+         * host loads a program only afterwards, as the contract has no step for it.
+         */
+        bool radio_is_ready() const
+        {
+            return ready_;
         }
 
         /**
@@ -608,7 +620,8 @@ namespace test_rig {
             &toolbox_t::f5,
             &toolbox_t::f6,
             &wrapped_t::g2,
-            &encryption_rig_t::setup_encryption >;
+            &encryption_rig_t::setup_encryption,
+            &dut_rig::radio_is_ready >;
 
     private:
         /*
@@ -818,6 +831,7 @@ namespace test_rig {
         std::array< stored_call, max_calls >            calls_;
         std::uint8_t                                    call_count_             = 0;
         std::uint8_t                                    cursor_                 = 0;
+        bool                                            ready_                  = false;
         bool                                            running_                = false;
         bool                                            radio_event_pending_    = false;
         bool                                            timer_pending_          = false;

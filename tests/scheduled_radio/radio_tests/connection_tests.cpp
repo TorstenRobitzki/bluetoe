@@ -72,7 +72,7 @@ namespace {
         const auto advertising_end = the_only( callbacks_of( records, adv_timeout ) );
         const auto end             = the_only( callbacks_of( records, callback_kind::connection_end_event ) );
 
-        BOOST_CHECK_LE( std::chrono::abs( time_between( advertising_end, end ) - at ), tolerance );
+        BOOST_CHECK_LE( std::chrono::abs( time_between( advertising_end, end ) - at ), tolerance_for( at ) );
     }
 
     /*
@@ -274,7 +274,7 @@ BOOST_FIXTURE_TEST_CASE( an_empty_pdu_is_answered_with_an_empty_pdu, rig_fixture
     const auto end             = the_only( callbacks_of( records, callback_kind::connection_end_event ) );
     const auto anchor          = time_between( advertising_end, end );
 
-    BOOST_CHECK_LE( std::chrono::abs( anchor - first_pdu_after_advertising ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( anchor - first_pdu_after_advertising ), tolerance_for( first_pdu_after_advertising ) );
 }
 
 /*
@@ -325,10 +325,10 @@ BOOST_FIXTURE_TEST_CASE( connection_events_follow_each_other_at_the_interval, co
     const auto ends = callbacks_of( records, callback_kind::connection_end_event );
 
     BOOST_REQUIRE_EQUAL( ends.size(), 3u );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 5 ] ) - interval ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - interval ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 1 ], ends[ 2 ] ) - interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance_for( interval ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 3 ], captured[ 5 ] ) - interval ), tolerance_for( interval ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - interval ), tolerance_for( interval ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 1 ], ends[ 2 ] ) - interval ), tolerance_for( interval ) );
 }
 
 /*
@@ -920,8 +920,8 @@ BOOST_FIXTURE_TEST_CASE( the_next_event_is_placed_from_the_end_a_connection_time
 
     BOOST_REQUIRE_EQUAL( ends.size(), 2u );
     BOOST_CHECK_EQUAL( time_between( ends[ 0 ], timeout ), interval + widening );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - 2 * interval ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - 2 * interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - 2 * interval ), tolerance_for( 2 * interval ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - 2 * interval ), tolerance_for( 2 * interval ) );
 }
 
 /*

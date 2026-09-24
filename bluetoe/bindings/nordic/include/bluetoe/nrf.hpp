@@ -8,12 +8,6 @@
 
 namespace bluetoe
 {
-    namespace nrf52_details {
-        void gpio_debug_hfxo_stopped();
-        void init_calibration_timer();
-        void deassign_hfxo();
-    }
-
     /**
      * @brief namespace with nRF52 specific configuration options
      */
@@ -49,47 +43,16 @@ namespace bluetoe
             struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
             struct sleep_clock_source_meta_type : radio_option_meta_type {};
             struct hfxo_startup_time_meta_type : radio_option_meta_type {};
-            struct leave_run_on_interrupt_type : radio_option_meta_type {};
-
-            static void start_high_frequency_clock()
-            {
-                // This tasks starts the high frequency crystal oscillator (HFXO)
-                nrf_clock->TASKS_HFCLKSTART = 1;
-
-                // TODO: do not wait busy
-                // Issue: do not poll for readiness of the high frequency clock #63
-                while ( !nrf_clock->EVENTS_HFCLKSTARTED )
-                    ;
-
-                nrf_clock->EVENTS_HFCLKSTARTED = 0;
-            }
-
-            inline void start_lfclock_and_rtc()
-            {
-                nrf_clock->EVENTS_LFCLKSTARTED = 0;
-                nrf_clock->TASKS_LFCLKSTART = 1;
-
-                while ( nrf_clock->EVENTS_LFCLKSTARTED == 0 )
-                    ;
-
-                // https://infocenter.nordicsemi.com/topic/errata_nRF52840_Rev3/ERR/nRF52840/Rev3/latest/anomaly_840_20.html#anomaly_840_20
-                nrf_rtc->TASKS_STOP = 0;
-                nrf_rtc->TASKS_START = 1;
-
-                // Configure the RTC to generate these two events
-                // Overflow flag does not harm the power performance much and is used for
-                // debugging.
-                nrf_rtc->EVTEN =
-                    ( RTC_EVTEN_COMPARE0_Enabled << RTC_EVTEN_COMPARE0_Pos )
-                  | ( RTC_EVTEN_COMPARE1_Enabled << RTC_EVTEN_COMPARE1_Pos )
-                  | ( RTC_EVTEN_OVRFLW_Enabled << RTC_EVTEN_OVRFLW_Pos );
-            }
         }
 
         /**
-         * @brief configure the low frequency clock to be sourced out of the high frequency clock
+         * @brief the sleep clock is synthesized from the high frequency crystal, which then
+         *        stays on
          *
-         * The resulting sleep clock accurary is then the accuarcy of your high frequency clock source.
+         * The default. The sleep clock's accuracy is the crystal's, 20 ppm on the
+         * development kits, and nothing has to start up before a radio event, at the price
+         * of the crystal's current while the radio is idle. The choice for a device with a
+         * power supply, and for a test rig.
          *
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
@@ -99,23 +62,16 @@ namespace bluetoe
         {
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
-
-            static void start_clocks()
-            {
-                nrf_details::start_high_frequency_clock();
-
-                nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Synth << CLOCK_LFCLKSRCCOPY_SRC_Pos;
-                nrf_details::start_lfclock_and_rtc();
-            }
-
-            static void stop_high_frequency_crystal_oscilator()
-            {
-            }
             /** @endcond */
         };
 
         /**
-         * @brief configure the low frequency clock to be sourced from a crystal oscilator
+         * @brief the sleep clock is the 32.768 kHz crystal
+         *
+         * Only the sleep clock runs while the radio is idle; the high frequency crystal is
+         * started before every radio event and stopped after it, see
+         * high_frequency_crystal_oscillator_startup_time. The accuracy is the crystal's,
+         * 20 ppm on the development kits.
          *
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::synthesized_sleep_clock
@@ -125,35 +81,19 @@ namespace bluetoe
         {
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
-
-            static void start_clocks()
-            {
-                nrf_details::start_high_frequency_clock();
-
-                nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_Xtal << CLOCK_LFCLKSRCCOPY_SRC_Pos;
-                nrf_details::start_lfclock_and_rtc();
-            }
-
-            static void stop_high_frequency_crystal_oscilator()
-            {
-                nrf_clock->TASKS_HFCLKSTOP = 1;
-
-#               if defined BLUETOE_NRF52_RADIO_DEBUG
-                    bluetoe::nrf52_details::gpio_debug_hfxo_stopped();
-#               endif
-
-            }
             /** @endcond */
         };
 
         /**
-         * @brief configure the low frequency clock to run from the RC oscilator.
+         * @brief the sleep clock is the RC oscillator, calibrated against the high
+         *        frequency crystal
          *
-         * That low frequency RC oscilator will be calibrated by the high frequency
-         * crystal oscilator periodically.
-         *
-         * According to the datasheet, the resulting sleep clock accuarcy is then 500ppm.
-         * If no sleep clock configuration is given, this is the default.
+         * Like sleep_clock_crystal_oscillator, for a device without a 32.768 kHz crystal.
+         * The RC oscillator is calibrated while the high frequency crystal runs for a radio
+         * event anyway: every four seconds if the temperature moved by half a degree since
+         * the last calibration, and every eight seconds in any case; according to the
+         * datasheet the accuracy is then 500 ppm. A calibration keeps the crystal on for
+         * some 32 ms.
          *
          * @sa bluetoe::link_layer::sleep_clock_accuracy_ppm
          * @sa bluetoe::nrf::synthesized_sleep_clock
@@ -163,37 +103,21 @@ namespace bluetoe
         {
             /** @cond HIDDEN_SYMBOLS */
             using meta_type = nrf_details::sleep_clock_source_meta_type;
-
-            static void start_clocks()
-            {
-                nrf_details::start_high_frequency_clock();
-
-                nrf_clock->LFCLKSRC = CLOCK_LFCLKSRCCOPY_SRC_RC << CLOCK_LFCLKSRCCOPY_SRC_Pos;
-                nrf_details::start_lfclock_and_rtc();
-                nrf52_details::init_calibration_timer();
-            }
-
-            static void stop_high_frequency_crystal_oscilator()
-            {
-                nrf52_details::deassign_hfxo();
-            }
             /** @endcond */
         };
 
         /**
-         * @brief configure the high frequency crystal oscillator startup time
+         * @brief how long the high frequency crystal takes to start
          *
-         * Unless bluetoe::nrf::synthesized_sleep_clock is used as the sleep clock
-         * source, the nRF52 binding is switching on and off the high frequency clock
-         * oscillator to save power. It's important that this parameter is in configured
-         * to meet the real hardwares startup time to have the best power perfomance
-         * _and_ a stable connection.
+         * With a sleep clock other than bluetoe::nrf::synthesized_sleep_clock the radio
+         * switches the high frequency crystal on before every radio event and off after
+         * it, and starts it this long before the event, rounded up to whole periods of
+         * the sleep clock (30.52 µs). A value below the crystal's real startup time lets
+         * the radio transmit on a clock that has not settled; a value above it costs the
+         * difference in current at every event.
          *
-         * The given value in µs is roundet up to the next full period of the low frequency
-         * clock (30.52µs).
-         *
-         * If this configuration value is not given, 300µs (bluetoe::nrf::high_frequency_crystal_oscillator_startup_time_default)
-         * is used as the default.
+         * If not given, 400 µs (bluetoe::nrf::high_frequency_crystal_oscillator_startup_time_default):
+         * the crystal of the nRF52840-DK takes 347 µs.
          *
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
          * @sa bluetoe::nrf::calibrated_rc_sleep_clock
@@ -213,20 +137,8 @@ namespace bluetoe
          *
          * @sa bluetoe::nrf::high_frequency_crystal_oscillator_startup_time
          */
-        using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 300 >;
+        using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 400 >;
 
-        /**
-         * @brief configures the radio::run() function to return on every interrupt
-         *
-         * Usually, run() will return on a call to radio::wake(). With this option, run()
-         * will only block for a single call to the WFI ARM assembler instruction. Once that
-         * instruction returns, the function will be left.
-         */
-        struct leave_run_on_interrupt {
-            /** @cond HIDDEN_SYMBOLS */
-            using meta_type = nrf_details::leave_run_on_interrupt_type;
-            /** @endcond */
-        };
     }
 
     namespace nrf_details

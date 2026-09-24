@@ -48,7 +48,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_expires_with_the_time_it_was_scheduled_for, rig
         received( first ),
         received( second ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - ( timer_delay + event_delay ) ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - ( timer_delay + event_delay ) ), tolerance_for( timer_delay + event_delay ) );
 
     const auto records = device_records();
 
@@ -87,7 +87,7 @@ BOOST_FIXTURE_TEST_CASE( a_timer_and_a_pending_advertising_event_do_not_disturb_
         received( first ),
         received( second ) } );
 
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 0 ], captured[ 1 ] ) - 100ms ), tolerance_for( 100ms ) );
 
     // the timer expires between the two events
     check_callbacks( device_records(), { adv_timeout, user_timer, adv_timeout } );

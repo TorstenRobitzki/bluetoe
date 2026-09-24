@@ -58,6 +58,7 @@ The tests are here; what they are written with is in `../test_tools`.
 | `cancel_tests.cpp` | cancel_radio_event() on advertising events: in time, too late and with nothing pending; skipped without a tester |
 | `encryption_tests.cpp` | the encryption of connection events: the host computes the central's ciphertext and checks the device's with the CCM of `../test_tools/encryption.hpp`; an exchange in both directions, the switches turned one at a time, a wrong MIC, the packet counters across repeated and empty PDUs, and 2 Mbit; skipped without a tester and on a device whose radio does not encrypt |
 | `timer_tests.cpp` | schedule_timer() and cancel_timer(), made visible by an advertising scheduled from user_timer(); skipped without a tester |
+| `sleep_clock_tests.cpp` | radio events and timers mixed over idle stretches, so that a radio which switches its crystal off between events shows it places the next one from the sleep clock alone: events from timers after long waits, a timer inside a connection event, timers between connection events; skipped without a tester |
 
 | file in `../test_tools` | subject |
 |---|---|

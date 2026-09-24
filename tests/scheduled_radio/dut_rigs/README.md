@@ -19,6 +19,13 @@ cmake -S tests/scheduled_radio/dut_rigs -B build_dut_rigs -G Ninja -DCMAKE_BUILD
 ninja -C build_dut_rigs nrf52_dut.flash
 ```
 
+There is one rig per sleep clock of the radio (`bluetoe/nrf.hpp`), since the placement of an
+event across the two clocks and the switching of the high frequency crystal are what the tests
+have to see: `nrf52_dut` on the sleep clock synthesized from the crystal, the default, `nrf52_dut_lfxo` on
+the 32.768 kHz crystal, and `nrf52_dut_lfrc` on the calibrated RC oscillator. A full run flashes
+and tests each in turn; the radio's accuracy the tests derive their tolerances from comes from
+the rig's properties.
+
 The rig reports the source state it was built from, `git describe --always --dirty` at configure
 time, so a test log names the firmware it talked to. Reconfigure after a commit to update it.
 

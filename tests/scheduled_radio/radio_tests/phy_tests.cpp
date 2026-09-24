@@ -194,8 +194,8 @@ BOOST_FIXTURE_TEST_CASE( connection_events_at_2_mbit_follow_each_other_at_the_in
     const auto ends = callbacks_of( records, callback_kind::connection_end_event );
 
     BOOST_REQUIRE_EQUAL( ends.size(), 2u );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance );
-    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - interval ), tolerance );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( captured[ 1 ], captured[ 3 ] ) - interval ), tolerance_for( interval ) );
+    BOOST_CHECK_LE( std::chrono::abs( time_between( ends[ 0 ], ends[ 1 ] ) - interval ), tolerance_for( interval ) );
 }
 
 // nothing on air says which PHY a PDU is on, so a device listening on the other one hears nothing

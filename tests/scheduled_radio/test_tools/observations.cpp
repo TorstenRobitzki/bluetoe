@@ -1,4 +1,5 @@
 #include "test_tools/observations.hpp"
+#include "test_tools/dut.hpp"
 
 #include "host/tester_time.hpp"
 
@@ -105,6 +106,14 @@ namespace test_rig {
     std::chrono::microseconds time_between( const record& earlier, const record& later )
     {
         return std::chrono::microseconds( ( later.when - earlier.when ).usec() );
+    }
+
+    std::chrono::microseconds tolerance_for( std::chrono::nanoseconds interval )
+    {
+        const auto drift = std::chrono::duration_cast< std::chrono::microseconds >(
+            interval * the_dut().properties().sleep_time_accuracy_ppm / 1000000 );
+
+        return placement_tolerance + drift;
     }
 }
 }
