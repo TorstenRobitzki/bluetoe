@@ -553,10 +553,10 @@ namespace bluetoe
                         ready_pending_ = true;
                         __SEV();
                     }
-                    else if ( state_ == state::idle && !NRF_RTC0->EVENTS_COMPARE[ rtc_cc_timer ] )
+                    else
                     {
-                        // one that outlasted its event, with none placed since
-                        stop_crystal();
+                        // one that outlasted its event
+                        stop_crystal_unless_needed();
                     }
                 }
             }
@@ -689,6 +689,35 @@ namespace bluetoe
         {
             NRF_CLOCK->TASKS_HFCLKSTOP = 1;
             trace::hfxo_stopped();
+        }
+
+        /*
+         * Off, unless the next event is placed and its crystal start is so close that a stop
+         * would gain nothing, or has happened already. The link layer places the next event
+         * within microseconds of the last one's callback, so its start is known here: the
+         * RTC's compare says how far away it is. A compare that matches between the look and
+         * the stop shows as its event afterwards, and the start is issued again.
+         */
+        template < typename CallBacks, radio_configuration Configuration >
+        void radio_base_t< CallBacks, Configuration >::stop_crystal_unless_needed()
+        {
+            const bool placed = state_ != state::idle && state_ != state::reporting;
+
+            if ( placed )
+            {
+                if ( NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ] )
+                    return;
+
+                const std::uint32_t ticks_ahead = ( NRF_RTC0->CC[ rtc_cc_hfxo ] - NRF_RTC0->COUNTER ) & ( ( 1u << rtc_bits ) - 1 );
+
+                if ( ticks_ahead < hfxo_startup_ticks< Configuration > + rtc_compare_lead_ticks || ticks_ahead >= ( 1u << ( rtc_bits - 1 ) ) )
+                    return;
+            }
+
+            stop_crystal();
+
+            if ( placed && NRF_RTC0->EVENTS_COMPARE[ rtc_cc_hfxo ] )
+                NRF_CLOCK->TASKS_HFCLKSTART = 1;
         }
 
         template < typename CallBacks, radio_configuration Configuration >

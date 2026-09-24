@@ -317,6 +317,7 @@ namespace bluetoe
             void place_timer( link_layer::abs_time from );
             void release_clocks();
             void stop_crystal();
+            void stop_crystal_unless_needed();
             void on_clock_event();
             void on_rtc_event();
 
