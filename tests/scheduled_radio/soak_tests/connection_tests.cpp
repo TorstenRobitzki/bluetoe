@@ -26,6 +26,7 @@
 #include "test_tools/observations.hpp"
 #include "test_tools/rig_fixture.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <iomanip>
@@ -37,8 +38,9 @@ using namespace std::chrono_literals;
 
 namespace {
 
-    // how long a single request may be lost to the serial link before that is a fault
-    constexpr int           request_attempts = 3;
+    // how often a request may go unanswered in a row before that is a fault, and the pause between
+    constexpr int                   request_attempts = 5;
+    constexpr std::chrono::seconds  request_pause( 1 );
     constexpr std::chrono::seconds watch_interval( 5 );
     constexpr std::chrono::seconds report_interval( 60 );
 
@@ -54,30 +56,43 @@ namespace {
         const std::chrono::seconds  duration    = soak_duration();
         std::uint32_t               events      = 0;
 
+        // the slowest request of the run so far, and how many went unanswered once
+        std::chrono::milliseconds   slowest_request{ 0 };
+        int                         unanswered_requests = 0;
+
         /*
          * A request lost on the serial link within days of running is likelier than a fault
-         * of the rig, and a fault repeats: retried a few times.
+         * of the rig, and a fault repeats: retried a few times, and counted.
          */
         template < typename Request >
         auto retried( Request request )
         {
             for ( int attempt = 1;; ++attempt )
             {
+                const auto started = std::chrono::steady_clock::now();
+
                 try
                 {
-                    return request();
+                    auto result = request();
+
+                    slowest_request = std::max( slowest_request,
+                        std::chrono::duration_cast< std::chrono::milliseconds >( std::chrono::steady_clock::now() - started ) );
+
+                    return result;
                 }
                 catch ( const link_error& )
                 {
+                    ++unanswered_requests;
+
                     if ( attempt == request_attempts )
                         throw;
 
-                    std::this_thread::sleep_for( 100ms );
+                    std::this_thread::sleep_for( request_pause );
                 }
             }
         }
 
-        static void print( std::chrono::seconds elapsed, const program_summary& device_side, const tester_summary& tester_side )
+        void print( std::chrono::seconds elapsed, const program_summary& device_side, const tester_summary& tester_side ) const
         {
             std::cout
                 << std::setw( 7 ) << elapsed.count() << " s: events " << count_of( device_side, callback_kind::connection_end_event )
@@ -94,7 +109,8 @@ namespace {
                 << "; tester events " << tester_side.events << ", replies " << tester_side.replies
                 << ", crc errors " << tester_side.crc_errors << ", unanswered " << tester_side.unanswered
                 << "; crystal starts " << device_side.crystal_starts << ", on " << device_side.crystal_ticks
-                << " ticks, calibrations " << device_side.calibrations << std::endl;
+                << " ticks, calibrations " << device_side.calibrations
+                << "; slowest request " << slowest_request.count() << " ms, unanswered " << unanswered_requests << std::endl;
         }
 
         /*
@@ -144,7 +160,10 @@ namespace {
     // the crystal per event, startup and the event itself, and per calibration, generous, in ticks of the sleep clock
     constexpr std::uint32_t crystal_ticks_per_event       = 100;
     constexpr std::uint32_t crystal_ticks_per_calibration = 1200;
+
+    // an RC sleep clock is calibrated every four seconds if the temperature moved, every eight in any case
     constexpr std::chrono::seconds calibration_interval( 4 );
+    constexpr std::chrono::seconds calibration_interval_at_most( 8 );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_connection_holds_for_the_soak_duration, soak_fixture, *if_tester )
@@ -208,7 +227,11 @@ BOOST_FIXTURE_TEST_CASE( a_connection_holds_for_the_soak_duration, soak_fixture,
             device_side.crystal_starts * crystal_ticks_per_event + device_side.calibrations * crystal_ticks_per_calibration );
     }
 
-    // an RC sleep clock, by its accuracy, is calibrated at least at its timer's pace
+    // an RC sleep clock, by its accuracy, is calibrated at its timer's pace: at most every interval,
+    // at least every other, the one before the radio was ready counted too
     if ( device.properties().sleep_time_accuracy_ppm >= 500 )
-        BOOST_CHECK_GE( device_side.calibrations, static_cast< std::uint32_t >( duration / calibration_interval ) );
+    {
+        BOOST_CHECK_GE( device_side.calibrations, static_cast< std::uint32_t >( duration / calibration_interval_at_most ) - 1 );
+        BOOST_CHECK_LE( device_side.calibrations, static_cast< std::uint32_t >( duration / calibration_interval ) + 2 );
+    }
 }

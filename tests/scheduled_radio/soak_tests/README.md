@@ -4,7 +4,7 @@ A soak test keeps one connection between the device under test and the tester fo
 days: the tester as the central sends an empty PDU every 100 ms, the device answers, and between
 the events the device's user timer runs, so that the clocks switch as they do under a link layer.
 Ten minutes, the default, crosses the overflow of a 24 bit RTC at 32.768 kHz and, on an RC sleep
-clock calibrated every four seconds, some 150 calibrations; 71 minutes cross the wrap of the
+clock calibrated every four to eight seconds, some hundred calibrations; 71 minutes cross the wrap of the
 device's microsecond time; a day takes the temperature round once.
 
 The setup is that of the radio tests (`../radio_tests/README.md`): `BLUETOE_DUT` names the device,
@@ -51,7 +51,7 @@ time on air. Required within 2 µs of the 230 µs it should be.
 started the high frequency crystal, how many periods of the sleep clock the crystal ran in all,
 and how often it calibrated the RC sleep clock; the rigs are. The test requires a start per event,
 a running time bounded by the events and the calibrations, and, on an RC sleep clock, the
-calibrations at least at the pace of the timer. A crystal left running through an interval, which
+calibrations at the pace of the timer: at most one per four seconds, at least one per eight. A crystal left running through an interval, which
 once needed a logic analyser to see, fails here. A radio on a synthesized sleep clock never stops
 the crystal and counts nothing.
 
