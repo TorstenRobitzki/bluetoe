@@ -7,11 +7,12 @@
  * What a program of the device under test and its records look like on the wire, shared by
  * the rig and the host.
  *
- * A program is loaded one request at a time: a step, the callback it waits for, and then each
- * of its calls, as a call with its PDUs is what fits into one request. The steps share one pool
- * of calls, so that a step makes as many as it needs. The records come back in batches, each
- * naming the index of its first record and the number of records produced so far, which is how
- * the host notices that the rig had to drop some.
+ * A program is loaded one request at a time: a step, the callback it waits for and how often
+ * it runs, and then each of its calls, as a call with its PDUs is what fits into one request.
+ * The steps share one pool of calls, so that a step makes as many as it needs. The records come
+ * back in batches, each naming the index of its first record and the number of records produced
+ * so far, which is how the host notices that the rig had to drop some. A step that runs many
+ * times is recorded once and counted from then on, in the summary of the program.
  */
 
 #include "link/batch.hpp"
@@ -142,6 +143,65 @@ namespace test_rig {
     constexpr std::size_t records_per_batch = 4;
 
     /**
+     * @brief the callback kinds, for a count per kind
+     */
+    constexpr std::size_t callback_kinds = 7;
+
+    /**
+     * @brief the limits of the summary's anchor error bins, in microseconds
+     *
+     * An error whose magnitude is below the first limit goes into the first bin, one below
+     * the second into the second, and so on; one at or beyond the last limit goes into the
+     * bin after the last.
+     */
+    constexpr std::array< std::uint32_t, 4 > anchor_error_limits = { 10, 50, 100, 250 };
+    constexpr std::size_t                    anchor_error_bins   = anchor_error_limits.size() + 1;
+
+    /**
+     * @brief what a program did, in numbers, since it was started
+     *
+     * A step that runs many times would flood the records, so the rig counts instead:
+     * every callback by its kind, radio_ready() among them, the calls the steps made and
+     * those the radio refused. Of every connection event that a step scheduled from the
+     * anchor of the one before, from a connection_end_event, and that ended with an anchor
+     * of its own, the anchor the radio reported minus the centre of the receive window the
+     * step asked for, in microseconds, as the smallest, the largest, and a count per bin of
+     * magnitude (anchor_error_limits). A link layer centres the window on the anchor it
+     * expects, so this is the drift of the device's sleep clock over the interval and the
+     * placement, and how they are distributed over a long run. An event placed from
+     * anything else, the advertising before the first, has no anchor to be measured from.
+     *
+     * The last three are the radio's clock statistics, if it keeps them (the nRF52 radio
+     * does with bluetoe::nrf::clock_statistics), and zero otherwise: how often the high
+     * frequency crystal was started, how many ticks of the sleep clock it ran in all, and
+     * how often the sleep clock was calibrated. They count since the radio started, not
+     * since the program did.
+     */
+    struct program_summary
+    {
+        std::array< std::uint32_t, callback_kinds >     callbacks           = {};
+        std::uint32_t                                   calls               = 0;
+        std::uint32_t                                   refused_calls       = 0;
+        std::uint32_t                                   anchors             = 0;
+        std::int32_t                                    anchor_error_min    = 0;
+        std::int32_t                                    anchor_error_max    = 0;
+        std::array< std::uint32_t, anchor_error_bins >  anchor_errors       = {};
+        std::uint32_t                                   crystal_starts      = 0;
+        std::uint32_t                                   crystal_ticks       = 0;
+        std::uint32_t                                   calibrations        = 0;
+
+        friend bool operator==( const program_summary&, const program_summary& ) = default;
+    };
+
+    /**
+     * @brief how often the callbacks of `kind` were made
+     */
+    inline std::uint32_t count_of( const program_summary& summary, callback_kind kind )
+    {
+        return summary.callbacks[ static_cast< std::size_t >( kind ) ];
+    }
+
+    /**
      * @brief PDUs a response carries; one, since a PDU of the largest payload is most of a frame
      */
     constexpr std::size_t received_per_batch = 1;
@@ -202,6 +262,40 @@ namespace test_rig {
      * @brief the records the rig hands over in one response, counted since the rig started
      */
     using record_batch = batch< record, records_per_batch >;
+
+    template < sink Sink >
+    bool serialize( Sink& out, const program_summary& value )
+    {
+        return serialize( out, std::tie(
+            value.callbacks,
+            value.calls,
+            value.refused_calls,
+            value.anchors,
+            value.anchor_error_min,
+            value.anchor_error_max,
+            value.anchor_errors,
+            value.crystal_starts,
+            value.crystal_ticks,
+            value.calibrations ) );
+    }
+
+    template < source Source >
+    bool deserialize( Source& in, program_summary& value )
+    {
+        auto fields = std::tie(
+            value.callbacks,
+            value.calls,
+            value.refused_calls,
+            value.anchors,
+            value.anchor_error_min,
+            value.anchor_error_max,
+            value.anchor_errors,
+            value.crystal_starts,
+            value.crystal_ticks,
+            value.calibrations );
+
+        return deserialize( in, fields );
+    }
 
     template < sink Sink >
     bool serialize( Sink& out, const call& value )

@@ -20,8 +20,9 @@
  * before it asks.
  *
  * The rig is the device's program interpreter: a step waits for the callback it
- * names and runs inside it, and everything the radio reports or the rig calls is recorded
- * in one queue, in the order it happened.
+ * names and runs inside it, as often as it says, and everything the radio reports or the
+ * rig calls is recorded in one queue, in the order it happened, but for the later runs of
+ * a step that runs many times, which are counted in the program's summary instead.
  */
 
 #include "instrument/address_set.hpp"
@@ -52,7 +53,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * dut_rig::functions changes after a device was flashed with the current one.
      */
-    constexpr std::uint16_t dut_protocol_version = 4;
+    constexpr std::uint16_t dut_protocol_version = 5;
 
     /**
      * @brief records the rig keeps until the host collects them
@@ -370,16 +371,22 @@ namespace test_rig {
         /**
          * @brief appends a step to the program, waiting for `on`; its calls follow with add_call()
          *
+         * The step runs on `repeat` consecutive callbacks of its kind before the next step
+         * waits, its calls each time; a callback of another kind is recorded and counted
+         * and leaves it waiting. Its first run is recorded like a step that runs once, the
+         * later runs are only counted, in the summary.
+         *
          * There is no way to remove one: the device is reset before every test, and the
          * reset is what empties the program. Refused, and not appended, if the program is
-         * full, or if the step waits for a callback that cannot trigger one.
+         * full, if the step waits for a callback that cannot trigger one, or if it would
+         * run no times.
          */
-        bool add_step( callback_kind on )
+        bool add_step( callback_kind on, std::uint32_t repeat )
         {
-            if ( step_count_ == max_steps || on == callback_kind::radio_ready )
+            if ( step_count_ == max_steps || on == callback_kind::radio_ready || repeat == 0 )
                 return false;
 
-            steps_[ step_count_ ] = program_step{ .on = on, .first_call = call_count_, .call_count = 0 };
+            steps_[ step_count_ ] = program_step{ .on = on, .repeat = repeat, .first_call = call_count_, .call_count = 0 };
             ++step_count_;
 
             return true;
@@ -447,14 +454,17 @@ namespace test_rig {
         }
 
         /**
-         * @brief runs the program from its first step
+         * @brief runs the program from its first step, with a fresh summary
          *
          * A first step that waits for start runs now, inside this call.
          */
         void start_program()
         {
-            cursor_  = 0;
-            running_ = true;
+            cursor_          = 0;
+            runs_            = 0;
+            running_         = true;
+            summary_         = program_summary();
+            event_scheduled_ = false;
 
             run_step_if_waiting_for( callback_kind::start, link_layer::abs_time() );
         }
@@ -465,6 +475,28 @@ namespace test_rig {
         record_batch collect_records()
         {
             return records_.collect< records_per_batch >();
+        }
+
+        /**
+         * @brief what the program did in numbers, since it was started; see program_summary
+         *
+         * Unlike the records, the summary stays: asking does not change it. The clock
+         * statistics are the radio's, if it keeps them.
+         */
+        program_summary collect_summary() const
+        {
+            program_summary result = summary_;
+
+            if constexpr ( requires ( const radio_t& radio ) { radio.clock_statistics(); } )
+            {
+                const auto statistics = radio_t::clock_statistics();
+
+                result.crystal_starts = statistics.crystal_starts;
+                result.crystal_ticks  = statistics.crystal_ticks;
+                result.calibrations   = statistics.calibrations;
+            }
+
+            return result;
         }
 
         /**
@@ -621,7 +653,8 @@ namespace test_rig {
             &toolbox_t::f6,
             &wrapped_t::g2,
             &encryption_rig_t::setup_encryption,
-            &dut_rig::radio_is_ready >;
+            &dut_rig::radio_is_ready,
+            &dut_rig::collect_summary >;
 
     private:
         /*
@@ -690,17 +723,57 @@ namespace test_rig {
             return result;
         }
 
+        /*
+         * Counted always, recorded unless it is a later run of the step that waits for it:
+         * a step that runs many times has its first run on record and the rest in numbers.
+         */
         void on_callback( callback_kind kind, link_layer::abs_time when, const adv_pdu& data, link_layer::connection_event_events events = {} )
         {
-            record entry;
-            entry.kind      = record_kind::callback;
-            entry.callback  = kind;
-            entry.when      = when;
-            entry.data      = data;
-            entry.events    = events;
-            records_.push( entry );
+            ++summary_.callbacks[ static_cast< std::size_t >( kind ) ];
+
+            if ( kind == callback_kind::connection_end_event && event_scheduled_ )
+                note_anchor( when );
+
+            if ( kind == callback_kind::connection_end_event || kind == callback_kind::connection_timeout )
+                event_scheduled_ = false;
+
+            const bool later_run = running_ && cursor_ != step_count_ && steps_[ cursor_ ].on == kind && runs_ != 0;
+
+            if ( !later_run )
+            {
+                record entry;
+                entry.kind      = record_kind::callback;
+                entry.callback  = kind;
+                entry.when      = when;
+                entry.data      = data;
+                entry.events    = events;
+                records_.push( entry );
+            }
 
             run_step_if_waiting_for( kind, when );
+        }
+
+        /*
+         * The anchor the radio reported against the centre of the window the step asked
+         * for; abs_time is a ring, so the difference is taken in it and read as signed.
+         */
+        void note_anchor( link_layer::abs_time anchor )
+        {
+            const std::int32_t  error     = static_cast< std::int32_t >( anchor.data() - window_centre_.data() );
+            const std::uint32_t magnitude = static_cast< std::uint32_t >( error < 0 ? -error : error );
+
+            if ( summary_.anchors == 0 || error < summary_.anchor_error_min )
+                summary_.anchor_error_min = error;
+
+            if ( summary_.anchors == 0 || error > summary_.anchor_error_max )
+                summary_.anchor_error_max = error;
+
+            std::size_t bin = 0;
+            while ( bin != anchor_error_limits.size() && magnitude >= anchor_error_limits[ bin ] )
+                ++bin;
+
+            ++summary_.anchor_errors[ bin ];
+            ++summary_.anchors;
         }
 
         void run_step_if_waiting_for( callback_kind kind, link_layer::abs_time when )
@@ -708,18 +781,27 @@ namespace test_rig {
             if ( !running_ || cursor_ == step_count_ || steps_[ cursor_ ].on != kind )
                 return;
 
-            const program_step& current = steps_[ cursor_ ];
-            ++cursor_;
+            const program_step& current   = steps_[ cursor_ ];
+            const bool          first_run = runs_ == 0;
+
+            ++runs_;
+
+            if ( runs_ == current.repeat )
+            {
+                ++cursor_;
+                runs_ = 0;
+            }
 
             for ( std::size_t i = current.first_call; i != current.first_call + current.call_count; ++i )
-                execute( calls_[ i ], when );
+                execute( calls_[ i ], kind, when, first_run );
         }
 
         /*
          * The PDUs stay where the program keeps them, since the radio uses them until the
-         * event is over; the receive buffer is the rig's own.
+         * event is over; the receive buffer is the rig's own. Counted always, and recorded
+         * on the first run of its step. `on` is the callback the step ran in.
          */
-        void execute( const stored_call& what, link_layer::abs_time when )
+        void execute( const stored_call& what, callback_kind on, link_layer::abs_time when, bool first_run )
         {
             // a call that carries no PDU has an empty one
             const link_layer::write_buffer transmit( what.transmit.size
@@ -735,6 +817,9 @@ namespace test_rig {
             entry.call      = what.kind;
             entry.channel   = what.channel;
 
+            // whether the call answers at all; a setup call does not, and is never refused
+            bool answers = true;
+
             switch ( what.kind )
             {
             case call_kind::start_advertising_event:
@@ -742,6 +827,7 @@ namespace test_rig {
                 // is the radio's own to choose, so there is no result to record
                 radio_t::start_advertising_event( what.channel, transmit, response, receive );
                 radio_event_pending_ = true;
+                answers = false;
                 break;
             case call_kind::schedule_advertising_event:
                 entry.when   = when + what.delay;
@@ -752,6 +838,13 @@ namespace test_rig {
                 entry.when   = when + what.delay;
                 entry.result = radio_t::schedule_connection_event( what.channel, entry.when, when + what.end_delay );
                 radio_event_pending_ = radio_event_pending_ || entry.result;
+
+                // measured only if placed from an anchor, against the middle of the window
+                if ( entry.result && on == callback_kind::connection_end_event )
+                {
+                    window_centre_   = when + link_layer::delta_time( ( what.delay.usec() + what.end_delay.usec() ) / 2 );
+                    event_scheduled_ = true;
+                }
                 break;
             case call_kind::schedule_timer:
                 entry.when   = when + what.delay;
@@ -761,6 +854,7 @@ namespace test_rig {
             case call_kind::cancel_radio_event:
                 entry.result = radio_t::cancel_radio_event();
                 radio_event_pending_ = radio_event_pending_ && !entry.result;
+                event_scheduled_     = event_scheduled_ && !entry.result;
                 break;
             case call_kind::cancel_timer:
                 entry.result = radio_t::cancel_timer();
@@ -768,22 +862,27 @@ namespace test_rig {
                 break;
             case call_kind::set_local_address:
                 radio_t::set_local_address( what.address );
+                answers = false;
                 break;
             case call_kind::set_access_address_and_crc_init:
                 radio_t::set_access_address_and_crc_init( what.access_address, what.crc_init );
+                answers = false;
                 break;
             case call_kind::set_phy:
                 radio_t::set_phy( what.phy, what.phy );
+                answers = false;
                 break;
             case call_kind::queue_pdu:
                 entry.result = queue_pdu( program_pdus_[ what.pdu ] );
                 break;
             case call_kind::read_received:
                 read_received();
+                answers = false;
                 break;
             case call_kind::switch_pdu_buffer:
                 // between events: the radio takes the buffer anew for every event
                 active_buffer_ = ( active_buffer_ + 1 ) % pdu_buffer_count;
+                answers = false;
                 break;
             case call_kind::switch_encryption:
                 // between events too: the radio reads the switches at the start of an event
@@ -792,10 +891,17 @@ namespace test_rig {
                     encryption_.receive_encrypted  = what.receive_encrypted;
                     encryption_.transmit_encrypted = what.transmit_encrypted;
                 }
+                answers = false;
                 break;
             }
 
-            records_.push( entry );
+            ++summary_.calls;
+
+            if ( answers && !entry.result )
+                ++summary_.refused_calls;
+
+            if ( first_run )
+                records_.push( entry );
         }
 
         /*
@@ -816,12 +922,13 @@ namespace test_rig {
         }
 
         /*
-         * A step of the program: the callback it waits for, and its calls, a range of calls_,
-         * which all steps share.
+         * A step of the program: the callback it waits for, how often it runs, and its
+         * calls, a range of calls_, which all steps share.
          */
         struct program_step
         {
             callback_kind   on;
+            std::uint32_t   repeat;
             std::uint8_t    first_call;
             std::uint8_t    call_count;
         };
@@ -831,10 +938,18 @@ namespace test_rig {
         std::array< stored_call, max_calls >            calls_;
         std::uint8_t                                    call_count_             = 0;
         std::uint8_t                                    cursor_                 = 0;
+        // how often the step at the cursor ran so far
+        std::uint32_t                                   runs_                   = 0;
         bool                                            ready_                  = false;
         bool                                            running_                = false;
         bool                                            radio_event_pending_    = false;
         bool                                            timer_pending_          = false;
+
+        // the program's numbers, and the connection event a step scheduled from an anchor
+        // and the radio has not reported yet, for the anchor error
+        program_summary                                 summary_;
+        link_layer::abs_time                            window_centre_;
+        bool                                            event_scheduled_        = false;
 
         std::array< pdu, max_queued_pdus >              program_pdus_;
         std::uint8_t                                    program_pdu_count_      = 0;

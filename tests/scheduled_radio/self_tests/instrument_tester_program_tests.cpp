@@ -229,7 +229,8 @@ namespace {
             .access_address = 0xffffffff,
             .crc_init       = 0xffffff,
             .t_ifs          = delta_time::usec( 148 ),
-            .crc_errors     = 0x0f };
+            .crc_errors     = 0x0f,
+            .repeat         = 0xffffffff };
     }
 
     struct fixture
@@ -1198,4 +1199,217 @@ BOOST_FIXTURE_TEST_CASE( every_program_starts_at_1_mbit, fixture )
     BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
     BOOST_CHECK( platform.receives[ 0 ].phy == phy::le_2m_phy );
     BOOST_CHECK( platform.receives[ 1 ].phy == phy::le_1m_phy );
+}
+
+namespace {
+
+    // a connection event as the host loads it, run `times` times
+    template < typename Remote >
+    bool add_repeated_event( Remote& remote, std::uint32_t channel, delta_time delay, std::uint32_t times )
+    {
+        operation op = event_op( channel, delay );
+        op.repeat    = times;
+
+        return remote.template call< &rig_t::add_operation >( op )
+            && remote.template call< &rig_t::add_event_pdu >( pdu( empty_pdu ) );
+    }
+
+    // the tester's PDU on air at `sent`, the device's reply `delay` after its first bit; drained
+    // at once, since the radio tags an event with the operation running when it happened
+    void exchange( scripted_platform& platform, rig_t& rig, std::chrono::microseconds sent, bool crc_ok = true,
+        std::chrono::microseconds delay = 230us )
+    {
+        platform.push_transmitted( at( sent ), empty_pdu );
+        platform.push_received( at( sent + delay ), reply_pdu, crc_ok );
+        rig.run();
+    }
+}
+
+// each run is placed from the anchor of the run before, and the next operation waits for the last
+BOOST_FIXTURE_TEST_CASE( a_repeated_connection_event_runs_again_from_its_anchor_before_the_next_operation, fixture )
+{
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    BOOST_REQUIRE( add_repeated_event( remote, 5, delta_time::msec( 10 ), 3 ) );
+    remote.call< &rig_t::add_operation >( listen( 38, 100ms ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    exchange( platform, rig, 15ms );
+    exchange( platform, rig, 25ms );
+    BOOST_CHECK( platform.receives.size() == 1u );
+
+    exchange( platform, rig, 35ms );
+
+    BOOST_REQUIRE_EQUAL( platform.connection_events.size(), 3u );
+    BOOST_CHECK( tester_duration( platform.connection_events[ 0 ].at ) == 15ms );
+    BOOST_CHECK( tester_duration( platform.connection_events[ 1 ].at ) == 25ms );
+    BOOST_CHECK( tester_duration( platform.connection_events[ 2 ].at ) == 35ms );
+    BOOST_REQUIRE_EQUAL( platform.receives.size(), 2u );
+    BOOST_CHECK_EQUAL( platform.receives[ 1 ].channel, 38u );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+}
+
+// the first run is captured like an event that runs once; the rest is in the numbers
+BOOST_FIXTURE_TEST_CASE( the_first_run_of_a_repeated_connection_event_is_captured_and_the_rest_counted, fixture )
+{
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    BOOST_REQUIRE( add_repeated_event( remote, 5, delta_time::msec( 10 ), 3 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    exchange( platform, rig, 15ms );
+    exchange( platform, rig, 25ms );
+    exchange( platform, rig, 35ms );
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+
+    const std::vector< captured_pdu > captured = collect_all();
+
+    BOOST_REQUIRE_EQUAL( captured.size(), 3u );
+    BOOST_CHECK( captured[ 1 ].direction == pdu_direction::transmitted );
+    BOOST_CHECK( time_of( captured[ 1 ].when ) == 15ms );
+    BOOST_CHECK( captured[ 2 ].direction == pdu_direction::received );
+
+    const tester_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( summary.events, 3u );
+    BOOST_CHECK_EQUAL( summary.replies, 3u );
+    BOOST_CHECK_EQUAL( summary.crc_errors, 0u );
+    BOOST_CHECK_EQUAL( summary.unanswered, 0u );
+    BOOST_CHECK( tester_duration( summary.reply_delay_min ) == 230us );
+    BOOST_CHECK( tester_duration( summary.reply_delay_max ) == 230us );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_summary_keeps_the_extremes_of_the_reply_delay, fixture )
+{
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    BOOST_REQUIRE( add_repeated_event( remote, 5, delta_time::msec( 10 ), 3 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    exchange( platform, rig, 15ms, true, 231us );
+    exchange( platform, rig, 25ms, true, 229us );
+    exchange( platform, rig, 35ms, true, 230us );
+
+    const tester_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK( tester_duration( summary.reply_delay_min ) == 229us );
+    BOOST_CHECK( tester_duration( summary.reply_delay_max ) == 231us );
+}
+
+// a reply with an invalid CRC ends the run like any reply, but counts on its own and is not timed
+BOOST_FIXTURE_TEST_CASE( a_reply_with_a_crc_error_is_counted_as_such, fixture )
+{
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    BOOST_REQUIRE( add_repeated_event( remote, 5, delta_time::msec( 10 ), 2 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    exchange( platform, rig, 15ms, false );
+    exchange( platform, rig, 25ms );
+
+    const tester_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( summary.events, 2u );
+    BOOST_CHECK_EQUAL( summary.replies, 1u );
+    BOOST_CHECK_EQUAL( summary.crc_errors, 1u );
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+}
+
+// a run whose reply does not come ends with its window, is counted, and the next run follows
+BOOST_FIXTURE_TEST_CASE( a_run_without_its_reply_is_counted_as_unanswered_and_the_next_run_follows, fixture )
+{
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    BOOST_REQUIRE( add_repeated_event( remote, 5, delta_time::msec( 10 ), 2 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+
+    platform.push_transmitted( at( 15ms ), empty_pdu );
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_REQUIRE_EQUAL( platform.connection_events.size(), 2u );
+    BOOST_CHECK( tester_duration( platform.connection_events[ 1 ].at ) == 25ms );
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::timed_out_operation >(), no_operation_timed_out );
+
+    const tester_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( summary.events, 2u );
+    BOOST_CHECK_EQUAL( summary.replies, 0u );
+    BOOST_CHECK_EQUAL( summary.unanswered, 1u );
+}
+
+// only a connection event repeats: a listen with a repeat runs once
+BOOST_FIXTURE_TEST_CASE( an_operation_that_is_not_a_connection_event_runs_once_whatever_its_repeat, fixture )
+{
+    operation listening = listen( 37, 100ms );
+    listening.repeat    = 3;
+
+    remote.call< &rig_t::add_operation >( listening );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_window_ended();
+    rig.run();
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+    BOOST_CHECK_EQUAL( platform.receives.size(), 1u );
+}
+
+BOOST_FIXTURE_TEST_CASE( an_operation_that_runs_no_times_is_refused, fixture )
+{
+    operation none = listen( 37, 100ms );
+    none.repeat    = 0;
+
+    BOOST_CHECK( !remote.call< &rig_t::add_operation >( none ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_summary_starts_afresh_with_the_program, fixture )
+{
+    remote.call< &rig_t::add_operation >( receive( 37, 1, time_out{ 300ms } ) );
+    BOOST_REQUIRE( add_repeated_event( remote, 5, delta_time::msec( 10 ), 1 ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    platform.push_received( at( 5ms ), adv_ind, true );
+    rig.run();
+    exchange( platform, rig, 15ms );
+
+    BOOST_REQUIRE( remote.call< &rig_t::program_finished >() );
+    BOOST_REQUIRE_EQUAL( remote.call< &rig_t::collect_summary >().events, 1u );
+
+    remote.call< &rig_t::add_operation >( listen( 37, 100ms ) );
+    BOOST_REQUIRE( remote.call< &rig_t::start_program >() );
+
+    BOOST_CHECK( remote.call< &rig_t::collect_summary >() == tester_summary() );
+}
+
+BOOST_AUTO_TEST_CASE( a_tester_summary_round_trips )
+{
+    const tester_summary sent{
+        .events          = 6000,
+        .replies         = 5998,
+        .crc_errors      = 1,
+        .unanswered      = 1,
+        .reply_delay_min = 3679,
+        .reply_delay_max = 3681 };
+
+    std::array< std::uint8_t, 64 > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, sent ) );
+
+    buffer_source  in( storage.data(), out.size() );
+    tester_summary decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded == sent );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
 }

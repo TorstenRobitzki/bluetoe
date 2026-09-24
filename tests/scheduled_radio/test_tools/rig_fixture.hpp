@@ -97,7 +97,7 @@ namespace test_rig {
         {
             for ( const step& s : steps )
             {
-                BOOST_REQUIRE( device.call< &dut::add_step >( s.on ) );
+                BOOST_REQUIRE( device.call< &dut::add_step >( s.on, s.repeat ) );
 
                 for ( const call& c : s.calls )
                     BOOST_REQUIRE( device.call< &dut::add_call >( c ) );
@@ -117,28 +117,61 @@ namespace test_rig {
 
         /**
          * @brief start the tester, then the device, and wait until both finished
+         *
+         * `time_limit` is the longest the programs may take; a soak test passes its own.
          */
-        void run()
+        void run( std::chrono::seconds time_limit = program_time_limit )
+        {
+            start_programs();
+            wait_for_programs( time_limit );
+            require_programs_finished( time_limit );
+        }
+
+        void start_programs()
         {
             BOOST_REQUIRE( observer.call< &tester::start_program >() );
             device.call< &dut::start_program >();
+        }
 
-            const auto deadline = std::chrono::steady_clock::now() + program_time_limit;
+        bool programs_finished()
+        {
+            return device.call< &dut::program_finished >() && observer.call< &tester::program_finished >();
+        }
 
-            while ( std::chrono::steady_clock::now() < deadline
-                && !( device.call< &dut::program_finished >() && observer.call< &tester::program_finished >() ) )
-            {
+        void wait_for_programs( std::chrono::seconds time_limit )
+        {
+            const auto deadline = std::chrono::steady_clock::now() + time_limit;
+
+            while ( std::chrono::steady_clock::now() < deadline && !programs_finished() )
                 std::this_thread::sleep_for( poll_interval );
-            }
+        }
 
+        void require_programs_finished( std::chrono::seconds time_limit )
+        {
             // a tester operation that timed out is the likelier cause of a device program that did not finish
             const std::uint8_t timed_out = observer.call< &tester::timed_out_operation >();
             BOOST_REQUIRE_MESSAGE( timed_out == no_operation_timed_out, "tester operation " << int( timed_out ) << " timed out" );
 
             BOOST_REQUIRE_MESSAGE( device.call< &dut::program_finished >(),
-                "the device's program did not finish within " << program_time_limit.count() << " s" );
+                "the device's program did not finish within " << time_limit.count() << " s" );
             BOOST_REQUIRE_MESSAGE( observer.call< &tester::program_finished >(),
-                "the tester's program did not finish within " << program_time_limit.count() << " s" );
+                "the tester's program did not finish within " << time_limit.count() << " s" );
+        }
+
+        /**
+         * @brief what the device's program did in numbers; see program_summary
+         */
+        program_summary device_summary()
+        {
+            return device.call< &dut::collect_summary >();
+        }
+
+        /**
+         * @brief what the tester's connection events did in numbers; see tester_summary
+         */
+        tester_summary observer_summary()
+        {
+            return observer.call< &tester::collect_summary >();
         }
 
         std::vector< record > device_records()

@@ -110,6 +110,11 @@ namespace test_rig {
      * PDUs with a valid CRC that passed the tester's filters. An operation whose window
      * ends before its count was reached, or before an answer heard its target, times out
      * and ends the program.
+     *
+     * A connection_event runs `repeat` times before the next operation begins, each run
+     * placed `delay` after the anchor of the one before, the first run captured and the
+     * rest counted in the tester's summary; every other kind runs once whatever `repeat`
+     * says. Zero is refused.
      */
     struct operation
     {
@@ -127,6 +132,7 @@ namespace test_rig {
         std::uint8_t                                    pdu_count       = 0;
         link_layer::delta_time                          t_ifs           = {};
         std::uint8_t                                    crc_errors      = 0;
+        std::uint32_t                                   repeat          = 1;
 
         friend bool operator==( const operation&, const operation& ) = default;
     };
@@ -168,6 +174,29 @@ namespace test_rig {
     };
 
     /**
+     * @brief what the connection events of a program did, in numbers, since it was started
+     *
+     * A connection event that runs many times would flood the captured PDUs, so the tester
+     * counts instead: the connection events begun, the replies to their PDUs with a valid
+     * CRC and those with an invalid one, and the events whose window ended with a reply
+     * missing. Of every reply with a valid CRC, the time from the first bit of the PDU it
+     * answers to its own first bit, in the tester's ticks, as the smallest and the largest:
+     * the inter frame space the device keeps, plus the PDU's time on air, which the host
+     * knows.
+     */
+    struct tester_summary
+    {
+        std::uint32_t   events          = 0;
+        std::uint32_t   replies         = 0;
+        std::uint32_t   crc_errors      = 0;
+        std::uint32_t   unanswered      = 0;
+        std::uint32_t   reply_delay_min = 0;
+        std::uint32_t   reply_delay_max = 0;
+
+        friend bool operator==( const tester_summary&, const tester_summary& ) = default;
+    };
+
+    /**
      * @brief captured PDUs a response carries; one, since a PDU of the largest payload is most
      *        of a frame
      */
@@ -205,7 +234,8 @@ namespace test_rig {
             value.access_address,
             value.crc_init,
             value.t_ifs,
-            value.crc_errors ) );
+            value.crc_errors,
+            value.repeat ) );
     }
 
     template < source Source >
@@ -223,7 +253,24 @@ namespace test_rig {
             value.access_address,
             value.crc_init,
             value.t_ifs,
-            value.crc_errors );
+            value.crc_errors,
+            value.repeat );
+
+        return deserialize( in, fields );
+    }
+
+    template < sink Sink >
+    bool serialize( Sink& out, const tester_summary& value )
+    {
+        return serialize( out, std::tie(
+            value.events, value.replies, value.crc_errors, value.unanswered, value.reply_delay_min, value.reply_delay_max ) );
+    }
+
+    template < source Source >
+    bool deserialize( Source& in, tester_summary& value )
+    {
+        auto fields = std::tie(
+            value.events, value.replies, value.crc_errors, value.unanswered, value.reply_delay_min, value.reply_delay_max );
 
         return deserialize( in, fields );
     }

@@ -44,6 +44,14 @@ namespace test_rig {
      * @throws rig_error the variable is set to something outside a receiver's range
      */
     std::optional< std::uint8_t > tester_rssi_limit();
+
+    /**
+     * @brief BLUETOE_SOAK_SECONDS, how long a soak test keeps its connection; ten minutes
+     *        if not set
+     *
+     * @throws rig_error the variable is set to less than a second
+     */
+    std::chrono::seconds soak_duration();
 }
 }
 
