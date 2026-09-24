@@ -11,13 +11,13 @@ The device under test is named by an environment variable, so that the same buil
 any device and the only thing that changes is the port:
 
 ```bash
-BLUETOE_DUT=/dev/tty.usbmodem1234 ctest --test-dir build -L radio --output-on-failure
+BLUETOE_DUT=/dev/tty.usbmodem1234 ctest --test-dir build -L radio_tests --output-on-failure
 ```
 
 The tester, once it is wired to the device (see `../tester/README.md`), is named the same way:
 
 ```bash
-BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --test-dir build -L radio --output-on-failure
+BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --test-dir build -L radio_tests --output-on-failure
 ```
 
 Without `BLUETOE_TESTER` the tests that need the tester are skipped and reported as such; with it,
@@ -28,7 +28,7 @@ about one run of `radio_advertising_tests` in 20. Let ctest repeat a failed exec
 lost PDU does not fail the run; a real fault fails every attempt:
 
 ```bash
-BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --test-dir build -L radio --output-on-failure --repeat until-pass:3
+BLUETOE_DUT=/dev/tty.usbmodem1234 BLUETOE_TESTER=/dev/tty.usbmodem5678 ctest --test-dir build -L radio_tests --output-on-failure --repeat until-pass:3
 ```
 
 `BLUETOE_TESTER_MIN_RSSI` is the weakest signal the tester keeps, in dBm, for example `-40`. The
@@ -42,7 +42,8 @@ every PDU.
 is answered from inside the device's dispatcher, so it has to cover a point multiplication on the
 device.
 
-Without a device, run everything else with `ctest -LE radio`, as the CI does.
+Without a device, run everything else with `ctest -L unit_tests`, as the CI does. The build target
+`radio_tests` builds the radio tests alone, `unit_tests` the rest.
 
 ## What each file covers
 

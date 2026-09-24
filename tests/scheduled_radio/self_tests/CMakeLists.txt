@@ -5,6 +5,8 @@ function(add_scheduled_radio_test test_runner)
     target_link_libraries(${test_runner} PRIVATE bluetoe::iface bluetoe::sm bluetoe::utility scheduled_radio::link scheduled_radio::host)
 
     add_test(${test_runner} ./${test_runner})
+    set_tests_properties(${test_runner} PROPERTIES LABELS unit_tests)
+    add_dependencies(unit_tests ${test_runner})
 endfunction()
 
 add_scheduled_radio_test(concept_tests)

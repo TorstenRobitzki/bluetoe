@@ -98,7 +98,7 @@ concepts, checked where a rig is instantiated and tested against models in
 | `host/` | the host's side: the proxy and the transports, the program builders, the central model, and the dummies the host instantiates the rigs with to obtain their function lists |
 | `test_tools/` | what the radio tests are written with: the connections to the instruments, the fixture, the environment variables, the timeline and record matchers |
 | `self_tests/` | the instruments testing themselves, on the host, run by `ctest`; see its README |
-| `radio_tests/` | the tests of a radio implementation, against a device, run on demand with `ctest -L radio`; see its README |
+| `radio_tests/` | the tests of a radio implementation, against a device, run on demand with `ctest -L radio_tests`; see its README |
 | `dut_rigs/` | the firmware of the devices under test, one per platform and radio configuration; see its README |
 | `tester/` | the tester's firmware, one board; see its README |
 | `nrf52/` | the UART port the nRF52 rigs and the tester share |
@@ -111,11 +111,11 @@ fill in the radio and the names, and give the platform a port that satisfies `se
 instantiated, so a missing requirement is a compile error that names it. The board's reset input
 has to act as one; on the nRF52 that is `PSELRESET` in the UICR, which `platforms/` programs. Then:
 
-1. `ctest -LE radio`: the self tests, which need no hardware, prove the rig and the link.
-2. `BLUETOE_DUT=<port> ctest -L radio`: the tests that need only the device, today the pairing
+1. `ctest -L unit_tests`: the self tests, which need no hardware, prove the rig and the link.
+2. `BLUETOE_DUT=<port> ctest -L radio_tests`: the tests that need only the device, today the pairing
    toolbox.
 3. With the tester wired to the device (`tester/README.md`):
-   `BLUETOE_DUT=<port> BLUETOE_TESTER=<port> ctest -L radio --repeat until-pass:3`, everything.
+   `BLUETOE_DUT=<port> BLUETOE_TESTER=<port> ctest -L radio_tests --repeat until-pass:3`, everything.
 
 A test that needs what the radio may lack is skipped and reported as such, not failed: the pairing
 toolbox and the 2 Mbit PHY are read from the radio's properties (`dut_supports`), the tester from

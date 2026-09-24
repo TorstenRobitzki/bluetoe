@@ -55,7 +55,7 @@ jobs:
               run: cmake --build build --parallel -- -k 0
 
             - name: Test
-              run: ctest --test-dir build --parallel 4 --output-on-failure --label-exclude radio
+              run: ctest --test-dir build --parallel 4 --output-on-failure -L unit_tests
 
     examples:
         name: nRF52 examples, code size
