@@ -43,6 +43,7 @@ namespace bluetoe
             struct radio_option_meta_type : ::bluetoe::details::binding_option_meta_type {};
             struct sleep_clock_source_meta_type : radio_option_meta_type {};
             struct hfxo_startup_time_meta_type : radio_option_meta_type {};
+            struct clock_statistics_meta_type : radio_option_meta_type {};
         }
 
         /**
@@ -136,6 +137,25 @@ namespace bluetoe
          * @sa bluetoe::nrf::high_frequency_crystal_oscillator_startup_time
          */
         using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 400 >;
+
+        /**
+         * @brief count what the radio does with its clocks, for a test to read
+         *
+         * The radio counts how often it started the high frequency crystal, how many periods
+         * of the sleep clock the crystal ran in all, and how often it calibrated the RC sleep
+         * clock, and hands the counts out through its clock_statistics(). A firmware has no
+         * use for them; the test rigs of the radio have, for a run that has to show the
+         * crystal off between events and the calibration at its pace. Costs a few words of
+         * RAM and a few instructions at every start and stop of the crystal.
+         *
+         * @sa bluetoe::nrf52_details::radio_base_t::clock_statistics
+         */
+        struct clock_statistics
+        {
+            /** @cond HIDDEN_SYMBOLS */
+            using meta_type = nrf_details::clock_statistics_meta_type;
+            /** @endcond */
+        };
 
     }
 

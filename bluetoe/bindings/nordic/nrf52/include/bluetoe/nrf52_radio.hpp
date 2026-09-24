@@ -39,6 +39,13 @@
  * the CCM, the interrupts, TIMER0 and the time outside run() show on seven pins for a
  * logic analyser; nrf52_trace.hpp says which.
  *
+ * @section statistics Counting the clocks
+ *
+ * With bluetoe::nrf::clock_statistics the radio counts the starts of the high frequency
+ * crystal, its running time in periods of the sleep clock and the calibrations of the RC
+ * sleep clock, and hands them out through clock_statistics(): what the soak test of the
+ * radio reads to see the crystal off between events. Nothing without the option.
+ *
  * @section events What the radio reports and when
  *
  * An advertising event transmits with its first bit on air at the requested time, then
@@ -159,7 +166,38 @@ namespace bluetoe
             bool            encrypting;
             sleep_clock     source;
             std::uint32_t   hfxo_startup_us;
+            bool            statistics;
         };
+
+        /**
+         * @brief the counts of bluetoe::nrf::clock_statistics, since the radio started
+         *
+         * The starts of the high frequency crystal and its running time in periods of the
+         * sleep clock, 30.52 µs each, and the calibrations of the RC sleep clock.
+         */
+        struct clock_statistics_t
+        {
+            std::uint32_t   crystal_starts;
+            std::uint32_t   crystal_ticks;
+            std::uint32_t   calibrations;
+        };
+
+        /*
+         * The counters behind the statistics, and their absence: an empty member costs
+         * nothing in a radio without the option. Written from interrupts and read from run().
+         * A start while the crystal runs, a placed event's while a calibration keeps it on,
+         * is no start: the period goes on until the stop.
+         */
+        struct clock_counters
+        {
+            volatile std::uint32_t  crystal_starts  = 0;
+            volatile std::uint32_t  crystal_ticks   = 0;
+            volatile std::uint32_t  calibrations    = 0;
+            std::uint32_t           started_tick    = 0;
+            bool                    crystal_on      = false;
+        };
+
+        struct no_clock_counters {};
 
         /**
          * @brief the hardware and its state; radio adds what the options decide
@@ -188,6 +226,15 @@ namespace bluetoe
             static void rtc_interrupt();
             static void clock_interrupt();
             static void ccm_interrupt();
+
+            /**
+             * @brief the counts of bluetoe::nrf::clock_statistics, since the radio started
+             *
+             * Written from the interrupts and read here without a lock, so a count can be a
+             * start or a stop ahead of another for the moment of the read. Only a radio built
+             * with the option has it.
+             */
+            clock_statistics_t clock_statistics() const requires ( Configuration.statistics );
 
         protected:
             /**
@@ -318,6 +365,8 @@ namespace bluetoe
             void release_clocks();
             void stop_crystal();
             void stop_crystal_unless_needed();
+            void note_crystal_started( std::uint32_t tick );
+            void note_calibration();
             void on_clock_event();
             void on_rtc_event();
 
@@ -378,6 +427,8 @@ namespace bluetoe
             volatile bool               calibrating_;
             volatile bool               first_calibration_;
             std::int32_t                last_temperature_;
+
+            [[no_unique_address]] std::conditional_t< Configuration.statistics, clock_counters, no_clock_counters > counters_;
 
             /*
              * Set before an event and read by the receive interrupt: the address a scan or
@@ -499,7 +550,8 @@ namespace bluetoe
             return radio_configuration{
                 .encrypting      = ( std::is_same_v< Options, encrypting > || ... ),
                 .source          = sleep_clock_of< source >(),
-                .hfxo_startup_us = startup::value };
+                .hfxo_startup_us = startup::value,
+                .statistics      = ( std::is_same_v< Options, nrf::clock_statistics > || ... ) };
         }
 
         /**
@@ -513,7 +565,7 @@ namespace bluetoe
         class radio : public radio_base_t< CallBacks, configuration_of< Options... >() >, public security_tool_box
         {
             static_assert( ( nrf_radio_option< Options > && ... ),
-                "the nRF52 scheduled radio knows the options encrypting, a sleep clock source and the crystal's startup time only" );
+                "the nRF52 scheduled radio knows the options encrypting, a sleep clock source, the crystal's startup time and clock_statistics only" );
             static_assert( details::count_by_meta_type< nrf::nrf_details::sleep_clock_source_meta_type, Options... >::count <= 1,
                 "more than one sleep clock source given to the nRF52 scheduled radio" );
             static_assert( details::count_by_meta_type< nrf::nrf_details::hfxo_startup_time_meta_type, Options... >::count <= 1,
