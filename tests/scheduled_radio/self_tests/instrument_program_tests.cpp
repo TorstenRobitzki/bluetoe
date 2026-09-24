@@ -174,7 +174,7 @@ namespace {
         {
             for ( const step& s : steps )
             {
-                BOOST_REQUIRE( remote.call< &rig_t::add_step >( s.on ) );
+                BOOST_REQUIRE( remote.call< &rig_t::add_step >( s.on, s.repeat ) );
 
                 for ( const call& c : s.calls )
                     BOOST_REQUIRE( remote.call< &rig_t::add_call >( c ) );
@@ -421,19 +421,24 @@ BOOST_FIXTURE_TEST_CASE( a_full_queue_drops_the_newest_and_counts_them, fixture 
 BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_step, fixture )
 {
     for ( std::size_t i = 0; i != max_steps; ++i )
-        BOOST_CHECK( remote.call< &rig_t::add_step >( callback_kind::adv_timeout ) );
+        BOOST_CHECK( remote.call< &rig_t::add_step >( callback_kind::adv_timeout, 1 ) );
 
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::adv_timeout ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::adv_timeout, 1 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_step_on_radio_ready_is_refused, fixture )
 {
-    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::radio_ready ) );
+    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::radio_ready, 1 ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_step_that_runs_no_times_is_refused, fixture )
+{
+    BOOST_CHECK( !remote.call< &rig_t::add_step >( callback_kind::adv_timeout, 0 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_timed_call_on_start_is_refused, fixture )
 {
-    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start, 1 ) );
 
     BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_advertising_event( 37, 1ms, adv_ind ) ) );
     BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_timer( 1ms ) ) );
@@ -448,13 +453,13 @@ BOOST_FIXTURE_TEST_CASE( a_call_without_a_step_is_refused, fixture )
 // the steps share the calls: one step may use all of them
 BOOST_FIXTURE_TEST_CASE( a_full_program_refuses_another_call, fixture )
 {
-    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::adv_timeout ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::adv_timeout, 1 ) );
 
     for ( std::size_t i = 0; i != max_calls; ++i )
         BOOST_CHECK( remote.call< &rig_t::add_call >( cancel_radio_event() ) );
 
     BOOST_CHECK( !remote.call< &rig_t::add_call >( cancel_radio_event() ) );
-    BOOST_CHECK( remote.call< &rig_t::add_step >( callback_kind::user_timer ) );
+    BOOST_CHECK( remote.call< &rig_t::add_step >( callback_kind::user_timer, 1 ) );
     BOOST_CHECK( !remote.call< &rig_t::add_call >( cancel_radio_event() ) );
 }
 
@@ -567,7 +572,7 @@ BOOST_FIXTURE_TEST_CASE( a_connection_event_is_placed_relative_to_the_callback, 
 
 BOOST_FIXTURE_TEST_CASE( a_connection_event_on_start_is_refused, fixture )
 {
-    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start ) );
+    BOOST_REQUIRE( remote.call< &rig_t::add_step >( callback_kind::start, 1 ) );
     BOOST_CHECK( !remote.call< &rig_t::add_call >( schedule_connection_event( 5, 10ms, 12ms ) ) );
 }
 
@@ -844,4 +849,295 @@ BOOST_AUTO_TEST_CASE( a_full_record_batch_and_a_full_received_batch_fit_into_one
 
     buffer_sink received_out( response );
     BOOST_CHECK( serialize( received_out, received ) );
+}
+
+/*
+ * A step that runs many times: on each callback of its kind its calls are made anew, placed
+ * from that callback, and only when it ran as often as it says does the next step wait.
+ */
+BOOST_FIXTURE_TEST_CASE( a_repeated_step_runs_on_each_of_its_callbacks_before_the_next_step_waits, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start, start_advertising_event( 37, adv_ind ) ),
+        repeated( 3, on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) ),
+        on( callback_kind::adv_timeout, schedule_timer( 2ms ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.adv_timeout( abs_time( 20000 ) );
+    rig.adv_timeout( abs_time( 30000 ) );
+    BOOST_CHECK( !remote.call< &rig_t::program_finished >() );
+
+    rig.adv_timeout( abs_time( 40000 ) );
+
+    BOOST_REQUIRE_EQUAL( radio.calls.size(), 5u );
+    BOOST_CHECK( radio.calls[ 1 ].kind == call_kind::schedule_advertising_event );
+    BOOST_CHECK_EQUAL( radio.calls[ 1 ].when.data(), 11000u );
+    BOOST_CHECK( radio.calls[ 3 ].kind == call_kind::schedule_advertising_event );
+    BOOST_CHECK_EQUAL( radio.calls[ 3 ].when.data(), 31000u );
+    BOOST_CHECK( radio.calls[ 4 ].kind == call_kind::schedule_timer );
+    BOOST_CHECK_EQUAL( radio.calls[ 4 ].when.data(), 42000u );
+}
+
+// the first run is on record, callback and call; the later ones are only in the numbers
+BOOST_FIXTURE_TEST_CASE( a_repeated_step_is_recorded_once_and_counted_from_then_on, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start, start_advertising_event( 37, adv_ind ) ),
+        repeated( 3, on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.adv_timeout( abs_time( 20000 ) );
+    rig.adv_timeout( abs_time( 30000 ) );
+
+    const auto records = collect_all();
+
+    BOOST_REQUIRE_EQUAL( records.size(), 3u );
+    BOOST_CHECK( records[ 0 ].call == call_kind::start_advertising_event );
+    BOOST_CHECK( records[ 1 ].callback == callback_kind::adv_timeout );
+    BOOST_CHECK_EQUAL( records[ 1 ].when.data(), 10000u );
+    BOOST_CHECK( records[ 2 ].call == call_kind::schedule_advertising_event );
+
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( count_of( summary, callback_kind::adv_timeout ), 3u );
+    BOOST_CHECK_EQUAL( count_of( summary, callback_kind::start ), 0u );
+    BOOST_CHECK_EQUAL( summary.calls, 4u );
+    BOOST_CHECK_EQUAL( summary.refused_calls, 0u );
+}
+
+// a callback the repeated step does not wait for is not one of its runs
+BOOST_FIXTURE_TEST_CASE( another_callback_during_a_repeated_step_is_recorded_and_counted, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start, start_advertising_event( 37, adv_ind ) ),
+        repeated( 2, on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ) ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.user_timer( abs_time( 15000 ) );
+    rig.adv_timeout( abs_time( 20000 ) );
+
+    const auto records = collect_all();
+
+    BOOST_REQUIRE_EQUAL( records.size(), 4u );
+    BOOST_CHECK( records[ 3 ].callback == callback_kind::user_timer );
+
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( count_of( summary, callback_kind::user_timer ), 1u );
+    BOOST_CHECK_EQUAL( count_of( summary, callback_kind::adv_timeout ), 2u );
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() || radio.calls.size() == 3u );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_summary_counts_the_calls_the_radio_refused, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start, start_advertising_event( 37, adv_ind ), set_local_address( device_address{} ) ),
+        on( callback_kind::adv_timeout, schedule_advertising_event( 37, 1ms, adv_ind ), cancel_timer() ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    radio.answer = false;
+    rig.adv_timeout( abs_time( 10000 ) );
+
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    // a setup call and a start cannot be refused; the schedule and the cancel were
+    BOOST_CHECK_EQUAL( summary.calls, 4u );
+    BOOST_CHECK_EQUAL( summary.refused_calls, 2u );
+}
+
+/*
+ * The anchor error is the anchor the end event carries minus the centre of the window the step
+ * asked for, of the events placed from an anchor: the sleep clock's drift over the interval
+ * and the placement. The first event, placed from the advertising, has no anchor before it.
+ */
+BOOST_FIXTURE_TEST_CASE( the_summary_has_the_anchor_errors_of_the_connection_events, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ),
+        repeated( 2, on( callback_kind::connection_end_event, schedule_connection_event( 5, 9750us, 10250us ) ) ),
+        on( callback_kind::connection_end_event ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    // from the advertising, not measured; then centred on 30005, seen 15 µs early; then on 39990, seen 310 µs late
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.connection_end_event( abs_time( 20005 ), {} );
+    rig.connection_end_event( abs_time( 29990 ), {} );
+    rig.connection_end_event( abs_time( 40300 ), {} );
+
+    BOOST_CHECK( remote.call< &rig_t::program_finished >() );
+
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( summary.anchors, 2u );
+    BOOST_CHECK_EQUAL( summary.anchor_error_min, -15 );
+    BOOST_CHECK_EQUAL( summary.anchor_error_max, 310 );
+    BOOST_CHECK_EQUAL( summary.anchor_errors[ 0 ], 0u );
+    BOOST_CHECK_EQUAL( summary.anchor_errors[ 1 ], 1u );
+    BOOST_CHECK_EQUAL( summary.anchor_errors[ 2 ], 0u );
+    BOOST_CHECK_EQUAL( summary.anchor_errors[ 3 ], 0u );
+    BOOST_CHECK_EQUAL( summary.anchor_errors[ 4 ], 1u );
+}
+
+// abs_time is a ring: an anchor just past the wrap is still a small error
+BOOST_FIXTURE_TEST_CASE( an_anchor_error_across_the_wrap_of_the_time_is_small, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,                start_advertising_event( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout,          schedule_connection_event( 5, 10ms, 12ms ) ),
+        on( callback_kind::connection_end_event, schedule_connection_event( 5, 9750us, 10250us ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 0xffffffff - 20000 ) );
+    rig.connection_end_event( abs_time( 0xffffffff - 5000 ), {} );
+    rig.connection_end_event( abs_time( 4997 ), {} );
+
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( summary.anchors, 1u );
+    BOOST_CHECK_EQUAL( summary.anchor_error_min, -2 );
+    BOOST_CHECK_EQUAL( summary.anchor_error_max, -2 );
+}
+
+// nothing was received, so there is no anchor to compare; the timeout is counted
+BOOST_FIXTURE_TEST_CASE( a_connection_timeout_is_counted_and_has_no_anchor, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.connection_timeout( abs_time( 22000 ) );
+
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( count_of( summary, callback_kind::connection_timeout ), 1u );
+    BOOST_CHECK_EQUAL( summary.anchors, 0u );
+}
+
+// an end event the program did not schedule for, a cancelled event's for example, has no error
+BOOST_FIXTURE_TEST_CASE( a_cancelled_connection_event_has_no_anchor, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,                start_advertising_event( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout,          schedule_connection_event( 5, 10ms, 12ms ) ),
+        on( callback_kind::connection_end_event, schedule_connection_event( 5, 10ms, 12ms ), cancel_radio_event() ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.connection_end_event( abs_time( 20000 ), {} );
+    rig.connection_end_event( abs_time( 30000 ), {} );
+
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_summary >().anchors, 0u );
+}
+
+// the first event is placed from the advertising: nothing to measure its anchor against
+BOOST_FIXTURE_TEST_CASE( a_connection_event_placed_from_the_advertising_has_no_anchor_error, fixture )
+{
+    const step program[] = {
+        on( callback_kind::start,       start_advertising_event( 37, adv_ind ) ),
+        on( callback_kind::adv_timeout, schedule_connection_event( 5, 10ms, 12ms ) ) };
+    load( program );
+    remote.call< &rig_t::start_program >();
+
+    rig.adv_timeout( abs_time( 10000 ) );
+    rig.connection_end_event( abs_time( 20500 ), {} );
+
+    BOOST_CHECK_EQUAL( remote.call< &rig_t::collect_summary >().anchors, 0u );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_summary_starts_afresh_with_the_program, fixture )
+{
+    rig.radio_ready();
+    rig.user_timer( abs_time( 1 ) );
+
+    BOOST_CHECK_EQUAL( count_of( remote.call< &rig_t::collect_summary >(), callback_kind::radio_ready ), 1u );
+    BOOST_CHECK_EQUAL( count_of( remote.call< &rig_t::collect_summary >(), callback_kind::user_timer ), 1u );
+
+    load( {} );
+    remote.call< &rig_t::start_program >();
+
+    BOOST_CHECK( remote.call< &rig_t::collect_summary >() == program_summary() );
+}
+
+// the host has no radio with statistics, so the summary reports none
+BOOST_FIXTURE_TEST_CASE( a_radio_without_clock_statistics_reports_zeros, fixture )
+{
+    const program_summary summary = remote.call< &rig_t::collect_summary >();
+
+    BOOST_CHECK_EQUAL( summary.crystal_starts, 0u );
+    BOOST_CHECK_EQUAL( summary.crystal_ticks, 0u );
+    BOOST_CHECK_EQUAL( summary.calibrations, 0u );
+}
+
+namespace {
+
+    struct clock_statistics_t
+    {
+        std::uint32_t crystal_starts;
+        std::uint32_t crystal_ticks;
+        std::uint32_t calibrations;
+    };
+
+    // a radio that keeps the clock statistics the nRF52 radio keeps when asked to
+    template < typename CallBacks >
+    class radio_with_statistics : public scripted_radio< CallBacks >
+    {
+    public:
+        clock_statistics_t clock_statistics() const
+        {
+            return { 12, 3456, 7 };
+        }
+    };
+
+    using rig_with_statistics = dut_rig< radio_with_statistics, observed_port >;
+}
+
+BOOST_AUTO_TEST_CASE( the_clock_statistics_of_the_radio_are_in_the_summary )
+{
+    rig_with_statistics rig( "radio with clock statistics", "unit test build" );
+
+    const program_summary summary = rig.collect_summary();
+
+    BOOST_CHECK_EQUAL( summary.crystal_starts, 12u );
+    BOOST_CHECK_EQUAL( summary.crystal_ticks, 3456u );
+    BOOST_CHECK_EQUAL( summary.calibrations, 7u );
+}
+
+BOOST_AUTO_TEST_CASE( a_summary_round_trips_with_its_signed_errors )
+{
+    program_summary sent;
+    sent.callbacks[ 6 ]     = 6000;
+    sent.calls              = 12001;
+    sent.refused_calls      = 1;
+    sent.anchors            = 5999;
+    sent.anchor_error_min   = -47;
+    sent.anchor_error_max   = 12;
+    sent.anchor_errors[ 1 ] = 5999;
+    sent.crystal_starts     = 6010;
+    sent.crystal_ticks      = 0x80000001;
+    sent.calibrations       = 150;
+
+    std::array< std::uint8_t, default_max_payload - 1 > storage = {};
+    buffer_sink out( storage );
+    BOOST_REQUIRE( serialize( out, sent ) );
+
+    buffer_source   in( storage.data(), out.size() );
+    program_summary decoded;
+    BOOST_REQUIRE( deserialize( in, decoded ) );
+
+    BOOST_CHECK( decoded == sent );
+    BOOST_CHECK_EQUAL( in.remaining(), 0u );
 }

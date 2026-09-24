@@ -68,7 +68,8 @@ namespace test_rig {
     };
 
     /**
-     * @brief a step of a device program: the callback it waits for and the calls it makes then
+     * @brief a step of a device program: the callback it waits for, the calls it makes then,
+     *        and how often it runs; see repeated()
      *
      * The rig loads it as a step and one call after the other; the steps of a program share
      * max_calls calls.
@@ -77,6 +78,7 @@ namespace test_rig {
     {
         callback_kind       on;
         std::vector< call > calls;
+        std::uint32_t       repeat = 1;
     };
 
     /**
@@ -104,6 +106,21 @@ namespace test_rig {
     step on( callback_kind kind, Calls... calls )
     {
         return step{ .on = kind, .calls = { calls... } };
+    }
+
+    /**
+     * @brief `once` run `times` times: on that many consecutive callbacks of its kind, its
+     *        calls each time, the first run recorded and the rest counted in the summary
+     *
+     * @code
+     * repeated( 6000, on_connection_end_event( next_event( 5 ) ) )
+     * @endcode
+     */
+    inline step repeated( std::uint32_t times, step once )
+    {
+        once.repeat = times;
+
+        return once;
     }
 
     /**
@@ -357,6 +374,19 @@ namespace test_rig {
         result.crc_error = true;
 
         return result;
+    }
+
+    /**
+     * @brief `once` run `times` times: a connection event placed from the anchor of the run
+     *        before each time, the first run captured and the rest counted in the summary
+     *
+     * Only a connection event repeats; the tester runs every other operation once.
+     */
+    inline tester_step repeated( std::uint32_t times, tester_step once )
+    {
+        once.op.repeat = times;
+
+        return once;
     }
 
     /**

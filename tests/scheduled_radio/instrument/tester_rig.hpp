@@ -12,8 +12,10 @@
  * operation runs for the duration it names, until it received the PDUs it counts, or, for
  * an answer, until the reply to its answer arrived, and the next begins when it ends. An
  * operation that waits for PDUs that do not come within its window times out and ends the
- * program, since what follows it would wait in vain as well. The platform gives it the
- * radio, whose events, a received PDU or the end of a window, the tester drains in run().
+ * program, since what follows it would wait in vain as well. A connection event runs as
+ * often as it says before the next operation begins, its first run captured and the rest
+ * counted in the program's summary. The platform gives it the radio, whose events, a
+ * received PDU or the end of a window, the tester drains in run().
  *
  * The host instantiates the same template with dummies (host/tester_functions.hpp) to
  * obtain the function list the wire is keyed on, which is why no function of the list
@@ -46,7 +48,7 @@ namespace test_rig {
      * Counts the function lists a firmware was built with: changes whenever
      * tester_rig::functions changes after a tester was flashed with the current one.
      */
-    constexpr std::uint16_t tester_protocol_version = 2;
+    constexpr std::uint16_t tester_protocol_version = 3;
 
     /**
      * @brief PDUs the tester keeps until the host collects them
@@ -331,10 +333,13 @@ namespace test_rig {
          *
          * The tester is not reset between tests, so the first operation added after a
          * program ran to its end empties that program and begins a new one. Refused if
-         * the program is full.
+         * the program is full, or if the operation would run no times.
          */
         bool add_operation( const operation& next )
         {
+            if ( next.repeat == 0 )
+                return false;
+
             // the program and its result; where a run stands is start_program()'s to reset
             if ( program_finished() )
             {
@@ -391,10 +396,12 @@ namespace test_rig {
                 return false;
 
             cursor_        = 0;
+            runs_          = 0;
             started_       = true;
             has_reference_ = false;
             has_anchor_    = false;
             phy_           = link_layer::phy_ll_encoding::le_1m_phy;
+            summary_       = tester_summary();
 
             // a program's received PDUs are numbered from zero; unlike the device under
             // test the tester is not reset between tests, so start clears the queue
@@ -436,6 +443,17 @@ namespace test_rig {
         {
             return captured_.collect< captured_per_batch >();
         }
+
+        /**
+         * @brief what the program's connection events did in numbers, since it was
+         *        started; see tester_summary
+         *
+         * Unlike the captured PDUs, the summary stays: asking does not change it.
+         */
+        tester_summary collect_summary() const
+        {
+            return summary_;
+        }
         /** @} */
 
         using functions = function_list<
@@ -452,7 +470,8 @@ namespace test_rig {
             &tester_rig::start_program,
             &tester_rig::program_finished,
             &tester_rig::collect_captured,
-            &tester_rig::timed_out_operation >;
+            &tester_rig::timed_out_operation,
+            &tester_rig::collect_summary >;
 
     private:
         /*
@@ -472,6 +491,14 @@ namespace test_rig {
             }
         }
 
+        /*
+         * A later run of a connection event that runs many times is counted, not captured.
+         */
+        bool later_run( const tester_event& event ) const
+        {
+            return event.operation_id == operation_id_ && runs_ != 0;
+        }
+
         void on_received( const tester_event& event )
         {
             // a PDU dropped by a filter is not counted as one produced, since it was
@@ -483,16 +510,19 @@ namespace test_rig {
             if ( access_address_ == advertising_access_address && !in_acceptance_filter( event.data ) )
                 return;
 
-            captured_pdu entry;
-            entry.when   = event.when;
-            entry.crc_ok = event.crc_ok;
-            entry.rssi   = event.rssi;
-            entry.data   = event.data;
+            if ( !later_run( event ) )
+            {
+                captured_pdu entry;
+                entry.when   = event.when;
+                entry.crc_ok = event.crc_ok;
+                entry.rssi   = event.rssi;
+                entry.data   = event.data;
 
-            captured_.push( entry );
+                captured_.push( entry );
+            }
 
             // what the first connection event is placed from
-            reference_     = entry.when;
+            reference_     = event.when;
             has_reference_ = true;
 
             if ( event.operation_id != operation_id_ )
@@ -501,6 +531,8 @@ namespace test_rig {
             // a connection event ends with the reply to its last PDU, whatever its CRC
             if ( current_is( operation_kind::connection_event ) )
             {
+                count_reply( event );
+
                 if ( ++received_ == operations_[ cursor_ ].pdu_count )
                     advance();
             }
@@ -515,13 +547,16 @@ namespace test_rig {
         {
             // what the tester sent is captured beside what it heard; no filter applies,
             // since the rig itself decided to send it
-            captured_pdu entry;
-            entry.direction = pdu_direction::transmitted;
-            entry.when      = event.when;
-            entry.crc_ok    = event.crc_ok;
-            entry.data      = event.data;
+            if ( !later_run( event ) )
+            {
+                captured_pdu entry;
+                entry.direction = pdu_direction::transmitted;
+                entry.when      = event.when;
+                entry.crc_ok    = event.crc_ok;
+                entry.data      = event.data;
 
-            captured_.push( entry );
+                captured_.push( entry );
+            }
 
             if ( event.operation_id != operation_id_ )
                 return;
@@ -533,7 +568,36 @@ namespace test_rig {
                 has_anchor_ = true;
             }
 
-            answered_ = true;
+            // what the reply to it is timed from
+            sent_         = event.when;
+            has_sent_     = true;
+            answered_     = true;
+        }
+
+        /*
+         * A reply to a PDU of the current connection event: counted by its CRC, and, valid,
+         * timed from the PDU it answers.
+         */
+        void count_reply( const tester_event& reply )
+        {
+            if ( !reply.crc_ok )
+            {
+                ++summary_.crc_errors;
+                return;
+            }
+
+            ++summary_.replies;
+
+            if ( !has_sent_ )
+                return;
+
+            const std::uint32_t delay = static_cast< std::uint32_t >( reply.when.ticks - sent_.ticks );
+
+            if ( summary_.replies == 1 || delay < summary_.reply_delay_min )
+                summary_.reply_delay_min = delay;
+
+            if ( summary_.replies == 1 || delay > summary_.reply_delay_max )
+                summary_.reply_delay_max = delay;
         }
 
         /*
@@ -577,10 +641,13 @@ namespace test_rig {
                 return;
 
             // a connection event without all its replies ends here: a device that does not
-            // answer is what a test observes, in the captured PDUs
+            // answer is what a test observes, in the captured PDUs and in the summary
             const operation& current   = operations_[ cursor_ ];
             const bool       answers   = current.kind == operation_kind::answer;
             const bool       timed_out = current.count != 0 || ( answers && !answered_ );
+
+            if ( current.kind == operation_kind::connection_event )
+                ++summary_.unanswered;
 
             if ( timed_out )
                 time_out();
@@ -595,11 +662,23 @@ namespace test_rig {
             platform_.stop();
         }
 
+        /*
+         * The next run of a connection event that has runs left, the next operation otherwise.
+         */
         void advance()
         {
             if ( cursor_ == operation_count_ )
                 return;
 
+            const operation& current = operations_[ cursor_ ];
+
+            if ( current.kind == operation_kind::connection_event && ++runs_ != current.repeat )
+            {
+                begin( current );
+                return;
+            }
+
+            runs_ = 0;
             ++cursor_;
             begin_current();
         }
@@ -644,6 +723,7 @@ namespace test_rig {
             ++operation_id_;
             received_ = 0;
             answered_ = false;
+            has_sent_ = false;
 
             if ( op.kind == operation_kind::answer )
             {
@@ -656,6 +736,8 @@ namespace test_rig {
                 const tester_time   from  = has_anchor_ ? anchor_ : reference_;
                 const std::uint32_t at    = static_cast< std::uint32_t >( from.ticks + delay );
                 const std::uint32_t t_ifs = op.t_ifs.usec() * ( tester_ticks_per_second / 1'000'000 );
+
+                ++summary_.events;
 
                 if ( !( has_anchor_ || has_reference_ )
                   || !platform_.connection_event( op.channel, phy_, ticks, at, &program_pdus_[ op.first_pdu ], op.pdu_count, t_ifs, op.crc_errors, operation_id_ ) )
@@ -675,6 +757,8 @@ namespace test_rig {
         std::array< operation, max_operations >         operations_;
         std::uint8_t                                    operation_count_    = 0;
         std::uint8_t                                    cursor_             = 0;
+        // how often the operation at the cursor ran so far
+        std::uint32_t                                   runs_               = 0;
         bool                                            started_            = false;
         std::uint32_t                                   operation_id_       = 0;
         std::uint32_t                                   received_           = 0;
@@ -685,6 +769,10 @@ namespace test_rig {
         bool                                            has_reference_      = false;
         tester_time                                     anchor_;
         bool                                            has_anchor_         = false;
+        // the PDU the tester sent last in the current operation, which its reply is timed from
+        tester_time                                     sent_;
+        bool                                            has_sent_           = false;
+        tester_summary                                  summary_;
         link_layer::phy_ll_encoding::phy_ll_encoding_t  phy_                = link_layer::phy_ll_encoding::le_1m_phy;
 
         std::array< pdu, max_sent_pdus >                program_pdus_;
