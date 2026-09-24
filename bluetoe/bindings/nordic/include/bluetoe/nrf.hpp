@@ -114,7 +114,8 @@ namespace bluetoe
          * the radio transmit on a clock that has not settled; a value above it costs the
          * difference in current at every event.
          *
-         * If not given, 300 µs (bluetoe::nrf::high_frequency_crystal_oscillator_startup_time_default).
+         * If not given, 400 µs (bluetoe::nrf::high_frequency_crystal_oscillator_startup_time_default):
+         * the crystal of the nRF52840-DK takes 347 µs.
          *
          * @sa bluetoe::nrf::sleep_clock_crystal_oscillator
          * @sa bluetoe::nrf::calibrated_rc_sleep_clock
@@ -134,7 +135,7 @@ namespace bluetoe
          *
          * @sa bluetoe::nrf::high_frequency_crystal_oscillator_startup_time
          */
-        using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 300 >;
+        using high_frequency_crystal_oscillator_startup_time_default = high_frequency_crystal_oscillator_startup_time< 400 >;
 
     }
 
