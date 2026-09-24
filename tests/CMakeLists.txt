@@ -10,6 +10,14 @@ endif()
 
 add_subdirectory(test_tools)
 
+# Every test carries a label, and every label has a build target of the same name for the
+# executables that carry it: `unit_tests` for the tests that run on the host alone, which the
+# CI runs with `ctest -L unit_tests`, `radio_tests` for the tests of a scheduled radio
+# implementation against a device on a serial port, run on demand with `ctest -L radio_tests`.
+# `cmake --build build --target radio_tests` builds only those.
+add_custom_target(unit_tests)
+add_custom_target(radio_tests)
+
 function(add_and_register_test test_runner)
     add_executable(${test_runner} ${test_runner}.cpp)
 
@@ -22,6 +30,8 @@ function(add_and_register_test test_runner)
     endif()
 
     add_test(${test_runner} ./${test_runner})
+    set_tests_properties(${test_runner} PROPERTIES LABELS unit_tests)
+    add_dependencies(unit_tests ${test_runner})
 endfunction()
 
 function(bluetoe_add_test test_runner)

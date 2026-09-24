@@ -1,8 +1,8 @@
 find_package(Boost REQUIRED)
 
 # A radio test needs a device under test on the serial port BLUETOE_DUT names. The label keeps
-# ctest from running it unless asked for: `ctest -L radio` runs the radio tests only, the CI
-# runs `ctest -LE radio`. The target is prefixed with radio_, since the library's own
+# ctest from running it unless asked for: `ctest -L radio_tests` runs the radio tests only, the CI
+# runs `ctest -L unit_tests`. The target is prefixed with radio_, since the library's own
 # tests take the plain names, advertising_tests among them.
 function(add_radio_test name)
     set(test_runner radio_${name})
@@ -13,7 +13,8 @@ function(add_radio_test name)
     target_link_libraries(${test_runner} PRIVATE scheduled_radio::test_tools test::tools)
 
     add_test(${test_runner} ./${test_runner})
-    set_tests_properties(${test_runner} PROPERTIES LABELS radio)
+    set_tests_properties(${test_runner} PROPERTIES LABELS radio_tests)
+    add_dependencies(radio_tests ${test_runner})
 endfunction()
 
 add_radio_test(toolbox_tests)
