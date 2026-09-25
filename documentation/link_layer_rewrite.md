@@ -332,6 +332,48 @@ The mandatory procedures are mandatory: they are always in, and no option leaves
 out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
 the dispatch is built; the table records the intent. Agreed.
 
+## Memory shared between states
+
+The link layer has a pattern worth keeping and extending. While a link advertises, the
+advertiser divides the raw PDU buffer into three sections: the advertising PDU, the scan
+response, and the memory a scan request or a CONNECT_IND is received into. Once the
+CONNECT_IND is in, the same memory becomes the transmit and the receive ring of the
+connection. Nothing is stored twice, because a link is never advertising and connected
+at the same time, and a `static_assert` at the link layer checks that the buffer is
+large enough for either use.
+
+The rule behind it: state that is never live at the same time shares memory, provided
+the exclusivity is a fact of the protocol and not of the current code, and the place
+where the phase changes is the place where the memory changes its use. Agreed.
+
+Where it applies in the rewrite, as proposals:
+
+- **The advertiser with several links.** The link layer advertises only while a link is
+  free, and the free link is the one that will take the connection. So the advertiser
+  works in that link's PDU buffer, and its own state, the interval, the channel index,
+  the perturbation, lives where that link's connection state will live. There is no
+  advertising memory at all next to the links, and a CONNECT_IND changes the use of the
+  memory as it does today.
+- **The state of the procedures.** One initiated procedure runs at a time per link, and
+  what a procedure keeps while it runs, the requested parameters, the pending instant
+  PDU, the SKD and IV of the encryption start, is dead once it is done. Today
+  `procedure_requests` keeps the parameters of every request side by side, and
+  `deferred_control_pdu` the instant PDU next to them. The procedures that the
+  specification allows to run at the same time, section 5.1.1 says which, decide what
+  shares memory; the rest is one area per link.
+- **The request queue.** With one initiated procedure at a time, one pending request
+  per link is enough: a single slot, not a queue.
+- **The L2CAP SDU buffers.** `ll_l2cap_sdu_buffer` keeps a receive and a transmit
+  buffer of MTU size each. ATT is request and response, and the response is built after
+  the request has been consumed, but notifications and indications interleave with a
+  request in flight and a write command has no response, so whether the two can be one
+  is to be checked against the ATT flow, not assumed.
+- **The pairing state.** What the security manager keeps while pairing runs, the public
+  keys, the shared secret, the nonces and confirm values of LESC, is dead after pairing.
+  What is dead while pairing runs is less clear, so this is a candidate, not a plan.
+
+Each of these is measured when it is done, like every step.
+
 ## The interface towards the application
 
 Part of the link layer's public interface exists because an HCI layer was once written
