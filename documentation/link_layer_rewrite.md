@@ -219,9 +219,14 @@ Going through the layers, the difference shows in these places:
 6. **The interface towards the application.** Every function that acts on a link,
    `disconnect()`, the parameter and the PHY request, has to say which link once there
    are several, and every callback has to say which link it is about. The callbacks
-   already do: they carry the connection object, the per connection data the GATT server
-   keeps and the characteristic handlers receive. So that object is how an application
-   names a link, and the functions that act on a link take it as their first argument.
+   already carry the connection object, `connection_data_t`, which L2CAP folds together
+   from the per connection data of every channel, the GATT server's client
+   characteristic configuration among them, and which the characteristic handlers
+   receive. If that object also holds the link's data, it is the link: what the
+   application receives in its GATT callbacks is the very object the link layer keeps
+   for the link, naming a link costs nothing, and there is no index to look up. So the
+   link struct extends `connection_data_t`. Agreed.
+
    Notifications and indications are the server's: it notifies every client that
    subscribed, per connection data, and hands each SDU to the link layer with its link.
    See the section on the interface below.
@@ -257,11 +262,13 @@ What the link layer is made of when the steps are done. Names are proposals.
   link implementation or the one for several links. Everything below is shared unless it
   says otherwise. Agreed.
 
-- **`link`.** The struct described above. Owns its PDU buffer, its parameters, its
-  latency state, the state of its procedures, and the GATT server's connection data.
-  Knows how to compute its next event from its anchor. The single link implementation
-  holds one; the one for several links an array, and there the struct also holds the
-  radio's setup values, access address and CRC initialiser, PHY and keys.
+- **`link`.** The struct described above, and the connection object the application
+  knows: it extends `connection_data_t`, the per connection data L2CAP folds together
+  for its channels, with the PDU buffer, the parameters, the latency state and the state
+  of the procedures. Knows how to compute its next event from its anchor. The single
+  link implementation holds one; the one for several links an array, and there the
+  struct also holds the radio's setup values, access address and CRC initialiser, PHY
+  and keys.
 
 - **`procedure`.** One type per control procedure. A procedure states the opcodes it
   handles with their sizes, the feature bits it contributes, and provides: a handler for
@@ -346,11 +353,11 @@ an application does with a link:
 - the synchronized connection event callback and the white list.
 
 With several links, the functions that act on a link take the link as their first
-argument, named by the connection object that the callbacks and the characteristic
-handlers already receive. Proposal: both implementations offer that signature, so that
-an application is written the same way for one link and for several, and the single
-link implementation keeps today's forms without the argument as a convenience for the
-one link it has.
+argument: the connection object that the callbacks and the characteristic handlers
+already receive, which is the link itself. Proposal: both implementations offer that
+signature, so that an application is written the same way for one link and for several,
+and the single link implementation keeps today's forms without the argument as a
+convenience for the one link it has.
 
 Proposed to go, as HCI leftovers: `remote_versions_request()` and the `ll_version()`
 callback, `initiating_connection_parameter_request()` as the application's choice of the
