@@ -39,14 +39,9 @@ public:
             base::run();
     }
 
-    void check_not_connected( const char* test ) const
+    void check_not_connected() const
     {
-        if ( !this->connection_events().empty() )
-        {
-            boost::test_tools::predicate_result result( false );
-            result.message() << "in " << test << " check_not_connected failed.";
-            BOOST_CHECK( result );
-        }
+        BOOST_CHECK_MESSAGE( this->connection_events().empty(), "connected, but expected not to be" );
     }
 
     void add_connection_update_request( const test::connection_update& update )

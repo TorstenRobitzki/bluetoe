@@ -8,6 +8,13 @@
 
 #include <type_traits>
 
+using namespace test;
+
+/*
+ * The CONNECT_IND is what these tests are about, so the tests of its fields construct it by
+ * hand, to be read against the specification; the tests of the connection that follows build
+ * it by name, the field they are about named.
+ */
 BOOST_FIXTURE_TEST_SUITE( starting_unconnected_tests, unconnected )
 
 /**
@@ -51,7 +58,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
 
     run();
 
-    check_not_connected( "no_connection_after_a_connection_request_with_wrong_length" );
+    check_not_connected();
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wrong_length_header, Channel, advertising_channels )
@@ -77,7 +84,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
 
     run();
 
-    check_not_connected( "no_connection_after_a_connection_request_with_wrong_length" );
+    check_not_connected();
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wrong_advertiser_address, Channel, advertising_channels )
@@ -102,7 +109,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_after_a_connection_request_with_wro
 
     run();
 
-    check_not_connected( "no_connection_after_a_connection_request_with_wrong_advertiser_address" );
+    check_not_connected();
 }
 
 typedef boost::mpl::list<
@@ -132,7 +139,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_hop_is_invalid, HopIncrement, in
 
     run();
 
-    check_not_connected( "no_connection_after_a_connection_request_with_wrong_advertiser_address" );
+    check_not_connected();
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_only_one_channel_is_used, Channel, advertising_channels )
@@ -157,7 +164,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( no_connection_if_only_one_channel_is_used, Channe
 
     run();
 
-    check_not_connected( "no_connection_if_only_one_channel_is_used" );
+    check_not_connected();
 
 }
 
@@ -236,22 +243,8 @@ BOOST_AUTO_TEST_SUITE_END()
  */
 BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
 {
-    respond_to(
-        38,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x0b, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // peripheral latency
-            0x48, 0x00,                         // connection timeout
-            0xff, 0xfb, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        } );
+    // all channels but channel 10, the first unmapped channel
+    respond_to( 38, connect_ind( { .channel_map = 0x1ffffffbff } ) );
 
     run();
 
@@ -261,55 +254,39 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_on_a_remappped_channel, unconnected )
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_10ms, unconnected )
 {
-    respond_with_connection_request(
-        0x09, // window_size
-        0x0b, // window_offset
-        0x18  // interval
-    );
+    respond_to( 37, connect_ind( { .window_size = 9 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_transmit_window_is_larger_than_10ms" );
+    check_not_connected();
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_is_larger_than_connection_interval, unconnected )
 {
-    respond_with_connection_request(
-        0x07, // window_size
-        0x0b, // window_offset
-        0x06  // interval
-    );
+    respond_to( 37, connect_ind( { .window_size = 7, .interval = 6 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_transmit_window_is_larger_than_connection_interval" );
+    check_not_connected();
 }
 
 // the transmit window has to end at least 1.25 ms before the interval does
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_equals_the_connection_interval, unconnected )
 {
-    respond_with_connection_request(
-        0x06, // window_size
-        0x00, // window_offset
-        0x06  // interval
-    );
+    respond_to( 37, connect_ind( { .window_size = 6, .window_offset = 0, .interval = 6 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_transmit_window_equals_the_connection_interval" );
+    check_not_connected();
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_transmit_window_offset_is_larger_than_connection_interval, unconnected )
 {
-    respond_with_connection_request(
-        0x02, // window_size
-        0x0b, // window_offset
-        0x0a  // interval
-    );
+    respond_to( 37, connect_ind( { .window_size = 2, .window_offset = 11, .interval = 10 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_transmit_window_offset_is_larger_than_connection_interval" );
+    check_not_connected();
 }
 
 /*
@@ -347,23 +324,10 @@ BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window, connecting )
 using local_device_with_100ppm = unconnected_base< bluetoe::link_layer::sleep_clock_accuracy_ppm< 100 >, test::buffer_sizes >;
 BOOST_FIXTURE_TEST_CASE( start_receiving_with_the_correct_window_II, local_device_with_100ppm )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x08,                               // maximum transmit window size = 10ms
-            0x3f, 0x06,                         // window offset 2 sec
-            0x40, 0x06,                         // interval 2 sec
-            0x00, 0x00,                         // peripheral latency
-            0x48, 0x02,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0x2a                                // 1: sleep clock accuracy 151 ppm to 250 ppm
-        }
-    );
+    // the largest window, 10 ms, an offset and an interval of 2 s, and the central's sleep
+    // clock accuracy 1: 151 to 250 ppm
+    respond_to( 37, connect_ind( {
+        .window_size = 8, .window_offset = 0x063f, .interval = 0x0640, .timeout = 0x0248, .sleep_clock_accuracy = 1 } ) );
 
     run();
 
@@ -414,15 +378,8 @@ BOOST_FIXTURE_TEST_CASE( window_widening_is_applied_with_every_receive_attempt, 
 
 BOOST_FIXTURE_TEST_CASE( while_waiting_for_a_message_from_the_central_channels_are_hopped, connecting )
 {
-    std::vector< unsigned > expected_channels = { 10, 20, 30, 3, 13, 23 };
-    std::vector< unsigned > channels;
-
-    for ( const auto& ev: connection_events() )
-    {
-        channels.push_back( ev.channel );
-    }
-
-    BOOST_CHECK_EQUAL_COLLECTIONS( expected_channels.begin(), expected_channels.end(), channels.begin(), channels.end() );
+    BOOST_CHECK_EQUAL( connection_events().size(), 6u );
+    check_channels( { 10, 20, 30, 3, 13, 23 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reached, connecting )
@@ -440,52 +397,21 @@ BOOST_FIXTURE_TEST_CASE( again_advertising_after_the_connection_timeout_was_reac
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_to_large, unconnected )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x0b, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // peripheral latency
-            0x81, 0x0c,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    // one above the 32 s the specification allows
+    respond_to( 37, connect_ind( { .timeout = 0x0c81 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_supervision_timeout_is_to_large" );
+    check_not_connected();
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_smaller_than_10ms, unconnected )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x0b, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // peripheral latency
-            0x09, 0x00,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    respond_to( 37, connect_ind( { .timeout = 9 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_supervision_timeout_is_smaller_than_10ms" );
+    check_not_connected();
 }
 
 /*
@@ -494,73 +420,26 @@ BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_smaller_than_10
  */
 BOOST_FIXTURE_TEST_CASE( no_connection_if_supervision_timeout_is_to_small, unconnected )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x0b, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x05, 0x00,                         // peripheral latency
-            0x23, 0x00,                         // connection timeout 350ms
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    // a timeout of 350 ms
+    respond_to( 37, connect_ind( { .latency = 5, .timeout = 35 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_supervision_timeout_is_to_small" );
+    check_not_connected();
 }
 
 BOOST_FIXTURE_TEST_CASE( no_connection_if_peripheral_latency_is_larger_not_less_than_500, unconnected )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x0b, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0xf4, 0x01,                         // peripheral latency
-            0x80, 0x0c,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    respond_to( 37, connect_ind( { .latency = 500, .timeout = 0x0c80 } ) );
 
     run();
 
-    check_not_connected( "no_connection_if_peripheral_latency_is_larger_not_less_than_500" );
+    check_not_connected();
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_established_when_window_offset_equals_interval, unconnected )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x18, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // peripheral latency
-            0x80, 0x0c,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    respond_to( 37, connect_ind( { .window_offset = 0x18, .interval = 0x18, .timeout = 0x0c80 } ) );
 
     run();
 
@@ -574,23 +453,7 @@ using server_with_empty_white_list = unconnected_base<
 
 BOOST_FIXTURE_TEST_CASE( connect_with_white_list_beeing_empty, server_with_empty_white_list )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x18, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // peripheral latency
-            0x80, 0x0c,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    respond_to( 37, valid_connection_request_pdu );
 
     run();
 
@@ -610,23 +473,8 @@ struct server_with_white_list : unconnected_base< bluetoe::link_layer::white_lis
 
 BOOST_FIXTURE_TEST_CASE( connecting_client_is_in_white_list, server_with_white_list )
 {
-    respond_to(
-        37,
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            0x03,                               // transmit window size
-            0x18, 0x00,                         // window offset
-            0x18, 0x00,                         // interval
-            0x00, 0x00,                         // peripheral latency
-            0x80, 0x0c,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        }
-    );
+    // the initiator the white list holds: 48:f0:92:62:1c:3c
+    respond_to( 37, valid_connection_request_pdu );
 
     run();
 
