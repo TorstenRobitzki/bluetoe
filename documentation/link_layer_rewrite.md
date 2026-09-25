@@ -216,7 +216,17 @@ Going through the layers, the difference shows in these places:
    the implementation for several links multiplexes the one timer over the links that
    have a callback due. Agreed.
 
-6. **The simulated radio and the fixtures.** The simulator plays one central: one anchor,
+6. **The interface towards the application.** Every function that acts on a link,
+   `disconnect()`, the parameter and the PHY request, has to say which link once there
+   are several, and every callback has to say which link it is about. The callbacks
+   already do: they carry the connection object, the per connection data the GATT server
+   keeps and the characteristic handlers receive. So that object is how an application
+   names a link, and the functions that act on a link take it as their first argument.
+   Notifications and indications are the server's: it notifies every client that
+   subscribed, per connection data, and hands each SDU to the link layer with its link.
+   See the section on the interface below.
+
+7. **The simulated radio and the fixtures.** The simulator plays one central: one anchor,
    one set of sequence numbers, one response queue, `respond_to( channel, pdu )` and
    `add_connection_event_respond()` on the one link. For several links it has to play
    several centrals with independent anchors and intervals, and a scanner that keeps
@@ -335,6 +345,13 @@ an application does with a link:
 - disconnect, with the reason;
 - the synchronized connection event callback and the white list.
 
+With several links, the functions that act on a link take the link as their first
+argument, named by the connection object that the callbacks and the characteristic
+handlers already receive. Proposal: both implementations offer that signature, so that
+an application is written the same way for one link and for several, and the single
+link implementation keeps today's forms without the argument as a convenience for the
+one link it has.
+
 Proposed to go, as HCI leftovers: `remote_versions_request()` and the `ll_version()`
 callback, `initiating_connection_parameter_request()` as the application's choice of the
 transport, `phy_update_request( transmit, receive )` with arbitrary PHYs next to the 2M
@@ -398,6 +415,8 @@ implementation. Steps 6 and 7 add the second implementation next to it.
 ## Decisions to take
 
 - Which of the HCI leftovers of the interface towards the application go, see there.
+- Whether the single link implementation keeps the forms without a link argument next
+  to the ones that name the link, see there.
 
 The names in this document are proposals until they are in the code. Decisions that come up during the steps are added here and, once taken, moved to
 where they apply and marked as agreed.
