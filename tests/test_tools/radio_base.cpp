@@ -1,4 +1,4 @@
-#include "test_radio.hpp"
+#include "radio_base.hpp"
 #include "hexdump.hpp"
 
 #include <boost/test/unit_test.hpp>

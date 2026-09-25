@@ -1,5 +1,5 @@
-#ifndef BLUETOE_TESTS_LINK_LAYER_TEST_RADIO_HPP
-#define BLUETOE_TESTS_LINK_LAYER_TEST_RADIO_HPP
+#ifndef BLUETOE_TESTS_TEST_TOOLS_RADIO_BASE_HPP
+#define BLUETOE_TESTS_TEST_TOOLS_RADIO_BASE_HPP
 
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>

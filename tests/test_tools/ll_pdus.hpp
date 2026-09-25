@@ -15,7 +15,7 @@
  * whole PDU is needed.
  */
 
-#include "test_radio.hpp"
+#include "radio_base.hpp"
 
 #include <array>
 #include <cstdint>

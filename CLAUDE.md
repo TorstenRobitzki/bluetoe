@@ -122,7 +122,7 @@ job log: `gh run view <run id> --log` or `gh api repos/TorstenRobitzki/bluetoe/a
 
 ## Testing philosophy
 
-- Protocol behaviour is tested on the host against the simulated radio (`tests/test_tools/test_radio.hpp`)
+- Protocol behaviour is tested on the host against the simulated radio (`tests/test_tools/simulated_radio.hpp`)
   and canned servers (`tests/test_tools/test_servers.hpp`). Prefer extending these over new scaffolding.
 - Tests are written at the PDU level: bytes in, bytes out, with comments naming the fields.
   A bug fix in protocol code should come with a test that fails before the fix.

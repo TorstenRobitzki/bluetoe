@@ -5,7 +5,7 @@
  * link layer is to it: that it satisfies the concept, and that what it simulates arrives as
  * the callbacks with the times the interface promises.
  *
- * What the radio records for a test is radio_base's and is covered by test_radio_tests.cpp.
+ * What the radio records for a test is radio_base's and is covered by radio_base_tests.cpp.
  */
 
 #define BOOST_TEST_MODULE

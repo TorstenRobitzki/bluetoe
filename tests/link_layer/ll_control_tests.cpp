@@ -398,7 +398,7 @@ BOOST_AUTO_TEST_SUITE( disconnect )
     {
         disconnect_cb.disconnected = false;
 
-        // currently, the test_radio ignores the SN and NESN of the simulation
+        // currently, the simulated radio ignores the SN and NESN of the simulation
         // https://github.com/TorstenRobitzki/bluetoe/issues/134
         // For now, simulation is done by calling the link_layer callbacks
 

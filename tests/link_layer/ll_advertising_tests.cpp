@@ -8,7 +8,7 @@
 #include <bluetoe/meta_tools.hpp>
 #include <bluetoe/custom_advertising.hpp>
 #include <bluetoe/server.hpp>
-#include "test_radio.hpp"
+#include "simulated_radio.hpp"
 #include "connected.hpp"
 #include "test_servers.hpp"
 
