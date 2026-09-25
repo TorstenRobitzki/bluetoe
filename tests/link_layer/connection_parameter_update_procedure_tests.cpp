@@ -62,7 +62,22 @@ BOOST_FIXTURE_TEST_CASE( if_central_protocol_version_is_unknown_try_ll, link_lay
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( ll_connection_param_req( requested ) );
+    // what `requested` names, by hand
+    check_outgoing_ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // Timeout
+        0x00,                       // PreferredPeriodicity: none
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0: none
+        0xff, 0xff,                 // Offset1: none
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
+    } );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_central_protocol_version_is_40_use_l2cap, link_layer_with_signaling_channel )
@@ -75,7 +90,19 @@ BOOST_FIXTURE_TEST_CASE( if_central_protocol_version_is_40_use_l2cap, link_layer
 
     run( 5 );
 
-    check_outgoing_l2cap_pdu( l2cap_connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
+    // the L2CAP connection parameter update request for `requested`, by hand, behind the
+    // data channel header: any L2CAP length and identifier
+    check_outgoing_l2cap_pdu( {
+        X, X,                       // L2CAP length
+        0x05, 0x00,                 // L2CAP channel: LE signaling
+        0x12,                       // Connection Parameter Update Request
+        X,                          // Identifier
+        0x08, 0x00,                 // length
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8  // Timeout
+    } );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_centrals_features_dont_contain_ll_use_l2cap, link_layer_with_signaling_channel )
@@ -110,7 +137,10 @@ BOOST_FIXTURE_TEST_CASE( if_ll_doesn_work_fallback_to_l2cap, link_layer_with_sig
 
     ll_empty_pdus(3);
 
-    ll_control_pdu( ll_unknown_rsp( 0x0f ) );      // LL_CONNECTION_PARAM_REQ unknown
+    ll_control_pdu( {
+        0x07,                       // LL_UNKNOWN_RSP
+        0x0F                        // LL_CONNECTION_PARAM_REQ
+    } );
 
     ll_empty_pdus(3);
 
@@ -129,7 +159,10 @@ BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_fallback_to_l2cap, link_layer_with_s
 
     ll_empty_pdus(3);
 
-    ll_control_pdu( ll_reject_ind( 0x1a ) );       // Unsupported Remote/LMP Feature
+    ll_control_pdu( {
+        0x0D,                       // LL_REJECT_IND
+        0x1A                        // ErrorCode: Unsupported Remote/LMP Feature
+    } );
 
     ll_empty_pdus(3);
 
@@ -148,7 +181,11 @@ BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_ext_fallback_to_l2cap, link_layer_wi
 
     ll_empty_pdus(3);
 
-    ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x1a ) );  // LL_CONNECTION_PARAM_REQ: Unsupported Remote/LMP Feature
+    ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // RejectOpcode: LL_CONNECTION_PARAM_REQ
+        0x1A                        // ErrorCode: Unsupported Remote/LMP Feature
+    } );
 
     ll_empty_pdus(3);
 
@@ -169,13 +206,42 @@ static const connection_parameter_request central_request = {
 
 BOOST_FIXTURE_TEST_CASE( copy_data_from_request, link_layer_with_signaling_channel )
 {
-    ll_control_pdu( ll_connection_param_req( central_request ) );
+    // what `central_request` names, by hand
+    ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // Timeout
+        0x00,                       // PreferredPeriodicity: none
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0
+        0x04, 0x00,                 // Offset1
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
+    } );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( ll_connection_param_rsp( central_request ) );
+    check_outgoing_ll_control_pdu( {
+        0x10,                       // LL_CONNECTION_PARAM_RSP
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // Timeout
+        0x00,                       // PreferredPeriodicity: none
+        0x00, 0x00,                 // ReferenceConnEventCount
+        0x02, 0x00,                 // Offset0
+        0x04, 0x00,                 // Offset1
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
+    } );
 }
 
 using desired_connection_parameters = bluetoe::link_layer::desired_connection_parameters<
@@ -296,14 +362,32 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Reject_Invalid_Connection_Parameter_Request_Param
 {
     fixture_t link_layer;
 
-    // a minimum above the maximum
-    link_layer.ll_control_pdu( ll_connection_param_req( { .min_interval = 20, .max_interval = 10, .latency = 3, .timeout = 496, .reference_event = 0xffff } ) );
+    // a minimum above the maximum, by hand
+    link_layer.ll_control_pdu( {
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        20, 0x00,                   // Interval_Min
+        10, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        0xf0, 0x01,                 // Timeout
+        0x00,                       // PreferredPeriodicity: none
+        0xff, 0xff,                 // ReferenceConnEventCount
+        0xff, 0xff,                 // Offset0: none
+        0xff, 0xff,                 // Offset1: none
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
+    } );
 
     link_layer.ll_empty_pdus(3);
 
     link_layer.run( 5 );
 
-    link_layer.check_outgoing_ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x1e ) );   // LL_CONNECTION_PARAM_REQ: Invalid LL Parameters
+    link_layer.check_outgoing_ll_control_pdu( {
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // RejectOpcode: LL_CONNECTION_PARAM_REQ
+        0x1E                        // ErrorCode: Invalid LL Parameters
+    } );
 }
 
 /**

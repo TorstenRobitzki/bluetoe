@@ -5,11 +5,14 @@
  * @file ll_pdus.hpp
  *
  * The PDUs the link layer tests send and expect, built by name with their fields as
- * parameters, so that a test spells out only the PDU it is about. Every builder returns
- * the bytes as they are on air; the ones of link layer control PDUs return the payload
- * behind the data channel header, which is what a test's ll_control_pdu() takes, and
- * ll_control() and ll_empty() put the header in front where a whole PDU is needed. The
- * bytes and the comments naming their fields are in ll_pdus.cpp.
+ * parameters. The first test of every kind of PDU constructs it by hand, bytes with the
+ * field names, to be read against the specification; the tests after it build the same
+ * PDU here, and the link layer, proven on the bytes, would answer a wrong builder
+ * differently. So nothing tests the builders, and a test spells out only the PDU it is
+ * about. Every builder returns the bytes as they are on air; the ones of link layer
+ * control PDUs return the payload behind the data channel header, which is what a test's
+ * ll_control_pdu() takes, and ll_control() and ll_empty() put the header in front where a
+ * whole PDU is needed.
  */
 
 #include "test_radio.hpp"
@@ -153,6 +156,16 @@ namespace test {
     bytes_t ll_ping_req();
 
     bytes_t ll_ping_rsp();
+
+    /**
+     * @brief the PHYs an LL_PHY_REQ, LL_PHY_RSP or LL_PHY_UPDATE_IND names, as bits
+     */
+    namespace phy {
+        constexpr std::uint8_t none     = 0x00;
+        constexpr std::uint8_t le_1m    = 0x01;
+        constexpr std::uint8_t le_2m    = 0x02;
+        constexpr std::uint8_t le_coded = 0x04;
+    }
 
     bytes_t ll_phy_req( std::uint8_t transmit, std::uint8_t receive );
 

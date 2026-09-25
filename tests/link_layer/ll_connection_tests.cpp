@@ -289,7 +289,18 @@ BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used_with_latency, c
  */
 BOOST_FIXTURE_TEST_CASE( connection_update_correct_interval_used, connection_update_procedure )
 {
-    connect_and_update( valid_update );
+    // the update valid_update names, by hand
+    respond_to( 37, valid_connection_request_pdu );
+    ll_control_pdu( {
+        0x00,                           // LL_CONNECTION_UPDATE_IND
+        0x05,                           // WinSize: 6.25 ms
+        0x06, 0x00,                     // WinOffset: 7.5 ms
+        0x28, 0x00,                     // Interval: 50 ms
+        0x00, 0x00,                     // Latency
+        0xc8, 0x00,                     // Timeout: 2 s
+        0x06, 0x00                      // Instant
+    } );
+    add_empty_pdus( 20 );
 
     run();
 
@@ -461,17 +472,20 @@ BOOST_FIXTURE_TEST_CASE( connection_update_missing_central_pdu_before_and_at_ins
     BOOST_CHECK_EQUAL( behind.end_receive, window_end + window_end.ppm( 550 ) );
 }
 
-// the features the link layer claims: LE Encryption, the Connection Parameters Request
-// Procedure and the LE Ping
-static constexpr std::uint64_t bluetoe_features = 0x16;
-
 BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    ll_control_pdu( ll_feature_req( 0xff ) );
+    ll_control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
+        0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: everything of the first octet
+    } );
     ll_empty_pdu();
 
     run();
 
-    check_transmitted( 1, ll_control( ll_feature_rsp( bluetoe_features ) ) );
+    check_transmitted( 1, {
+        0x03, 0x09,                                     // LL control PDU
+        0x09,                                           // LL_FEATURE_RSP
+        0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: LE Encryption, Connection Parameters Request, LE Ping
+    } );
 }

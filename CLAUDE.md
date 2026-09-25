@@ -126,6 +126,10 @@ job log: `gh run view <run id> --log` or `gh api repos/TorstenRobitzki/bluetoe/a
   and canned servers (`tests/test_tools/test_servers.hpp`). Prefer extending these over new scaffolding.
 - Tests are written at the PDU level: bytes in, bytes out, with comments naming the fields.
   A bug fix in protocol code should come with a test that fails before the fix.
+- The first test of every kind of PDU constructs it by hand, to be read against the specification.
+  The tests after it may build the same PDU by name (`tests/test_tools/ll_pdus.hpp`): the link
+  layer, proven on the bytes, would answer a wrong builder differently, so the builders need no
+  tests of their own. A test spells out the PDU it is about and builds the ones on the way.
 - Boost.Test macros in use: `BOOST_AUTO_TEST_CASE`, `BOOST_FIXTURE_TEST_CASE`, `BOOST_AUTO_TEST_CASE_TEMPLATE`.
 
 ## Commit messages

@@ -62,9 +62,6 @@ struct link_layer_with_security : unconnected_base_t< secret_service, radio_with
     }
 };
 
-// the features the link layer claims with a security manager: LE Encryption among them
-static constexpr std::uint64_t bluetoe_features_with_encryption = 0x17;
-
 BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request_with_security_enabled, link_layer_with_security )
 {
     ll_control_pdu( ll_feature_req( 0xff ) );
@@ -72,7 +69,11 @@ BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request_with_security_enabled, l
 
     run();
 
-    check_transmitted( 1, ll_control( ll_feature_rsp( bluetoe_features_with_encryption ) ) );
+    check_transmitted( 1, {
+        0x03, 0x09,                                     // LL control PDU
+        0x09,                                           // LL_FEATURE_RSP
+        0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: LE Encryption, Connection Parameters Request, LE Ping
+    } );
 }
 
 BOOST_FIXTURE_TEST_CASE( skd_and_iv_stored, link_layer_with_security )
@@ -158,7 +159,16 @@ BOOST_FIXTURE_TEST_CASE( start_encryption_example, link_layer_with_security )
     key_vault = std::make_pair( true, example_long_term_key );
     setup_encryption_response( 0x0213243546576879, 0xDEAFBABE );
 
-    ll_control_pdu( ll_enc_req( 0xABCDEF1234567890, 0x2474, 0xACBDCEDFE0F10213, 0xBADCAB24 ) );
+    // the example's values, least significant octet first on air
+    ll_control_pdu( {
+        0x03,                                   // LL_ENC_REQ
+        0x90, 0x78, 0x56, 0x34,                 // Rand
+        0x12, 0xef, 0xcd, 0xab,
+        0x74, 0x24,                             // EDIV
+        0x13, 0x02, 0xf1, 0xe0,                 // SKDm
+        0xdf, 0xce, 0xbd, 0xac,
+        0x24, 0xab, 0xdc, 0xba                  // IVm
+    } );
     ll_empty_pdu();
 
     run();
@@ -166,8 +176,17 @@ BOOST_FIXTURE_TEST_CASE( start_encryption_example, link_layer_with_security )
     const auto used_key = encryption_key();
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( used_key ), std::end( used_key ), std::begin( example_long_term_key ), std::end( example_long_term_key ) );
 
-    check_transmitted( 1, 0, ll_control( ll_enc_rsp( 0x0213243546576879, 0xDEAFBABE ) ) );
-    check_transmitted( 1, 1, ll_control( ll_start_enc_req() ) );
+    check_transmitted( 1, 0, {
+        0x03, 0x0d,                             // LL control PDU
+        0x04,                                   // LL_ENC_RSP
+        0x79, 0x68, 0x57, 0x46,                 // SKDs
+        0x35, 0x24, 0x13, 0x02,
+        0xbe, 0xba, 0xaf, 0xde                  // IVs
+    } );
+    check_transmitted( 1, 1, {
+        0x03, 0x01,                             // LL control PDU
+        0x05                                    // LL_START_ENC_REQ
+    } );
 
     BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
     check_transmission_never_encrypted();
@@ -176,11 +195,18 @@ BOOST_FIXTURE_TEST_CASE( start_encryption_example, link_layer_with_security )
 BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_security )
 {
     request_encryption_with_known_key();
-    central_confirms_encryption();
+
+    ll_control_pdu( {
+        0x06                                    // LL_START_ENC_RSP
+    } );
+    ll_empty_pdu();
 
     run();
 
-    check_transmitted( 3, ll_control( ll_start_enc_rsp() ) );
+    check_transmitted( 3, {
+        0x03, 0x01,                             // LL control PDU
+        0x06                                    // LL_START_ENC_RSP
+    } );
 
     BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
     BOOST_CHECK( connection_events().at( 3 ).transmit_encryption_at_start_of_event );
@@ -191,12 +217,17 @@ BOOST_FIXTURE_TEST_CASE( start_pause_encryption, link_layer_with_security )
     request_encryption_with_known_key();
     central_confirms_encryption();
 
-    ll_control_pdu( ll_pause_enc_req() );
+    ll_control_pdu( {
+        0x0A                                    // LL_PAUSE_ENC_REQ
+    } );
     ll_empty_pdu();
 
     run();
 
-    check_transmitted( 5, ll_control( ll_pause_enc_rsp() ) );
+    check_transmitted( 5, {
+        0x03, 0x01,                             // LL control PDU
+        0x0B                                    // LL_PAUSE_ENC_RSP
+    } );
 
     BOOST_CHECK( !connection_events().at( 5 ).receive_encryption_at_start_of_event );
     BOOST_CHECK( connection_events().at( 5 ).transmit_encryption_at_start_of_event );

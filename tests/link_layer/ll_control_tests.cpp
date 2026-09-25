@@ -5,26 +5,49 @@
 
 using namespace test;
 
-// the versions of the Core Specification a LL_VERSION_IND names
-static constexpr std::uint8_t core_4_2 = 0x08;
-static constexpr std::uint8_t core_5_0 = 0x09;
-
-// the company identifiers a LL_VERSION_IND names: the central's, and the link layer's own
-static constexpr std::uint16_t some_company = 0x0200;
-static constexpr std::uint16_t bluetoe_company = 0x0269;
+/*
+ * The first test of every kind of PDU constructs it by hand, to be read against the
+ * specification; the tests after it build the same PDU by name, and the link layer, proven
+ * on the bytes, would answer a wrong builder differently.
+ */
 
 BOOST_FIXTURE_TEST_CASE( respond_with_an_unknown_rsp, unconnected )
 {
     check_single_ll_control_pdu(
-        ll_control( { 0xff } ),
-        ll_control( ll_unknown_rsp( 0xff ) ) );
+        {
+            0x03, 0x01,         // LL control PDU
+            0xff                // an opcode that does not exist
+        },
+        {
+            0x03, 0x02,         // LL control PDU
+            0x07,               // LL_UNKNOWN_RSP
+            0xff                // the opcode
+        } );
 }
+
+// the versions of the Core Specification a LL_VERSION_IND names
+static constexpr std::uint8_t core_4_2 = 0x08;
+
+// the company identifier of the central's LL_VERSION_IND
+static constexpr std::uint16_t some_company = 0x0200;
 
 BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
 {
     check_single_ll_control_pdu(
-        ll_control( ll_version_ind( core_4_2, some_company, 0 ) ),
-        ll_control( ll_version_ind( core_5_0, bluetoe_company, 0 ) ) );
+        {
+            0x03, 0x06,         // LL control PDU
+            0x0c,               // LL_VERSION_IND
+            0x08,               // VersNr = Core Specification 4.2
+            0x00, 0x02,         // CompId
+            0x00, 0x00          // SubVersNr
+        },
+        {
+            0x03, 0x06,         // LL control PDU
+            0x0c,               // LL_VERSION_IND
+            0x09,               // VersNr = Core Specification 5.0
+            0x69, 0x02,         // CompId
+            0x00, 0x00          // SubVersNr
+        } );
 }
 
 /**
@@ -47,14 +70,24 @@ BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind_ignoring_additional_requests, 
 BOOST_FIXTURE_TEST_CASE( respond_to_a_ping, unconnected )
 {
     check_single_ll_control_pdu(
-        ll_control( ll_ping_req() ),
-        ll_control( ll_ping_rsp() ) );
+        {
+            0x03, 0x01,         // LL control PDU
+            0x12                // LL_PING_REQ
+        },
+        {
+            0x03, 0x01,         // LL control PDU
+            0x13                // LL_PING_RSP
+        } );
 }
 
 BOOST_FIXTURE_TEST_CASE( starts_advertising_after_termination, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_event_respond( ll_control( ll_terminate_ind( 0x12 ) ) );
+    add_connection_event_respond( {
+        0x03, 0x02,             // LL control PDU
+        0x02,                   // LL_TERMINATE_IND
+        0x12                    // ErrorCode: Connection Terminated by Local Host
+    } );
 
     run();
 
@@ -69,8 +102,14 @@ BOOST_FIXTURE_TEST_CASE( starts_advertising_after_termination, unconnected )
 BOOST_FIXTURE_TEST_CASE( do_not_respond_to_UNKNOWN_RSP, unconnected )
 {
     check_single_ll_control_pdu(
-        ll_control( ll_unknown_rsp( 0x07 ) ),
-        ll_empty() );
+        {
+            0x03, 0x02,         // LL control PDU
+            0x07,               // LL_UNKNOWN_RSP
+            0x07                // request opcode
+        },
+        {
+            0x01, 0x00          // an empty PDU
+        } );
 }
 
 BOOST_FIXTURE_TEST_CASE( do_not_respond_to_UNKNOWN_RSP_even_if_broken, unconnected )
@@ -91,7 +130,11 @@ BOOST_FIXTURE_TEST_CASE( Channel_Map_Update_procedure, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
 
-    ll_control_pdu( ll_channel_map_ind( channel_map_without_11, 100 ) );
+    ll_control_pdu( {
+        0x01,                           // LL_CHANNEL_MAP_IND
+        0xff, 0xf7, 0xff, 0xff, 0x1f,   // new channel map: all channels enabled except channel 11
+        0x64, 0x00                      // Instant: 100
+    } );
 
     ll_empty_pdus( 101 );
 
@@ -132,7 +175,11 @@ BOOST_FIXTURE_TEST_CASE( data_is_answered_while_an_instant_is_pending, unconnect
     ll_control_pdu( ll_channel_map_ind( channel_map_without_11, instant ) );
 
     // an ATT request the server answers out of its own knowledge
-    ll_data_pdu( att_exchange_mtu_request( 23 ) );
+    ll_data_pdu( {
+        0x03, 0x00,                     // L2CAP length
+        0x04, 0x00,                     // L2CAP channel: ATT
+        0x02, 0x17, 0x00                // ATT exchange MTU request, MTU 23
+    } );
 
     ll_empty_pdus( instant + 5 );
 
