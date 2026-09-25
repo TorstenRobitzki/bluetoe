@@ -226,8 +226,12 @@ Going through the layers, the difference shows in these places:
    characteristic configuration among them, and which the characteristic handlers
    receive. If that object also holds the link's data, it is the link: what the
    application receives in its GATT callbacks is the very object the link layer keeps
-   for the link, naming a link costs nothing, and there is no index to look up. So the
-   link struct extends `connection_data_t`. Agreed.
+   for the link, naming a link costs nothing, and there is no index to look up.
+
+   `connection_data_t` is assembled by inheritance so that a channel whose data is
+   empty adds no address of its own. The link's data is never empty, so no such care is
+   needed for it: the link is a plain struct that has `connection_data_t` as its base
+   and the link's data as members. Agreed.
 
    Notifications and indications are the server's: it notifies every client that
    subscribed, per connection data, and hands each SDU to the link layer with its link.
@@ -265,9 +269,9 @@ What the link layer is made of when the steps are done. Names are proposals.
   says otherwise. Agreed.
 
 - **`link`.** The struct described above, and the connection object the application
-  knows: it extends `connection_data_t`, the per connection data L2CAP folds together
-  for its channels, with the PDU buffer, the parameters, the latency state and the state
-  of the procedures. Knows how to compute its next event from its anchor. The single
+  knows: a plain struct with `connection_data_t`, the per connection data L2CAP folds
+  together for its channels, as its base, and the PDU buffer, the parameters, the
+  latency state and the state of the procedures as its members. Knows how to compute its next event from its anchor. The single
   link implementation holds one; the one for several links an array, and there the
   struct also holds the radio's setup values, access address and CRC initialiser, PHY
   and keys.
