@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 namespace test {
@@ -63,12 +64,39 @@ namespace test {
     bytes_t connect_ind( const connection_parameters& p = {} );
 
     /**
+     * @brief `value` with one of its fields changed, for a PDU that differs from a named one
+     *        in one field
+     *
+     * @code
+     * with( valid_update, &connection_update::window_size, 205 )
+     * @endcode
+     */
+    template < typename T, typename Field >
+    T with( T value, Field T::* field, std::type_identity_t< Field > new_value )
+    {
+        value.*field = new_value;
+
+        return value;
+    }
+
+    /**
+     * @brief the fields of an LL_CONNECTION_UPDATE_IND
+     */
+    struct connection_update
+    {
+        std::uint8_t    window_size;
+        std::uint16_t   window_offset;
+        std::uint16_t   interval;
+        std::uint16_t   latency;
+        std::uint16_t   timeout;
+        std::uint16_t   instant;
+    };
+
+    /**
      * @name link layer control PDUs, the payload behind the data channel header
      * @{
      */
-    bytes_t ll_connection_update_ind(
-        std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval,
-        std::uint16_t latency, std::uint16_t timeout, std::uint16_t instant );
+    bytes_t ll_connection_update_ind( const connection_update& update );
 
     bytes_t ll_channel_map_ind( std::uint64_t map, std::uint16_t instant );
 

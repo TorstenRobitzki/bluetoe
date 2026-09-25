@@ -192,14 +192,6 @@ struct link_layer_with_desired_connection_parameters : unconnected_base< bluetoe
     }
 };
 
-// a request with one field changed
-static connection_parameter_request with( connection_parameter_request request, std::uint16_t connection_parameter_request::* field, std::uint16_t value )
-{
-    request.*field = value;
-
-    return request;
-}
-
 // the peripheral's answer to the central's request, within its desired interval of 11 to 19
 static const connection_parameter_request desired_answer = {
     .min_interval = 11, .max_interval = 19, .latency = 3, .timeout = 2 * 20 * 4, .offsets = two_offsets };

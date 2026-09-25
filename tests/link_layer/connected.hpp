@@ -49,11 +49,64 @@ public:
         }
     }
 
+    void add_connection_update_request( const test::connection_update& update )
+    {
+        ll_control_pdu( test::ll_connection_update_ind( update ) );
+    }
+
     void add_connection_update_request(
         std::uint8_t win_size, std::uint16_t win_offset, std::uint16_t interval,
         std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
     {
-        ll_control_pdu( test::ll_connection_update_ind( win_size, win_offset, interval, latency, timeout, instance ) );
+        add_connection_update_request( { win_size, win_offset, interval, latency, timeout, instance } );
+    }
+
+    /**
+     * @brief the PDU the link layer transmitted `index`th in connection event `event`, its SN
+     *        and NESN cleared, so that it compares to a PDU built by name
+     */
+    std::vector< std::uint8_t > transmitted( std::size_t event, std::size_t index = 0 ) const
+    {
+        BOOST_REQUIRE_GT( this->connection_events().size(), event );
+        BOOST_REQUIRE_GT( this->connection_events()[ event ].transmitted_data.size(), index );
+
+        auto pdu = this->connection_events()[ event ].transmitted_data[ index ].data;
+        pdu[ 0 ] &= 0x03;
+
+        return pdu;
+    }
+
+    /**
+     * @brief requires the first PDU transmitted in connection event `event` to be `expected`
+     */
+    void check_transmitted( std::size_t event, const std::vector< std::uint8_t >& expected ) const
+    {
+        const auto pdu = transmitted( event );
+
+        if ( pdu != expected )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << "\nnot the expected PDU in connection event " << event << ":\n";
+            result.message() << "expected:\n" << hex_dump( expected.begin(), expected.end() );
+            result.message() << "found:\n" << hex_dump( pdu.begin(), pdu.end() );
+
+            BOOST_CHECK( result );
+        }
+    }
+
+    /**
+     * @brief requires the connection events to have used `expected` channels, in order
+     */
+    void check_channels( std::initializer_list< unsigned > expected ) const
+    {
+        BOOST_REQUIRE_GE( this->connection_events().size(), expected.size() );
+
+        std::size_t index = 0;
+        for ( const unsigned channel : expected )
+        {
+            BOOST_CHECK_EQUAL( this->connection_events()[ index ].channel, channel );
+            ++index;
+        }
     }
 
     void respond_with_connection_request( std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval )

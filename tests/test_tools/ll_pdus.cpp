@@ -75,18 +75,16 @@ namespace test {
         };
     }
 
-    bytes_t ll_connection_update_ind(
-        std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval,
-        std::uint16_t latency, std::uint16_t timeout, std::uint16_t instant )
+    bytes_t ll_connection_update_ind( const connection_update& u )
     {
         return {
             0x00,                                   // LL_CONNECTION_UPDATE_IND
-            window_size,
-            lo( window_offset ), hi( window_offset ),
-            lo( interval ), hi( interval ),
-            lo( latency ), hi( latency ),
-            lo( timeout ), hi( timeout ),
-            lo( instant ), hi( instant )
+            u.window_size,
+            lo( u.window_offset ), hi( u.window_offset ),
+            lo( u.interval ), hi( u.interval ),
+            lo( u.latency ), hi( u.latency ),
+            lo( u.timeout ), hi( u.timeout ),
+            lo( u.instant ), hi( u.instant )
         };
     }
 
