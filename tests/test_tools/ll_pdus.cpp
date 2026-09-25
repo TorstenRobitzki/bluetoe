@@ -14,6 +14,13 @@ namespace test {
             return static_cast< std::uint8_t >( value >> 8 );
         }
 
+        // a number on air, least significant octet first
+        void append( bytes_t& pdu, std::uint64_t value, std::size_t octets )
+        {
+            for ( std::size_t i = 0; i != octets; ++i )
+                pdu.push_back( static_cast< std::uint8_t >( value >> ( 8 * i ) ) );
+        }
+
         // an LL_CONNECTION_PARAM_REQ or an LL_CONNECTION_PARAM_RSP, which share their fields
         bytes_t ll_connection_param_pdu( std::uint8_t opcode, const connection_parameter_request& p )
         {
@@ -104,6 +111,46 @@ namespace test {
     bytes_t ll_terminate_ind( std::uint8_t reason )
     {
         return { 0x02, reason };                    // LL_TERMINATE_IND
+    }
+
+    bytes_t ll_enc_req( std::uint64_t rand, std::uint16_t ediv, std::uint64_t skdm, std::uint32_t ivm )
+    {
+        bytes_t result = { 0x03 };                  // LL_ENC_REQ
+        append( result, rand, 8 );                  // Rand
+        append( result, ediv, 2 );                  // EDIV
+        append( result, skdm, 8 );                  // SKDm
+        append( result, ivm, 4 );                   // IVm
+
+        return result;
+    }
+
+    bytes_t ll_enc_rsp( std::uint64_t skds, std::uint32_t ivs )
+    {
+        bytes_t result = { 0x04 };                  // LL_ENC_RSP
+        append( result, skds, 8 );                  // SKDs
+        append( result, ivs, 4 );                   // IVs
+
+        return result;
+    }
+
+    bytes_t ll_start_enc_req()
+    {
+        return { 0x05 };                            // LL_START_ENC_REQ
+    }
+
+    bytes_t ll_start_enc_rsp()
+    {
+        return { 0x06 };                            // LL_START_ENC_RSP
+    }
+
+    bytes_t ll_pause_enc_req()
+    {
+        return { 0x0a };                            // LL_PAUSE_ENC_REQ
+    }
+
+    bytes_t ll_pause_enc_rsp()
+    {
+        return { 0x0b };                            // LL_PAUSE_ENC_RSP
     }
 
     bytes_t ll_unknown_rsp( std::uint8_t opcode )

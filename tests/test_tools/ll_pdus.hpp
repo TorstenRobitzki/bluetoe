@@ -102,6 +102,22 @@ namespace test {
 
     bytes_t ll_terminate_ind( std::uint8_t reason );
 
+    /**
+     * @brief an LL_ENC_REQ; the numbers as the specification prints them, most significant
+     *        octet first, go on air least significant octet first
+     */
+    bytes_t ll_enc_req( std::uint64_t rand, std::uint16_t ediv, std::uint64_t skdm, std::uint32_t ivm );
+
+    bytes_t ll_enc_rsp( std::uint64_t skds, std::uint32_t ivs );
+
+    bytes_t ll_start_enc_req();
+
+    bytes_t ll_start_enc_rsp();
+
+    bytes_t ll_pause_enc_req();
+
+    bytes_t ll_pause_enc_rsp();
+
     bytes_t ll_unknown_rsp( std::uint8_t opcode );
 
     bytes_t ll_feature_req( std::uint64_t features );

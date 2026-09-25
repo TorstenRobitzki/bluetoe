@@ -2,275 +2,135 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include "connected.hpp"
-#include <bluetoe/pairing_status.hpp>
+#include "security_manager_mock.hpp"
 
-namespace test {
-    std::uint16_t secret_value;
+using namespace test;
 
-    using secret_service = bluetoe::server<
-        bluetoe::service<
-            bluetoe::service_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CA9 >,
-            bluetoe::characteristic<
-                bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA >,
-                bluetoe::bind_characteristic_value< decltype( secret_value ), &secret_value >,
-                bluetoe::no_write_access
-            >,
-            bluetoe::requires_encryption
-        >
-    >;
+// what the central sends in an LL_ENC_REQ, unless a test says otherwise
+static constexpr std::uint64_t central_rand = 0x7766554433221100;
+static constexpr std::uint16_t central_ediv = 0x1234;
+static constexpr std::uint64_t central_skdm = 0x7060504030201000;
+static constexpr std::uint32_t central_ivm  = 0x3412bcab;
 
-    // key, returned by find_key()
-    std::pair< bool, bluetoe::details::uint128_t > key_vault;
-    const bluetoe::details::uint128_t example_key = { {
-        0x01, 0x80, 0x02, 0x70,
-        0x03, 0x60, 0x04, 0x50,
-        0x05, 0x40, 0x06, 0x30,
-        0x07, 0x20, 0x08, 0x10
-    } };
+// what the simulated radio answers with, unless a test sets up another response
+static constexpr std::uint64_t simulated_skds = 0x3fac22107855aa56;
+static constexpr std::uint32_t simulated_ivs  = 0x78563412;
 
-    std::uint16_t ediv;
-    std::uint64_t rand;
-
-    /**
-     * A mocked security manager to be used by the link_layer under test to
-     * easily fake the pairing state and the set of available keys.
-     */
-    struct security_manager
-    {
-        template < typename ... >
-        class impl
-        {
-        public:
-            template < class OtherConnectionData >
-            class channel_data_t : public OtherConnectionData
-            {
-            public:
-                std::pair< bool, bluetoe::details::uint128_t > find_key( std::uint16_t ediv, std::uint64_t rand ) const
-                {
-                    ::test::ediv = ediv;
-                    ::test::rand = rand;
-
-                    return key_vault;
-                }
-
-                void remote_connection_created( const bluetoe::link_layer::device_address& )
-                {
-                }
-
-                bluetoe::device_pairing_status local_device_pairing_status() const
-                {
-                    return bluetoe::device_pairing_status::no_key;
-                }
-
-                template < typename Connection >
-                void restore_bonded_cccds( Connection& )
-                {
-                }
-            };
-
-            template < class Connection >
-            void l2cap_input( const std::uint8_t*, std::size_t, std::uint8_t*, std::size_t&, Connection& )
-            {
-            }
-
-            template < class Connection >
-            bool security_manager_output_available( Connection& ) const
-            {
-                return false;
-            }
-
-            template < class Connection >
-            void l2cap_output( std::uint8_t*, std::size_t&, Connection& )
-            {
-            }
-
-            static constexpr std::uint16_t channel_id               = bluetoe::l2cap_channel_ids::sm;
-            static constexpr std::size_t   minimum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
-            static constexpr std::size_t   maximum_channel_mtu_size = bluetoe::details::default_att_mtu_size;
-        };
-
-        struct meta_type :
-            bluetoe::details::security_manager_meta_type,
-            bluetoe::link_layer::details::valid_link_layer_option_meta_type {};
-    };
-}
-
-struct link_layer_with_security : unconnected_base_t< test::secret_service, test::radio_with_encryption, test::security_manager, test::buffer_sizes >
+/*
+ * The link layer under test with the mocked security manager: connected, with no key in the
+ * vault until a test puts one there.
+ */
+struct link_layer_with_security : unconnected_base_t< secret_service, radio_with_encryption, security_manager, buffer_sizes >
 {
-
     link_layer_with_security()
     {
         respond_to( 37, valid_connection_request_pdu );
-        test::key_vault = { false, { { 0x00 } } };
-        test::ediv      = 0u;
-        test::rand      = 0u;
+        key_vault        = { false, { { 0x00 } } };
+        last_key_request = {};
     }
 
-    void expected_response( const std::initializer_list< std::uint8_t >& expected_response, std::size_t event = 1, std::size_t pdu = 0 )
+    // the central starts the encryption with the example key in the vault
+    void request_encryption_with_known_key()
     {
-        auto response = connection_events().at( event ).transmitted_data.at( pdu );
-        response[ 0 ] &= 0x03;
+        key_vault = std::make_pair( true, example_key );
 
-        BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( response ), std::end( response ), std::begin( expected_response ), std::end( expected_response ) );
+        ll_control_pdu( ll_enc_req( 0, 0, central_skdm, central_ivm ) );
+        ll_empty_pdu();
+    }
+
+    // the central completes the start of the encryption; not named after the test case that
+    // calls it, which would name the test's own type
+    void central_confirms_encryption()
+    {
+        ll_control_pdu( ll_start_enc_rsp() );
+        ll_empty_pdu();
+    }
+
+    void check_never_encrypted() const
+    {
+        for ( const auto& event : connection_events() )
+        {
+            BOOST_CHECK( !event.receive_encryption_at_start_of_event );
+            BOOST_CHECK( !event.transmit_encryption_at_start_of_event );
+        }
+    }
+
+    void check_transmission_never_encrypted() const
+    {
+        for ( const auto& event : connection_events() )
+            BOOST_CHECK( !event.transmit_encryption_at_start_of_event );
     }
 };
 
+// the features the link layer claims with a security manager: LE Encryption among them
+static constexpr std::uint64_t bluetoe_features_with_encryption = 0x17;
+
 BOOST_FIXTURE_TEST_CASE( response_to_an_feature_request_with_security_enabled, link_layer_with_security )
 {
-    ll_control_pdu({
-        0x08,
-        0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    });
+    ll_control_pdu( ll_feature_req( 0xff ) );
     ll_empty_pdu();
 
     run();
 
-    expected_response( {
-        0x03, 0x09,
-        0x09,
-        0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    } );
+    check_transmitted( 1, ll_control( ll_feature_rsp( bluetoe_features_with_encryption ) ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( skd_and_iv_stored, link_layer_with_security )
 {
-    ll_control_pdu({
-        0x03,                                   // LL_ENC_REQ
-        0x00, 0x11, 0x22, 0x33,                 // Rand
-        0x44, 0x55, 0x66, 0x77,
-        0x34, 0x12,                             // EDIV
-        0x00, 0x10, 0x20, 0x30,                 // SKDm
-        0x40, 0x50, 0x60, 0x70,
-        0xab, 0xbc, 0x12, 0x34,                 // IVm
-    });
+    ll_control_pdu( ll_enc_req( central_rand, central_ediv, central_skdm, central_ivm ) );
 
     run();
 
-    BOOST_CHECK_EQUAL( skdm(), 0x7060504030201000u );
-    BOOST_CHECK_EQUAL( ivm(), 0x3412bcabu );
+    BOOST_CHECK_EQUAL( skdm(), central_skdm );
+    BOOST_CHECK_EQUAL( ivm(), central_ivm );
 }
 
 BOOST_FIXTURE_TEST_CASE( ediv_and_rand_used, link_layer_with_security )
 {
-    ll_control_pdu({
-        0x03,                                   // LL_ENC_REQ
-        0x00, 0x11, 0x22, 0x33,                 // Rand
-        0x44, 0x55, 0x66, 0x77,
-        0x34, 0x12,                             // EDIV
-        0x00, 0x10, 0x20, 0x30,                 // SKDm
-        0x40, 0x50, 0x60, 0x70,
-        0xab, 0xbc, 0x12, 0x34,                 // IVm
-    });
+    ll_control_pdu( ll_enc_req( central_rand, central_ediv, central_skdm, central_ivm ) );
 
     run();
 
-    BOOST_CHECK_EQUAL( test::ediv, 0x1234u );
-    BOOST_CHECK_EQUAL( test::rand, 0x7766554433221100u );
+    BOOST_CHECK_EQUAL( last_key_request.ediv, central_ediv );
+    BOOST_CHECK_EQUAL( last_key_request.rand, central_rand );
 }
 
 BOOST_FIXTURE_TEST_CASE( still_unencrytped_after_IVs_exchanged, link_layer_with_security )
 {
-    ll_control_pdu({
-        0x03,                                   // LL_ENC_REQ
-        0x00, 0x11, 0x22, 0x33,                 // Rand
-        0x44, 0x55, 0x66, 0x77,
-        0x34, 0x12,                             // EDIV
-        0x00, 0x10, 0x20, 0x30,                 // SKDm
-        0x40, 0x50, 0x60, 0x70,
-        0xab, 0xbc, 0x12, 0x34,                 // IVm
-    });
+    ll_control_pdu( ll_enc_req( central_rand, central_ediv, central_skdm, central_ivm ) );
 
     run();
 
-    check_connection_events(
-        []( const test::connection_event& evt ) -> bool {
-            return !evt.receive_encryption_at_start_of_event
-                && !evt.transmit_encryption_at_start_of_event;
-        },
-        "encrypted should not be enabled"
-    );
+    check_never_encrypted();
 }
 
 BOOST_FIXTURE_TEST_CASE( encryption_request_unknown_long_term_key, link_layer_with_security )
 {
-    ll_control_pdu({
-        0x03,                                   // LL_ENC_REQ
-        0x00, 0x11, 0x22, 0x33,                 // Rand
-        0x44, 0x55, 0x66, 0x77,
-        0x34, 0x12,                             // EDIV
-        0x00, 0x10, 0x20, 0x30,                 // SKDm
-        0x40, 0x50, 0x60, 0x70,
-        0xab, 0xbc, 0x12, 0x34,                 // IVm
-    });
+    ll_control_pdu( ll_enc_req( central_rand, central_ediv, central_skdm, central_ivm ) );
     ll_empty_pdu();
 
     run();
 
-    expected_response( {
-        0x03, 0x0d,
-        0x04,                                   // LL_ENC_RSP
-        0x56, 0xaa, 0x55, 0x78,                 // SKDm
-        0x10, 0x22, 0xac, 0x3f,
-        0x12, 0x34, 0x56, 0x78                  // IVm
-    } );
+    check_transmitted( 1, 0, ll_control( ll_enc_rsp( simulated_skds, simulated_ivs ) ) );
+    check_transmitted( 1, 1, ll_control( ll_reject_ext_ind( 0x03, 0x06 ) ) );    // LL_ENC_REQ: PIN or Key Missing
 
-    expected_response( {
-        0x03, 0x03,
-        0x11,                                   // LL_REJECT_IND_EXT
-        0x03,                                   // LL_ENC_REQ
-        0x06                                    // ErrorCode
-    }, 1, 1 );
-
-    check_connection_events(
-        []( const test::connection_event& evt ) -> bool {
-            return !evt.receive_encryption_at_start_of_event
-                && !evt.transmit_encryption_at_start_of_event;
-        },
-        "encrypted should not be enabled"
-    );
+    check_never_encrypted();
 }
 
 BOOST_FIXTURE_TEST_CASE( encryption_request_known_key, link_layer_with_security )
 {
-    test::key_vault = std::make_pair( true, test::example_key );
-
-    ll_control_pdu({
-        0x03,                                   // LL_ENC_REQ
-        0x00, 0x00, 0x00, 0x00,                 // Rand
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00,                             // EDIV
-        0x00, 0x10, 0x20, 0x30,                 // SKDm
-        0x40, 0x50, 0x60, 0x70,
-        0xab, 0xbc, 0x12, 0x34,                 // IVm
-    });
-    ll_empty_pdu();
+    request_encryption_with_known_key();
 
     run();
 
     const auto used_key = encryption_key();
-    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( used_key ), std::end( used_key ), std::begin( test::example_key ), std::end( test::example_key ) );
+    BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( used_key ), std::end( used_key ), std::begin( example_key ), std::end( example_key ) );
 
-    expected_response( {
-        0x03, 0x0d,
-        0x04,                                   // LL_ENC_RSP
-        0x56, 0xaa, 0x55, 0x78,                 // SKDm
-        0x10, 0x22, 0xac, 0x3f,
-        0x12, 0x34, 0x56, 0x78                  // IVm
-    } );
-
-    expected_response( {
-        0x03, 0x01,
-        0x05                                    // LL_START_ENC_REQ
-    }, 1, 1 );
+    check_transmitted( 1, 0, ll_control( ll_enc_rsp( simulated_skds, simulated_ivs ) ) );
+    check_transmitted( 1, 1, ll_control( ll_start_enc_req() ) );
 
     BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
-
-    check_connection_events(
-        []( const test::connection_event& evt ) -> bool {
-            return !evt.transmit_encryption_at_start_of_event;
-        },
-        "transmission should not be encrypted"
-    );
+    check_transmission_never_encrypted();
 }
 
 /*
@@ -295,18 +155,10 @@ BOOST_FIXTURE_TEST_CASE( start_encryption_example, link_layer_with_security )
         0x9D, 0xFB, 0x01, 0xBF
     } };
 
-    test::key_vault = std::make_pair( true, example_long_term_key );
+    key_vault = std::make_pair( true, example_long_term_key );
     setup_encryption_response( 0x0213243546576879, 0xDEAFBABE );
 
-    ll_control_pdu({
-        0x03,                                   // LL_ENC_REQ
-        0x90, 0x78, 0x56, 0x34,                 // Rand
-        0x12, 0xef, 0xcd, 0xab,
-        0x74, 0x24,                             // EDIV
-        0x13, 0x02, 0xf1, 0xe0,                 // SKDm
-        0xdf, 0xce, 0xbd, 0xac,
-        0x24, 0xab, 0xdc, 0xba                  // IVm
-    });
+    ll_control_pdu( ll_enc_req( 0xABCDEF1234567890, 0x2474, 0xACBDCEDFE0F10213, 0xBADCAB24 ) );
     ll_empty_pdu();
 
     run();
@@ -314,112 +166,55 @@ BOOST_FIXTURE_TEST_CASE( start_encryption_example, link_layer_with_security )
     const auto used_key = encryption_key();
     BOOST_CHECK_EQUAL_COLLECTIONS( std::begin( used_key ), std::end( used_key ), std::begin( example_long_term_key ), std::end( example_long_term_key ) );
 
-    expected_response( {
-        0x03, 0x0d,
-        0x04,                                   // LL_ENC_RSP
-        0x79, 0x68, 0x57, 0x46,                 // SKDm
-        0x35, 0x24, 0x13, 0x02,
-        0xbe, 0xba, 0xaf, 0xde                  // IVm
-    } );
-
-    expected_response( {
-        0x03, 0x01,
-        0x05                                    // LL_START_ENC_REQ
-    }, 1, 1 );
+    check_transmitted( 1, 0, ll_control( ll_enc_rsp( 0x0213243546576879, 0xDEAFBABE ) ) );
+    check_transmitted( 1, 1, ll_control( ll_start_enc_req() ) );
 
     BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
-
-    check_connection_events(
-        []( const test::connection_event& evt ) -> bool {
-            return !evt.transmit_encryption_at_start_of_event;
-        },
-        "transmission should not be encrypted"
-    );
+    check_transmission_never_encrypted();
 }
 
-struct link_layer_with_encryption_setup : link_layer_with_security
+BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_security )
 {
-    link_layer_with_encryption_setup()
-    {
-        test::key_vault = std::make_pair( true, test::example_key );
-
-        ll_control_pdu({
-            0x03,                                   // LL_ENC_REQ
-            0x00, 0x00, 0x00, 0x00,                 // Rand
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00,                             // EDIV
-            0x00, 0x10, 0x20, 0x30,                 // SKDm
-            0x40, 0x50, 0x60, 0x70,
-            0xab, 0xbc, 0x12, 0x34,                 // IVm
-        });
-        ll_empty_pdu();
-    }
-};
-
-BOOST_FIXTURE_TEST_CASE( start_encryption, link_layer_with_encryption_setup )
-{
-    ll_control_pdu({
-        0x06                                    // LL_START_ENC_RSP
-    });
-    ll_empty_pdu();
+    request_encryption_with_known_key();
+    central_confirms_encryption();
 
     run();
 
-    expected_response( {
-        0x03, 0x01,
-        0x06                                    // LL_START_ENC_RSP
-    }, 3 );
+    check_transmitted( 3, ll_control( ll_start_enc_rsp() ) );
 
     BOOST_CHECK( connection_events().at( 1 ).receive_encryption_at_start_of_event );
     BOOST_CHECK( connection_events().at( 3 ).transmit_encryption_at_start_of_event );
 }
 
-struct link_layer_with_encryption : link_layer_with_encryption_setup
+BOOST_FIXTURE_TEST_CASE( start_pause_encryption, link_layer_with_security )
 {
-    link_layer_with_encryption()
-    {
-        ll_control_pdu({
-            0x06                                    // LL_START_ENC_RSP
-        });
-        ll_empty_pdu();
-    }
-};
+    request_encryption_with_known_key();
+    central_confirms_encryption();
 
-BOOST_FIXTURE_TEST_CASE( start_pause_encryption, link_layer_with_encryption )
-{
-    ll_control_pdu({
-        0x0A                                    // LL_PAUSE_ENC_REQ
-    });
+    ll_control_pdu( ll_pause_enc_req() );
     ll_empty_pdu();
 
     run();
 
-    expected_response( {
-        0x03, 0x01,
-        0x0B                                    // LL_PAUSE_ENC_RSP
-    }, 5 );
+    check_transmitted( 5, ll_control( ll_pause_enc_rsp() ) );
 
     BOOST_CHECK( !connection_events().at( 5 ).receive_encryption_at_start_of_event );
     BOOST_CHECK( connection_events().at( 5 ).transmit_encryption_at_start_of_event );
 }
 
-BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_encryption )
+BOOST_FIXTURE_TEST_CASE( pause_encryption, link_layer_with_security )
 {
-    ll_control_pdu({
-        0x0A                                    // LL_PAUSE_ENC_REQ
-    });
+    request_encryption_with_known_key();
+    central_confirms_encryption();
+
+    ll_control_pdu( ll_pause_enc_req() );
     ll_empty_pdu();
 
-    ll_control_pdu({
-        0x0B                                    // LL_PAUSE_ENC_RSP
-    });
+    ll_control_pdu( ll_pause_enc_rsp() );
 
     run();
 
-    expected_response( {
-        0x03, 0x01,
-        0x0B                                    // LL_PAUSE_ENC_RSP
-    }, 5 );
+    check_transmitted( 5, ll_control( ll_pause_enc_rsp() ) );
 
     BOOST_CHECK( !connection_events().at( 7 ).receive_encryption_at_start_of_event );
     BOOST_CHECK( !connection_events().at( 7 ).transmit_encryption_at_start_of_event );

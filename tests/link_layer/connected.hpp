@@ -77,21 +77,26 @@ public:
     }
 
     /**
-     * @brief requires the first PDU transmitted in connection event `event` to be `expected`
+     * @brief requires the PDU transmitted `index`th in connection event `event` to be `expected`
      */
-    void check_transmitted( std::size_t event, const std::vector< std::uint8_t >& expected ) const
+    void check_transmitted( std::size_t event, std::size_t index, const std::vector< std::uint8_t >& expected ) const
     {
-        const auto pdu = transmitted( event );
+        const auto pdu = transmitted( event, index );
 
         if ( pdu != expected )
         {
             boost::test_tools::predicate_result result( false );
-            result.message() << "\nnot the expected PDU in connection event " << event << ":\n";
+            result.message() << "\nnot the expected PDU " << index << " in connection event " << event << ":\n";
             result.message() << "expected:\n" << hex_dump( expected.begin(), expected.end() );
             result.message() << "found:\n" << hex_dump( pdu.begin(), pdu.end() );
 
             BOOST_CHECK( result );
         }
+    }
+
+    void check_transmitted( std::size_t event, const std::vector< std::uint8_t >& expected ) const
+    {
+        check_transmitted( event, 0, expected );
     }
 
     /**
