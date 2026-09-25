@@ -7,12 +7,13 @@
 
 #include <sstream>
 
+using namespace test;
+using bluetoe::link_layer::delta_time;
+
 struct callbacks_t {
 
     struct connection {
-        connection() : value( 0 ) {}
-
-        int value;
+        int value = 0;
     };
 
     unsigned ll_synchronized_callback( unsigned instant, connection& con )
@@ -38,14 +39,25 @@ struct callbacks_t {
 
 } callbacks;
 
-using bluetoe::link_layer::delta_time;
-
 namespace {
     template < class T >
     T take( const T& c, std::size_t n )
     {
         return T{ c.begin(), std::next(c.begin(), std::min( n, c.size() ) ) };
     }
+
+    // the LL_TERMINATE_IND with the reason: remote user terminated connection
+    const auto remote_user_terminated = ll_terminate_ind( 0x13 );
+
+    // a connection update to a 10ms interval at instant 8
+    const test::connection_update update_to_10ms_interval = {
+        .window_size    = 7,
+        .window_offset  = 8,
+        .interval       = 8,
+        .latency        = 0,
+        .timeout        = 100,
+        .instant        = 8
+    };
 }
 
 /*
@@ -163,6 +175,53 @@ struct unconnected_server : unconnected_base_t<
     {
         callbacks = callbacks_t();
     }
+
+    /*
+     * The delays of the scheduled user timers from the given one on, in milliseconds
+     * before the phase shift is applied
+     */
+    void check_user_timers( std::size_t first, std::initializer_list< unsigned > delays_ms ) const
+    {
+        const auto timers = this->scheduled_user_timers();
+        BOOST_REQUIRE_GE( timers.size(), first + delays_ms.size() );
+
+        std::size_t index = first;
+
+        for ( const auto ms : delays_ms )
+        {
+            const auto expected = PhaseShiftUS < 0
+                ? delta_time::msec( ms ) - delta_time::usec( -PhaseShiftUS )
+                : delta_time::msec( ms ) + delta_time::usec( PhaseShiftUS );
+
+            BOOST_TEST_CONTEXT( "user timer " << index )
+            {
+                BOOST_CHECK_EQUAL( timers[ index ].delay, expected );
+            }
+
+            ++index;
+        }
+    }
+
+    void check_user_timers( std::initializer_list< unsigned > delays_ms ) const
+    {
+        check_user_timers( 0, delays_ms );
+    }
+
+    // the instants the callback was called with, from the first call on
+    void check_instants( std::initializer_list< unsigned > expected ) const
+    {
+        BOOST_TEST(
+            take( callbacks.instants, expected.size() ) == expected,
+            boost::test_tools::per_element() );
+    }
+
+    // the values of the connection object the callback saw, from the first call on
+    void check_connection_values( std::initializer_list< int > expected ) const
+    {
+        BOOST_TEST(
+            take( callbacks.connection_values, expected.size() ) == expected,
+            boost::test_tools::per_element() );
+    }
  };
 
 using server_7ms_minus_100us  = unconnected_server< 7000, -100 >;
@@ -180,76 +239,40 @@ BOOST_FIXTURE_TEST_CASE( callback_not_called_if_unconnected, server_7ms_minus_10
 BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_phase, server_7ms_minus_100us )
 {
     // 30ms interval -> effective period: 6ms
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
 
     run();
 
-    const auto timers = scheduled_user_timers();
-
-    BOOST_REQUIRE_GT( timers.size(), 7u );
-
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 18 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 24 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 36 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 6 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    check_user_timers( { 6, 12, 18, 24, 30, 36, 12 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_positive_phase, server_7ms_plus_100us )
 {
     // 30ms interval -> effective period: 6ms
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
 
     run();
 
-    const auto timers = scheduled_user_timers();
-
-    BOOST_REQUIRE_GT( timers.size(), 7u );
-
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 18 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 24 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 30 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 6 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) + bluetoe::link_layer::delta_time::usec( 100 ) );
+    check_user_timers( { 6, 12, 18, 24, 30, 6, 12 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
 {
     callbacks.planned_latency = { 0, 4u, 1u, 0, 17u };
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
 
     run();
 
-    const auto timers = scheduled_user_timers();
-
-    BOOST_REQUIRE_GT( timers.size(), 7u );
-
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, bluetoe::link_layer::delta_time::msec( 6 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, bluetoe::link_layer::delta_time::msec( 18 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, bluetoe::link_layer::delta_time::msec( 24 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 4 ].delay, bluetoe::link_layer::delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 5 ].delay, bluetoe::link_layer::delta_time::msec( 36 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 6 ].delay, bluetoe::link_layer::delta_time::msec( 12 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    check_user_timers( { 6, 12, 18, 24, 30, 36, 12 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( force_callback_call_while_using_latency, server_7ms_minus_100us )
 {
     callbacks.planned_latency = { 2u, 2u, 2u, 2u, 2u, 2u };
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
     ll_function_call([this](){
         force_synchronized_connection_event_callback();
@@ -258,93 +281,62 @@ BOOST_FIXTURE_TEST_CASE( force_callback_call_while_using_latency, server_7ms_min
 
     run();
 
-    static const auto expected = {
+    check_instants( {
         0u,        3u,
         0u,        3u,    // at the second connection event, the
-                          // callback is forces
+                          // callback is forced
             1u,        4u
-    };
-
-    BOOST_TEST(
-        take( callbacks.instants, expected.size() ) == expected,
-        boost::test_tools::per_element() );
+    } );
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_instance, server_7ms_minus_100us )
+BOOST_FIXTURE_TEST_CASE( correct_instant, server_7ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
 
     run();
 
-    static const auto expected = {
+    check_instants( {
         0u, 1u, 2u, 3u, 4u,
         0u, 1u, 2u, 3u, 4u,
-        0u };
-
-    BOOST_TEST(
-        take( callbacks.instants, expected.size() ) == expected,
-        boost::test_tools::per_element() );
+        0u } );
 }
 
-BOOST_FIXTURE_TEST_CASE( correct_instance_with_instance, server_7ms_minus_100us )
+BOOST_FIXTURE_TEST_CASE( correct_instant_with_latency, server_7ms_minus_100us )
 {
     callbacks.planned_latency = { 0, 4u, 1u, 0, 2u };
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
 
     run();
 
-    static const auto expected = {
+    check_instants( {
         0u, 1u,
             1u,    3u, 4u,
-                2u };
-
-    BOOST_TEST(
-        take( callbacks.instants, expected.size() ) == expected,
-        boost::test_tools::per_element() );
+                2u } );
 }
 
 BOOST_FIXTURE_TEST_CASE( use_default_constructed_connection_and_persist_connection, server_7ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 3 );
 
     run();
 
-    const auto connection_values = callbacks.connection_values;
-
-    BOOST_REQUIRE_GT( connection_values.size(), 5u );
-
-    BOOST_CHECK_EQUAL( connection_values[ 0 ], 0 );
-    BOOST_CHECK_EQUAL( connection_values[ 1 ], 1 );
-    BOOST_CHECK_EQUAL( connection_values[ 2 ], 2 );
+    check_connection_values( { 0, 1, 2 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( reset_connection_after_reconnect, server_15ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
-    ll_control_pdu( {
-        0x02,           // LL_TERMINATE_IND
-        0x13            // REMOTE USER TERMINATED CONNECTION
-    } );
+    ll_control_pdu( remote_user_terminated );
 
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
     run();
 
-    static const auto expected = { 0, 1, 0, 1, 2 };
-
-    BOOST_TEST(
-        take( callbacks.connection_values, expected.size() ) == expected,
-        boost::test_tools::per_element() );
+    check_connection_values( { 0, 1, 0, 1, 2 } );
 }
 
 /*
@@ -354,107 +346,57 @@ using server_60ms_minus_100us  = unconnected_server< 60000, -100 >;
 
 BOOST_FIXTURE_TEST_CASE( larger_min_period, server_60ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 30 );
 
     run();
 
-    const auto timers = scheduled_user_timers();
-
-    BOOST_REQUIRE_GT( timers.size(), 7u );
-
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 60 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 4 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 5 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 6 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 7 ].delay, delta_time::msec( 120 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    check_user_timers( { 60, 120, 120, 120, 120, 120, 120, 120 } );
 }
 
-BOOST_FIXTURE_TEST_CASE( larger_min_period_instance, server_60ms_minus_100us )
+BOOST_FIXTURE_TEST_CASE( larger_min_period_instant, server_60ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
-    ll_empty_pdu();
-    ll_empty_pdu();
+    respond_to( 37, valid_connection_request_pdu );
+    ll_empty_pdus( 2 );
 
     run();
 
-    static const auto expected = { 0u, 0u, 0u, 0u };
-
-    BOOST_TEST(
-        take( callbacks.instants, expected.size() ) == expected,
-        boost::test_tools::per_element() );
+    check_instants( { 0u, 0u, 0u, 0u } );
 }
 
 using server_20ms_minus_100us  = unconnected_server< 20000, -100 >;
 
 BOOST_FIXTURE_TEST_CASE( reconnect_with_different_interval, server_20ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
-    ll_control_pdu( {
-        0x02,           // LL_TERMINATE_IND
-        0x13            // REMOTE USER TERMINATED CONNECTION
-    } );
+    ll_control_pdu( remote_user_terminated );
 
-    this->respond_to( 37, {
-        0xc5, 0x22,                         // header
-        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-        0x08, 0x81, 0xf6,                   // CRC Init
-        0x03,                               // transmit window size
-        0x08, 0x00,                         // window offset
-        0x08, 0x00,                         // interval (10ms)
-        0x00, 0x00,                         // peripheral latency
-        0x48, 0x00,                         // connection timeout (720ms)
-        0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-        0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
-    } );
+    // the second connection with a 10ms interval
+    respond_to( 37, connect_ind( { .window_offset = 8, .interval = 8 } ) );
     ll_empty_pdu();
     run();
 
-    const auto timers = scheduled_user_timers();
-    BOOST_REQUIRE_GT( timers.size(), 3u );
-
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-
-    BOOST_CHECK_EQUAL( timers[ 2 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 3 ].delay, delta_time::msec( 40 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    check_user_timers( { 15, 30, 20, 40 } );
 }
 
 BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minus_100us )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
-    add_connection_update_request(
-        0x07, 0x08, 0x08, 0, 100, 8 );
+    add_connection_update_request( update_to_10ms_interval );
     ll_empty_pdus( 30 );
     run();
 
-    const auto timers = scheduled_user_timers();
-    BOOST_REQUIRE_GT( timers.size(), 16u );
-
-    // instance 0
-    BOOST_CHECK_EQUAL( timers[ 0 ].delay, delta_time::msec( 15 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 1 ].delay, delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-
-    // ...
-    BOOST_CHECK_EQUAL( timers[ 13 ].delay, delta_time::msec( 30 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 14 ].delay, delta_time::msec( 20 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 15 ].delay, delta_time::msec( 40 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
-    BOOST_CHECK_EQUAL( timers[ 16 ].delay, delta_time::msec( 40 ) - bluetoe::link_layer::delta_time::usec( 100 ) );
+    // the timers of the 30ms interval, then, from the instant on, those of the 10ms interval
+    check_user_timers( { 15, 30 } );
+    check_user_timers( 13, { 30, 20, 40, 40 } );
 }
 
 struct callbacks_with_optional_callbacks_t
 {
     struct connection {
-        connection() : value( 0 ) {}
-
-        int value;
+        int value = 0;
     };
 
     unsigned ll_synchronized_callback( unsigned, connection& )
@@ -524,12 +466,9 @@ BOOST_FIXTURE_TEST_CASE( no_callbacks, server_20ms_minus_100us_cbs )
 
 BOOST_FIXTURE_TEST_CASE( connect_disconnect_callbacks, server_20ms_minus_100us_cbs )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
-    ll_control_pdu( {
-        0x02,           // LL_TERMINATE_IND
-        0x13            // REMOTE USER TERMINATED CONNECTION
-    } );
+    ll_control_pdu( remote_user_terminated );
     ll_empty_pdu();
     run();
 
@@ -542,10 +481,9 @@ BOOST_FIXTURE_TEST_CASE( connect_disconnect_callbacks, server_20ms_minus_100us_c
 
 BOOST_FIXTURE_TEST_CASE( update_callback, server_20ms_minus_100us_cbs )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdu();
-    add_connection_update_request(
-        0x07, 0x08, 0x08, 0, 100, 8 );
+    add_connection_update_request( update_to_10ms_interval );
     ll_empty_pdus( 10 );
     run();
 

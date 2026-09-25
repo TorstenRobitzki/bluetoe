@@ -4,22 +4,17 @@
 /**
  * @file simulated_radio.hpp
  *
- * The simulated radio on the interface of <bluetoe/scheduled_radio2.hpp>: the same
- * simulation and the same test facing API as test_radio.hpp, whose radio_base and recorded
- * types it shares, on the interface the link layer is moving to.
+ * The simulated radio the link layer tests run against, on the interface of
+ * <bluetoe/scheduled_radio2.hpp>. What it records for a test, and the checks a test runs on
+ * that, are radio_base's (radio_base.hpp); this file is the simulation itself and the radios
+ * the tests name: test::radio, radio_with_2mbit, radio_with_user_timer, radio_with_encryption.
  *
- * What differs is what the interface changed: every time is an abs_time rather than a delta
- * from the last event, the link layer owns the PDU buffer and the radio asks it for the one
- * of the current connection, advertising begins with start_advertising_event() and continues at a
- * time, a connection event names its start and its end rather than a window and an interval,
- * and what a radio filters by is an acceptance filter rather than a white list.
- *
- * What a test sees is unchanged: the recorded times stay delta_time, the schedule times
- * counted from the start of the simulation and the windows from the moment of scheduling, so
- * that the expectations of the existing tests keep their meaning.
+ * The recorded times are delta_time, the schedule times counted from the start of the
+ * simulation and the windows from the moment of scheduling, although the interface speaks in
+ * abs_time, so that the expectations of the tests read as times since the simulation began.
  */
 
-#include "test_radio.hpp"
+#include "radio_base.hpp"
 
 #include <bluetoe/scheduled_radio2.hpp>
 #include <bluetoe/abs_time.hpp>

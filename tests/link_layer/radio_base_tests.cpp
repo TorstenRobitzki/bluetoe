@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
 
-#include "test_radio.hpp"
+#include "radio_base.hpp"
 
 BOOST_AUTO_TEST_CASE( detect_equal_pdus )
 {

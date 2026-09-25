@@ -59,8 +59,9 @@ struct fixture : unconnected_base<
     }
 };
 
-using test::X;
+using namespace test;
 
+// the first test of a kind constructs the PDU by hand, the later ones name it
 BOOST_FIXTURE_TEST_CASE( request_to_2mbit, fixture )
 {
     ll_empty_pdus( 1 );
@@ -94,13 +95,7 @@ BOOST_FIXTURE_TEST_CASE( request_to_1_2mbit, fixture )
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu(
-        {
-            0x16,                   // LL_PHY_REQ
-            0x01,                   // LE 1M PHY
-            0x02                    // LE 2M PHY
-        }
-    );
+    check_outgoing_ll_control_pdu( ll_phy_req( phy::le_1m, phy::le_2m ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( request_to_2_xmbit, fixture )
@@ -116,13 +111,7 @@ BOOST_FIXTURE_TEST_CASE( request_to_2_xmbit, fixture )
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu(
-        {
-            0x16,                   // LL_PHY_REQ
-            0x02,                   // LE 2M PHY
-            0x00                    // unchanged
-        }
-    );
+    check_outgoing_ll_control_pdu( ll_phy_req( phy::le_2m, phy::none ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( request_to_remote_version, fixture )
@@ -160,25 +149,11 @@ BOOST_FIXTURE_TEST_CASE( request_to_remote_version_pending_till_response, fixtur
         // is still pending, as no response was received yet.
         BOOST_CHECK( !remote_versions_request() );
     });
-    ll_control_pdu(
-        {
-            0x0C,                   // LL_VERSION_IND
-            0x08,                   // Version
-            0x47, 0x11,             // Company_Identifier
-            0x08, 0x15              // Subversion
-        }
-    );
+    ll_control_pdu( ll_version_ind( 0x08, 0x1147, 0x1508 ) );
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu(
-        {
-            0x0C,                   // LL_VERSION_IND
-            0x09,                   // Version
-            0x69, 0x02,             // Company_Identifier
-            0x00, 0x00              // Subversion
-        }
-    );
+    check_outgoing_ll_control_pdu( ll_version_ind( 0x09, 0x0269, 0 ) );
 
     // Now again, we can request the remote version
     ll_function_call( [this](){
@@ -188,14 +163,7 @@ BOOST_FIXTURE_TEST_CASE( request_to_remote_version_pending_till_response, fixtur
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu(
-        {
-            0x0C,                   // LL_VERSION_IND
-            0x09,                   // Version
-            0x69, 0x02,             // Company_Identifier
-            0x00, 0x00              // Subversion
-        }
-    );
+    check_outgoing_ll_control_pdu( ll_version_ind( 0x09, 0x0269, 0 ) );
 }
 
 /**
@@ -241,17 +209,9 @@ BOOST_FIXTURE_TEST_CASE( Initiating_Connection_Parameter_Request__Accept, fixtur
     });
     ll_empty_pdus( 4 );
 
-    ll_control_pdu(
-        {
-            0x00,                   // LL_CONNECTION_UPDATE_IND
-            0x01,                   // WinSize
-            0x06, 0x00,             // WinOffset
-            0x06, 0x00,             // Interval
-            0x00, 0x00,             // Latency
-            0x2c, 0x01,             // Timeout
-            0x0A, 0x00              // Instant
-        }
-    );
+    // the central accepts with an update to the requested parameters
+    ll_control_pdu( ll_connection_update_ind( {
+        .window_size = 1, .window_offset = 6, .interval = 6, .latency = 0, .timeout = 300, .instant = 10 } ) );
     ll_empty_pdus( 20 );
 
     run( 25 );
@@ -320,13 +280,7 @@ BOOST_FIXTURE_TEST_CASE( Initiating_Connection_Parameter_Request__Reject_No_Time
     });
     ll_empty_pdus( 4 );
 
-    ll_control_pdu(
-        {
-            0x11,                   // LL_REJECT_EXT_IND
-            0x0F,                   // LL_CONNECTION_PARAM_REQ
-            0x06                    // Error Code
-        }
-    );
+    ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x06 ) );  // LL_CONNECTION_PARAM_REQ: PIN or Key Missing
 
     // connection interval is 30ms / timeout 4000ms = 1333,3
     ll_empty_pdus( 1340 );

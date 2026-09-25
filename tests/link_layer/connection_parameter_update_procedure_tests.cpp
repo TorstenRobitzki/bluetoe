@@ -10,6 +10,15 @@
 
 using namespace test;
 
+// what the peripheral asks for in these tests, in one place: an interval of 10 to 20,
+// a latency of 3 and a timeout of 160
+static const connection_parameter_request requested = { .min_interval = 10, .max_interval = 20, .latency = 3, .timeout = 2 * 20 * 4 };
+
+// the versions of the Core Specification and the feature a LL_FEATURE_REQ names
+static constexpr std::uint8_t  core_4_0                               = 0x06;
+static constexpr std::uint16_t some_company                           = 0x0200;
+static constexpr std::uint64_t connection_parameters_request_procedure = 0x02;
+
 /*
  * To request the update of the connection parameters, a peripheral / link layer peripheral
  * has two options:
@@ -38,128 +47,93 @@ struct link_layer_with_signaling_channel : unconnected_base< bluetoe::l2cap::sig
     {
         respond_to( 37, valid_connection_request_pdu );
     }
+
+    bool request_the_parameters()
+    {
+        return connection_parameter_update_request( requested.min_interval, requested.max_interval, requested.latency, requested.timeout );
+    }
 };
 
 BOOST_FIXTURE_TEST_CASE( if_central_protocol_version_is_unknown_try_ll, link_layer_with_signaling_channel )
 {
-    add_connection_event_respond(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
+    // what `requested` names, by hand
     check_outgoing_ll_control_pdu( {
-        0x0F,                       // opcode
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
+        0x0F,                       // LL_CONNECTION_PARAM_REQ
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // Timeout
+        0x00,                       // PreferredPeriodicity: none
         0x00, 0x00,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
+        0xff, 0xff,                 // Offset0: none
+        0xff, 0xff,                 // Offset1: none
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
     } );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_central_protocol_version_is_40_use_l2cap, link_layer_with_signaling_channel )
 {
-    ll_control_pdu(
-        {
-            0x0C,               // LL_VERSION_IND
-            0x06,               // VersNr = Core Specification 4.0
-            0x00, 0x02,         // CompId
-            0x00, 0x00          // SubVersNr
-        } );
+    ll_control_pdu( ll_version_ind( core_4_0, some_company, 0 ) );
 
-    add_connection_event_respond(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
+    // the L2CAP connection parameter update request for `requested`, by hand, behind the
+    // data channel header: any L2CAP length and identifier
     check_outgoing_l2cap_pdu( {
-        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
-        10, 0x00, 20, 0x00, 3, 0x00,
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
+        X, X,                       // L2CAP length
+        0x05, 0x00,                 // L2CAP channel: LE signaling
+        0x12,                       // Connection Parameter Update Request
+        X,                          // Identifier
+        0x08, 0x00,                 // length
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8  // Timeout
     } );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_centrals_features_dont_contain_ll_use_l2cap, link_layer_with_signaling_channel )
 {
-    ll_control_pdu(
-        {
-            0x08,                    // LL_FEATURE_REQ
-            0x00, 0x00, 0x00, 0x00,  // no Connection Parameters Request Procedure
-            0x00, 0x00, 0x00, 0x00
-        } );
+    ll_control_pdu( ll_feature_req( 0 ) );
 
-    add_connection_event_respond(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_l2cap_pdu( {
-        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
-        10, 0x00, 20, 0x00, 3, 0x00,
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
-    } );
+    check_outgoing_l2cap_pdu( l2cap_connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_centrals_features_contain_ll_use_ll, link_layer_with_signaling_channel )
 {
-    ll_control_pdu(
-        {
-            0x08,                    // LL_FEATURE_REQ
-            0x02, 0x00, 0x00, 0x00,  // Connection Parameters Request Procedure
-            0x00, 0x00, 0x00, 0x00
-        } );
+    ll_control_pdu( ll_feature_req( connection_parameters_request_procedure ) );
 
-    add_connection_event_respond(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_req( requested ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_ll_doesn_work_fallback_to_l2cap, link_layer_with_signaling_channel )
 {
-    ll_function_call(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
@@ -173,42 +147,21 @@ BOOST_FIXTURE_TEST_CASE( if_ll_doesn_work_fallback_to_l2cap, link_layer_with_sig
     run( 5 );
 
     // first tried with LL_CONNECTION_PARAM_REQ
-    check_outgoing_ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_req( requested ) );
 
     // as fallback, try l2cap
-    check_outgoing_l2cap_pdu( {
-        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
-        10, 0x00, 20, 0x00, 3, 0x00,
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
-    } );
+    check_outgoing_l2cap_pdu( l2cap_connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_fallback_to_l2cap, link_layer_with_signaling_channel )
 {
-    ll_function_call(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
     ll_control_pdu( {
         0x0D,                       // LL_REJECT_IND
-        0x1A                        // Unsupported Remote/LMP Feature (0x1a)
+        0x1A                        // ErrorCode: Unsupported Remote/LMP Feature
     } );
 
     ll_empty_pdus(3);
@@ -216,43 +169,22 @@ BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_fallback_to_l2cap, link_layer_with_s
     run( 5 );
 
     // first tried with LL_CONNECTION_PARAM_REQ
-    check_outgoing_ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_req( requested ) );
 
     // as fallback, try l2cap
-    check_outgoing_l2cap_pdu( {
-        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
-        10, 0x00, 20, 0x00, 3, 0x00,
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
-    } );
+    check_outgoing_l2cap_pdu( l2cap_connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_ext_fallback_to_l2cap, link_layer_with_signaling_channel )
 {
-    ll_function_call(
-        [&](){
-            BOOST_REQUIRE( connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
-        });
+    ll_function_call( [&]{ BOOST_REQUIRE( request_the_parameters() ); } );
 
     ll_empty_pdus(3);
 
     ll_control_pdu( {
-        0x11,                       // LL_REJECT_IND_EXT
-        0x0F,                       // opcde
-        0x1A                        // Unsupported Remote/LMP Feature (0x1a)
+        0x11,                       // LL_REJECT_EXT_IND
+        0x0F,                       // RejectOpcode: LL_CONNECTION_PARAM_REQ
+        0x1A                        // ErrorCode: Unsupported Remote/LMP Feature
     } );
 
     ll_empty_pdus(3);
@@ -260,46 +192,35 @@ BOOST_FIXTURE_TEST_CASE( if_ll_was_rejected_ext_fallback_to_l2cap, link_layer_wi
     run( 5 );
 
     // first tried with LL_CONNECTION_PARAM_REQ
-    check_outgoing_ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_req( requested ) );
 
     // as fallback, try l2cap
-    check_outgoing_l2cap_pdu( {
-        X,  X, 0x05, 0x00, 0x12, X, 0x08, 0x00,
-        10, 0x00, 20, 0x00, 3, 0x00,
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8
-    } );
+    check_outgoing_l2cap_pdu( l2cap_connection_parameter_update_request( 10, 20, 3, 2 * 20 * 4 ) );
 }
+
+// what the central asks for in these tests: the same as the peripheral, with two offsets
+static const std::array< std::uint16_t, 6 > two_offsets = { 2, 4, 0xffff, 0xffff, 0xffff, 0xffff };
+
+static const connection_parameter_request central_request = {
+    .min_interval = 10, .max_interval = 20, .latency = 3, .timeout = 2 * 20 * 4, .offsets = two_offsets };
 
 BOOST_FIXTURE_TEST_CASE( copy_data_from_request, link_layer_with_signaling_channel )
 {
+    // what `central_request` names, by hand
     ll_control_pdu( {
         0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // Timeout
+        0x00,                       // PreferredPeriodicity: none
         0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
+        0x02, 0x00,                 // Offset0
+        0x04, 0x00,                 // Offset1
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
     } );
 
     ll_empty_pdus(3);
@@ -308,18 +229,18 @@ BOOST_FIXTURE_TEST_CASE( copy_data_from_request, link_layer_with_signaling_chann
 
     check_outgoing_ll_control_pdu( {
         0x10,                       // LL_CONNECTION_PARAM_RSP
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
+        10, 0x00,                   // Interval_Min
+        20, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // Timeout
+        0x00,                       // PreferredPeriodicity: none
         0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
+        0x02, 0x00,                 // Offset0
+        0x04, 0x00,                 // Offset1
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
     } );
 }
 
@@ -337,160 +258,54 @@ struct link_layer_with_desired_connection_parameters : unconnected_base< bluetoe
     }
 };
 
+// the peripheral's answer to the central's request, within its desired interval of 11 to 19
+static const connection_parameter_request desired_answer = {
+    .min_interval = 11, .max_interval = 19, .latency = 3, .timeout = 2 * 20 * 4, .offsets = two_offsets };
+
 BOOST_FIXTURE_TEST_CASE( respond_with_desired_parameters, link_layer_with_desired_connection_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    ll_control_pdu( ll_connection_param_req( central_request ) );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x10,                       // LL_CONNECTION_PARAM_RSP
-        11, 0x00,                   // min interval
-        19, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_rsp( desired_answer ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( requested_interval_outside_of_desired_values, link_layer_with_desired_connection_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        20, 0x00,                   // min interval
-        30, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    ll_control_pdu( ll_connection_param_req( {
+        .min_interval = 20, .max_interval = 30, .latency = 3, .timeout = 2 * 20 * 4, .offsets = two_offsets } ) );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x10,                       // LL_CONNECTION_PARAM_RSP
-        11, 0x00,                   // min interval
-        19, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_rsp( desired_answer ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( requested_latency_outside_of_desired_values, link_layer_with_desired_connection_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        0, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    ll_control_pdu( ll_connection_param_req( with( central_request, &connection_parameter_request::latency, 0 ) ) );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x10,                       // LL_CONNECTION_PARAM_RSP
-        11, 0x00,                   // min interval
-        19, 0x00,                   // max interval
-        11, 0x00,                   // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_rsp( with( desired_answer, &connection_parameter_request::latency, 11 ) ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( requested_timeout_outside_of_desired_values, link_layer_with_desired_connection_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // a timeout of 496, beyond the desired 160
+    ll_control_pdu( ll_connection_param_req( with( central_request, &connection_parameter_request::timeout, 496 ) ) );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x10,                       // LL_CONNECTION_PARAM_RSP
-        11, 0x00,                   // min interval
-        19, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        120 & 0xff, 120 >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_rsp( with( desired_answer, &connection_parameter_request::timeout, 120 ) ) );
 }
 
 struct connection_parameter_update_cb_t
@@ -547,20 +362,21 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Reject_Invalid_Connection_Parameter_Request_Param
 {
     fixture_t link_layer;
 
+    // a minimum above the maximum, by hand
     link_layer.ll_control_pdu( {
         0x0F,                       // LL_CONNECTION_PARAM_REQ
-        20, 0x00,                   // min interval
-        10, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
+        20, 0x00,                   // Interval_Min
+        10, 0x00,                   // Interval_Max
+        3, 0x00,                    // Latency
+        0xf0, 0x01,                 // Timeout
+        0x00,                       // PreferredPeriodicity: none
         0xff, 0xff,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
+        0xff, 0xff,                 // Offset0: none
+        0xff, 0xff,                 // Offset1: none
+        0xff, 0xff,                 // Offset2: none
+        0xff, 0xff,                 // Offset3: none
+        0xff, 0xff,                 // Offset4: none
+        0xff, 0xff                  // Offset5: none
     } );
 
     link_layer.ll_empty_pdus(3);
@@ -569,8 +385,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Reject_Invalid_Connection_Parameter_Request_Param
 
     link_layer.check_outgoing_ll_control_pdu( {
         0x11,                       // LL_REJECT_EXT_IND
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x1E                        // ErrorCode
+        0x0F,                       // RejectOpcode: LL_CONNECTION_PARAM_REQ
+        0x1E                        // ErrorCode: Invalid LL Parameters
     } );
 }
 
@@ -581,31 +397,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_p
 {
     fixture_t link_layer;
 
-    link_layer.ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        4, 0x00,                    // min interval
-        10, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0xff, 0xff,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // a minimum below the 7.5 ms the specification allows
+    link_layer.ll_control_pdu( ll_connection_param_req( { .min_interval = 4, .max_interval = 10, .latency = 3, .timeout = 496, .reference_event = 0xffff } ) );
 
     link_layer.ll_empty_pdus(3);
 
     link_layer.run( 5 );
 
-    link_layer.check_outgoing_ll_control_pdu( {
-        0x11,                       // LL_REJECT_EXT_IND
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x1E                        // ErrorCode
-    } );
+    link_layer.check_outgoing_ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x1e ) );   // LL_CONNECTION_PARAM_REQ: Invalid LL Parameters
 }
 
 /**
@@ -615,31 +414,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_p
 {
     fixture_t link_layer;
 
-    link_layer.ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        5, 0x00,                    // min interval
-        0x81, 0x0C,                 // max interval
-        3, 0x00,                    // latency
-        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0xff, 0xff,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // a maximum above the 4 s the specification allows
+    link_layer.ll_control_pdu( ll_connection_param_req( { .min_interval = 5, .max_interval = 0x0c81, .latency = 3, .timeout = 496, .reference_event = 0xffff } ) );
 
     link_layer.ll_empty_pdus(3);
 
     link_layer.run( 5 );
 
-    link_layer.check_outgoing_ll_control_pdu( {
-        0x11,                       // LL_REJECT_EXT_IND
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x1E                        // ErrorCode
-    } );
+    link_layer.check_outgoing_ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x1e ) );   // LL_CONNECTION_PARAM_REQ: Invalid LL Parameters
 }
 
 /**
@@ -649,68 +431,27 @@ BOOST_AUTO_TEST_CASE_TEMPLATE( Accepting_Connection_Parameter_Request__illegal_p
 {
     fixture_t link_layer;
 
-    link_layer.ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        5, 0x00,                    // min interval
-        10, 0x00,                   // max interval
-        0xf4, 0x01,                 // latency 500
-        (3 * 20 * 4) & 0xff, (4 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0xff, 0xff,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // a latency above the 499 the specification allows
+    link_layer.ll_control_pdu( ll_connection_param_req( { .min_interval = 5, .max_interval = 10, .latency = 500, .timeout = 496, .reference_event = 0xffff } ) );
 
     link_layer.ll_empty_pdus(3);
 
     link_layer.run( 5 );
 
-    link_layer.check_outgoing_ll_control_pdu( {
-        0x11,                       // LL_REJECT_EXT_IND
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x1E                        // ErrorCode
-    } );
+    link_layer.check_outgoing_ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x1e ) );   // LL_CONNECTION_PARAM_REQ: Invalid LL Parameters
 }
 
 BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_parameters_test, link_layer_with_async_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        5, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    ll_control_pdu( ll_connection_param_req( with( central_request, &connection_parameter_request::latency, 5 ) ) );
 
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_connection_events( [&]( const test::connection_event& evt ) -> bool {
-        using test::X;
-        using test::and_so_on;
-
-        for ( const auto& response: evt.transmitted_data )
-        {
-            if ( check_pdu( response, { X, X, 0x11, and_so_on } )
-              || check_pdu( response, { X, X, 0x10, and_so_on } ) )
-                return false;
-        }
-
-        return true;
-    }, "no LL_REJECT_EXT_IND and no LL_CONNECTION_PARAM_RSP" );
+    // neither rejected nor answered by the link layer: the host is asked
+    BOOST_CHECK_EQUAL( count_transmitted( { X, X, 0x11, and_so_on } ), 0u );
+    BOOST_CHECK_EQUAL( count_transmitted( { X, X, 0x10, and_so_on } ), 0u );
 
     BOOST_REQUIRE( connection_parameter_update_cb.remote_connection_parameter_request_received );
     BOOST_CHECK_EQUAL( connection_parameter_update_cb.requested_interval_min, 10 );
@@ -721,21 +462,7 @@ BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_parameters_test, link_lay
 
 BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_reply_test, link_layer_with_async_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        5, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    ll_control_pdu( ll_connection_param_req( with( central_request, &connection_parameter_request::latency, 5 ) ) );
     ll_empty_pdus(3);
     ll_function_call([this](){
         connection_parameters_request_reply( 11, 19, 3, 2 * 20 * 4 - 5 );
@@ -744,40 +471,14 @@ BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_reply_test, link_layer_wi
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x10,                       // LL_CONNECTION_PARAM_RSP
-        11, 0x00,                   // min interval
-        19, 0x00,                   // max interval
-        3, 0x00,                    // latency
-        (2 * 20 * 4 - 5) & 0xff, (2 * 20 * 4 - 5) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0xff, 0xff,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // the host's reply, without a reference event and without offsets
+    check_outgoing_ll_control_pdu( ll_connection_param_rsp( {
+        .min_interval = 11, .max_interval = 19, .latency = 3, .timeout = 2 * 20 * 4 - 5, .reference_event = 0xffff } ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_negative_reply_test, link_layer_with_async_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        10, 0x00,                   // min interval
-        20, 0x00,                   // max interval
-        5, 0x00,                    // latency
-        (2 * 20 * 4) & 0xff, (2 * 20 * 4) >> 8, // timeout
-        0x00,                       // prefered periodicity (none)
-        0x00, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0x04, 0x00,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    ll_control_pdu( ll_connection_param_req( with( central_request, &connection_parameter_request::latency, 5 ) ) );
     ll_empty_pdus(3);
     ll_function_call([this](){
         connection_parameters_request_negative_reply(0x3B);
@@ -786,11 +487,7 @@ BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_negative_reply_test, link
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x11,                       // LL_REJECT_EXT_IND
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x3B                        // UNACCEPTABLE CONNECTION PARAMETERS
-    } );
+    check_outgoing_ll_control_pdu( ll_reject_ext_ind( 0x0f, 0x3b ) );   // LL_CONNECTION_PARAM_REQ: Unacceptable Connection Parameters
 }
 
 /**
@@ -798,40 +495,17 @@ BOOST_FIXTURE_TEST_CASE( requesting_connect_parameters_negative_reply_test, link
  */
 BOOST_FIXTURE_TEST_CASE( Accepting_Connection_Parameter_Request__preferred_anchor_points_only, link_layer_with_async_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x18, 0x00,                 // min interval (30ms)
-        0x18, 0x00,                 // max interval (30ms)
-        0x00, 0x00,                 // latency latency
-        0x48, 0x00,                 // connection timeout (720ms)
-        0x00,                       // prefered periodicity (none)
-        0x20, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // the connection's own parameters, 30 ms and 720 ms, with one anchor point offered
+    const connection_parameter_request anchor_only = {
+        .min_interval = 0x18, .max_interval = 0x18, .latency = 0, .timeout = 0x48,
+        .reference_event = 0x20, .offsets = { 2, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff } };
+
+    ll_control_pdu( ll_connection_param_req( anchor_only ) );
     ll_empty_pdus(3);
 
     run( 5 );
 
-    check_outgoing_ll_control_pdu( {
-        0x10,                       // LL_CONNECTION_PARAM_RSP
-        0x18, 0x00,                 // min interval (30ms)
-        0x18, 0x00,                 // max interval (30ms)
-        0x00, 0x00,                 // latency latency
-        0x48, 0x00,                 // connection timeout (720ms)
-        0x00,                       // prefered periodicity (none)
-        0x20, 0x00,                 // ReferenceConnEventCount
-        0x02, 0x00,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    check_outgoing_ll_control_pdu( ll_connection_param_rsp( anchor_only ) );
 
     BOOST_REQUIRE( !connection_parameter_update_cb.remote_connection_parameter_request_received );
 }
@@ -842,21 +516,9 @@ BOOST_FIXTURE_TEST_CASE( Accepting_Connection_Parameter_Request__preferred_ancho
  */
 BOOST_FIXTURE_TEST_CASE( Accepting_Connection_Parameter_Request__Interval_Range_Not_Zero, link_layer_with_async_parameters )
 {
-    ll_control_pdu( {
-        0x0F,                       // LL_CONNECTION_PARAM_REQ
-        0x18, 0x00,                 // min interval (30ms)
-        0x30, 0x00,                 // max interval (60ms)
-        0x00, 0x00,                 // latency latency
-        0x48, 0x00,                 // connection timeout (720ms)
-        0x08,                       // prefered periodicity (10ms)
-        0xff, 0xff,                 // ReferenceConnEventCount
-        0xff, 0xff,                 // Offset0 (none)
-        0xff, 0xff,                 // Offset1 (none)
-        0xff, 0xff,                 // Offset2 (none)
-        0xff, 0xff,                 // Offset3 (none)
-        0xff, 0xff,                 // Offset4 (none)
-        0xff, 0xff                  // Offset5 (none)
-    } );
+    // an interval of 30 to 60 ms with a preferred periodicity of 10 ms
+    ll_control_pdu( ll_connection_param_req( {
+        .min_interval = 0x18, .max_interval = 0x30, .latency = 0, .timeout = 0x48, .preferred_periodicity = 8, .reference_event = 0xffff } ) );
     ll_empty_pdus(3);
 
     run( 5 );

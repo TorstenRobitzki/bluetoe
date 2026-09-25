@@ -1,7 +1,16 @@
-#include "test_radio.hpp"
+#include "radio_base.hpp"
 #include "hexdump.hpp"
 
 #include <boost/test/unit_test.hpp>
+
+namespace {
+
+    // a check's message, or the test it runs in
+    std::string label( const char* message )
+    {
+        return message ? message : boost::unit_test::framework::current_test_case().p_name.get();
+    }
+}
 
 namespace test {
 
@@ -150,12 +159,17 @@ namespace test {
         return out;
     }
 
-    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern )
+    pattern_t pattern( const std::vector< std::uint8_t >& bytes )
+    {
+        return pattern_t( bytes.begin(), bytes.end() );
+    }
+
+    bool check_pdu( const pdu_t& pdu, const pattern_t& pattern )
     {
         std::size_t pos = 0;
         for ( ; pos != pattern.size() && pos != pdu.size(); ++pos )
         {
-            const std::uint16_t patt = *( pattern.begin() + pos );
+            const std::uint16_t patt = pattern[ pos ];
             const std::uint8_t  data = pdu[ pos ];
 
             if ( patt == and_so_on )
@@ -166,13 +180,13 @@ namespace test {
         }
 
         // a trailing "and_so_on"
-        if ( pos == pdu.size() && pos < pattern.size() && *( pattern.begin() + pos ) == and_so_on )
+        if ( pos == pdu.size() && pos < pattern.size() && pattern[ pos ] == and_so_on )
             return true;
 
         return pos == pattern.size() && pos == pdu.size();
     }
 
-    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern )
+    std::string pretty_print_pattern( const pattern_t& pattern )
     {
         static constexpr std::size_t line_width = 16;
 
@@ -322,7 +336,7 @@ namespace test {
 
                 boost::test_tools::predicate_result result( false );
                 result.message() << "\nfor " << n << "th and " << nn << "th scheduled action";
-                result.message() << "\nTesting: \"" << message << "\" failed.";
+                result.message() << "\nTesting: \"" << label( message ) << "\" failed.";
                 result.message() << "\n" << n << "th scheduled action, " << *first;
                 result.message() << "\n" << nn << "th scheduled action, " << *next;
                 BOOST_CHECK( result );
@@ -372,11 +386,11 @@ namespace test {
             boost::test_tools::predicate_result result( false );
             if ( found )
             {
-                result.message() << message << ": required to find only in scheduling, but found: " << found;
+                result.message() << label( message ) << ": required to find only in scheduling, but found: " << found;
             }
             else
             {
-                result.message() << message << ": no required scheduling found!";
+                result.message() << label( message ) << ": no required scheduling found!";
             }
             BOOST_CHECK( result );
         }
@@ -400,11 +414,11 @@ namespace test {
             boost::test_tools::predicate_result result( false );
             if ( count == 0 )
             {
-                result.message() << message << ": no required scheduling found!";
+                result.message() << label( message ) << ": no required scheduling found!";
             }
             else
             {
-                result.message() << message << ": required to find only in scheduling, but found: " << count;
+                result.message() << label( message ) << ": required to find only in scheduling, but found: " << count;
             }
             BOOST_CHECK( result );
         }
@@ -472,6 +486,16 @@ namespace test {
 
             data = next_data;
         }
+    }
+
+    std::map< unsigned, unsigned > radio_base::advertisings_per_channel() const
+    {
+        std::map< unsigned, unsigned > result;
+
+        for ( const advertising_data& data : advertised_data_ )
+            ++result[ data.channel ];
+
+        return result;
     }
 
     unsigned radio_base::count_data( const std::function< bool ( const advertising_data& ) >& filter ) const
@@ -585,6 +609,11 @@ namespace test {
             connection_event_response( pdu_list_t( 1, pdu ) ) );
     }
 
+    void radio_base::add_connection_event_respond( const std::vector< std::uint8_t >& pdu )
+    {
+        add_connection_event_respond( connection_event_response( { pdu_t( pdu ) } ) );
+    }
+
     void radio_base::add_connection_event_respond( std::function< void() > f )
     {
         add_connection_event_respond( connection_event_response( f ) );
@@ -602,7 +631,7 @@ namespace test {
             if ( filter( event ) && !check( event ) )
             {
                 boost::test_tools::predicate_result result( false );
-                result.message() << message << ": " << event;
+                result.message() << label( message ) << ": " << event;
                 BOOST_CHECK( result );
             }
         }
@@ -673,7 +702,7 @@ namespace test {
         }
     }
 
-    void radio_base::check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern )
+    void radio_base::check_outgoing_l2cap_pdu( const pattern_t& pattern )
     {
         check_single_event(
             filter_events( filter_l2cap, connection_events_, pattern ),
@@ -682,13 +711,25 @@ namespace test {
             pattern );
     }
 
-    void radio_base::check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern )
+    void radio_base::check_outgoing_ll_control_pdu( const pattern_t& pattern )
     {
         check_single_event(
             filter_events( filter_ll, connection_events_, pattern ),
             "no outgoing LL PDU matches the given pattern: ",
             "multiple outgoing LL PDU matches the given pattern: ",
             pattern );
+    }
+
+    unsigned radio_base::count_transmitted( const pattern_t& pattern ) const
+    {
+        unsigned count = 0;
+
+        for ( const auto& event : connection_events_ )
+            for ( const auto& pdu : event.transmitted_data )
+                if ( check_pdu( pdu, pattern ) )
+                    ++count;
+
+        return count;
     }
 
     void radio_base::clear_events()

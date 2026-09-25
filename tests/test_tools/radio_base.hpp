@@ -1,5 +1,5 @@
-#ifndef BLUETOE_TESTS_LINK_LAYER_TEST_RADIO_HPP
-#define BLUETOE_TESTS_LINK_LAYER_TEST_RADIO_HPP
+#ifndef BLUETOE_TESTS_TEST_TOOLS_RADIO_BASE_HPP
+#define BLUETOE_TESTS_TEST_TOOLS_RADIO_BASE_HPP
 
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/delta_time.hpp>
@@ -8,6 +8,8 @@
 #include <bluetoe/connection_events.hpp>
 
 #include <vector>
+#include <map>
+#include <concepts>
 #include <functional>
 #include <iosfwd>
 #include <initializer_list>
@@ -194,16 +196,26 @@ namespace test {
     std::ostream& operator<<( std::ostream& out, const std::vector< scheduled_user_timer >& data );
 
     /**
+     * @brief what a PDU is matched against: its bytes, X for any byte, and_so_on for any rest
+     */
+    using pattern_t = std::vector< std::uint16_t >;
+
+    /**
+     * @brief the bytes of a PDU as a pattern that matches exactly that PDU
+     */
+    pattern_t pattern( const std::vector< std::uint8_t >& bytes );
+
+    /**
      * @brief returns true, if pdu matches pattern.
      * @sa X
      * @sa and_so_on
      */
-    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern );
+    bool check_pdu( const pdu_t& pdu, const pattern_t& pattern );
 
     /**
      * @brief prints a pattern, so that it's easy comparable to a PDU
      */
-    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern );
+    std::string pretty_print_pattern( const pattern_t& pattern );
 
     class radio_base
     {
@@ -217,23 +229,26 @@ namespace test {
 
         /**
          * @brief calls check with every scheduled_data
+         *
+         * A check names the test it fails in unless given a message, so a test only passes
+         * one when it has something to add.
          */
-        void check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message = nullptr ) const;
 
         /**
          * @brief calls check with adjanced pairs of advertising_data.
          */
-        void check_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
-        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
-        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message = nullptr ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message = nullptr ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message = nullptr ) const;
 
-        void check_first_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const;
+        void check_first_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message = nullptr ) const;
 
         /**
          * @brief there must be exactly one scheduled_data that fitts to the given filter
          */
-        void find_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const char* message ) const;
-        void find_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
+        void find_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const char* message = nullptr ) const;
+        void find_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message = nullptr ) const;
 
         void all_data( std::function< void ( const advertising_data& ) > ) const;
         void all_data( const std::function< bool ( const advertising_data& ) >& filter, const std::function< void ( const advertising_data& first, const advertising_data& next ) >& ) const;
@@ -245,6 +260,11 @@ namespace test {
          * @brief counts the number of times the given filter returns true for all advertising_data
          */
         unsigned count_data( const std::function< bool ( const advertising_data& ) >& filter ) const;
+
+        /**
+         * @brief the number of advertisings scheduled on each channel
+         */
+        std::map< unsigned, unsigned > advertisings_per_channel() const;
 
         /**
          * @brief function to take the arguments to a scheduling function and optional return a response
@@ -278,21 +298,35 @@ namespace test {
 
         void add_connection_event_respond( const connection_event_response& );
         void add_connection_event_respond( std::initializer_list< std::uint8_t > );
+        void add_connection_event_respond( const std::vector< std::uint8_t >& );
         void add_connection_event_respond( std::function< void() > );
         void add_connection_event_respond_timeout();
 
-        void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
-        void check_connection_events( const std::function< bool ( const connection_event& ) >& check, const char* message );
+        void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message = nullptr );
+        void check_connection_events( const std::function< bool ( const connection_event& ) >& check, const char* message = nullptr );
 
         /**
          * @brief check that exacly one outgoing l2cap layer pdu matches the given pattern
          */
-        void check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern );
+        void check_outgoing_l2cap_pdu( const pattern_t& pattern );
 
         /**
-         * @brief check that exacly one outgoing link layer pdu matches the given pattern
+         * @brief check that exacly one outgoing link layer pdu matches the given pattern,
+         *        or is exactly the given control PDU's payload
          */
-        void check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern );
+        void check_outgoing_ll_control_pdu( const pattern_t& pattern );
+
+        // a template, so that a braced list of bytes is a pattern and not ambiguous
+        template < std::same_as< std::vector< std::uint8_t > > Payload >
+        void check_outgoing_ll_control_pdu( const Payload& payload )
+        {
+            check_outgoing_ll_control_pdu( pattern( payload ) );
+        }
+
+        /**
+         * @brief how many transmitted PDUs of all connection events match the pattern
+         */
+        unsigned count_transmitted( const pattern_t& pattern ) const;
 
         /**
          * @brief clear all events

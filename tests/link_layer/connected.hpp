@@ -9,25 +9,14 @@
 
 #include <bluetoe/link_layer.hpp>
 
+#include "ll_pdus.hpp"
 #include "simulated_radio.hpp"
 #include "test_servers.hpp"
 
-
-static const std::initializer_list< std::uint8_t > valid_connection_request_pdu =
-{
-    0xc5, 0x22,                         // header
-    0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-    0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-    0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-    0x08, 0x81, 0xf6,                   // CRC Init
-    0x03,                               // transmit window size
-    0x0b, 0x00,                         // window offset
-    0x18, 0x00,                         // interval (30ms)
-    0x00, 0x00,                         // peripheral latency
-    0x48, 0x00,                         // connection timeout (720ms)
-    0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-    0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
-};
+/*
+ * The connection the tests run on: the CONNECT_IND with the defaults of test::connection_parameters
+ */
+static const std::vector< std::uint8_t > valid_connection_request_pdu = test::connect_ind();
 
 template < typename Server, template < typename > class Radio, typename ... Options >
 class unconnected_base_t : public bluetoe::link_layer::link_layer< Server, Radio, Options... >
@@ -50,53 +39,82 @@ public:
             base::run();
     }
 
-    void check_not_connected( const char* test ) const
+    void check_not_connected() const
     {
-        if ( !this->connection_events().empty() )
-        {
-            boost::test_tools::predicate_result result( false );
-            result.message() << "in " << test << " check_not_connected failed.";
-            BOOST_CHECK( result );
-        }
+        BOOST_CHECK_MESSAGE( this->connection_events().empty(), "connected, but expected not to be" );
+    }
+
+    void add_connection_update_request( const test::connection_update& update )
+    {
+        ll_control_pdu( test::ll_connection_update_ind( update ) );
     }
 
     void add_connection_update_request(
         std::uint8_t win_size, std::uint16_t win_offset, std::uint16_t interval,
         std::uint16_t latency, std::uint16_t timeout, std::uint16_t instance )
     {
-        ll_control_pdu( {
-            0x00,                                                   // opcode
-            win_size,
-            static_cast< std::uint8_t >( win_offset ),  static_cast< std::uint8_t >( win_offset >> 8 ),
-            static_cast< std::uint8_t >( interval ),    static_cast< std::uint8_t >( interval >> 8 ),
-            static_cast< std::uint8_t >( latency ),     static_cast< std::uint8_t >( latency >> 8 ),
-            static_cast< std::uint8_t >( timeout ),     static_cast< std::uint8_t >( timeout >> 8 ),
-            static_cast< std::uint8_t >( instance ),    static_cast< std::uint8_t >( instance >> 8 )
-        } );
+        add_connection_update_request( { win_size, win_offset, interval, latency, timeout, instance } );
+    }
 
+    /**
+     * @brief the PDU the link layer transmitted `index`th in connection event `event`, its SN
+     *        and NESN cleared, so that it compares to a PDU built by name
+     */
+    std::vector< std::uint8_t > transmitted( std::size_t event, std::size_t index = 0 ) const
+    {
+        BOOST_REQUIRE_GT( this->connection_events().size(), event );
+        BOOST_REQUIRE_GT( this->connection_events()[ event ].transmitted_data.size(), index );
+
+        auto pdu = this->connection_events()[ event ].transmitted_data[ index ].data;
+        pdu[ 0 ] &= 0x03;
+
+        return pdu;
+    }
+
+    /**
+     * @brief requires the PDU transmitted `index`th in connection event `event` to be `expected`
+     */
+    void check_transmitted( std::size_t event, std::size_t index, const std::vector< std::uint8_t >& expected ) const
+    {
+        const auto pdu = transmitted( event, index );
+
+        if ( pdu != expected )
+        {
+            boost::test_tools::predicate_result result( false );
+            result.message() << "\nnot the expected PDU " << index << " in connection event " << event << ":\n";
+            result.message() << "expected:\n" << hex_dump( expected.begin(), expected.end() );
+            result.message() << "found:\n" << hex_dump( pdu.begin(), pdu.end() );
+
+            BOOST_CHECK( result );
+        }
+    }
+
+    void check_transmitted( std::size_t event, const std::vector< std::uint8_t >& expected ) const
+    {
+        check_transmitted( event, 0, expected );
+    }
+
+    /**
+     * @brief requires the connection events to have used `expected` channels, in order
+     */
+    void check_channels( std::initializer_list< unsigned > expected ) const
+    {
+        BOOST_REQUIRE_GE( this->connection_events().size(), expected.size() );
+
+        std::size_t index = 0;
+        for ( const unsigned channel : expected )
+        {
+            BOOST_CHECK_EQUAL( this->connection_events()[ index ].channel, channel );
+            ++index;
+        }
     }
 
     void respond_with_connection_request( std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval )
     {
-        const std::vector< std::uint8_t > pdu =
-        {
-            0xc5, 0x22,                         // header
-            0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-            0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-            0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-            0x08, 0x81, 0xf6,                   // CRC Init
-            window_size,                        // transmit window size
-            static_cast< std::uint8_t >( window_offset & 0xff ),  // window offset
-            static_cast< std::uint8_t >( window_offset >> 8 ),
-            static_cast< std::uint8_t >( interval & 0xff ), // interval
-            static_cast< std::uint8_t >( interval >> 8 ),
-            0x00, 0x00,                         // peripheral latency
-            0x48, 0x00,                         // connection timeout
-            0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-            0xaa                                // hop increment and sleep clock accuracy
-        };
-
-        this->respond_to( 37, pdu );
+        this->respond_to( 37, test::connect_ind( {
+            .window_size   = window_size,
+            .window_offset = window_offset,
+            .interval      = interval } ) );
     }
 
     void add_empty_pdus( unsigned count )
@@ -111,11 +129,15 @@ public:
             this->add_connection_event_respond_timeout();
     }
 
-    std::vector< std::uint8_t > run_single_ll_control_pdu( std::initializer_list< std::uint8_t > pdu )
+    /**
+     * @brief connects, receives `pdu` in the first connection event and returns what the
+     *        link layer answered in the second, its SN and NESN cleared
+     */
+    std::vector< std::uint8_t > run_single_ll_control_pdu( const std::vector< std::uint8_t >& pdu )
     {
         this->respond_to( 37, valid_connection_request_pdu );
         this->add_connection_event_respond( pdu );
-        this->add_connection_event_respond( { 0x01, 0x00 } );
+        this->add_connection_event_respond( test::ll_empty() );
 
         this->run();
 
@@ -124,28 +146,32 @@ public:
 
         BOOST_REQUIRE_EQUAL( event.transmitted_data.size(), 1u );
 
-        return event.transmitted_data[ 0 ].data;
-    }
-
-    void check_single_ll_control_pdu( std::initializer_list< std::uint8_t > pdu, std::initializer_list< std::uint8_t > expected_response, const char* label )
-    {
-        auto response = run_single_ll_control_pdu( pdu );
+        auto response = event.transmitted_data[ 0 ].data;
         response[ 0 ] &= 0x03;
 
-        if ( response.size() != expected_response.size() || !std::equal( response.begin(), response.end(), expected_response.begin() ) )
+        return response;
+    }
+
+    /**
+     * @brief requires the answer to `pdu` to be `expected_response`, both whole data channel PDUs
+     */
+    void check_single_ll_control_pdu( const std::vector< std::uint8_t >& pdu, const std::vector< std::uint8_t >& expected_response )
+    {
+        const auto response = run_single_ll_control_pdu( pdu );
+
+        if ( response != expected_response )
         {
             boost::test_tools::predicate_result result( false );
-            result.message() << "\n" << label << ": not expected response: \n";
+            result.message() << "\nnot the expected response: \n";
             result.message() << "PDU:\n" << hex_dump( pdu.begin(), pdu.end() );
             result.message() << "expected:\n" << hex_dump( expected_response.begin(), expected_response.end() );
             result.message() << "found:\n" << hex_dump( response.begin(), response.end() );
 
             BOOST_CHECK( result );
-
         }
     }
 
-    void ll_pdu( std::uint8_t llid, std::initializer_list< std::uint8_t > control )
+    void ll_pdu( std::uint8_t llid, const std::vector< std::uint8_t >& control )
     {
         std::vector< std::uint8_t > pdu = {
             static_cast< std::uint8_t >( llid | sequence_ | next_expected_sequence_ ),
@@ -158,9 +184,9 @@ public:
         next_sequences();
     }
 
-    void ll_control_pdu( std::initializer_list< std::uint8_t > control )
+    void ll_control_pdu( const std::vector< std::uint8_t >& control )
     {
-        ll_pdu( 0x03, control );
+        ll_pdu( test::llid::control, control );
     }
 
     void ll_function_call( std::function< void() > func )
@@ -194,9 +220,9 @@ public:
             ll_empty_pdu();
     }
 
-    void ll_data_pdu( std::initializer_list< std::uint8_t > control )
+    void ll_data_pdu( const std::vector< std::uint8_t >& control )
     {
-        ll_pdu( 0x02, control );
+        ll_pdu( test::llid::start, control );
     }
 private:
     void next_sequences()

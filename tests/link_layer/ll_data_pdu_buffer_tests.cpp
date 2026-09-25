@@ -1,4 +1,3 @@
-#include <buffer_io.hpp>
 #include <bluetoe/ll_data_pdu_buffer.hpp>
 
 #define BOOST_TEST_MODULE
@@ -10,6 +9,21 @@
 #include <type_traits>
 
 #include "buffer_io.hpp"
+
+// the bits of a data channel PDU header, Core Specification Vol 6, Part B, section 2.4
+static constexpr std::uint8_t llid_mask = 0x03;
+static constexpr std::uint8_t nesn_bit  = 0x04;
+static constexpr std::uint8_t sn_bit    = 0x08;
+static constexpr std::uint8_t md_bit    = 0x10;
+
+// the sequence numbers of a received PDU, as distinct types so that they can not be swapped
+struct sn_t { bool value; };
+struct nesn_t { bool value; };
+
+static constexpr sn_t   sn0   = { false };
+static constexpr sn_t   sn1   = { true };
+static constexpr nesn_t nesn0 = { false };
+static constexpr nesn_t nesn1 = { true };
 
 static bool radio_locked = false;
 
@@ -56,14 +70,8 @@ struct mock_radio : bluetoe::link_layer::ll_data_pdu_buffer< TransmitSize, Recei
         return transmit_packet_counter_;
     }
 
-    int receive_packet_counter_;
-    int transmit_packet_counter_;
-
-    mock_radio()
-        : receive_packet_counter_( 0 )
-        , transmit_packet_counter_( 0 )
-    {
-    }
+    int receive_packet_counter_  = 0;
+    int transmit_packet_counter_ = 0;
 };
 
 using buffer = mock_radio< 100, 100 >;
@@ -114,54 +122,42 @@ struct running_mode_impl : Radio< TransmitSize, ReceiveSize >
         transmit_pdu( std::begin( pdu ), std::end( pdu ) );
     }
 
+    // the PDU with the payload and header in the receive buffer, ready to be reported as received
     template < class Iter >
-    bluetoe::link_layer::write_buffer receive_pdu( Iter begin, Iter end, bool sn, bool nesn, std::uint8_t llid = 1 )
+    bluetoe::link_layer::read_buffer incoming_pdu( Iter begin, Iter end, sn_t sn, nesn_t nesn, std::uint8_t llid )
     {
         const auto size = std::distance( begin, end );
         auto pdu = this->allocate_receive_buffer();
 
         std::uint16_t header = llid | ( size << 8 );
 
-        if ( sn )
-            header |= 8;
+        if ( sn.value )
+            header |= sn_bit;
 
-        if ( nesn )
-            header |= 4;
+        if ( nesn.value )
+            header |= nesn_bit;
 
         layout::header( pdu, header );
         std::copy( begin, end, layout::body( pdu ).first );
 
-        return this->count( this->received( pdu ) );
+        return pdu;
     }
 
-    bluetoe::link_layer::write_buffer receive_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn, std::uint8_t llid = 1 )
+    template < class Iter >
+    bluetoe::link_layer::write_buffer receive_pdu( Iter begin, Iter end, sn_t sn, nesn_t nesn, std::uint8_t llid = 1 )
+    {
+        return this->count( this->received( incoming_pdu( begin, end, sn, nesn, llid ) ) );
+    }
+
+    bluetoe::link_layer::write_buffer receive_pdu( std::initializer_list< std::uint8_t > pdu, sn_t sn, nesn_t nesn, std::uint8_t llid = 1 )
     {
         return receive_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn, llid );
     }
 
-    template < class Iter >
-    bluetoe::link_layer::write_buffer acknowledge_pdu( Iter begin, Iter end, bool sn, bool nesn )
+    // a PDU with a valid CRC, but an invalid MIC: it acknowledges, but is not received
+    bluetoe::link_layer::write_buffer acknowledge_pdu( std::initializer_list< std::uint8_t > pdu, sn_t sn, nesn_t nesn )
     {
-        const auto size = std::distance( begin, end );
-        auto pdu = this->allocate_receive_buffer();
-
-        std::uint16_t header = 1 | ( size << 8 );
-
-        if ( sn )
-            header |= 8;
-
-        if ( nesn )
-            header |= 4;
-
-        layout::header( pdu, header );
-        std::copy( begin, end, layout::body( pdu ).first );
-
-        return this->count( this->acknowledge( pdu ) );
-    }
-
-    bluetoe::link_layer::write_buffer acknowledge_pdu( std::initializer_list< std::uint8_t > pdu, bool sn, bool nesn )
-    {
-        return acknowledge_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn );
+        return this->count( this->acknowledge( incoming_pdu( std::begin( pdu ), std::end( pdu ), sn, nesn, 1 ) ) );
     }
 
     std::vector< std::uint8_t > random_data( std::size_t s )
@@ -364,16 +360,15 @@ BOOST_FIXTURE_TEST_CASE( LL_CON_PER_BI_17_C_ignore, running_mode )
         0x08,                       // LL_FEATURE_REQ
         0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff },
-        false,                      // SN
-        false,                      // NESN
+        sn0, nesn0,
         0                           // LLID = invalid
     );
 
     BOOST_REQUIRE( response.size != 0 );
     const std::uint16_t header = layout::header( response );
 
-    BOOST_CHECK_EQUAL( header & 0x04, 0x04 );
-    BOOST_CHECK_EQUAL( header & 0x08, 0x00 );
+    BOOST_CHECK_EQUAL( header & nesn_bit, nesn_bit );
+    BOOST_CHECK_EQUAL( header & sn_bit, 0 );
 }
 
 /*
@@ -387,8 +382,7 @@ BOOST_FIXTURE_TEST_CASE( LL_CON_PER_BI_17_C_ackn, running_mode )
     // first PDU is used to send the PDU about as a response
     const auto transmit1 = receive_pdu(
         {},                         // empty
-        false,                      // SN
-        false,                      // NESN
+        sn0, nesn0,
         1                           // LLID = Empty PDU
     );
 
@@ -401,8 +395,7 @@ BOOST_FIXTURE_TEST_CASE( LL_CON_PER_BI_17_C_ackn, running_mode )
         0x08,                       // LL_FEATURE_REQ
         0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff },
-        true,                       // SN
-        true,                       // NESN
+        sn1, nesn1,
         0                           // LLID = invalid
     );
 
@@ -506,7 +499,7 @@ BOOST_FIXTURE_TEST_CASE( the_transmitbuffer_will_yield_an_empty_pdu_if_the_buffe
     auto write = next_transmit();
 
     BOOST_CHECK_EQUAL( write.size, 2u );
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x03, 1 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & llid_mask, 1 );
     BOOST_CHECK_EQUAL( write.buffer[ 1 ], 0u );
 }
 
@@ -514,7 +507,7 @@ BOOST_FIXTURE_TEST_CASE( if_transmit_buffer_is_empty_mode_data_flag_is_not_set, 
 {
     auto write = next_transmit();
 
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x10, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & md_bit, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( as_long_as_an_pdu_is_not_acknowlaged_it_will_be_retransmited, one_element_in_transmit_buffer )
@@ -528,20 +521,20 @@ BOOST_FIXTURE_TEST_CASE( as_long_as_an_pdu_is_not_acknowlaged_it_will_be_retrans
     }
 }
 
-BOOST_FIXTURE_TEST_CASE( sequence_number_and_next_sequence_number_must_be_0_for_the_first_empty_pdu, one_element_in_transmit_buffer )
+BOOST_FIXTURE_TEST_CASE( sequence_number_and_next_sequence_number_must_be_0_for_the_first_empty_pdu, running_mode )
 {
     auto write = next_transmit();
 
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x4, 0 );
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x8, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & nesn_bit, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & sn_bit, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( sequence_number_and_next_sequence_number_must_be_0_for_the_first_pdu, one_element_in_transmit_buffer )
 {
     auto write = next_transmit();
 
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x4, 0 );
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x8, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & nesn_bit, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & sn_bit, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( only_one_transmitbuffer_entry_allocatable, running_mode )
@@ -560,7 +553,7 @@ BOOST_FIXTURE_TEST_CASE( only_one_transmitbuffer_entry_allocatable, running_mode
 BOOST_FIXTURE_TEST_CASE( more_data_flag_is_not_set_if_only_one_element_is_in_the_transmit_buffer, one_element_in_transmit_buffer )
 {
     auto write = next_transmit();
-    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & 0x10, 0 );
+    BOOST_CHECK_EQUAL( write.buffer[ 0 ] & md_bit, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( more_data_flag_is_set_if_there_is_more_than_one_element_in_the_transmit_buffer, one_element_in_transmit_buffer )
@@ -568,14 +561,14 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_set_if_there_is_more_than_one_element
     transmit_pdu( { 0x01 } );
 
     auto transmit = next_transmit();
-    BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & 0x10, 0x10 );
+    BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & md_bit, md_bit );
 }
 
 BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
 {
     // empty PDU without MD flag
     auto first = next_transmit();
-    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0x10, 0 );
+    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & md_bit, 0 );
 
     transmit_pdu( { 0x01, 0x02, 0x03, 0x04 } );
 
@@ -585,7 +578,7 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
     BOOST_CHECK_EQUAL_COLLECTIONS( &first.buffer[ 2 ], &first.buffer[ first.size ], &next.buffer[ 2 ], &next.buffer[ next.size ] );
 
     // sequence numbers and LLID must be equal
-    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0xf, first.buffer[ 0 ] & 0xf );
+    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0x0f, next.buffer[ 0 ] & 0x0f );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowladged, running_mode )
@@ -598,20 +591,15 @@ BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowlad
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 1u );
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 1u );
 
-    // incomming PDU acknowledges
-    auto incomming = allocate_receive_buffer();
-    incomming.buffer[ 0 ] = 1 | 4;
-    incomming.buffer[ 1 ] = 0;
-    count( received( incomming ) );
+    // an incoming empty PDU acknowledges
+    receive_pdu( {}, sn0, nesn1 );
 
     // now the next pdu to be transmitted
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 2u );
 
-    // next incomming PDU acknowledges, this time with NESN = 0
-    incomming = allocate_receive_buffer();
-    incomming.buffer[ 0 ] = 1;
-    incomming.buffer[ 1 ] = 25;
-    count( received( incomming ) );
+    // the next incoming PDU acknowledges, this time with NESN = 0 and a payload
+    const std::vector< std::uint8_t > payload( 25 );
+    receive_pdu( payload.begin(), payload.end(), sn0, nesn0 );
 
     // now the next pdu to be transmitted
     BOOST_CHECK_EQUAL( next_transmit().buffer[ 2 ], 3u );
@@ -622,11 +610,8 @@ BOOST_FIXTURE_TEST_CASE( pending_transmit_pdu_is_oberservable, running_mode )
     transmit_pdu( { 1 } );
     BOOST_CHECK( pending_outgoing_data_available() );
 
-    // incomming PDU acknowledges
-    auto incomming = allocate_receive_buffer();
-    incomming.buffer[ 0 ] = 1 | 4;
-    incomming.buffer[ 1 ] = 0;
-    count( received( incomming ) );
+    // an incoming empty PDU acknowledges
+    receive_pdu( {}, sn0, nesn1 );
 
     BOOST_CHECK( !pending_outgoing_data_available() );
 }
@@ -644,8 +629,8 @@ BOOST_FIXTURE_TEST_CASE( received_pdu_with_LLID_0_is_ignored, running_mode )
 
 BOOST_FIXTURE_TEST_CASE( received_pdus_are_ignored_when_they_are_resent, running_mode )
 {
-    receive_pdu( { 1 }, false, false );
-    receive_pdu( { 2 }, false, false );
+    receive_pdu( { 1 }, sn0, nesn0 );
+    receive_pdu( { 2 }, sn0, nesn0 );
 
     BOOST_CHECK_EQUAL( next_received().buffer[ 2 ], 1u );
     free_received();
@@ -655,13 +640,13 @@ BOOST_FIXTURE_TEST_CASE( received_pdus_are_ignored_when_they_are_resent, running
 
 BOOST_FIXTURE_TEST_CASE( with_every_new_received_pdu_a_new_sequence_is_expected, running_mode )
 {
-    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0 );
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & nesn_bit, 0 );
 
-    receive_pdu( { 1 }, false, false );
-    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0x4 );
+    receive_pdu( { 1 }, sn0, nesn0 );
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & nesn_bit, nesn_bit );
 
-    receive_pdu( { 2 }, true, false );
-    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & 0x4, 0 );
+    receive_pdu( { 2 }, sn1, nesn0 );
+    BOOST_CHECK_EQUAL( next_transmit().buffer[ 0 ] & nesn_bit, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( getting_an_empty_pdu_must_not_result_in_changing_allocated_transmit_buffer, running_mode )
@@ -805,6 +790,9 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
     using buffer_under_test = running_mode_impl< 31, 31, changed_pdu_layout::mock_radio >;
     using large_buffer_under_test = running_mode_impl< 200, 200, changed_pdu_layout::mock_radio >;
 
+    static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
+    static const std::uint8_t pattern_b[] = { 'f', 'g', 'h', 'i', 'j' };
+
     BOOST_FIXTURE_TEST_CASE( make_sure_the_layout_is_used, buffer_under_test )
     {
         BOOST_CHECK( ( std::is_same< changed_pdu_layout::pdu_layout, layout >::value ) );
@@ -868,7 +856,6 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( make_sure_the_layout_is_applied_as_expected, buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
         const std::size_t size = sizeof( pattern_a );
 
         auto buffer = this->allocate_transmit_buffer( size + 4 );
@@ -890,8 +877,6 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( sending_data, buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
-
         transmit_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
 
         auto transmit = next_transmit();
@@ -904,9 +889,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( receiving_data, buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
-
-        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
+        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), sn0, nesn1 );
 
         auto received = next_received();
 
@@ -919,9 +902,7 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( receiving_multiple_data, buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
-
-        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
+        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), sn0, nesn1 );
 
         auto received = next_received();
         BOOST_REQUIRE( received.size );
@@ -932,11 +913,8 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( receiving_multiple_data_large, large_buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
-        static const std::uint8_t pattern_b[] = { 'f', 'g', 'h', 'i', 'j' };
-
-        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
-        receive_pdu( std::begin( pattern_b ), std::end( pattern_b ), false, true );
+        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), sn0, nesn1 );
+        receive_pdu( std::begin( pattern_b ), std::end( pattern_b ), sn0, nesn1 );
 
         auto received = next_received();
         BOOST_REQUIRE( received.size );
@@ -944,21 +922,17 @@ BOOST_AUTO_TEST_SUITE( layout_tests )
 
     BOOST_FIXTURE_TEST_CASE( acknowlage_send_data, buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
-
         transmit_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
-        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, true );
+        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), sn0, nesn1 );
         BOOST_CHECK_EQUAL( next_transmit().size, 2u + 2u );
     }
 
     BOOST_FIXTURE_TEST_CASE( not_acknowlage_send_data, buffer_under_test )
     {
-        static const std::uint8_t pattern_a[] = { 'a', 'b', 'c', 'd', 'e' };
-
         transmit_pdu( std::begin( pattern_a ), std::end( pattern_a ) );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
-        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), false, false );
+        receive_pdu( std::begin( pattern_a ), std::end( pattern_a ), sn0, nesn0 );
         BOOST_CHECK_EQUAL( next_transmit().size, 5u + 2u + 2u );
     }
 
@@ -968,8 +942,8 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
     BOOST_FIXTURE_TEST_CASE( do_not_increment_when_receiving_empty_pdu, running_mode )
     {
-        receive_pdu( {}, false, false );
-        receive_pdu( {}, true, true );
+        receive_pdu( {}, sn0, nesn0 );
+        receive_pdu( {}, sn1, nesn1 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 0 );
     }
 
@@ -983,9 +957,9 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
      */
     BOOST_FIXTURE_TEST_CASE( do_not_increment_when_crc_is_ok_but_mic_is_not, running_mode )
     {
-        receive_pdu( { 0x11 }, false, false );
+        receive_pdu( { 0x11 }, sn0, nesn0 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
-        acknowledge_pdu( { 0x11 }, false, false );
+        acknowledge_pdu( { 0x11 }, sn0, nesn0 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
     }
 
@@ -998,39 +972,39 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         transmit_pdu( { 1 } );
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
-        receive_pdu( { 0x11 }, false, false );
+        receive_pdu( { 0x11 }, sn0, nesn0 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
 
-        const auto pdu = acknowledge_pdu( { 0x11 }, false, false );
+        const auto pdu = acknowledge_pdu( { 0x11 }, sn0, nesn0 );
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
         BOOST_CHECK_EQUAL( pdu.size, 1u + 2u );
 
-        receive_pdu( { 0x22 }, true, true );
+        receive_pdu( { 0x22 }, sn1, nesn1 );
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 2 );
     }
 
     BOOST_FIXTURE_TEST_CASE( increment_when_receiving_none_empty_pdu, running_mode )
     {
-        receive_pdu( { 0x11 }, false, false );
+        receive_pdu( { 0x11 }, sn0, nesn0 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
     }
 
     BOOST_FIXTURE_TEST_CASE( do_not_increment_when_receiving_unexpected_pdu, running_mode )
     {
-        receive_pdu( { 0x11 }, false, false );
-        receive_pdu( { 0x11 }, false, true );
+        receive_pdu( { 0x11 }, sn0, nesn0 );
+        receive_pdu( { 0x11 }, sn0, nesn1 );
         BOOST_CHECK_EQUAL( receive_packet_counter(), 1 );
     }
 
     BOOST_FIXTURE_TEST_CASE( multiple_receive_increments, running_mode )
     {
-        receive_pdu( { 0x11 }, false, false ); // increment
-        receive_pdu( { 0x11 }, true, false );  // increment
-        receive_pdu( {}, false, false );       // not incremented because it's empty
-        receive_pdu( { 0x11 }, true, false );  // increment
-        receive_pdu( { 0x11 }, true, false );  // not incremented because it's resend
+        receive_pdu( { 0x11 }, sn0, nesn0 ); // increment
+        receive_pdu( { 0x11 }, sn1, nesn0 );  // increment
+        receive_pdu( {}, sn0, nesn0 );       // not incremented because it's empty
+        receive_pdu( { 0x11 }, sn1, nesn0 );  // increment
+        receive_pdu( { 0x11 }, sn1, nesn0 );  // not incremented because it's resend
         BOOST_CHECK_EQUAL( receive_packet_counter(), 3 );
     }
 
@@ -1039,11 +1013,8 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
         const auto empty1 = next_transmit();
         static_cast< void >( empty1 );
 
-        // incomming PDU acknowledges
-        auto incomming = allocate_receive_buffer();
-        incomming.buffer[ 0 ] = 1 | 4;
-        incomming.buffer[ 1 ] = 0;
-        count( received( incomming ) );
+        // an incoming empty PDU acknowledges
+        receive_pdu( {}, sn0, nesn1 );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
     }
@@ -1054,11 +1025,8 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
-        // incomming PDU acknowledges
-        auto incomming = allocate_receive_buffer();
-        incomming.buffer[ 0 ] = 1 | 4;
-        incomming.buffer[ 1 ] = 0;
-        count( received( incomming ) );
+        // an incoming empty PDU acknowledges
+        receive_pdu( {}, sn0, nesn1 );
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 1 );
     }
@@ -1069,11 +1037,8 @@ BOOST_AUTO_TEST_SUITE( packet_counter_tests )
 
         BOOST_CHECK_EQUAL( transmit_packet_counter(), 0 );
 
-        // incomming PDU acknowledges
-        auto incomming = allocate_receive_buffer();
-        incomming.buffer[ 0 ] = 1;
-        incomming.buffer[ 1 ] = 0;
-        count( received( incomming ) );
+        // an incoming empty PDU that does not acknowledge
+        receive_pdu( {}, sn0, nesn0 );
 
         transmit_pdu( { 1 } );
 
@@ -1091,8 +1056,8 @@ BOOST_AUTO_TEST_SUITE( stop_mode )
         stop_ll_pdu_buffer();
 
         // not acknowledging the outgoing PDU
-        receive_pdu( {}, true, false );
-        receive_pdu( {}, false, false );
+        receive_pdu( {}, sn1, nesn0 );
+        receive_pdu( {}, sn0, nesn0 );
 
         BOOST_CHECK( pending_outgoing_data_available() );
 
@@ -1100,7 +1065,7 @@ BOOST_AUTO_TEST_SUITE( stop_mode )
         transmit_pdu( { 2 } );
 
         // acknowledging the first PDU
-        receive_pdu( {}, true, true );
+        receive_pdu( {}, sn1, nesn1 );
 
         // no pending PDU means, the second PDU was not stored
         BOOST_CHECK( !pending_outgoing_data_available() );
@@ -1117,7 +1082,7 @@ BOOST_AUTO_TEST_SUITE( stop_mode )
         transmit_pdu( { 2 } );
         transmit_pdu( { 3 } );
 
-        receive_pdu( {}, true, true );
+        receive_pdu( {}, sn1, nesn1 );
 
         // pending PDU means, the third PDU was not ignored
         BOOST_CHECK( pending_outgoing_data_available() );
