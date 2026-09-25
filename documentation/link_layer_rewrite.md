@@ -227,7 +227,7 @@ radio interface; in the security manager, which is per connection already.
 The single link implementation does not pay for any of this. Several links are not one
 link with a larger array: they are a second implementation of the link layer, chosen by
 the configured number of connections, one by default. The two share what does not
-depend on the number of links, the procedures and their engine, the PDU buffer, the
+depend on the number of links, the control procedures and their dispatch, the PDU buffer, the
 advertiser, the request and the SDU queue, L2CAP and above. What differs, the array, the
 scheduler, the setup before every event and the values that needs, exists in the second
 implementation only. Agreed.
@@ -256,14 +256,14 @@ What the link layer is made of when the steps are done. Names are proposals.
   for the procedures a peripheral may initiate, a start function driven by the request
   queue. A procedure owns its own state inside the link and nothing outside it.
 
-- **The procedure engine.** Built at compile time from the selected procedures: the
-  opcode table, so that an unknown opcode is answered with LL_UNKNOWN_RSP and a known
-  opcode with a wrong size is handled as the specification says; the rule that one
-  initiated procedure runs at a time per link, with the collision rules of Core
-  Specification Vol 6, Part B, section 5.1.1 for a request arriving while one is running;
-  the procedure response timeout of 40 seconds. The engine is what the opcode chain in
-  `handle_ll_control_data()` and the option mixins that intercept their own opcodes
-  become.
+- **The control procedure dispatch.** What is common to all procedures, built at
+  compile time from the selected ones: the table from opcode to procedure, so that an
+  unknown opcode is answered with LL_UNKNOWN_RSP and a known opcode with a wrong size is
+  handled as the specification says; the rule that one initiated procedure runs at a
+  time per link, with the collision rules of Core Specification Vol 6, Part B, section
+  5.1.1 for a request arriving while one is running; the procedure response timeout of
+  40 seconds. This is what the opcode chain in `handle_ll_control_data()` and the option
+  mixins that intercept their own opcodes become.
 
 - **The request queue.** The one path from the application context into the link layer
   context, under `link_layer_lock_guard`. Replaces `procedure_requests` and the direct
@@ -288,7 +288,7 @@ The procedures a peripheral has, with what is known about them:
 | Termination | LL_TERMINATE_IND | in the chain | no, mandatory |
 | Version exchange | LL_VERSION_IND | in the chain | no, mandatory |
 | Feature exchange | LL_FEATURE_REQ, LL_FEATURE_RSP | in the chain | no, the response is mandatory |
-| Unknown and reject | LL_UNKNOWN_RSP, LL_REJECT_IND, LL_REJECT_EXT_IND | in the chain | no, part of the engine |
+| Unknown and reject | LL_UNKNOWN_RSP, LL_REJECT_IND, LL_REJECT_EXT_IND | in the chain | no, part of the dispatch |
 | Encryption | LL_ENC_REQ/RSP, LL_START_ENC_REQ/RSP, LL_PAUSE_ENC_REQ/RSP | security mixin | yes, with the security manager |
 | Ping | LL_PING_REQ, LL_PING_RSP | in the chain | yes; required with encryption (#105) |
 | Connection parameters request | LL_CONNECTION_PARAM_REQ/RSP | in the chain | yes (#9) |
@@ -297,13 +297,13 @@ The procedures a peripheral has, with what is known about them:
 
 The mandatory procedures are mandatory: they are always in, and no option leaves one
 out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
-the engine is built; the table records the intent. Agreed.
+the dispatch is built; the table records the intent. Agreed.
 
 ## Issues
 
 The open issues that belong to this work, grouped by where they get fixed.
 
-- **Engine:** #123 protocol collision, #125 procedure timeout, #126 invalid control PDUs,
+- **The dispatch:** #123 protocol collision, #125 procedure timeout, #126 invalid control PDUs,
   #131 overlapping procedures, #115 unexpected PDU during encryption start.
 - **A procedure:** #105 ping not sent, #118 PHY instant in the past, #122 PHY update
   initiated by us, #124 parameter check of LL_CONNECTION_PARAM_REQ, #129 asymmetric PHY
@@ -329,13 +329,14 @@ Each step is a series of small commits on master, each green.
    with a link layer context, and the simulated radio gets the mode that delivers as if
    from another context. The bench test with a real link layer context follows once the
    nRF52 binding provides one; that is a step of its own, on the radio side.
-3. **The procedure engine and the mandatory procedures.** The opcode chain becomes the
-   engine; termination, version, feature exchange, channel map, connection update, and
-   the unknown and reject handling become procedure types. The engine fixes go in here.
+3. **The control procedure dispatch and the mandatory procedures.** The opcode chain
+   becomes the dispatch; termination, version, feature exchange, channel map, connection
+   update, and the unknown and reject handling become procedure types. The issues of the
+   dispatch go in here.
 4. **The optional procedures, one at a time.** Ping, connection parameters request,
    encryption, PHY update. Each becomes selectable, and the issues of each go in with it.
    The first one that is left out of an example proves that leaving it out costs nothing.
-5. **The Data Length Update procedure.** Written new on the engine. Proves that a
+5. **The Data Length Update procedure.** Written new as a procedure type. Proves that a
    procedure is added without touching the others.
 6. **The implementation for several links.** Selected by the configured number of
    connections: the array of links, the scheduler, the setup before every event. The
