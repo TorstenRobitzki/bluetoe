@@ -203,15 +203,18 @@ Going through the layers, the difference shows in these places:
    `setup_next_connection_event()` computes today.
 
 4. **The advertiser while connected.** Today the state machine is initial, advertising
-   or connected. With advertising while connected, advertising is a thing next to the
-   links, not a state the link layer is in. A CONNECT_IND while advertising creates a
-   link if a link is free, and the advertiser continues or stops depending on that.
-   Connectable advertising with all links used is not started.
+   or connected. With several links, advertising is a thing next to the links, not a
+   state the link layer is in. The link layer advertises only while it has a link free
+   to accept the connection: there is no point in advertising and then not being able
+   to accept. A CONNECT_IND creates a link, and advertising stops when the last free
+   link is taken and resumes when one is closed. So the single link implementation
+   never advertises while connected, as today, and the implementation for several
+   links does so as long as a link is free. Agreed.
 
 5. **The user timer.** The radio has one `schedule_timer()`. The synchronized connection
-   event callback is defined per connection, so with several links the link layer would
-   have to multiplex one timer or restrict the callback to one link. A decision to take
-   at the multi link step, not before.
+   event callback is defined per connection and stays available with several links, so
+   the implementation for several links multiplexes the one timer over the links that
+   have a callback due. Agreed.
 
 6. **The simulated radio and the fixtures.** The simulator plays one central: one anchor,
    one set of sequence numbers, one response queue, `respond_to( channel, pdu )` and
@@ -240,8 +243,9 @@ compile time option.
 What the link layer is made of when the steps are done. Names are proposals.
 
 - **Two implementations.** `link_layer< Server, Radio, Options... >` selects, by the
-  configured number of connections, the single link implementation or the one for
-  several links. Everything below is shared unless it says otherwise.
+  option `bluetoe::link_layer::max_connections< N >` with a default of one, the single
+  link implementation or the one for several links. Everything below is shared unless it
+  says otherwise. Agreed.
 
 - **`link`.** The struct described above. Owns its PDU buffer, its parameters, its
   latency state, the state of its procedures, and the GATT server's connection data.
@@ -342,21 +346,15 @@ Each step is a series of small commits on master, each green.
    connections: the array of links, the scheduler, the setup before every event. The
    simulator plays several centrals and the fixtures get a link index. The single link
    implementation and its tests are untouched by this step.
-7. **Advertising while connected.** The advertiser as a candidate of the scheduler, a
-   CONNECT_IND while a link is up creating a further link, tested with the simulator's
-   scanner. Proposal: this belongs to the implementation for several links only, since
-   it is the scheduler that makes it possible.
+7. **Advertising while connected.** The advertiser as a candidate of the scheduler
+   while a link is free, a CONNECT_IND while a link is up creating a further link,
+   advertising stopping with the last free link, tested with the simulator's scanner.
 
 Steps 1 to 5 keep every existing test as the oracle and shape the single link
 implementation. Steps 6 and 7 add the second implementation next to it.
 
 ## Decisions to take
 
-- How the number of connections is expressed: proposal
-  `bluetoe::link_layer::max_connections< N >`, default one, which selects the
-  implementation.
-- Whether the single link implementation advertises while connected, or only the one for
-  several links. Proposal: only the one for several links.
-- Whether the synchronized connection event callback is limited to one link or
-  multiplexed. To be decided at step 7.
-- The names above.
+None open at the moment. The names in this document are proposals until they are in the
+code. Decisions that come up during the steps are added here and, once taken, moved to
+where they apply and marked as agreed.
