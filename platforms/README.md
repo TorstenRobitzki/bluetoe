@@ -32,16 +32,29 @@ must then point to the installation. Only the headers under `modules/nrfx/mdk` a
 `components/toolchain/cmsis/include` are used; the CI job assembles them from the public nrfx and
 CMSIS repositories.
 
+### SimpleLink SDK
+
+To build for the TI CC2340, the SimpleLink Low Power F3 SDK must be installed and
+`SIMPLELINK_SDK_ROOT` point to it, and TI's SysConfig must be available: `SYSCONFIG_TOOL` names
+its `sysconfig_cli.sh`, or the newest one of a Code Composer Studio installation under
+`/Applications/ti` is taken. The radio of the CC2340 is only reachable through the SDK's Radio
+Control Layer, and SysConfig generates its PHY configuration, the CCFG block and the drivers'
+setup from a firmware's `.syscfg` file, which `add_sysconfig( target file )` runs on it. The SDK's
+code is compiled from its sources, since its prebuilt libraries are LTO bytecode of the GCC they
+were built with. The SDK's licence allows its use with TI's parts only, so nothing of it is
+vendored.
+
 ## Naming the hardware
 
 To configure a build, set the cache variable `BLUETOE_BOARD` to one of the supported evaluation
 boards:
 - PCA10056 (nRF52840 based eval board from Nordic)
 - PCA10040 (nRF52832 based eval board from Nordic)
+- LP_EM_CC2340R5 (CC2340R5 LaunchPad from TI)
 
 For hardware that is not one of these boards, set `BLUETOE_BINDING` to the microcontroller instead:
-NRF52840, NRF52833, NRF52832, NRF52820, NRF52811, NRF52810 or NRF52805. Exactly one of the two
-variables is set.
+NRF52840, NRF52833, NRF52832, NRF52820, NRF52811, NRF52810, NRF52805 or CC2340R5. Exactly one of
+the two variables is set.
 
 ## Support for J-Link
 
@@ -49,6 +62,11 @@ All Nordic eval boards come with an embedded J-Link SWD debug probe that can be 
 firmware. Set the CMake cache variable `BLUETOE_JLINK` to the serial number of the J-Link that should
 be used; on a Nordic eval board it is the longer number on the white sticker. Every firmware target
 then has a `.flash` target, for example `blinky.flash`.
+
+The CC2340 LaunchPad has no probe of its own; a J-Link on its debug header programs it through
+`JLinkExe`. The part erases its flash as a whole, together with its CCFG block, and locks its
+debug port on a block whose checksums fail, so every image carries the block with its checksums,
+patched in by `cc23x0/ccfg_crc.py` after linking, and is flashed as one hex file.
 
 ## How a firmware project uses this directory
 
