@@ -62,6 +62,14 @@ These come from the project and are not up for discussion in this work.
 - **One logical change per commit, each reviewed.** Each step leaves master buildable,
   tested in Debug and Release, the examples cross compiled, and the radio tests run on the
   bench when the radio side changes.
+- **Nothing is stored twice for one link.** The radio keeps what its setup functions give
+  it: access address and CRC initialiser, the PHY, the encryption keys. Today the link
+  layer hands them over when they change and keeps no copy; `connection_parameters` holds
+  only what the link layer computes with, the channel map, the window, the interval, the
+  latency and the timeout. The single link build stays that way. Only a build with several
+  links keeps the radio's values per link, because it has to apply them before every
+  event, so that state is part of the link struct only when there is more than one link.
+  Agreed.
 - **The nRF52 binding is the reference radio.** It has `hardware_supports_link_layer_context
   = false` today. The final proof of the link layer context needs a radio that has one, so
   the binding gains it, as an interrupt below the radio's priority, when the link layer is
@@ -168,7 +176,8 @@ Going through the layers, the difference shows in these places:
 1. **Ownership of state.** The per link members become one struct, the link layer holds
    an array of them with a compile time size, one by default. A link's procedures,
    buffer and latency state move with it. For one link this is a rename of `this->` into
-   `link.`, and the struct must cost what the members cost.
+   `link.`, and the struct must cost what the members cost. What the radio stores is in
+   the struct only for more than one link, see the constraints.
 
 2. **The radio setup before every event.** The interface already says it: the setup
    functions, `set_access_address_and_crc_init()`, `set_phy()`, `set_encryption()`, are
@@ -226,8 +235,10 @@ one.
 What the link layer is made of when the steps are done. Names are proposals.
 
 - **`link`.** The struct described above. Owns its PDU buffer, its parameters, its
-  latency state, its encryption state, the state of its procedures, and the GATT server's
-  connection data. Knows how to compute its next event from its anchor.
+  latency state, the state of its procedures, and the GATT server's connection data.
+  Knows how to compute its next event from its anchor. The radio's setup values, access
+  address and CRC initialiser, PHY and keys, are members only in a build with several
+  links.
 
 - **`procedure`.** One type per control procedure. A procedure states the opcodes it
   handles with their sizes, the feature bits it contributes, and provides: a handler for
