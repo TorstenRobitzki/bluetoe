@@ -5,13 +5,14 @@
 
 #include "connected.hpp"
 
+using namespace test;
+
+/*
+ * One mock per callback, each recording that it was called and what it was called with.
+ * The link layer takes them by reference to a global, so every fixture resets them all.
+ */
 struct only_requested_callback_t
 {
-    only_requested_callback_t()
-        : connection_requested_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_connection_requested(
         const bluetoe::link_layer::connection_details&      details,
@@ -23,36 +24,24 @@ struct only_requested_callback_t
         reported_addresses          = addresses;
     }
 
-    bool                                        connection_requested_called;
+    bool                                        connection_requested_called = false;
     bluetoe::link_layer::connection_details     reported_details;
     bluetoe::link_layer::connection_addresses   reported_addresses;
 } only_requested_callback;
 
 struct only_connect_attempt_timeout_callback_t
 {
-    only_connect_attempt_timeout_callback_t()
-        : connect_attempt_timeout_called( false )
-    {
-
-    }
-
     template < typename ConnectionData >
     void ll_connection_attempt_timeout( const ConnectionData& )
     {
         connect_attempt_timeout_called = true;
     }
 
-    bool connect_attempt_timeout_called;
-
+    bool connect_attempt_timeout_called = false;
 } only_connect_attempt_timeout_callback;
 
 struct only_connect_callback_t
 {
-    only_connect_callback_t()
-        : connection_established_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_connection_established(
         const bluetoe::link_layer::connection_details&      details,
@@ -64,19 +53,13 @@ struct only_connect_callback_t
         reported_addresses            = addresses;
     }
 
-    bool                                        connection_established_called;
+    bool                                        connection_established_called = false;
     bluetoe::link_layer::connection_details     reported_details;
     bluetoe::link_layer::connection_addresses   reported_addresses;
-
 } only_connect_callback;
 
 struct only_changed_callback_t
 {
-    only_changed_callback_t()
-        : only_changed_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_connection_changed( const bluetoe::link_layer::connection_details& details, const ConnectionData& )
     {
@@ -84,19 +67,12 @@ struct only_changed_callback_t
         reported_details    = details;
     }
 
-    bool                                    only_changed_called;
+    bool                                    only_changed_called = false;
     bluetoe::link_layer::connection_details reported_details;
-
 } only_changed_callback;
 
 struct only_disconnect_callback_t
 {
-    only_disconnect_callback_t()
-        : only_disconnect_called( false )
-        , only_disconnect_reason( ~0 )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_connection_closed( std::uint8_t reason, const ConnectionData& )
     {
@@ -104,80 +80,55 @@ struct only_disconnect_callback_t
         only_disconnect_called = true;
     }
 
-    bool only_disconnect_called;
-    std::uint8_t only_disconnect_reason;
-
+    bool         only_disconnect_called = false;
+    std::uint8_t only_disconnect_reason = 0xff;
 } only_disconnect_callback;
 
 struct only_version_callback_t
 {
-    only_version_callback_t()
-        : only_version_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_version( std::uint8_t version, std::uint16_t company, std::uint16_t subversion, const ConnectionData& )
     {
         only_version_called = true;
-        version_version = version;
-        version_company = company;
-        version_subversion = subversion;
+        version_version     = version;
+        version_company     = company;
+        version_subversion  = subversion;
     }
 
-    bool only_version_called;
-    std::uint8_t version_version;
-    std::uint16_t version_company;
-    std::uint16_t version_subversion;
-
+    bool          only_version_called = false;
+    std::uint8_t  version_version     = 0;
+    std::uint16_t version_company     = 0;
+    std::uint16_t version_subversion  = 0;
 } only_version_callback;
 
 struct only_rejected_callback_t
 {
-    only_rejected_callback_t()
-        : only_rejected_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_rejected( std::uint8_t error_code, const ConnectionData&  )
     {
         only_rejected_called = true;
-        reject_error_code = error_code;
+        reject_error_code    = error_code;
     }
 
-    bool only_rejected_called;
-    std::uint8_t reject_error_code;
-
+    bool         only_rejected_called = false;
+    std::uint8_t reject_error_code    = 0;
 } only_rejected_callback;
 
 struct only_unknown_callback_t
 {
-    only_unknown_callback_t()
-        : only_unknown_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_unknown( std::uint8_t unknown_type, const ConnectionData&  )
     {
-        only_unknown_called = true;
+        only_unknown_called  = true;
         unknown_unknown_type = unknown_type;
     }
 
-    bool only_unknown_called;
-    std::uint8_t unknown_unknown_type;
-
+    bool         only_unknown_called  = false;
+    std::uint8_t unknown_unknown_type = 0;
 } only_unknown_callback;
 
 struct only_remote_features_callback_t
 {
-    only_remote_features_callback_t()
-        : remote_features_called( false )
-    {
-        std::fill( remote_features, remote_features + 8, 0 );
-    }
-
     template < typename ConnectionData >
     void ll_remote_features( std::uint8_t rf[ 8 ], const ConnectionData& )
     {
@@ -185,17 +136,12 @@ struct only_remote_features_callback_t
         std::copy( rf, rf + 8, remote_features );
     }
 
-    bool remote_features_called;
-    std::uint8_t remote_features[ 8 ];
+    bool         remote_features_called = false;
+    std::uint8_t remote_features[ 8 ]   = { 0 };
 } only_remote_features_callback;
 
 struct only_phy_updated_callback_t
 {
-    only_phy_updated_callback_t()
-        : phy_updated_called( false )
-    {
-    }
-
     template < typename ConnectionData >
     void ll_phy_updated(
         bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t te,
@@ -203,31 +149,34 @@ struct only_phy_updated_callback_t
         const ConnectionData& )
     {
         phy_updated_called = true;
-        transmit_encoding = te;
-        receive_encoding  = re;
+        transmit_encoding  = te;
+        receive_encoding   = re;
     }
 
-    bool phy_updated_called;
-    bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmit_encoding;
-    bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receive_encoding;
+    bool phy_updated_called = false;
+    bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmit_encoding = bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding;
+    bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receive_encoding  = bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding;
 } only_phy_updated_callback;
 
 struct connect_and_disconnect_callback_t : only_connect_callback_t, only_disconnect_callback_t
 {
-
 } connect_and_disconnect_callback;
 
 struct reset_callbacks
 {
     reset_callbacks()
     {
-        only_connect_callback = only_connect_callback_t();
-        only_changed_callback = only_changed_callback_t();
-        only_disconnect_callback = only_disconnect_callback_t();
-        connect_and_disconnect_callback = connect_and_disconnect_callback_t();
-        only_rejected_callback = only_rejected_callback_t();
-        only_remote_features_callback = only_remote_features_callback_t();
-        only_phy_updated_callback = only_phy_updated_callback_t();
+        only_requested_callback               = only_requested_callback_t();
+        only_connect_attempt_timeout_callback = only_connect_attempt_timeout_callback_t();
+        only_connect_callback                 = only_connect_callback_t();
+        only_changed_callback                 = only_changed_callback_t();
+        only_disconnect_callback              = only_disconnect_callback_t();
+        only_version_callback                 = only_version_callback_t();
+        only_rejected_callback                = only_rejected_callback_t();
+        only_unknown_callback                 = only_unknown_callback_t();
+        only_remote_features_callback         = only_remote_features_callback_t();
+        only_phy_updated_callback             = only_phy_updated_callback_t();
+        connect_and_disconnect_callback       = connect_and_disconnect_callback_t();
     }
 };
 
@@ -268,10 +217,33 @@ using link_layer_connect_and_disconnect_callback = mixin_reset_callbacks<
     >
 >;
 
+namespace {
+
+    bool equal( const bluetoe::link_layer::channel_map& lhs, const bluetoe::link_layer::channel_map& rhs )
+    {
+        for ( unsigned i = 0; i != bluetoe::link_layer::channel_map::max_number_of_data_channels; ++i )
+        {
+            if ( lhs.data_channel( i ) != rhs.data_channel( i ) )
+                return false;
+        }
+
+        return true;
+    }
+
+    // the channel map as it is transmitted, with the hop increment of every CONNECT_IND in the tests
+    bluetoe::link_layer::channel_map channel_map( const std::uint8_t ( &map )[ 5 ] )
+    {
+        bluetoe::link_layer::channel_map result;
+        result.reset( &map[ 0 ], 10 );
+
+        return result;
+    }
+
+    const std::uint8_t all_channels[ 5 ] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
+}
+
 BOOST_FIXTURE_TEST_CASE( connection_is_not_established_before_the_first_connection_event, link_layer_only_connect_callback )
 {
-    BOOST_CHECK( !only_connect_callback.connection_established_called );
-
     respond_to( 37, valid_connection_request_pdu );
     run();
 
@@ -289,10 +261,8 @@ BOOST_FIXTURE_TEST_CASE( timedout_connection_attempt_is_not_reported, link_layer
 
 BOOST_FIXTURE_TEST_CASE( connection_is_established_after_the_first_connection_event, link_layer_only_connect_callback )
 {
-    BOOST_CHECK( !only_connect_callback.connection_established_called );
-
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_event_respond( { 0, 1 } );
+    ll_empty_pdu();
     run( 5 );
 
     BOOST_CHECK( only_connect_callback.connection_established_called );
@@ -300,11 +270,8 @@ BOOST_FIXTURE_TEST_CASE( connection_is_established_after_the_first_connection_ev
 
 BOOST_FIXTURE_TEST_CASE( connection_is_established_callback_called_only_once, link_layer_only_connect_callback )
 {
-    BOOST_CHECK( !only_connect_callback.connection_established_called );
-
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_event_respond( { 0, 1 } );
-    add_connection_event_respond( { 0, 1 } );
+    ll_empty_pdus( 2 );
     run( 5 );
 
     BOOST_CHECK( only_connect_callback.connection_established_called );
@@ -312,19 +279,6 @@ BOOST_FIXTURE_TEST_CASE( connection_is_established_callback_called_only_once, li
 
     run();
     BOOST_CHECK( !only_connect_callback.connection_established_called );
-}
-
-namespace {
-    bool equal( const bluetoe::link_layer::channel_map& lhs, const bluetoe::link_layer::channel_map& rhs )
-    {
-        for ( unsigned i = 0; i != bluetoe::link_layer::channel_map::max_number_of_data_channels; ++i )
-        {
-            if ( lhs.data_channel( i ) != rhs.data_channel( i ) )
-                return false;
-        }
-
-        return true;
-    }
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_established, link_layer_only_connect_callback )
@@ -343,16 +297,12 @@ BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_establis
         0xf3, 0x5f, 0x1f, 0x7f, 0x1f,       // used channel map
         0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
     } );
-    add_connection_event_respond( { 0, 1 } );
+    ll_empty_pdu();
     run( 2 );
 
     const auto reported_details = only_connect_callback.reported_details;
 
-    static const std::uint8_t map_data[] = { 0xf3, 0x5f, 0x1f, 0x7f, 0x1f };
-    bluetoe::link_layer::channel_map channels;
-    channels.reset( &map_data[ 0 ], 10 );
-
-    BOOST_CHECK( equal( reported_details.channels(), channels ) );
+    BOOST_CHECK( equal( reported_details.channels(), channel_map( { 0xf3, 0x5f, 0x1f, 0x7f, 0x1f } ) ) );
     BOOST_CHECK_EQUAL( reported_details.interval(), 0x18 );
     BOOST_CHECK_EQUAL( reported_details.latency(), 2 );
     BOOST_CHECK_EQUAL( reported_details.timeout(), 0x548 );
@@ -375,8 +325,7 @@ BOOST_FIXTURE_TEST_CASE( addresses_reported_when_connection_established, link_la
         0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
         0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
     } );
-
-    add_connection_event_respond( { 0, 1 } );
+    ll_empty_pdu();
     run( 5 );
 
     const auto reported_addresses = only_connect_callback.reported_addresses;
@@ -384,42 +333,60 @@ BOOST_FIXTURE_TEST_CASE( addresses_reported_when_connection_established, link_la
     BOOST_CHECK_EQUAL( reported_addresses.local_address(),  bluetoe::link_layer::random_device_address( { 0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0 } ) );
 }
 
+// a connection established while the first event carries a control PDU
+BOOST_FIXTURE_TEST_CASE( connection_details_reported_from_a_first_event_with_data, link_layer_only_connect_callback )
+{
+    respond_to( 37, valid_connection_request_pdu );
+    ll_control_pdu( ll_version_ind( 0x08, 0x3322, 0xaabb ) );
+    ll_empty_pdu();
+    run( 4 );
+
+    const auto reported_details = only_connect_callback.reported_details;
+
+    BOOST_CHECK( equal( reported_details.channels(), channel_map( all_channels ) ) );
+    BOOST_CHECK_EQUAL( reported_details.interval(), 0x18 );
+    BOOST_CHECK_EQUAL( reported_details.latency(), 0 );
+    BOOST_CHECK_EQUAL( reported_details.timeout(), 72 );
+    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), unsigned{ 50 + 100 } );
+}
+
 BOOST_FIXTURE_TEST_CASE( connection_update_not_called_by_default, link_layer_only_changed_callback )
 {
-    BOOST_CHECK( !only_changed_callback.only_changed_called );
-
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_event_respond( { 0, 1 } );
+    ll_empty_pdu();
     run( 5 );
 
     BOOST_CHECK( !only_changed_callback.only_changed_called );
 }
 
-BOOST_FIXTURE_TEST_CASE( connection_update, link_layer_only_changed_callback )
-{
-    BOOST_CHECK( !only_changed_callback.only_changed_called );
+static const test::connection_update update_to_40_1_25 = {
+    .window_size    = 5,
+    .window_offset  = 6,
+    .interval       = 40,
+    .latency        = 1,
+    .timeout        = 25,
+    .instant        = 2
+};
 
+BOOST_FIXTURE_TEST_CASE( connection_update_is_reported, link_layer_only_changed_callback )
+{
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( 5, 6, 40, 1, 25, 2 );
+    add_connection_update_request( update_to_40_1_25 );
     ll_empty_pdus( 120 );
     run( 3u );
 
     BOOST_CHECK( only_changed_callback.only_changed_called );
 }
 
-BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_updates, link_layer_only_changed_callback )
+BOOST_FIXTURE_TEST_CASE( connection_details_reported_when_connection_is_updated, link_layer_only_changed_callback )
 {
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_update_request( 5, 6, 40, 1, 25, 2 );
+    add_connection_update_request( update_to_40_1_25 );
     ll_empty_pdus( 120 );
     run( 3u );
 
-    static const std::uint8_t map_data[] = { 0xff, 0xff, 0xff, 0xff, 0x1f };
-    bluetoe::link_layer::channel_map channels;
-    channels.reset( &map_data[ 0 ], 10 );
-
     const auto reported_details = only_changed_callback.reported_details;
-    BOOST_CHECK( equal( reported_details.channels(), channels ) );
+    BOOST_CHECK( equal( reported_details.channels(), channel_map( all_channels ) ) );
     BOOST_CHECK_EQUAL( reported_details.interval(), 40 );
     BOOST_CHECK_EQUAL( reported_details.latency(), 1 );
     BOOST_CHECK_EQUAL( reported_details.timeout(), 25 );
@@ -431,13 +398,10 @@ BOOST_FIXTURE_TEST_CASE( never_connected, link_layer_only_disconnect_callback )
     run();
 
     BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_not_lost, link_layer_only_disconnect_callback )
 {
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
     // the central answers every connection event the simulation runs for; unanswered
     // events after these would end the connection with the supervision timeout
     respond_to( 37, valid_connection_request_pdu );
@@ -454,39 +418,28 @@ BOOST_FIXTURE_TEST_CASE( connection_not_lost, link_layer_only_disconnect_callbac
  */
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_timeout_never_connected, link_layer_connect_and_disconnect_callback )
 {
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
     respond_to( 37, valid_connection_request_pdu );
     run( 20 );
 
-    BOOST_CHECK( !only_connect_callback.connection_established_called );
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
+    BOOST_CHECK( !connect_and_disconnect_callback.connection_established_called );
+    BOOST_CHECK( !connect_and_disconnect_callback.only_disconnect_called );
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_timeout, link_layer_only_disconnect_callback )
 {
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 2 );
     run( 20 );
 
     BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
-    BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x08 );
+    BOOST_CHECK_EQUAL( only_disconnect_callback.only_disconnect_reason, 0x08 );   // Connection Timeout
 }
 
 BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconnect_callback )
 {
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    add_connection_event_respond(
-        {
-            0x03, 0x02,
-            0x02, 0x12
-        } );
-
+    ll_control_pdu( ll_terminate_ind( 0x12 ) );
     run( 4 );
 
     BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
@@ -495,14 +448,11 @@ BOOST_FIXTURE_TEST_CASE( connection_lost_by_disconnect, link_layer_only_disconne
 
 BOOST_FIXTURE_TEST_CASE( connection_closed, link_layer_only_disconnect_callback )
 {
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    add_connection_event_respond([&](){
+    add_connection_event_respond( [&]() {
         disconnect( 0x22 );
-    });
-
+    } );
     run( 4 );
 
     BOOST_REQUIRE( only_disconnect_callback.only_disconnect_called );
@@ -518,16 +468,9 @@ using link_layer_only_version_callback = mixin_reset_callbacks<
 
 BOOST_FIXTURE_TEST_CASE( version_indication, link_layer_only_version_callback )
 {
-    BOOST_CHECK( !only_disconnect_callback.only_disconnect_called );
-
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    add_connection_event_respond(
-        {
-            0x03, 0x06,
-            0x0c, 0x08, 0x22, 0x33, 0xbb, 0xaa
-        } );
-
+    ll_control_pdu( ll_version_ind( 0x08, 0x3322, 0xaabb ) );
     run( 4 );
 
     BOOST_REQUIRE( only_version_callback.only_version_called );
@@ -545,8 +488,6 @@ using link_layer_only_requested_callback = mixin_reset_callbacks<
 
 BOOST_FIXTURE_TEST_CASE( connection_request, link_layer_only_requested_callback )
 {
-    BOOST_CHECK( !only_requested_callback.connection_requested_called );
-
     respond_to( 37, valid_connection_request_pdu );
     run();
 
@@ -562,8 +503,6 @@ using link_layer_only_connect_attempt_timeout_callback = mixin_reset_callbacks<
 
 BOOST_FIXTURE_TEST_CASE( connection_attempt_timeout, link_layer_only_connect_attempt_timeout_callback )
 {
-    BOOST_CHECK( !only_connect_attempt_timeout_callback.connect_attempt_timeout_called );
-
     respond_to( 37, valid_connection_request_pdu );
     run();
 
@@ -584,13 +523,7 @@ BOOST_FIXTURE_TEST_CASE( procedure_rejected, link_layer_only_rejected_callback )
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x0D,                   // LL_REJECT_IND
-            0x42,                   // ErrorCode
-        }
-    );
-
+    ll_control_pdu( ll_reject_ind( 0x42 ) );
     run( 4 );
 
     BOOST_REQUIRE( only_rejected_callback.only_rejected_called );
@@ -601,14 +534,7 @@ BOOST_FIXTURE_TEST_CASE( procedure_ext_rejected, link_layer_only_rejected_callba
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x11,                   // LL_REJECT_EXT_IND
-            0xff,                   // opcode
-            0x42,                   // ErrorCode
-        }
-    );
-
+    ll_control_pdu( ll_reject_ext_ind( 0xff, 0x42 ) );
     run( 4 );
 
     BOOST_REQUIRE( only_rejected_callback.only_rejected_called );
@@ -622,18 +548,11 @@ using link_layer_only_unknown_callback = mixin_reset_callbacks<
     >
 >;
 
-
 BOOST_FIXTURE_TEST_CASE( procedure_unknown, link_layer_only_unknown_callback )
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x07,                   // LL_UNKNOWN_RSP
-            0x99,                   // UnknownType
-        }
-    );
-
+    ll_control_pdu( ll_unknown_rsp( 0x99 ) );
     run( 4 );
 
     BOOST_REQUIRE( only_unknown_callback.only_unknown_called );
@@ -651,16 +570,10 @@ BOOST_FIXTURE_TEST_CASE( remote_features, link_layer_only_remote_features_callba
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x08,                   // LL_FEATURE_REQ
-            0x01, 0x02, 0x03, 0x04, // Feature set
-            0x05, 0x06, 0x07, 0x08
-        }
-    );
-
+    ll_control_pdu( ll_feature_req( 0x0807060504030201 ) );
     run( 4 );
 
+    // the feature set as it was transmitted, least significant octet first
     static const std::uint8_t expected_features[] = {
         0x01, 0x02, 0x03, 0x04,
         0x05, 0x06, 0x07, 0x08
@@ -672,7 +585,6 @@ BOOST_FIXTURE_TEST_CASE( remote_features, link_layer_only_remote_features_callba
         std::end( only_remote_features_callback.remote_features ),
         std::begin( expected_features ),
         std::end( expected_features ) );
-
 }
 
 using link_layer_only_phy_updated_callback = mixin_reset_callbacks<
@@ -684,19 +596,11 @@ using link_layer_only_phy_updated_callback = mixin_reset_callbacks<
     >
 >;
 
-BOOST_FIXTURE_TEST_CASE( phy_update_test, link_layer_only_phy_updated_callback )
+BOOST_FIXTURE_TEST_CASE( phy_updated_in_both_directions, link_layer_only_phy_updated_callback )
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x18,                   // LL_PHY_UPDATE_IND
-            0x02,                   // PHY_C_TO_P
-            0x02,                   // PHY_P_TO_C
-            0x10, 0x00              // Instant
-        }
-    );
-
+    ll_control_pdu( ll_phy_update_ind( phy::le_2m, phy::le_2m, 0x10 ) );
     run( 40 );
 
     BOOST_REQUIRE( only_phy_updated_callback.phy_updated_called );
@@ -704,19 +608,11 @@ BOOST_FIXTURE_TEST_CASE( phy_update_test, link_layer_only_phy_updated_callback )
     BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_2m_phy );
 }
 
-BOOST_FIXTURE_TEST_CASE( phy_update_test_II, link_layer_only_phy_updated_callback )
+BOOST_FIXTURE_TEST_CASE( phy_updated_in_one_direction, link_layer_only_phy_updated_callback )
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x18,                   // LL_PHY_UPDATE_IND
-            0x00,                   // PHY_C_TO_P unchanged
-            0x01,                   // PHY_P_TO_C 1MB
-            0x10, 0x00              // Instant
-        }
-    );
-
+    ll_control_pdu( ll_phy_update_ind( phy::none, phy::le_1m, 0x10 ) );
     run( 40 );
 
     BOOST_REQUIRE( only_phy_updated_callback.phy_updated_called );
@@ -724,47 +620,14 @@ BOOST_FIXTURE_TEST_CASE( phy_update_test_II, link_layer_only_phy_updated_callbac
     BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_1m_phy );
 }
 
-BOOST_FIXTURE_TEST_CASE( phy_update_test_III, link_layer_only_phy_updated_callback )
+BOOST_FIXTURE_TEST_CASE( phy_update_without_a_change, link_layer_only_phy_updated_callback )
 {
     respond_to( 37, valid_connection_request_pdu );
     ll_empty_pdus( 3 );
-    ll_control_pdu(
-        {
-            0x18,                   // LL_PHY_UPDATE_IND
-            0x00,                   // PHY_C_TO_P unchanged
-            0x00,                   // PHY_P_TO_C unchanged
-            0x00, 0x00              // Instant
-        }
-    );
-
+    ll_control_pdu( ll_phy_update_ind( phy::none, phy::none, 0 ) );
     run( 40 );
 
     BOOST_REQUIRE( only_phy_updated_callback.phy_updated_called );
     BOOST_CHECK_EQUAL( only_phy_updated_callback.transmit_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
     BOOST_CHECK_EQUAL( only_phy_updated_callback.receive_encoding, bluetoe::link_layer::phy_ll_encoding::le_unchanged_coding );
-}
-
-BOOST_FIXTURE_TEST_CASE( multiple_events, link_layer_only_connect_callback )
-{
-    respond_to( 37, valid_connection_request_pdu );
-    ll_control_pdu(
-        {
-            0x0c, 0x08, 0x22, 0x33, 0xbb, 0xaa
-        }
-    );
-    ll_empty_pdus( 1 );
-
-    run( 4 );
-
-    const auto reported_details = only_connect_callback.reported_details;
-
-    static const std::uint8_t map_data[] = { 0xff, 0xff, 0xff, 0xff, 0xff };
-    bluetoe::link_layer::channel_map channels;
-    channels.reset( &map_data[ 0 ], 10 );
-
-    BOOST_CHECK( equal( reported_details.channels(), channels ) );
-    BOOST_CHECK_EQUAL( reported_details.interval(), 0x18 );
-    BOOST_CHECK_EQUAL( reported_details.latency(), 0 );
-    BOOST_CHECK_EQUAL( reported_details.timeout(), 72 );
-    BOOST_CHECK_EQUAL( reported_details.cumulated_sleep_clock_accuracy_ppm(), unsigned{ 50 + 100 } );
 }
