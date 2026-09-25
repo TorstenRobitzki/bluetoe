@@ -233,6 +233,15 @@ Going through the layers, the difference shows in these places:
    needed for it: the link is a plain struct that has `connection_data_t` as its base
    and the link's data as members. Agreed.
 
+   What is handed down is the link, not its base. L2CAP's `handle_l2cap_input()` and
+   the server's `l2cap_input()` take the connection object as a template parameter, and
+   so do the callbacks, so the type that travels through the layers can be the link
+   itself: every layer sees the base it knows by the implicit conversion to it, and the
+   application receives the link in its callbacks and hands the same type back to
+   `disconnect()`. No cast from the connection part to the link part anywhere. If a
+   layer turns out to name `connection_data_t` by type rather than by template
+   parameter, that layer is changed to the parameter, not the link to a cast.
+
    Notifications and indications are the server's: it notifies every client that
    subscribed, per connection data, and hands each SDU to the link layer with its link.
    See the section on the interface below.
