@@ -352,12 +352,12 @@ an application does with a link:
 - disconnect, with the reason;
 - the synchronized connection event callback and the white list.
 
-With several links, the functions that act on a link take the link as their first
-argument: the connection object that the callbacks and the characteristic handlers
-already receive, which is the link itself. Proposal: both implementations offer that
-signature, so that an application is written the same way for one link and for several,
-and the single link implementation keeps today's forms without the argument as a
-convenience for the one link it has.
+The functions that act on a link take the link as their first argument: the connection
+object that the callbacks and the characteristic handlers already receive, which is the
+link itself. Both implementations offer that signature, so that an application is
+written the same way for one link and for several. The single link implementation
+offers, in addition, overloads without the link argument, which act on the one link it
+has, so that a single link application stays as simple as it is today. Agreed.
 
 Proposed to go, as HCI leftovers: `remote_versions_request()` and the `ll_version()`
 callback, `initiating_connection_parameter_request()` as the application's choice of the
@@ -422,8 +422,6 @@ implementation. Steps 6 and 7 add the second implementation next to it.
 ## Decisions to take
 
 - Which of the HCI leftovers of the interface towards the application go, see there.
-- Whether the single link implementation keeps the forms without a link argument next
-  to the ones that name the link, see there.
 
 The names in this document are proposals until they are in the code. Decisions that come up during the steps are added here and, once taken, moved to
 where they apply and marked as agreed.
