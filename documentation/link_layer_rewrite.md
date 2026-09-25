@@ -59,9 +59,11 @@ These come from the project and are not up for discussion in this work.
   option types, and the test facing API of the simulated radio. The single link case has
   to pass them unchanged until the multi link step, which is the only step that changes
   what the simulator is.
-- **One logical change per commit, each reviewed.** Each step leaves master buildable,
-  tested in Debug and Release, the examples cross compiled, and the radio tests run on the
-  bench when the radio side changes.
+- **One logical change per commit, each reviewed, on this pull request's branch.** The
+  code changes are made on the branch of this document, not on master, so that the
+  document and the code that follows it are reviewed together. Each commit leaves the
+  branch buildable, tested in Debug and Release, the examples cross compiled, and the
+  radio tests run on the bench when the radio side changes. Agreed.
 - **Nothing is stored twice for one link.** The radio keeps what its setup functions give
   it: access address and CRC initialiser, the PHY, the encryption keys. Today the link
   layer hands them over when they change and keeps no copy; `connection_parameters` holds
@@ -431,7 +433,7 @@ Each issue is fixed in the step that touches its code, with a test first.
 
 ## The steps
 
-Each step is a series of small commits on master, each green.
+Each step is a series of small commits on the branch of this pull request, each green.
 
 1. **The link struct.** The per link members moved into it, held as an array of one.
    Measured: no change in size.
