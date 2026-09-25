@@ -283,7 +283,10 @@ What the link layer is made of when the steps are done. Names are proposals.
 - **`run()`.** Lets the radio run, delivers queued callbacks, dispatches received data
   to L2CAP, in the application context.
 
-The procedures a peripheral has, with what is known about them:
+The procedures a peripheral has, with what is known about them. "In the chain" means a
+branch of the opcode chain in `handle_ll_control_data()`, with its state in the link
+layer's members; the two mixins intercept their own opcodes before that chain is
+reached.
 
 | Procedure | Opcodes | Today | Selectable |
 |---|---|---|---|
@@ -311,6 +314,35 @@ the security manager and the selection of the encryption procedure become two th
 The mandatory procedures are mandatory: they are always in, and no option leaves one
 out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
 the dispatch is built; the table records the intent. Agreed.
+
+## The interface towards the application
+
+Part of the link layer's public interface exists because an HCI layer was once written
+around it, and an HCI layer needs to initiate every procedure and see every outcome.
+That layer is gone. An application does not ask its peer for its version, and it has no
+use for the reject or unknown response to a request it did not make. What stays is what
+an application does with a link:
+
+- advertise, with the type, interval, channels and the directed address, and stop;
+- accept the connection, be told about it, and about its parameters when they change,
+  and about its end with the reason;
+- send and receive ATT, which is L2CAP's and the server's business;
+- ask for other connection parameters, `connection_parameter_update_request()`, and let
+  the link layer choose whether to ask through L2CAP signalling or the LL procedure,
+  which depends on what the central supports, not on what the application wants;
+- ask for the 2M PHY, `phy_update_request_to_2mbit()`, which an application may want for
+  throughput or for power;
+- disconnect, with the reason;
+- the synchronized connection event callback and the white list.
+
+Proposed to go, as HCI leftovers: `remote_versions_request()` and the `ll_version()`
+callback, `initiating_connection_parameter_request()` as the application's choice of the
+transport, `phy_update_request( transmit, receive )` with arbitrary PHYs next to the 2M
+request, `supported_link_layer_version()` and `link_layer_company_identifier()` as
+public accessors, and the callbacks `ll_rejected()`, `ll_unknown()` and
+`ll_remote_features()`. The version and feature exchange procedures stay as responders;
+their initiating side goes with the API that used it. The request queue then carries
+three requests: connection parameters, the 2M PHY, disconnect.
 
 ## Issues
 
@@ -365,6 +397,7 @@ implementation. Steps 6 and 7 add the second implementation next to it.
 
 ## Decisions to take
 
-None open at the moment. The names in this document are proposals until they are in the
-code. Decisions that come up during the steps are added here and, once taken, moved to
+- Which of the HCI leftovers of the interface towards the application go, see there.
+
+The names in this document are proposals until they are in the code. Decisions that come up during the steps are added here and, once taken, moved to
 where they apply and marked as agreed.
