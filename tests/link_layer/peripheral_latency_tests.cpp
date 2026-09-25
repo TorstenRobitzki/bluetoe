@@ -1,44 +1,205 @@
 #define BOOST_TEST_MODULE
 #include <boost/test/included/unit_test.hpp>
+#include <boost/mpl/list.hpp>
 
 #include <bluetoe/link_layer.hpp>
 
-struct no_peripheral_latency : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_ignored
->
+using bluetoe::link_layer::delta_time;
+using bluetoe::link_layer::connection_event_events;
+using bluetoe::link_layer::peripheral_latency_configuration;
+using bluetoe::link_layer::peripheral_latency_configuration_set;
+using bluetoe::link_layer::peripheral_latency;
+
+static const delta_time typical_connection_interval = delta_time::msec( 30 );
+
+// the events of a connection event, in the order of the members of connection_event_events
+static const connection_event_events no_events;
+static const connection_event_events all_events = { true, true, true, true, true, true };
+static const connection_event_events all_but_error_events = { true, true, true, true, true, false };
+static const connection_event_events unacknowledged_data_events = { true, false, false, false, false, false };
+static const connection_event_events last_received_not_empty_events = { false, true, false, false, false, false };
+static const connection_event_events last_transmitted_not_empty_events = { false, false, true, false, false, false };
+static const connection_event_events last_received_had_more_data_events = { false, false, false, true, false, false };
+static const connection_event_events pending_outgoing_data_events = { false, false, false, false, true, false };
+static const connection_event_events last_error_events = { false, false, false, false, false, true };
+
+static const std::pair< bool, std::int16_t > no_pending_instant = { false, 0u };
+
+/*
+ * The peripheral latency state under test, with the typical connection interval, the radio's
+ * answer to a cancelled connection event, and the planned event in one check
+ */
+template < class Configuration >
+struct latency_state : bluetoe::link_layer::details::peripheral_latency_state< Configuration >
 {
-    no_peripheral_latency()
+    latency_state()
     {
-        reset_connection_state();
+        this->reset_connection_state();
     }
+
+    void plan( unsigned latency, const connection_event_events& events = no_events )
+    {
+        this->plan_next_connection_event( latency, events, typical_connection_interval, no_pending_instant );
+    }
+
+    // a plan while a procedure has an instant pending
+    void plan_before_instant( unsigned latency, std::int16_t instant )
+    {
+        this->plan_next_connection_event( latency, no_events, typical_connection_interval, { true, instant } );
+    }
+
+    void timeout()
+    {
+        this->plan_next_connection_event_after_timeout( typical_connection_interval );
+    }
+
+    bool reschedule_on_pending_data()
+    {
+        return bluetoe::link_layer::details::peripheral_latency_state< Configuration >::reschedule_on_pending_data( *this, typical_connection_interval );
+    }
+
+    // the channel index and event counter of the planned event, and the time since the last one in intervals
+    void check_planned( unsigned channel_index, unsigned event_counter, unsigned intervals ) const
+    {
+        BOOST_TEST( this->current_channel_index() == channel_index );
+        BOOST_TEST( this->connection_event_counter() == event_counter );
+        BOOST_TEST( this->time_since_last_event() == intervals * typical_connection_interval );
+    }
+
+    bool cancel_radio_event()
+    {
+        return cancel_radio_event_result;
+    }
+
+    bool cancel_radio_event_result = false;
 };
 
-static const bluetoe::link_layer::delta_time typical_connection_interval =
-    bluetoe::link_layer::delta_time::msec( 30 );
+using no_peripheral_latency = latency_state< bluetoe::link_layer::peripheral_latency_ignored >;
 
-static const bluetoe::link_layer::delta_time half_typical_connection_interval =
-    bluetoe::link_layer::delta_time::msec( 15 );
+// In contrast to ignored latency, a latency that really schedules events only at latency anchors
+using peripheral_latency_only_at_anchors = latency_state< peripheral_latency_configuration<> >;
 
-static const bluetoe::link_layer::connection_event_events no_events;
-static const bluetoe::link_layer::connection_event_events all_events = { true, true, true, true, true, true };
-static const bluetoe::link_layer::connection_event_events all_but_error_events = { true, true, true, true, true, false };
-static const bluetoe::link_layer::connection_event_events unacknowledged_data_events = { true, false, false, false, false, false };
-static const bluetoe::link_layer::connection_event_events last_received_not_empty_events = { false, true, false, false, false, false };
-static const bluetoe::link_layer::connection_event_events last_transmitted_not_empty_events = { false, false, true, false, false, false };
-static const bluetoe::link_layer::connection_event_events last_received_had_more_data_events = { false, false, false, true, false, false };
-static const bluetoe::link_layer::connection_event_events pending_outgoing_data_events = { false, false, false, false, true, false };
-static const bluetoe::link_layer::connection_event_events last_error_events = { false, false, false, false, false, true };
+using listen_if_unacknowledged_data = latency_state< peripheral_latency_configuration<
+    peripheral_latency::listen_if_unacknowledged_data > >;
 
-static const std::pair< bool, std::int16_t > no_pending_instance = { false, 0u };
+using listen_if_last_received_not_empty = latency_state< peripheral_latency_configuration<
+    peripheral_latency::listen_if_last_received_not_empty > >;
+
+using listen_if_last_transmitted_not_empty = latency_state< peripheral_latency_configuration<
+    peripheral_latency::listen_if_last_transmitted_not_empty > >;
+
+using listen_if_last_received_had_more_data = latency_state< peripheral_latency_configuration<
+    peripheral_latency::listen_if_last_received_had_more_data > >;
+
+using listen_if_pending_transmit_data = latency_state< peripheral_latency_configuration<
+    peripheral_latency::listen_if_pending_transmit_data > >;
+
+using listen_on_multiple_events = latency_state< peripheral_latency_configuration<
+    peripheral_latency::listen_if_pending_transmit_data,
+    peripheral_latency::listen_if_last_transmitted_not_empty > >;
+
+using config1 = peripheral_latency_configuration<
+    peripheral_latency::listen_if_pending_transmit_data,
+    peripheral_latency::listen_if_last_transmitted_not_empty >;
+
+using config2 = peripheral_latency_configuration<
+    peripheral_latency::listen_if_pending_transmit_data,
+    peripheral_latency::listen_if_last_received_not_empty >;
+
+using runtime_configurable = latency_state< peripheral_latency_configuration_set< config1, config2 > >;
+
+/*
+ * What every configuration has in common
+ */
+using all_configurations = boost::mpl::list<
+    no_peripheral_latency,
+    peripheral_latency_only_at_anchors,
+    listen_if_unacknowledged_data,
+    listen_if_last_received_not_empty,
+    listen_if_last_transmitted_not_empty,
+    listen_if_last_received_had_more_data,
+    listen_if_pending_transmit_data,
+    listen_on_multiple_events,
+    runtime_configurable >;
+
+using configurations_with_latency = boost::mpl::list<
+    peripheral_latency_only_at_anchors,
+    listen_if_unacknowledged_data,
+    listen_if_last_received_not_empty,
+    listen_if_last_transmitted_not_empty,
+    listen_if_last_received_had_more_data,
+    listen_if_pending_transmit_data >;
+
+// the configurations that can not cancel a planned connection event
+using configurations_without_rescheduling = boost::mpl::list<
+    no_peripheral_latency,
+    peripheral_latency_only_at_anchors,
+    listen_if_unacknowledged_data,
+    listen_if_last_received_not_empty,
+    listen_if_last_transmitted_not_empty,
+    listen_if_last_received_had_more_data >;
+
+using configurations_with_instant_limit = boost::mpl::list<
+    peripheral_latency_only_at_anchors,
+    listen_on_multiple_events,
+    runtime_configurable >;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( initial_state, State, all_configurations )
+{
+    State state;
+
+    state.check_planned( 0, 0, 0 );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( take_next_event_on_error, State, configurations_with_latency )
+{
+    State state;
+
+    state.plan( 500, last_error_events );
+
+    state.check_planned( 1, 1, 1 );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( no_disarm_connection_event_support_required, State, configurations_without_rescheduling )
+{
+    State state;
+
+    BOOST_TEST( state.reschedule_on_pending_data() == false );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( latency_limited_by_pending_instant, State, configurations_with_instant_limit )
+{
+    State state;
+
+    state.plan_before_instant( 500, 299 );
+
+    state.check_planned( 299u % 37, 299, 299 );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( latency_not_limited_by_pending_instant, State, configurations_with_instant_limit )
+{
+    State state;
+
+    state.plan_before_instant( 100, 299 );
+
+    state.check_planned( 101u % 37, 101, 101 );
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE( latency_limited_by_pending_instant_after_counter_wrap, State, configurations_with_instant_limit )
+{
+    State state;
+
+    for ( int i = 0; i != 130; ++i )
+        state.plan( 500 );
+
+    state.check_planned( 65130u % 37, 65130, 501 );
+
+    state.plan_before_instant( 500, 20 );
+
+    state.check_planned( ( 0x10000 + 20u ) % 37, 20, 0x10000 - 65130u + 20u );
+}
 
 BOOST_FIXTURE_TEST_SUITE( no_peripheral_latency_applied, no_peripheral_latency )
-
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
 
     /*
      * Every planned event is placed from the anchor of the last event that happened, which
@@ -54,8 +215,7 @@ BOOST_FIXTURE_TEST_SUITE( no_peripheral_latency_applied, no_peripheral_latency )
         BOOST_TEST( ( next_connection_event_anchor() == anchor ) );
         BOOST_TEST( time_since_last_event().zero() );
 
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
+        plan( 0 );
 
         BOOST_TEST( ( next_connection_event_anchor() == anchor + typical_connection_interval ) );
         BOOST_TEST( ( last_connection_event_anchor() == anchor ) );
@@ -72,923 +232,374 @@ BOOST_FIXTURE_TEST_SUITE( no_peripheral_latency_applied, no_peripheral_latency )
 
         connection_event_happened( anchor );
 
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-        plan_next_connection_event_after_timeout( typical_connection_interval );
+        plan( 0 );
+        timeout();
 
         BOOST_TEST( ( last_connection_event_anchor() == anchor ) );
         BOOST_TEST( ( next_connection_event_anchor() == anchor + 2 * typical_connection_interval ) );
         BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
     }
 
-    BOOST_AUTO_TEST_CASE( channel_index_is_incremented_by_one )
+    BOOST_AUTO_TEST_CASE( channel_index_and_event_counter_are_incremented_by_one )
     {
         // without peripheral latency
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
+        plan( 0 );
+        check_planned( 1, 1, 1 );
 
         // with peripheral latency
-        plan_next_connection_event(
-            10, no_events, typical_connection_interval, no_pending_instance );
+        plan( 10 );
+        check_planned( 2, 2, 1 );
 
-        BOOST_TEST( current_channel_index() == 2u );
+        // when a timeout happens
+        timeout();
+        check_planned( 3, 3, 2 );
 
-        // when a timeout happens, without peripheral latency
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( current_channel_index() == 3u );
-
-        // when a timeout happens, without peripheral latency
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( current_channel_index() == 4u );
+        timeout();
+        check_planned( 4, 4, 3 );
 
         // with peripheral latency and all sort of events
-        plan_next_connection_event(
-            10, all_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 5u );
-    }
-
-    BOOST_AUTO_TEST_CASE( event_counter_increments_by_one )
-    {
-        // without peripheral latency
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( connection_event_counter() == 1u );
-
-        // with peripheral latency
-        plan_next_connection_event(
-            10, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( connection_event_counter() == 2u );
-
-        // when a timeout happens, without peripheral latency
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( connection_event_counter() == 3u );
-
-        // when a timeout happens, without peripheral latency
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( connection_event_counter() == 4u );
+        plan( 10, all_events );
+        check_planned( 5, 5, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( channel_index_wraps_after_36 )
     {
         for ( int i = 0; i != 36; ++i )
-        {
-            plan_next_connection_event(
-                0, no_events, typical_connection_interval, no_pending_instance );
-        }
+            plan( 0 );
 
         BOOST_TEST( current_channel_index() == 36u );
 
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
+        plan( 0 );
 
         BOOST_TEST( current_channel_index() == 0u );
     }
 
-    BOOST_AUTO_TEST_CASE( instance_counter_wraps_after_ffff )
+    BOOST_AUTO_TEST_CASE( event_counter_wraps_after_ffff )
     {
         for ( int i = 0; i != 0xffff; ++i )
-        {
-            plan_next_connection_event(
-                0, no_events, typical_connection_interval, no_pending_instance );
-        }
+            plan( 0 );
 
         BOOST_TEST( connection_event_counter() == 0xffffu );
 
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
+        plan( 0 );
 
         BOOST_TEST( connection_event_counter() == 0u );
     }
 
     BOOST_AUTO_TEST_CASE( time_since_last_event_is_set_to_interval )
     {
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-
+        plan( 0 );
         BOOST_TEST( time_since_last_event() == typical_connection_interval );
 
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-
+        plan( 0 );
         BOOST_TEST( time_since_last_event() == typical_connection_interval );
     }
 
     BOOST_AUTO_TEST_CASE( time_since_last_event_is_cummulated_after_timeout )
     {
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
+        timeout();
         BOOST_TEST( time_since_last_event() == typical_connection_interval );
 
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
+        timeout();
         BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
 
-        plan_next_connection_event_after_timeout(
-            2 * typical_connection_interval );
-
+        plan_next_connection_event_after_timeout( 2 * typical_connection_interval );
         BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
 
         // and reset after a connection event toke place
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-
+        plan( 0 );
         BOOST_TEST( time_since_last_event() == typical_connection_interval );
     }
 
-    BOOST_AUTO_TEST_CASE( no_disarm_connection_event_support_required )
-    {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
-    }
-
 BOOST_AUTO_TEST_SUITE_END()
-
-// In contrast to ignored latency, a latency that really schedules events only at latency anchors
-struct peripheral_latency_only_at_anchors : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<>
->
-{
-    peripheral_latency_only_at_anchors()
-    {
-        reset_connection_state();
-    }
-};
 
 BOOST_FIXTURE_TEST_SUITE( only_peripheral_latency_applied, peripheral_latency_only_at_anchors )
 
     static const int latency = 5;
 
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
-
     BOOST_AUTO_TEST_CASE( next_connection_events )
     {
-        plan_next_connection_event(
-            latency, all_but_error_events, typical_connection_interval, no_pending_instance );
+        plan( latency, all_but_error_events );
+        check_planned( 6, 6, 6 );
 
-        BOOST_TEST( current_channel_index() == 6u );
-        BOOST_TEST( connection_event_counter() == 6u );
-        BOOST_TEST( time_since_last_event() == 6 * typical_connection_interval );
+        plan( latency, all_but_error_events );
+        check_planned( 12, 12, 6 );
 
-        plan_next_connection_event(
-            latency, all_but_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 12u );
-        BOOST_TEST( connection_event_counter() == 12u );
-        BOOST_TEST( time_since_last_event() == 6 * typical_connection_interval );
-
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( current_channel_index() == 13u );
-        BOOST_TEST( connection_event_counter() == 13u );
-        BOOST_TEST( time_since_last_event() == 7 * typical_connection_interval );
+        timeout();
+        check_planned( 13, 13, 7 );
     }
 
     BOOST_AUTO_TEST_CASE( channel_index_wraps_after_36 )
     {
         for ( int i = 0; i != 6; ++i )
-        {
-            plan_next_connection_event(
-                latency, all_but_error_events, typical_connection_interval, no_pending_instance );
-        }
+            plan( latency, all_but_error_events );
 
         BOOST_TEST( current_channel_index() == 36u );
 
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
+        plan( 0 );
 
         BOOST_TEST( current_channel_index() == 0u );
     }
 
-    BOOST_AUTO_TEST_CASE( channel_index_wraps_after_36_II )
+    BOOST_AUTO_TEST_CASE( channel_index_wraps_within_a_latency )
     {
         for ( int i = 0; i != 5; ++i )
-        {
-            plan_next_connection_event(
-                7, all_but_error_events, typical_connection_interval, no_pending_instance );
-        }
+            plan( 7, all_but_error_events );
 
         BOOST_TEST( current_channel_index() == 3u );
 
-        plan_next_connection_event(
-            7, no_events, typical_connection_interval, no_pending_instance );
+        plan( 7 );
 
         BOOST_TEST( current_channel_index() == 11u );
     }
 
     BOOST_AUTO_TEST_CASE( very_large_latency )
     {
-        plan_next_connection_event(
-            500, all_but_error_events, typical_connection_interval, no_pending_instance );
+        plan( 500, all_but_error_events );
 
-        BOOST_TEST( current_channel_index() == 501u % 37);
-        BOOST_TEST( connection_event_counter() == 501u );
-        BOOST_TEST( time_since_last_event() == 501 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( no_disarm_connection_event_support_required )
-    {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
-    }
-
-    BOOST_AUTO_TEST_CASE( take_next_event_on_error )
-    {
-        plan_next_connection_event(
-            500, last_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_limited_by_pending_instance )
-    {
-        plan_next_connection_event(
-            500, no_events, typical_connection_interval, { true, 299u } );
-
-        BOOST_TEST( current_channel_index() == 299u % 37 );
-        BOOST_TEST( connection_event_counter() == 299u );
-        BOOST_TEST( time_since_last_event() == 299u * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_not_limited_by_pending_instance )
-    {
-        plan_next_connection_event(
-            100, no_events, typical_connection_interval, { true, 299u } );
-
-        BOOST_TEST( current_channel_index() == 101u % 37 );
-        BOOST_TEST( connection_event_counter() == 101u );
-        BOOST_TEST( time_since_last_event() == 101u * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_limited_by_pending_instance_after_counter_wrap )
-    {
-        for ( int i = 0; i != 130; ++i )
-            plan_next_connection_event(
-                500, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 65130u % 37 );
-        BOOST_TEST( connection_event_counter() == 65130u );
-        BOOST_TEST( time_since_last_event() == 501u * typical_connection_interval );
-
-        plan_next_connection_event(
-            500, no_events, typical_connection_interval, { true, 20 } );
-
-        BOOST_TEST( current_channel_index() == ( 0x10000 + 20u ) % 37 );
-        BOOST_TEST( connection_event_counter() == 20u );
-        BOOST_TEST( time_since_last_event() == ( 0x10000 - 65130u + 20u ) * typical_connection_interval );
+        check_planned( 501u % 37, 501, 501 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct listen_if_unacknowledged_data : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<
-        bluetoe::link_layer::peripheral_latency::listen_if_unacknowledged_data
-    >
->
-{
-    listen_if_unacknowledged_data()
-    {
-        reset_connection_state();
-    }
-};
 
 BOOST_FIXTURE_TEST_SUITE( unacknowlaged_data, listen_if_unacknowledged_data )
 
     static const int latency = 3;
 
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
-
     BOOST_AUTO_TEST_CASE( following_latency_when_no_event_happend )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
 
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
+        check_planned( 4, 4, 4 );
     }
 
     BOOST_AUTO_TEST_CASE( take_next_event_if_unacknowlaged_data_was_send )
     {
-        plan_next_connection_event(
-            latency, unacknowledged_data_events, typical_connection_interval, no_pending_instance );
+        plan( latency, unacknowledged_data_events );
+        check_planned( 1, 1, 1 );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency );
+        check_planned( 5, 5, 4 );
 
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        timeout();
+        check_planned( 6, 6, 5 );
 
-        BOOST_TEST( current_channel_index() == 5u );
-        BOOST_TEST( connection_event_counter() == 5u );
-        BOOST_TEST( time_since_last_event() == 4 * typical_connection_interval );
-
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( current_channel_index() == 6u );
-        BOOST_TEST( connection_event_counter() == 6u );
-        BOOST_TEST( time_since_last_event() == 5 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, unacknowledged_data_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 7u );
-        BOOST_TEST( connection_event_counter() == 7u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( no_disarm_connection_event_support_required )
-    {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
-    }
-
-    BOOST_AUTO_TEST_CASE( take_next_event_on_error )
-    {
-        plan_next_connection_event(
-            500, last_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, unacknowledged_data_events );
+        check_planned( 7, 7, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct listen_if_last_received_not_empty : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<
-        bluetoe::link_layer::peripheral_latency::listen_if_last_received_not_empty
-    >
->
-{
-    listen_if_last_received_not_empty()
-    {
-        reset_connection_state();
-    }
-};
 
 BOOST_FIXTURE_TEST_SUITE( last_received_not_empty, listen_if_last_received_not_empty )
 
     static const int latency = 100;
 
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
-
     BOOST_AUTO_TEST_CASE( following_latency_when_no_event_happend )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
 
-        BOOST_TEST( current_channel_index() == 101u % 37u );
-        BOOST_TEST( connection_event_counter() == 101u );
-        BOOST_TEST( time_since_last_event() == 101u * typical_connection_interval );
+        check_planned( 101u % 37, 101, 101 );
     }
 
-    BOOST_AUTO_TEST_CASE( take_next_event_if_unacknowlaged_data_was_send )
+    BOOST_AUTO_TEST_CASE( take_next_event_if_last_received_not_empty )
     {
-        plan_next_connection_event(
-            latency, last_received_not_empty_events, typical_connection_interval, no_pending_instance );
+        plan( latency, last_received_not_empty_events );
+        check_planned( 1, 1, 1 );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency );
+        check_planned( 102u % 37, 102, 101 );
 
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        timeout();
+        check_planned( 103u % 37, 103, 102 );
 
-        BOOST_TEST( current_channel_index() == 102u % 37u );
-        BOOST_TEST( connection_event_counter() == 102u );
-        BOOST_TEST( time_since_last_event() == 101 * typical_connection_interval );
-
-        plan_next_connection_event_after_timeout(
-            typical_connection_interval );
-
-        BOOST_TEST( current_channel_index() == 103u % 37u );
-        BOOST_TEST( connection_event_counter() == 103u );
-        BOOST_TEST( time_since_last_event() == 102 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, all_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 104u % 37u );
-        BOOST_TEST( connection_event_counter() == 104 );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( no_disarm_connection_event_support_required )
-    {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
-    }
-
-    BOOST_AUTO_TEST_CASE( take_next_event_on_error )
-    {
-        plan_next_connection_event(
-            500, last_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, all_events );
+        check_planned( 104u % 37, 104, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct listen_if_last_transmitted_not_empty : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<
-        bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
-    >
->
-{
-    listen_if_last_transmitted_not_empty()
-    {
-        reset_connection_state();
-    }
-};
 
 BOOST_FIXTURE_TEST_SUITE( last_transmitted_not_empty, listen_if_last_transmitted_not_empty )
 
     static const int latency = 1;
 
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
-
     BOOST_AUTO_TEST_CASE( take_next_event_if_last_transmitted_not_empty )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
+        check_planned( 2, 2, 2 );
 
-        BOOST_TEST( current_channel_index() == 2u );
-        BOOST_TEST( connection_event_counter() == 2u );
-        BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, last_transmitted_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 3u );
-        BOOST_TEST( connection_event_counter() == 3u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( no_disarm_connection_event_support_required )
-    {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
-    }
-
-    BOOST_AUTO_TEST_CASE( take_next_event_on_error )
-    {
-        plan_next_connection_event(
-            500, last_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, last_transmitted_not_empty_events );
+        check_planned( 3, 3, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct listen_if_last_received_had_more_data : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<
-        bluetoe::link_layer::peripheral_latency::listen_if_last_received_had_more_data
-    >
->
-{
-    listen_if_last_received_had_more_data()
-    {
-        reset_connection_state();
-    }
-};
 
 BOOST_FIXTURE_TEST_SUITE( last_received_had_more_data, listen_if_last_received_had_more_data )
 
     static const int latency = 2;
 
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
-
     BOOST_AUTO_TEST_CASE( take_next_event_if_last_received_had_more_data_events )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
+        check_planned( 3, 3, 3 );
 
-        BOOST_TEST( current_channel_index() == 3u );
-        BOOST_TEST( connection_event_counter() == 3u );
-        BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, last_received_had_more_data_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( no_disarm_connection_event_support_required )
-    {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
-    }
-
-    BOOST_AUTO_TEST_CASE( take_next_event_on_error )
-    {
-        plan_next_connection_event(
-            500, last_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, last_received_had_more_data_events );
+        check_planned( 4, 4, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct listen_if_pending_transmit_data : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<
-        bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data
-    >
->
-{
-    listen_if_pending_transmit_data()
-        : cancel_radio_event_result( false )
-    {
-        reset_connection_state();
-    }
-
-    bool cancel_radio_event()
-    {
-        return cancel_radio_event_result;
-    }
-
-    bool cancel_radio_event_result = false;
-};
 
 BOOST_FIXTURE_TEST_SUITE( pending_transmit_data, listen_if_pending_transmit_data )
 
     static const int latency = 7;
 
-    BOOST_AUTO_TEST_CASE( initial_state )
-    {
-        BOOST_TEST( current_channel_index() == 0u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event().zero() );
-    }
-
     BOOST_AUTO_TEST_CASE( following_latency_when_no_pending_data )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
 
-        BOOST_TEST( current_channel_index() == 8u );
-        BOOST_TEST( connection_event_counter() == 8u );
-        BOOST_TEST( time_since_last_event() == 8u * typical_connection_interval );
+        check_planned( 8, 8, 8 );
     }
 
     BOOST_AUTO_TEST_CASE( take_next_event_if_pending_data_is_present )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
+        check_planned( 8, 8, 8 );
 
-        BOOST_TEST( current_channel_index() == 8u );
-        BOOST_TEST( connection_event_counter() == 8u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, pending_outgoing_data_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 9u );
-        BOOST_TEST( connection_event_counter() == 9u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, pending_outgoing_data_events );
+        check_planned( 9, 9, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( rescheduling_not_possible )
     {
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
+        BOOST_TEST( reschedule_on_pending_data() == false );
     }
 
     BOOST_AUTO_TEST_CASE( initial_connection_event_can_not_be_rescheduled )
     {
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
+        BOOST_TEST( reschedule_on_pending_data() == false );
     }
 
     BOOST_AUTO_TEST_CASE( half_way_to_the_connection_event )
     {
         // First, the connection event is planned at the 8th connection event
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 8u );
-        BOOST_TEST( connection_event_counter() == 8u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
+        plan( latency );
+        check_planned( 8, 8, 8 );
 
         // now it's moved to the first one after the anchor
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 1, 1, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( just_after_setting_up_the_connection_event )
     {
         // First, the connection event is planned at the 8th connection event
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 8u );
-        BOOST_TEST( connection_event_counter() == 8u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
+        plan( latency );
+        check_planned( 8, 8, 8 );
 
         // now it's moved to the first one after the anchor
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 1, 1, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( just_after_setting_up_the_connection_event_without_latency )
     {
-        // First, the connection event is planned at the 8th connection event
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        // the connection event is planned at the next connection event already
+        plan( 0 );
+        check_planned( 1, 1, 1 );
 
         // won't move
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == false );
+        BOOST_TEST( reschedule_on_pending_data() == false );
     }
 
     BOOST_AUTO_TEST_CASE( new_outgoing_data_directly_after_the_connection_event_was_planned )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
+        check_planned( 8, 8, 8 );
 
-        BOOST_TEST( current_channel_index() == 8u );
-        BOOST_TEST( connection_event_counter() == 8u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 16u );
-        BOOST_TEST( connection_event_counter() == 16u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
+        plan( latency );
+        check_planned( 16, 16, 8 );
 
         // now, new outgoing data became pending
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 9u );
-        BOOST_TEST( connection_event_counter() == 9u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 9, 9, 1 );
     }
 
-    BOOST_AUTO_TEST_CASE( reschedule_after_connection_instance_overflew )
+    BOOST_AUTO_TEST_CASE( reschedule_after_connection_event_counter_overflew )
     {
         for ( int i = 0; i != 8192; ++i )
-            plan_next_connection_event(
-                latency, no_events, typical_connection_interval, no_pending_instance );
+            plan( latency );
 
-        BOOST_TEST( current_channel_index() == 9u );
-        BOOST_TEST( connection_event_counter() == 0u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
+        check_planned( 9, 0, 8 );
 
         // now, new outgoing data became pending
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 2u );
-        BOOST_TEST( connection_event_counter() == 0xfff9u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 2, 0xfff9, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( reschedule_after_channel_index_overflew )
     {
         for ( int i = 0; i != 5; ++i )
-            plan_next_connection_event(
-                latency, no_events, typical_connection_interval, no_pending_instance );
+            plan( latency );
 
-        BOOST_TEST( current_channel_index() == 3u );
-        BOOST_TEST( connection_event_counter() == 40u );
-        BOOST_TEST( time_since_last_event() == 8 * typical_connection_interval );
+        check_planned( 3, 40, 8 );
 
         // now, new outgoing data became pending
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 33u );
-        BOOST_TEST( connection_event_counter() == 33u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 33, 33, 1 );
     }
 
     // see #97 for more context
     BOOST_AUTO_TEST_CASE( reschedule_after_applying_very_large_latency )
     {
-        plan_next_connection_event( 100, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 101u % 37 );
-        BOOST_TEST( connection_event_counter() == 101u );
-        BOOST_TEST( time_since_last_event() == 101 * typical_connection_interval );
+        plan( 100 );
+        check_planned( 101u % 37, 101, 101 );
 
         // now, new outgoing data became pending
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( take_next_event_on_error )
-    {
-        plan_next_connection_event(
-            500, last_error_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 1, 1, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct listen_on_multiple_events : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration<
-        bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
-        bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
-    >
->
-{
-    listen_on_multiple_events()
-        : cancel_radio_event_result( false )
-    {
-        reset_connection_state();
-
-        // All events, but the ones that are configured to trigger an early connection event
-        // and errors
-        all_but.unacknowledged_data = true;
-        all_but.last_received_not_empty = true;
-        all_but.last_received_had_more_data = true;
-    }
-
-    bool cancel_radio_event()
-    {
-        return cancel_radio_event_result;
-    }
-
-    bool cancel_radio_event_result = false;
-    bluetoe::link_layer::connection_event_events all_but;
-};
 
 BOOST_FIXTURE_TEST_SUITE( combined_connection_event_events, listen_on_multiple_events )
 
     static const int latency = 1;
 
-    BOOST_AUTO_TEST_CASE( test_for_both_events )
+    BOOST_AUTO_TEST_CASE( either_event_ends_the_latency )
     {
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
+        check_planned( 2, 2, 2 );
 
-        BOOST_TEST( current_channel_index() == 2u );
-        BOOST_TEST( connection_event_counter() == 2u );
-        BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
+        // all events but the ones that are configured to trigger an early connection event, and errors
+        connection_event_events all_but;
+        all_but.unacknowledged_data = true;
+        all_but.last_received_not_empty = true;
+        all_but.last_received_had_more_data = true;
 
-        plan_next_connection_event(
-            latency, all_but, typical_connection_interval, no_pending_instance );
+        plan( latency, all_but );
+        check_planned( 4, 4, 2 );
 
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 2 * typical_connection_interval );
+        plan( latency, pending_outgoing_data_events );
+        check_planned( 5, 5, 1 );
 
-        plan_next_connection_event(
-            latency, pending_outgoing_data_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 5u );
-        BOOST_TEST( connection_event_counter() == 5u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-
-        plan_next_connection_event(
-            latency, last_transmitted_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 6u );
-        BOOST_TEST( connection_event_counter() == 6u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_limited_by_pending_instance )
-    {
-        plan_next_connection_event(
-            500, no_events, typical_connection_interval, { true, 299u } );
-
-        BOOST_TEST( current_channel_index() == 299u % 37 );
-        BOOST_TEST( connection_event_counter() == 299u );
-        BOOST_TEST( time_since_last_event() == 299u * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_not_limited_by_pending_instance )
-    {
-        plan_next_connection_event(
-            100, no_events, typical_connection_interval, { true, 299u } );
-
-        BOOST_TEST( current_channel_index() == 101u % 37 );
-        BOOST_TEST( connection_event_counter() == 101u );
-        BOOST_TEST( time_since_last_event() == 101u * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_limited_by_pending_instance_after_counter_wrap )
-    {
-        for ( int i = 0; i != 130; ++i )
-            plan_next_connection_event(
-                500, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 65130u % 37 );
-        BOOST_TEST( connection_event_counter() == 65130u );
-        BOOST_TEST( time_since_last_event() == 501u * typical_connection_interval );
-
-        plan_next_connection_event(
-            500, no_events, typical_connection_interval, { true, 20 } );
-
-        BOOST_TEST( current_channel_index() == ( 0x10000 + 20u ) % 37 );
-        BOOST_TEST( connection_event_counter() == 20u );
-        BOOST_TEST( time_since_last_event() == ( 0x10000 - 65130u + 20u ) * typical_connection_interval );
+        plan( latency, last_transmitted_not_empty_events );
+        check_planned( 6, 6, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-struct runtime_configurable : bluetoe::link_layer::details::peripheral_latency_state<
-    bluetoe::link_layer::peripheral_latency_configuration_set<
-        bluetoe::link_layer::peripheral_latency_configuration<
-            bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
-            bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
-        >,
-        bluetoe::link_layer::peripheral_latency_configuration<
-            bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
-            bluetoe::link_layer::peripheral_latency::listen_if_last_received_not_empty
-        >
-    >
->
-{
-    using config1 = bluetoe::link_layer::peripheral_latency_configuration<
-            bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
-            bluetoe::link_layer::peripheral_latency::listen_if_last_transmitted_not_empty
-        >;
-
-    using config2 = bluetoe::link_layer::peripheral_latency_configuration<
-            bluetoe::link_layer::peripheral_latency::listen_if_pending_transmit_data,
-            bluetoe::link_layer::peripheral_latency::listen_if_last_received_not_empty
-        >;
-
-    runtime_configurable()
-    {
-        reset_connection_state();
-    }
-
-    bool cancel_radio_event()
-    {
-        return cancel_radio_event_result;
-    }
-
-    bool cancel_radio_event_result = false;
-};
 
 BOOST_FIXTURE_TEST_SUITE( switch_behaviour_at_runtime, runtime_configurable )
 
@@ -996,43 +607,27 @@ BOOST_FIXTURE_TEST_SUITE( switch_behaviour_at_runtime, runtime_configurable )
 
     BOOST_AUTO_TEST_CASE( no_latency )
     {
-        // a first connection event, without latency or any event
-        plan_next_connection_event(
-            0, no_events, typical_connection_interval, no_pending_instance );
+        plan( 0 );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        check_planned( 1, 1, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( with_latency )
     {
-        // a first connection event, without latency or any event
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
+        plan( latency );
 
-        BOOST_TEST( current_channel_index() == 3u );
-        BOOST_TEST( connection_event_counter() == 3u );
-        BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
+        check_planned( 3, 3, 3 );
     }
 
-    BOOST_AUTO_TEST_CASE( intiatially_the_first_configuration_is_used )
+    BOOST_AUTO_TEST_CASE( initially_the_first_configuration_is_used )
     {
         // first configuration reacts to the last_transmit_not_empty
-        plan_next_connection_event(
-            latency, last_transmitted_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, last_transmitted_not_empty_events );
+        check_planned( 1, 1, 1 );
 
         // but does not react to the last_received_not_empty
-        plan_next_connection_event(
-            latency, last_received_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
+        plan( latency, last_received_not_empty_events );
+        check_planned( 4, 4, 3 );
     }
 
     BOOST_AUTO_TEST_CASE( switching_to_config1_yields_the_same_results )
@@ -1040,97 +635,36 @@ BOOST_FIXTURE_TEST_SUITE( switch_behaviour_at_runtime, runtime_configurable )
         change_peripheral_latency< config1 >();
 
         // first configuration reacts to the last_transmit_not_empty
-        plan_next_connection_event(
-            latency, last_transmitted_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        plan( latency, last_transmitted_not_empty_events );
+        check_planned( 1, 1, 1 );
 
         // but does not react to the last_received_not_empty
-        plan_next_connection_event(
-            latency, last_received_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
+        plan( latency, last_received_not_empty_events );
+        check_planned( 4, 4, 3 );
     }
 
     BOOST_AUTO_TEST_CASE( use_second_configuration )
     {
         change_peripheral_latency< config2 >();
 
-        // first configuration reacts to the last_transmit_not_empty
-        plan_next_connection_event(
-            latency, last_transmitted_not_empty_events, typical_connection_interval, no_pending_instance );
+        // the second configuration does not react to the last_transmit_not_empty
+        plan( latency, last_transmitted_not_empty_events );
+        check_planned( 3, 3, 3 );
 
-        BOOST_TEST( current_channel_index() == 3u );
-        BOOST_TEST( connection_event_counter() == 3u );
-        BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
-
-        // but does not react to the last_received_not_empty
-        plan_next_connection_event(
-            latency, last_received_not_empty_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 4u );
-        BOOST_TEST( connection_event_counter() == 4u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
+        // but reacts to the last_received_not_empty
+        plan( latency, last_received_not_empty_events );
+        check_planned( 4, 4, 1 );
     }
 
     BOOST_AUTO_TEST_CASE( reschedule )
     {
-        // First, the connection event is planned at the 8th connection event
-        plan_next_connection_event(
-            latency, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 3u );
-        BOOST_TEST( connection_event_counter() == 3u );
-        BOOST_TEST( time_since_last_event() == 3 * typical_connection_interval );
+        plan( latency );
+        check_planned( 3, 3, 3 );
 
         cancel_radio_event_result = true;
-        BOOST_TEST( reschedule_on_pending_data( *this, typical_connection_interval ) == true );
+        BOOST_TEST( reschedule_on_pending_data() == true );
 
-        BOOST_TEST( current_channel_index() == 1u );
-        BOOST_TEST( connection_event_counter() == 1u );
-        BOOST_TEST( time_since_last_event() == 1 * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_limited_by_pending_instance )
-    {
-        plan_next_connection_event(
-            500, no_events, typical_connection_interval, { true, 299u } );
-
-        BOOST_TEST( current_channel_index() == 299u % 37 );
-        BOOST_TEST( connection_event_counter() == 299u );
-        BOOST_TEST( time_since_last_event() == 299u * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_not_limited_by_pending_instance )
-    {
-        plan_next_connection_event(
-            100, no_events, typical_connection_interval, { true, 299u } );
-
-        BOOST_TEST( current_channel_index() == 101u % 37 );
-        BOOST_TEST( connection_event_counter() == 101u );
-        BOOST_TEST( time_since_last_event() == 101u * typical_connection_interval );
-    }
-
-    BOOST_AUTO_TEST_CASE( latency_limited_by_pending_instance_after_counter_wrap )
-    {
-        for ( int i = 0; i != 130; ++i )
-            plan_next_connection_event(
-                500, no_events, typical_connection_interval, no_pending_instance );
-
-        BOOST_TEST( current_channel_index() == 65130u % 37 );
-        BOOST_TEST( connection_event_counter() == 65130u );
-        BOOST_TEST( time_since_last_event() == 501u * typical_connection_interval );
-
-        plan_next_connection_event(
-            500, no_events, typical_connection_interval, { true, 20 } );
-
-        BOOST_TEST( current_channel_index() == ( 0x10000 + 20u ) % 37 );
-        BOOST_TEST( connection_event_counter() == 20u );
-        BOOST_TEST( time_since_last_event() == ( 0x10000 - 65130u + 20u ) * typical_connection_interval );
+        check_planned( 1, 1, 1 );
     }
 
 BOOST_AUTO_TEST_SUITE_END()
