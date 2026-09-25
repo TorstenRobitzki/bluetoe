@@ -63,8 +63,9 @@ These come from the project and are not up for discussion in this work.
   tested in Debug and Release, the examples cross compiled, and the radio tests run on the
   bench when the radio side changes.
 - **The nRF52 binding is the reference radio.** It has `hardware_supports_link_layer_context
-  = false` today, so the link layer context path can only be exercised by the simulated
-  radio until a binding provides one.
+  = false` today. The final proof of the link layer context needs a radio that has one, so
+  the binding gains it, as an interrupt below the radio's priority, when the link layer is
+  ready for it.
 
 ## Where the two axes really matter
 
@@ -85,11 +86,15 @@ Going through the link layer as it is today, the difference shows in exactly fou
    L2CAP layer, which hands it to the GATT server, which calls the application's
    characteristic handlers. Today that happens inside the radio callback. With a link
    layer context it would run application code in interrupt context, and a slow handler
-   would hold the link layer context while the next event has to be scheduled. So the
-   L2CAP dispatch has to move to the application context: the received PDU stays in the
-   receive buffer, which already holds it until `free_ll_l2cap_received()`, and `run()`
-   consumes it. The response goes into the transmit buffer under `radio_lock_guard`,
-   which is the path notifications take already.
+   would hold the link layer context while the next event has to be scheduled.
+
+   This boils down to an ATT SDU queue that both contexts access: the link layer context
+   puts a received SDU in, and after a context switch the application context takes it
+   out, hands it to the GATT server and puts the response on its way down. The receive
+   buffer already holds a PDU until `free_ll_l2cap_received()`, so the queue is the
+   ownership of what is already there rather than a copy; the response goes into the
+   transmit buffer under `radio_lock_guard`, which is the path notifications take
+   already. Agreed as the direction.
 
    This is the largest single change on this axis, and it is the same code in both
    configurations. Without a link layer context, dispatching from `run()` instead of
@@ -137,6 +142,16 @@ what the application is doing, and that is the reason to have one.
 Cost of supporting both: the request queue, which replaces the flags of
 `procedure_requests` and costs the same; a lock that is empty without the context; the
 dispatch of received data from `run()`, which is a move, not an addition.
+
+**Proving it.** The unit tests can only show that the two paths are separated: the
+simulated radio gets a mode in which the callbacks are delivered as if from another
+context, with the application's work interleaved at chosen points. The proof that the
+link layer is correct with a real link layer context needs a radio implementation that
+has one, and a test on the bench in which the application context is held for several
+connection intervals, doing work or sleeping, while the tester on the other side sees the
+link stay up and every event answered. That test belongs to the radio tests in
+`tests/scheduled_radio/`, with an operation of the rig that occupies the application
+context for a given number of intervals. Agreed.
 
 ### More than one link
 
@@ -260,9 +275,9 @@ The procedures a peripheral has, with what is known about them:
 | PHY update | LL_PHY_REQ/RSP, LL_PHY_UPDATE_IND | PHY mixin | yes, with a 2M radio |
 | Data length update | LL_LENGTH_REQ, LL_LENGTH_RSP | not implemented | yes, new |
 
-Which of the mandatory ones the specification really requires of a peripheral, and what
-it says about a peripheral that leaves an optional one out, is to be read against Vol 6,
-Part B, sections 4.6 and 5.1 when the engine is built. The table records the intent.
+The mandatory procedures are mandatory: they are always in, and no option leaves one
+out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
+the engine is built; the table records the intent. Agreed.
 
 ## Issues
 
@@ -288,11 +303,12 @@ Each step is a series of small commits on master, each green.
 
 1. **The link struct.** The per link members moved into it, held as an array of one.
    Measured: no change in size.
-2. **The request queue and the dispatch from `run()`.** Requests from the application go
-   through the queue; received L2CAP data is dispatched from `run()`. Fixes #7 and #151.
-   This is where the link layer becomes correct for a radio with a link layer context,
-   and the simulated radio gets a mode that delivers from a separate context so that the
-   tests can prove it.
+2. **The request queue and the SDU queue.** Requests from the application go through
+   the request queue; received ATT SDUs go through the SDU queue and are handled from
+   `run()`. Fixes #7 and #151. This is where the link layer becomes correct for a radio
+   with a link layer context, and the simulated radio gets the mode that delivers as if
+   from another context. The bench test with a real link layer context follows once the
+   nRF52 binding provides one; that is a step of its own, on the radio side.
 3. **The procedure engine and the mandatory procedures.** The opcode chain becomes the
    engine; termination, version, feature exchange, channel map, connection update, and
    the unknown and reject handling become procedure types. The engine fixes go in here.
@@ -310,9 +326,6 @@ Steps 1 to 6 keep every existing test as the oracle. Step 7 is the one that chan
 
 ## Decisions to take
 
-- Whether a peripheral in Bluetoe may leave out a procedure the specification calls
-  mandatory, given that some examples never see the central use it. Proposal: no, the
-  mandatory set is always in.
 - How the number of links is expressed: proposal `bluetoe::link_layer::max_links< N >`,
   default one.
 - Whether the synchronized connection event callback is limited to one link or
