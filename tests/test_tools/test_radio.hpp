@@ -8,6 +8,7 @@
 #include <bluetoe/connection_events.hpp>
 
 #include <vector>
+#include <map>
 #include <concepts>
 #include <functional>
 #include <iosfwd>
@@ -228,23 +229,26 @@ namespace test {
 
         /**
          * @brief calls check with every scheduled_data
+         *
+         * A check names the test it fails in unless given a message, so a test only passes
+         * one when it has something to add.
          */
-        void check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& check, const char* message = nullptr ) const;
 
         /**
          * @brief calls check with adjanced pairs of advertising_data.
          */
-        void check_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
-        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
-        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message = nullptr ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message = nullptr ) const;
+        void check_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message = nullptr ) const;
 
-        void check_first_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message ) const;
+        void check_first_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const std::function< bool ( const advertising_data& data ) >& check, const char* message = nullptr ) const;
 
         /**
          * @brief there must be exactly one scheduled_data that fitts to the given filter
          */
-        void find_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const char* message ) const;
-        void find_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message ) const;
+        void find_scheduling( const std::function< bool ( const advertising_data& ) >& filter, const char* message = nullptr ) const;
+        void find_scheduling( const std::function< bool ( const advertising_data& first, const advertising_data& next ) >& check, const char* message = nullptr ) const;
 
         void all_data( std::function< void ( const advertising_data& ) > ) const;
         void all_data( const std::function< bool ( const advertising_data& ) >& filter, const std::function< void ( const advertising_data& first, const advertising_data& next ) >& ) const;
@@ -256,6 +260,11 @@ namespace test {
          * @brief counts the number of times the given filter returns true for all advertising_data
          */
         unsigned count_data( const std::function< bool ( const advertising_data& ) >& filter ) const;
+
+        /**
+         * @brief the number of advertisings scheduled on each channel
+         */
+        std::map< unsigned, unsigned > advertisings_per_channel() const;
 
         /**
          * @brief function to take the arguments to a scheduling function and optional return a response
@@ -293,8 +302,8 @@ namespace test {
         void add_connection_event_respond( std::function< void() > );
         void add_connection_event_respond_timeout();
 
-        void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message );
-        void check_connection_events( const std::function< bool ( const connection_event& ) >& check, const char* message );
+        void check_connection_events( const std::function< bool ( const connection_event& ) >& filter, const std::function< bool ( const connection_event& ) >& check, const char* message = nullptr );
+        void check_connection_events( const std::function< bool ( const connection_event& ) >& check, const char* message = nullptr );
 
         /**
          * @brief check that exacly one outgoing l2cap layer pdu matches the given pattern

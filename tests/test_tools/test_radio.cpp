@@ -3,6 +3,15 @@
 
 #include <boost/test/unit_test.hpp>
 
+namespace {
+
+    // a check's message, or the test it runs in
+    std::string label( const char* message )
+    {
+        return message ? message : boost::unit_test::framework::current_test_case().p_name.get();
+    }
+}
+
 namespace test {
 
     std::ostream& operator<<( std::ostream& out, const advertising_data& data )
@@ -327,7 +336,7 @@ namespace test {
 
                 boost::test_tools::predicate_result result( false );
                 result.message() << "\nfor " << n << "th and " << nn << "th scheduled action";
-                result.message() << "\nTesting: \"" << message << "\" failed.";
+                result.message() << "\nTesting: \"" << label( message ) << "\" failed.";
                 result.message() << "\n" << n << "th scheduled action, " << *first;
                 result.message() << "\n" << nn << "th scheduled action, " << *next;
                 BOOST_CHECK( result );
@@ -377,11 +386,11 @@ namespace test {
             boost::test_tools::predicate_result result( false );
             if ( found )
             {
-                result.message() << message << ": required to find only in scheduling, but found: " << found;
+                result.message() << label( message ) << ": required to find only in scheduling, but found: " << found;
             }
             else
             {
-                result.message() << message << ": no required scheduling found!";
+                result.message() << label( message ) << ": no required scheduling found!";
             }
             BOOST_CHECK( result );
         }
@@ -405,11 +414,11 @@ namespace test {
             boost::test_tools::predicate_result result( false );
             if ( count == 0 )
             {
-                result.message() << message << ": no required scheduling found!";
+                result.message() << label( message ) << ": no required scheduling found!";
             }
             else
             {
-                result.message() << message << ": required to find only in scheduling, but found: " << count;
+                result.message() << label( message ) << ": required to find only in scheduling, but found: " << count;
             }
             BOOST_CHECK( result );
         }
@@ -477,6 +486,16 @@ namespace test {
 
             data = next_data;
         }
+    }
+
+    std::map< unsigned, unsigned > radio_base::advertisings_per_channel() const
+    {
+        std::map< unsigned, unsigned > result;
+
+        for ( const advertising_data& data : advertised_data_ )
+            ++result[ data.channel ];
+
+        return result;
     }
 
     unsigned radio_base::count_data( const std::function< bool ( const advertising_data& ) >& filter ) const
@@ -612,7 +631,7 @@ namespace test {
             if ( filter( event ) && !check( event ) )
             {
                 boost::test_tools::predicate_result result( false );
-                result.message() << message << ": " << event;
+                result.message() << label( message ) << ": " << event;
                 BOOST_CHECK( result );
             }
         }

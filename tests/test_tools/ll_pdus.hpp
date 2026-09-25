@@ -27,6 +27,19 @@ namespace test {
     using bytes_t = std::vector< std::uint8_t >;
 
     /**
+     * @brief the types of an advertising channel PDU, the low four bits of its header
+     */
+    namespace adv_type {
+        constexpr std::uint8_t adv_ind          = 0x00;
+        constexpr std::uint8_t adv_direct_ind   = 0x01;
+        constexpr std::uint8_t adv_nonconn_ind  = 0x02;
+        constexpr std::uint8_t scan_req         = 0x03;
+        constexpr std::uint8_t scan_rsp         = 0x04;
+        constexpr std::uint8_t connect_ind      = 0x05;
+        constexpr std::uint8_t adv_scan_ind     = 0x06;
+    }
+
+    /**
      * @brief the LLIDs of a data channel PDU
      */
     namespace llid {
