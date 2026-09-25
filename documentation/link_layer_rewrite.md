@@ -293,11 +293,20 @@ The procedures a peripheral has, with what is known about them:
 | Version exchange | LL_VERSION_IND | in the chain | no, mandatory |
 | Feature exchange | LL_FEATURE_REQ, LL_FEATURE_RSP | in the chain | no, the response is mandatory |
 | Unknown and reject | LL_UNKNOWN_RSP, LL_REJECT_IND, LL_REJECT_EXT_IND | in the chain | no, part of the dispatch |
-| Encryption | LL_ENC_REQ/RSP, LL_START_ENC_REQ/RSP, LL_PAUSE_ENC_REQ/RSP | security mixin | yes, with the security manager |
+| Encryption | LL_ENC_REQ/RSP, LL_START_ENC_REQ/RSP, LL_PAUSE_ENC_REQ/RSP | security mixin | yes, with a source of keys (#71) |
 | Ping | LL_PING_REQ, LL_PING_RSP | in the chain | yes; required with encryption (#105) |
 | Connection parameters request | LL_CONNECTION_PARAM_REQ/RSP | in the chain | yes (#9) |
 | PHY update | LL_PHY_REQ/RSP, LL_PHY_UPDATE_IND | PHY mixin | yes, with a 2M radio |
 | Data length update | LL_LENGTH_REQ, LL_LENGTH_RSP | not implemented | yes, new |
+
+The encryption procedure needs a key for the EDIV and Rand the central sends, and it
+reports the encryption state of the link. Today it takes both from the security manager
+through the connection data, `find_key()` and `is_encrypted()`, and the link layer selects
+the LESC security manager as soon as a characteristic requires encryption, so encryption
+is not possible without pairing. In the rewrite the procedure depends on a source of keys
+and a sink of the encryption state, which a security manager provides, or an application
+that has a long term key from elsewhere and no pairing, which is #71. The selection of
+the security manager and the selection of the encryption procedure become two things.
 
 The mandatory procedures are mandatory: they are always in, and no option leaves one
 out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
@@ -311,7 +320,8 @@ The open issues that belong to this work, grouped by where they get fixed.
   #131 overlapping procedures, #115 unexpected PDU during encryption start.
 - **A procedure:** #105 ping not sent, #118 PHY instant in the past, #122 PHY update
   initiated by us, #124 parameter check of LL_CONNECTION_PARAM_REQ, #129 asymmetric PHY
-  request, #130 lost connection after PHY update, #9 connection parameter update optional.
+  request, #130 lost connection after PHY update, #9 connection parameter update optional,
+  #71 encryption without a security manager.
 - **Link and scheduler:** #119 connection timeout with invalid CRCs, #120 latency before
   the first acknowledgement, #116 disconnect on invalid MIC, #132 LL/CON/ADV/BI-01-C.
 - **Contexts:** #7 disconnect, #151 advertising count from two contexts.
