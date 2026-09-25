@@ -8,6 +8,7 @@
 #include <bluetoe/connection_events.hpp>
 
 #include <vector>
+#include <concepts>
 #include <functional>
 #include <iosfwd>
 #include <initializer_list>
@@ -194,16 +195,26 @@ namespace test {
     std::ostream& operator<<( std::ostream& out, const std::vector< scheduled_user_timer >& data );
 
     /**
+     * @brief what a PDU is matched against: its bytes, X for any byte, and_so_on for any rest
+     */
+    using pattern_t = std::vector< std::uint16_t >;
+
+    /**
+     * @brief the bytes of a PDU as a pattern that matches exactly that PDU
+     */
+    pattern_t pattern( const std::vector< std::uint8_t >& bytes );
+
+    /**
      * @brief returns true, if pdu matches pattern.
      * @sa X
      * @sa and_so_on
      */
-    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern );
+    bool check_pdu( const pdu_t& pdu, const pattern_t& pattern );
 
     /**
      * @brief prints a pattern, so that it's easy comparable to a PDU
      */
-    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern );
+    std::string pretty_print_pattern( const pattern_t& pattern );
 
     class radio_base
     {
@@ -278,6 +289,7 @@ namespace test {
 
         void add_connection_event_respond( const connection_event_response& );
         void add_connection_event_respond( std::initializer_list< std::uint8_t > );
+        void add_connection_event_respond( const std::vector< std::uint8_t >& );
         void add_connection_event_respond( std::function< void() > );
         void add_connection_event_respond_timeout();
 
@@ -287,12 +299,25 @@ namespace test {
         /**
          * @brief check that exacly one outgoing l2cap layer pdu matches the given pattern
          */
-        void check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern );
+        void check_outgoing_l2cap_pdu( const pattern_t& pattern );
 
         /**
-         * @brief check that exacly one outgoing link layer pdu matches the given pattern
+         * @brief check that exacly one outgoing link layer pdu matches the given pattern,
+         *        or is exactly the given control PDU's payload
          */
-        void check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern );
+        void check_outgoing_ll_control_pdu( const pattern_t& pattern );
+
+        // a template, so that a braced list of bytes is a pattern and not ambiguous
+        template < std::same_as< std::vector< std::uint8_t > > Payload >
+        void check_outgoing_ll_control_pdu( const Payload& payload )
+        {
+            check_outgoing_ll_control_pdu( pattern( payload ) );
+        }
+
+        /**
+         * @brief how many transmitted PDUs of all connection events match the pattern
+         */
+        unsigned count_transmitted( const pattern_t& pattern ) const;
 
         /**
          * @brief clear all events

@@ -3,40 +3,28 @@
 
 #include "connected.hpp"
 
-using test::X;
-using test::and_so_on;
+using namespace test;
+
+// the versions of the Core Specification a LL_VERSION_IND names
+static constexpr std::uint8_t core_4_2 = 0x08;
+static constexpr std::uint8_t core_5_0 = 0x09;
+
+// the company identifiers a LL_VERSION_IND names: the central's, and the link layer's own
+static constexpr std::uint16_t some_company = 0x0200;
+static constexpr std::uint16_t bluetoe_company = 0x0269;
 
 BOOST_FIXTURE_TEST_CASE( respond_with_an_unknown_rsp, unconnected )
 {
     check_single_ll_control_pdu(
-        { 0x03, 0x01, 0xff },
-        {
-            0x03, 0x02,
-            0x07, 0xff
-        },
-        "respond_with_an_unknown_rsp"
-    );
+        ll_control( { 0xff } ),
+        ll_control( ll_unknown_rsp( 0xff ) ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
 {
     check_single_ll_control_pdu(
-        {
-            0x03, 0x06,
-            0x0C,               // LL_VERSION_IND
-            0x08,               // VersNr = Core Specification 4.2
-            0x00, 0x02,         // CompId
-            0x00, 0x00          // SubVersNr
-        },
-        {
-            0x03, 0x06,
-            0x0C,               // LL_VERSION_IND
-            0x09,               // VersNr = Core Specification 5.0
-            0x69, 0x02,         // CompId
-            0x00, 0x00          // SubVersNr
-        },
-        "respond_to_a_version_ind"
-    );
+        ll_control( ll_version_ind( core_4_2, some_company, 0 ) ),
+        ll_control( ll_version_ind( core_5_0, bluetoe_company, 0 ) ) );
 }
 
 /**
@@ -44,59 +32,29 @@ BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind, unconnected )
  */
 BOOST_FIXTURE_TEST_CASE( respond_to_a_version_ind_ignoring_additional_requests, unconnected )
 {
-    this->respond_to( 37, valid_connection_request_pdu );
+    respond_to( 37, valid_connection_request_pdu );
+
     for ( int times = 0; times != 5; ++times )
-    {
-        ll_control_pdu({
-            0x0C,               // LL_VERSION_IND
-            0x08,               // VersNr = Core Specification 4.2
-            0x00, 0x02,         // CompId
-            0x00, 0x00          // SubVersNr
-        });
-    }
+        ll_control_pdu( ll_version_ind( core_4_2, some_company, 0 ) );
+
     ll_empty_pdus( 4 );
 
     run( 5 );
 
-    int num_responses = 0;
-
-    check_connection_events( [&]( const test::connection_event& evt ) -> bool
-    {
-        for ( const auto& response: evt.transmitted_data )
-        {
-            if ( check_pdu( response, { X, X, 0x0C, and_so_on } ) )
-                ++num_responses;
-        }
-
-        return true;
-    }, "LL_VERSION_IND missing" );
-
-    BOOST_CHECK_EQUAL( num_responses, 1 );
+    BOOST_CHECK_EQUAL( count_transmitted( { X, X, 0x0c, and_so_on } ), 1u );
 }
 
 BOOST_FIXTURE_TEST_CASE( respond_to_a_ping, unconnected )
 {
     check_single_ll_control_pdu(
-        {
-            0x03, 0x01,
-            0x12                // LL_PING_REQ
-        },
-        {
-            0x03, 0x01,
-            0x13                // LL_PING_RSP
-        },
-        "respond_to_a_ping"
-    );
+        ll_control( ll_ping_req() ),
+        ll_control( ll_ping_rsp() ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( starts_advertising_after_termination, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
-    add_connection_event_respond(
-        {
-            0x03, 0x02,
-            0x02, 0x12
-        } );
+    add_connection_event_respond( ll_control( ll_terminate_ind( 0x12 ) ) );
 
     run();
 
@@ -111,33 +69,20 @@ BOOST_FIXTURE_TEST_CASE( starts_advertising_after_termination, unconnected )
 BOOST_FIXTURE_TEST_CASE( do_not_respond_to_UNKNOWN_RSP, unconnected )
 {
     check_single_ll_control_pdu(
-        {
-            0x03, 0x02,
-            0x07,               // LL_UNKNOWN_RSP
-            0x07                // request opcode
-        },
-        {
-            0x01, 0x00
-        },
-        "do_not_respond_to_UNKNOWN_RSP"
-    );
+        ll_control( ll_unknown_rsp( 0x07 ) ),
+        ll_empty() );
 }
 
 BOOST_FIXTURE_TEST_CASE( do_not_respond_to_UNKNOWN_RSP_even_if_broken, unconnected )
 {
+    // an LL_UNKNOWN_RSP with a byte too many
     check_single_ll_control_pdu(
-        {
-            0x03, 0x03,
-            0x07,               // LL_UNKNOWN_RSP
-            0x07,               // request opcode
-            0xff                // additional byte
-        },
-        {
-            0x01, 0x00
-        },
-        "do_not_respond_to_UNKNOWN_RSP"
-    );
+        ll_control( { 0x07, 0x07, 0xff } ),
+        ll_empty() );
 }
+
+// all channels but channel 11
+static constexpr std::uint64_t channel_map_without_11 = 0x1ffffff7ff;
 
 /*
  * Example from core spec Vol6, Part B, 5.1.2
@@ -146,13 +91,7 @@ BOOST_FIXTURE_TEST_CASE( Channel_Map_Update_procedure, unconnected )
 {
     respond_to( 37, valid_connection_request_pdu );
 
-    ll_control_pdu(
-        {
-            0x01,                           // LL_CHANNEL_MAP_IND
-            0xff, 0xf7, 0xff, 0xff, 0x1f,   // new channel map: all channels enabled except channel 11
-            0x64, 0x00                      // Instance: 100dez
-        }
-    );
+    ll_control_pdu( ll_channel_map_ind( channel_map_without_11, 100 ) );
 
     ll_empty_pdus( 101 );
 
@@ -165,28 +104,10 @@ BOOST_FIXTURE_TEST_CASE( Channel_Map_Update_procedure, unconnected )
 
 BOOST_FIXTURE_TEST_CASE( Channel_Map_Update_procedure_With_Latency, unconnected )
 {
-    respond_to( 37, {
-        0xc5, 0x22,                         // header
-        0x3c, 0x1c, 0x62, 0x92, 0xf0, 0x48, // InitA: 48:f0:92:62:1c:3c (random)
-        0x47, 0x11, 0x08, 0x15, 0x0f, 0xc0, // AdvA:  c0:0f:15:08:11:47 (random)
-        0x5a, 0xb3, 0x9a, 0xaf,             // Access Address
-        0x08, 0x81, 0xf6,                   // CRC Init
-        0x03,                               // transmit window size
-        0x0b, 0x00,                         // window offset
-        0x18, 0x00,                         // interval (30ms)
-        0x28, 0x00,                         // peripheral latency 40
-        0x48, 0x01,                         // connection timeout (3280ms)
-        0xff, 0xff, 0xff, 0xff, 0x1f,       // used channel map
-        0xaa                                // hop increment and sleep clock accuracy (10 and 50ppm)
-    } );
+    // a peripheral latency of 40 and a timeout of 3280 ms
+    respond_to( 37, connect_ind( { .latency = 40, .timeout = 328 } ) );
 
-    ll_control_pdu(
-        {
-            0x01,                           // LL_CHANNEL_MAP_IND
-            0xff, 0xf7, 0xff, 0xff, 0x1f,   // new channel map: all channels enabled except channel 11
-            0x64, 0x00                      // Instance: 100dez
-        }
-    );
+    ll_control_pdu( ll_channel_map_ind( channel_map_without_11, 100 ) );
 
     ll_empty_pdus( 5 );
 
@@ -208,22 +129,10 @@ BOOST_FIXTURE_TEST_CASE( data_is_answered_while_an_instant_is_pending, unconnect
 
     respond_to( 37, valid_connection_request_pdu );
 
-    ll_control_pdu(
-        {
-            0x01,                           // LL_CHANNEL_MAP_REQ
-            0xff, 0xf7, 0xff, 0xff, 0x1f,   // new channel map: all channels enabled except channel 11
-            static_cast< std::uint8_t >( instant ), 0x00
-        }
-    );
+    ll_control_pdu( ll_channel_map_ind( channel_map_without_11, instant ) );
 
     // an ATT request the server answers out of its own knowledge
-    ll_data_pdu(
-        {
-            0x03, 0x00,                     // L2CAP length
-            0x04, 0x00,                     // L2CAP channel: ATT
-            0x02, 0x17, 0x00                // ATT exchange MTU request, MTU 23
-        }
-    );
+    ll_data_pdu( att_exchange_mtu_request( 23 ) );
 
     ll_empty_pdus( instant + 5 );
 
@@ -312,9 +221,7 @@ BOOST_FIXTURE_TEST_CASE( Favor_LL_Procedures_Over_Notifivations, constantly_fire
     ll_function_call([]{
         BOOST_REQUIRE( ( server_ptr->notify< bluetoe::characteristic_uuid< 0x8C8B4094, 0x0DE2, 0x499F, 0xA28A, 0x4EED5BC73CAA > >() ) );
     });
-    ll_control_pdu( {
-        0x12                // LL_PING_REQ
-    });
+    ll_control_pdu( ll_ping_req() );
     add_empty_pdus(10);
 
     run(10);
@@ -324,9 +231,6 @@ BOOST_FIXTURE_TEST_CASE( Favor_LL_Procedures_Over_Notifivations, constantly_fire
     bool ping_before_notification = false;
 
     check_connection_events( [&]( const test::connection_event& evt ) -> bool {
-        using test::X;
-        using test::and_so_on;
-
         for ( const auto& response: evt.transmitted_data )
         {
             ping_response_found = ping_response_found || check_pdu( response, { X, X, 0x13 } );
@@ -367,28 +271,9 @@ BOOST_AUTO_TEST_SUITE( disconnect )
 
         run();
 
-        int num_terminates = 0;
-
-        check_connection_events( [&]( const test::connection_event& evt ) -> bool
-        {
-            using test::X;
-            using test::and_so_on;
-
-            for ( const auto& response: evt.transmitted_data )
-            {
-                if ( !check_pdu( response, { X, 0 } ) )
-                {
-                    if ( !check_pdu( response, { X, 0x02, 0x02, 0x16 } ) )
-                        return false;
-
-                    ++num_terminates;
-                }
-            }
-
-            return true;
-        }, "LL_TERMINATE_IND missing" );
-
-        BOOST_CHECK_EQUAL( num_terminates, 1 );
+        // one LL_TERMINATE_IND with the default reason, and nothing else but empty PDUs
+        BOOST_CHECK_EQUAL( count_transmitted( { X, 0x02, 0x02, 0x16 } ), 1u );
+        BOOST_CHECK_EQUAL( count_transmitted( { X, 0x00 } ) + 1, count_transmitted( { and_so_on } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( local_disconnect_requested_with_reason, default_connected<> )
@@ -400,28 +285,9 @@ BOOST_AUTO_TEST_SUITE( disconnect )
 
         run();
 
-        int num_terminates = 0;
-
-        check_connection_events( [&]( const test::connection_event& evt ) -> bool
-        {
-            using test::X;
-            using test::and_so_on;
-
-            for ( const auto& response: evt.transmitted_data )
-            {
-                if ( !check_pdu( response, { X, 0 } ) )
-                {
-                    if ( !check_pdu( response, { X, 0x02, 0x02, 0x42 } ) )
-                        return false;
-
-                    ++num_terminates;
-                }
-            }
-
-            return true;
-        }, "LL_TERMINATE_IND missing" );
-
-        BOOST_CHECK_EQUAL( num_terminates, 1 );
+        // one LL_TERMINATE_IND with the given reason, and nothing else but empty PDUs
+        BOOST_CHECK_EQUAL( count_transmitted( { X, 0x02, 0x02, 0x42 } ), 1u );
+        BOOST_CHECK_EQUAL( count_transmitted( { X, 0x00 } ) + 1, count_transmitted( { and_so_on } ) );
     }
 
     BOOST_FIXTURE_TEST_CASE( local_disconnect_stop_sending_after_ack, default_connected<> )

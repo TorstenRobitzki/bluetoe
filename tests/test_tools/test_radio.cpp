@@ -150,12 +150,17 @@ namespace test {
         return out;
     }
 
-    bool check_pdu( const pdu_t& pdu, std::initializer_list< std::uint16_t > pattern )
+    pattern_t pattern( const std::vector< std::uint8_t >& bytes )
+    {
+        return pattern_t( bytes.begin(), bytes.end() );
+    }
+
+    bool check_pdu( const pdu_t& pdu, const pattern_t& pattern )
     {
         std::size_t pos = 0;
         for ( ; pos != pattern.size() && pos != pdu.size(); ++pos )
         {
-            const std::uint16_t patt = *( pattern.begin() + pos );
+            const std::uint16_t patt = pattern[ pos ];
             const std::uint8_t  data = pdu[ pos ];
 
             if ( patt == and_so_on )
@@ -166,13 +171,13 @@ namespace test {
         }
 
         // a trailing "and_so_on"
-        if ( pos == pdu.size() && pos < pattern.size() && *( pattern.begin() + pos ) == and_so_on )
+        if ( pos == pdu.size() && pos < pattern.size() && pattern[ pos ] == and_so_on )
             return true;
 
         return pos == pattern.size() && pos == pdu.size();
     }
 
-    std::string pretty_print_pattern( std::initializer_list< std::uint16_t > pattern )
+    std::string pretty_print_pattern( const pattern_t& pattern )
     {
         static constexpr std::size_t line_width = 16;
 
@@ -585,6 +590,11 @@ namespace test {
             connection_event_response( pdu_list_t( 1, pdu ) ) );
     }
 
+    void radio_base::add_connection_event_respond( const std::vector< std::uint8_t >& pdu )
+    {
+        add_connection_event_respond( connection_event_response( { pdu_t( pdu ) } ) );
+    }
+
     void radio_base::add_connection_event_respond( std::function< void() > f )
     {
         add_connection_event_respond( connection_event_response( f ) );
@@ -673,7 +683,7 @@ namespace test {
         }
     }
 
-    void radio_base::check_outgoing_l2cap_pdu( std::initializer_list< std::uint16_t > pattern )
+    void radio_base::check_outgoing_l2cap_pdu( const pattern_t& pattern )
     {
         check_single_event(
             filter_events( filter_l2cap, connection_events_, pattern ),
@@ -682,13 +692,25 @@ namespace test {
             pattern );
     }
 
-    void radio_base::check_outgoing_ll_control_pdu( std::initializer_list< std::uint16_t > pattern )
+    void radio_base::check_outgoing_ll_control_pdu( const pattern_t& pattern )
     {
         check_single_event(
             filter_events( filter_ll, connection_events_, pattern ),
             "no outgoing LL PDU matches the given pattern: ",
             "multiple outgoing LL PDU matches the given pattern: ",
             pattern );
+    }
+
+    unsigned radio_base::count_transmitted( const pattern_t& pattern ) const
+    {
+        unsigned count = 0;
+
+        for ( const auto& event : connection_events_ )
+            for ( const auto& pdu : event.transmitted_data )
+                if ( check_pdu( pdu, pattern ) )
+                    ++count;
+
+        return count;
     }
 
     void radio_base::clear_events()
