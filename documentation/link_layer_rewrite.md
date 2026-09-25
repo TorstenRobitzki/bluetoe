@@ -66,10 +66,9 @@ These come from the project and are not up for discussion in this work.
   it: access address and CRC initialiser, the PHY, the encryption keys. Today the link
   layer hands them over when they change and keeps no copy; `connection_parameters` holds
   only what the link layer computes with, the channel map, the window, the interval, the
-  latency and the timeout. The single link build stays that way. Only a build with several
-  links keeps the radio's values per link, because it has to apply them before every
-  event, so that state is part of the link struct only when there is more than one link.
-  Agreed.
+  latency and the timeout. The single link implementation stays that way. Only the
+  implementation for several links keeps the radio's values per link, because it has to
+  apply them before every event. Agreed.
 - **The nRF52 binding is the reference radio.** It has `hardware_supports_link_layer_context
   = false` today. The final proof of the link layer context needs a radio that has one, so
   the binding gains it, as an interrupt below the radio's priority, when the link layer is
@@ -173,11 +172,12 @@ member of the link layer, one of each.
 
 Going through the layers, the difference shows in these places:
 
-1. **Ownership of state.** The per link members become one struct, the link layer holds
-   an array of them with a compile time size, one by default. A link's procedures,
-   buffer and latency state move with it. For one link this is a rename of `this->` into
-   `link.`, and the struct must cost what the members cost. What the radio stores is in
-   the struct only for more than one link, see the constraints.
+1. **Ownership of state.** The per link members become one struct that the procedures
+   and the shared code act on. The single link implementation holds one, the
+   implementation for several links an array of them with a compile time size. For one
+   link this is a rename of `this->` into `link.`, and the struct must cost what the
+   members cost. What the radio stores is in the struct only in the implementation for
+   several links, see the constraints.
 
 2. **The radio setup before every event.** The interface already says it: the setup
    functions, `set_access_address_and_crc_init()`, `set_phy()`, `set_encryption()`, are
@@ -199,8 +199,8 @@ Going through the layers, the difference shows in these places:
    one `schedule_connection_event()` and one `schedule_advertising_event()` at a time,
    which is what a scheduler needs: one action, then the next when the callback comes.
 
-   With one link and no advertising while connected, the scheduler has one candidate and
-   has to compile down to what `setup_next_connection_event()` is today.
+   The single link implementation has no scheduler: its next event is what
+   `setup_next_connection_event()` computes today.
 
 4. **The advertiser while connected.** Today the state machine is initial, advertising
    or connected. With advertising while connected, advertising is a thing next to the
@@ -224,21 +224,30 @@ Where it does not matter: inside a procedure, which acts on its link and nothing
 in L2CAP and ATT, which are already per connection through `connection_data_t`; in the
 radio interface; in the security manager, which is per connection already.
 
-Cost of supporting it: the link struct and the array, which for one link must be free;
-the scheduler, which for one link must be the current computation; per event setup calls
-only when there is more than one link. RAM per additional link is dominated by its PDU
-buffer, which is why the number of links stays a compile time option with a default of
-one.
+The single link implementation does not pay for any of this. Several links are not one
+link with a larger array: they are a second implementation of the link layer, chosen by
+the configured number of connections, one by default. The two share what does not
+depend on the number of links, the procedures and their engine, the PDU buffer, the
+advertiser, the request and the SDU queue, L2CAP and above. What differs, the array, the
+scheduler, the setup before every event and the values that needs, exists in the second
+implementation only. Agreed.
+
+RAM per link is dominated by its PDU buffer, which is why the number of connections is a
+compile time option.
 
 ## The target structure
 
 What the link layer is made of when the steps are done. Names are proposals.
 
+- **Two implementations.** `link_layer< Server, Radio, Options... >` selects, by the
+  configured number of connections, the single link implementation or the one for
+  several links. Everything below is shared unless it says otherwise.
+
 - **`link`.** The struct described above. Owns its PDU buffer, its parameters, its
   latency state, the state of its procedures, and the GATT server's connection data.
-  Knows how to compute its next event from its anchor. The radio's setup values, access
-  address and CRC initialiser, PHY and keys, are members only in a build with several
-  links.
+  Knows how to compute its next event from its anchor. The single link implementation
+  holds one; the one for several links an array, and there the struct also holds the
+  radio's setup values, access address and CRC initialiser, PHY and keys.
 
 - **`procedure`.** One type per control procedure. A procedure states the opcodes it
   handles with their sizes, the feature bits it contributes, and provides: a handler for
@@ -260,9 +269,9 @@ What the link layer is made of when the steps are done. Names are proposals.
   context, under `link_layer_lock_guard`. Replaces `procedure_requests` and the direct
   writes of `disconnect()`.
 
-- **The scheduler.** Chooses the next radio action among the links and the advertiser,
-  and calls the radio's setup functions for it. For one link without advertising while
-  connected it is the current computation.
+- **The scheduler.** Only in the implementation for several links. Chooses the next
+  radio action among the links and the advertiser, and calls the radio's setup functions
+  for it.
 
 - **The advertiser.** Stays what `advertising.hpp` is, but as a thing next to the links
   rather than a state of the link layer.
@@ -328,17 +337,25 @@ Each step is a series of small commits on master, each green.
    The first one that is left out of an example proves that leaving it out costs nothing.
 5. **The Data Length Update procedure.** Written new on the engine. Proves that a
    procedure is added without touching the others.
-6. **The scheduler and the advertiser next to the links.** Still one link, but the
-   structure that several links need, measured to cost nothing for one.
-7. **Several links.** The array grows, the simulator plays several centrals, the fixtures
-   get a link index, and advertising while connected is tested.
+6. **The implementation for several links.** Selected by the configured number of
+   connections: the array of links, the scheduler, the setup before every event. The
+   simulator plays several centrals and the fixtures get a link index. The single link
+   implementation and its tests are untouched by this step.
+7. **Advertising while connected.** The advertiser as a candidate of the scheduler, a
+   CONNECT_IND while a link is up creating a further link, tested with the simulator's
+   scanner. Proposal: this belongs to the implementation for several links only, since
+   it is the scheduler that makes it possible.
 
-Steps 1 to 6 keep every existing test as the oracle. Step 7 is the one that changes it.
+Steps 1 to 5 keep every existing test as the oracle and shape the single link
+implementation. Steps 6 and 7 add the second implementation next to it.
 
 ## Decisions to take
 
-- How the number of links is expressed: proposal `bluetoe::link_layer::max_links< N >`,
-  default one.
+- How the number of connections is expressed: proposal
+  `bluetoe::link_layer::max_connections< N >`, default one, which selects the
+  implementation.
+- Whether the single link implementation advertises while connected, or only the one for
+  several links. Proposal: only the one for several links.
 - Whether the synchronized connection event callback is limited to one link or
   multiplexed. To be decided at step 7.
 - The names above.
