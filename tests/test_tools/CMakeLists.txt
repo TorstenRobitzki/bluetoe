@@ -10,6 +10,7 @@ add_library(test_tools STATIC
         test_servers.cpp
         hexdump.cpp
         test_radio.cpp
+        ll_pdus.cpp
         buffer_io.cpp
         pairing_status_io.cpp
         uECC.c)

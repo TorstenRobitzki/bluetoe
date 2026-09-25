@@ -9,7 +9,7 @@
 
 #include <bluetoe/link_layer.hpp>
 
-#include "pdus.hpp"
+#include "ll_pdus.hpp"
 #include "simulated_radio.hpp"
 #include "test_servers.hpp"
 

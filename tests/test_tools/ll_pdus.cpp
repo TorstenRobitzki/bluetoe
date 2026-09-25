@@ -1,48 +1,41 @@
-#ifndef BLUETOE_TESTS_LINK_LAYER_PDUS_HPP
-#define BLUETOE_TESTS_LINK_LAYER_PDUS_HPP
-
-/**
- * @file pdus.hpp
- *
- * The PDUs the link layer tests send and expect, built by name with their fields as
- * parameters, so that a test spells out only the PDU it is about. Every builder returns
- * the bytes as they are on air; the ones of link layer control PDUs return the payload
- * behind the data channel header, which is what ll_control_pdu() takes, and ll_control()
- * and ll_empty() put the header in front where a whole PDU is needed.
- */
-
-#include <cstddef>
-#include <cstdint>
-#include <initializer_list>
-#include <vector>
+#include "ll_pdus.hpp"
 
 namespace test {
 
-    using bytes_t = std::vector< std::uint8_t >;
+    namespace {
 
-    /**
-     * @brief the LLIDs of a data channel PDU
-     */
-    namespace llid {
-        constexpr std::uint8_t continuation = 0x01;
-        constexpr std::uint8_t start        = 0x02;
-        constexpr std::uint8_t control      = 0x03;
+        std::uint8_t lo( std::uint32_t value )
+        {
+            return static_cast< std::uint8_t >( value );
+        }
+
+        std::uint8_t hi( std::uint32_t value )
+        {
+            return static_cast< std::uint8_t >( value >> 8 );
+        }
+
+        // an LL_CONNECTION_PARAM_REQ or an LL_CONNECTION_PARAM_RSP, which share their fields
+        bytes_t ll_connection_param_pdu( std::uint8_t opcode, const connection_parameter_request& p )
+        {
+            return {
+                opcode,
+                lo( p.min_interval ), hi( p.min_interval ),
+                lo( p.max_interval ), hi( p.max_interval ),
+                lo( p.latency ), hi( p.latency ),
+                lo( p.timeout ), hi( p.timeout ),
+                p.preferred_periodicity,
+                lo( p.reference_event ), hi( p.reference_event ),   // ReferenceConnEventCount
+                lo( p.offsets[ 0 ] ), hi( p.offsets[ 0 ] ),         // Offset0 to Offset5
+                lo( p.offsets[ 1 ] ), hi( p.offsets[ 1 ] ),
+                lo( p.offsets[ 2 ] ), hi( p.offsets[ 2 ] ),
+                lo( p.offsets[ 3 ] ), hi( p.offsets[ 3 ] ),
+                lo( p.offsets[ 4 ] ), hi( p.offsets[ 4 ] ),
+                lo( p.offsets[ 5 ] ), hi( p.offsets[ 5 ] )
+            };
+        }
     }
 
-    inline std::uint8_t lo( std::uint32_t value )
-    {
-        return static_cast< std::uint8_t >( value );
-    }
-
-    inline std::uint8_t hi( std::uint32_t value )
-    {
-        return static_cast< std::uint8_t >( value >> 8 );
-    }
-
-    /**
-     * @brief a data channel PDU with `llid`, SN and NESN clear, around `payload`
-     */
-    inline bytes_t ll_pdu( std::uint8_t llid, const bytes_t& payload )
+    bytes_t ll_pdu( std::uint8_t llid, const bytes_t& payload )
     {
         bytes_t result = { llid, static_cast< std::uint8_t >( payload.size() ) };
         result.insert( result.end(), payload.begin(), payload.end() );
@@ -50,37 +43,17 @@ namespace test {
         return result;
     }
 
-    inline bytes_t ll_control( const bytes_t& payload )
+    bytes_t ll_control( const bytes_t& payload )
     {
         return ll_pdu( llid::control, payload );
     }
 
-    inline bytes_t ll_empty()
+    bytes_t ll_empty()
     {
         return ll_pdu( llid::continuation, {} );
     }
 
-    /**
-     * @brief the parameters of a CONNECT_IND, the defaults being the connection the tests
-     *        run on: a 30 ms interval, no latency, a 720 ms timeout, all channels
-     */
-    struct connection_parameters
-    {
-        std::uint8_t    window_size     = 0x03;
-        std::uint16_t   window_offset   = 0x000b;
-        std::uint16_t   interval        = 0x0018;
-        std::uint16_t   latency         = 0x0000;
-        std::uint16_t   timeout         = 0x0048;
-        std::uint64_t   channel_map     = 0x1fffffffff;
-        std::uint8_t    hop             = 10;
-        std::uint8_t    sleep_clock_accuracy = 5;
-    };
-
-    /**
-     * @brief a CONNECT_IND from the initiator 48:f0:92:62:1c:3c to the advertiser
-     *        c0:0f:15:08:11:47, both random, on access address 0xaf9ab35a
-     */
-    inline bytes_t connect_ind( const connection_parameters& p = {} )
+    bytes_t connect_ind( const connection_parameters& p )
     {
         return {
             0xc5, 0x22,                         // header: CONNECT_IND, TxAdd and RxAdd random, 34 bytes
@@ -102,11 +75,7 @@ namespace test {
         };
     }
 
-    /**
-     * @name link layer control PDUs, the payload behind the data channel header
-     * @{
-     */
-    inline bytes_t ll_connection_update_ind(
+    bytes_t ll_connection_update_ind(
         std::uint8_t window_size, std::uint16_t window_offset, std::uint16_t interval,
         std::uint16_t latency, std::uint16_t timeout, std::uint16_t instant )
     {
@@ -121,7 +90,7 @@ namespace test {
         };
     }
 
-    inline bytes_t ll_channel_map_ind( std::uint64_t map, std::uint16_t instant )
+    bytes_t ll_channel_map_ind( std::uint64_t map, std::uint16_t instant )
     {
         return {
             0x01,                                   // LL_CHANNEL_MAP_IND
@@ -134,17 +103,17 @@ namespace test {
         };
     }
 
-    inline bytes_t ll_terminate_ind( std::uint8_t reason )
+    bytes_t ll_terminate_ind( std::uint8_t reason )
     {
         return { 0x02, reason };                    // LL_TERMINATE_IND
     }
 
-    inline bytes_t ll_unknown_rsp( std::uint8_t opcode )
+    bytes_t ll_unknown_rsp( std::uint8_t opcode )
     {
         return { 0x07, opcode };                    // LL_UNKNOWN_RSP
     }
 
-    inline bytes_t ll_feature_req( std::uint64_t features )
+    bytes_t ll_feature_req( std::uint64_t features )
     {
         return {
             0x08,                                   // LL_FEATURE_REQ
@@ -159,7 +128,7 @@ namespace test {
         };
     }
 
-    inline bytes_t ll_feature_rsp( std::uint64_t features )
+    bytes_t ll_feature_rsp( std::uint64_t features )
     {
         bytes_t result = ll_feature_req( features );
         result[ 0 ] = 0x09;                         // LL_FEATURE_RSP
@@ -167,7 +136,7 @@ namespace test {
         return result;
     }
 
-    inline bytes_t ll_version_ind( std::uint8_t version, std::uint16_t company, std::uint16_t subversion )
+    bytes_t ll_version_ind( std::uint8_t version, std::uint16_t company, std::uint16_t subversion )
     {
         return {
             0x0c,                                   // LL_VERSION_IND
@@ -177,61 +146,47 @@ namespace test {
         };
     }
 
-    inline bytes_t ll_reject_ind( std::uint8_t reason )
+    bytes_t ll_reject_ind( std::uint8_t reason )
     {
         return { 0x0d, reason };                    // LL_REJECT_IND
     }
 
-    /**
-     * @brief an LL_CONNECTION_PARAM_REQ with no preferred periodicity, no reference event and
-     *        no offsets, the only form the tests use
-     */
-    inline bytes_t ll_connection_param_req(
-        std::uint16_t min_interval, std::uint16_t max_interval, std::uint16_t latency, std::uint16_t timeout )
+    bytes_t ll_connection_param_req( const connection_parameter_request& p )
     {
-        return {
-            0x0f,                                   // LL_CONNECTION_PARAM_REQ
-            lo( min_interval ), hi( min_interval ),
-            lo( max_interval ), hi( max_interval ),
-            lo( latency ), hi( latency ),
-            lo( timeout ), hi( timeout ),
-            0x00,                                   // preferred periodicity: none
-            0x00, 0x00,                             // ReferenceConnEventCount
-            0xff, 0xff,                             // Offset0 to Offset5: none
-            0xff, 0xff,
-            0xff, 0xff,
-            0xff, 0xff,
-            0xff, 0xff,
-            0xff, 0xff
-        };
+        return ll_connection_param_pdu( 0x0f, p );  // LL_CONNECTION_PARAM_REQ
     }
 
-    inline bytes_t ll_reject_ext_ind( std::uint8_t opcode, std::uint8_t reason )
+    bytes_t ll_connection_param_rsp( const connection_parameter_request& p )
+    {
+        return ll_connection_param_pdu( 0x10, p );  // LL_CONNECTION_PARAM_RSP
+    }
+
+    bytes_t ll_reject_ext_ind( std::uint8_t opcode, std::uint8_t reason )
     {
         return { 0x11, opcode, reason };            // LL_REJECT_EXT_IND
     }
 
-    inline bytes_t ll_ping_req()
+    bytes_t ll_ping_req()
     {
         return { 0x12 };                            // LL_PING_REQ
     }
 
-    inline bytes_t ll_ping_rsp()
+    bytes_t ll_ping_rsp()
     {
         return { 0x13 };                            // LL_PING_RSP
     }
 
-    inline bytes_t ll_phy_req( std::uint8_t transmit, std::uint8_t receive )
+    bytes_t ll_phy_req( std::uint8_t transmit, std::uint8_t receive )
     {
         return { 0x16, transmit, receive };         // LL_PHY_REQ
     }
 
-    inline bytes_t ll_phy_rsp( std::uint8_t transmit, std::uint8_t receive )
+    bytes_t ll_phy_rsp( std::uint8_t transmit, std::uint8_t receive )
     {
         return { 0x17, transmit, receive };         // LL_PHY_RSP
     }
 
-    inline bytes_t ll_phy_update_ind( std::uint8_t central_to_peripheral, std::uint8_t peripheral_to_central, std::uint16_t instant )
+    bytes_t ll_phy_update_ind( std::uint8_t central_to_peripheral, std::uint8_t peripheral_to_central, std::uint16_t instant )
     {
         return {
             0x18,                                   // LL_PHY_UPDATE_IND
@@ -239,12 +194,24 @@ namespace test {
             lo( instant ), hi( instant )
         };
     }
-    /** @} */
 
-    /**
-     * @brief an ATT exchange MTU request as the L2CAP payload of a data PDU
-     */
-    inline bytes_t att_exchange_mtu_request( std::uint16_t mtu )
+    pattern_t l2cap_connection_parameter_update_request(
+        std::uint16_t min_interval, std::uint16_t max_interval, std::uint16_t latency, std::uint16_t timeout )
+    {
+        return {
+            X, X,                                   // L2CAP length
+            0x05, 0x00,                             // L2CAP channel: LE signaling
+            0x12,                                   // connection parameter update request
+            X,                                      // identifier
+            0x08, 0x00,                             // length
+            lo( min_interval ), hi( min_interval ),
+            lo( max_interval ), hi( max_interval ),
+            lo( latency ), hi( latency ),
+            lo( timeout ), hi( timeout )
+        };
+    }
+
+    bytes_t att_exchange_mtu_request( std::uint16_t mtu )
     {
         return {
             0x03, 0x00,                             // L2CAP length
@@ -253,5 +220,3 @@ namespace test {
         };
     }
 }
-
-#endif
