@@ -491,12 +491,9 @@ namespace link_layer {
 
         if ( next_empty_ )
         {
-            // if an empty buffer have to be resend, flag that there is more data
+            // the resent empty PDU stays empty, but it may announce the PDU queued behind it
             if ( next.size )
-            {
-                const std::uint16_t header = layout::header( next ) | more_data_flag;
-                layout::header( next, header );
-            }
+                layout::header( empty_, layout::header( empty_ ) | more_data_flag );
 
             return set_next_expected_sequence_number( read_buffer{ &empty_[ 0 ], sizeof( empty_ ) } );
         }

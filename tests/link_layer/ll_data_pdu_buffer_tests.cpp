@@ -564,21 +564,42 @@ BOOST_FIXTURE_TEST_CASE( more_data_flag_is_set_if_there_is_more_than_one_element
     BOOST_CHECK_EQUAL( transmit.buffer[ 0 ] & md_bit, md_bit );
 }
 
+/*
+ * A retransmitted PDU repeats LLID, SN and payload; NESN and MD may differ. So the resent
+ * empty PDU stays empty, but it announces the PDU that was queued behind it in the meantime.
+ */
 BOOST_FIXTURE_TEST_CASE( more_data_flag_is_added_if_pdu_is_added, running_mode )
 {
-    // empty PDU without MD flag
-    auto first = next_transmit();
-    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & md_bit, 0 );
+    // empty PDU without MD flag; a copy, as the next transmission may reuse the memory
+    const auto first_pdu = next_transmit();
+    const std::vector< std::uint8_t > first( first_pdu.buffer, first_pdu.buffer + first_pdu.size );
+    BOOST_CHECK_EQUAL( first[ 0 ] & md_bit, 0 );
 
     transmit_pdu( { 0x01, 0x02, 0x03, 0x04 } );
 
-    auto next = next_transmit();
+    const auto next = next_transmit();
 
-    // must be the same PDU, as it was not acknowladged
-    BOOST_CHECK_EQUAL_COLLECTIONS( &first.buffer[ 2 ], &first.buffer[ first.size ], &next.buffer[ 2 ], &next.buffer[ next.size ] );
+    // the same, empty PDU, as it was not acknowledged: LLID, SN and length
+    BOOST_CHECK_EQUAL( first[ 0 ] & ( llid_mask | sn_bit ), next.buffer[ 0 ] & ( llid_mask | sn_bit ) );
+    BOOST_CHECK_EQUAL( next.size, 2u );
+    BOOST_CHECK_EQUAL( next.buffer[ 1 ], 0u );
 
-    // sequence numbers and LLID must be equal
-    BOOST_CHECK_EQUAL( first.buffer[ 0 ] & 0x0f, next.buffer[ 0 ] & 0x0f );
+    // now with the MD flag
+    BOOST_CHECK_EQUAL( next.buffer[ 0 ] & md_bit, md_bit );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_pdu_announced_by_a_resent_empty_pdu_has_no_more_data_flag_of_its_own, running_mode )
+{
+    next_transmit();                    // an empty PDU
+    transmit_pdu( { 0x01 } );
+    next_transmit();                    // the empty PDU, resent
+    receive_pdu( {}, sn0, nesn1 );      // acknowledged
+
+    // the queued PDU goes out as the only one
+    const auto data = next_transmit();
+    BOOST_REQUIRE_EQUAL( data.size, 3u );
+    BOOST_CHECK_EQUAL( data.buffer[ 2 ], 0x01 );
+    BOOST_CHECK_EQUAL( data.buffer[ 0 ] & md_bit, 0 );
 }
 
 BOOST_FIXTURE_TEST_CASE( a_new_pdu_will_be_transmitted_if_the_last_was_acknowladged, running_mode )
