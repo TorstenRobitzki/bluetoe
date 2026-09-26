@@ -199,7 +199,7 @@ namespace link_layer {
             if ( type == pdu_type_link_layer )
                 return pdu;
 
-            static_cast< ReceiveCallbacks* >( this )->pdu_receive_data_callback( pdu );
+            ReceiveCallbacks::pdu_receive_data_callback( pdu );
 
             // l2cap message
             const auto          body        = layout::body( pdu );

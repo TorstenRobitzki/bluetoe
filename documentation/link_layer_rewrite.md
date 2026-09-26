@@ -1,0 +1,484 @@
+# The link layer, rewritten step by step
+
+This is the working document of the link layer rewrite: the goals, the constraints the
+work has to respect, an analysis of the two axes that shape the design (a dedicated link
+layer context, more than one link), the target structure, and the order of the steps.
+It is kept while the work goes on and reduced to what a reader of the code needs once it
+is done, as the design log of the test rig was.
+
+Every decision in here is a proposal until the maintainer has agreed to it. Agreed
+decisions are marked as such.
+
+## Goals
+
+1. **Procedures a client can select.** Every link layer control procedure is a thing of
+   its own, chosen by an option of the link layer. A procedure that is not chosen is not
+   in the binary: no code, no state, no feature bit.
+2. **The known link layer issues fixed.** Fixed while the procedure they belong to is
+   moved into its own type, each with a test written against the specification that fails
+   before the fix. The list is in the section "Issues".
+3. **A radio that provides a link layer context.** The interface of `scheduled_radio2.hpp`
+   allows a radio to deliver the callbacks from an interrupt below the radio's priority
+   instead of from `run()`. The link layer has to be correct in both cases.
+4. **More than one link, and advertising while connected.** Several peripheral links to
+   different centrals, and advertising while a link is up, with or without accepting a
+   further connection.
+5. **The Data Length Update procedure.** LL_LENGTH_REQ and LL_LENGTH_RSP, so that a link
+   can carry the 251 byte PDUs the buffer already supports.
+
+## Not goals
+
+- **A central role.** Bluetoe stays a peripheral library. No initiating of connections,
+  no scanning. This keeps every procedure at the responding side plus the few requests a
+  peripheral may initiate. Agreed.
+- **A second link layer next to the first.** The existing `link_layer< Server, Radio,
+  Options... >` is changed in place, step by step, with the tests green after every step.
+  Agreed, as for the port to the new radio interface.
+- **A new radio interface.** `scheduled_radio2.hpp` stays as it is. Where the rewrite
+  needs something the interface does not give, that is a finding to be discussed, not a
+  change made on the way.
+- **An HCI layer.**
+
+## Constraints
+
+These come from the project and are not up for discussion in this work.
+
+- **Footprint is the primary design driver.** One link with today's options has to cost
+  what it costs today, in Flash and in RAM, within a few bytes. Every step measures the
+  examples with `arm-none-eabi-size` before and after. CI's 256 byte threshold is a last
+  resort, not the measure.
+- **No dynamic allocation, no exceptions, no RTTI.** The number of links is a compile
+  time option. Every buffer and every queue has a compile time size.
+- **Everything that can be decided at compile time is.** Which procedures exist, how many
+  links, whether there is a link layer context: all options, resolved with the meta type
+  machinery of `meta_tools.hpp`, rejected by the existing `static_assert` catch-alls when
+  given at the wrong level.
+- **The tests are the oracle.** The 636 test cases of `tests/link_layer` are written at
+  the PDU level against the simulated radio. They stay valid as long as the type the
+  tests instantiate keeps its shape: the link layer template with its options, the
+  option types, and the test facing API of the simulated radio. The single link case has
+  to pass them unchanged until the multi link step, which is the only step that changes
+  what the simulator is.
+- **One logical change per commit, each reviewed, on this pull request's branch.** The
+  code changes are made on the branch of this document, not on master, so that the
+  document and the code that follows it are reviewed together. Each commit leaves the
+  branch buildable, tested in Debug and Release, the examples cross compiled, and the
+  radio tests run on the bench when the radio side changes. Agreed.
+- **Nothing is stored twice for one link.** The radio keeps what its setup functions give
+  it: access address and CRC initialiser, the PHY, the encryption keys. Today the link
+  layer hands them over when they change and keeps no copy; `connection_parameters` holds
+  only what the link layer computes with, the channel map, the window, the interval, the
+  latency and the timeout. The single link implementation stays that way. Only the
+  implementation for several links keeps the radio's values per link, because it has to
+  apply them before every event. Agreed.
+- **The nRF52 binding is the reference radio.** It has `hardware_supports_link_layer_context
+  = false` today. The final proof of the link layer context needs a radio that has one, so
+  the binding gains it, as an interrupt below the radio's priority, when the link layer is
+  ready for it.
+
+## Where the two axes really matter
+
+The maintainer asked to find out where a link layer context and where multiple links make
+a real difference, so that the design pays for them only there.
+
+### A dedicated link layer context
+
+Without one, the radio delivers its callbacks from inside `run()`, so the radio callbacks,
+the procedures, L2CAP, the GATT server, the application's characteristic handlers and the
+application's requests all run in one context, one after the other. Nothing is shared and
+no lock is needed. With one, the callbacks arrive from an interrupt, and whatever the
+application does runs concurrently with them.
+
+Going through the link layer as it is today, the difference shows in exactly four places:
+
+1. **Received data on its way up.** `handle_received_data()` hands every L2CAP PDU to the
+   L2CAP layer, which hands it to the GATT server, which calls the application's
+   characteristic handlers. Today that happens inside the radio callback. With a link
+   layer context it would run application code in interrupt context, and a slow handler
+   would hold the link layer context while the next event has to be scheduled.
+
+   This boils down to an ATT SDU queue that both contexts access: the link layer context
+   puts a received SDU in, and after a context switch the application context takes it
+   out, hands it to the GATT server and puts the response on its way down. The receive
+   buffer already holds a PDU until `free_ll_l2cap_received()`, so the queue is the
+   ownership of what is already there rather than a copy; the response goes into the
+   transmit buffer under `radio_lock_guard`, which is the path notifications take
+   already. Agreed as the direction.
+
+   This is the largest single change on this axis, and it is the same code in both
+   configurations. Without a link layer context, dispatching from `run()` instead of
+   from the callback changes only when in the same thread the work happens.
+
+2. **Requests on their way down.** `disconnect()`, `connection_parameter_update_request()`,
+   `phy_update_request()`, `remote_versions_request()` and a queued notification all
+   write link layer state from the application context: `disconnect()` sets the
+   connection state and starts the procedure timeout directly, the others set flags in
+   `procedure_requests` and call `wake_up()`, and the flags are consumed by
+   `transmit_pending_control_pdus()` in the callback. With a link layer context these
+   writes race with the callbacks. Issues #7 and #151 are this race.
+
+   The pattern that is right in both configurations: a request is recorded in a queue
+   under `link_layer_lock_guard`, and the link layer context picks it up at its next
+   opportunity. Without a link layer context the lock is empty and the queue is a member
+   the callback reads; nothing else differs.
+
+3. **Callbacks on their way up.** `connection_callbacks` already queues every event in a
+   ring, calls `wake_up()`, and delivers from the application context. That is the right
+   pattern; the ring has to be safe for one producer and one consumer, which is what
+   a link layer context makes it. The synchronized connection event callback is the
+   exception: it is meant to run at a precise time and stays in the link layer context by
+   design.
+
+4. **`run()` itself.** Today it calls the radio once and then loops on
+   `event_cancelation_requested_` under the lock. With the dispatch of received data and
+   the request queue in place, `run()` becomes: let the radio run, deliver queued
+   callbacks, dispatch received data, and the cancellation of a planned event stays as it
+   is. The contract of `run()` in the radio interface does not change.
+
+Everything else is context free. A procedure runs in the link layer context, sees the
+state of its link exclusively, and never calls the application. The scheduling of the
+next event runs there too. So the procedure interface does not need to know about
+contexts at all, provided the rule holds that procedures are driven only from the link
+layer context and reached from the application only through the request queue.
+
+Where it does not matter, although one might expect it to: the PDU buffer is already
+shared between the radio context and the link layer context and already protected by
+`radio_lock_guard`; the radio's own state is the radio's concern by the interface's
+Decision 17; the timing of the radio events is the radio's, the link layer only has to
+schedule the next event before its start, which a dedicated context makes independent of
+what the application is doing, and that is the reason to have one.
+
+Cost of supporting both: the request queue, which replaces the flags of
+`procedure_requests` and costs the same; a lock that is empty without the context; the
+dispatch of received data from `run()`, which is a move, not an addition.
+
+**Proving it.** The unit tests can only show that the two paths are separated: the
+simulated radio gets a mode in which the callbacks are delivered as if from another
+context, with the application's work interleaved at chosen points. The proof that the
+link layer is correct with a real link layer context needs a radio implementation that
+has one, and a test on the bench in which the application context is held for several
+connection intervals, doing work or sleeping, while the tester on the other side sees the
+link stay up and every event answered. That test belongs to the radio tests in
+`tests/scheduled_radio/`, with an operation of the rig that occupies the application
+context for a given number of intervals. Agreed.
+
+### More than one link
+
+A link is everything that belongs to one connection: the peer's address, access address
+and CRC initialiser, channel map, hop increment and event counter, connection
+parameters, the peripheral latency state, the PDU buffer, the encryption state and keys,
+the PHY, the state of the running procedure, the procedure timeout, and the GATT server's
+per connection data, which is already a type parameter, `connection_data_t`, because the
+server keeps client characteristic configuration per client. Today all of that is a
+member of the link layer, one of each.
+
+Going through the layers, the difference shows in these places:
+
+1. **Ownership of state.** The per link members become one struct that the procedures
+   and the shared code act on. The single link implementation holds one, the
+   implementation for several links an array of them with a compile time size. For one
+   link this is a rename of `this->` into `link.`, and the struct must cost what the
+   members cost. What the radio stores is in the struct only in the implementation for
+   several links, see the constraints.
+
+2. **The radio setup before every event.** The interface already says it: the setup
+   functions, `set_access_address_and_crc_init()`, `set_phy()`, `set_encryption()`, are
+   applied by the next scheduling call, and "a single connection link layer calls them
+   when a value changes, a link layer with several connections before every action". The
+   radio asks for the buffer of the current connection through `link_layer_pdu_buffer()`.
+   So the radio side was designed for this; the link layer side has to call the setup
+   per event when there is more than one link. That is a few register writes per event
+   on the nRF52.
+
+3. **The scheduler.** This is the real difference. With one link the next event is the
+   anchor plus the interval, minus what latency allows. With several, the windows of two
+   links overlap sooner or later, and something has to decide which link gets the radio
+   and which one skips its event. A skipped event is peripheral latency from the
+   central's point of view, so the decision has to stay within each link's supervision
+   timeout and within the latency the central granted, and a link that has data pending
+   or a procedure at an instant must win. Advertising while connected is the same
+   decision with an advertising event as one of the candidates. The radio interface has
+   one `schedule_connection_event()` and one `schedule_advertising_event()` at a time,
+   which is what a scheduler needs: one action, then the next when the callback comes.
+
+   The single link implementation has no scheduler: its next event is what
+   `setup_next_connection_event()` computes today.
+
+4. **The advertiser while connected.** Today the state machine is initial, advertising
+   or connected. With several links, advertising is a thing next to the links, not a
+   state the link layer is in. The link layer advertises only while it has a link free
+   to accept the connection: there is no point in advertising and then not being able
+   to accept. A CONNECT_IND creates a link, and advertising stops when the last free
+   link is taken and resumes when one is closed. So the single link implementation
+   never advertises while connected, as today, and the implementation for several
+   links does so as long as a link is free. Agreed.
+
+5. **The user timer.** The radio has one `schedule_timer()`. The synchronized connection
+   event callback is defined per connection and stays available with several links, so
+   the implementation for several links multiplexes the one timer over the links that
+   have a callback due. Agreed.
+
+6. **The interface towards the application.** Every function that acts on a link,
+   `disconnect()`, the parameter and the PHY request, has to say which link once there
+   are several, and every callback has to say which link it is about. The callbacks
+   already carry the connection object, `connection_data_t`, which L2CAP folds together
+   from the per connection data of every channel, the GATT server's client
+   characteristic configuration among them, and which the characteristic handlers
+   receive. If that object also holds the link's data, it is the link: what the
+   application receives in its GATT callbacks is the very object the link layer keeps
+   for the link, naming a link costs nothing, and there is no index to look up.
+
+   `connection_data_t` is assembled by inheritance so that a channel whose data is
+   empty adds no address of its own. The link's data is never empty, so no such care is
+   needed for it: the link is a plain struct that has `connection_data_t` as its base
+   and the link's data as members. Agreed.
+
+   What is handed down is the link, not its base. L2CAP's `handle_l2cap_input()` and
+   the server's `l2cap_input()` take the connection object as a template parameter, and
+   so do the callbacks, so the type that travels through the layers can be the link
+   itself: every layer sees the base it knows by the implicit conversion to it, and the
+   application receives the link in its callbacks and hands the same type back to
+   `disconnect()`. No cast from the connection part to the link part anywhere. If a
+   layer turns out to name `connection_data_t` by type rather than by template
+   parameter, that layer is changed to the parameter, not the link to a cast.
+
+   Notifications and indications are the server's: it notifies every client that
+   subscribed, per connection data, and hands each SDU to the link layer with its link.
+   See the section on the interface below.
+
+7. **The simulated radio and the fixtures.** The simulator plays one central: one anchor,
+   one set of sequence numbers, one response queue, `respond_to( channel, pdu )` and
+   `add_connection_event_respond()` on the one link. For several links it has to play
+   several centrals with independent anchors and intervals, and a scanner that keeps
+   sending scan and connect requests while a link is up. The fixtures grow a link index.
+   This is the step where the oracle itself changes, so it comes last.
+
+Where it does not matter: inside a procedure, which acts on its link and nothing else;
+in L2CAP and ATT, which are already per connection through `connection_data_t`; in the
+radio interface; in the security manager, which is per connection already.
+
+The single link implementation does not pay for any of this. Several links are not one
+link with a larger array: they are a second implementation of the link layer, chosen by
+the configured number of connections, one by default. The two share what does not
+depend on the number of links, the control procedures and their dispatch, the PDU buffer, the
+advertiser, the request and the SDU queue, L2CAP and above. What differs, the array, the
+scheduler, the setup before every event and the values that needs, exists in the second
+implementation only. Agreed.
+
+RAM per link is dominated by its PDU buffer, which is why the number of connections is a
+compile time option.
+
+## The target structure
+
+What the link layer is made of when the steps are done. Names are proposals.
+
+- **Two implementations.** `link_layer< Server, Radio, Options... >` selects, by the
+  option `bluetoe::link_layer::max_connections< N >` with a default of one, the single
+  link implementation or the one for several links. Everything below is shared unless it
+  says otherwise. Agreed.
+
+- **`link`.** The struct described above, and the connection object the application
+  knows: a plain struct with `connection_data_t`, the per connection data L2CAP folds
+  together for its channels, as its base, and the PDU buffer, the parameters, the
+  latency state and the state of the procedures as its members. Knows how to compute its next event from its anchor. The single
+  link implementation holds one; the one for several links an array, and there the
+  struct also holds the radio's setup values, access address and CRC initialiser, PHY
+  and keys.
+
+- **`procedure`.** One type per control procedure. A procedure states the opcodes it
+  handles with their sizes, the feature bits it contributes, and provides: a handler for
+  a received control PDU on a link, which answers with a PDU or with nothing; a handler
+  for the instant, for procedures with one; a handler for the procedure timeout; and,
+  for the procedures a peripheral may initiate, a start function driven by the request
+  queue. A procedure owns its own state inside the link and nothing outside it.
+
+- **The control procedure dispatch.** What is common to all procedures, built at
+  compile time from the selected ones: the table from opcode to procedure, so that an
+  unknown opcode is answered with LL_UNKNOWN_RSP and a known opcode with a wrong size is
+  handled as the specification says; the rule that one initiated procedure runs at a
+  time per link, with the collision rules of Core Specification Vol 6, Part B, section
+  5.1.1 for a request arriving while one is running; the procedure response timeout of
+  40 seconds. This is what the opcode chain in `handle_ll_control_data()` and the option
+  mixins that intercept their own opcodes become.
+
+- **The request queue.** The one path from the application context into the link layer
+  context, under `link_layer_lock_guard`. Replaces `procedure_requests` and the direct
+  writes of `disconnect()`.
+
+- **The scheduler.** Only in the implementation for several links. Chooses the next
+  radio action among the links and the advertiser, and calls the radio's setup functions
+  for it.
+
+- **The advertiser.** Stays what `advertising.hpp` is, but as a thing next to the links
+  rather than a state of the link layer.
+
+- **`run()`.** Lets the radio run, delivers queued callbacks, dispatches received data
+  to L2CAP, in the application context.
+
+The procedures a peripheral has, with what is known about them. "In the chain" means a
+branch of the opcode chain in `handle_ll_control_data()`, with its state in the link
+layer's members; the two mixins intercept their own opcodes before that chain is
+reached.
+
+| Procedure | Opcodes | Today | Selectable |
+|---|---|---|---|
+| Connection update | LL_CONNECTION_UPDATE_IND | in the chain | no, mandatory to accept |
+| Channel map update | LL_CHANNEL_MAP_IND | in the chain | no, mandatory |
+| Termination | LL_TERMINATE_IND | in the chain | no, mandatory |
+| Version exchange | LL_VERSION_IND | in the chain | no, mandatory |
+| Feature exchange | LL_FEATURE_REQ, LL_FEATURE_RSP | in the chain | no, the response is mandatory |
+| Unknown and reject | LL_UNKNOWN_RSP, LL_REJECT_IND, LL_REJECT_EXT_IND | in the chain | no, part of the dispatch |
+| Encryption | LL_ENC_REQ/RSP, LL_START_ENC_REQ/RSP, LL_PAUSE_ENC_REQ/RSP | security mixin | yes, with a source of keys (#71) |
+| Ping | LL_PING_REQ, LL_PING_RSP | in the chain | yes; required with encryption (#105) |
+| Connection parameters request | LL_CONNECTION_PARAM_REQ/RSP | in the chain | yes (#9) |
+| PHY update | LL_PHY_REQ/RSP, LL_PHY_UPDATE_IND | PHY mixin | yes, with a 2M radio |
+| Data length update | LL_LENGTH_REQ, LL_LENGTH_RSP | not implemented | yes, new |
+
+The encryption procedure needs a key for the EDIV and Rand the central sends, and it
+reports the encryption state of the link. Today it takes both from the security manager
+through the connection data, `find_key()` and `is_encrypted()`, and the link layer selects
+the LESC security manager as soon as a characteristic requires encryption, so encryption
+is not possible without pairing. In the rewrite the procedure depends on a source of keys
+and a sink of the encryption state, which a security manager provides, or an application
+that has a long term key from elsewhere and no pairing, which is #71. The selection of
+the security manager and the selection of the encryption procedure become two things.
+
+The mandatory procedures are mandatory: they are always in, and no option leaves one
+out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
+the dispatch is built; the table records the intent. Agreed.
+
+## Memory shared between states
+
+The link layer has a pattern worth keeping and extending. While a link advertises, the
+advertiser divides the raw PDU buffer into three sections: the advertising PDU, the scan
+response, and the memory a scan request or a CONNECT_IND is received into. Once the
+CONNECT_IND is in, the same memory becomes the transmit and the receive ring of the
+connection. Nothing is stored twice, because a link is never advertising and connected
+at the same time, and a `static_assert` at the link layer checks that the buffer is
+large enough for either use.
+
+The rule behind it: state that is never live at the same time shares memory, provided
+the exclusivity is a fact of the protocol and not of the current code, and the place
+where the phase changes is the place where the memory changes its use. Agreed.
+
+Where it applies in the rewrite, as proposals:
+
+- **The advertiser with several links.** The link layer advertises only while a link is
+  free, and the free link is the one that will take the connection. So the advertiser
+  works in that link's PDU buffer, and its own state, the interval, the channel index,
+  the perturbation, lives where that link's connection state will live. There is no
+  advertising memory at all next to the links, and a CONNECT_IND changes the use of the
+  memory as it does today.
+- **The state of the procedures.** One initiated procedure runs at a time per link, and
+  what a procedure keeps while it runs, the requested parameters, the pending instant
+  PDU, the SKD and IV of the encryption start, is dead once it is done. Today
+  `procedure_requests` keeps the parameters of every request side by side, and
+  `deferred_control_pdu` the instant PDU next to them. The procedures that the
+  specification allows to run at the same time, section 5.1.1 says which, decide what
+  shares memory; the rest is one area per link.
+- **The request queue.** With one initiated procedure at a time, one pending request
+  per link is enough: a single slot, not a queue.
+- **The L2CAP SDU buffers.** `ll_l2cap_sdu_buffer` keeps a receive and a transmit
+  buffer of MTU size each. ATT is request and response, and the response is built after
+  the request has been consumed, but notifications and indications interleave with a
+  request in flight and a write command has no response, so whether the two can be one
+  is to be checked against the ATT flow, not assumed.
+- **The pairing state.** What the security manager keeps while pairing runs, the public
+  keys, the shared secret, the nonces and confirm values of LESC, is dead after pairing.
+  What is dead while pairing runs is less clear, so this is a candidate, not a plan.
+
+Each of these is measured when it is done, like every step.
+
+## The interface towards the application
+
+Part of the link layer's public interface exists because an HCI layer was once written
+around it, and an HCI layer needs to initiate every procedure and see every outcome.
+That layer is gone. An application does not ask its peer for its version, and it has no
+use for the reject or unknown response to a request it did not make. What stays is what
+an application does with a link:
+
+- advertise, with the type, interval, channels and the directed address, and stop;
+- accept the connection, be told about it, and about its parameters when they change,
+  and about its end with the reason;
+- send and receive ATT, which is L2CAP's and the server's business;
+- ask for other connection parameters, `connection_parameter_update_request()`, and let
+  the link layer choose whether to ask through L2CAP signalling or the LL procedure,
+  which depends on what the central supports, not on what the application wants;
+- ask for the 2M PHY, `phy_update_request_to_2mbit()`, which an application may want for
+  throughput or for power;
+- disconnect, with the reason;
+- the synchronized connection event callback and the white list.
+
+The functions that act on a link take the link as their first argument: the connection
+object that the callbacks and the characteristic handlers already receive, which is the
+link itself. Both implementations offer that signature, so that an application is
+written the same way for one link and for several. The single link implementation
+offers, in addition, overloads without the link argument, which act on the one link it
+has, so that a single link application stays as simple as it is today. Agreed.
+
+Proposed to go, as HCI leftovers: `remote_versions_request()` and the `ll_version()`
+callback, `initiating_connection_parameter_request()` as the application's choice of the
+transport, `phy_update_request( transmit, receive )` with arbitrary PHYs next to the 2M
+request, `supported_link_layer_version()` and `link_layer_company_identifier()` as
+public accessors, and the callbacks `ll_rejected()`, `ll_unknown()` and
+`ll_remote_features()`. The version and feature exchange procedures stay as responders;
+their initiating side goes with the API that used it. The request queue then carries
+three requests: connection parameters, the 2M PHY, disconnect.
+
+## Issues
+
+The open issues that belong to this work, grouped by where they get fixed.
+
+- **The dispatch:** #123 protocol collision, #125 procedure timeout, #126 invalid control PDUs,
+  #131 overlapping procedures, #115 unexpected PDU during encryption start.
+- **A procedure:** #105 ping not sent, #118 PHY instant in the past, #122 PHY update
+  initiated by us, #124 parameter check of LL_CONNECTION_PARAM_REQ, #129 asymmetric PHY
+  request, #130 lost connection after PHY update, #9 connection parameter update optional,
+  #71 encryption without a security manager.
+- **Link and scheduler:** #119 connection timeout with invalid CRCs, #120 latency before
+  the first acknowledgement, #116 disconnect on invalid MIC, #132 LL/CON/ADV/BI-01-C.
+- **Contexts:** #7 disconnect, #151 advertising count from two contexts.
+- **Buffers:** #80 L2CAP fragmentation, #32 and #40 buffer size defaults.
+- **Left as decided:** #84 stays open; the simulation's `run()` is not made to return per
+  event, a caller relying on that is the bug.
+
+Each issue is fixed in the step that touches its code, with a test first.
+
+## The steps
+
+Each step is a series of small commits on the branch of this pull request, each green.
+
+1. **The link struct.** The per link members moved into it, held as an array of one.
+   Measured: no change in size.
+2. **The request queue and the SDU queue.** Requests from the application go through
+   the request queue; received ATT SDUs go through the SDU queue and are handled from
+   `run()`. Fixes #7 and #151. This is where the link layer becomes correct for a radio
+   with a link layer context, and the simulated radio gets the mode that delivers as if
+   from another context. The bench test with a real link layer context follows once the
+   nRF52 binding provides one; that is a step of its own, on the radio side.
+3. **The control procedure dispatch and the mandatory procedures.** The opcode chain
+   becomes the dispatch; termination, version, feature exchange, channel map, connection
+   update, and the unknown and reject handling become procedure types. The issues of the
+   dispatch go in here.
+4. **The optional procedures, one at a time.** Ping, connection parameters request,
+   encryption, PHY update. Each becomes selectable, and the issues of each go in with it.
+   The first one that is left out of an example proves that leaving it out costs nothing.
+5. **The Data Length Update procedure.** Written new as a procedure type. Proves that a
+   procedure is added without touching the others.
+6. **The implementation for several links.** Selected by the configured number of
+   connections: the array of links, the scheduler, the setup before every event. The
+   simulator plays several centrals and the fixtures get a link index. The single link
+   implementation and its tests are untouched by this step.
+7. **Advertising while connected.** The advertiser as a candidate of the scheduler
+   while a link is free, a CONNECT_IND while a link is up creating a further link,
+   advertising stopping with the last free link, tested with the simulator's scanner.
+
+Steps 1 to 5 keep every existing test as the oracle and shape the single link
+implementation. Steps 6 and 7 add the second implementation next to it.
+
+## Decisions to take
+
+- Which of the HCI leftovers of the interface towards the application go, see there.
+
+The names in this document are proposals until they are in the code. Decisions that come up during the steps are added here and, once taken, moved to
+where they apply and marked as agreed.
