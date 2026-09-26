@@ -474,7 +474,7 @@ namespace link_layer
     struct l2cap_callback
     {
         /** @cond HIDDEN_SYMBOLS */
-        void pdu_receive_data_callback( const write_buffer& ll_pdu_containing_l2cap_package )
+        static void pdu_receive_data_callback( const write_buffer& ll_pdu_containing_l2cap_package )
         {
             obj.l2cap_callback( ll_pdu_containing_l2cap_package );
         }
@@ -487,7 +487,7 @@ namespace link_layer
     struct no_l2cap_callback
     {
         /** @cond HIDDEN_SYMBOLS */
-        void pdu_receive_data_callback( const write_buffer& )
+        static void pdu_receive_data_callback( const write_buffer& )
         {
         }
 

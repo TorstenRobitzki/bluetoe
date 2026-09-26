@@ -411,16 +411,16 @@ BOOST_AUTO_TEST_SUITE( disconnect )
         this->adv_received( this->now(), connection_request );
 
         // first connection event,
-        auto receive_buffer = this->allocate_receive_buffer();
+        auto receive_buffer = this->link_layer_pdu_buffer().allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid, 0x00 }, receive_buffer );
-        this->received( receive_buffer );
+        this->link_layer_pdu_buffer().received( receive_buffer );
         this->connection_end_event( this->now(), no_special_event );
 
         // second connection event, transmitting the LL_TERMINATE_IND
         this->disconnect( 0x13 );
-        receive_buffer = this->allocate_receive_buffer();
+        receive_buffer = this->link_layer_pdu_buffer().allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid | sn | nesn, 0x00 }, receive_buffer );
-        this->received( receive_buffer );
+        this->link_layer_pdu_buffer().received( receive_buffer );
         this->connection_end_event( this->now(), no_special_event );
 
         // now, having connection events whithout acknowledging the transmitted LL_TERMINATE_IND
@@ -429,11 +429,11 @@ BOOST_AUTO_TEST_SUITE( disconnect )
         {
             const std::uint8_t serial_num = i % 2 == 1 ? sn : 0;
             // second connection event, NOT acknowledging the transmitted LL_TERMINATE_IND
-            receive_buffer = this->allocate_receive_buffer();
+            receive_buffer = this->link_layer_pdu_buffer().allocate_receive_buffer();
             copy_air_to_mem< layout_t >( {
                 static_cast< std::uint8_t >( llid | serial_num | nesn ),
                 0x00 }, receive_buffer );
-            this->received( receive_buffer );
+            this->link_layer_pdu_buffer().received( receive_buffer );
             this->connection_end_event( this->now(), no_special_event );
         }
 
@@ -458,16 +458,16 @@ BOOST_AUTO_TEST_SUITE( disconnect )
         this->adv_received( this->now(), connection_request );
 
         // first connection event,
-        auto receive_buffer = this->allocate_receive_buffer();
+        auto receive_buffer = this->link_layer_pdu_buffer().allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid, 0x00 }, receive_buffer );
-        this->received( receive_buffer );
+        this->link_layer_pdu_buffer().received( receive_buffer );
         this->connection_end_event( this->now(), no_special_event );
 
         // second connection event, transmitting the LL_TERMINATE_IND
         this->disconnect( 0x13 );
-        receive_buffer = this->allocate_receive_buffer();
+        receive_buffer = this->link_layer_pdu_buffer().allocate_receive_buffer();
         copy_air_to_mem< layout_t >( { llid | sn | nesn, 0x00 }, receive_buffer );
-        this->received( receive_buffer );
+        this->link_layer_pdu_buffer().received( receive_buffer );
         this->connection_end_event( this->now(), no_special_event );
 
         // now, having connection events whithout acknowledging the transmitted LL_TERMINATE_IND
@@ -476,11 +476,11 @@ BOOST_AUTO_TEST_SUITE( disconnect )
         {
             const std::uint8_t serial_num = i % 2 == 1 ? sn : 0;
             // second connection event, NOT acknowledging the transmitted LL_TERMINATE_IND
-            receive_buffer = this->allocate_receive_buffer();
+            receive_buffer = this->link_layer_pdu_buffer().allocate_receive_buffer();
             copy_air_to_mem< layout_t >( {
                 static_cast< std::uint8_t >( llid | serial_num | nesn ),
                 0x00 }, receive_buffer );
-            this->received( receive_buffer );
+            this->link_layer_pdu_buffer().received( receive_buffer );
             this->connection_end_event( this->now(), no_special_event );
         }
 

@@ -79,13 +79,13 @@ namespace link_layer {
             addresses_  = addresses;
         }
 
-        template < class Link, class Radio >
+        template < class Connection, class Radio >
         void connection_requested(
             const connection_details&   details,
-            Link&                       link,
+            Connection&                 connection,
             Radio&                      r )
         {
-            const event_data data( requested, &link, details );
+            const event_data data( requested, &connection, details );
             events_.try_push( data );
 
             r.wake_up();
@@ -93,90 +93,90 @@ namespace link_layer {
 
         // this functions are called from the interrupt handlers of the scheduled radio and just store the informations that
         // are provided.
-        template < class Link, class Radio >
+        template < class Connection, class Radio >
         void connection_established(
             const connection_details&   details,
-            Link&                       link,
+            Connection&                 connection,
             Radio&                      r )
         {
-            const event_data data( established, &link, details );
+            const event_data data( established, &connection, details );
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void connection_attempt_timeout( Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void connection_attempt_timeout( Connection& connection, Radio& r )
         {
-            const event_data data( attempt_timeout, &link );
+            const event_data data( attempt_timeout, &connection );
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void connection_changed( const bluetoe::link_layer::connection_details& details, Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void connection_changed( const bluetoe::link_layer::connection_details& details, Connection& connection, Radio& r )
         {
-            const event_data data = { changed, &link, details };
+            const event_data data = { changed, &connection, details };
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void connection_closed( std::uint8_t reason, Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void connection_closed( std::uint8_t reason, Connection& connection, Radio& r )
         {
-            event_data data = { closed, &link };
+            event_data data = { closed, &connection };
             data.raw_details_[ 0 ] = reason;
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void procedure_rejected( std::uint8_t error_code, Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void procedure_rejected( std::uint8_t error_code, Connection& connection, Radio& r )
         {
-            event_data data = { rejected, &link };
+            event_data data = { rejected, &connection };
             data.raw_details_[ 0 ] = error_code;
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void procedure_unknown( std::uint8_t error_code, Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void procedure_unknown( std::uint8_t error_code, Connection& connection, Radio& r )
         {
-            event_data data = { unknown, &link };
+            event_data data = { unknown, &connection };
             data.raw_details_[ 0 ] = error_code;
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void version_indication_received( const std::uint8_t* details, Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void version_indication_received( const std::uint8_t* details, Connection& connection, Radio& r )
         {
-            event_data data = { version, &link };
+            event_data data = { version, &connection };
             std::copy( details, details + version_ind_size, &data.raw_details_[ 0 ] );
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void remote_features_received( const std::uint8_t rf[ 8 ], Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void remote_features_received( const std::uint8_t rf[ 8 ], Connection& connection, Radio& r )
         {
-            event_data data = { remote_features, &link };
+            event_data data = { remote_features, &connection };
             std::copy( rf, rf + feature_field_size, &data.raw_details_[ 0 ] );
             events_.try_push( data );
 
             r.wake_up();
         }
 
-        template < class Link, class Radio >
-        void phy_update( std::uint8_t phy_c_to_p, std::uint8_t phy_p_to_c, Link& link, Radio& r )
+        template < class Connection, class Radio >
+        void phy_update( std::uint8_t phy_c_to_p, std::uint8_t phy_p_to_c, Connection& connection, Radio& r )
         {
-            event_data data = { update_phy, &link };
+            event_data data = { update_phy, &connection };
             data.raw_details_[ 0 ] = phy_c_to_p;
             data.raw_details_[ 1 ] = phy_p_to_c;
             events_.try_push( data );
@@ -279,7 +279,7 @@ namespace link_layer {
         template < typename LinkLayer >
         typename LinkLayer::connection_data_t& connection_data( const event_data& d )
         {
-            return *static_cast< typename LinkLayer::link_data_t* >( d.connection_ );
+            return *static_cast< typename LinkLayer::connection_data_t* >( d.connection_ );
         }
 
         template < typename TT, typename Connection >

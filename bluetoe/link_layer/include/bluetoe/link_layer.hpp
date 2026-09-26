@@ -328,7 +328,7 @@ namespace link_layer {
                         encryption_changed = that().link_data_.is_encrypted( true );
 
                         if ( encryption_changed )
-                            that().link_data_.restore_bonded_cccds( that().link_data_ );
+                            that().link_data_.restore_bonded_cccds( that().link_data_.connection_data() );
 
                     }
                     else if ( opcode == LinkLayer::LL_PAUSE_ENC_REQ && size == 1 )
@@ -352,7 +352,7 @@ namespace link_layer {
                     if ( encryption_changed )
                     {
                         that().link_data_.pairing_status(that().link_data_.local_device_pairing_status());
-                        that().connection_changed( that().details(), that().link_data_, static_cast< typename LinkLayer::radio_t& >( that() ) );
+                        that().connection_changed( that().details(), that().link_data_.connection_data(), static_cast< typename LinkLayer::radio_t& >( that() ) );
                     }
 
                     return true;
@@ -365,7 +365,7 @@ namespace link_layer {
                     if ( !encryption_in_progress_ )
                         return;
 
-                    auto out_buffer = that().allocate_ll_transmit_buffer( LinkLayer::maximum_ll_payload_size );
+                    auto out_buffer = that().link_data_.buffers.allocate_ll_transmit_buffer( LinkLayer::maximum_ll_payload_size );
                     if ( out_buffer.empty() )
                         return;
 
@@ -375,12 +375,12 @@ namespace link_layer {
                             LinkLayer::ll_control_pdu_code, 1, LinkLayer::LL_START_ENC_REQ } );
 
                         encryption_.receive_encrypted = true;
-                        that().commit_ll_transmit_buffer( out_buffer );
+                        that().link_data_.buffers.commit_ll_transmit_buffer( out_buffer );
                     }
                     else
                     {
                         that().reject( LinkLayer::LL_ENC_REQ, LinkLayer::err_pin_or_key_missing, out_buffer );
-                        that().commit_ll_transmit_buffer( out_buffer );
+                        that().link_data_.buffers.commit_ll_transmit_buffer( out_buffer );
                     }
 
                     encryption_in_progress_ = false;
@@ -464,7 +464,7 @@ namespace link_layer {
                     if ( c_to_p == phy_ll_encoding::le_unchanged_coding
                       && p_to_c == phy_ll_encoding::le_unchanged_coding )
                     {
-                        link_layer.phy_update( c_to_p, p_to_c, link_layer.link_data_, link_layer );
+                        link_layer.phy_update( c_to_p, p_to_c, link_layer.link_data_.connection_data(), link_layer );
                         return true;
                     }
 
@@ -485,7 +485,7 @@ namespace link_layer {
                     const auto p_to_c = static_cast< phy_ll_encoding::phy_ll_encoding_t >( body[ 2 ] );
 
                     link_layer.set_phy( c_to_p, p_to_c );
-                    link_layer.phy_update( c_to_p, p_to_c, link_layer.link_data_, link_layer );
+                    link_layer.phy_update( c_to_p, p_to_c, link_layer.link_data_.connection_data(), link_layer );
 
                     return true;
                 }
@@ -617,7 +617,7 @@ namespace link_layer {
          * Once the link layer link is established, the link_data also keeps the ATT relevant
          * data.
          */
-        template < class ConnectionData, std::uint16_t SupportedFeatures >
+        template < class ConnectionData, class Buffers, std::uint16_t SupportedFeatures >
         struct link_data : ConnectionData
         {
             /*
@@ -646,6 +646,7 @@ namespace link_layer {
 
             std::uint16_t                   used_features = SupportedFeatures;
             details::connection_parameters  parameters;
+            Buffers                         buffers;
 
             bool feature_available( std::uint16_t feature ) const
             {
@@ -747,6 +748,16 @@ namespace link_layer {
             {
                 connection_state = connection_state_t::changing;
             }
+
+            ConnectionData& connection_data()
+            {
+                return *this;
+            }
+
+            const ConnectionData& connection_data() const
+            {
+                return *this;
+            }
         };
 
     }
@@ -770,15 +781,6 @@ namespace link_layer {
     >
     class link_layer :
         public ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >,
-        public bluetoe::link_layer::ll_l2cap_sdu_buffer<
-            ll_data_pdu_buffer<
-                details::buffer_sizes< Options... >::tx_size,
-                details::buffer_sizes< Options... >::rx_size,
-                ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >
-            >,
-            link_layer< Server, ScheduledRadio, Options... >,
-            details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
-        >,
         public details::white_list<
             ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > >,
             link_layer< Server, ScheduledRadio, Options... >,
@@ -797,11 +799,6 @@ namespace link_layer {
             ScheduledRadio< link_layer< Server, ScheduledRadio, Options... > > >,
         public details::select_user_timer_impl<
             link_layer< Server, ScheduledRadio, Options... >, Options ... >,
-        public bluetoe::details::find_by_meta_type<
-            details::ll_pdu_receive_data_callback_meta_type,
-            Options...,
-            no_l2cap_callback
-        >::type,
         public bluetoe::details::find_by_meta_type<
             details::desired_connection_parameters_meta_type,
             Options...,
@@ -1078,6 +1075,18 @@ namespace link_layer {
             };
         };
 
+        using pdu_receive_data_callback_t = bluetoe::details::find_by_meta_type<
+            details::ll_pdu_receive_data_callback_meta_type,
+            Options...,
+            no_l2cap_callback
+        >::type;
+
+        using l2cap_sdu_buffer_t = bluetoe::link_layer::ll_l2cap_sdu_buffer<
+            buffer_t,
+            pdu_receive_data_callback_t,
+            details::l2cap_layer< Server, ScheduledRadio, Options... >::required_minimum_l2cap_buffer_size
+        >;
+
         static constexpr std::uint16_t   supported_features =
             link_layer_feature::connection_parameters_request_procedure |
             link_layer_feature::extended_reject_indication |
@@ -1089,11 +1098,8 @@ namespace link_layer {
                 ? link_layer_feature::le_2m_phy_support
                 : 0 );
 
-    public:
-        // TODO move this to declaration
-        using link_data_t = details::link_data< connection_data_t, supported_features >;
+        using link_data_t = details::link_data< connection_data_t, l2cap_sdu_buffer_t, supported_features >;
 
-    private:
         // TODO: calculate the actual needed buffer size for advertising, not the maximum
         static_assert( buffer_t::size >= advertising_t::maximum_required_advertising_buffer(), "buffer to small" );
 
@@ -1198,7 +1204,7 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     typename link_layer< Server, ScheduledRadio, Options... >::buffer_t& link_layer< Server, ScheduledRadio, Options... >::link_layer_pdu_buffer()
     {
-        return *this;
+        return link_data_.buffers;
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
@@ -1255,8 +1261,8 @@ namespace link_layer {
                 procedure_timeout_.stop();
 
                 this->set_access_address_and_crc_init( read_32bit( &body[ 12 ] ), read_24bit( &body[ 16 ] ) );
+                link_data_.buffers.reset_pdu_buffer();
 
-                this->reset_pdu_buffer();
                 this->reset_connection_parameter_request();
                 this->reset_encryption();
 
@@ -1264,7 +1270,7 @@ namespace link_layer {
                 this->handle_stop_advertising();
 
                 link_data_.remote_connection_created( remote_address );
-                this->connection_requested( details(), link_data_, static_cast< radio_t& >( *this ) );
+                this->connection_requested( details(), link_data_.connection_data(), static_cast< radio_t& >( *this ) );
 
                 // last, as a transmit window the radio can not meet any more ends the connection
                 setup_next_connection_event();
@@ -1304,7 +1310,7 @@ namespace link_layer {
     {
         const auto time_since_last_event = this->time_since_last_event();
 
-        if ( link_data_.is_disconnecting() && termination_send_ && !this->pending_outgoing_data_available() )
+        if ( link_data_.is_disconnecting() && termination_send_ && !link_data_.buffers.pending_outgoing_data_available() )
         {
             force_disconnect();
         }
@@ -1355,7 +1361,7 @@ namespace link_layer {
 
         if ( link_data_.is_connecting() )
         {
-            this->connection_established( details(), link_data_, static_cast< radio_t& >( *this ) );
+            this->connection_established( details(), link_data_.connection_data(), static_cast< radio_t& >( *this ) );
         }
         else if ( link_data_.is_changing() )
         {
@@ -1374,7 +1380,7 @@ namespace link_layer {
          * and has to be offset by 1 to see if there is a pending instant at this connection
          * event.
          */
-        if ( ( link_data_.is_disconnecting() && termination_send_ && !this->pending_outgoing_data_available() )
+        if ( ( link_data_.is_disconnecting() && termination_send_ && !link_data_.buffers.pending_outgoing_data_available() )
           || handle_received_data() == ll_result::disconnect
           || send_control_pdus() == ll_result::disconnect )
         {
@@ -1397,7 +1403,7 @@ namespace link_layer {
 
                 const std::pair< bool, std::uint16_t > pending_instant = { deferred_pdu_.pending(), deferred_pdu_.instant() };
 
-                evts.pending_outgoing_data = evts.pending_outgoing_data || this->pending_outgoing_data_available();
+                evts.pending_outgoing_data = evts.pending_outgoing_data || link_data_.buffers.pending_outgoing_data_available();
                 this->plan_next_connection_event(
                     link_data_.parameters.latency(), evts, link_data_.parameters.interval(), pending_instant );
 
@@ -1417,7 +1423,7 @@ namespace link_layer {
         if ( link_data_.is_established() || link_data_.is_connecting() )
         {
             transmit_pending_control_pdus();
-            this->transmit_pending_l2cap_output( link_data_ );
+            this->transmit_pending_l2cap_output( link_data_.connection_data() );
         }
 
         this->template handle_connection_events< link_layer< Server, ScheduledRadio, Options... > >();
@@ -1607,7 +1613,7 @@ namespace link_layer {
             return;
 
         // first check if we have memory to transmit the message, or otherwise notifications would get lost
-        auto out_buffer = this->allocate_ll_transmit_buffer( connection_param_req_size );
+        auto out_buffer = link_data_.buffers.allocate_ll_transmit_buffer( connection_param_req_size );
 
         if ( out_buffer.empty() )
         {
@@ -1636,7 +1642,7 @@ namespace link_layer {
                 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                 0xff, 0xff, 0xff, 0xff, 0xff, 0xff } );
 
-            this->commit_ll_transmit_buffer( out_buffer );
+            link_data_.buffers.commit_ll_transmit_buffer( out_buffer );
         }
         else if ( requests_.phy_update_pending )
         {
@@ -1646,7 +1652,7 @@ namespace link_layer {
                 ll_control_pdu_code, 3, LL_PHY_REQ,
                 requests_.phy_transmit, requests_.phy_receive } );
 
-            this->commit_ll_transmit_buffer( out_buffer );
+            link_data_.buffers.commit_ll_transmit_buffer( out_buffer );
         }
         else if ( requests_.remote_version_pending )
         {
@@ -1661,12 +1667,12 @@ namespace link_layer {
                 0x00, 0x00
             } );
 
-            this->commit_ll_transmit_buffer( out_buffer );
+            link_data_.buffers.commit_ll_transmit_buffer( out_buffer );
         }
         else if ( this->connection_parameters_response_pending() )
         {
             this->template connection_parameters_response_fill< layout_t >( out_buffer );
-            this->commit_ll_transmit_buffer( out_buffer );
+            link_data_.buffers.commit_ll_transmit_buffer( out_buffer );
         }
     }
 
@@ -1688,7 +1694,7 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     bool link_layer< Server, ScheduledRadio, Options... >::queue_lcap_notification( const ::bluetoe::details::notification_data& item, void* that, ::bluetoe::details::notification_type type )
     {
-        auto& connection = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->link_data_;
+        auto& connection = static_cast< link_layer< Server, ScheduledRadio, Options... >* >( that )->link_data_.connection_data();
 
         bool new_data = false;
         // TODO: Synchronization required!!!
@@ -1726,11 +1732,11 @@ namespace link_layer {
         if ( !link_data_.is_connecting() )
         {
             this->synchronized_connection_event_callback_disconnect();
-            this->connection_closed( disconnecting_reason_, link_data_, static_cast< radio_t& >( *this ) );
+            this->connection_closed( disconnecting_reason_, link_data_.connection_data(), static_cast< radio_t& >( *this ) );
         }
         else
         {
-            this->connection_attempt_timeout( link_data_, static_cast< radio_t& >( *this ) );
+            this->connection_attempt_timeout( link_data_.connection_data(), static_cast< radio_t& >( *this ) );
         }
 
         start_advertising_impl();
@@ -1764,7 +1770,7 @@ namespace link_layer {
     {
         ll_result result = ll_result::go_ahead;
 
-        for ( auto pdu = this->next_ll_l2cap_received(); pdu.size != 0 && result == ll_result::go_ahead; )
+        for ( auto pdu = link_data_.buffers.next_ll_l2cap_received(); pdu.size != 0 && result == ll_result::go_ahead; )
         {
             const auto llid = layout_t::header( pdu ) & 0x03;
             const auto body = layout_t::body( pdu );
@@ -1779,13 +1785,13 @@ namespace link_layer {
                  */
                 const read_buffer output = deferred_pdu_.pending()
                     ? read_buffer{ nullptr, 0 }
-                    : this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
+                    : link_data_.buffers.allocate_ll_transmit_buffer( maximum_ll_payload_size );
 
                 if ( output.size )
                 {
                     result = handle_ll_control_data( pdu, output );
-                    this->free_ll_l2cap_received();
-                    pdu = this->next_ll_l2cap_received();
+                    link_data_.buffers.free_ll_l2cap_received();
+                    pdu = link_data_.buffers.next_ll_l2cap_received();
                 }
                 else
                 {
@@ -1793,10 +1799,10 @@ namespace link_layer {
                 }
             }
             else if ( llid == lld_data_pdu_code && !link_data_.is_disconnecting()
-                   && this->handle_l2cap_input( body.first, body.second - body.first, link_data_ ) )
+                   && this->handle_l2cap_input( body.first, body.second - body.first, link_data_.connection_data() ) )
             {
-                this->free_ll_l2cap_received();
-                pdu = this->next_ll_l2cap_received();
+                link_data_.buffers.free_ll_l2cap_received();
+                pdu = link_data_.buffers.next_ll_l2cap_received();
             }
             else
             {
@@ -1812,7 +1818,7 @@ namespace link_layer {
     {
         if ( link_data_.is_disconnecting() && !termination_send_ )
         {
-            auto output = this->allocate_ll_transmit_buffer( maximum_ll_payload_size );
+            auto output = link_data_.buffers.allocate_ll_transmit_buffer( maximum_ll_payload_size );
 
             if ( output.size )
             {
@@ -1821,8 +1827,8 @@ namespace link_layer {
                     LL_TERMINATE_IND, disconnecting_reason_
                 } );
 
-                this->commit_ll_transmit_buffer( output );
-                this->stop_ll_pdu_buffer();
+                link_data_.buffers.commit_ll_transmit_buffer( output );
+                link_data_.buffers.stop_ll_pdu_buffer();
                 termination_send_ = true;
             }
         }
@@ -1885,7 +1891,7 @@ namespace link_layer {
                     0x00, 0x00
                 } );
 
-                this->version_indication_received( &body[ 1 ], link_data_, static_cast< radio_t& >( *this ) );
+                this->version_indication_received( &body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
                 version_indication_received_ = true;
             }
             else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
@@ -1923,7 +1929,7 @@ namespace link_layer {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 } );
 
-                this->remote_features_received( &body[ 1 ], link_data_, static_cast< radio_t& >( *this ) );
+                this->remote_features_received( &body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
             }
             else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_EXT_IND && size == 3 ) )
             {
@@ -1958,12 +1964,12 @@ namespace link_layer {
                         ? body[ 1 ]
                         : body[ 2 ];
 
-                    this->procedure_rejected( error_code, link_data_, static_cast< radio_t& >( *this ) );
+                    this->procedure_rejected( error_code, link_data_.connection_data(), static_cast< radio_t& >( *this ) );
                 }
                 else
                 {
                     assert( opcode == LL_UNKNOWN_RSP );
-                    this->procedure_unknown( body[ 1 ], link_data_, static_cast< radio_t& >( *this ) );
+                    this->procedure_unknown( body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
                 }
 
                 commit = false;
@@ -1990,7 +1996,7 @@ namespace link_layer {
             }
 
             if ( commit )
-                this->commit_ll_transmit_buffer( write );
+                link_data_.buffers.commit_ll_transmit_buffer( write );
         }
 
         return result;
@@ -2018,7 +2024,7 @@ namespace link_layer {
                 {
                     link_data_.set_connection_changing();
                     this->synchronized_connection_event_callback_start_changing_connection();
-                    this->connection_changed( details(), link_data_, static_cast< radio_t& >( *this ) );
+                    this->connection_changed( details(), link_data_.connection_data(), static_cast< radio_t& >( *this ) );
                 }
                 else
                 {
@@ -2098,7 +2104,7 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     std::pair< std::size_t, std::uint8_t* > link_layer< Server, ScheduledRadio, Options... >::allocate_l2cap_output_buffer( std::size_t size )
     {
-        const auto buffer = this->allocate_l2cap_transmit_buffer( size );
+        const auto buffer = link_data_.buffers.allocate_l2cap_transmit_buffer( size );
 
         if ( buffer.size == 0 )
             return { 0, nullptr };
@@ -2126,7 +2132,7 @@ namespace link_layer {
             lld_data_pdu_code,
             static_cast< std::uint8_t >( buffer.first & 0xff ) } );
 
-        this->commit_l2cap_transmit_buffer( out_buffer );
+        link_data_.buffers.commit_l2cap_transmit_buffer( out_buffer );
     }
     /** @endcond */
 

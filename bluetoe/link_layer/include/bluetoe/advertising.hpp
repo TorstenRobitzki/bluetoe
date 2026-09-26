@@ -1037,7 +1037,7 @@ namespace link_layer {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
                 return read_buffer{
-                    base_link_layer().raw_pdu_buffer(),
+                    base_link_layer().link_layer_pdu_buffer().raw_pdu_buffer(),
                     layout_t::data_channel_pdu_memory_size( advertising_type_base::max_advertising_pdu_size ) };
             }
 
@@ -1046,7 +1046,7 @@ namespace link_layer {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
                 return read_buffer{
-                    base_link_layer().raw_pdu_buffer()
+                    base_link_layer().link_layer_pdu_buffer().raw_pdu_buffer()
                       + layout_t::data_channel_pdu_memory_size( advertising_type_base::max_advertising_pdu_size ),
                     layout_t::data_channel_pdu_memory_size( advertising_type_base::max_scan_response_pdu_size ) };
             }
@@ -1056,7 +1056,7 @@ namespace link_layer {
                 using layout_t = typename pdu_layout_by_radio< typename LinkLayer::radio_t >::pdu_layout;
 
                 return read_buffer{
-                    base_link_layer().raw_pdu_buffer()
+                    base_link_layer().link_layer_pdu_buffer().raw_pdu_buffer()
                       + layout_t::data_channel_pdu_memory_size( advertising_type_base::max_advertising_pdu_size )
                       + layout_t::data_channel_pdu_memory_size( advertising_type_base::max_scan_response_pdu_size ),
                     layout_t::data_channel_pdu_memory_size( advertising_type_base::maximum_adv_request_size ) };
