@@ -261,7 +261,7 @@ namespace test {
 
     std::ostream& operator<<( std::ostream& out, const scheduled_user_timer& data )
     {
-        out << "schedule_time: " << data.schedule_time << "; delayed: " << data.delay;
+        out << "schedule_time: " << data.schedule_time << "; when: " << data.when;
 
         return out;
     }

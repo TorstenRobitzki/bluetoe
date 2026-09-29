@@ -6,9 +6,13 @@
 #include "connected.hpp"
 
 #include <sstream>
+#include <chrono>
 
 using namespace test;
 using bluetoe::link_layer::delta_time;
+using bluetoe::link_layer::abs_time;
+
+using namespace std::literals::chrono_literals;
 
 struct callbacks_t {
 
@@ -176,33 +180,35 @@ struct unconnected_server : unconnected_base_t<
         callbacks = callbacks_t();
     }
 
+    // the time, the n's event happend
+    std::chrono::microseconds ev( unsigned n )
+    {
+        return std::chrono::microseconds(this->connection_events().at( n ).when.data());
+    }
+
     /*
      * The delays of the scheduled user timers from the given one on, in milliseconds
      * before the phase shift is applied
      */
-    void check_user_timers( std::size_t first, std::initializer_list< unsigned > delays_ms ) const
+    void check_user_timers( std::size_t index, std::initializer_list< std::chrono::microseconds > times ) const
     {
-        const auto timers = this->scheduled_user_timers();
-        BOOST_REQUIRE_GE( timers.size(), first + delays_ms.size() );
+        const auto timers      = this->scheduled_user_timers();
 
-        std::size_t index = first;
+        BOOST_REQUIRE_GE( timers.size(), index + times.size() );
 
-        for ( const auto ms : delays_ms )
+        for ( const auto timer : times )
         {
-            const auto expected = PhaseShiftUS < 0
-                ? delta_time::msec( ms ) - delta_time::usec( -PhaseShiftUS )
-                : delta_time::msec( ms ) + delta_time::usec( PhaseShiftUS );
-
             BOOST_TEST_CONTEXT( "user timer " << index )
             {
-                BOOST_CHECK_EQUAL( timers[ index ].delay, expected );
+                BOOST_CHECK_EQUAL(
+                    std::chrono::microseconds((timers[ index ].when - abs_time()).usec()).count(), timer.count() );
             }
 
             ++index;
         }
     }
 
-    void check_user_timers( std::initializer_list< unsigned > delays_ms ) const
+    void check_user_timers( std::initializer_list< std::chrono::microseconds > delays_ms ) const
     {
         check_user_timers( 0, delays_ms );
     }
@@ -244,7 +250,16 @@ BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_phase, server_7
 
     run();
 
-    check_user_timers( { 6, 12, 18, 24, 30, 36, 12 } );
+    check_user_timers( {
+        6ms - 100us + ev(0),
+        12ms - 100us + ev(0),
+        18ms - 100us + ev(0),
+        24ms - 100us + ev(0),
+        30ms - 100us + ev(0),
+        // as the timer was setup before the connection event, the timeout is still based
+        // on the old anchor
+        36ms - 100us + ev(0),
+        12ms - 100us + ev(1) } );
 }
 
 BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_positive_phase, server_7ms_plus_100us )
@@ -255,7 +270,14 @@ BOOST_FIXTURE_TEST_CASE( callback_called_with_correct_period_and_positive_phase,
 
     run();
 
-    check_user_timers( { 6, 12, 18, 24, 30, 6, 12 } );
+    check_user_timers( {
+        6ms + 100us + ev(0),
+        12ms + 100us + ev(0),
+        18ms + 100us + ev(0),
+        24ms + 100us + ev(0),
+        30ms + 100us + ev(0),
+        6ms + 100us + ev(1),
+        12ms + 100us + ev(1) } );
 }
 
 BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
@@ -266,7 +288,14 @@ BOOST_FIXTURE_TEST_CASE( using_latency, server_7ms_minus_100us )
 
     run();
 
-    check_user_timers( { 6, 12, 18, 24, 30, 36, 12 } );
+    check_user_timers( {
+        6ms - 100us + ev(0),
+        12ms - 100us + ev(0),
+        18ms - 100us + ev(0),
+        24ms - 100us + ev(0),
+        30ms - 100us + ev(0),
+        36ms - 100us + ev(0),
+        12ms - 100us + ev(1) } );
 }
 
 BOOST_FIXTURE_TEST_CASE( force_callback_call_while_using_latency, server_7ms_minus_100us )
@@ -351,7 +380,14 @@ BOOST_FIXTURE_TEST_CASE( larger_min_period, server_60ms_minus_100us )
 
     run();
 
-    check_user_timers( { 60, 120, 120, 120, 120, 120, 120, 120 } );
+    // effective period 60ms: before every second event, each timer scheduled one interval after the last anchor
+    check_user_timers( {
+        60ms - 100us + ev(0),
+        90ms - 100us + ev(1),
+        90ms - 100us + ev(3),
+        90ms - 100us + ev(5),
+        90ms - 100us + ev(7),
+        90ms - 100us + ev(9) } );
 }
 
 BOOST_FIXTURE_TEST_CASE( larger_min_period_instant, server_60ms_minus_100us )
@@ -377,7 +413,18 @@ BOOST_FIXTURE_TEST_CASE( reconnect_with_different_interval, server_20ms_minus_10
     ll_empty_pdu();
     run();
 
-    check_user_timers( { 15, 30, 20, 40 } );
+    check_user_timers( {
+        // effective period 15ms
+        15ms - 100us + ev(0),
+        30ms - 100us + ev(0),
+
+        // effective period 20ms
+        20ms - 100us + ev(2),
+        40ms - 100us + ev(2),
+        60ms - 100us + ev(2),
+     } );
+
+    check_instants( { 0u, 1u, 0u, 0u, 0u } );
 }
 
 BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minus_100us )
@@ -389,8 +436,17 @@ BOOST_FIXTURE_TEST_CASE( changed_interval_on_connection_update, server_20ms_minu
     run();
 
     // the timers of the 30ms interval, then, from the instant on, those of the 10ms interval
-    check_user_timers( { 15, 30 } );
-    check_user_timers( 13, { 30, 20, 40, 40 } );
+    check_user_timers( {
+        15ms - 100us + ev(0),
+        30ms - 100us + ev(0),
+    } );
+
+    check_user_timers( 13, {
+        30ms - 100us + ev(6),
+        20ms - 100us + ev(8),
+        30ms - 100us + ev(9),
+        30ms - 100us + ev(11)
+    } );
 }
 
 struct callbacks_with_optional_callbacks_t

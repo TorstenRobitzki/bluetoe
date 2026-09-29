@@ -842,10 +842,9 @@ namespace link_layer {
         void try_event_cancelation();
 
         /*
-         * The synchronized connection event callback's timer, measured from the anchor of
-         * the last connection event that happened.
+         * The synchronized connection event callback's timer.
          */
-        bool schedule_synchronized_user_timer( delta_time timeout, delta_time maximum_execution_time );
+        bool schedule_synchronized_user_timer( abs_time when, delta_time maximum_execution_time );
         bool cancel_synchronized_user_timer();
         /** @endcond */
 
@@ -961,9 +960,6 @@ namespace link_layer {
         // Allocate size bytes of L2CAP layer payload
         std::pair< std::size_t, std::uint8_t* > allocate_l2cap_output_buffer( std::size_t size );
         void commit_l2cap_output_buffer( std::pair< std::size_t, std::uint8_t* > buffer );
-
-        // will cause the link layer to inform the user callbacks that a connection event happend
-        void restart_user_timer();
 
         /** @endcond */
 
@@ -1114,9 +1110,7 @@ namespace link_layer {
         link_data_t                     link_data_;
         bool                            termination_send_;
         bool                            pending_event_;
-        volatile bool                   restart_user_timer_requested_;
         volatile bool                   event_cancelation_requested_;
-        bool                            user_timer_anchor_moved_;
         std::uint8_t                    disconnecting_reason_;
 
         details::procedure_requests     requests_;
@@ -1146,9 +1140,7 @@ namespace link_layer {
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
     link_layer< Server, ScheduledRadio, Options... >::link_layer()
         : address_( local_device_address::address( *this ) )
-        , restart_user_timer_requested_( false )
         , event_cancelation_requested_( false )
-        , user_timer_anchor_moved_( false )
         , version_indication_received_( false )
     {
         using user_timer_t = typename bluetoe::details::find_by_meta_type<
@@ -1214,11 +1206,9 @@ namespace link_layer {
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
-    bool link_layer< Server, ScheduledRadio, Options... >::schedule_synchronized_user_timer( delta_time timeout, delta_time )
+    bool link_layer< Server, ScheduledRadio, Options... >::schedule_synchronized_user_timer( abs_time when, delta_time )
     {
-        user_timer_anchor_moved_ = false;
-
-        return this->schedule_timer( this->last_connection_event_anchor() + timeout );
+        return this->schedule_timer( when );
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
@@ -1351,21 +1341,19 @@ namespace link_layer {
         const delta_time since_last_event = this->time_since_last_event();
 
         this->connection_event_happened( when );
-        user_timer_anchor_moved_ = true;
-
-        if ( link_data_.is_connecting() || restart_user_timer_requested_ )
-        {
-            this->synchronized_connection_event_callback_new_connection( link_data_.parameters.interval() );
-            restart_user_timer_requested_ = false;
-        }
 
         if ( link_data_.is_connecting() )
         {
+            this->synchronized_connection_event_callback_new_connection( when, link_data_.parameters.interval() );
             this->connection_established( details(), link_data_.connection_data(), static_cast< radio_t& >( *this ) );
         }
         else if ( link_data_.is_changing() )
         {
-            this->synchronized_connection_event_callback_connection_changed( link_data_.parameters.interval() );
+            this->synchronized_connection_event_callback_connection_changed( when, link_data_.parameters.interval() );
+        }
+        else
+        {
+            this->synchronized_connection_event_callback_new_anchor( when, link_data_.parameters.interval() );
         }
 
         if ( !link_data_.is_disconnecting() )
@@ -1430,18 +1418,9 @@ namespace link_layer {
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::restart_user_timer()
+    void link_layer< Server, ScheduledRadio, Options... >::user_timer( abs_time when )
     {
-        restart_user_timer_requested_ = true;
-    }
-
-    template < class Server, template < class > class ScheduledRadio, typename ... Options >
-    void link_layer< Server, ScheduledRadio, Options... >::user_timer( abs_time )
-    {
-        const bool anchor_moved  = user_timer_anchor_moved_;
-        user_timer_anchor_moved_ = false;
-
-        this->synchronized_connection_event_callback_timeout( anchor_moved );
+        this->synchronized_connection_event_callback_timeout( when );
     }
 
     template < class Server, template < class > class ScheduledRadio, typename ... Options >
