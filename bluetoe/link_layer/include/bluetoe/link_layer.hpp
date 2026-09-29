@@ -1373,37 +1373,30 @@ namespace link_layer {
         {
             force_disconnect();
         }
+        else if ( procedure_timeout_.expired( since_last_event ) )
+        {
+            force_disconnect( connection_ll_response_timeout );
+        }
         else
         {
-            const bool procedure_timed_out = procedure_timeout_.expired( since_last_event );
+            procedure_timeout_.passed( since_last_event );
+            this->transmit_pending_security_pdus();
 
-            if ( !procedure_timed_out )
-                procedure_timeout_.passed( since_last_event );
+            const std::pair< bool, std::uint16_t > pending_instant = { deferred_pdu_.pending(), deferred_pdu_.instant() };
 
-            if ( procedure_timed_out )
+            evts.pending_outgoing_data = evts.pending_outgoing_data || link_data_.buffers.pending_outgoing_data_available();
+            this->plan_next_connection_event(
+                link_data_.parameters.latency(), evts, link_data_.parameters.interval(), pending_instant );
+
+            // Handle pending LL control PDUs that will affect the _next_ connection event
+            if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
             {
-                force_disconnect( connection_ll_response_timeout );
+                force_disconnect();
             }
             else
             {
-                this->transmit_pending_security_pdus();
-
-                const std::pair< bool, std::uint16_t > pending_instant = { deferred_pdu_.pending(), deferred_pdu_.instant() };
-
-                evts.pending_outgoing_data = evts.pending_outgoing_data || link_data_.buffers.pending_outgoing_data_available();
-                this->plan_next_connection_event(
-                    link_data_.parameters.latency(), evts, link_data_.parameters.interval(), pending_instant );
-
-                // Handle pending LL control PDUs that will affect the _next_ connection event
-                if ( handle_pending_ll_control( this->connection_event_counter() ) == ll_result::disconnect )
-                {
-                    force_disconnect();
-                }
-                else
-                {
-                    const delta_time time_till_next_event = setup_next_connection_event();
-                    connection_event_callback::call_connection_event_callback( time_till_next_event );
-                }
+                const delta_time time_till_next_event = setup_next_connection_event();
+                connection_event_callback::call_connection_event_callback( time_till_next_event );
             }
         }
 
@@ -1827,155 +1820,154 @@ namespace link_layer {
         const std::uint8_t* const body       = layout_t::body( pdu ).first;
         const std::uint16_t       header     = layout_t::header( pdu );
 
-        if ( ( header & 0x3 ) == ll_control_pdu_code )
+        assert( ( header & 0x3 ) == ll_control_pdu_code );
+
+        const std::uint8_t size   = header >> 8;
+        const std::uint8_t opcode = size > 0 ? *body : 0xff;
+
+        if ( opcode == LL_CONNECTION_UPDATE_IND && size == 12 )
         {
-            const std::uint8_t size   = header >> 8;
-            const std::uint8_t opcode = size > 0 ? *body : 0xff;
+            const std::uint16_t instant = read_16bit( &body[ 10 ] );
+            commit = false;
 
-            if ( opcode == LL_CONNECTION_UPDATE_IND && size == 12 )
+            if ( static_cast< std::uint16_t >( instant - this->connection_event_counter() + 1 ) & 0x8000
+                || instant == this->connection_event_counter() + 1 )
             {
-                const std::uint16_t instant = read_16bit( &body[ 10 ] );
-                commit = false;
-
-                if ( static_cast< std::uint16_t >( instant - this->connection_event_counter() + 1 ) & 0x8000
-                    || instant == this->connection_event_counter() + 1 )
-                {
-                    disconnecting_reason_ = connection_instant_passed;
-                    result = ll_result::disconnect;
-                }
-                else
-                {
-                    deferred_pdu_.defer( body, size, instant );
-                }
-            }
-            else if ( opcode == LL_TERMINATE_IND && size == 2 )
-            {
-                disconnecting_reason_ = body[ 1 ];
-                commit = false;
+                disconnecting_reason_ = connection_instant_passed;
                 result = ll_result::disconnect;
-            }
-            else if ( opcode == LL_VERSION_IND && size == 6 && !version_indication_received_ )
-            {
-                procedure_timeout_.stop();
-
-                if ( body[ 1 ] <= LL_VERSION_40 )
-                    link_data_.remove_feature( link_layer_feature::connection_parameters_request_procedure );
-
-                fill< layout_t >( write, {
-                    ll_control_pdu_code, 6, LL_VERSION_IND,
-                    LL_VERSION_NR,
-                    static_cast< std::uint8_t >( company_identifier ),
-                    static_cast< std::uint8_t >( company_identifier >> 8 ),
-                    0x00, 0x00
-                } );
-
-                this->version_indication_received( &body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
-                version_indication_received_ = true;
-            }
-            else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
-            {
-                const std::uint16_t instant = read_16bit( &body[ 6 ] );
-                commit = false;
-
-                if ( static_cast< std::uint16_t >( instant - this->connection_event_counter() ) & 0x8000 )
-                {
-                    disconnecting_reason_ = connection_instant_passed;
-                    result = ll_result::disconnect;
-                }
-                else
-                {
-                    deferred_pdu_.defer( body, size, instant );
-                }
-            }
-            else if ( opcode == LL_PING_REQ && size == 1 )
-            {
-                fill< layout_t >( write, { ll_control_pdu_code, 1, LL_PING_RSP } );
-            }
-            else if ( opcode == LL_FEATURE_REQ && size == 9 )
-            {
-                std::uint16_t remote_features = read_16bit( & body[ 1 ] );
-                link_data_.remove_feature( ~remote_features );
-
-                // the LSB of the feature set has to be the actualy used set,
-                // while all remaining bytes are to be filled with the supported
-                // features
-                fill< layout_t >( write, {
-                    ll_control_pdu_code, 9,
-                    LL_FEATURE_RSP,
-                    static_cast< std::uint8_t >( link_data_.used_features ),
-                    static_cast< std::uint8_t >( supported_features >> 8 ),
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-                } );
-
-                this->remote_features_received( &body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
-            }
-            else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_EXT_IND && size == 3 ) )
-            {
-                bool opcode_contains_request = opcode == LL_UNKNOWN_RSP || opcode == LL_REJECT_EXT_IND;
-
-                if ( !opcode_contains_request || ( opcode_contains_request && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
-                {
-                    procedure_timeout_.stop();
-
-                    if ( requests_.connection_parameters_running && requests_.connection_parameters_over_signaling_channel )
-                    {
-                        requests_.connection_parameters_over_signaling_channel = false;
-                        requests_.connection_parameters_running = false;
-
-                        if ( signaling_channel_t::connection_parameter_update_request(
-                            requests_.interval_min,
-                            requests_.interval_max,
-                            requests_.latency,
-                            requests_.timeout ) )
-                        {
-                            this->wake_up();
-                        }
-                    }
-
-                    if ( opcode == LL_UNKNOWN_RSP )
-                        link_data_.remove_feature( link_layer_feature::connection_parameters_request_procedure );
-                }
-
-                if ( opcode != LL_UNKNOWN_RSP )
-                {
-                    const std::uint8_t error_code = opcode == LL_REJECT_IND
-                        ? body[ 1 ]
-                        : body[ 2 ];
-
-                    this->procedure_rejected( error_code, link_data_.connection_data(), static_cast< radio_t& >( *this ) );
-                }
-                else
-                {
-                    assert( opcode == LL_UNKNOWN_RSP );
-                    this->procedure_unknown( body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
-                }
-
-                commit = false;
-            }
-            else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
-            {
-                commit = this->template handle_connection_parameters_request< layout_t >( pdu, write, details() );
-            }
-            else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
-            {
-                // all encryption PDU handled in handle_encryption_pdus()
-            }
-            else if ( this->handle_phy_request( opcode, size, pdu, write, *this, commit ) )
-            {
-                // all phy PDU handled in handle_phy_reqest
-            }
-            else if ( opcode != LL_UNKNOWN_RSP )
-            {
-                fill< layout_t >( write, { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
             }
             else
             {
-                commit = false;
+                deferred_pdu_.defer( body, size, instant );
+            }
+        }
+        else if ( opcode == LL_TERMINATE_IND && size == 2 )
+        {
+            disconnecting_reason_ = body[ 1 ];
+            commit = false;
+            result = ll_result::disconnect;
+        }
+        else if ( opcode == LL_VERSION_IND && size == 6 && !version_indication_received_ )
+        {
+            procedure_timeout_.stop();
+
+            if ( body[ 1 ] <= LL_VERSION_40 )
+                link_data_.remove_feature( link_layer_feature::connection_parameters_request_procedure );
+
+            fill< layout_t >( write, {
+                ll_control_pdu_code, 6, LL_VERSION_IND,
+                LL_VERSION_NR,
+                static_cast< std::uint8_t >( company_identifier ),
+                static_cast< std::uint8_t >( company_identifier >> 8 ),
+                0x00, 0x00
+            } );
+
+            this->version_indication_received( &body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
+            version_indication_received_ = true;
+        }
+        else if ( opcode == LL_CHANNEL_MAP_REQ && size == 8 )
+        {
+            const std::uint16_t instant = read_16bit( &body[ 6 ] );
+            commit = false;
+
+            if ( static_cast< std::uint16_t >( instant - this->connection_event_counter() ) & 0x8000 )
+            {
+                disconnecting_reason_ = connection_instant_passed;
+                result = ll_result::disconnect;
+            }
+            else
+            {
+                deferred_pdu_.defer( body, size, instant );
+            }
+        }
+        else if ( opcode == LL_PING_REQ && size == 1 )
+        {
+            fill< layout_t >( write, { ll_control_pdu_code, 1, LL_PING_RSP } );
+        }
+        else if ( opcode == LL_FEATURE_REQ && size == 9 )
+        {
+            std::uint16_t remote_features = read_16bit( & body[ 1 ] );
+            link_data_.remove_feature( ~remote_features );
+
+            // the LSB of the feature set has to be the actualy used set,
+            // while all remaining bytes are to be filled with the supported
+            // features
+            fill< layout_t >( write, {
+                ll_control_pdu_code, 9,
+                LL_FEATURE_RSP,
+                static_cast< std::uint8_t >( link_data_.used_features ),
+                static_cast< std::uint8_t >( supported_features >> 8 ),
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            } );
+
+            this->remote_features_received( &body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
+        }
+        else if ( ( opcode == LL_UNKNOWN_RSP && size == 2 ) || ( opcode == LL_REJECT_IND && size == 2 ) || ( opcode == LL_REJECT_EXT_IND && size == 3 ) )
+        {
+            bool opcode_contains_request = opcode == LL_UNKNOWN_RSP || opcode == LL_REJECT_EXT_IND;
+
+            if ( !opcode_contains_request || ( opcode_contains_request && body[ 1 ] == LL_CONNECTION_PARAM_REQ ) )
+            {
+                procedure_timeout_.stop();
+
+                if ( requests_.connection_parameters_running && requests_.connection_parameters_over_signaling_channel )
+                {
+                    requests_.connection_parameters_over_signaling_channel = false;
+                    requests_.connection_parameters_running = false;
+
+                    if ( signaling_channel_t::connection_parameter_update_request(
+                        requests_.interval_min,
+                        requests_.interval_max,
+                        requests_.latency,
+                        requests_.timeout ) )
+                    {
+                        this->wake_up();
+                    }
+                }
+
+                if ( opcode == LL_UNKNOWN_RSP )
+                    link_data_.remove_feature( link_layer_feature::connection_parameters_request_procedure );
             }
 
-            if ( commit )
-                link_data_.buffers.commit_ll_transmit_buffer( write );
+            if ( opcode != LL_UNKNOWN_RSP )
+            {
+                const std::uint8_t error_code = opcode == LL_REJECT_IND
+                    ? body[ 1 ]
+                    : body[ 2 ];
+
+                this->procedure_rejected( error_code, link_data_.connection_data(), static_cast< radio_t& >( *this ) );
+            }
+            else
+            {
+                assert( opcode == LL_UNKNOWN_RSP );
+                this->procedure_unknown( body[ 1 ], link_data_.connection_data(), static_cast< radio_t& >( *this ) );
+            }
+
+            commit = false;
         }
+        else if ( opcode == LL_CONNECTION_PARAM_REQ && size == 24 )
+        {
+            commit = this->template handle_connection_parameters_request< layout_t >( pdu, write, details() );
+        }
+        else if ( this->handle_encryption_pdus( opcode, size, pdu, write, commit ) )
+        {
+            // all encryption PDU handled in handle_encryption_pdus()
+        }
+        else if ( this->handle_phy_request( opcode, size, pdu, write, *this, commit ) )
+        {
+            // all phy PDU handled in handle_phy_reqest
+        }
+        else if ( opcode != LL_UNKNOWN_RSP )
+        {
+            fill< layout_t >( write, { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
+        }
+        else
+        {
+            commit = false;
+        }
+
+        if ( commit )
+            link_data_.buffers.commit_ll_transmit_buffer( write );
 
         return result;
     }
