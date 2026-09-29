@@ -286,20 +286,22 @@ What the link layer is made of when the steps are done. Names are proposals.
   and keys.
 
 - **`procedure`.** One type per control procedure. A procedure states the opcodes it
-  handles with their sizes, the feature bits it contributes, and provides: a handler for
-  a received control PDU on a link, which answers with a PDU or with nothing; a handler
+  handles with their sizes, whether it may respond to each, and the feature bits it
+  contributes, and provides: a handler for a received control PDU on a link; a handler
   for the instant, for procedures with one; a handler for the procedure timeout; and,
   for the procedures a peripheral may initiate, a start function driven by the request
-  queue. A procedure owns its own state inside the link and nothing outside it.
+  queue. A procedure owns its own state inside the link and nothing outside it. See the
+  section on the procedure list.
 
-- **The control procedure dispatch.** What is common to all procedures, built at
-  compile time from the selected ones: the table from opcode to procedure, so that an
-  unknown opcode is answered with LL_UNKNOWN_RSP and a known opcode with a wrong size is
-  handled as the specification says; the rule that one initiated procedure runs at a
-  time per link, with the collision rules of Core Specification Vol 6, Part B, section
-  5.1.1 for a request arriving while one is running; the procedure response timeout of
-  40 seconds. This is what the opcode chain in `handle_ll_control_data()` and the option
-  mixins that intercept their own opcodes become.
+- **The control procedure dispatch, `procedure_list<>`.** What is common to all
+  procedures, built at compile time from the selected ones: the table from opcode to
+  procedure, so that an unknown opcode is answered with LL_UNKNOWN_RSP and a known opcode
+  with a wrong size is handled as the specification says; the rule that one initiated
+  procedure runs at a time per link, with the collision rules of Core Specification
+  Vol 6, Part B, section 5.1.1 for a request arriving while one is running; the procedure
+  response timeout of 40 seconds. This is what the opcode chain in
+  `handle_ll_control_data()` and the option mixins that intercept their own opcodes
+  become. It is the only interface between the link layer and the procedures. Agreed.
 
 - **The request queue.** The one path from the application context into the link layer
   context, under `link_layer_lock_guard`. Replaces `procedure_requests` and the direct
@@ -346,6 +348,81 @@ the security manager and the selection of the encryption procedure become two th
 The mandatory procedures are mandatory: they are always in, and no option leaves one
 out. Which procedures those are is read against Vol 6, Part B, sections 4.6 and 5.1 when
 the dispatch is built; the table records the intent. Agreed.
+
+## The procedure list
+
+`procedure_list< Procedures... >` holds the procedures of a link layer and is the whole
+interface between them and the link layer. The design starts with it; the first test is
+an empty list that answers every control PDU with LL_UNKNOWN_RSP carrying the received
+opcode. Agreed.
+
+**Goals.** Procedures can be tested on their own; procedures can be optional; procedures
+that cannot overlap share memory; all their state is one object that becomes part of the
+link data. Agreed.
+
+**What the list offers the link layer.** All in the link layer context:
+
+- `state_type`, the combined state object, a member of the link data. It holds every
+  procedure's long-lived properties, such as the used features or whether the versions
+  were exchanged, merged by inheritance so that empty ones cost nothing, and the
+  transient state of the running procedures. A new connection is a default constructed
+  `state_type`.
+- `supported_features`, the OR of the feature bits of all procedures, which the link
+  layer's `supported_link_layer_features()` forwards.
+- `received()`, for a received control PDU. It has no response parameter; see below.
+- `connection_event()`, once per event, for the pending instant and the procedure
+  response timeout.
+- `pending_instant()`, what the latency planning needs to know about a pending instant.
+- `start()`, for a locally initiated procedure, false if it cannot start now, and
+  `transmit()`, for what a procedure has to send without a received PDU.
+
+Procedures reach the link through a `Context`, a concept for what a procedure may touch:
+the connection parameters, the transmit buffer, the connection callbacks, the radio
+setup and the source of keys. The link layer satisfies it; a test satisfies it with a
+mock, so that the list and every procedure are tested without a radio simulation.
+
+**Parsing first.** A received PDU is parsed into the procedure's state before anything
+else happens: a PDU that does not parse, and a collision, are found before any state
+changes. A procedure keeps the parsed values it needs, not a copy of the raw PDU as the
+deferred control PDU does today. Parsing has no side effects. Agreed.
+
+**The response buffer only when needed.** `received()` takes no response buffer. The
+list parses, checks for a collision, and only then knows whether an answer is needed:
+the procedure may respond to this opcode, or the answer is an error, an unknown opcode or
+a collision. Only then does it allocate, through the context. An indication that needs no
+answer, such as LL_CONNECTION_UPDATE_IND, LL_CHANNEL_MAP_IND, LL_PHY_UPDATE_IND or
+LL_TERMINATE_IND, is handled without a transmit buffer, so a transmit buffer full of
+notifications can no longer delay it until its instant has passed. If an answer is needed
+and there is no room, nothing has changed, and the same PDU is parsed again at the next
+event. Agreed.
+
+**Who frees the received PDU.** `received()` returns a result instead of freeing: consumed,
+so the link layer frees the PDU and goes on; not consumed, because there was no room for
+an answer, so the link layer stops and tries again at the next event; or disconnect with a
+reason, which is consumed as well. The link layer's loop over received PDUs stays the only
+place that frees, for control and L2CAP PDUs alike. Agreed.
+
+**No holding back while an instant is pending.** Today a control PDU that arrives while an
+instant is pending stays at the head of the receive buffer until the instant, and the
+L2CAP PDUs behind it wait too. With the list, a procedure without an instant is handled
+meanwhile, and a second procedure with an instant is a collision and rejected at once.
+Either way the PDU is consumed; the head of line blocking remains only for a full transmit
+buffer. Agreed.
+
+**Reasonable defaults.** The link layer builds the list from its configuration, as
+Bluetoe does everywhere: the mandatory procedures always; the PHY update when the radio
+supports the 2M PHY; encryption when the server requires it, with the source of keys of
+#71. Every default can be removed by an explicit link layer option, which carries a
+`meta_type` so that the `static_assert` catch-alls reject it at the wrong level. Agreed.
+
+**Functions of locally initiated procedures.** The link layer always declares them, for
+example `phy_update_request_to_2mbit()`. Its body asserts why it cannot work when the
+procedure is not in the list, one `static_assert` per cause, such as a radio without the
+2M PHY or the procedure removed by an option, and forwards under `if constexpr` only when
+it is there. A member of a class template is instantiated only when it is called, so an
+application that never calls it pays nothing, and one that does gets the reason instead of
+a missing function. Such a function runs in the application context and only records the
+request; the procedure starts it in the link layer context. Agreed.
 
 ## Memory shared between states
 
@@ -479,6 +556,13 @@ implementation. Steps 6 and 7 add the second implementation next to it.
 ## Decisions to take
 
 - Which of the HCI leftovers of the interface towards the application go, see there.
+- How the transient state of procedures that cannot overlap shares memory. Left out of
+  the design for now.
+- The shape of the option that removes a default procedure: one per procedure, such as
+  `no_phy_update_procedure`, or one generic `without_procedure< phy_update_procedure >`.
+- Whether the connection parameters request stays in by default (today it is always in;
+  #9 asks for it to be optional), and whether the data length update is in by default
+  when the buffers hold more than 27 octets.
 
 The names in this document are proposals until they are in the code. Decisions that come up during the steps are added here and, once taken, moved to
 where they apply and marked as agreed.
