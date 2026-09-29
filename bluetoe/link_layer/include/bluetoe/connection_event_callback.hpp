@@ -251,13 +251,13 @@ namespace link_layer {
 
             void start_first_timer( abs_time anchor, delta_time connection_interval )
             {
-                anchor_ = anchor;
-                steps_  = 0;
-
-                instance_         = PhaseShiftUS < 0 ? 0 : 1;
-                latency_          = 0;
-
                 calculate_effective_period( connection_interval );
+
+                anchor_     = anchor;
+                steps_      = 0;
+                instance_   = ( PhaseShiftUS > 0 && num_calls_ ) ? 1 : 0;
+                latency_    = 0;
+
                 setup_timer();
             }
 

@@ -53,6 +53,17 @@ BOOST_AUTO_TEST_CASE( a_time_is_not_in_its_own_near_past )
     BOOST_CHECK( !t.is_in_near_past( t ) );
 }
 
+BOOST_AUTO_TEST_CASE( in_near_past_or_now_test )
+{
+    const bluetoe::link_layer::abs_time t1( 0 );
+    const bluetoe::link_layer::abs_time t2( 1 );
+
+    BOOST_CHECK( t1.is_in_near_past_or_now( t2 ) );
+    BOOST_CHECK( !t2.is_in_near_past_or_now( t1 ) );
+    BOOST_CHECK( t1.is_in_near_past_or_now( t1 ) );
+    BOOST_CHECK( t2.is_in_near_past_or_now( t2 ) );
+}
+
 BOOST_AUTO_TEST_CASE( in_near_past_over_the_whole_ring )
 {
     for ( const auto t : std::initializer_list< bluetoe::link_layer::abs_time >{
