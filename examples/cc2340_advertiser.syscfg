@@ -1,0 +1,28 @@
+/*
+ * The spike's configuration for SysConfig: the radio through the Radio Control Layer with the
+ * BLE5 PHY and no generated commands, the firmware builds its own; the LED; the CCFG block
+ * with the SDK's defaults, which leave the debug port open.
+ */
+system.getScript("kernel_config_release.syscfg.js");
+
+const RCL = scripting.addModule("/ti/drivers/RCL");
+
+const custom = scripting.addModule("/ti/devices/radioconfig/custom");
+custom.ble = ["ble"];
+const ble = custom.radioConfigble;
+ble.$name = "RF_BLE_Setting";
+ble.codeExportConfig.symGenMethod = "Custom";
+ble.codeExportConfig.cmdList_ble = [];
+
+const rfDesign = scripting.addModule("ti/devices/radioconfig/rfdesign");
+const rfDesignSettings = system.getScript("/ti/common/lprf_rf_design_settings.js").rfDesignSettings;
+for (const setting in rfDesignSettings) rfDesign[setting] = rfDesignSettings[setting];
+
+const GPIO = scripting.addModule("/ti/drivers/GPIO");
+const led = GPIO.addInstance();
+led.$hardware = system.deviceData.board.components.LED_GREEN;
+led.$name = "CONFIG_GPIO_LED";
+
+const device = scripting.addModule("ti/devices/CCFG");
+const ccfgSettings = system.getScript("/ti/common/lprf_ccfg_settings.js").ccfgSettings;
+for (const setting in ccfgSettings) device[setting] = ccfgSettings[setting];

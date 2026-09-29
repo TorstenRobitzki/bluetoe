@@ -7,6 +7,15 @@ project(bluetoe_examples CXX C)
 
 include(${CMAKE_CURRENT_LIST_DIR}/../platforms/cmake/firmware.cmake)
 
+# The CC2340 has the spike of its radio port and nothing else yet: the Radio Control Layer
+# advertising on its own, watched by the tester.
+if (BINDING STREQUAL cc23x0)
+    add_bluetoe_firmware(cc2340_advertiser sdk::cc23x0 cc2340_advertiser.c)
+    add_sysconfig(cc2340_advertiser ${CMAKE_CURRENT_SOURCE_DIR}/cc2340_advertiser.syscfg)
+
+    return()
+endif()
+
 # Support for basic peripherals used in the examples
 add_subdirectory(spl)
 

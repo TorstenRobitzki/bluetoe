@@ -30,7 +30,7 @@ add_subdirectory(bluetoe/sm)
 # Predefined Services (like DIS, CSC and so on)
 add_subdirectory(bluetoe/services)
 
-if (CMAKE_CROSSCOMPILING)
+if (CMAKE_CROSSCOMPILING AND BINDING STREQUAL nrf52)
     add_subdirectory(bluetoe/bindings/nordic)
 endif()
 
