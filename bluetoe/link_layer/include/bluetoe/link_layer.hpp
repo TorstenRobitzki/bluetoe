@@ -1117,7 +1117,6 @@ namespace link_layer {
         bool                            version_indication_received_;
 
         // default configuration parameters
-        typedef                         advertising_interval< 100 >         default_advertising_interval;
         typedef                         sleep_clock_accuracy_ppm< 500 >     default_sleep_clock_accuracy;
         typedef                         random_static_address               default_device_address;
 
