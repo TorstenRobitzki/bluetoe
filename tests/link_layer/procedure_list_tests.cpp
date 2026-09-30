@@ -88,9 +88,7 @@ namespace {
     };
 
     // nothing of the link layer is used yet
-    struct link_layer_mock {
-        using layout_t = pdu_layout;
-    };
+    struct link_layer_mock {};
 
     using no_procedures = bll::details::procedure_list<>;
 

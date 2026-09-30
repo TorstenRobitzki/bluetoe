@@ -100,7 +100,7 @@ namespace details {
     template < class LinkLayer, class LinkData > requires std::derived_from< LinkData, typename procedure_list< Procs... >::state_type >
     procedure_result procedure_list< Procs... >::handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
     {
-        using layout_t = typename LinkLayer::layout_t;
+        using layout_t = decltype(link.buffers)::layout;
 
         assert( pdu.size() != 0 );
         const std::uint8_t opcode = pdu[ 0 ];
