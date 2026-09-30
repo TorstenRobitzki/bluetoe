@@ -1,9 +1,12 @@
 #ifndef BLUETOE_LINK_LAYER_PROCEDURES_HPP
 #define BLUETOE_LINK_LAYER_PROCEDURES_HPP
 
+#include <bluetoe/buffer.hpp>
+
 #include <concepts>
 #include <cstdint>
 #include <span>
+#include <cassert>
 
 namespace bluetoe {
 namespace link_layer {
@@ -85,8 +88,8 @@ namespace details {
          * state_type part of it.
          */
         template < class LinkLayer, class LinkData >
-            requires std::derived_from< LinkData, state_type >
-        static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu );
+        static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
+            requires std::derived_from< LinkData, state_type >;
 
     private:
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
@@ -97,8 +100,9 @@ namespace details {
 
     // implementation
     template < class ... Procs >
-    template < class LinkLayer, class LinkData > requires std::derived_from< LinkData, typename procedure_list< Procs... >::state_type >
+    template < class LinkLayer, class LinkData >
     procedure_result procedure_list< Procs... >::handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
+        requires std::derived_from< LinkData, state_type >
     {
         using layout_t = decltype(link.buffers)::layout;
 
