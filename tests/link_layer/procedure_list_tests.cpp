@@ -132,6 +132,7 @@ BOOST_AUTO_TEST_CASE( an_unknown_request_stalls_without_room_for_the_answer )
     BOOST_CHECK( result == bll::details::procedure_result::stalled() );
     BOOST_CHECK( link.buffers.transmitted.empty() );
 }
+
 /*
  * A stalled PDU stays in the receive buffer, and the link layer passes it again at the next
  * connection event; once there is room, it is answered, once.
@@ -161,4 +162,39 @@ BOOST_AUTO_TEST_CASE( a_stalled_request_is_answered_when_there_is_room )
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == unknown_rsp );
+}
+
+/*
+ * An LL control PDU shall not have a length of 0. There is no opcode to report back, and the
+ * connection has to keep being served, so such a PDU is ignored.
+ */
+BOOST_AUTO_TEST_CASE( a_control_pdu_without_an_opcode_is_ignored )
+{
+    link_layer_mock link_layer;
+    link_data_mock  link;
+
+    const auto no_opcode = control_pdu( {} );
+
+    const auto result = no_procedures::handle_control_pdu( link_layer, link, payload( no_opcode ) );
+
+    BOOST_CHECK( result == bll::details::procedure_result::handled() );
+    BOOST_CHECK( link.buffers.transmitted.empty() );
+}
+
+/*
+ * Ignoring needs no answer, so a PDU without an opcode never stalls the PDUs behind it.
+ */
+BOOST_AUTO_TEST_CASE( a_control_pdu_without_an_opcode_is_ignored_without_room_for_an_answer )
+{
+    link_layer_mock link_layer;
+    link_data_mock  link;
+
+    link.buffers.room_for_an_answer = false;
+
+    const auto no_opcode = control_pdu( {} );
+
+    const auto result = no_procedures::handle_control_pdu( link_layer, link, payload( no_opcode ) );
+
+    BOOST_CHECK( result == bll::details::procedure_result::handled() );
+    BOOST_CHECK( link.buffers.transmitted.empty() );
 }

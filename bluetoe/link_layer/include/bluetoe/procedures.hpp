@@ -83,9 +83,7 @@ namespace details {
         struct state_type {};
 
         /*
-         * A received LL control PDU: the opcode and its parameters, without the header of
-         * the data channel PDU. The procedures get the whole link, but own only their
-         * state_type part of it.
+         * A received LL control PDU
          */
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
@@ -106,7 +104,9 @@ namespace details {
     {
         using layout_t = decltype(link.buffers)::layout;
 
-        assert( pdu.size() != 0 );
+        if ( pdu.size() == 0 )
+            return procedure_result::handled();
+
         const std::uint8_t opcode = pdu[ 0 ];
 
         const auto out_buffer = link.buffers.allocate_ll_transmit_buffer( 2 );
