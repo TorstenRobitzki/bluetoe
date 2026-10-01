@@ -93,27 +93,36 @@ namespace details {
         static constexpr std::uint8_t   ll_control_pdu_code         = 3;
 
         static constexpr std::uint8_t   LL_UNKNOWN_RSP              = 0x07;
+        static constexpr std::uint8_t   LL_UNKNOWN_RSP_SIZE         = 2;
     };
-
 
     // implementation
     template < class ... Procs >
     template < class LinkLayer, class LinkData >
-    procedure_result procedure_list< Procs... >::handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
+    procedure_result procedure_list< Procs... >::handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
         requires std::derived_from< LinkData, state_type >
     {
-        using layout_t = decltype(link.buffers)::layout;
+        assert( pdu.size() <= 0xff );
 
         if ( pdu.size() == 0 )
             return procedure_result::handled();
 
         const std::uint8_t opcode = pdu[ 0 ];
 
-        const auto out_buffer = link.buffers.allocate_ll_transmit_buffer( 2 );
+        procedure_result result;
+        const bool found =
+            ( ... || ( Procs::opcode == opcode && Procs::ctr_data_size + 1 == pdu.size()
+            && ( result = Procs::handle_control_pdu( link_layer, link, pdu ), true ) ) );
+
+        if ( found )
+            return result;
+
+        const auto out_buffer = link.buffers.allocate_ll_transmit_buffer( LL_UNKNOWN_RSP_SIZE );
         if ( out_buffer.size == 0 )
             return procedure_result::stalled();
 
-        fill< layout_t >( out_buffer, { ll_control_pdu_code, 2, LL_UNKNOWN_RSP, opcode } );
+        using layout_t = decltype(link.buffers)::layout;
+        fill< layout_t >( out_buffer, { ll_control_pdu_code, LL_UNKNOWN_RSP_SIZE, LL_UNKNOWN_RSP, opcode } );
         link.buffers.commit_ll_transmit_buffer( out_buffer );
 
         return procedure_result::handled();
