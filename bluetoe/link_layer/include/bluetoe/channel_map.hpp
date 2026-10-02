@@ -23,6 +23,12 @@ namespace link_layer {
         channel_map( std::span< const std::uint8_t, 5 > map, std::uint8_t hop );
 
         /**
+         * @brief check whether all channels in the map are valid and that at
+         *        that the map contains at least 2 channels.
+         */
+        static bool check_planned_map( std::span< const std::uint8_t, 5 > map );
+
+        /**
          * @brief sets a new list of used channels and a new hop value.
          *
          * The function returns true, if the given parameters are valid.

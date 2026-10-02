@@ -199,3 +199,10 @@ BOOST_FIXTURE_TEST_CASE( real_life_example, all_channels_but_25 )
     BOOST_CHECK_EQUAL( data_channel( 30 ), 1u );
     BOOST_CHECK_EQUAL( data_channel( 35 ), 31u );
 }
+
+BOOST_AUTO_TEST_CASE( ignore_rfu )
+{
+    static constexpr std::uint8_t all_and_rfu[] = { 0xff, 0xff, 0xff, 0xfd, 0xff };
+
+    BOOST_CHECK( bluetoe::link_layer::channel_map::check_planned_map( all_and_rfu ) );
+}
