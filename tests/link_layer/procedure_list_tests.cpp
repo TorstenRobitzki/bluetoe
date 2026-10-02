@@ -29,6 +29,7 @@ namespace {
         }
 
         struct state_type {};
+        struct instant_state {};
     };
 
     using no_procedures = bll::details::procedure_list<>;

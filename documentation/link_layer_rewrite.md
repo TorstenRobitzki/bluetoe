@@ -513,7 +513,8 @@ The open issues that belong to this work, grouped by where they get fixed.
   request, #130 lost connection after PHY update, #9 connection parameter update optional,
   #71 encryption without a security manager.
 - **Link and scheduler:** #119 connection timeout with invalid CRCs, #120 latency before
-  the first acknowledgement, #116 disconnect on invalid MIC, #132 LL/CON/ADV/BI-01-C.
+  the first acknowledgement, #116 disconnect on invalid MIC, #132 LL/CON/ADV/BI-01-C,
+  #164 the hop out of the channel map.
 - **Contexts:** #7 disconnect, #151 advertising count from two contexts.
 - **Buffers:** #80 L2CAP fragmentation, #32 and #40 buffer size defaults.
 - **Left as decided:** #84 stays open; the simulation's `run()` is not made to return per

@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_CHANNEL_MAP_HPP
 
 #include <cstdint>
+#include <span>
 
 namespace bluetoe {
 namespace link_layer {
@@ -13,6 +14,13 @@ namespace link_layer {
     {
     public:
         channel_map();
+
+        /**
+         * @brief used reset( map, hop ) to contruct a map from pdu data
+         *
+         * If reset( map, hop ) is invalid, hop will be set to 0xff
+         */
+        channel_map( std::span< const std::uint8_t, 5 > map, std::uint8_t hop );
 
         /**
          * @brief sets a new list of used channels and a new hop value.
@@ -41,6 +49,14 @@ namespace link_layer {
          * the number of channels, used as data channel.
          */
         static constexpr unsigned max_number_of_data_channels = 37;
+
+        /**
+         * the current hop value
+         */
+        std::uint8_t hop() const;
+
+        bool operator==( const channel_map& rhs ) const = default;
+
     private:
         unsigned build_used_channel_map( const std::uint8_t* map, std::uint8_t* used ) const;
 

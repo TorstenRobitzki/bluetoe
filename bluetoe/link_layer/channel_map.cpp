@@ -9,6 +9,13 @@ namespace link_layer {
     {
     }
 
+    channel_map::channel_map( std::span< const std::uint8_t, 5 > map, std::uint8_t hop )
+        : hop_( hop )
+    {
+        if ( !reset( map.data(), hop ) )
+            hop_ = 0xff;
+    }
+
     static bool in_map( const std::uint8_t* map, unsigned index )
     {
         return map[ index / 8 ] & ( 1 << ( index % 8 ) );
@@ -73,6 +80,10 @@ namespace link_layer {
         return map_[ index ];
     }
 
+    std::uint8_t channel_map::hop() const
+    {
+        return hop_;
+    }
 
 }
 }

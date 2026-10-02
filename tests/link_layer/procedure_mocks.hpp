@@ -4,6 +4,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <bluetoe/buffer.hpp>
+#include <bluetoe/connection_parameters.hpp>
 
 #include "test_layout.hpp"
 
@@ -100,13 +101,50 @@ struct link_layer_mock
     {
         return 0x0269;
     }
+
+    // the new timing of a connection update, applied at its instant
+    template < class LinkData >
+    void update_connection( LinkData& link, const bluetoe::link_layer::details::connection_timing& timing )
+    {
+        connection_updates.push_back( timing );
+        link.parameters.update_timing( timing );
+    }
+
+    template < class LinkData >
+    void update_channel_map( LinkData& link, const bluetoe::link_layer::channel_map new_map )
+    {
+        channel_map_updates.push_back( new_map );
+        link.parameters.channels( new_map );
+    }
+
+    std::vector< bluetoe::link_layer::details::connection_timing >  connection_updates;
+    std::vector< bluetoe::link_layer::channel_map >                 channel_map_updates;
 };
+
+// we simulate the situation where a connection is established, so we need a valid
+// channel map (indeed the hop is important)
+inline const std::array< std::uint8_t, 5 > init_map_data({{ 0xFF, 0xFF, 0xFF, 0xFF, 0x1F }});
+inline bluetoe::link_layer::channel_map init_map{ std::span( init_map_data ), 12 };
 
 // the link data of a link that runs the procedures of the procedure_list<> Procedures
 template < class Procedures >
 struct link_data_mock : Procedures::state_type
 {
-    buffers_mock buffers;
+    link_data_mock()
+    {
+        parameters.channels( init_map );
+    }
+
+    buffers_mock                                        buffers;
+    bluetoe::link_layer::details::connection_parameters parameters;
+
+    // the event in which a PDU is received, or that the link layer is about to set up
+    std::uint16_t   connection_event_counter_value = 0;
+
+    std::uint16_t connection_event_counter()
+    {
+        return connection_event_counter_value;
+    }
 };
 
 #endif

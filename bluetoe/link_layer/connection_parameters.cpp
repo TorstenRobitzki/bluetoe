@@ -21,6 +21,39 @@ namespace details {
         }
     }
 
+    bool connection_timing::from_connection_update( const std::uint8_t* body )
+    {
+        using namespace ::bluetoe::details;
+
+        transmit_window_size_   = delta_time( body[ 1 ] * us_per_digits );
+        transmit_window_offset_ = delta_time( read_16bit( &body[ 2 ] ) * us_per_digits );
+        interval_               = delta_time( read_16bit( &body[ 4 ] ) * us_per_digits );
+        latency_                = read_16bit( &body[ 6 ] );
+        timeout_value_          = read_16bit( &body[ 8 ] );
+        timeout_                = delta_time( timeout_value_ * 10000 );
+
+        return transmit_window_offset_ <= interval_ && valid();
+    }
+
+    bool connection_timing::valid() const
+    {
+        static constexpr delta_time maximum_transmit_window_size( 10 * 1000 );
+        static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
+        static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
+        static constexpr delta_time minimum_connection_interval( 7500 );
+        static constexpr delta_time maximum_connection_interval( 4 * 1000 * 1000 );
+
+        // the transmit window ends at least one unit before the interval (Vol 6, Part B, 2.3.3.1 and 2.4.2.1)
+        return transmit_window_size_ <= std::min( maximum_transmit_window_size, interval_ - delta_time( us_per_digits ) )
+            && transmit_window_size_ >= delta_time( us_per_digits )
+            && delta_time( interval_ ) >= minimum_connection_interval
+            && delta_time( interval_ ) <= maximum_connection_interval
+            && timeout_ >= minimum_connection_timeout
+            && timeout_ <= maximum_connection_timeout
+            && timeout_ > ( latency_ + 1 ) * 2 * interval_
+            && latency_ <= maximum_link_layer_peripheral_latency;
+    }
+
     bool connection_parameters::from_connect_request( const std::uint8_t* body, unsigned local_sleep_clock_accuracy_ppm )
     {
         using namespace ::bluetoe::details;
@@ -41,23 +74,9 @@ namespace details {
         return transmit_window_offset <= interval_ && valid();
     }
 
-    bool connection_parameters::from_connection_update( const std::uint8_t* body )
+    void connection_parameters::update_timing( const connection_timing& other )
     {
-        using namespace ::bluetoe::details;
-
-        transmit_window_size_   = delta_time( body[ 1 ] * us_per_digits );
-        transmit_window_offset_ = delta_time( read_16bit( &body[ 2 ] ) * us_per_digits );
-        interval_               = delta_time( read_16bit( &body[ 4 ] ) * us_per_digits );
-        latency_                = read_16bit( &body[ 6 ] );
-        timeout_value_          = read_16bit( &body[ 8 ] );
-        timeout_                = delta_time( timeout_value_ * 10000 );
-
-        return transmit_window_offset_ <= interval_ && valid();
-    }
-
-    void connection_parameters::channels( const std::uint8_t* map )
-    {
-        channels_.reset( map );
+        static_cast< connection_timing& >( *this ) = other;
     }
 
     connection_details connection_parameters::details() const
@@ -70,20 +89,17 @@ namespace details {
             cumulated_sleep_clock_accuracy_ );
     }
 
-    bool connection_parameters::valid() const
+    void connection_parameters::channels( const std::uint8_t* map )
     {
-        static constexpr delta_time maximum_transmit_window_size( 10 * 1000 );
-        static constexpr delta_time maximum_connection_timeout( 32 * 1000 * 1000 );
-        static constexpr delta_time minimum_connection_timeout( 100 * 1000 );
-
-        // the transmit window ends at least one unit before the interval (Vol 6, Part B, 2.3.3.1 and 2.4.2.1)
-        return transmit_window_size_ <= maximum_transmit_window_size
-            && transmit_window_size_ + delta_time( us_per_digits ) <= interval_
-            && timeout_ >= minimum_connection_timeout
-            && timeout_ <= maximum_connection_timeout
-            && timeout_ >= ( latency_ + 1 ) * 2 * interval_
-            && latency_ <= maximum_link_layer_peripheral_latency;
+        channels_.reset( map );
     }
+
+    void connection_parameters::channels( const channel_map& map )
+    {
+        channels_ = map;
+    }
+
+
 }
 }
 }
