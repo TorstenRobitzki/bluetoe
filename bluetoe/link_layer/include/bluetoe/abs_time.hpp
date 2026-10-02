@@ -86,6 +86,15 @@ namespace link_layer {
                 : ( ~rep_ + reference.rep_ ) < max_distance;
         }
 
+        /**
+         * @brief return true, if this->is_in_near_past( reference ) is true,
+         *        or *this is equal to reference.
+         */
+        bool is_in_near_past_or_now( abs_time reference ) const
+        {
+            return is_in_near_past( reference ) || *this == reference;
+        }
+
         abs_time& operator-=( delta_time rhs )
         {
             rep_ -= rhs.usec();

@@ -3,6 +3,7 @@
 
 #include <bluetoe/ll_meta_types.hpp>
 #include <bluetoe/delta_time.hpp>
+#include <bluetoe/abs_time.hpp>
 
 namespace bluetoe {
 namespace link_layer {
@@ -151,15 +152,18 @@ namespace link_layer {
     {
         /**
          * @brief stop the call of the synchronized callbacks.
+         *
+         * @attention currently not implemented
          */
-        void stop_synchronized_connection_event_callbacks();
+//        void stop_synchronized_connection_event_callbacks();
 
         /**
          * @brief restart the invocation of synchronized callbacks, after they where stopped.
          *
+         * @attention currently not implemented
          * @pre stop_synchronized_connection_event_callbacks()
          */
-        void restart_synchronized_connection_event_callbacks();
+//        void restart_synchronized_connection_event_callbacks();
 
         /**
          * @brief Ask Bluetoe to ignore the last return value of ll_synchronized_callback() and call the
@@ -171,28 +175,9 @@ namespace link_layer {
         template < typename LinkLayer >
         struct impl {
             impl()
-                : stopped_( false )
-                , force_( false )
+                : force_( false )
             {
                 static_assert( LinkLayer::hardware_supports_synchronized_user_timer, "choosen binding does not support the use of user timer!" );
-            }
-
-            void stop_synchronized_connection_event_callbacks()
-            {
-                stopped_ = true;
-                force_   = false;
-
-                link_layer().cancel_synchronized_user_timer();
-            }
-
-            void restart_synchronized_connection_event_callbacks()
-            {
-                instance_         = 0;
-                latency_          = 0;
-                num_intervals_since_anchor_moved_ = 0;
-
-                stopped_ = false;
-                link_layer().restart_user_timer();
             }
 
             void force_synchronized_connection_event_callback()
@@ -200,19 +185,12 @@ namespace link_layer {
                 force_ = true;
             }
 
-            void synchronized_connection_event_callback_new_connection( delta_time connection_interval )
+            void synchronized_connection_event_callback_new_connection( abs_time anchor, delta_time connection_interval )
             {
-                if ( stopped_ )
-                    return;
-
                 connection_value_ = typename T::connection();
-                instance_         = PhaseShiftUS > 0 ? 1 : 0;
-                latency_          = 0;
 
-                calculate_effective_period( connection_interval );
+                start_first_timer( anchor, connection_interval );
                 call_ll_connect< T >( connection_interval, connection_value_ );
-                link_layer().cancel_synchronized_user_timer();
-                setup_timer( first_timeout() );
             }
 
             void synchronized_connection_event_callback_start_changing_connection()
@@ -220,17 +198,15 @@ namespace link_layer {
                 link_layer().cancel_synchronized_user_timer();
             }
 
-            void synchronized_connection_event_callback_connection_changed( delta_time connection_interval )
+            void synchronized_connection_event_callback_connection_changed( abs_time anchor, delta_time connection_interval )
             {
-                if ( stopped_ )
-                    return;
-
-                instance_         = PhaseShiftUS > 0 ? 1 : 0;
-                latency_          = 0;
-
-                calculate_effective_period( connection_interval );
+                start_first_timer( anchor, connection_interval );
                 call_ll_update< T >( connection_interval );
-                setup_timer( first_timeout() );
+            }
+
+            void synchronized_connection_event_callback_new_anchor( abs_time anchor, delta_time connection_interval )
+            {
+                new_anchor( anchor, connection_interval );
             }
 
             void synchronized_connection_event_callback_disconnect()
@@ -239,11 +215,8 @@ namespace link_layer {
                 link_layer().cancel_synchronized_user_timer();
             }
 
-            void synchronized_connection_event_callback_timeout( bool anchor_moved )
+            void synchronized_connection_event_callback_timeout( abs_time )
             {
-                if ( stopped_ )
-                    return;
-
                 if ( force_ )
                 {
                     force_   = false;
@@ -257,20 +230,54 @@ namespace link_layer {
                 if ( num_calls_ )
                     instance_ = ( instance_ + 1 ) % num_calls_;
 
-                // if the PhaseShiftUS is negative, the first callback is already first_timeout()
-                // away from the anchor
-                static constexpr unsigned first_interval_after_anchor = ( PhaseShiftUS < 0 )
-                    ? 1
-                    : 0;
-
-                num_intervals_since_anchor_moved_ = anchor_moved
-                    ? first_interval_after_anchor
-                    : num_intervals_since_anchor_moved_ + 1;
-
-                setup_timer( first_timeout() + num_intervals_since_anchor_moved_ * effective_period_ );
+                setup_timer();
             }
 
         private:
+            /*
+             * The calls lie on a grid of steps from the anchor: a step is the effective period if
+             * there are several calls per interval, and the interval if a call spans several
+             * intervals. A new anchor moves the grid by the whole intervals that passed; what is
+             * left over is the drift between the two sleep clocks, which the grid follows.
+             */
+            void new_anchor( abs_time anchor, delta_time connection_interval )
+            {
+                const unsigned intervals = ( ( anchor - anchor_ ) + delta_time( connection_interval.usec() / 2 ) ) / connection_interval;
+                const unsigned passed    = intervals * steps_per_interval();
+
+                steps_  = steps_ > passed ? steps_ - passed : 0;
+                anchor_ = anchor;
+            }
+
+            void start_first_timer( abs_time anchor, delta_time connection_interval )
+            {
+                calculate_effective_period( connection_interval );
+
+                anchor_     = anchor;
+                steps_      = 0;
+                instance_   = ( PhaseShiftUS > 0 && num_calls_ ) ? 1 : 0;
+                latency_    = 0;
+
+                setup_timer();
+            }
+
+            delta_time step() const
+            {
+                return num_calls_
+                    ? effective_period_
+                    : delta_time( effective_period_.usec() / num_intervals_ );
+            }
+
+            unsigned steps_per_call() const
+            {
+                return num_calls_ ? 1 : num_intervals_;
+            }
+
+            unsigned steps_per_interval() const
+            {
+                return num_calls_ ? num_calls_ : 1;
+            }
+
             template < class TT >
             auto call_ll_connect( bluetoe::link_layer::delta_time connection_interval, typename TT::connection& con )
                 -> decltype(&TT::ll_synchronized_callback_connect)
@@ -311,10 +318,16 @@ namespace link_layer {
             {
             }
 
-            void setup_timer( delta_time dt )
+            void setup_timer()
             {
-                const bool setup = link_layer().schedule_synchronized_user_timer( dt, delta_time( MaximumExecutionTimeUS ) );
-                static_cast< void >( setup );
+                steps_ += steps_per_call();
+
+                const abs_time on_grid = anchor_ + steps_ * step();
+                const abs_time when    = PhaseShiftUS < 0
+                    ? on_grid - delta_time::usec( -PhaseShiftUS )
+                    : on_grid + delta_time::usec( PhaseShiftUS );
+
+                [[maybe_unused]] const bool setup = link_layer().schedule_synchronized_user_timer( when, delta_time( MaximumExecutionTimeUS ) );
                 assert( setup );
             }
 
@@ -340,18 +353,10 @@ namespace link_layer {
                     effective_period_ = delta_time( num_intervals_ * interval_us );
                 }
 
-                num_intervals_since_anchor_moved_ = 0;
-
                 assert( effective_period_.usec() <= MaximumPeriodUS );
             }
 
-            delta_time first_timeout() const
-            {
-                return PhaseShiftUS < 0
-                    ? effective_period_ - delta_time::usec( -PhaseShiftUS )
-                    : effective_period_ + delta_time::usec( PhaseShiftUS );
-            }
-
+            abs_time   anchor_;
             delta_time effective_period_;
 
             unsigned instance_;
@@ -363,11 +368,11 @@ namespace link_layer {
             // > 1 if there are more that 1 interval between two CB calls
             unsigned num_intervals_;
 
-            unsigned num_intervals_since_anchor_moved_;
+            // steps from anchor_ to the call the timer is scheduled for
+            unsigned steps_;
 
             typename T::connection connection_value_;
 
-            volatile bool stopped_;
             volatile bool force_;
         };
 
@@ -385,7 +390,7 @@ namespace link_layer {
         /** @cond HIDDEN_SYMBOLS */
         template < typename LinkLayer >
         struct impl {
-            void synchronized_connection_event_callback_new_connection( delta_time )
+            void synchronized_connection_event_callback_new_connection( abs_time, delta_time )
             {
             }
 
@@ -393,11 +398,16 @@ namespace link_layer {
             {
             }
 
-            void synchronized_connection_event_callback_connection_changed( delta_time )
+            void synchronized_connection_event_callback_connection_changed( abs_time, delta_time )
             {
             }
 
-            void synchronized_connection_event_callback_timeout( bool )
+            void synchronized_connection_event_callback_new_anchor( abs_time, delta_time )
+            {
+
+            }
+
+            void synchronized_connection_event_callback_timeout( abs_time )
             {
             }
 

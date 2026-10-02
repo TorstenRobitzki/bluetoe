@@ -1,5 +1,6 @@
 #include <bluetoe/channel_map.hpp>
 #include <cassert>
+#include <bit>
 
 namespace bluetoe {
 namespace link_layer {
@@ -7,6 +8,32 @@ namespace link_layer {
     channel_map::channel_map()
         : hop_( 0 )
     {
+    }
+
+    channel_map::channel_map( std::span< const std::uint8_t, 5 > map, std::uint8_t hop )
+        : hop_( hop )
+    {
+        if ( !reset( map.data(), hop ) )
+            hop_ = 0xff;
+    }
+
+    bool channel_map::check_planned_map( std::span< const std::uint8_t, 5 > map_input )
+    {
+        std::uint64_t map = 0;
+        std::size_t   index = 0;
+
+        for ( const std::uint8_t b: map_input )
+        {
+            map |= ( std::uint64_t( b ) << std::uint64_t( index ) );
+            index += 8;
+        }
+
+        static constexpr std::uint64_t valid_mask = ( std::uint64_t(1) << max_number_of_data_channels ) - 1;
+
+        if ( std::popcount( map & valid_mask ) < 2 )
+            return false;
+
+        return true;
     }
 
     static bool in_map( const std::uint8_t* map, unsigned index )
@@ -34,16 +61,13 @@ namespace link_layer {
     {
         assert( map );
 
-        if ( hop < 5 || hop > 16 )
+        if ( hop < 5 || hop > 16 || !check_planned_map( std::span< const std::uint8_t, 5 >( map, 5 ) ) )
             return false;
 
         hop_ = hop;
 
         std::uint8_t   used_channels[ max_number_of_data_channels ];
         const unsigned used_channels_count = build_used_channel_map( map, used_channels );
-
-        if ( used_channels_count < 2 )
-            return false;
 
         for ( unsigned index = 0, channel = hop; index != max_number_of_data_channels; ++index )
         {
@@ -73,6 +97,10 @@ namespace link_layer {
         return map_[ index ];
     }
 
+    std::uint8_t channel_map::hop() const
+    {
+        return hop_;
+    }
 
 }
 }

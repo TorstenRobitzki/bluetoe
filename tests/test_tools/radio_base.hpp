@@ -115,12 +115,15 @@ namespace test {
 
     struct connection_event
     {
-        bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled (from start of simulation)
+        bluetoe::link_layer::delta_time     schedule_time;     // when was the actions scheduled
 
         // parameters
         unsigned                            channel;
         bluetoe::link_layer::delta_time     start_receive;
         bluetoe::link_layer::delta_time     end_receive;
+
+        // when was the simulated event happened
+        bluetoe::link_layer::abs_time       when;
 
         bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t receiving_encoding;
         bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t transmission_encoding;
@@ -187,9 +190,8 @@ namespace test {
 
     struct scheduled_user_timer
     {
-        bluetoe::link_layer::delta_time     schedule_time;      // when was the actions scheduled (from start of simulation)
-        bluetoe::link_layer::delta_time     current_anchor;     // Anchor on which delay is based
-        bluetoe::link_layer::delta_time     delay;
+        bluetoe::link_layer::abs_time   schedule_time;      // when was the actions scheduled (from start of simulation)
+        bluetoe::link_layer::abs_time   when;               // when was the timer planned to time out?
     };
 
     std::ostream& operator<<( std::ostream& out, const scheduled_user_timer& data );

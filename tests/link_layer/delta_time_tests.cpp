@@ -178,3 +178,21 @@ BOOST_AUTO_TEST_CASE( ppm_rounded_down )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( conversions )
+
+BOOST_AUTO_TEST_CASE( static_conversion_tests )
+{
+    static_assert( std::is_convertible_v< std::chrono::milliseconds, bll::delta_time > );
+    static_assert( !std::is_convertible_v< std::chrono::nanoseconds, bll::delta_time > );
+    static_assert( !std::is_convertible_v< std::chrono::duration< double >, bll::delta_time > );
+}
+
+BOOST_AUTO_TEST_CASE( conversion_from_chrono )
+{
+    BOOST_CHECK_EQUAL( bll::delta_time::usec( 123 ), std::chrono::microseconds( 123 ) );
+    BOOST_CHECK_EQUAL( bll::delta_time::msec( 123 ), std::chrono::microseconds( 123'000 ) );
+    BOOST_CHECK_EQUAL( bll::delta_time::msec( 123 ), std::chrono::milliseconds( 123 ) );
+}
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -421,6 +421,7 @@ namespace test {
             channel,
             start_receive - last_anchor_,
             end_receive - last_anchor_,
+            start_receive,
             receiving_encoding_,
             transmiting_encoding_,
             access_address_,
@@ -471,9 +472,8 @@ namespace test {
             return false;
 
         const scheduled_user_timer new_timer = {
-            since_start( now_ ),
-            since_start( last_anchor_ ),
-            when - last_anchor_ };
+            .schedule_time = now_,
+            .when = when };
 
         scheduled_user_timers_.push_back( new_timer );
 
@@ -597,6 +597,7 @@ namespace test {
 
         if ( response.timeout )
         {
+            event.when = window_end;
             now_  = simulate_user_timer_response( window_end );
             idle_ = true;
 
@@ -605,8 +606,10 @@ namespace test {
         else
         {
             // timers that expire before the event are delivered while the anchor is still the last one
-            now_         = simulate_user_timer_response( window_start );
             last_anchor_ = window_start;
+            event.when = window_start;
+
+            now_         = simulate_user_timer_response( last_anchor_ );
 
             static constexpr std::uint8_t sn_flag        = 0x8;
             static constexpr std::uint8_t nesn_flag      = 0x4;
@@ -618,8 +621,6 @@ namespace test {
 
             if ( pdus.empty() && response.func )
                 pdus = response.func();
-
-            bluetoe::link_layer::connection_event_events events;
 
             do
             {
@@ -673,8 +674,7 @@ namespace test {
             } while ( more_data );
 
             idle_ = true;
-
-            deliver_to().connection_end_event( last_anchor_, events );
+            deliver_to().connection_end_event( last_anchor_, bluetoe::link_layer::connection_event_events() );
         }
     }
 
