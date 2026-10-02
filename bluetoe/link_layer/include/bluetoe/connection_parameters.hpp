@@ -111,8 +111,6 @@ namespace details {
          */
         void channels( const std::uint8_t* map );
 
-        void channels( const channel_map& map );
-
         const channel_map& channels() const
         {
             return channels_;

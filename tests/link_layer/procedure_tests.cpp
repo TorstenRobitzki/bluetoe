@@ -564,8 +564,7 @@ BOOST_AUTO_TEST_CASE( a_channel_map_update_is_applied_at_its_instant )
     run_connection_events( link_layer, link, 106 );
     BOOST_REQUIRE_EQUAL( link_layer.channel_map_updates.size(), 1u );
 
-    const std::array< std::uint8_t, 5 > map_data({{ 0xFF, 0x00, 0xFF, 0x00, 0x1F }});
-    bluetoe::link_layer::channel_map new_map ( std::span( map_data ), 12 );
+    const std::array< std::uint8_t, 5 > new_map({{ 0xFF, 0x00, 0xFF, 0x00, 0x1F }});
     BOOST_CHECK( link_layer.channel_map_updates[ 0 ] == new_map );
 
     run_connection_events( link_layer, link, 120 );

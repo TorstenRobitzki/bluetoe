@@ -290,15 +290,20 @@ namespace details {
     public:
         static constexpr std::uint8_t opcode        = opcodes::LL_CHANNEL_MAP_IND;
         static constexpr std::uint8_t ctr_data_size = 7;
+        static constexpr std::uint8_t map_data_size = 5;
 
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
         {
-            channel_map new_map;
-            if ( !new_map.reset( pdu.data() + 1, link.parameters.channels().hop() ) )
+            if ( !channel_map::check_planned_map( pdu.subspan< 1, map_data_size>() ) )
+            {
                 return procedure_result::disconnect( controller_error_codes::invalid_ll_parameters );
+            }
 
-            return apply_and_check_instant( new_map, link, bluetoe::details::read_16bit( pdu.data() + 5 + 1 ) );
+            instant_state new_map;
+            std::copy( pdu.data() + 1, pdu.data() + 1 + map_data_size, new_map.begin() );
+
+            return apply_and_check_instant( new_map, link, bluetoe::details::read_16bit( pdu.data() + map_data_size + 1 ) );
         }
 
         template < class LinkLayer, class LinkData >
@@ -315,7 +320,7 @@ namespace details {
         }
 
         struct state_type {};
-        using instant_state = channel_map;
+        using instant_state = std::array< std::uint8_t, map_data_size >;
     };
 
     ///////////////////////
@@ -354,16 +359,12 @@ namespace details {
 
 
     template < class Proc, class LinkLayer, class LinkData >
-    auto call_procedure_connection_event( LinkLayer& link_layer, LinkData& link, procedure_result& result, int = 0 )
-     -> decltype( Proc::connection_event( link_layer, link, result ) )
+    bool call_procedure_connection_event( LinkLayer& link_layer, LinkData& link, procedure_result& result )
     {
-        return Proc::connection_event( link_layer, link, result );
-    }
-
-    template < class Proc, class LinkLayer, class LinkData >
-    bool call_procedure_connection_event( LinkLayer& /* link_layer */, LinkData& /* link */, procedure_result& /* result */, double = 0 )
-    {
-        return false;
+        if constexpr ( requires { Proc::connection_event( link_layer, link, result ); } )
+            return Proc::connection_event( link_layer, link, result );
+        else
+            return false;
     }
 
     template < class ... Procs >
@@ -378,7 +379,7 @@ namespace details {
         if ( state.procedures_instant.has_value() && *state.procedures_instant == link.connection_event_counter() )
         {
             [[maybe_unused]] const int handled =
-                ( ... + ( call_procedure_connection_event< Procs >( link_layer, link, result, 0 ) ? 1 : 0 ) );
+                ( ... + ( call_procedure_connection_event< Procs >( link_layer, link, result ) ? 1 : 0 ) );
 
             assert( handled == 1 );
 

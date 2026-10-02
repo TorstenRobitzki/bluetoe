@@ -23,8 +23,9 @@ namespace link_layer {
         channel_map( std::span< const std::uint8_t, 5 > map, std::uint8_t hop );
 
         /**
-         * @brief check whether all channels in the map are valid and that at
-         *        that the map contains at least 2 channels.
+         * @brief check whether the map names at least two data channels
+         *
+         * the reserved bits 37 to 39 are ignored
          */
         static bool check_planned_map( std::span< const std::uint8_t, 5 > map );
 

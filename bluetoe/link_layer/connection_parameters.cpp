@@ -94,12 +94,6 @@ namespace details {
         channels_.reset( map );
     }
 
-    void connection_parameters::channels( const channel_map& map )
-    {
-        channels_ = map;
-    }
-
-
 }
 }
 }
