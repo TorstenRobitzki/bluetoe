@@ -5,8 +5,10 @@
 
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/connection_parameters.hpp>
+#include <bluetoe/procedures.hpp>
 
 #include "test_layout.hpp"
+#include "procedures_io.hpp"
 
 #include <algorithm>
 #include <array>
@@ -129,6 +131,8 @@ inline const std::array< std::uint8_t, 5 > init_map_data({{ 0xFF, 0xFF, 0xFF, 0x
 template < class Procedures >
 struct link_data_mock : Procedures::state_type
 {
+    using procedures = Procedures;
+
     link_data_mock()
     {
         parameters.channels( init_map_data.data() );
@@ -145,5 +149,21 @@ struct link_data_mock : Procedures::state_type
         return connection_event_counter_value;
     }
 };
+
+/*
+ * The link layer calls connection_event() before it sets up an event, with the counter of
+ * that event. This runs the events after the current one, up to and including last.
+ */
+template < class LinkData >
+void run_connection_events( link_layer_mock& link_layer, LinkData& link, std::uint16_t last )
+{
+    while ( link.connection_event_counter_value != last )
+    {
+        ++link.connection_event_counter_value;
+
+        const auto result = LinkData::procedures::connection_event( link_layer, link );
+        BOOST_TEST( result == bluetoe::link_layer::details::procedure_result::handled() );
+    }
+}
 
 #endif

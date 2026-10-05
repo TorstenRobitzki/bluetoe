@@ -110,11 +110,13 @@ namespace details {
             std::variant< typename Procs::instant_state..., int > procedures_instant_state;
 
             // if set to an value, a procedure with instant is running
-            std::optional< std::uint16_t > procedures_instant;
+            std::optional< std::uint16_t >  procedures_instant;
         };
 
-        /*
-         * A received LL control PDU
+        /**
+         * @brief A received LL control PDU
+         *
+         * To be called on every received link layer control PDU.
          */
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
@@ -122,9 +124,26 @@ namespace details {
 
         /**
          * @brief see, if there has something to be done for the current instant at the current connection event
+         *
+         * To be called on every connection event that actually happens. If a link layer control PDU
+         * was received on the connection event, connection_event() has to be called before
+         * handle_control_pdu().
+         *
+         * Must be called for every connection event the peripheral listens to;
+         * the event of a pending instant is never skipped.
          */
         template < class LinkLayer, class LinkData >
         static procedure_result connection_event( LinkLayer& /*link_layer*/, LinkData& /*link*/ )
+            requires procedure_list_link_data< LinkData, procedure_list< Procs... > >;
+
+        /**
+         * @brief connection got reset
+         *
+         * Has to be called, when a connection is closed and the same link object should
+         * be reused for a next connection.
+         */
+        template < class LinkData >
+        static void connection_reset( LinkData& /*link*/ )
             requires procedure_list_link_data< LinkData, procedure_list< Procs... > >;
 
     private:
@@ -232,7 +251,11 @@ namespace details {
         template < class InstantState, class LinkData >
         static procedure_result apply_and_check_instant( const InstantState& state, LinkData& link, const std::uint16_t instant )
         {
-            assert( !link.procedures_instant.has_value() );
+            if ( link.procedures_instant.has_value() )
+                return procedure_result::disconnect(
+                    std::holds_alternative< InstantState >( link.procedures_instant_state )
+                        ? controller_error_codes::ll_procedure_collision
+                        : controller_error_codes::different_transaction_collision );
 
             if ( static_cast< std::uint16_t >( instant - link.connection_event_counter() ) > 0x7fff
                 || instant == link.connection_event_counter() )
@@ -387,6 +410,14 @@ namespace details {
         }
 
         return result;
+    }
+
+    template < class ... Procs >
+    template < class LinkData >
+    void procedure_list< Procs... >::connection_reset( LinkData& link )
+        requires procedure_list_link_data< LinkData, procedure_list< Procs... > >
+    {
+        static_cast< state_type& >( link ) = state_type();
     }
 
 }

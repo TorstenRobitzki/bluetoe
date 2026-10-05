@@ -8,6 +8,9 @@
 
 #include <cstdint>
 #include <span>
+#include <utility>
+#include <variant>
+#include <vector>
 
 namespace bll = bluetoe::link_layer;
 
@@ -31,6 +34,120 @@ namespace {
         struct state_type {};
         struct instant_state {};
     };
+
+    /*
+     * A made up request with a made up response: it needs room for its answer.
+     */
+    class request_fixture
+    {
+    public:
+        static constexpr std::uint8_t opcode        = 0xF2;
+        static constexpr std::uint8_t response      = 0xF3;
+        static constexpr std::uint8_t ctr_data_size = 0;
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            const auto write = link.buffers.allocate_ll_transmit_buffer( 1 );
+
+            if ( write.size == 0 )
+                return bll::details::procedure_result::stalled();
+
+            bluetoe::link_layer::fill< typename decltype( link.buffers )::layout >( write, { 0x03, 1, response } );
+            link.buffers.commit_ll_transmit_buffer( write );
+
+            return bll::details::procedure_result::handled();
+        }
+
+        struct state_type {};
+        struct instant_state {};
+    };
+
+    /*
+     * A made up indication with an instant, like LL_CONNECTION_UPDATE_IND: CtrData is a value
+     * and the instant. At the instant, the procedure records its opcode and the value in the
+     * link data. Two opcodes make two different procedures.
+     */
+    template < std::uint8_t Opcode >
+    class instant_fixture : public bll::details::procedure_with_instant
+    {
+    public:
+        static constexpr std::uint8_t opcode        = Opcode;
+        static constexpr std::uint8_t ctr_data_size = 3;
+
+        struct instant_state
+        {
+            std::uint8_t value;
+        };
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            return apply_and_check_instant( instant_state{ pdu[ 1 ] }, link, bluetoe::details::read_16bit( &pdu[ 2 ] ) );
+        }
+
+        template < class LinkLayer, class LinkData >
+        static bool connection_event( LinkLayer& /*link_layer*/, LinkData& link, bll::details::procedure_result& /*result*/ )
+        {
+            const auto state = std::get_if< instant_state >( &link.procedures_instant_state );
+
+            if ( !state )
+                return false;
+
+            link.applied.push_back( { opcode, state->value } );
+
+            return true;
+        }
+
+        struct state_type {};
+    };
+
+    struct procedure_with_state
+    {
+        static constexpr std::uint8_t opcode        = 0xF6;
+        static constexpr std::uint8_t ctr_data_size = 0;
+        static constexpr int state_init             = 42;
+
+        template < class LinkLayer, class LinkData >
+        static bluetoe::link_layer::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            ++static_cast< state_type& >( link ).state;
+            return bluetoe::link_layer::details::procedure_result::handled();
+        }
+
+        struct state_type { int state = state_init; };
+        struct instant_state {};
+    };
+
+    using instant_fixture_a = instant_fixture< 0xF4 >;
+    using instant_fixture_b = instant_fixture< 0xF5 >;
+
+    // the PDU of an instant_fixture
+    std::vector< std::uint8_t > instant_pdu( std::uint8_t opcode, std::uint8_t value, std::uint16_t instant )
+    {
+        return control_pdu( {
+            opcode,
+            value,
+            static_cast< std::uint8_t >( instant ), static_cast< std::uint8_t >( instant >> 8 ) } );
+    }
+
+    using mixed_procedures = bll::details::procedure_list< fixture_procedure, request_fixture, instant_fixture_a, instant_fixture_b >;
+
+    struct mixed_link_data_mock : link_data_mock< mixed_procedures >
+    {
+        int side_effect = 0;
+
+        // opcode and value of each instant_fixture, in the order applied
+        std::vector< std::pair< std::uint8_t, std::uint8_t > > applied;
+    };
+
+    using applied_list = std::vector< std::pair< std::uint8_t, std::uint8_t > >;
+
+    // Core Vol 1, Part F: error code 0x23, LL Procedure Collision
+    constexpr std::uint8_t ll_procedure_collision = 0x23;
+
+    // Core Vol 1, Part F: error code 0x2A, Different Transaction Collision
+    constexpr std::uint8_t different_transaction_collision = 0x2A;
 
     using no_procedures = bll::details::procedure_list<>;
 
@@ -217,7 +334,189 @@ BOOST_AUTO_TEST_CASE( known_opcode_but_request_too_long_without_room_for_an_answ
     BOOST_TEST( link.buffers.transmitted.empty() );
 }
 
-BOOST_AUTO_TEST_CASE( after_a_link_got_reset_all_link_state_is_reset_too )
+/*
+ * Procedures next to each other
+ *
+ * Only one procedure with an instant can be pending; every other control PDU is handled
+ * meanwhile, without holding back the instant.
+ */
+BOOST_AUTO_TEST_CASE( a_request_is_answered_while_an_instant_is_pending )
 {
-    // TODO
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    BOOST_TEST( mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) )
+        == bll::details::procedure_result::handled() );
+
+    const auto request = control_pdu( {
+        request_fixture::opcode
+    } );
+
+    const auto result = mixed_procedures::handle_control_pdu( link_layer, link, payload( request ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.buffers.transmitted == std::vector({ control_pdu( {
+        request_fixture::response
+    } ) }));
+
+    BOOST_TEST( link.applied.empty() );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link.applied == ( applied_list{ { instant_fixture_a::opcode, 1 } } ) );
+}
+
+BOOST_AUTO_TEST_CASE( an_indication_without_instant_is_handled_while_an_instant_is_pending )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) );
+
+    const auto indication = control_pdu( { fixture_procedure::opcode, 0x01, 0x02, 0x03, 0x04 } );
+    const auto result     = mixed_procedures::handle_control_pdu( link_layer, link, payload( indication ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.side_effect == 1 );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link.applied == ( applied_list{ { instant_fixture_a::opcode, 1 } } ) );
+}
+
+// a request that waits for room in the transmit buffer does not hold back the instant
+BOOST_AUTO_TEST_CASE( a_stalled_request_does_not_hold_back_the_instant )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+    link.buffers.room_for_an_answer = false;
+
+    mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) );
+
+    const auto request = control_pdu( { request_fixture::opcode } );
+    BOOST_TEST( mixed_procedures::handle_control_pdu( link_layer, link, payload( request ) )
+        == bll::details::procedure_result::stalled() );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link.applied == ( applied_list{ { instant_fixture_a::opcode, 1 } } ) );
+}
+
+// with two procedures with an instant in the list, only the one that set it is called
+BOOST_AUTO_TEST_CASE( the_instant_goes_to_the_procedure_that_set_it )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_b::opcode, 2, 106 ) ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link.applied == ( applied_list{ { instant_fixture_b::opcode, 2 } } ) );
+}
+
+BOOST_AUTO_TEST_CASE( without_a_pending_instant_no_procedure_is_called )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    run_connection_events( link_layer, link, 1000 );
+    BOOST_TEST( link.applied.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( a_new_instant_is_accepted_once_the_last_one_was_applied )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) );
+    run_connection_events( link_layer, link, 106 );
+
+    const auto result = mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_b::opcode, 2, 112 ) ) );
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+
+    run_connection_events( link_layer, link, 112 );
+    BOOST_TEST( link.applied == ( applied_list{ { instant_fixture_a::opcode, 1 }, { instant_fixture_b::opcode, 2 } } ) );
+}
+
+/*
+ * Collisions of procedures with an instant
+ *
+ * A central does not start a procedure with an instant while another one is pending, and no
+ * test of the LL Test Suite sends one to a peripheral. An indication has no answer to reject
+ * it with, and the peripheral can follow only one of them, so Bluetoe ends the connection:
+ * with LL Procedure Collision for the same procedure, with Different Transaction Collision
+ * for another one.
+ */
+BOOST_AUTO_TEST_CASE( the_same_procedure_while_its_instant_is_pending_disconnects )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) );
+
+    const auto result = mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 2, 110 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( ll_procedure_collision ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( another_procedure_with_an_instant_while_one_is_pending_disconnects )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) );
+
+    const auto result = mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_b::opcode, 2, 110 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( different_transaction_collision ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( after_a_link_got_reset_instant_gets_reset )
+{
+    link_layer_mock         link_layer;
+    mixed_link_data_mock    link;
+
+    link.connection_event_counter_value = 100;
+
+    BOOST_TEST( mixed_procedures::handle_control_pdu( link_layer, link, payload( instant_pdu( instant_fixture_a::opcode, 1, 106 ) ) )
+        == bll::details::procedure_result::handled() );
+
+    mixed_procedures::connection_reset( link );
+
+    link.connection_event_counter_value = 100;
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link.applied.empty() );
+}
+
+using mixed_procedures = bll::details::procedure_list< fixture_procedure, request_fixture, instant_fixture_a, instant_fixture_b >;
+
+BOOST_AUTO_TEST_CASE( after_a_link_got_reset_state_type_gets_reset )
+{
+    using list_t = bll::details::procedure_list< procedure_with_state >;
+    link_layer_mock          link_layer;
+    link_data_mock< list_t > link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto rc = list_t::handle_control_pdu( link_layer, link, payload( control_pdu( { procedure_with_state::opcode } )  ) );
+
+    BOOST_TEST( rc == bll::details::procedure_result::handled() );
+    BOOST_TEST( static_cast< procedure_with_state::state_type& >( link ).state != procedure_with_state::state_init );
+
+    list_t::connection_reset( link );
+    BOOST_TEST( static_cast< procedure_with_state::state_type& >( link ).state == procedure_with_state::state_init );
 }

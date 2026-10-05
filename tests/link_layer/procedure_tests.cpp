@@ -78,22 +78,6 @@ namespace {
             static_cast< std::uint8_t >( instant ), static_cast< std::uint8_t >( instant >> 8 ) } );
     }
 
-    /*
-     * The link layer calls connection_event() before it sets up an event, with the counter of
-     * that event. This runs the events after the current one, up to and including last.
-     */
-    template < class Procedures >
-    void run_connection_events( link_layer_mock& link_layer, link_data_mock< Procedures >& link, std::uint16_t last )
-    {
-        while ( link.connection_event_counter_value != last )
-        {
-            ++link.connection_event_counter_value;
-
-            const auto result = Procedures::connection_event( link_layer, link );
-            BOOST_TEST( result == bll::details::procedure_result::handled() );
-        }
-    }
-
     // Core Vol 6, Part B, 2.4.2: error code 0x28, Instant Passed
     constexpr std::uint8_t instant_passed = 0x28;
 
