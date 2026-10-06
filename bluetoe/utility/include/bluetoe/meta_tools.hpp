@@ -893,6 +893,13 @@ namespace details {
     };
 
 
+    // the smallest unsigned integer type with at least Bits bits
+    template < std::size_t Bits > requires ( Bits <= 64 )
+    using uint_least_t =
+        std::conditional_t< Bits <= 8,  std::uint8_t,
+        std::conditional_t< Bits <= 16, std::uint16_t,
+        std::conditional_t< Bits <= 32, std::uint32_t,
+                                        std::uint64_t > > >;
 }
 }
 

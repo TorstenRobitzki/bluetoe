@@ -7,6 +7,7 @@
 #include <bluetoe/connection_parameters.hpp>
 #include <bluetoe/codes.hpp>
 #include <bluetoe/channel_map.hpp>
+#include <bluetoe/meta_tools.hpp>
 
 #include <concepts>
 #include <cstdint>
@@ -85,14 +86,54 @@ namespace details {
             LL_CHANNEL_MAP_IND          = 0x01,
             LL_TERMINATE_IND            = 0x02,
             LL_UNKNOWN_RSP              = 0x07,
+            LL_FEATURE_REQ              = 0x08,
+            LL_FEATURE_RSP              = 0x09,
             LL_VERSION_IND              = 0x0C,
             LL_PING_REQ                 = 0x12,
             LL_PING_RSP                 = 0x13,
         };
     }
 
+    /**
+     * @brief enum that gives the bit position of the feature flag in
+     *        a feature mask.
+     */
+    enum class link_layer_feature {
+        le_encryption                           = 0,
+        connection_parameters_request_procedure = 1,
+        extended_reject_indication              = 2,
+        peripheral_initiated_features_exchange  = 3,
+        le_ping                                 = 4,
+        le_data_packet_length_extension         = 5,
+        ll_privacy                              = 6,
+        extended_scanner_filter_policies        = 7,
+        le_2m_phy_support                       = 8
+    };
+
     template < class LinkData, class ProcedureList >
     concept procedure_list_link_data = std::derived_from< LinkData, typename ProcedureList::state_type >;
+
+    // The size in bits, it takes to keep the Procs feature flag in a mask
+    template < class Proc >
+    constexpr std::size_t feature_flag_size()
+    {
+        if constexpr ( requires { { Proc::feature_flag } -> std::convertible_to<link_layer_feature>; } )
+            return static_cast< std::size_t >( Proc::feature_flag ) + 1;
+        else
+            return 0;
+    }
+
+    template < class ... Procs >
+    using feature_flag_mask_t_from_procs = bluetoe::details::uint_least_t< std::max( { std::size_t{0}, feature_flag_size< Procs >() ...} ) >;
+
+    template < class Proc, class ... Procs >
+    constexpr feature_flag_mask_t_from_procs< Procs... > feature_set()
+    {
+        if constexpr ( requires { { Proc::feature_flag } -> std::convertible_to<link_layer_feature>; } )
+            return feature_flag_mask_t_from_procs< Procs... >( 1 ) << static_cast< std::size_t >( Proc::feature_flag );
+        else
+            return 0;
+    }
 
     /**
      * @brief list of supported and implemented link layer procedures
@@ -101,6 +142,12 @@ namespace details {
     class procedure_list
     {
     public:
+        /**
+         * @brief a type, that is large enough, to keep all feature flags, that are supported
+         *        by the list.
+         */
+        using feature_flag_mask_t = feature_flag_mask_t_from_procs< Procs... >;
+
         // the state of all procedures of one link; the link data derives from it
         struct state_type : Procs::state_type...
         {
@@ -111,6 +158,11 @@ namespace details {
 
             // if set to an value, a procedure with instant is running
             std::optional< std::uint16_t >  procedures_instant;
+
+            // the set of implemented features of this link layer procedure list
+            static constexpr feature_flag_mask_t implemented_features = ( 0 | ... | feature_set< Procs, Procs... >() );
+
+            feature_flag_mask_t currently_used_features = implemented_features;
         };
 
         /**
@@ -156,8 +208,9 @@ namespace details {
     class le_ping_procedure
     {
     public:
-        static constexpr std::uint8_t opcode        = opcodes::LL_PING_REQ;
-        static constexpr std::uint8_t ctr_data_size = 0;
+        static constexpr std::uint8_t  opcode        = opcodes::LL_PING_REQ;
+        static constexpr std::uint8_t  ctr_data_size = 0;
+        static constexpr link_layer_feature feature_flag  = link_layer_feature::le_ping;
 
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
@@ -184,8 +237,8 @@ namespace details {
     class version_exchange_procedure
     {
     public:
-        static constexpr std::uint8_t opcode        = opcodes::LL_VERSION_IND;
-        static constexpr std::uint8_t ctr_data_size = 5;
+        static constexpr std::uint8_t opcode         = opcodes::LL_VERSION_IND;
+        static constexpr std::uint8_t ctr_data_size  = 5;
 
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
@@ -232,8 +285,8 @@ namespace details {
     class termination_procedure
     {
     public:
-        static constexpr std::uint8_t opcode        = opcodes::LL_TERMINATE_IND;
-        static constexpr std::uint8_t ctr_data_size = 1;
+        static constexpr std::uint8_t  opcode        = opcodes::LL_TERMINATE_IND;
+        static constexpr std::uint8_t  ctr_data_size = 1;
 
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& /*link*/, std::span< const std::uint8_t > pdu )
@@ -243,6 +296,69 @@ namespace details {
 
         struct state_type {};
         struct instant_state {};
+    };
+
+    class feature_exchange_procedure
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_FEATURE_REQ;
+        static constexpr std::uint8_t  ctr_data_size = 8;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            const std::uint8_t response_size = 9;
+
+            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( response_size );
+                write.size != 0 )
+            {
+                parse_mask( link, pdu );
+                write_response( link, write );
+
+                return procedure_result::handled();
+            }
+
+            return procedure_result::stalled();
+        }
+
+        struct state_type {};
+        struct instant_state {};
+
+    private:
+        static void parse_mask( auto& link, auto pdu )
+        {
+            using mask_t = decltype( link.currently_used_features );
+
+            mask_t mask = 0;
+
+            for ( std::size_t octet = 0; octet != sizeof( mask_t ); ++octet )
+                mask |= mask_t( pdu[ 1 + octet ] ) << ( 8 * octet );
+
+            link.currently_used_features = link.currently_used_features & mask;
+        }
+
+        static void write_response( auto& link, auto write )
+        {
+            const std::uint8_t response_size = 9;
+
+            using layout_t = typename decltype(link.buffers)::layout;
+
+            layout_t::header( write, llid::ll_control_pdu_code | ( response_size << 8 ) );
+            std::uint8_t* body = layout_t::body( write ).first;
+
+            *body = opcodes::LL_FEATURE_RSP;
+            ++body;
+
+            std::size_t pos = 1;
+            for ( auto mask = link.currently_used_features; pos != response_size; mask = mask >> 8 )
+            {
+                *body = static_cast< std::uint8_t >( mask & 0xff );
+                ++body;
+                ++pos;
+            }
+
+            link.buffers.commit_ll_transmit_buffer( write );
+        }
     };
 
     class procedure_with_instant
@@ -311,9 +427,10 @@ namespace details {
     class channel_map_update_procedure : public procedure_with_instant
     {
     public:
-        static constexpr std::uint8_t opcode        = opcodes::LL_CHANNEL_MAP_IND;
-        static constexpr std::uint8_t ctr_data_size = 7;
-        static constexpr std::uint8_t map_data_size = 5;
+        static constexpr std::uint8_t  opcode        = opcodes::LL_CHANNEL_MAP_IND;
+        static constexpr std::uint8_t  ctr_data_size = 7;
+
+        static constexpr std::uint8_t  map_data_size = 5;
 
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )

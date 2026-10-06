@@ -15,9 +15,24 @@ namespace {
     using termination        = bll::details::procedure_list< bll::details::termination_procedure >;
     using connection_update  = bll::details::procedure_list< bll::details::connection_update_indication >;
     using channel_map_update = bll::details::procedure_list< bll::details::channel_map_update_procedure >;
+    using feature_exchange   = bll::details::procedure_list< bll::details::feature_exchange_procedure >;
+
+    // the feature exchange with a procedure that has a feature bit
+    using feature_exchange_and_ping = bll::details::procedure_list<
+        bll::details::feature_exchange_procedure,
+        bll::details::le_ping_procedure >;
 
     const auto ping_req = control_pdu( {
         0x12                // LL_PING_REQ
+    } );
+
+    /*
+     * A central that supports every feature: the answer is the same whether the peripheral
+     * reports its own features or the features both support.
+     */
+    const auto feature_req = control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // FeatureSet: all features
     } );
 
     const auto version_ind = control_pdu( {
@@ -242,6 +257,76 @@ BOOST_AUTO_TEST_CASE( a_terminate_indication_disconnects_without_room_for_an_ans
     const auto result = termination::handle_control_pdu( link_layer, link, payload( terminate_ind ) );
 
     BOOST_TEST( result == bll::details::procedure_result::disconnect( 0x13 ) );
+}
+
+/*
+ * Feature Exchange procedure, started by the central
+ *
+ * The peripheral answers every LL_FEATURE_REQ with an LL_FEATURE_RSP. Its FeatureSet is the
+ * features of the procedures in the list: the list decides which features Bluetoe has.
+ */
+BOOST_AUTO_TEST_CASE( a_feature_request_is_answered_with_the_features_of_the_procedures )
+{
+    link_layer_mock                             link_layer;
+    link_data_mock< feature_exchange_and_ping > link;
+
+    const auto result = feature_exchange_and_ping::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto feature_rsp = control_pdu( {
+        0x09,                                           // LL_FEATURE_RSP
+        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 4, LE Ping
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
+}
+
+// without a procedure that has a feature bit, there are no features to report
+BOOST_AUTO_TEST_CASE( a_list_without_features_answers_with_no_features )
+{
+    link_layer_mock                     link_layer;
+    link_data_mock< feature_exchange >  link;
+
+    const auto result = feature_exchange::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto feature_rsp = control_pdu( {
+        0x09,                                           // LL_FEATURE_RSP
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: none
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
+}
+
+BOOST_AUTO_TEST_CASE( a_feature_request_stalls_without_room_for_the_answer )
+{
+    link_layer_mock                             link_layer;
+    link_data_mock< feature_exchange_and_ping > link;
+
+    link.buffers.room_for_an_answer = false;
+
+    const auto result = feature_exchange_and_ping::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::stalled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+// unlike the version exchange, the central may exchange the features again
+BOOST_AUTO_TEST_CASE( a_second_feature_request_is_answered_too )
+{
+    link_layer_mock                             link_layer;
+    link_data_mock< feature_exchange_and_ping > link;
+
+    feature_exchange_and_ping::handle_control_pdu( link_layer, link, payload( feature_req ) );
+    const auto result = feature_exchange_and_ping::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 2u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == link.buffers.transmitted[ 1 ] );
 }
 
 /*
