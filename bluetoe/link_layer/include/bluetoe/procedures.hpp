@@ -283,7 +283,7 @@ namespace details {
     /**
      * @brief the implementation of the LE ping link layer procedure
      */
-    class le_ping_procedure
+    class le_ping_procedure : procedure_base
     {
     public:
         static constexpr std::uint8_t  opcode        = opcodes::LL_PING_REQ;
@@ -293,16 +293,10 @@ namespace details {
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
         {
-            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( 1 );
-                write.size != 0 )
+            return allocate_and_transmit( link, 1, [&]( auto write )
             {
                 fill< typename decltype(link.buffers)::layout >( write, { llid::ll_control_pdu_code, 1, opcodes::LL_PING_RSP } );
-                link.buffers.commit_ll_transmit_buffer( write );
-
-                return procedure_result::handled();
-            }
-
-            return procedure_result::stalled();
+            });
         }
 
         struct state_type {};
@@ -312,7 +306,7 @@ namespace details {
     /**
      * @brief implementation of the version exchange procedure
      */
-    class version_exchange_procedure
+    class version_exchange_procedure : procedure_base
     {
     public:
         static constexpr std::uint8_t opcode         = opcodes::LL_VERSION_IND;
@@ -328,8 +322,7 @@ namespace details {
             if ( state.version_exchanged )
                 return procedure_result::handled();
 
-            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( response_size );
-                write.size != 0 )
+            return allocate_and_transmit( link, response_size, [&]( auto write )
             {
                 const std::uint16_t company_identifier = link_layer.link_layer_company_identifier();
 
@@ -341,13 +334,8 @@ namespace details {
                     0x00, 0x00
                 } );
 
-                link.buffers.commit_ll_transmit_buffer( write );
                 state.version_exchanged = true;
-
-                return procedure_result::handled();
-            }
-
-            return procedure_result::stalled();
+            });
         }
 
         struct state_type {
@@ -376,7 +364,7 @@ namespace details {
         struct instant_state {};
     };
 
-    class feature_exchange_procedure
+    class feature_exchange_procedure : procedure_base
     {
     public:
         static constexpr std::uint8_t  opcode        = opcodes::LL_FEATURE_REQ;
@@ -387,16 +375,11 @@ namespace details {
         {
             const std::uint8_t response_size = 9;
 
-            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( response_size );
-                write.size != 0 )
+            return allocate_and_transmit( link, response_size, [&]( auto write )
             {
                 parse_mask( link, pdu );
                 write_response( link, write );
-
-                return procedure_result::handled();
-            }
-
-            return procedure_result::stalled();
+            });
         }
 
         struct state_type {};
@@ -434,8 +417,6 @@ namespace details {
                 ++body;
                 ++pos;
             }
-
-            link.buffers.commit_ll_transmit_buffer( write );
         }
     };
 
@@ -541,7 +522,7 @@ namespace details {
         using instant_state = std::array< std::uint8_t, map_data_size >;
     };
 
-    class phy_request
+    class phy_request : procedure_base
     {
     public:
         static constexpr std::uint8_t  opcode        = opcodes::LL_PHY_REQ;
@@ -554,8 +535,7 @@ namespace details {
         {
             static constexpr std::size_t response_size = 3;
 
-            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( response_size );
-                write.size != 0 )
+            return allocate_and_transmit( link, response_size, [&]( auto write )
             {
                 using layout_t = decltype(link.buffers)::layout;
                 fill< layout_t >( write, {
@@ -563,13 +543,7 @@ namespace details {
                     opcodes::LL_PHY_RSP,
                     phy_ll_encoding::le_2m_phy,
                     phy_ll_encoding::le_2m_phy } );
-
-                link.buffers.commit_ll_transmit_buffer( write );
-
-                return procedure_result::handled();
-            }
-
-            return procedure_result::stalled();
+            });
         }
 
         struct state_type {};
