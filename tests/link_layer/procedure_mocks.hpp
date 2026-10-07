@@ -7,6 +7,7 @@
 #include <bluetoe/connection_parameters.hpp>
 #include <bluetoe/procedures.hpp>
 #include <bluetoe/phy_encodings.hpp>
+#include <bluetoe/security_connection_data.hpp>
 
 #include "test_layout.hpp"
 #include "procedures_io.hpp"
@@ -17,6 +18,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <span>
+#include <utility>
 #include <vector>
 
 /*
@@ -140,6 +142,73 @@ struct link_layer_mock
     std::vector< bluetoe::link_layer::details::connection_timing >  connection_updates;
     std::vector< std::array< std::uint8_t, 5 > >                    channel_map_updates;
     std::vector< phy_update >                                       phy_updates;
+
+    // the source of keys: the long term key for EDIV and Rand, if there is one
+    bool                                                        has_key = true;
+    bluetoe::details::uint128_t                                 key     = {{
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10 }};
+    std::vector< std::pair< std::uint16_t, std::uint64_t > >    key_requests;
+
+    template < class LinkData >
+    std::pair< bool, bluetoe::details::uint128_t > find_key( LinkData&, std::uint16_t ediv, std::uint64_t rand )
+    {
+        key_requests.push_back( { ediv, rand } );
+
+        return { has_key, key };
+    }
+
+    // the radio's part of the session setup: it derives the session key and returns SKDs and IVs
+    struct encryption_setup
+    {
+        bluetoe::details::uint128_t key;
+        std::uint64_t               skdm;
+        std::uint32_t               ivm;
+
+        bool operator==( const encryption_setup& ) const = default;
+    };
+
+    std::uint64_t                   skds = 0x5857565554535251;
+    std::uint32_t                   ivs  = 0x64636261;
+    std::vector< encryption_setup > encryption_setups;
+
+    template < class LinkData >
+    std::pair< std::uint64_t, std::uint32_t > setup_encryption( LinkData&, const bluetoe::details::uint128_t& session_key, std::uint64_t skdm, std::uint32_t ivm )
+    {
+        encryption_setups.push_back( { session_key, skdm, ivm } );
+
+        return { skds, ivs };
+    }
+
+    // what the radio decrypts and encrypts
+    bool receive_encrypted  = false;
+    bool transmit_encrypted = false;
+
+    template < class LinkData >
+    bool encrypt_receive( LinkData&, bool encrypted )
+    {
+        bool result = receive_encrypted != encrypted;
+        receive_encrypted = encrypted;
+
+        return result;
+    }
+
+    template < class LinkData >
+    bool encrypt_transmit( LinkData&, bool encrypted )
+    {
+        bool result = transmit_encrypted != encrypted;
+        transmit_encrypted = encrypted;
+
+        return result;
+    }
+
+    // the sink of the encryption state of the link: the callbacks, the restored CCCDs
+    std::vector< bool > encryption_changes;
+
+    template < class LinkData >
+    void encryption_changed( LinkData&, bool encrypted )
+    {
+        encryption_changes.push_back( encrypted );
+    }
 };
 
 // we simulate the situation where a connection is established, so we need a valid

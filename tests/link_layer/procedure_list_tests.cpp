@@ -681,3 +681,285 @@ BOOST_AUTO_TEST_CASE( the_feature_bit_of_a_group_is_a_feature_of_the_list )
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
 }
+
+/*
+ * Rejections
+ *
+ * A procedure rejects with procedure_base::reject(). With room in the transmit buffer, the
+ * rejection is sent at once; without, the list keeps it and sends it from connection_event()
+ * as soon as there is room, before the procedures' own PDUs, as it answers the central. The
+ * rejected PDU is handled either way. For now, the rejection is an LL_REJECT_IND.
+ */
+namespace {
+
+    // a made up request that the procedure rejects; CtrData is the error code
+    class rejecting_fixture : public bll::details::procedure_base
+    {
+    public:
+        static constexpr std::uint8_t opcode        = 0xF8;
+        static constexpr std::uint8_t ctr_data_size = 1;
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            reject( link,
+                static_cast< bll::details::opcodes::opcodes_t >( opcode ),
+                static_cast< bluetoe::controller_error_codes::error_codes >( pdu[ 1 ] ) );
+
+            return bll::details::procedure_result::handled();
+        }
+
+        struct state_type {};
+        struct instant_state {};
+    };
+
+    // a made up indication after which the procedure sends a PDU of its own
+    class sending_fixture
+    {
+    public:
+        static constexpr std::uint8_t opcode        = 0xFA;
+        static constexpr std::uint8_t own_pdu       = 0xFB;
+        static constexpr std::uint8_t ctr_data_size = 0;
+
+        struct state_type
+        {
+            bool own_pdu_pending = false;
+        };
+
+        struct instant_state {};
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            state_type& state = link;
+            state.own_pdu_pending = true;
+
+            return bll::details::procedure_result::handled();
+        }
+
+        template < class LinkLayer, class LinkData >
+        static bool transmit( LinkLayer& /*link_layer*/, LinkData& link )
+        {
+            state_type& state = link;
+
+            if ( !state.own_pdu_pending )
+                return true;
+
+            const auto write = link.buffers.allocate_ll_transmit_buffer( 1 );
+
+            if ( write.size == 0 )
+                return false;
+
+            bluetoe::link_layer::fill< typename decltype( link.buffers )::layout >( write, { 0x03, 1, own_pdu } );
+            link.buffers.commit_ll_transmit_buffer( write );
+            state.own_pdu_pending = false;
+
+            return true;
+        }
+    };
+
+    // a made up indication that the procedure rejects later, from its transmit(), as the encryption does
+    class late_rejecting_fixture : public bll::details::procedure_base
+    {
+    public:
+        static constexpr std::uint8_t opcode        = 0xFC;
+        static constexpr std::uint8_t ctr_data_size = 0;
+
+        struct state_type
+        {
+            bool rejection_due = false;
+        };
+
+        struct instant_state {};
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            state_type& state = link;
+            state.rejection_due = true;
+
+            return bll::details::procedure_result::handled();
+        }
+
+        template < class LinkLayer, class LinkData >
+        static bool transmit( LinkLayer& /*link_layer*/, LinkData& link )
+        {
+            state_type& state = link;
+
+            if ( !state.rejection_due )
+                return true;
+
+            state.rejection_due = false;
+
+            reject( link,
+                static_cast< bll::details::opcodes::opcodes_t >( opcode ),
+                bluetoe::controller_error_codes::invalid_ll_parameters );
+
+            return false;
+        }
+    };
+
+    using rejecting_procedures = bll::details::procedure_list< rejecting_fixture, sending_fixture, late_rejecting_fixture >;
+
+    const auto request_to_reject = control_pdu( {
+        rejecting_fixture::opcode,
+        0x06                // the error code: PIN or Key Missing
+    } );
+
+    const auto reject_ind = control_pdu( {
+        0x0D,               // LL_REJECT_IND
+        0x06                // ErrorCode: PIN or Key Missing
+    } );
+}
+
+BOOST_AUTO_TEST_CASE( with_room_a_rejection_is_sent_at_once )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    BOOST_TEST( rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) ) == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+
+    // and only once
+    rejecting_procedures::connection_event( link_layer, link );
+    BOOST_TEST( link.buffers.transmitted.size() == 1u );
+}
+
+// the rejected request is handled; the rejection waits in the list, through events without room
+BOOST_AUTO_TEST_CASE( without_room_a_rejection_is_sent_once_there_is_room )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    link.buffers.room_for_an_answer = false;
+
+    BOOST_TEST( rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) ) == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    // nothing to keep in the receive buffer, so connection_event() has nothing to stall
+    BOOST_TEST( rejecting_procedures::connection_event( link_layer, link ) == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures::connection_event( link_layer, link );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+
+    rejecting_procedures::connection_event( link_layer, link );
+    BOOST_TEST( link.buffers.transmitted.size() == 1u );
+}
+
+// the rejection answers the central, so it goes before a PDU the peripheral sends on its own
+BOOST_AUTO_TEST_CASE( a_waiting_rejection_goes_before_the_procedures_own_pdus )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( control_pdu( { sending_fixture::opcode } ) ) );
+
+    link.buffers.room_for_an_answer = false;
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures::connection_event( link_layer, link );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 2u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+    BOOST_TEST( link.buffers.transmitted[ 1 ] == control_pdu( { sending_fixture::own_pdu } ) );
+}
+
+BOOST_AUTO_TEST_CASE( a_waiting_rejection_is_dropped_with_the_link )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    link.buffers.room_for_an_answer = false;
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures::connection_reset( link );
+
+    rejecting_procedures::connection_event( link_layer, link );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+/*
+ * While a rejection waits in the list, there is no second one: every received control PDU
+ * waits in the receive buffer, and no procedure sends its own PDUs, which could be a rejection
+ * as well. A rejection only waits while the transmit buffer is full, until the next
+ * acknowledgement makes room.
+ */
+BOOST_AUTO_TEST_CASE( a_control_pdu_waits_while_a_rejection_is_pending )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    link.buffers.room_for_an_answer = false;
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+    link.buffers.room_for_an_answer = true;
+
+    // neither another request to reject, nor an indication without an answer
+    BOOST_TEST( rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) ) == bll::details::procedure_result::stalled() );
+    BOOST_TEST( rejecting_procedures::handle_control_pdu( link_layer, link, payload( control_pdu( { sending_fixture::opcode } ) ) ) == bll::details::procedure_result::stalled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    rejecting_procedures::connection_event( link_layer, link );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+
+    // passed again, the indication is handled now
+    BOOST_TEST( rejecting_procedures::handle_control_pdu( link_layer, link, payload( control_pdu( { sending_fixture::opcode } ) ) ) == bll::details::procedure_result::handled() );
+}
+
+BOOST_AUTO_TEST_CASE( no_procedure_sends_while_a_rejection_waits )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    // a rejection due later, and a PDU of a procedure's own
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( control_pdu( { late_rejecting_fixture::opcode } ) ) );
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( control_pdu( { sending_fixture::opcode } ) ) );
+
+    link.buffers.room_for_an_answer = false;
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+
+    // the waiting rejection cannot be sent, so no procedure gets to reject or send
+    BOOST_TEST( rejecting_procedures::connection_event( link_layer, link ) == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures::connection_event( link_layer, link );
+
+    const auto late_reject_ind = control_pdu( {
+        0x0D,               // LL_REJECT_IND
+        0x1E                // ErrorCode: Invalid LL Parameters
+    } );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 3u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+    BOOST_TEST( link.buffers.transmitted[ 1 ] == control_pdu( { sending_fixture::own_pdu } ) );
+    BOOST_TEST( link.buffers.transmitted[ 2 ] == late_reject_ind );
+}
+
+// a procedure's own PDU that finds no room waits in the procedure; there is nothing to stall
+BOOST_AUTO_TEST_CASE( an_own_pdu_without_room_does_not_stall_the_connection_event )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< rejecting_procedures >  link;
+
+    rejecting_procedures::handle_control_pdu( link_layer, link, payload( control_pdu( { sending_fixture::opcode } ) ) );
+
+    link.buffers.room_for_an_answer = false;
+
+    BOOST_TEST( rejecting_procedures::connection_event( link_layer, link ) == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures::connection_event( link_layer, link );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == control_pdu( { sending_fixture::own_pdu } ) );
+}

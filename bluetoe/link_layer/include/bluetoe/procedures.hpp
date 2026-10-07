@@ -2,6 +2,7 @@
 #define BLUETOE_LINK_LAYER_PROCEDURES_HPP
 
 #include <bluetoe/buffer.hpp>
+#include <bluetoe/security_connection_data.hpp>
 #include <bluetoe/ll_ids.hpp>
 #include <bluetoe/bits.hpp>
 #include <bluetoe/connection_parameters.hpp>
@@ -81,15 +82,22 @@ namespace details {
     concept procedure = true;
 
     namespace opcodes {
-        enum : std::uint8_t
+        enum opcodes_t : std::uint8_t
         {
             LL_CONNECTION_UPDATE_IND    = 0x00,
             LL_CHANNEL_MAP_IND          = 0x01,
             LL_TERMINATE_IND            = 0x02,
+            LL_ENC_REQ                  = 0x03,
+            LL_ENC_RSP                  = 0x04,
+            LL_START_ENC_REQ            = 0x05,
+            LL_START_ENC_RSP            = 0x06,
             LL_UNKNOWN_RSP              = 0x07,
             LL_FEATURE_REQ              = 0x08,
             LL_FEATURE_RSP              = 0x09,
+            LL_PAUSE_ENC_REQ            = 0x0A,
+            LL_PAUSE_ENC_RSP            = 0x0B,
             LL_VERSION_IND              = 0x0C,
+            LL_REJECT_IND               = 0x0D,
             LL_PING_REQ                 = 0x12,
             LL_PING_RSP                 = 0x13,
             LL_PHY_REQ                  = 0x16,
@@ -139,6 +147,12 @@ namespace details {
             return 0;
     }
 
+    struct pending_procedure_rejection
+    {
+        opcodes::opcodes_t                  opcode;
+        controller_error_codes::error_codes error;
+    };
+
     /**
      * @brief a group of procedures that implement a link layer procedure together
      */
@@ -173,6 +187,8 @@ namespace details {
             static constexpr feature_flag_mask_t implemented_features = ( 0 | ... | feature_set< Procs, Procs... >() );
 
             feature_flag_mask_t currently_used_features = implemented_features;
+
+            std::optional< pending_procedure_rejection > pending_reject;
         };
 
         /**
@@ -195,7 +211,7 @@ namespace details {
          * the event of a pending instant is never skipped.
          */
         template < class LinkLayer, class LinkData >
-        static procedure_result connection_event( LinkLayer& /*link_layer*/, LinkData& /*link*/ )
+        static procedure_result connection_event( LinkLayer& link_layer, LinkData& link )
             requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
 
         /**
@@ -205,10 +221,14 @@ namespace details {
          * be reused for a next connection.
          */
         template < class LinkData >
-        static void connection_reset( LinkData& /*link*/ )
+        static void connection_reset( LinkData& link )
             requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
 
     private:
+        template < class LinkLayer, class LinkData >
+        static bool send_pending_reject( LinkLayer&, LinkData& link )
+            requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
+
         static constexpr std::uint8_t   LL_UNKNOWN_RSP_SIZE         = 2;
     };
 
@@ -218,6 +238,47 @@ namespace details {
     template < class ... Procs >
     using procedure_list = procedure_list_impl<
         typename bluetoe::details::flatten< std::tuple< Procs... > >::type >;
+
+    class procedure_base
+    {
+    protected:
+        template < class LinkData, class FillPdu >
+        static procedure_result allocate_and_transmit( LinkData& link, std::size_t required_size, FillPdu fill )
+        {
+            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( required_size );
+                write.size != 0 )
+            {
+                fill( write );
+                link.buffers.commit_ll_transmit_buffer( write );
+
+                return procedure_result::handled();
+            }
+
+            return procedure_result::stalled();
+        }
+
+        template < class LinkData >
+        static void reject( LinkData& link, opcodes::opcodes_t opcode, controller_error_codes::error_codes error )
+        {
+            assert( !link.pending_reject.has_value() );
+
+            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( 2 );
+                write.size != 0 )
+            {
+                using layout_t = typename decltype(link.buffers)::layout;
+
+                fill< layout_t >( write, { llid::ll_control_pdu_code, 2, opcodes::LL_REJECT_IND, error } );
+                link.buffers.commit_ll_transmit_buffer( write );
+            }
+            else
+            {
+                link.pending_reject = pending_procedure_rejection{
+                    .opcode = opcode,
+                    .error = error
+                };
+            }
+        }
+    };
 
     /**
      * @brief the implementation of the LE ping link layer procedure
@@ -593,6 +654,164 @@ namespace details {
      */
     using phy_update_procedure = procedure_group< phy_request, phy_update_indication >;
 
+    /*
+     * Encryption
+     */
+    struct encryption_state
+    {
+        bool has_key = false;
+        bool pending_start_request = false;
+    };
+
+    class encryption_request : procedure_base
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_ENC_REQ;
+        static constexpr std::uint8_t  ctr_data_size = 22;
+
+        static constexpr link_layer_feature feature_flag  = link_layer_feature::le_encryption;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            const std::size_t response_size = 1 + 8 + 4;
+
+            return allocate_and_transmit( link, response_size, [&]( auto write ){
+                const std::uint64_t rand = bluetoe::details::read_64bit( &pdu[ 1 ] );
+                const std::uint16_t ediv = bluetoe::details::read_16bit( &pdu[ 9 ] );
+                const std::uint64_t skdm = bluetoe::details::read_64bit( &pdu[ 11 ] );
+                const std::uint32_t ivm  = bluetoe::details::read_32bit( &pdu[ 19 ] );
+                      std::uint64_t skds = 0;
+                      std::uint32_t ivs  = 0;
+
+                using layout_t = decltype(link.buffers)::layout;
+
+                fill< layout_t >( write, { llid::ll_control_pdu_code, response_size, opcodes::LL_ENC_RSP } );
+
+                bluetoe::details::uint128_t key;
+                encryption_state& state = link;
+                state.pending_start_request = true;
+                std::tie( state.has_key, key ) = link_layer.find_key( link, ediv, rand );
+
+                // setup encryption
+                if ( state.has_key )
+                    std::tie( skds, ivs ) = link_layer.setup_encryption( link, key, skdm, ivm );
+
+                std::uint8_t* write_body = layout_t::body( write ).first;
+                bluetoe::details::write_64bit( &write_body[ 1 ], skds );
+                bluetoe::details::write_32bit( &write_body[ 9 ], ivs );
+            } );
+        }
+
+        template < class LinkLayer, class LinkData >
+        static bool transmit( LinkLayer& link_layer, LinkData& link )
+        {
+            static constexpr std::size_t response_size = 1;
+
+            encryption_state& state = link;
+
+            if ( !state.pending_start_request )
+                return true;
+
+            using layout_t = decltype(link.buffers)::layout;
+
+            if ( state.has_key )
+            {
+                return allocate_and_transmit( link, response_size, [&]( auto write ){
+                    fill< layout_t >( write, {
+                        llid::ll_control_pdu_code, response_size, opcodes::LL_START_ENC_REQ } );
+
+                    link_layer.encrypt_receive( link, true );
+                    state.pending_start_request = false;
+                } ) == procedure_result::handled();
+            }
+
+            state.pending_start_request = false;
+            reject( link, opcodes::LL_ENC_REQ, controller_error_codes::pin_or_key_missing );
+
+            return false;
+        }
+
+        using state_type = encryption_state;
+        struct instant_state {};
+    };
+
+    class encryption_start_response : procedure_base
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_START_ENC_RSP;
+        static constexpr std::uint8_t  ctr_data_size = 0;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            using layout_t = decltype(link.buffers)::layout;
+
+            return allocate_and_transmit( link, 1, [&]( auto write ){
+                fill< layout_t >( write, { llid::ll_control_pdu_code, 1, opcodes::LL_START_ENC_RSP } );
+
+                const bool encryption_changed = link_layer.encrypt_transmit( link, true );
+
+                if ( encryption_changed )
+                    link_layer.encryption_changed( link, true );
+
+            });
+        }
+
+        struct state_type {};
+        struct instant_state {};
+    };
+
+    class encryption_pause_request : procedure_base
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_PAUSE_ENC_REQ;
+        static constexpr std::uint8_t  ctr_data_size = 0;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            using layout_t = decltype(link.buffers)::layout;
+
+            return allocate_and_transmit( link, 1, [&]( auto write ){
+                fill< layout_t >( write, { llid::ll_control_pdu_code, 1, opcodes::LL_PAUSE_ENC_RSP } );
+
+                const bool encryption_changed = link_layer.encrypt_receive( link, false );
+
+                if ( encryption_changed )
+                    link_layer.encryption_changed( link, false );
+
+            });
+        }
+
+        struct state_type {};
+        struct instant_state {};
+    };
+
+    class encryption_pause_response : procedure_base
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_PAUSE_ENC_RSP;
+        static constexpr std::uint8_t  ctr_data_size = 0;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            link_layer.encrypt_transmit( link, false );
+
+            return procedure_result::handled();
+        }
+
+        struct state_type {};
+        struct instant_state {};
+    };
+
+    /**
+     * @brief all procedures required to implement the link layer encryption procedure
+     */
+    using encryption_procedure = procedure_group<
+        encryption_request, encryption_start_response, encryption_pause_request, encryption_pause_response >;
+
     ///////////////////////
     // implementation
     template < class ... Procs >
@@ -604,6 +823,9 @@ namespace details {
 
         if ( pdu.size() == 0 )
             return procedure_result::handled();
+
+        if ( link.pending_reject.has_value() )
+            return procedure_result::stalled();
 
         const std::uint8_t opcode = pdu[ 0 ];
 
@@ -636,6 +858,17 @@ namespace details {
             return false;
     }
 
+    template < class Proc, class LinkLayer, class LinkData >
+    bool call_procedure_transmit( LinkLayer& link_layer, LinkData& link )
+    {
+        if constexpr ( requires { Proc::transmit( link_layer, link ); } )
+        {
+            return !link.pending_reject.has_value() && Proc::transmit( link_layer, link );
+        }
+
+        return true;
+    }
+
     template < class ... Procs >
     template < class LinkLayer, class LinkData >
     procedure_result procedure_list_impl< std::tuple< Procs... > >::connection_event( LinkLayer& link_layer, LinkData& link )
@@ -655,6 +888,18 @@ namespace details {
             state.procedures_instant.reset();
         }
 
+        if ( result == procedure_result::handled() && state.pending_reject.has_value() )
+        {
+            if ( !send_pending_reject( link_layer, link ) )
+                return result;
+        }
+
+        if ( result == procedure_result::handled() )
+        {
+            // are there other procedures that need to send out data?
+            [[maybe_unused]] const bool check = ( true && ... && call_procedure_transmit< Procs >( link_layer, link ) );
+        }
+
         return result;
     }
 
@@ -664,6 +909,30 @@ namespace details {
         requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
     {
         static_cast< state_type& >( link ) = state_type();
+    }
+
+    template < class ... Procs >
+    template < class LinkLayer, class LinkData >
+    bool procedure_list_impl< std::tuple< Procs... > >::send_pending_reject( LinkLayer&, LinkData& link )
+        requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
+    {
+        state_type& state = link;
+        assert( state.pending_reject.has_value() );
+
+        if ( const auto write = link.buffers.allocate_ll_transmit_buffer( 2 );
+            write.size != 0 )
+        {
+            using layout_t = typename decltype(link.buffers)::layout;
+
+            fill< layout_t >( write, { llid::ll_control_pdu_code, 2, opcodes::LL_REJECT_IND, state.pending_reject->error } );
+
+            link.buffers.commit_ll_transmit_buffer( write );
+            state.pending_reject.reset();
+
+            return true;
+        }
+
+        return false;
     }
 
 }
