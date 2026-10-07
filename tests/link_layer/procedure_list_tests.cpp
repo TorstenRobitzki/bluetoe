@@ -520,3 +520,164 @@ BOOST_AUTO_TEST_CASE( after_a_link_got_reset_state_type_gets_reset )
     list_t::connection_reset( link );
     BOOST_TEST( static_cast< procedure_with_state::state_type& >( link ).state == procedure_with_state::state_init );
 }
+
+/*
+ * Procedures that consist of several parts
+ *
+ * A procedure of the specification with more than one received opcode, such as the PHY update
+ * with LL_PHY_REQ and LL_PHY_UPDATE_IND, is a procedure_group<> of parts, one part per opcode.
+ * The list handles the parts as if they were listed one by one. One part owns the state that
+ * the parts share, and declares the feature bit of the procedure.
+ */
+namespace {
+
+    // the owner: counts the PDUs of the group in the shared state
+    struct group_owner_part
+    {
+        static constexpr std::uint8_t                           opcode        = 0xF6;
+        static constexpr std::uint8_t                           ctr_data_size = 0;
+        static constexpr bll::details::link_layer_feature       feature_flag  = bll::details::link_layer_feature::extended_reject_indication;
+
+        struct state_type
+        {
+            int pdus = 0;
+        };
+
+        struct instant_state {};
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            state_type& state = link;
+            ++state.pdus;
+
+            return bll::details::procedure_result::handled();
+        }
+    };
+
+    // the other part: has no state of its own, and counts in the owner's
+    struct group_other_part
+    {
+        static constexpr std::uint8_t opcode        = 0xF7;
+        static constexpr std::uint8_t ctr_data_size = 0;
+
+        struct state_type {};
+        struct instant_state {};
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            group_owner_part::state_type& state = link;
+            ++state.pdus;
+
+            return bll::details::procedure_result::handled();
+        }
+    };
+
+    using fixture_group = bll::details::procedure_group< group_owner_part, group_other_part >;
+
+    using group_only      = bll::details::procedure_list< fixture_group >;
+    using group_and_more  = bll::details::procedure_list< fixture_procedure, fixture_group, request_fixture >;
+
+    struct group_and_more_link_data_mock : link_data_mock< group_and_more >
+    {
+        int side_effect = 0;
+    };
+
+    int group_pdus( const auto& link )
+    {
+        return static_cast< const group_owner_part::state_type& >( link ).pdus;
+    }
+
+    const auto owner_pdu = control_pdu( { group_owner_part::opcode } );
+    const auto other_pdu = control_pdu( { group_other_part::opcode } );
+}
+
+BOOST_AUTO_TEST_CASE( both_parts_of_a_group_are_found )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< group_only >    link;
+
+    BOOST_TEST( group_only::handle_control_pdu( link_layer, link, payload( owner_pdu ) ) == bll::details::procedure_result::handled() );
+    BOOST_TEST( group_only::handle_control_pdu( link_layer, link, payload( other_pdu ) ) == bll::details::procedure_result::handled() );
+
+    // neither was answered as unknown
+    BOOST_TEST( link.buffers.transmitted.empty() );
+    BOOST_TEST( group_pdus( link ) == 2 );
+}
+
+// a group next to single procedures: every opcode reaches its procedure, an unknown one is still unknown
+BOOST_AUTO_TEST_CASE( a_group_and_single_procedures_share_a_list )
+{
+    link_layer_mock                 link_layer;
+    group_and_more_link_data_mock   link;
+
+    group_and_more::handle_control_pdu( link_layer, link, payload( control_pdu( { fixture_procedure::opcode, 0x01, 0x02, 0x03, 0x04 } ) ) );
+    group_and_more::handle_control_pdu( link_layer, link, payload( other_pdu ) );
+    group_and_more::handle_control_pdu( link_layer, link, payload( control_pdu( { request_fixture::opcode } ) ) );
+    group_and_more::handle_control_pdu( link_layer, link, payload( ping_req ) );
+
+    BOOST_TEST( link.side_effect == 1 );
+    BOOST_TEST( group_pdus( link ) == 1 );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 2u );
+
+    const auto response = control_pdu( {
+        request_fixture::response
+    } );
+
+    const auto unknown_rsp = control_pdu( {
+        0x07,               // LL_UNKNOWN_RSP
+        0x12                // UnknownType: LL_PING_REQ
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == response );
+    BOOST_TEST( link.buffers.transmitted[ 1 ] == unknown_rsp );
+}
+
+BOOST_AUTO_TEST_CASE( the_parts_of_a_group_share_the_state_of_the_owner )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< group_only >    link;
+
+    group_only::handle_control_pdu( link_layer, link, payload( other_pdu ) );
+    group_only::handle_control_pdu( link_layer, link, payload( owner_pdu ) );
+    group_only::handle_control_pdu( link_layer, link, payload( other_pdu ) );
+
+    BOOST_TEST( group_pdus( link ) == 3 );
+}
+
+BOOST_AUTO_TEST_CASE( the_state_of_a_group_is_reset_with_the_link )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< group_only >    link;
+
+    group_only::handle_control_pdu( link_layer, link, payload( owner_pdu ) );
+    group_only::connection_reset( link );
+
+    BOOST_TEST( group_pdus( link ) == 0 );
+}
+
+// the feature bit a part declares is a feature of the list
+BOOST_AUTO_TEST_CASE( the_feature_bit_of_a_group_is_a_feature_of_the_list )
+{
+    using features_and_group = bll::details::procedure_list< bll::details::feature_exchange_procedure, fixture_group >;
+
+    link_layer_mock                         link_layer;
+    link_data_mock< features_and_group >    link;
+
+    const auto feature_req = control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // FeatureSet: all features
+    } );
+
+    features_and_group::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto feature_rsp = control_pdu( {
+        0x09,                                           // LL_FEATURE_RSP
+        0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 2, Extended Reject Indication
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
+}

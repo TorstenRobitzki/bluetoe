@@ -17,6 +17,18 @@ namespace {
     using channel_map_update = bll::details::procedure_list< bll::details::channel_map_update_procedure >;
     using feature_exchange   = bll::details::procedure_list< bll::details::feature_exchange_procedure >;
 
+    using phy_update         = bll::details::procedure_list< bll::details::phy_update_procedure >;
+
+    // the PHY update next to a procedure with an instant
+    using phy_and_connection_update = bll::details::procedure_list<
+        bll::details::phy_update_procedure,
+        bll::details::connection_update_indication >;
+
+    // the feature exchange with the PHY update, whose feature bit is beyond the first octet
+    using feature_exchange_and_phy_update = bll::details::procedure_list<
+        bll::details::feature_exchange_procedure,
+        bll::details::phy_update_procedure >;
+
     // the feature exchange with a procedure that has a feature bit
     using feature_exchange_and_ping = bll::details::procedure_list<
         bll::details::feature_exchange_procedure,
@@ -756,4 +768,275 @@ BOOST_AUTO_TEST_CASE( a_channel_map_update_with_two_channels_is_applied )
 
     run_connection_events( link_layer, link, 106 );
     BOOST_TEST( link_layer.channel_map_updates.size() == 1u );
+}
+
+/*
+ * PHY Update procedure, started by the central
+ *
+ * Core Vol 6, Part B, 5.1.10: the central sends an LL_PHY_REQ, the peripheral answers with an
+ * LL_PHY_RSP, and the central sends an LL_PHY_UPDATE_IND with the PHY of each direction and
+ * the instant from which on they are used. Bluetoe has the PHY update only with a radio that
+ * supports the LE 2M PHY; LE Coded is not supported.
+ */
+namespace {
+    namespace phy = bluetoe::link_layer::phy_ll_encoding;
+
+    const auto phy_req = control_pdu( {
+        0x16,               // LL_PHY_REQ
+        0x03,               // TX_PHYS: LE 1M, LE 2M
+        0x03                // RX_PHYS: LE 1M, LE 2M
+    } );
+
+    // an LL_PHY_UPDATE_IND with the given PHYs and instant
+    std::vector< std::uint8_t > phy_update_ind( std::uint8_t c_to_p, std::uint8_t p_to_c, std::uint16_t instant )
+    {
+        return control_pdu( {
+            0x18, c_to_p, p_to_c,
+            static_cast< std::uint8_t >( instant ), static_cast< std::uint8_t >( instant >> 8 ) } );
+    }
+
+    // Core Vol 1, Part F: error code 0x20, Unsupported LL Parameter Value
+    constexpr std::uint8_t unsupported_ll_parameter_value = 0x20;
+
+    // Core Vol 1, Part F: error code 0x2A, Different Transaction Collision
+    constexpr std::uint8_t different_transaction_collision = 0x2A;
+}
+
+BOOST_AUTO_TEST_CASE( a_phy_request_is_answered_with_the_supported_phys )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto phy_rsp = control_pdu( {
+        0x17,               // LL_PHY_RSP
+        0x02,               // TX_PHYS: LE 2M
+        0x02                // RX_PHYS: LE 2M
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == phy_rsp );
+}
+
+BOOST_AUTO_TEST_CASE( a_phy_request_stalls_without_room_for_the_answer )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.buffers.room_for_an_answer = false;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::stalled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+// different PHYs for the two directions, so that swapped fields show
+BOOST_AUTO_TEST_CASE( a_phy_update_is_applied_at_its_instant )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto update_ind = control_pdu( {
+        0x18,               // LL_PHY_UPDATE_IND
+        0x02,               // PHY_C_TO_P: LE 2M
+        0x01,               // PHY_P_TO_C: LE 1M
+        0x6A, 0x00          // Instant: 106
+    } );
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( update_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    run_connection_events( link_layer, link, 105 );
+    BOOST_TEST( link_layer.phy_updates.empty() );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_REQUIRE_EQUAL( link_layer.phy_updates.size(), 1u );
+    BOOST_CHECK(( link_layer.phy_updates[ 0 ] == link_layer_mock::phy_update{ phy::le_2m_phy, phy::le_1m_phy } ));
+
+    run_connection_events( link_layer, link, 120 );
+    BOOST_TEST( link_layer.phy_updates.size() == 1u );
+}
+
+// there is no answer to a PHY update indication, so a full transmit buffer does not stall it
+BOOST_AUTO_TEST_CASE( a_phy_update_needs_no_room_in_the_transmit_buffer )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+    link.buffers.room_for_an_answer = false;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_2m_phy, phy::le_2m_phy, 106 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.phy_updates.size() == 1u );
+}
+
+// a direction without a change is passed on as such
+BOOST_AUTO_TEST_CASE( a_phy_update_of_one_direction_is_applied )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_unchanged_coding, phy::le_2m_phy, 106 ) ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_REQUIRE_EQUAL( link_layer.phy_updates.size(), 1u );
+    BOOST_CHECK(( link_layer.phy_updates[ 0 ] == link_layer_mock::phy_update{ phy::le_unchanged_coding, phy::le_2m_phy } ));
+}
+
+/*
+ * Core Vol 6, Part B, 2.4.2.24: with no change in either direction, there is no instant; the
+ * Instant field is ignored. Here it would be in the past.
+ */
+BOOST_AUTO_TEST_CASE( a_phy_update_without_a_change_has_no_instant )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_unchanged_coding, phy::le_unchanged_coding, 99 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+
+    run_connection_events( link_layer, link, 120 );
+    BOOST_TEST( link_layer.phy_updates.empty() );
+
+    // no instant is pending, so a PHY update with an instant is no collision
+    const auto next = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_2m_phy, phy::le_2m_phy, 126 ) ) );
+    BOOST_TEST( next == bll::details::procedure_result::handled() );
+}
+
+// LL/CON/PER/BI-09-C [Responding to PHY Update Procedure – Instant In Past]
+BOOST_AUTO_TEST_CASE( a_phy_update_with_an_instant_in_the_past_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_2m_phy, phy::le_2m_phy, 99 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( instant_passed ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+/*
+ * A PHY the peripheral cannot use, or more than one PHY for a direction: no test of the LL
+ * Test Suite sends them, and the peripheral cannot follow the update. Bluetoe disconnects, as
+ * for an invalid connection update.
+ */
+BOOST_AUTO_TEST_CASE( a_phy_update_to_the_coded_phy_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_coded_phy, phy::le_1m_phy, 106 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( unsupported_ll_parameter_value ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.phy_updates.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( a_phy_update_with_two_phys_for_one_direction_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_1m_phy, phy::le_1m_phy | phy::le_2m_phy, 106 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( invalid_ll_parameters ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.phy_updates.empty() );
+}
+
+/*
+ * An LL_PHY_REQ has no instant, so it is answered while another procedure's instant is
+ * pending. Only an LL_PHY_UPDATE_IND before that instant would collide; after it, the update
+ * is a procedure of its own.
+ */
+BOOST_AUTO_TEST_CASE( a_phy_request_is_answered_while_an_instant_is_pending )
+{
+    link_layer_mock                                 link_layer;
+    link_data_mock< phy_and_connection_update >     link;
+
+    link.connection_event_counter_value = 100;
+
+    phy_and_connection_update::handle_control_pdu( link_layer, link, payload( connection_update_ind( 106 ) ) );
+
+    const auto result = phy_and_connection_update::handle_control_pdu( link_layer, link, payload( phy_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto phy_rsp = control_pdu( {
+        0x17,               // LL_PHY_RSP
+        0x02,               // TX_PHYS: LE 2M
+        0x02                // RX_PHYS: LE 2M
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == phy_rsp );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.connection_updates.size() == 1u );
+
+    const auto update = phy_and_connection_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_2m_phy, phy::le_2m_phy, 112 ) ) );
+    BOOST_TEST( update == bll::details::procedure_result::handled() );
+
+    run_connection_events( link_layer, link, 112 );
+    BOOST_REQUIRE_EQUAL( link_layer.phy_updates.size(), 1u );
+    BOOST_CHECK(( link_layer.phy_updates[ 0 ] == link_layer_mock::phy_update{ phy::le_2m_phy, phy::le_2m_phy } ));
+}
+
+// the instant of a PHY update collides with the pending instant of another procedure
+BOOST_AUTO_TEST_CASE( a_phy_update_while_another_instant_is_pending_disconnects )
+{
+    link_layer_mock                                 link_layer;
+    link_data_mock< phy_and_connection_update >     link;
+
+    link.connection_event_counter_value = 100;
+
+    phy_and_connection_update::handle_control_pdu( link_layer, link, payload( connection_update_ind( 106 ) ) );
+
+    const auto result = phy_and_connection_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_2m_phy, phy::le_2m_phy, 110 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( different_transaction_collision ) );
+}
+
+// the PHY update brings the feature bit LE 2M PHY, bit 8, the first bit of the second octet
+BOOST_AUTO_TEST_CASE( the_phy_update_brings_the_le_2m_phy_feature )
+{
+    link_layer_mock                                     link_layer;
+    link_data_mock< feature_exchange_and_phy_update >   link;
+
+    const auto result = feature_exchange_and_phy_update::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto feature_rsp = control_pdu( {
+        0x09,                                           // LL_FEATURE_RSP
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 8, LE 2M PHY
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
 }

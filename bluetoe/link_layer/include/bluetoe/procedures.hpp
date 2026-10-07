@@ -8,6 +8,7 @@
 #include <bluetoe/codes.hpp>
 #include <bluetoe/channel_map.hpp>
 #include <bluetoe/meta_tools.hpp>
+#include <bluetoe/phy_encodings.hpp>
 
 #include <concepts>
 #include <cstdint>
@@ -91,6 +92,9 @@ namespace details {
             LL_VERSION_IND              = 0x0C,
             LL_PING_REQ                 = 0x12,
             LL_PING_RSP                 = 0x13,
+            LL_PHY_REQ                  = 0x16,
+            LL_PHY_RSP                  = 0x17,
+            LL_PHY_UPDATE_IND           = 0x18,
         };
     }
 
@@ -136,10 +140,16 @@ namespace details {
     }
 
     /**
-     * @brief list of supported and implemented link layer procedures
+     * @brief a group of procedures that implement a link layer procedure together
      */
     template < class ... Procs >
-    class procedure_list
+    using procedure_group = std::tuple< Procs... >;
+
+    template < class ProcsList >
+    class procedure_list_impl;
+
+    template < class ... Procs >
+    class procedure_list_impl< std::tuple< Procs... > >
     {
     public:
         /**
@@ -172,7 +182,7 @@ namespace details {
          */
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
-            requires procedure_list_link_data< LinkData, procedure_list< Procs... > >;
+            requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
 
         /**
          * @brief see, if there has something to be done for the current instant at the current connection event
@@ -186,7 +196,7 @@ namespace details {
          */
         template < class LinkLayer, class LinkData >
         static procedure_result connection_event( LinkLayer& /*link_layer*/, LinkData& /*link*/ )
-            requires procedure_list_link_data< LinkData, procedure_list< Procs... > >;
+            requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
 
         /**
          * @brief connection got reset
@@ -196,11 +206,18 @@ namespace details {
          */
         template < class LinkData >
         static void connection_reset( LinkData& /*link*/ )
-            requires procedure_list_link_data< LinkData, procedure_list< Procs... > >;
+            requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
 
     private:
         static constexpr std::uint8_t   LL_UNKNOWN_RSP_SIZE         = 2;
     };
+
+    /**
+     * @brief list of supported and implemented link layer procedures
+     */
+    template < class ... Procs >
+    using procedure_list = procedure_list_impl<
+        typename bluetoe::details::flatten< std::tuple< Procs... > >::type >;
 
     /**
      * @brief the implementation of the LE ping link layer procedure
@@ -463,13 +480,125 @@ namespace details {
         using instant_state = std::array< std::uint8_t, map_data_size >;
     };
 
+    class phy_request
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_PHY_REQ;
+        static constexpr std::uint8_t  ctr_data_size = 2;
+
+        static constexpr link_layer_feature feature_flag  = link_layer_feature::le_2m_phy_support;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            static constexpr std::size_t response_size = 3;
+
+            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( response_size );
+                write.size != 0 )
+            {
+                using layout_t = decltype(link.buffers)::layout;
+                fill< layout_t >( write, {
+                    llid::ll_control_pdu_code, response_size,
+                    opcodes::LL_PHY_RSP,
+                    phy_ll_encoding::le_2m_phy,
+                    phy_ll_encoding::le_2m_phy } );
+
+                link.buffers.commit_ll_transmit_buffer( write );
+
+                return procedure_result::handled();
+            }
+
+            return procedure_result::stalled();
+        }
+
+        struct state_type {};
+        struct instant_state {};
+    };
+
+    class phy_update_indication : public procedure_with_instant
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_PHY_UPDATE_IND;
+        static constexpr std::uint8_t  ctr_data_size = 4;
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            const instant_state new_phy {
+                .c_to_p  = pdu[ 1 ],
+                .p_to_c  = pdu[ 2 ]
+            };
+            const std::uint16_t instant = bluetoe::details::read_16bit( pdu.data() + 2 + 1 );
+
+            if ( !valid_phy_encoding( new_phy.c_to_p ) || !valid_phy_encoding( new_phy.p_to_c ) )
+            {
+                return procedure_result::disconnect( controller_error_codes::invalid_ll_parameters );
+            }
+
+            if ( !supported_phy_encoding( new_phy.c_to_p ) || !supported_phy_encoding( new_phy.p_to_c ) )
+            {
+                return procedure_result::disconnect( controller_error_codes::unsupported_ll_parameter_value );
+            }
+
+            if ( new_phy.c_to_p != phy_ll_encoding::le_unchanged_coding
+              || new_phy.p_to_c != phy_ll_encoding::le_unchanged_coding )
+            {
+                return apply_and_check_instant( new_phy, link, instant );
+            }
+
+            return procedure_result::handled();
+        }
+
+        template < class LinkLayer, class LinkData >
+        static bool connection_event( LinkLayer& link_layer, LinkData& link, procedure_result& /* result */ )
+        {
+            assert( link.procedures_instant.has_value() );
+
+            const instant_state* const new_phy = std::get_if< instant_state >( &link.procedures_instant_state );
+            if ( !new_phy )
+                return false;
+
+            link_layer.update_phy( link,
+                static_cast< phy_ll_encoding::phy_ll_encoding_t >( new_phy->c_to_p ),
+                static_cast< phy_ll_encoding::phy_ll_encoding_t >( new_phy->p_to_c ) );
+
+            return true;
+        }
+
+        struct state_type {};
+        struct instant_state {
+            std::uint8_t c_to_p;
+            std::uint8_t p_to_c;
+        };
+
+    private:
+        static bool valid_phy_encoding( std::uint8_t c )
+        {
+            return c == phy_ll_encoding::le_unchanged_coding
+                || c == phy_ll_encoding::le_1m_phy
+                || c == phy_ll_encoding::le_2m_phy
+                || c == phy_ll_encoding::le_coded_phy;
+        }
+
+        static bool supported_phy_encoding( std::uint8_t c )
+        {
+            return c == phy_ll_encoding::le_unchanged_coding
+                || c == phy_ll_encoding::le_1m_phy
+                || c == phy_ll_encoding::le_2m_phy;
+        }
+    };
+
+    /**
+     * @brief all procedures required to implement the link layer phy update procedure
+     */
+    using phy_update_procedure = procedure_group< phy_request, phy_update_indication >;
+
     ///////////////////////
     // implementation
-
     template < class ... Procs >
     template < class LinkLayer, class LinkData >
-    procedure_result procedure_list< Procs... >::handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
-        requires procedure_list_link_data< LinkData, procedure_list< Procs... > >
+    procedure_result procedure_list_impl< std::tuple< Procs... > >::handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > pdu )
+        requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
     {
         assert( pdu.size() <= 0xff );
 
@@ -509,8 +638,8 @@ namespace details {
 
     template < class ... Procs >
     template < class LinkLayer, class LinkData >
-    procedure_result procedure_list< Procs... >::connection_event( LinkLayer& link_layer, LinkData& link )
-        requires procedure_list_link_data< LinkData, procedure_list< Procs... > >
+    procedure_result procedure_list_impl< std::tuple< Procs... > >::connection_event( LinkLayer& link_layer, LinkData& link )
+        requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
     {
         procedure_result result = procedure_result::handled();
 
@@ -531,8 +660,8 @@ namespace details {
 
     template < class ... Procs >
     template < class LinkData >
-    void procedure_list< Procs... >::connection_reset( LinkData& link )
-        requires procedure_list_link_data< LinkData, procedure_list< Procs... > >
+    void procedure_list_impl< std::tuple< Procs... > >::connection_reset( LinkData& link )
+        requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
     {
         static_cast< state_type& >( link ) = state_type();
     }

@@ -6,6 +6,7 @@
 #include <bluetoe/buffer.hpp>
 #include <bluetoe/connection_parameters.hpp>
 #include <bluetoe/procedures.hpp>
+#include <bluetoe/phy_encodings.hpp>
 
 #include "test_layout.hpp"
 #include "procedures_io.hpp"
@@ -119,8 +120,26 @@ struct link_layer_mock
         link.parameters.channels( new_map.data() );
     }
 
+    // the PHYs of a PHY update, applied at its instant; le_unchanged_coding keeps a direction
+    struct phy_update
+    {
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t c_to_p;
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t p_to_c;
+
+        bool operator==( const phy_update& ) const = default;
+    };
+
+    template < class LinkData >
+    void update_phy( LinkData&,
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t c_to_p,
+        bluetoe::link_layer::phy_ll_encoding::phy_ll_encoding_t p_to_c )
+    {
+        phy_updates.push_back( { c_to_p, p_to_c } );
+    }
+
     std::vector< bluetoe::link_layer::details::connection_timing >  connection_updates;
     std::vector< std::array< std::uint8_t, 5 > >                    channel_map_updates;
+    std::vector< phy_update >                                       phy_updates;
 };
 
 // we simulate the situation where a connection is established, so we need a valid
