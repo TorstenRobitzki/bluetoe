@@ -1052,3 +1052,36 @@ BOOST_AUTO_TEST_CASE( map_insert )
         >::value
     ) );
 }
+
+BOOST_AUTO_TEST_CASE( flatten )
+{
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::flatten<
+            std::tuple<> >::type,
+            std::tuple<> >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::flatten<
+            std::tuple< int > >::type,
+            std::tuple< int > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::flatten<
+            std::tuple< int, char, bool > >::type,
+            std::tuple< int, char, bool > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::flatten<
+            std::tuple< std::tuple<>, int, char, bool > >::type,
+            std::tuple< int, char, bool > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::flatten<
+            std::tuple< std::tuple< int, char, bool > > >::type,
+            std::tuple< int, char, bool > >::value ) );
+
+    BOOST_CHECK( ( std::is_same<
+        typename bluetoe::details::flatten<
+            std::tuple< std::tuple< int >, char, bool > >::type,
+            std::tuple< int, char, bool > >::value ) );
+}

@@ -901,6 +901,30 @@ namespace details {
         std::conditional_t< Bits <= 16, std::uint16_t,
         std::conditional_t< Bits <= 32, std::uint32_t,
                                         std::uint64_t > > >;
+
+    template < typename ListP, typename ElementP >
+    struct flatten_tuple;
+
+    template < typename ...Ls, typename ...Es >
+    struct flatten_tuple< std::tuple< Ls... >, std::tuple< Es... > >
+    {
+        using type = std::tuple< Ls..., Es... >;
+    };
+
+    template < typename ...Ls, typename E >
+    struct flatten_tuple< std::tuple< Ls... >, E >
+    {
+        using type = std::tuple< Ls..., E >;
+    };
+
+    // none recusive flatten
+    template < class List >
+    struct flatten;
+
+    template < class ...Ts >
+    struct flatten< std::tuple< Ts... > > {
+        using type = typename fold_left< std::tuple< Ts... >, flatten_tuple >::type;
+    };
 }
 }
 
