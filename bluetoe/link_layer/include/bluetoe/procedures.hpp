@@ -98,6 +98,7 @@ namespace details {
             LL_PAUSE_ENC_RSP            = 0x0B,
             LL_VERSION_IND              = 0x0C,
             LL_REJECT_IND               = 0x0D,
+            LL_REJECT_EXT_IND           = 0x11,
             LL_PING_REQ                 = 0x12,
             LL_PING_RSP                 = 0x13,
             LL_PHY_REQ                  = 0x16,
@@ -105,6 +106,9 @@ namespace details {
             LL_PHY_UPDATE_IND           = 0x18,
         };
     }
+
+    template < class LinkData, class ProcedureList >
+    concept procedure_list_link_data = std::derived_from< LinkData, typename ProcedureList::state_type >;
 
     /**
      * @brief enum that gives the bit position of the feature flag in
@@ -121,9 +125,6 @@ namespace details {
         extended_scanner_filter_policies        = 7,
         le_2m_phy_support                       = 8
     };
-
-    template < class LinkData, class ProcedureList >
-    concept procedure_list_link_data = std::derived_from< LinkData, typename ProcedureList::state_type >;
 
     // The size in bits, it takes to keep the Procs feature flag in a mask
     template < class Proc >
@@ -184,11 +185,25 @@ namespace details {
             std::optional< std::uint16_t >  procedures_instant;
 
             // the set of implemented features of this link layer procedure list
-            static constexpr feature_flag_mask_t implemented_features = ( 0 | ... | feature_set< Procs, Procs... >() );
+            // the default is support for LL_REJECT_EXT_IND
+            static constexpr feature_flag_mask_t implemented_features = (
+                ( feature_flag_mask_t{1} << static_cast< int >( link_layer_feature::extended_reject_indication ) )
+                    | ... | feature_set< Procs, Procs... >() );
 
-            feature_flag_mask_t currently_used_features = implemented_features;
+            // By default, the link layer will not use LL_REJECT_EXT_IND until it can
+            // prove that the peer supports it
+            static constexpr feature_flag_mask_t features_not_used_before_proved =
+                ( feature_flag_mask_t{1} << static_cast< int >( link_layer_feature::extended_reject_indication ) );
+
+            feature_flag_mask_t currently_used_features =
+                implemented_features & ~features_not_used_before_proved;
 
             std::optional< pending_procedure_rejection > pending_reject;
+
+            bool supports_feature( link_layer_feature feat ) const
+            {
+                return currently_used_features & ( feature_flag_mask_t{1} << static_cast< int >( feat ) );
+            }
         };
 
         /**
@@ -241,6 +256,33 @@ namespace details {
 
     class procedure_base
     {
+    public:
+        template < class LinkData >
+        static bool try_reject( LinkData& link, opcodes::opcodes_t opcode, controller_error_codes::error_codes error )
+        {
+            const bool supports_extended_reject = link.supports_feature( link_layer_feature::extended_reject_indication );
+
+            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( supports_extended_reject ? 3 : 2 );
+                write.size != 0 )
+            {
+                using layout_t = typename decltype(link.buffers)::layout;
+
+                if ( supports_extended_reject )
+                {
+                    fill< layout_t >( write, { llid::ll_control_pdu_code, 3, opcodes::LL_REJECT_EXT_IND, opcode, error } );
+                }
+                else
+                {
+                    fill< layout_t >( write, { llid::ll_control_pdu_code, 2, opcodes::LL_REJECT_IND, error } );
+                }
+
+                link.buffers.commit_ll_transmit_buffer( write );
+
+                return true;
+            }
+
+            return false;
+        }
     protected:
         template < class LinkData, class FillPdu >
         static procedure_result allocate_and_transmit( LinkData& link, std::size_t required_size, FillPdu fill )
@@ -262,15 +304,7 @@ namespace details {
         {
             assert( !link.pending_reject.has_value() );
 
-            if ( const auto write = link.buffers.allocate_ll_transmit_buffer( 2 );
-                write.size != 0 )
-            {
-                using layout_t = typename decltype(link.buffers)::layout;
-
-                fill< layout_t >( write, { llid::ll_control_pdu_code, 2, opcodes::LL_REJECT_IND, error } );
-                link.buffers.commit_ll_transmit_buffer( write );
-            }
-            else
+            if ( !try_reject( link, opcode, error ) )
             {
                 link.pending_reject = pending_procedure_rejection{
                     .opcode = opcode,
@@ -377,8 +411,20 @@ namespace details {
 
             return allocate_and_transmit( link, response_size, [&]( auto write )
             {
-                parse_mask( link, pdu );
-                write_response( link, write );
+                using link_t = std::decay_t< decltype( link ) >;
+                using mask_t = decltype( link.currently_used_features );
+
+                const mask_t remote_mask = parse_mask< mask_t >( pdu );
+
+                // enable features that where previously not used because it was
+                // unknown whether the remote supports it or not
+                link.currently_used_features = link.currently_used_features |
+                    ( link_t::features_not_used_before_proved & remote_mask );
+
+                // do not use features that are not supported by the remote side
+                link.currently_used_features = link.currently_used_features & ( 0xff & remote_mask );
+
+                write_response( link, write, remote_mask );
             });
         }
 
@@ -386,19 +432,18 @@ namespace details {
         struct instant_state {};
 
     private:
-        static void parse_mask( auto& link, auto pdu )
+        template < class Mask >
+        static Mask parse_mask( auto pdu )
         {
-            using mask_t = decltype( link.currently_used_features );
+            Mask mask = 0;
 
-            mask_t mask = 0;
+            for ( std::size_t octet = 0; octet != sizeof( Mask ); ++octet )
+                mask |= Mask( pdu[ 1 + octet ] ) << ( 8 * octet );
 
-            for ( std::size_t octet = 0; octet != sizeof( mask_t ); ++octet )
-                mask |= mask_t( pdu[ 1 + octet ] ) << ( 8 * octet );
-
-            link.currently_used_features = link.currently_used_features & mask;
+            return mask;
         }
 
-        static void write_response( auto& link, auto write )
+        static void write_response( auto& link, auto write, auto remote_mask )
         {
             const std::uint8_t response_size = 9;
 
@@ -411,7 +456,17 @@ namespace details {
             ++body;
 
             std::size_t pos = 1;
-            for ( auto mask = link.currently_used_features; pos != response_size; mask = mask >> 8 )
+
+            using mask_t = decltype( remote_mask );
+            using link_t = std::decay_t< decltype( link ) >;
+
+            const mask_t locak_mask_0  = ( link_t::implemented_features ) & 0xff;
+            const mask_t remote_mask_0 = remote_mask & 0xff;
+
+            const mask_t outgoing_mask = ( locak_mask_0 & remote_mask_0 )
+                | ( link_t::implemented_features & ~mask_t{0xff} );
+
+            for ( auto mask = outgoing_mask; pos != response_size; mask = mask >> 8 )
             {
                 *body = static_cast< std::uint8_t >( mask & 0xff );
                 ++body;
@@ -866,6 +921,8 @@ namespace details {
         {
             if ( !send_pending_reject( link_layer, link ) )
                 return result;
+
+            state.pending_reject.reset();
         }
 
         if ( result == procedure_result::handled() )
@@ -893,20 +950,7 @@ namespace details {
         state_type& state = link;
         assert( state.pending_reject.has_value() );
 
-        if ( const auto write = link.buffers.allocate_ll_transmit_buffer( 2 );
-            write.size != 0 )
-        {
-            using layout_t = typename decltype(link.buffers)::layout;
-
-            fill< layout_t >( write, { llid::ll_control_pdu_code, 2, opcodes::LL_REJECT_IND, state.pending_reject->error } );
-
-            link.buffers.commit_ll_transmit_buffer( write );
-            state.pending_reject.reset();
-
-            return true;
-        }
-
-        return false;
+        return procedure_base::try_reject( link, state.pending_reject->opcode, state.pending_reject->error );
     }
 
 }

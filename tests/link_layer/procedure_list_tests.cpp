@@ -536,7 +536,7 @@ namespace {
     {
         static constexpr std::uint8_t                           opcode        = 0xF6;
         static constexpr std::uint8_t                           ctr_data_size = 0;
-        static constexpr bll::details::link_layer_feature       feature_flag  = bll::details::link_layer_feature::extended_reject_indication;
+        static constexpr bll::details::link_layer_feature       feature_flag  = bll::details::link_layer_feature::ll_privacy;
 
         struct state_type
         {
@@ -676,7 +676,7 @@ BOOST_AUTO_TEST_CASE( the_feature_bit_of_a_group_is_a_feature_of_the_list )
 
     const auto feature_rsp = control_pdu( {
         0x09,                                           // LL_FEATURE_RSP
-        0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 2, Extended Reject Indication
+        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 2, the list's Extended Reject Indication; bit 6, LL Privacy
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
@@ -962,4 +962,159 @@ BOOST_AUTO_TEST_CASE( an_own_pdu_without_room_does_not_stall_the_connection_even
     rejecting_procedures::connection_event( link_layer, link );
     BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
     BOOST_TEST( link.buffers.transmitted[ 0 ] == control_pdu( { sending_fixture::own_pdu } ) );
+}
+
+/*
+ * Which rejection: Core Vol 6, Part B, 2.4.2.18 allows an LL_REJECT_EXT_IND only to a central
+ * that supports Extended Reject Indication. Once the central has shown that in a feature
+ * exchange, every rejection is an LL_REJECT_EXT_IND, also one that had to wait for room.
+ */
+namespace {
+
+    using rejecting_procedures_with_features = bll::details::procedure_list<
+        bll::details::feature_exchange_procedure, rejecting_fixture, sending_fixture, late_rejecting_fixture >;
+
+    // a central with every feature, Extended Reject Indication among them
+    const auto feature_req_with_extended_reject = control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // FeatureSet: all features
+    } );
+
+    const auto reject_ext_ind = control_pdu( {
+        0x11,               // LL_REJECT_EXT_IND
+        0xF8,               // RejectOpcode: the request of the rejecting_fixture
+        0x06                // ErrorCode: PIN or Key Missing
+    } );
+}
+
+BOOST_AUTO_TEST_CASE( after_a_feature_exchange_with_extended_reject_a_rejection_is_extended )
+{
+    link_layer_mock                                         link_layer;
+    link_data_mock< rejecting_procedures_with_features >    link;
+
+    rejecting_procedures_with_features::handle_control_pdu( link_layer, link, payload( feature_req_with_extended_reject ) );
+    link.buffers.transmitted.clear();
+
+    rejecting_procedures_with_features::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ext_ind );
+}
+
+BOOST_AUTO_TEST_CASE( a_rejection_that_waited_for_room_is_extended_too )
+{
+    link_layer_mock                                         link_layer;
+    link_data_mock< rejecting_procedures_with_features >    link;
+
+    rejecting_procedures_with_features::handle_control_pdu( link_layer, link, payload( feature_req_with_extended_reject ) );
+    link.buffers.transmitted.clear();
+
+    link.buffers.room_for_an_answer = false;
+    rejecting_procedures_with_features::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures_with_features::connection_event( link_layer, link );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ext_ind );
+}
+
+// without a feature exchange, also a rejection that waited is an LL_REJECT_IND
+BOOST_AUTO_TEST_CASE( a_rejection_that_waited_for_room_is_not_extended_without_a_feature_exchange )
+{
+    link_layer_mock                                         link_layer;
+    link_data_mock< rejecting_procedures_with_features >    link;
+
+    link.buffers.room_for_an_answer = false;
+    rejecting_procedures_with_features::handle_control_pdu( link_layer, link, payload( request_to_reject ) );
+    link.buffers.room_for_an_answer = true;
+
+    rejecting_procedures_with_features::connection_event( link_layer, link );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+}
+
+/*
+ * Two procedures that reject from their transmit() in the same event, without room: the first
+ * rejection goes into the list's slot, and the list does not ask the second procedure, which
+ * would reject into the full slot. Its rejection follows the first once there is room.
+ */
+namespace {
+
+    template < std::uint8_t Opcode, std::uint8_t ErrorCode >
+    class late_rejecting : public bll::details::procedure_base
+    {
+    public:
+        static constexpr std::uint8_t opcode        = Opcode;
+        static constexpr std::uint8_t ctr_data_size = 0;
+
+        struct state_type
+        {
+            bool rejection_due = false;
+        };
+
+        struct instant_state {};
+
+        template < class LinkLayer, class LinkData >
+        static bll::details::procedure_result handle_control_pdu( LinkLayer& /*link_layer*/, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
+        {
+            state_type& state = link;
+            state.rejection_due = true;
+
+            return bll::details::procedure_result::handled();
+        }
+
+        template < class LinkLayer, class LinkData >
+        static bool transmit( LinkLayer& /*link_layer*/, LinkData& link )
+        {
+            state_type& state = link;
+
+            if ( !state.rejection_due )
+                return true;
+
+            state.rejection_due = false;
+
+            reject( link,
+                static_cast< bll::details::opcodes::opcodes_t >( opcode ),
+                static_cast< bluetoe::controller_error_codes::error_codes >( ErrorCode ) );
+
+            return true;
+        }
+    };
+
+    using first_late_rejecting  = late_rejecting< 0xE0, 0x1E >;
+    using second_late_rejecting = late_rejecting< 0xE1, 0x1A >;
+
+    using two_late_rejecting = bll::details::procedure_list< first_late_rejecting, second_late_rejecting >;
+}
+
+BOOST_AUTO_TEST_CASE( a_second_procedure_does_not_reject_while_the_first_rejection_waits )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< two_late_rejecting >    link;
+
+    two_late_rejecting::handle_control_pdu( link_layer, link, payload( control_pdu( { first_late_rejecting::opcode } ) ) );
+    two_late_rejecting::handle_control_pdu( link_layer, link, payload( control_pdu( { second_late_rejecting::opcode } ) ) );
+
+    link.buffers.room_for_an_answer = false;
+    two_late_rejecting::connection_event( link_layer, link );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+
+    link.buffers.room_for_an_answer = true;
+    two_late_rejecting::connection_event( link_layer, link );
+
+    const auto first_reject_ind = control_pdu( {
+        0x0D,               // LL_REJECT_IND
+        0x1E                // ErrorCode: Invalid LL Parameters
+    } );
+
+    const auto second_reject_ind = control_pdu( {
+        0x0D,               // LL_REJECT_IND
+        0x1A                // ErrorCode: Unsupported Remote Feature
+    } );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 2u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == first_reject_ind );
+    BOOST_TEST( link.buffers.transmitted[ 1 ] == second_reject_ind );
 }

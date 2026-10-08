@@ -19,6 +19,11 @@ namespace {
 
     using phy_update         = bll::details::procedure_list< bll::details::phy_update_procedure >;
 
+    // the two procedures with an instant, next to each other
+    using connection_and_channel_map_update = bll::details::procedure_list<
+        bll::details::connection_update_indication,
+        bll::details::channel_map_update_procedure >;
+
     // the PHY update next to a procedure with an instant
     using phy_and_connection_update = bll::details::procedure_list<
         bll::details::phy_update_procedure,
@@ -287,7 +292,12 @@ BOOST_AUTO_TEST_CASE( a_terminate_indication_disconnects_without_room_for_an_ans
  * Feature Exchange procedure, started by the central
  *
  * The peripheral answers every LL_FEATURE_REQ with an LL_FEATURE_RSP. Its FeatureSet is the
- * features of the procedures in the list: the list decides which features Bluetoe has.
+ * features of the procedures in the list: the list decides which features Bluetoe has. The list
+ * itself always brings Extended Reject Indication, bit 2: Core Vol 6, Part B, 4.6.9 requires it
+ * with the PHY update, 4.6.2 with the connection parameters request.
+ *
+ * Core Vol 6, Part B, 5.1.4.1: octet 0 of the answer is FeatureSet_USED, the features of octet 0
+ * that both support; octets 1 to 7 are the peripheral's own.
  */
 BOOST_AUTO_TEST_CASE( a_feature_request_is_answered_with_the_features_of_the_procedures )
 {
@@ -301,14 +311,14 @@ BOOST_AUTO_TEST_CASE( a_feature_request_is_answered_with_the_features_of_the_pro
 
     const auto feature_rsp = control_pdu( {
         0x09,                                           // LL_FEATURE_RSP
-        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 4, LE Ping
+        0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 2, Extended Reject Indication; bit 4, LE Ping
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
 }
 
-// without a procedure that has a feature bit, there are no features to report
-BOOST_AUTO_TEST_CASE( a_list_without_features_answers_with_no_features )
+// without a procedure that has a feature bit, the list's own feature is all there is to report
+BOOST_AUTO_TEST_CASE( a_list_without_procedure_features_answers_with_extended_reject_indication )
 {
     link_layer_mock                     link_layer;
     link_data_mock< feature_exchange >  link;
@@ -320,7 +330,34 @@ BOOST_AUTO_TEST_CASE( a_list_without_features_answers_with_no_features )
 
     const auto feature_rsp = control_pdu( {
         0x09,                                           // LL_FEATURE_RSP
+        0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 2, Extended Reject Indication
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
+}
+
+/*
+ * A central without any feature: octet 0 is what both support, nothing; octet 1 still carries
+ * the peripheral's LE 2M PHY.
+ */
+BOOST_AUTO_TEST_CASE( only_the_first_octet_of_the_answer_is_shared_with_the_central )
+{
+    link_layer_mock                                     link_layer;
+    link_data_mock< feature_exchange_and_phy_update >   link;
+
+    const auto request = control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: none
+    } );
+
+    feature_exchange_and_phy_update::handle_control_pdu( link_layer, link, payload( request ) );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto feature_rsp = control_pdu( {
+        0x09,                                           // LL_FEATURE_RSP
+        0x00,                                           // FeatureSet_USED: none
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00        // octets 1 to 7 of FeatureSet_P: bit 8, LE 2M PHY
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
@@ -782,6 +819,27 @@ BOOST_AUTO_TEST_CASE( a_channel_map_update_with_two_channels_is_applied )
     BOOST_TEST( link_layer.channel_map_updates.size() == 1u );
 }
 
+// with both procedures in the list, the instant goes to the one that set it, and only to that one
+BOOST_AUTO_TEST_CASE( a_connection_update_and_a_channel_map_update_each_apply_their_own_instant )
+{
+    link_layer_mock                                         link_layer;
+    link_data_mock< connection_and_channel_map_update >     link;
+
+    link.connection_event_counter_value = 100;
+
+    connection_and_channel_map_update::handle_control_pdu( link_layer, link, payload( connection_update_ind( 106 ) ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.connection_updates.size() == 1u );
+    BOOST_TEST( link_layer.channel_map_updates.empty() );
+
+    connection_and_channel_map_update::handle_control_pdu( link_layer, link, payload( channel_map_ind( 112 ) ) );
+
+    run_connection_events( link_layer, link, 112 );
+    BOOST_TEST( link_layer.connection_updates.size() == 1u );
+    BOOST_TEST( link_layer.channel_map_updates.size() == 1u );
+}
+
 /*
  * PHY Update procedure, started by the central
  *
@@ -981,6 +1039,38 @@ BOOST_AUTO_TEST_CASE( a_phy_update_with_two_phys_for_one_direction_disconnects )
     BOOST_TEST( link_layer.phy_updates.empty() );
 }
 
+// the checks look at both fields: here the PHY from the central to the peripheral is invalid
+BOOST_AUTO_TEST_CASE( a_phy_update_with_two_phys_from_the_central_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_1m_phy | phy::le_2m_phy, phy::le_1m_phy, 106 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( invalid_ll_parameters ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.phy_updates.empty() );
+}
+
+// and here the PHY from the peripheral to the central is one the peripheral cannot use
+BOOST_AUTO_TEST_CASE( a_phy_update_to_the_coded_phy_from_the_peripheral_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< phy_update >    link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = phy_update::handle_control_pdu( link_layer, link, payload( phy_update_ind( phy::le_1m_phy, phy::le_coded_phy, 106 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( unsupported_ll_parameter_value ) );
+
+    run_connection_events( link_layer, link, 106 );
+    BOOST_TEST( link_layer.phy_updates.empty() );
+}
+
 /*
  * An LL_PHY_REQ has no instant, so it is answered while another procedure's instant is
  * pending. Only an LL_PHY_UPDATE_IND before that instant would collide; after it, the update
@@ -1047,7 +1137,7 @@ BOOST_AUTO_TEST_CASE( the_phy_update_brings_the_le_2m_phy_feature )
 
     const auto feature_rsp = control_pdu( {
         0x09,                                           // LL_FEATURE_RSP
-        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 8, LE 2M PHY
+        0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 2, Extended Reject Indication; bit 8, LE 2M PHY
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
@@ -1201,8 +1291,10 @@ BOOST_AUTO_TEST_CASE( the_start_of_the_encryption_waits_for_room )
 }
 
 /*
- * Without extended reject indication in the list, the reject is an LL_REJECT_IND, which every
- * central understands.
+ * Core Vol 6, Part B, 2.4.2.18: an LL_REJECT_EXT_IND only to a central that supports Extended
+ * Reject Indication, otherwise an LL_REJECT_IND. Without a feature exchange, the peripheral
+ * does not know, so it sends the LL_REJECT_IND that every central understands; that is what
+ * LL/SEC/PER/BV-04-C requires, with a tester without LL_REJECT_EXT_IND and no exchange.
  */
 BOOST_AUTO_TEST_CASE( without_a_key_the_encryption_request_is_rejected )
 {
@@ -1407,6 +1499,63 @@ BOOST_AUTO_TEST_CASE( the_start_of_the_encryption_is_sent_in_the_event_of_an_ins
     BOOST_TEST( link.buffers.transmitted[ 0 ] == start_enc_req );
 }
 
+/*
+ * After a feature exchange, the central's FeatureSet decides: with Extended Reject Indication an
+ * LL_REJECT_EXT_IND that names the rejected LL_ENC_REQ, without it an LL_REJECT_IND.
+ * LL/SEC/PER/BV-11-C exchanges the features first and accepts either.
+ */
+BOOST_AUTO_TEST_CASE( a_central_with_extended_reject_indication_gets_an_extended_reject )
+{
+    link_layer_mock                                     link_layer;
+    link_data_mock< feature_exchange_and_encryption >   link;
+
+    link_layer.has_key = false;
+
+    feature_exchange_and_encryption::handle_control_pdu( link_layer, link, payload( feature_req ) );
+    feature_exchange_and_encryption::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    link.buffers.transmitted.clear();
+
+    feature_exchange_and_encryption::connection_event( link_layer, link );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto reject_ext_ind = control_pdu( {
+        0x11,               // LL_REJECT_EXT_IND
+        0x03,               // RejectOpcode: LL_ENC_REQ
+        0x06                // ErrorCode: PIN or Key Missing
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ext_ind );
+}
+
+BOOST_AUTO_TEST_CASE( a_central_without_extended_reject_indication_gets_a_reject )
+{
+    link_layer_mock                                     link_layer;
+    link_data_mock< feature_exchange_and_encryption >   link;
+
+    link_layer.has_key = false;
+
+    const auto request = control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 0, LE Encryption
+    } );
+
+    feature_exchange_and_encryption::handle_control_pdu( link_layer, link, payload( request ) );
+    feature_exchange_and_encryption::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    link.buffers.transmitted.clear();
+
+    feature_exchange_and_encryption::connection_event( link_layer, link );
+
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto reject_ind = control_pdu( {
+        0x0D,               // LL_REJECT_IND
+        0x06                // ErrorCode: PIN or Key Missing
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == reject_ind );
+}
+
 // the encryption brings the feature bit LE Encryption, bit 0
 BOOST_AUTO_TEST_CASE( the_encryption_brings_the_le_encryption_feature )
 {
@@ -1419,7 +1568,7 @@ BOOST_AUTO_TEST_CASE( the_encryption_brings_the_le_encryption_feature )
 
     const auto feature_rsp = control_pdu( {
         0x09,                                           // LL_FEATURE_RSP
-        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 0, LE Encryption
+        0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: bit 0, LE Encryption; bit 2, Extended Reject Indication
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
