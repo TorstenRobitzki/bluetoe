@@ -3,6 +3,7 @@
 
 #include <bluetoe/io_capabilities.hpp>
 #include <bluetoe/pairing_status.hpp>
+#include <bluetoe/address.hpp>
 
 #include <array>
 #include <cstdint>

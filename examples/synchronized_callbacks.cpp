@@ -133,14 +133,14 @@ extern "C" void TIMER2_IRQHandler()
 
     static bool on = true;
 
-    if ( on )
-    {
-        gatt_srv.restart_synchronized_connection_event_callbacks();
-    }
-    else
-    {
-        gatt_srv.stop_synchronized_connection_event_callbacks();
-    }
+    // if ( on )
+    // {
+    //     gatt_srv.restart_synchronized_connection_event_callbacks();
+    // }
+    // else
+    // {
+    //     gatt_srv.stop_synchronized_connection_event_callbacks();
+    // }
 
     on = !on;
 }

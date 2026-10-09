@@ -96,6 +96,11 @@ struct link_layer_base
         return buffer_;
     }
 
+    auto& link_layer_pdu_buffer()
+    {
+        return *this;
+    }
+
     std::uint8_t buffer_[ 1024 ];
     bool advertisment_scheduled;
 

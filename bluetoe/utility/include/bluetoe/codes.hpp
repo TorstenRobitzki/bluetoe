@@ -140,7 +140,7 @@ namespace details {
 
 
 /**
- * namespace for error codes, that should be convertable to int
+ * namespace for error codes, that should be convertable to uint8_t
  */
 namespace error_codes {
 
@@ -269,5 +269,92 @@ namespace error_codes {
         cccd_improperly_configured          = 0xfd
     };
 }
+
+/**
+ * namespace for controller error codes, that should be convertable to uint8_t
+ */
+namespace controller_error_codes {
+    enum error_codes : std::uint8_t
+    {
+        success,
+        unknown_hci_command,
+        unknown_connection_identifier,
+        hardware_failure,
+        page_timeout,
+        authentication_failure,
+        pin_or_key_missing,
+        memory_capacity_exceeded,
+        connection_timeout,
+        connection_limit_exceeded,
+        synchronous_connection_limit_to_a_device_exceeded,
+        connection_already_exists,
+        command_disallowed,
+        connection_rejected_due_to_limited_resources,
+        connection_rejected_due_to_security_reasons,
+        connection_rejected_due_to_unacceptable_bd_addr,
+        connection_accept_timeout_exceeded,
+        unsupported_feature_or_parameter_value,
+        invalid_hci_command_parameters,
+        remote_user_terminated_connection,
+        remote_device_terminated_connection_due_to_low_resources,
+        remote_device_terminated_connection_due_to_power_off,
+        connection_terminated_by_local_host,
+        repeated_attempts,
+        pairing_not_allowed,
+        unknown_lmp_pdu,
+        unsupported_remote_feature,
+        sco_offset_rejected,
+        sco_interval_rejected,
+        sco_air_mode_rejected,
+        invalid_lmp_parameters,
+        invalid_ll_parameters = invalid_lmp_parameters,
+        unspecified_error,
+        unsupported_lmp_parameter_value,
+        unsupported_ll_parameter_value = unsupported_lmp_parameter_value,
+        role_change_not_allowed,
+        lmp_response_timeout,
+        ll_response_timeout = lmp_response_timeout,
+        lmp_error_transaction_collision,
+        ll_procedure_collision = lmp_error_transaction_collision,
+        lmp_pdu_not_allowed,
+        encryption_mode_not_acceptable,
+        link_key_cannot_be_changed,
+        requested_qos_not_supported,
+        instant_passed,
+        pairing_with_unit_key_not_supported,
+        different_transaction_collision,
+        reserved_for_future_use1,
+        qos_unacceptable_parameter,
+        qos_rejected,
+        channel_classification_not_supported,
+        insufficient_security,
+        parameter_out_of_mandatory_range,
+        reserved_for_future_use2,
+        role_switch_pending,
+        reserved_for_future_use3,
+        reserved_slot_violation,
+        role_switch_failed,
+        extended_inquiry_response_too_large,
+        secure_simple_pairing_not_supported_by_host,
+        host_busy_pairing,
+        connection_rejected_due_to_no_suitable_channel_found,
+        controller_busy,
+        unacceptable_connection_parameters,
+        advertising_timeout,
+        connection_terminated_due_to_mic_failure,
+        connection_failed_to_be_established_synchronization_timeout,
+        previously_used,
+        coarse_clock_adjustment_rejected_but_will_try_to_adjust_using_clock_dragging,
+        type0_submap_not_defined,
+        unknown_advertising_identifier,
+        limit_reached,
+        operation_cancelled_by_host,
+        packet_too_long,
+        too_late,
+        too_early,
+        insufficient_channels,
+    };
+}
+
 }
 #endif

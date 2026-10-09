@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace test {
     template < std::size_t Overhead >
@@ -56,6 +57,13 @@ namespace test {
             assert( pdu.size >= header_size );
 
             return { &pdu.buffer[ header_size + Overhead ], &pdu.buffer[ pdu.size ] };
+        }
+
+        static std::span< const std::uint8_t > payload( const bluetoe::link_layer::write_buffer& pdu )
+        {
+            const auto payload_body = body( pdu );
+
+            return { payload_body.first, payload_body.second };
         }
 
         static constexpr std::size_t data_channel_pdu_memory_size( std::size_t payload_size )

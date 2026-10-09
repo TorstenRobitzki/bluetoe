@@ -4,6 +4,8 @@
 #include <bluetoe/bits.hpp>
 #include <bluetoe/buffer.hpp>
 
+#include <span>
+
 namespace bluetoe {
 namespace link_layer {
 
@@ -31,6 +33,14 @@ namespace link_layer {
                 assert( pdu.size >= Base::data_channel_pdu_memory_size( 0 ) );
 
                 Base::header( pdu.buffer, header_value );
+            }
+
+            // the part of the PDU after its header, as the specification calls it
+            static std::span< const std::uint8_t > payload( const write_buffer& pdu )
+            {
+                const auto body = Base::body( pdu );
+
+                return { body.first, body.second };
             }
         };
     }

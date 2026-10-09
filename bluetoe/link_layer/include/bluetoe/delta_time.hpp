@@ -3,6 +3,9 @@
 
 #include <cstdint>
 #include <iosfwd>
+#include <chrono>
+#include <type_traits>
+#include <cassert>
 
 namespace bluetoe {
 namespace link_layer {
@@ -22,6 +25,20 @@ namespace link_layer {
          */
         constexpr explicit delta_time( std::uint32_t usec ) : usec_( usec )
         {
+        }
+
+        /**
+         * @brief constructs a delta_time from a duration
+         *
+         * Only non-negative representations are supported.
+         * Implicit conversion is desired to get better readable tests.
+         */
+        template < class Rep, class Period >
+            requires std::is_convertible_v< std::chrono::duration< Rep, Period >, std::chrono::microseconds >
+        constexpr delta_time( std::chrono::duration< Rep, Period > t )
+            : usec_( std::chrono::microseconds( t ).count() )
+        {
+            assert( t.count() >= 0 );
         }
 
         /**

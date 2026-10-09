@@ -17,6 +17,7 @@ namespace {
         radio_mock_t()
             : available_transmit_buffers_( 0 )
         {
+            that_ = this;
         }
 
         static constexpr std::size_t header_size = 2;
@@ -105,12 +106,15 @@ namespace {
             std::copy( data.begin(), data.end(), buffer.buffer );
         }
 
-        void pdu_receive_data_callback( const bluetoe::link_layer::write_buffer pdu )
+        static void pdu_receive_data_callback( const bluetoe::link_layer::write_buffer pdu )
         {
-            received_data_pdus_.push_back( pdu_t( pdu.buffer, pdu.buffer + pdu.size ) );
+            that_->received_data_pdus_.push_back( pdu_t( pdu.buffer, pdu.buffer + pdu.size ) );
         }
 
+        radio_mock_t& operator=( const radio_mock_t& ) = delete;
+        radio_mock_t( const radio_mock_t& ) = delete;
     private:
+        static radio_mock_t* that_;
         using pdu_t = std::vector< std::uint8_t >;
         std::vector< pdu_t > received_pdus_;
         std::size_t          available_transmit_buffers_;
@@ -119,6 +123,7 @@ namespace {
         std::vector< pdu_t > received_data_pdus_;
     };
 
+    radio_mock_t* radio_mock_t::that_ = nullptr;
     static constexpr std::size_t mtu_size = 100;
 
     class buffer_under_test : public bluetoe::link_layer::ll_l2cap_sdu_buffer< radio_mock_t, radio_mock_t, mtu_size >
