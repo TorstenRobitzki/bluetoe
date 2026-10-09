@@ -445,7 +445,7 @@ namespace details {
                     ( link_t::features_not_used_before_proved & remote_mask );
 
                 // do not use features that are not supported by the remote side
-                link.currently_used_features = link.currently_used_features & ( 0xff & remote_mask );
+                link.currently_used_features = link.currently_used_features & remote_mask;
 
                 write_response( link, write, remote_mask );
             });
@@ -483,10 +483,10 @@ namespace details {
             using mask_t = decltype( remote_mask );
             using link_t = std::decay_t< decltype( link ) >;
 
-            const mask_t locak_mask_0  = ( link_t::implemented_features ) & 0xff;
+            const mask_t local_mask_0  = ( link_t::implemented_features ) & 0xff;
             const mask_t remote_mask_0 = remote_mask & 0xff;
 
-            const mask_t outgoing_mask = ( locak_mask_0 & remote_mask_0 )
+            const mask_t outgoing_mask = ( local_mask_0 & remote_mask_0 )
                 | ( link_t::implemented_features & ~mask_t{0xff} );
 
             for ( auto mask = outgoing_mask; pos != response_size; mask = mask >> 8 )
@@ -510,7 +510,7 @@ namespace details {
                         ? controller_error_codes::ll_procedure_collision
                         : controller_error_codes::different_transaction_collision );
 
-            if ( static_cast< std::uint16_t >( instant - link.connection_event_counter() ) > 0x7fff
+            if ( static_cast< std::uint16_t >( instant - link.connection_event_counter() ) >= 0x7fff
                 || instant == link.connection_event_counter() )
                 return procedure_result::disconnect( controller_error_codes::instant_passed );
 
@@ -713,8 +713,13 @@ namespace details {
     struct encryption_state
     {
         bool has_key = false;
-        bool pending_start_request = false;
-        bool in_progress = false;
+
+        enum {
+            idle,
+            started,
+            waiting_start,
+            paused
+        } state = idle;
     };
 
     class encryption_request : procedure_base
@@ -743,8 +748,7 @@ namespace details {
                 fill< layout_t >( write, { llid::ll_control_pdu_code, response_size, opcodes::LL_ENC_RSP } );
 
                 encryption_state& state = link;
-                state.pending_start_request = true;
-                state.in_progress = true;
+                state.state = encryption_state::started;
 
                 bluetoe::details::uint128_t key;
                 std::tie( state.has_key, key ) = link_layer.find_key( link, ediv, rand );
@@ -766,7 +770,7 @@ namespace details {
 
             encryption_state& state = link;
 
-            if ( !state.pending_start_request )
+            if ( state.state != encryption_state::started )
                 return true;
 
             using layout_t = decltype(link.buffers)::layout;
@@ -778,13 +782,11 @@ namespace details {
                         llid::ll_control_pdu_code, response_size, opcodes::LL_START_ENC_REQ } );
 
                     link_layer.encrypt_receive( link, true );
-                    state.pending_start_request = false;
+                    state.state = encryption_state::waiting_start;
                 } ) == procedure_result::handled();
             }
 
-            state.pending_start_request = false;
-            state.in_progress = false;
-
+            state.state = encryption_state::idle;
             reject( link, opcodes::LL_ENC_REQ, controller_error_codes::pin_or_key_missing );
 
             return false;
@@ -794,22 +796,47 @@ namespace details {
         static bool encryption_change_in_progress( const LinkData& link )
         {
             const encryption_state& state = link;
-            return state.in_progress;
+            return state.state != encryption_state::idle;
         }
 
-        static bool expected_encryption_pdu( std::uint8_t pdu, std::size_t ctr_data_size )
+        static bool terminate_pdu( std::span< const std::uint8_t > pdu )
         {
-            return ( pdu == opcodes::LL_START_ENC_RSP && ctr_data_size == 0 )
-                || ( pdu == opcodes::LL_TERMINATE_IND && ctr_data_size == 1 );
+            return pdu.size() == 2 && pdu[ 0 ] == opcodes::LL_TERMINATE_IND;
+        }
+
+        static bool start_enc_rsp_pdu( std::span< const std::uint8_t > pdu )
+        {
+            return pdu.size() == 1 && pdu[ 0 ] == opcodes::LL_START_ENC_RSP;
+        }
+
+        static bool pause_enc_rsp_pdu( std::span< const std::uint8_t > pdu )
+        {
+            return pdu.size() == 1 && pdu[ 0 ] == opcodes::LL_PAUSE_ENC_RSP;
         }
 
         template < class LinkData >
         static procedure_result veto_control_pdu( const LinkData& link, std::span< const std::uint8_t > pdu )
         {
+            const encryption_state& state = link;
             assert( pdu.size() >= 1 );
 
-            if ( encryption_change_in_progress( link ) && !expected_encryption_pdu( pdu[ 0 ], pdu.size() - 1 ) )
+            // default: disconnect when not idle
+            if ( state.state != encryption_state::idle )
+            {
+                // terminate is always ok
+                if ( terminate_pdu( pdu ) )
+                    return procedure_result::handled();
+
+                // when the LL_START_ENC_REQ was send, this is what we are waiting for
+                if ( state.state == encryption_state::waiting_start && start_enc_rsp_pdu( pdu ) )
+                    return procedure_result::handled();
+
+                // if pause, we are waiting for the response
+                if ( state.state == encryption_state::paused && pause_enc_rsp_pdu( pdu ) )
+                    return procedure_result::handled();
+
                 return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
+            }
 
             return procedure_result::handled();
         }
@@ -827,6 +854,11 @@ namespace details {
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
         {
+            encryption_state& state = link;
+
+            if ( state.state != encryption_state::waiting_start )
+                return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
+
             using layout_t = decltype(link.buffers)::layout;
 
             return allocate_and_transmit( link, 1, [&]( auto write ){
@@ -837,18 +869,12 @@ namespace details {
                 if ( encryption_changed )
                     link_layer.encryption_changed( link, true );
 
-                encryption_state& state = link;
-                state.in_progress = false;
+                state.state = encryption_state::idle;
             });
         }
 
         struct state_type {};
         struct instant_state {};
-    };
-
-    struct encryption_pause_request_state
-    {
-        bool in_progress = false;
     };
 
     class encryption_pause_request : procedure_base
@@ -860,6 +886,11 @@ namespace details {
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
         {
+            encryption_state& state = link;
+
+            if ( state.state != encryption_state::idle )
+                return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
+
             using layout_t = decltype(link.buffers)::layout;
 
             return allocate_and_transmit( link, 1, [&]( auto write ){
@@ -870,36 +901,11 @@ namespace details {
                 if ( encryption_changed )
                     link_layer.encryption_changed( link, false );
 
-                state_type& state = link;
-                state.in_progress = true;
+                state.state = encryption_state::paused;
             });
         }
 
-        template < class LinkData >
-        static bool encryption_change_in_progress( const LinkData& link )
-        {
-            const state_type& state = link;
-            return state.in_progress;
-        }
-
-        static bool expected_encryption_pdu( std::uint8_t pdu, std::size_t ctr_data_size )
-        {
-            return ( pdu == opcodes::LL_PAUSE_ENC_RSP && ctr_data_size == 0 )
-                || ( pdu == opcodes::LL_TERMINATE_IND && ctr_data_size == 1 );
-        }
-
-        template < class LinkData >
-        static procedure_result veto_control_pdu( const LinkData& link, std::span< const std::uint8_t > pdu )
-        {
-            assert( pdu.size() >= 1 );
-
-            if ( encryption_change_in_progress( link ) && !expected_encryption_pdu( pdu[ 0 ], pdu.size() - 1 ) )
-                return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
-
-            return procedure_result::handled();
-        }
-
-        using state_type = encryption_pause_request_state;
+        struct state_type {};
         struct instant_state {};
     };
 
@@ -912,10 +918,14 @@ namespace details {
         template < class LinkLayer, class LinkData >
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
         {
+            encryption_state& state = link;
+
+            if ( state.state != encryption_state::paused )
+                return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
+
             link_layer.encrypt_transmit( link, false );
 
-            encryption_pause_request_state& state = link;
-            state.in_progress = false;
+            state.state = encryption_state::idle;
 
             return procedure_result::handled();
         }
@@ -1043,24 +1053,6 @@ namespace details {
             desired_connection_parameters_procedure< Interval_min, Interval_max, Latency_min, Latency_max, Timeout_min, Timeout_max > >
     {
     public:
-        using base_t = connection_parameters_procedure_base<
-            desired_connection_parameters_procedure< Interval_min, Interval_max, Latency_min, Latency_max, Timeout_min, Timeout_max > >;
-
-        static_assert( Interval_min >= base_t::interval_minimum, "Interval_min too small" );
-        static_assert( Interval_max >= base_t::interval_minimum, "Interval_max too small" );
-        static_assert( Interval_min <= base_t::interval_maximum, "Interval_min too large" );
-        static_assert( Interval_max <= base_t::interval_maximum, "Interval_max too large" );
-        static_assert( Interval_min <= Interval_max, "Interval_min should be smaller or equal to Interval_max" );
-        static_assert( Latency_max <= base_t::latency_maximum, "Latency_max is too large" );
-        static_assert( Latency_min <= base_t::latency_maximum, "Latency_min is too large" );
-        static_assert( Latency_min <= Latency_max, "Latency_min should be smaller or equal to Latency_max" );
-        static_assert( Timeout_min >= base_t::timeout_minimum, "Timeout_min too small" );
-        static_assert( Timeout_max >= base_t::timeout_minimum, "Timeout_max too small" );
-        static_assert( Timeout_min <= base_t::timeout_maximum, "Timeout_min too large" );
-        static_assert( Timeout_max <= base_t::timeout_maximum, "Timeout_max too large" );
-        static_assert( Timeout_min <= Timeout_max, "Timeout_min should be smaller or equal to Timeout_max" );
-        static_assert( Timeout_min * 8 > 2 * Interval_max * ( Latency_max + 1 ), "the Link Layer shall ensure that the Timeout is greater than 2 × Interval_Max × (Latency + 1)" );
-
         static void fill_pdu( auto& params, std::uint8_t* output, std::span< const std::uint8_t > /* pdu */)
         {
             params.min_interval = std::max( params.min_interval, Interval_min );
@@ -1095,6 +1087,25 @@ namespace details {
             bluetoe::details::write_16bit( output + 19, 0xffff );
             bluetoe::details::write_16bit( output + 21, 0xffff );
         }
+    private:
+        using base_t = connection_parameters_procedure_base<
+            desired_connection_parameters_procedure< Interval_min, Interval_max, Latency_min, Latency_max, Timeout_min, Timeout_max > >;
+
+        static_assert( Interval_min >= base_t::interval_minimum, "Interval_min too small" );
+        static_assert( Interval_max >= base_t::interval_minimum, "Interval_max too small" );
+        static_assert( Interval_min <= base_t::interval_maximum, "Interval_min too large" );
+        static_assert( Interval_max <= base_t::interval_maximum, "Interval_max too large" );
+        static_assert( Interval_min <= Interval_max, "Interval_min should be smaller or equal to Interval_max" );
+        static_assert( Latency_max <= base_t::latency_maximum, "Latency_max is too large" );
+        static_assert( Latency_min <= base_t::latency_maximum, "Latency_min is too large" );
+        static_assert( Latency_min <= Latency_max, "Latency_min should be smaller or equal to Latency_max" );
+        static_assert( Timeout_min >= base_t::timeout_minimum, "Timeout_min too small" );
+        static_assert( Timeout_max >= base_t::timeout_minimum, "Timeout_max too small" );
+        static_assert( Timeout_min <= base_t::timeout_maximum, "Timeout_min too large" );
+        static_assert( Timeout_max <= base_t::timeout_maximum, "Timeout_max too large" );
+        static_assert( Timeout_min <= Timeout_max, "Timeout_min should be smaller or equal to Timeout_max" );
+        static_assert( Timeout_min * 8 > 2 * Interval_max * ( Latency_max + 1 ), "the Link Layer shall ensure that the Timeout is greater than 2 × Interval_Max × (Latency + 1)" );
+
     };
 
     ///////////////////////

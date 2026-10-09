@@ -281,6 +281,42 @@ BOOST_AUTO_TEST_CASE( only_the_first_octet_of_the_answer_is_shared_with_the_cent
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
 }
 
+/*
+ * The features in use after the exchange: of octet 0, those both support; above it, the
+ * peripheral's own. The LL_FEATURE_REQ carries the central's complete FeatureSet, so a central
+ * with every feature has the LE 2M PHY as well, and the peripheral keeps using it; only the
+ * answer has the octet 0 rule of 5.1.4.1.
+ */
+BOOST_AUTO_TEST_CASE( the_features_in_use_keep_the_peripherals_features_above_octet_0 )
+{
+    link_layer_mock                                     link_layer;
+    link_data_mock< feature_exchange_and_phy_update >   link;
+
+    BOOST_REQUIRE( link.supports_feature( bll::details::link_layer_feature::le_2m_phy_support ) );
+
+    feature_exchange_and_phy_update::handle_control_pdu( link_layer, link, payload( feature_req ) );
+
+    BOOST_TEST( link.supports_feature( bll::details::link_layer_feature::le_2m_phy_support ) );
+    BOOST_TEST( link.supports_feature( bll::details::link_layer_feature::extended_reject_indication ) );
+}
+
+// a central with the features of octet 0 only: the LE 2M PHY is not in use anymore
+BOOST_AUTO_TEST_CASE( a_feature_the_central_lacks_is_not_in_use )
+{
+    link_layer_mock                                     link_layer;
+    link_data_mock< feature_exchange_and_phy_update >   link;
+
+    const auto request = control_pdu( {
+        0x08,                                           // LL_FEATURE_REQ
+        0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // FeatureSet: all of octet 0, no LE 2M PHY
+    } );
+
+    feature_exchange_and_phy_update::handle_control_pdu( link_layer, link, payload( request ) );
+
+    BOOST_TEST( !link.supports_feature( bll::details::link_layer_feature::le_2m_phy_support ) );
+    BOOST_TEST( link.supports_feature( bll::details::link_layer_feature::extended_reject_indication ) );
+}
+
 BOOST_AUTO_TEST_CASE( a_feature_request_stalls_without_room_for_the_answer )
 {
     link_layer_mock                             link_layer;
@@ -430,8 +466,27 @@ BOOST_AUTO_TEST_CASE( a_connection_update_with_an_instant_equal_to_the_present_e
     BOOST_TEST( link_layer.connection_updates.empty() );
 }
 
-// the largest distance ahead; no official test sends it, it follows from the signed distance
-BOOST_AUTO_TEST_CASE( an_instant_32767_events_ahead_is_pending )
+/*
+ * Core Vol 6, Part B, 5.5.1: an instant is in the past "where (Instant - connEventCount) mod
+ * 65536 is greater than or equal to 32767". 32766 ahead is the largest distance that is pending.
+ * No official test sends either; the boundary follows from the text alone.
+ */
+BOOST_AUTO_TEST_CASE( an_instant_32766_events_ahead_is_pending )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< connection_update >     link;
+
+    link.connection_event_counter_value = 100;
+
+    const auto result = connection_update::handle_control_pdu( link_layer, link, payload( connection_update_ind( 100 + 32766 ) ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+
+    run_connection_events( link_layer, link, 100 + 32766 );
+    BOOST_TEST( link_layer.connection_updates.size() == 1u );
+}
+
+BOOST_AUTO_TEST_CASE( an_instant_32767_events_ahead_has_passed )
 {
     link_layer_mock                         link_layer;
     link_data_mock< connection_update >     link;
@@ -440,13 +495,10 @@ BOOST_AUTO_TEST_CASE( an_instant_32767_events_ahead_is_pending )
 
     const auto result = connection_update::handle_control_pdu( link_layer, link, payload( connection_update_ind( 100 + 32767 ) ) );
 
-    BOOST_TEST( result == bll::details::procedure_result::handled() );
-
-    run_connection_events( link_layer, link, 100 + 32767 );
-    BOOST_TEST( link_layer.connection_updates.size() == 1u );
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( instant_passed ) );
+    BOOST_TEST( link_layer.connection_updates.empty() );
 }
 
-// 32768 ahead is a signed distance of -32768, so it has passed; this, too, follows from the signed distance only
 BOOST_AUTO_TEST_CASE( an_instant_32768_events_ahead_has_passed )
 {
     link_layer_mock                         link_layer;

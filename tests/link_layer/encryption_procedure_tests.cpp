@@ -660,6 +660,72 @@ BOOST_AUTO_TEST_CASE( a_rejection_ends_the_encryption_change )
 }
 
 /*
+ * The central's responses outside their procedure
+ *
+ * An LL_START_ENC_RSP is the central's encrypted step after the peripheral's LL_START_ENC_REQ,
+ * an LL_PAUSE_ENC_RSP its step after the peripheral's LL_PAUSE_ENC_RSP. At any other time, the
+ * PDU says that the central's encryption is out of step with the peripheral's: a central that
+ * now switches to encrypted communication can neither read the peripheral nor be read, and a
+ * plaintext link that acted on the PDU would report itself encrypted to the application while
+ * it receives plaintext. The specification does not define the case; it resolves every other
+ * mismatch of the handshake by leaving the connection with Connection Terminated Due to MIC
+ * Failure (0x3D), and so does Bluetoe.
+ */
+BOOST_AUTO_TEST_CASE( a_start_encryption_response_without_an_encryption_start_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< encryption >    link;
+
+    const auto result = encryption::handle_control_pdu( link_layer, link, payload( start_enc_rsp ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+    BOOST_TEST( !link_layer.receive_encrypted );
+    BOOST_TEST( !link_layer.transmit_encrypted );
+    BOOST_TEST( link_layer.encryption_changes.empty() );
+}
+
+/*
+ * 5.1.3.1 covers this one: after the LL_ENC_REQ, a PDU that is not the next step is unexpected.
+ * The LL_START_ENC_REQ is still waiting for room, so the LL_START_ENC_RSP comes too early.
+ */
+BOOST_AUTO_TEST_CASE( a_start_encryption_response_before_the_start_encryption_request_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< encryption >    link;
+
+    encryption::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    link.buffers.transmitted.clear();
+
+    link.buffers.room_for_an_answer = false;
+    encryption::connection_event( link_layer, link );
+    link.buffers.room_for_an_answer = true;
+
+    const auto result = encryption::handle_control_pdu( link_layer, link, payload( start_enc_rsp ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+    BOOST_TEST( !link_layer.transmit_encrypted );
+    BOOST_TEST( link_layer.encryption_changes.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( a_pause_response_without_a_pause_disconnects )
+{
+    link_layer_mock                 link_layer;
+    link_data_mock< encryption >    link;
+
+    start_encryption( link_layer, link );
+
+    const auto result = encryption::handle_control_pdu( link_layer, link, payload( pause_enc_rsp ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+    BOOST_TEST( link_layer.receive_encrypted );
+    BOOST_TEST( link_layer.transmit_encrypted );
+    BOOST_TEST( link_layer.encryption_changes.empty() );
+}
+
+/*
  * A link layer without encryption
  *
  * LL/PAC/PER/BV-01-C expects an LL_UNKNOWN_RSP for every opcode the IUT does not support. Core
