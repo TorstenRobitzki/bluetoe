@@ -98,6 +98,8 @@ namespace details {
             LL_PAUSE_ENC_RSP            = 0x0B,
             LL_VERSION_IND              = 0x0C,
             LL_REJECT_IND               = 0x0D,
+            LL_CONNECTION_PARAM_REQ     = 0x0F,
+            LL_CONNECTION_PARAM_RSP     = 0x10,
             LL_REJECT_EXT_IND           = 0x11,
             LL_PING_REQ                 = 0x12,
             LL_PING_RSP                 = 0x13,
@@ -203,6 +205,12 @@ namespace details {
             bool supports_feature( link_layer_feature feat ) const
             {
                 return currently_used_features & ( feature_flag_mask_t{1} << static_cast< int >( feat ) );
+            }
+
+            void enable_reject_ext()
+            {
+                currently_used_features = currently_used_features
+                    | ( feature_flag_mask_t{1} << static_cast< int >( link_layer_feature::extended_reject_indication ) );
             }
         };
 
@@ -701,6 +709,7 @@ namespace details {
     /*
      * Encryption
      */
+
     struct encryption_state
     {
         bool has_key = false;
@@ -920,6 +929,173 @@ namespace details {
      */
     using encryption_procedure = procedure_group<
         encryption_request, encryption_start_response, encryption_pause_request, encryption_pause_response >;
+
+    /*
+     * different flavours of connection parameter requests
+     */
+
+    template < class FillPdu >
+    class connection_parameters_procedure_base : private procedure_base
+    {
+    public:
+        static constexpr std::uint8_t  opcode        = opcodes::LL_CONNECTION_PARAM_REQ;
+        static constexpr std::uint8_t  ctr_data_size = 23;
+
+        static constexpr std::size_t   response_size = ctr_data_size + 1;
+
+        static constexpr link_layer_feature feature_flag  = link_layer_feature::connection_parameters_request_procedure;
+
+        struct state_type {};
+        struct instant_state {};
+
+        template < class LinkLayer, class LinkData >
+        static procedure_result handle_control_pdu( LinkLayer& /* link_layer */, LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            // with the peer sending a LL_CONNECTION_PARAM_REQ it proved, that it can handle LL_REJECT_EXT_IND
+            link.enable_reject_ext();
+
+            std::optional< requested_connection_parameters > params = parse_and_check_params( pdu );
+
+            if ( !params.has_value() )
+            {
+                reject( link, opcodes::LL_CONNECTION_PARAM_REQ, controller_error_codes::invalid_ll_parameters );
+                return procedure_result::handled();
+            }
+
+            return allocate_and_transmit( link, response_size, [&]( auto write ){
+                using layout_t = decltype(link.buffers)::layout;
+
+                fill< layout_t >( write, { llid::ll_control_pdu_code, response_size, opcodes::LL_CONNECTION_PARAM_RSP } );
+                FillPdu::fill_pdu( *params, layout_t::body( write ).first + 1, pdu );
+            } );
+        }
+
+    protected:
+        struct requested_connection_parameters
+        {
+            std::uint16_t min_interval;
+            std::uint16_t max_interval;
+            std::uint16_t latency;
+            std::uint16_t timeout;
+        };
+
+        static constexpr std::uint16_t interval_minimum = 6u;
+        static constexpr std::uint16_t interval_maximum = 3200u;
+        static constexpr std::uint16_t latency_maximum  = 499u;
+        static constexpr std::uint16_t timeout_minimum  = 10;
+        static constexpr std::uint16_t timeout_maximum  = 3200;
+
+        static std::optional< requested_connection_parameters >  parse_and_check_params( std::span< const std::uint8_t > pdu )
+        {
+            const std::uint8_t* const body = pdu.data();
+
+            using bluetoe::details::read_16bit;
+
+            requested_connection_parameters params;
+
+            params.min_interval = read_16bit( body + 1 );
+            params.max_interval = read_16bit( body + 3 );
+            params.latency      = read_16bit( body + 5 );
+            params.timeout      = read_16bit( body + 7 );
+
+            // check that raw data
+            if ( params.max_interval < params.min_interval
+              || params.min_interval < interval_minimum
+              || params.max_interval > interval_maximum
+              || params.latency > latency_maximum
+              || params.timeout < timeout_minimum
+              || params.timeout > timeout_maximum )
+            {
+                return {};
+            }
+
+            // the Link Layer shall ensure that the Timeout (in milliseconds)
+            // is greater than 2 × Interval_Max × (Latency + 1).
+            // timeout is given in units of 10ms interval in units of 1.25ms; 10/1.25 == 8
+            if ( params.timeout * 8 <= 2 * params.max_interval * ( params.latency + 1 ) )
+            {
+                return {};
+            }
+
+            return { params };
+        }
+    };
+
+    class connection_parameters_request_procedure
+        : public connection_parameters_procedure_base< connection_parameters_request_procedure >
+    {
+    public:
+        static void fill_pdu( const auto&, std::uint8_t* output, std::span< const std::uint8_t > pdu )
+        {
+            std::copy( pdu.begin() + 1, pdu.end(), output );
+        }
+    };
+
+    template <
+        std::uint16_t Interval_min,
+        std::uint16_t Interval_max,
+        std::uint16_t Latency_min,
+        std::uint16_t Latency_max,
+        std::uint16_t Timeout_min,
+        std::uint16_t Timeout_max >
+    class desired_connection_parameters_procedure
+        : public connection_parameters_procedure_base<
+            desired_connection_parameters_procedure< Interval_min, Interval_max, Latency_min, Latency_max, Timeout_min, Timeout_max > >
+    {
+    public:
+        using base_t = connection_parameters_procedure_base<
+            desired_connection_parameters_procedure< Interval_min, Interval_max, Latency_min, Latency_max, Timeout_min, Timeout_max > >;
+
+        static_assert( Interval_min >= base_t::interval_minimum, "Interval_min too small" );
+        static_assert( Interval_max >= base_t::interval_minimum, "Interval_max too small" );
+        static_assert( Interval_min <= base_t::interval_maximum, "Interval_min too large" );
+        static_assert( Interval_max <= base_t::interval_maximum, "Interval_max too large" );
+        static_assert( Interval_min <= Interval_max, "Interval_min should be smaller or equal to Interval_max" );
+        static_assert( Latency_max <= base_t::latency_maximum, "Latency_max is too large" );
+        static_assert( Latency_min <= base_t::latency_maximum, "Latency_min is too large" );
+        static_assert( Latency_min <= Latency_max, "Latency_min should be smaller or equal to Latency_max" );
+        static_assert( Timeout_min >= base_t::timeout_minimum, "Timeout_min too small" );
+        static_assert( Timeout_max >= base_t::timeout_minimum, "Timeout_max too small" );
+        static_assert( Timeout_min <= base_t::timeout_maximum, "Timeout_min too large" );
+        static_assert( Timeout_max <= base_t::timeout_maximum, "Timeout_max too large" );
+        static_assert( Timeout_min <= Timeout_max, "Timeout_min should be smaller or equal to Timeout_max" );
+        static_assert( Timeout_min * 8 > 2 * Interval_max * ( Latency_max + 1 ), "the Link Layer shall ensure that the Timeout is greater than 2 × Interval_Max × (Latency + 1)" );
+
+        static void fill_pdu( auto& params, std::uint8_t* output, std::span< const std::uint8_t > /* pdu */)
+        {
+            params.min_interval = std::max( params.min_interval, Interval_min );
+            params.max_interval = std::min( params.max_interval, Interval_max );
+
+            if ( params.min_interval > params.max_interval )
+            {
+                params.min_interval = Interval_min;
+                params.max_interval = Interval_max;
+            }
+
+            if ( params.latency < Latency_min || params.latency > Latency_max )
+            {
+                params.latency = ( Latency_min + Latency_max ) / 2;
+            }
+
+            if ( params.timeout < Timeout_min || params.timeout > Timeout_max )
+            {
+                params.timeout = ( Timeout_min + Timeout_max ) / 2;
+            }
+
+            bluetoe::details::write_16bit( output, params.min_interval );
+            bluetoe::details::write_16bit( output + 2, params.max_interval );
+            bluetoe::details::write_16bit( output + 4, params.latency );
+            bluetoe::details::write_16bit( output + 6, params.timeout );
+            output[ 8 ] = 0;
+            bluetoe::details::write_16bit( output + 9, 0 );
+            bluetoe::details::write_16bit( output + 11, 0xffff );
+            bluetoe::details::write_16bit( output + 13, 0xffff );
+            bluetoe::details::write_16bit( output + 15, 0xffff );
+            bluetoe::details::write_16bit( output + 17, 0xffff );
+            bluetoe::details::write_16bit( output + 19, 0xffff );
+            bluetoe::details::write_16bit( output + 21, 0xffff );
+        }
+    };
 
     ///////////////////////
     // implementation
