@@ -36,6 +36,12 @@ namespace {
 
     using encryption         = bll::details::procedure_list< bll::details::encryption_procedure >;
 
+    // the encryption next to procedures the central may start while the encryption starts
+    using encryption_and_more = bll::details::procedure_list<
+        bll::details::encryption_procedure,
+        bll::details::version_exchange_procedure,
+        bll::details::termination_procedure >;
+
     // the encryption next to a procedure with an instant
     using encryption_and_connection_update = bll::details::procedure_list<
         bll::details::encryption_procedure,
@@ -1572,4 +1578,229 @@ BOOST_AUTO_TEST_CASE( the_encryption_brings_the_le_encryption_feature )
     } );
 
     BOOST_TEST( link.buffers.transmitted[ 0 ] == feature_rsp );
+}
+
+/*
+ * Unexpected PDUs while the encryption starts or pauses
+ *
+ * Core Vol 6, Part B, 5.1.3.1: from the receipt of the LL_ENC_REQ until the encryption start is
+ * complete, the central only sends Empty PDUs, LL_TERMINATE_IND and the PDUs of the procedure.
+ * "If, at any time during the encryption start procedure after the Peripheral has received the
+ * LL_ENC_REQ PDU [...] the Link Layer of the Central or the Peripheral receives an unexpected
+ * Data Physical Channel PDU from the peer Link Layer, it shall immediately exit the Connection
+ * state [...] with the error code Connection Terminated Due to MIC Failure (0x3D)." 5.1.3.2 says
+ * the same for the pause, from the receipt of the LL_PAUSE_ENC_REQ. LL/SEC/PER/BI-05-C sends an
+ * LL_VERSION_IND, LL/SEC/PER/BI-07-C an unencrypted data PDU.
+ *
+ * The list sees only control PDUs. The link layer asks encryption_change_in_progress(): while
+ * it is true, a received data PDU ends the connection with 0x3D, and no new data PDU is sent.
+ */
+namespace {
+    // Core Vol 1, Part F: error code 0x3D, Connection Terminated Due to MIC Failure
+    constexpr std::uint8_t mic_failure = 0x3D;
+}
+
+// LL/SEC/PER/BI-05-C
+BOOST_AUTO_TEST_CASE( a_version_indication_after_the_encryption_request_disconnects )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    link.buffers.transmitted.clear();
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( version_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+// the same, once the peripheral has sent its LL_START_ENC_REQ
+BOOST_AUTO_TEST_CASE( a_version_indication_after_the_start_encryption_request_disconnects )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    encryption_and_more::connection_event( link_layer, link );
+    link.buffers.transmitted.clear();
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( version_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+// an unknown opcode is unexpected too, and gets no LL_UNKNOWN_RSP
+BOOST_AUTO_TEST_CASE( an_unknown_opcode_during_the_encryption_start_disconnects )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    link.buffers.transmitted.clear();
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( ping_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+// the central may end the connection at any time
+BOOST_AUTO_TEST_CASE( a_terminate_indication_during_the_encryption_start_ends_the_connection_as_usual )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( terminate_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( 0x13 ) );
+}
+
+BOOST_AUTO_TEST_CASE( after_the_encryption_start_a_version_indication_is_answered )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    start_encryption( link_layer, link );
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( version_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == own_version_ind );
+}
+
+// with the rejection, the encryption start is over
+BOOST_AUTO_TEST_CASE( after_a_rejected_encryption_request_a_version_indication_is_answered )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    link_layer.has_key = false;
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    encryption_and_more::connection_event( link_layer, link );
+    link.buffers.transmitted.clear();
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( version_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == own_version_ind );
+}
+
+BOOST_AUTO_TEST_CASE( a_version_indication_during_the_pause_disconnects )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    start_encryption( link_layer, link );
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( pause_enc_req ) );
+    link.buffers.transmitted.clear();
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( version_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::disconnect( mic_failure ) );
+    BOOST_TEST( link.buffers.transmitted.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( after_the_pause_a_version_indication_is_answered )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    start_encryption( link_layer, link );
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( pause_enc_req ) );
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( pause_enc_rsp ) );
+    link.buffers.transmitted.clear();
+
+    const auto result = encryption_and_more::handle_control_pdu( link_layer, link, payload( version_ind ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == own_version_ind );
+}
+
+// LL/SEC/PER/BI-07-C: the change lasts from LL_ENC_REQ and from LL_PAUSE_ENC_REQ until the procedure is complete
+BOOST_AUTO_TEST_CASE( an_encryption_change_is_in_progress_while_the_encryption_starts_or_pauses )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    BOOST_TEST( !encryption_and_more::encryption_change_in_progress( link ) );
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    BOOST_TEST( encryption_and_more::encryption_change_in_progress( link ) );
+
+    encryption_and_more::connection_event( link_layer, link );
+    BOOST_TEST( encryption_and_more::encryption_change_in_progress( link ) );
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( start_enc_rsp ) );
+    BOOST_TEST( !encryption_and_more::encryption_change_in_progress( link ) );
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( pause_enc_req ) );
+    BOOST_TEST( encryption_and_more::encryption_change_in_progress( link ) );
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( pause_enc_rsp ) );
+    BOOST_TEST( !encryption_and_more::encryption_change_in_progress( link ) );
+}
+
+// with the rejection, the encryption start is over, and data flows unencrypted again
+BOOST_AUTO_TEST_CASE( a_rejection_ends_the_encryption_change )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< encryption_and_more >   link;
+
+    link_layer.has_key = false;
+
+    encryption_and_more::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    BOOST_TEST( encryption_and_more::encryption_change_in_progress( link ) );
+
+    encryption_and_more::connection_event( link_layer, link );
+    BOOST_TEST( !encryption_and_more::encryption_change_in_progress( link ) );
+}
+
+/*
+ * A link layer without encryption
+ *
+ * LL/PAC/PER/BV-01-C expects an LL_UNKNOWN_RSP for every opcode the IUT does not support. Core
+ * Vol 6, Part B, 5.1.3.1 asks a peripheral without encryption to reject an LL_ENC_REQ with
+ * Unsupported Remote Feature (0x1A) instead. Bluetoe follows the test: without the encryption in
+ * the list, LL_ENC_REQ is an unknown opcode like any other.
+ */
+BOOST_AUTO_TEST_CASE( without_encryption_an_encryption_request_is_unknown )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< version_exchange >      link;
+
+    const auto result = version_exchange::handle_control_pdu( link_layer, link, payload( enc_req ) );
+
+    BOOST_TEST( result == bll::details::procedure_result::handled() );
+    BOOST_REQUIRE_EQUAL( link.buffers.transmitted.size(), 1u );
+
+    const auto unknown_rsp = control_pdu( {
+        0x07,               // LL_UNKNOWN_RSP
+        0x03                // UnknownType: LL_ENC_REQ
+    } );
+
+    BOOST_TEST( link.buffers.transmitted[ 0 ] == unknown_rsp );
+}
+
+// without the encryption, there is never an encryption change, and data PDUs always pass
+BOOST_AUTO_TEST_CASE( without_encryption_no_encryption_change_is_in_progress )
+{
+    link_layer_mock                         link_layer;
+    link_data_mock< version_exchange >      link;
+
+    BOOST_TEST( !version_exchange::encryption_change_in_progress( link ) );
+
+    version_exchange::handle_control_pdu( link_layer, link, payload( enc_req ) );
+    version_exchange::handle_control_pdu( link_layer, link, payload( pause_enc_req ) );
+
+    BOOST_TEST( !version_exchange::encryption_change_in_progress( link ) );
 }

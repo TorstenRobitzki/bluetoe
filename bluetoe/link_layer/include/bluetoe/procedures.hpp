@@ -239,7 +239,22 @@ namespace details {
         static void connection_reset( LinkData& link )
             requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
 
+        /**
+         * @brief Returns true, if the encryption is currently changed and no data PDUs are expected
+         *
+         * The link layer is expected to check encryption_change_in_progress() for every incoming data PDU
+         * and close the connection with error code 0x3D and to hold back all outgoing data PDUs if
+         * encryption_change_in_progress() returns true.
+         */
+        template < class LinkData >
+        static bool encryption_change_in_progress( const LinkData& link )
+            requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
+
     private:
+        template < class LinkData >
+        static procedure_result veto_control_pdu( LinkData& link, std::span< const std::uint8_t > pdu )
+            requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
+
         template < class LinkLayer, class LinkData >
         static bool send_pending_reject( LinkLayer&, LinkData& link )
             requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >;
@@ -690,6 +705,7 @@ namespace details {
     {
         bool has_key = false;
         bool pending_start_request = false;
+        bool in_progress = false;
     };
 
     class encryption_request : procedure_base
@@ -717,9 +733,11 @@ namespace details {
 
                 fill< layout_t >( write, { llid::ll_control_pdu_code, response_size, opcodes::LL_ENC_RSP } );
 
-                bluetoe::details::uint128_t key;
                 encryption_state& state = link;
                 state.pending_start_request = true;
+                state.in_progress = true;
+
+                bluetoe::details::uint128_t key;
                 std::tie( state.has_key, key ) = link_layer.find_key( link, ediv, rand );
 
                 // setup encryption
@@ -756,9 +774,35 @@ namespace details {
             }
 
             state.pending_start_request = false;
+            state.in_progress = false;
+
             reject( link, opcodes::LL_ENC_REQ, controller_error_codes::pin_or_key_missing );
 
             return false;
+        }
+
+        template < class LinkData >
+        static bool encryption_change_in_progress( const LinkData& link )
+        {
+            const encryption_state& state = link;
+            return state.in_progress;
+        }
+
+        static bool expected_encryption_pdu( std::uint8_t pdu, std::size_t ctr_data_size )
+        {
+            return ( pdu == opcodes::LL_START_ENC_RSP && ctr_data_size == 0 )
+                || ( pdu == opcodes::LL_TERMINATE_IND && ctr_data_size == 1 );
+        }
+
+        template < class LinkData >
+        static procedure_result veto_control_pdu( const LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            assert( pdu.size() >= 1 );
+
+            if ( encryption_change_in_progress( link ) && !expected_encryption_pdu( pdu[ 0 ], pdu.size() - 1 ) )
+                return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
+
+            return procedure_result::handled();
         }
 
         using state_type = encryption_state;
@@ -784,11 +828,18 @@ namespace details {
                 if ( encryption_changed )
                     link_layer.encryption_changed( link, true );
 
+                encryption_state& state = link;
+                state.in_progress = false;
             });
         }
 
         struct state_type {};
         struct instant_state {};
+    };
+
+    struct encryption_pause_request_state
+    {
+        bool in_progress = false;
     };
 
     class encryption_pause_request : procedure_base
@@ -810,10 +861,36 @@ namespace details {
                 if ( encryption_changed )
                     link_layer.encryption_changed( link, false );
 
+                state_type& state = link;
+                state.in_progress = true;
             });
         }
 
-        struct state_type {};
+        template < class LinkData >
+        static bool encryption_change_in_progress( const LinkData& link )
+        {
+            const state_type& state = link;
+            return state.in_progress;
+        }
+
+        static bool expected_encryption_pdu( std::uint8_t pdu, std::size_t ctr_data_size )
+        {
+            return ( pdu == opcodes::LL_PAUSE_ENC_RSP && ctr_data_size == 0 )
+                || ( pdu == opcodes::LL_TERMINATE_IND && ctr_data_size == 1 );
+        }
+
+        template < class LinkData >
+        static procedure_result veto_control_pdu( const LinkData& link, std::span< const std::uint8_t > pdu )
+        {
+            assert( pdu.size() >= 1 );
+
+            if ( encryption_change_in_progress( link ) && !expected_encryption_pdu( pdu[ 0 ], pdu.size() - 1 ) )
+                return procedure_result::disconnect( controller_error_codes::connection_terminated_due_to_mic_failure );
+
+            return procedure_result::handled();
+        }
+
+        using state_type = encryption_pause_request_state;
         struct instant_state {};
     };
 
@@ -827,6 +904,9 @@ namespace details {
         static procedure_result handle_control_pdu( LinkLayer& link_layer, LinkData& link, std::span< const std::uint8_t > /* pdu */ )
         {
             link_layer.encrypt_transmit( link, false );
+
+            encryption_pause_request_state& state = link;
+            state.in_progress = false;
 
             return procedure_result::handled();
         }
@@ -853,14 +933,19 @@ namespace details {
         if ( pdu.size() == 0 )
             return procedure_result::handled();
 
+        const std::uint8_t opcode = pdu[ 0 ];
+        [[maybe_unused]] const std::size_t  ctr_data_size = pdu.size() - 1;
+
+        // there are states, where certain PDUs lead to disconnection
+        procedure_result result = veto_control_pdu( link, pdu );
+        if ( result.outcome == procedure_outcome::disconnect )
+            return result;
+
         if ( link.pending_reject.has_value() )
             return procedure_result::stalled();
 
-        const std::uint8_t opcode = pdu[ 0 ];
-
-        procedure_result result;
         const bool found =
-            ( ... || ( Procs::opcode == opcode && Procs::ctr_data_size + 1 == pdu.size()
+            ( ... || ( Procs::opcode == opcode && Procs::ctr_data_size == ctr_data_size
             && ( result = Procs::handle_control_pdu( link_layer, link, pdu ), true ) ) );
 
         if ( found )
@@ -904,8 +989,7 @@ namespace details {
         requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
     {
         procedure_result result = procedure_result::handled();
-
-        state_type& state = link;
+        state_type&      state  = link;
 
         if ( state.procedures_instant.has_value() && *state.procedures_instant == link.connection_event_counter() )
         {
@@ -940,6 +1024,49 @@ namespace details {
         requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
     {
         static_cast< state_type& >( link ) = state_type();
+    }
+
+    template < class Proc, class LinkData >
+    bool call_procedure_encryption_change_in_progress( const LinkData& link )
+    {
+        if constexpr ( requires { Proc::encryption_change_in_progress( link ); } )
+        {
+            return Proc::encryption_change_in_progress( link );
+        }
+
+        return false;
+    }
+
+    template < class ... Procs >
+    template < class LinkData >
+    bool procedure_list_impl< std::tuple< Procs... > >::encryption_change_in_progress( const LinkData& link )
+        requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
+    {
+        return ( false || ... || call_procedure_encryption_change_in_progress< Procs >( link ) );
+    }
+
+    template < class Proc, class LinkData >
+    bool call_procedure_veto_control_pdu( LinkData& link, std::span< const std::uint8_t > pdu, procedure_result& result )
+    {
+        if constexpr ( requires { Proc::veto_control_pdu( link, pdu ); } )
+        {
+            result = Proc::veto_control_pdu( link, pdu );
+
+            return result.outcome == procedure_outcome::disconnect;
+        }
+
+        return false;
+    }
+
+    template < class ... Procs >
+    template < class LinkData >
+    procedure_result procedure_list_impl< std::tuple< Procs... > >::veto_control_pdu( [[maybe_unused]] LinkData& link, [[maybe_unused]] std::span< const std::uint8_t > pdu )
+        requires procedure_list_link_data< LinkData, procedure_list_impl< std::tuple< Procs... > > >
+    {
+        procedure_result result = procedure_result::handled();
+        [[maybe_unused]] const bool check = ( false || ... || call_procedure_veto_control_pdu< Procs >( link, pdu, result ) );
+
+        return result;
     }
 
     template < class ... Procs >
